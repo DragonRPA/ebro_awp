@@ -27,7 +27,6 @@ export async function fetchLocalPrintersFromAgent(): Promise<LocalAgentPrintersR
   try {
     const res = await fetchWithAgentFallback('/api/printers', {
       method: 'GET',
-      signal: AbortSignal.timeout(2500),
       cache: 'no-store'
     });
     if (res.ok) {
@@ -57,7 +56,6 @@ export async function fetchLocalStationConfigFromAgent(): Promise<LocalStationCo
   try {
     const res = await fetchWithAgentFallback('/api/station-config', {
       method: 'GET',
-      signal: AbortSignal.timeout(2000),
       cache: 'no-store'
     });
     if (res.ok) {
@@ -69,7 +67,7 @@ export async function fetchLocalStationConfigFromAgent(): Promise<LocalStationCo
 }
 
 /**
- * 로컬 에이전트(/api/print-direct)로 직접 즉시 인쇄 전송 (지연 없는 다이렉트 출력)
+ * 로컬 에이전트(/api/print-direct)로 직접 즉시 인쇄 전송 (타임아웃 없이 완료까지 대기)
  */
 export async function printDirectToLocalAgent(params: {
   printerName: string;
@@ -80,8 +78,7 @@ export async function printDirectToLocalAgent(params: {
     const res = await fetchWithAgentFallback('/api/print-direct', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(10000)
+      body: JSON.stringify(params)
     });
     return res.ok;
   } catch {
@@ -97,8 +94,7 @@ export async function saveStationConfigToAgent(config: LocalStationConfig): Prom
     const res = await fetchWithAgentFallback('/api/station-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-      signal: AbortSignal.timeout(3000)
+      body: JSON.stringify(config)
     });
     return res.ok;
   } catch (e) {

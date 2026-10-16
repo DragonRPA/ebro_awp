@@ -542,16 +542,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         setProgressText(`에이전트 큐(${jobId})에서 엑셀 조립 및 PDF 병합 진행 중...`);
         setProgressPercent(50);
 
-        let pollAttempts = 0;
         let nullJobCount = 0;
-        while (pollAttempts < 150) {
-          pollAttempts++;
+        while (true) {
           await new Promise(r => setTimeout(r, 1200));
           try {
             const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
               method: 'GET',
-              skipPrecheck: true,
-              timeout: 8000
+              skipPrecheck: true
             });
             if (pollResp.ok) {
               const pollData = await pollResp.json();
@@ -579,9 +576,6 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             }
             // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
-        }
-        if (agentRes.queued) {
-          throw new Error('계약서패키지 PDF 생성 대기 시간(180초)이 초과되었습니다.');
         }
       }
 

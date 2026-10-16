@@ -501,8 +501,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                     setSyncMessage('CF 버킷 동기화 중...');
                     try {
                       const agentRes = await fetchWithAgentFallback('/api/trigger-sync', {
-                        method: 'POST',
-                        signal: AbortSignal.timeout(15000)
+                        method: 'POST'
                       });
                       if (agentRes.ok) {
                         const data = await agentRes.json();

@@ -138,8 +138,7 @@ export async function executeDriveMirrorSync(
     onProgress?.('로컬 에이전트 버킷 스캔 및 다운로드 요청 중...', 0, 0);
 
     const agentRes = await fetchWithAgentFallback('/api/trigger-sync', {
-      method: 'POST',
-      signal: AbortSignal.timeout(20000)
+      method: 'POST'
     });
 
     if (agentRes.ok) {
@@ -303,8 +302,7 @@ export async function executeDriveMirrorSync(
 export async function getLocalMirrorStatus(): Promise<{ success: boolean; files: Array<{ name: string; size: number; modifiedTime: string }>; mirrorPath?: string }> {
   try {
     const res = await fetchWithAgentFallback('/api/mirror-status', {
-      method: 'GET',
-      signal: AbortSignal.timeout(1500)
+      method: 'GET'
     });
     if (res.ok) {
       return await res.json();

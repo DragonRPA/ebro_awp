@@ -519,16 +519,13 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
       let agentRes = await agentResp.json();
       if (agentRes.queued && agentRes.jobId) {
         const jobId = agentRes.jobId;
-        let pollAttempts = 0;
         let nullJobCount = 0;
-        while (pollAttempts < 150) {
-          pollAttempts++;
+        while (true) {
           await new Promise(r => setTimeout(r, 1000));
           try {
             const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
               method: 'GET',
-              skipPrecheck: true,
-              timeout: 8000
+              skipPrecheck: true
             });
             if (pollResp.ok) {
               const pollData = await pollResp.json();
@@ -554,9 +551,6 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
             }
             // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
-        }
-        if (agentRes.queued) {
-          throw new Error('거래명세서 PDF 생성 대기 시간(150초)이 초과되었습니다.');
         }
       }
       if (agentRes.success && agentRes.base64Content) {

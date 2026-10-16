@@ -464,16 +464,14 @@ async function checkAndApplyUpdate(force = false) {
 setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
 setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 12 * 3600 * 1000);
 
-// ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지) ──
+// ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지 & 인위적 타임아웃 없음) ──
 function runCommandAsync(cmd, options = {}) {
   return new Promise((resolve, reject) => {
-    const timeoutMs = options.timeout || 120000;
-    const child = exec(cmd, {
+    exec(cmd, {
       cwd: options.cwd,
       encoding: 'utf8',
       windowsHide: true,
-      maxBuffer: 20 * 1024 * 1024,
-      timeout: timeoutMs
+      maxBuffer: 50 * 1024 * 1024
     }, (err, stdout, stderr) => {
       if (err) {
         return reject(new Error(stderr?.trim() || err.message || '프로세스 실행 오류'));
@@ -538,15 +536,15 @@ async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기�
 
   const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${userProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
   try {
-    await runCommandAsync(edgeCmd, { timeout: 20000 });
+    await runCommandAsync(edgeCmd);
   } catch (cmdErr) {
     agentLog('WARN', 'Edge 변환 프로세스 경고 (비동기 완료 대기 진입): ' + cmdErr.message);
   }
 
-  // PDF 파일 생성 및 디스크 기록 완결 대기 (최대 12초 비동기 폴링 — 이벤트 루프 블로킹 없음)
+  // PDF 파일 생성 및 디스크 기록 완결 대기 (비동기 폴링 — 이벤트 루프 블로킹 없음)
   const startWait = Date.now();
   let pdfReady = false;
-  while (Date.now() - startWait < 12000) {
+  while (Date.now() - startWait < 30000) {
     if (fs.existsSync(tempPrintPdf) && fs.statSync(tempPrintPdf).size > 0) {
       pdfReady = true;
       break;
@@ -577,11 +575,11 @@ async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기�
   if (sumatraExe) {
     agentLog('PRINT', `하드웨어 스풀러 전송 [SumatraPDF 64bit -> ${printerName}]`);
     const sumatraCmd = `"${sumatraExe}" -print-to "${printerName}" -silent "${tempPrintPdf}"`;
-    await runCommandAsync(sumatraCmd, { timeout: 25000 });
+    await runCommandAsync(sumatraCmd);
   } else {
     agentLog('WARN', `SumatraPDF 부재로 OS 기본 스풀러 시도 -> [${printerName}]`);
     const psCmd = `Start-Process -FilePath "${tempPrintPdf}" -Verb PrintTo -ArgumentList '"${printerName}"' -NoNewWindow`;
-    await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`, { timeout: 15000 });
+    await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`);
   }
 
   agentLog('PRINT', `물리 프린터 스풀 전송 완료: [${printerName}]`);
@@ -882,7 +880,7 @@ $excel.Quit()
     const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
     fs.writeFileSync(psFile, psScript, 'utf8');
 
-    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, timeout: 600000 });
+    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
 
     const { PDFDocument } = require('pdf-lib');
 
@@ -1144,8 +1142,7 @@ $excel.Quit()
     fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
 
     await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
-      cwd: tempBuildDir,
-      timeout: 60000
+      cwd: tempBuildDir
     });
 
     const statementPdfPath = path.join(tempBuildDir, '거래명세서.pdf');
@@ -1878,7 +1875,7 @@ const server = http.createServer(async (req, res) => {
     (async () => {
       try {
         const psCmd = 'Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default | ConvertTo-Json';
-        const output = (await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`, { timeout: 10000 })).trim();
+        const output = (await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`)).trim();
         let printerData = [];
         try {
           const parsed = JSON.parse(output || '[]');

@@ -309,11 +309,9 @@ export async function backupToGoogleDrive(
 // 2f. 파일 캐시 확인 및 구글 드라이브 다운로드 (브라우저/에이전트 캐시 우선 헬퍼) ───
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fetchDriveFileCacheFirst(fileId: string, fileName: string): Promise<ArrayBuffer> {
-  // 1. 로컬 에이전트 캐시 우선 요청 (확장 프로그램/루프백 폴백 지원)
+  // 1. 로컬 에이전트 캐시 우선 요청 (사전 생존 확인 후 타임아웃 없이 완료까지 대기)
   try {
-    const res = await fetchWithAgentFallback(`/api/get-file?fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(fileName)}`, {
-      signal: AbortSignal.timeout(3000)
-    });
+    const res = await fetchWithAgentFallback(`/api/get-file?fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(fileName)}`);
     if (res.ok) {
       const buf = await res.arrayBuffer();
       if (buf.byteLength > 100) return buf;

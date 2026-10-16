@@ -126,8 +126,7 @@ export function launchLocalAgentFromBrowser(): void {
 export async function openAgentStudio(): Promise<boolean> {
   try {
     const res = await fetchWithAgentFallback('/api/launch-studio', {
-      method: 'POST',
-      signal: AbortSignal.timeout(2000)
+      method: 'POST'
     });
     if (res.ok) return true;
   } catch (e) {}
@@ -187,8 +186,7 @@ export async function syncTenantPolicyToAgent(tenant?: {
         agentAiEnabled: isAiEnabled,
         tenantCode: code,
         subdomain: sub
-      }),
-      signal: AbortSignal.timeout(1500)
+      })
     });
     return res.ok;
   } catch (e) {
@@ -304,12 +302,13 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
 
     window.addEventListener('message', handler);
 
-    // 명시적 timeoutMs가 지정된 경우 해당 값 사용, 미지정(0)인 경우에도 확장 프로그램 서비스 워커 슬립 방지를 위해 최대 15초 안전 타임아웃 적용
-    const safeBridgeTimeout = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 15000;
-    timer = setTimeout(() => {
-      window.removeEventListener('message', handler);
-      reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
-    }, safeBridgeTimeout);
+    // 명시적 양수 timeoutMs가 지정된 경우(예: /health 핑)에만 타이머 작동, 본 작업(0 또는 미지정)은 완료까지 무제한 대기
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timer = setTimeout(() => {
+        window.removeEventListener('message', handler);
+        reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
+      }, timeoutMs);
+    }
 
     if (init?.signal) {
       if (init.signal.aborted) {
@@ -344,7 +343,7 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
         method: init?.method || 'GET',
         headers: headerObj,
         body: typeof init?.body === 'string' ? init.body : undefined,
-        timeout: safeBridgeTimeout
+        timeout: typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 0
       }
     }, '*');
   });
@@ -626,8 +625,7 @@ export async function executeWebAgentCommand(prompt: string): Promise<any> {
 export async function restartLocalAgent(): Promise<boolean> {
   try {
     const res = await fetchWithAgentFallback('/restart', {
-      method: 'POST',
-      signal: AbortSignal.timeout(2000)
+      method: 'POST'
     });
     return res.ok;
   } catch (e) {
@@ -642,8 +640,7 @@ export async function restartLocalAgent(): Promise<boolean> {
 export async function triggerAgentSelfUpdate(force: boolean = false): Promise<{ success: boolean; message?: string; updateState?: any }> {
   try {
     const res = await fetchWithAgentFallback(`/api/check-update?force=${force ? 'true' : 'false'}`, {
-      method: 'POST',
-      signal: AbortSignal.timeout(5000)
+      method: 'POST'
     });
     if (res.ok) {
       const data = await res.json();
