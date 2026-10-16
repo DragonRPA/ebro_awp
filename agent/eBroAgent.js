@@ -581,6 +581,425 @@ function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리�
 // ── HTTP 요청 핸들러 ──
 let activeCallsign = CALLSIGN;
 
+// ── [백그라운드 시스템 작업 큐 (Excel COM 조립 / 이메일 발송 비동기 완수 워커) - 모듈 전역 스코프 유지] ──
+const systemJobQueue = [];
+let isSystemJobWorkerRunning = false;
+
+async function executeSendEmailInternal(payload) {
+  const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
+
+  if (!to || !subject || !body) {
+    throw new Error('수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.');
+  }
+
+  const cleanEmail = String(googleEmail || '').trim();
+  const cleanPass = String(gmailAppPassword || '').replace(/\s+/g, '').trim();
+
+  if (!cleanEmail || !cleanPass) {
+    throw new Error('발송 계정 이메일과 앱 비밀번호가 필요합니다.');
+  }
+
+  const nodemailer = require('nodemailer');
+
+  let resolvedHost = smtpHost;
+  let resolvedPort = Number(smtpPort) || 465;
+  const emailLower = cleanEmail.toLowerCase();
+
+  if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
+    const provider = (smtpProvider || '').toUpperCase();
+    if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
+      resolvedHost = 'smtp.naver.com';
+      resolvedPort = resolvedPort || 465;
+    } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
+      resolvedHost = 'smtp.daum.net';
+      resolvedPort = resolvedPort || 465;
+    } else {
+      resolvedHost = 'smtp.gmail.com';
+      resolvedPort = resolvedPort || 465;
+    }
+  }
+
+  const isSecure = resolvedPort === 465;
+
+  agentLog('SMTP', `메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail} -> To=${to}${cc ? ` (CC: ${cc})` : ''}`);
+
+  const transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: resolvedPort,
+    secure: isSecure,
+    auth: { user: cleanEmail, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000
+  });
+
+  const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+    if (att.localPath) {
+      if (fs.existsSync(att.localPath)) {
+        return {
+          filename: att.filename || path.basename(att.localPath),
+          path: att.localPath,
+          contentType: att.contentType || 'application/pdf'
+        };
+      }
+    }
+    const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
+    return {
+      filename: att.filename || '계약서.pdf',
+      content: Buffer.from(base64Data, 'base64'),
+      contentType: att.contentType || 'application/pdf'
+    };
+  }) : undefined;
+
+  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+
+  const info = await transporter.sendMail({
+    from: `"${senderDisplayName}" <${cleanEmail}>`,
+    to: String(to).trim(),
+    cc: cc ? String(cc).trim() : undefined,
+    subject: String(subject).trim(),
+    text: String(body),
+    attachments: parsedAttachments
+  });
+
+  agentLog('SMTP', `메일 발송 완료: To=${to} (MessageId: ${info.messageId})`);
+  return { success: true, messageId: info.messageId, accepted: info.accepted };
+}
+
+async function executeContractBundleInternal(payload) {
+  const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+  try {
+    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+
+    const custName = payload.customerName || '고객사';
+    const bizRegNo = payload.bizRegNo || '등록번호미지정';
+    const ceoName = payload.ceoName || '대표자';
+    const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
+    const siteName = payload.siteName || '현장미지정';
+    const siteAddress = payload.siteAddress || '';
+    const managerName = payload.managerName || '현장담당자';
+    const managerPhone = payload.managerPhone || '010-0000-0000';
+    const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
+    const remarksText = payload.remarksText || '안전발판 지급';
+    const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
+    let inspectionDate = payload.inspectionDate;
+    if (!inspectionDate) {
+      try {
+        const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
+        const d = new Date(cleanD);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() - 2);
+          inspectionDate = d.toISOString().split('T')[0];
+        } else {
+          inspectionDate = contractDate;
+        }
+      } catch (e) {
+        inspectionDate = contractDate;
+      }
+    }
+
+    const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
+      { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
+    ];
+
+    const primaryAsset = assets[0];
+    const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
+
+    const psScript = `\ufeff
+$ErrorActionPreference = 'Stop'
+
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false
+$excel.DisplayAlerts = $false
+$excel.ScreenUpdating = $false
+$excel.EnableEvents = $false
+$excel.Interactive = $false
+
+function Replace-Tag($targetWs, $tag, $val) {
+  $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
+}
+
+# --- 1. 마스터 파일 복사 및 열기 ---
+$masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\01.계약서패키지_마스터.xlsx'
+$masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.마스터_작업용.xlsx'
+$masterPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약서패키지.pdf'
+Copy-Item $masterIn $masterWork -Force
+$wb = $excel.Workbooks.Open($masterWork)
+
+function Get-SheetByKeyword($workbook, $keyword, $fallbackIndex) {
+    foreach ($sheet in $workbook.Sheets) {
+        if ($sheet.Name -match $keyword) {
+            return $sheet
+        }
+    }
+    return $workbook.Sheets.Item($fallbackIndex)
+}
+
+$wsContract = Get-SheetByKeyword $wb "계약서" 1
+$wsChecklistBase = Get-SheetByKeyword $wb "반입전|체크리스트" 2
+$wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
+
+# --- 2. 계약서 데이터 주입 (Sheet 1) ---
+Replace-Tag $wsContract "{Today}" "${contractDate}"
+Replace-Tag $wsContract "{사업자등록번호}" "${bizRegNo}"
+Replace-Tag $wsContract "{고객명}" "${custName}"
+Replace-Tag $wsContract "{대표자}" "${ceoName}"
+Replace-Tag $wsContract "{현장명}" "${siteName}"
+Replace-Tag $wsContract "{하차일시}" "${contractDate}"
+Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
+Replace-Tag $wsContract "{현장담당자}" "${managerName}"
+Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"
+Replace-Tag $wsContract "{모델명}" "${primaryAsset.modelName}"
+Replace-Tag $wsContract "{수량}" "${assets.length}"
+Replace-Tag $wsContract "{SN}" "${primaryAsset.sn}"
+Replace-Tag $wsContract "{관리번호}" "${primaryAsset.assetNo}"
+Replace-Tag $wsContract "{임대료}" "${(primaryAsset.rentalFee || 390000).toLocaleString()}"
+Replace-Tag $wsContract "{소계}" "${totalRentalFee.toLocaleString()}"
+Replace-Tag $wsContract "{합계}" "₩${totalRentalFee.toLocaleString()}"
+Replace-Tag $wsContract "{옵션}" "${optionsText}"
+Replace-Tag $wsContract "{특이사항}" "${remarksText}"
+
+if (${assets.length} -gt 12) {
+    $extraRows = ${assets.length} - 12
+    for ($k = 0; $k -lt $extraRows; $k++) {
+        $wsContract.Rows.Item(54).Copy()
+        $null = $wsContract.Rows.Item(55).Insert(-4167)
+    }
+}
+
+` + assets.map((ast, idx) => {
+  const row = 44 + idx;
+  const aModel = ast.modelName || 'GS-2646';
+  const aSn = ast.sn ? String(ast.sn) : '';
+  const aNo = ast.assetNo || '';
+  const aFee = (ast.rentalFee || 480000).toLocaleString();
+  return `
+$wsContract.Cells.Item(${row}, 1).Value2 = "${aModel}"
+$wsContract.Cells.Item(${row}, 3).Value2 = "1"
+$wsContract.Cells.Item(${row}, 4).Value2 = "${aSn}\`r\`n${aNo}"
+$wsContract.Cells.Item(${row}, 5).Value2 = "${aFee}"
+$wsContract.Cells.Item(${row}, 7).Value2 = "${aFee}"
+`;
+}).join('') + (assets.length < 12 ? Array.from({ length: 12 - assets.length }, (_, k) => {
+  const row = 44 + assets.length + k;
+  return `
+$wsContract.Cells.Item(${row}, 1).Value2 = ""
+$wsContract.Cells.Item(${row}, 3).Value2 = ""
+$wsContract.Cells.Item(${row}, 4).Value2 = ""
+$wsContract.Cells.Item(${row}, 5).Value2 = ""
+$wsContract.Cells.Item(${row}, 7).Value2 = ""
+`;
+}).join('') : '') + `
+
+$wsContract.PageSetup.PaperSize = 9
+$wsContract.PageSetup.Orientation = 1
+$wsContract.PageSetup.Zoom = $false
+$wsContract.PageSetup.FitToPagesWide = 1
+if (${assets.length} -le 12) {
+  $wsContract.PageSetup.PrintArea = "A26:K78"
+  $wsContract.PageSetup.FitToPagesTall = 1
+} else {
+  $endRow = 78 + (${assets.length} - 12)
+  $wsContract.PageSetup.PrintArea = "A26:K$endRow"
+  $wsContract.PageSetup.FitToPagesTall = $false
+}
+
+$assetsJson = '${JSON.stringify(assets).replace(/'/g, "''")}' | ConvertFrom-Json
+
+for ($i = 0; $i -lt $assetsJson.Count; $i++) {
+    $asset = $assetsJson[$i]
+    
+    if ($i -eq 0) {
+        $curChecklist = $wsChecklistBase
+        $curSafety = $wsSafetyBase
+    } else {
+        $wsChecklistBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
+        $curChecklist = $wb.Sheets.Item($wb.Sheets.Count)
+        $wsSafetyBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
+        $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
+    }
+    
+    Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
+    Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
+    $curChecklist.PageSetup.Orientation = 1
+    $curChecklist.PageSetup.Zoom = $false
+    $curChecklist.PageSetup.FitToPagesWide = 1
+    $curChecklist.PageSetup.FitToPagesTall = 1
+
+    Replace-Tag $curSafety "{사업장명}" "${siteName}"
+    Replace-Tag $curSafety "{형식}" "자주식 시저형"
+    Replace-Tag $curSafety "{제조사}" "SINOBOOM"
+    Replace-Tag $curSafety "{테넌트}" "${tenantName}"
+    Replace-Tag $curSafety "(주)기연리프트" "${tenantName}"
+    Replace-Tag $curSafety "{고객명}" "${custName}"
+    Replace-Tag $curSafety "{동력방식}" "배터리식"
+    Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
+    Replace-Tag $curSafety "{중량}" "1,520 kg"
+    Replace-Tag $curSafety "{운행속도}" "3.5 km/h"
+    Replace-Tag $curSafety "{작업높이}" "6.0 m"
+    Replace-Tag $curSafety "{적재}" "230 kg"
+    Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
+    Replace-Tag $curSafety "{제조연도}" "2021년"
+    Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
+    Replace-Tag $curSafety "{Today}" "${inspectionDate}"
+    Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
+    Replace-Tag $curSafety "{점검자}" "김관주"
+    $curSafety.PageSetup.Orientation = 1
+    $curSafety.PageSetup.Zoom = $false
+    $curSafety.PageSetup.FitToPagesWide = 1
+    $curSafety.PageSetup.FitToPagesTall = 1
+}
+
+$wb.ExportAsFixedFormat(0, $masterPdf)
+$wb.Close($false)
+
+$excel.Quit()
+[System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+`;
+
+    const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
+    fs.writeFileSync(psFile, psScript, 'utf8');
+
+    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 600000, windowsHide: true });
+
+    const { PDFDocument } = require('pdf-lib');
+
+    const mergedPdf = await PDFDocument.create();
+    const pdfSources = [
+      path.join(tempBuildDir, '01.계약서패키지.pdf')
+    ];
+
+    const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
+    
+    for (const model of uniqueModels) {
+      const eqDocDir = path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
+      if (fs.existsSync(eqDocDir)) {
+        const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
+        files.sort();
+        for (const f of files) {
+          pdfSources.push(path.join(eqDocDir, f));
+        }
+      }
+    }
+
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
+
+    for (const p of pdfSources) {
+      if (fs.existsSync(p)) {
+        const bytes = fs.readFileSync(p);
+        const doc = await PDFDocument.load(bytes);
+        const copied = await mergedPdf.copyPages(doc, doc.getPageIndices());
+        copied.forEach(page => mergedPdf.addPage(page));
+      }
+    }
+
+    const finalPdfBytes = await mergedPdf.save();
+    const pageCount = mergedPdf.getPageCount();
+    const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
+    const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
+    const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || '기연리프트';
+    const fileName = `[${cleanTenantPrefix}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
+
+    const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
+    const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    const localSavePath = path.join(archiveDir, fileName);
+    fs.writeFileSync(localSavePath, finalPdfBytes);
+
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+
+    agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
+    return {
+      success: true,
+      fileName,
+      pageCount,
+      localPath: localSavePath,
+      message: `100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
+    };
+  } catch (bundleErr) {
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+    throw bundleErr;
+  }
+}
+
+function processSystemJobQueue() {
+  if (isSystemJobWorkerRunning) return;
+  const nextJob = systemJobQueue.find(j => j.status === 'PENDING');
+  if (!nextJob) return;
+
+  isSystemJobWorkerRunning = true;
+  (async () => {
+    try {
+      nextJob.status = 'RUNNING';
+      nextJob.startedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
+
+      if (nextJob.jobType === 'SEND_EMAIL') {
+        nextJob.result = await executeSendEmailInternal(nextJob.payload);
+      } else if (nextJob.jobType === 'CONTRACT_BUNDLE_EMAIL') {
+        const { bundleOptions, emailPayload } = nextJob.payload;
+        let pdfFilePath = emailPayload?.localPath;
+        let pdfFileName = emailPayload?.fileName;
+        let pageCount = emailPayload?.pageCount || 0;
+        if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
+          const bundleRes = await executeContractBundleInternal(bundleOptions);
+          pdfFilePath = bundleRes.localPath;
+          pdfFileName = bundleRes.fileName;
+          pageCount = bundleRes.pageCount;
+        }
+        const finalEmailPayload = {
+          ...emailPayload,
+          attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
+        };
+        const mailRes = await executeSendEmailInternal(finalEmailPayload);
+        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount };
+      } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
+        const bundleRes = await executeContractBundleInternal(nextJob.payload);
+        if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
+          exec(`cmd /c start "" "${bundleRes.localPath}"`, { windowsHide: true });
+        }
+        nextJob.result = {
+          success: true,
+          fileName: bundleRes.fileName,
+          pageCount: bundleRes.pageCount,
+          localPath: bundleRes.localPath
+        };
+      }
+      nextJob.status = 'COMPLETED';
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
+    } catch (err) {
+      nextJob.status = 'FAILED';
+      nextJob.error = err.message || String(err);
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
+    } finally {
+      isSystemJobWorkerRunning = false;
+      setTimeout(processSystemJobQueue, 200);
+    }
+  })();
+}
+
+function enqueueSystemJob(jobType, payload) {
+  const job = {
+    id: `JOB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
+    jobType,
+    payload,
+    status: 'PENDING',
+    createdAt: new Date().toISOString()
+  };
+  systemJobQueue.unshift(job);
+  if (systemJobQueue.length > 100) systemJobQueue.pop();
+  processSystemJobQueue();
+  return job;
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS 및 W3C Private Network Access (PNA) 헤더 전사 허용 (헌장 1.1, 5.2)
   const reqOrigin = req.headers.origin;
@@ -824,445 +1243,6 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
-
-// ── [백그라운드 시스템 작업 큐 (Excel COM 조립 / 이메일 발송 비동기 완수 워커)] ──
-const systemJobQueue = [];
-let isSystemJobWorkerRunning = false;
-
-async function executeSendEmailInternal(payload) {
-  const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
-
-  if (!to || !subject || !body) {
-    throw new Error('수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.');
-  }
-
-  const cleanEmail = String(googleEmail || '').trim();
-  const cleanPass = String(gmailAppPassword || '').replace(/\s+/g, '').trim();
-
-  if (!cleanEmail || !cleanPass) {
-    throw new Error('발송 계정 이메일과 앱 비밀번호가 필요합니다.');
-  }
-
-  const nodemailer = require('nodemailer');
-
-  // SMTP 호스트 및 포트 결정 (NAVER, DAUM, GMAIL, CUSTOM 등 지원)
-  let resolvedHost = smtpHost;
-  let resolvedPort = Number(smtpPort) || 465;
-  const emailLower = cleanEmail.toLowerCase();
-
-  if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
-    const provider = (smtpProvider || '').toUpperCase();
-    if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
-      resolvedHost = 'smtp.naver.com';
-      resolvedPort = resolvedPort || 465;
-    } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
-      resolvedHost = 'smtp.daum.net';
-      resolvedPort = resolvedPort || 465;
-    } else {
-      resolvedHost = 'smtp.gmail.com';
-      resolvedPort = resolvedPort || 465;
-    }
-  }
-
-  const isSecure = resolvedPort === 465;
-
-  agentLog('INFO', `[SMTP] 메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail}, To=${to}`);
-  broadcastStudioLog('SMTP', `메일 발송 시도: Host=${resolvedHost}, User=${cleanEmail} -> To=${to}${cc ? ` (CC: ${cc})` : ''}`);
-
-  const transporter = nodemailer.createTransport({
-    host: resolvedHost,
-    port: resolvedPort,
-    secure: isSecure,
-    auth: { user: cleanEmail, pass: cleanPass },
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 30000
-  });
-
-  const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
-    if (att.localPath) {
-      if (fs.existsSync(att.localPath)) {
-        return {
-          filename: att.filename || path.basename(att.localPath),
-          path: att.localPath,
-          contentType: att.contentType || 'application/pdf'
-        };
-      }
-    }
-    const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
-    return {
-      filename: att.filename || '계약서.pdf',
-      content: Buffer.from(base64Data, 'base64'),
-      contentType: att.contentType || 'application/pdf'
-    };
-  }) : undefined;
-
-  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
-
-  const info = await transporter.sendMail({
-    from: `"${senderDisplayName}" <${cleanEmail}>`,
-    to: String(to).trim(),
-    cc: cc ? String(cc).trim() : undefined,
-    subject: String(subject).trim(),
-    text: String(body),
-    attachments: parsedAttachments
-  });
-
-  agentLog('INFO', `[SMTP] 메일 발송 완료: MessageId=${info.messageId}, To=${to}`);
-  broadcastStudioLog('SMTP', `메일 발송 완료: To=${to} (MessageId: ${info.messageId})`);
-  return { success: true, messageId: info.messageId, accepted: info.accepted };
-}
-
-async function executeContractBundleInternal(payload) {
-  const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
-  try {
-    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
-    const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
-
-    const custName = payload.customerName || '고객사';
-    const bizRegNo = payload.bizRegNo || '등록번호미지정';
-    const ceoName = payload.ceoName || '대표자';
-    const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
-    const siteName = payload.siteName || '현장미지정';
-    const siteAddress = payload.siteAddress || '';
-    const managerName = payload.managerName || '현장담당자';
-    const managerPhone = payload.managerPhone || '010-0000-0000';
-    const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
-    const remarksText = payload.remarksText || '안전발판 지급';
-    const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
-    let inspectionDate = payload.inspectionDate;
-    if (!inspectionDate) {
-      try {
-        const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
-        const d = new Date(cleanD);
-        if (!isNaN(d.getTime())) {
-          d.setDate(d.getDate() - 2);
-          inspectionDate = d.toISOString().split('T')[0];
-        } else {
-          inspectionDate = contractDate;
-        }
-      } catch (e) {
-        inspectionDate = contractDate;
-      }
-    }
-
-    const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
-      { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
-    ];
-
-    const primaryAsset = assets[0];
-    const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
-
-    // PowerShell 스크립트 작성 (UTF-8 BOM 필수)
-    const psScript = `\ufeff
-$ErrorActionPreference = 'Stop'
-
-$excel = New-Object -ComObject Excel.Application
-$excel.Visible = $false
-$excel.DisplayAlerts = $false
-$excel.ScreenUpdating = $false
-$excel.EnableEvents = $false
-$excel.Interactive = $false
-
-function Replace-Tag($targetWs, $tag, $val) {
-  $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
-}
-
-# --- 1. 마스터 파일 복사 및 열기 ---
-$masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\01.계약서패키지_마스터.xlsx'
-$masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.마스터_작업용.xlsx'
-$masterPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약서패키지.pdf'
-Copy-Item $masterIn $masterWork -Force
-$wb = $excel.Workbooks.Open($masterWork)
-
-# 시트 이름 매핑 (순서 변경 및 이름 공백/변경 대응 유연한 검색)
-function Get-SheetByKeyword($workbook, $keyword, $fallbackIndex) {
-    foreach ($sheet in $workbook.Sheets) {
-        if ($sheet.Name -match $keyword) {
-            return $sheet
-        }
-    }
-    return $workbook.Sheets.Item($fallbackIndex)
-}
-
-$wsContract = Get-SheetByKeyword $wb "계약서" 1
-$wsChecklistBase = Get-SheetByKeyword $wb "반입전|체크리스트" 2
-$wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
-
-# --- 2. 계약서 데이터 주입 (Sheet 1) ---
-Replace-Tag $wsContract "{Today}" "${contractDate}"
-Replace-Tag $wsContract "{사업자등록번호}" "${bizRegNo}"
-Replace-Tag $wsContract "{고객명}" "${custName}"
-Replace-Tag $wsContract "{대표자}" "${ceoName}"
-Replace-Tag $wsContract "{현장명}" "${siteName}"
-Replace-Tag $wsContract "{하차일시}" "${contractDate}"
-Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
-Replace-Tag $wsContract "{현장담당자}" "${managerName}"
-Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"
-Replace-Tag $wsContract "{모델명}" "${primaryAsset.modelName}"
-Replace-Tag $wsContract "{수량}" "${assets.length}"
-Replace-Tag $wsContract "{SN}" "${primaryAsset.sn}"
-Replace-Tag $wsContract "{관리번호}" "${primaryAsset.assetNo}"
-Replace-Tag $wsContract "{임대료}" "${(primaryAsset.rentalFee || 390000).toLocaleString()}"
-Replace-Tag $wsContract "{소계}" "${totalRentalFee.toLocaleString()}"
-Replace-Tag $wsContract "{합계}" "₩${totalRentalFee.toLocaleString()}"
-Replace-Tag $wsContract "{옵션}" "${optionsText}"
-Replace-Tag $wsContract "{특이사항}" "${remarksText}"
-
-# ── 12대 초과 시 행 동적 확장 (기존 서식 및 하단 특약/서명란 밀어내기 보존) ──
-if (${assets.length} -gt 12) {
-    $extraRows = ${assets.length} - 12
-    for ($k = 0; $k -lt $extraRows; $k++) {
-        $wsContract.Rows.Item(54).Copy()
-        $null = $wsContract.Rows.Item(55).Insert(-4167)
-    }
-}
-
-# ── 자산별 행(Row 44부터) 1대당 1줄씩 명시적 기입 ──
-` + assets.map((ast, idx) => {
-  const row = 44 + idx;
-  const aModel = ast.modelName || 'GS-2646';
-  const aSn = ast.sn ? String(ast.sn) : '';
-  const aNo = ast.assetNo || '';
-  const aFee = (ast.rentalFee || 480000).toLocaleString();
-  return `
-$wsContract.Cells.Item(${row}, 1).Value2 = "${aModel}"
-$wsContract.Cells.Item(${row}, 3).Value2 = "1"
-$wsContract.Cells.Item(${row}, 4).Value2 = "${aSn}\`r\`n${aNo}"
-$wsContract.Cells.Item(${row}, 5).Value2 = "${aFee}"
-$wsContract.Cells.Item(${row}, 7).Value2 = "${aFee}"
-`;
-}).join('') + (assets.length < 12 ? Array.from({ length: 12 - assets.length }, (_, k) => {
-  const row = 44 + assets.length + k;
-  return `
-$wsContract.Cells.Item(${row}, 1).Value2 = ""
-$wsContract.Cells.Item(${row}, 3).Value2 = ""
-$wsContract.Cells.Item(${row}, 4).Value2 = ""
-$wsContract.Cells.Item(${row}, 5).Value2 = ""
-$wsContract.Cells.Item(${row}, 7).Value2 = ""
-`;
-}).join('') : '') + `
-
-$wsContract.PageSetup.PaperSize = 9
-$wsContract.PageSetup.Orientation = 1
-$wsContract.PageSetup.Zoom = $false
-$wsContract.PageSetup.FitToPagesWide = 1
-if (${assets.length} -le 12) {
-  $wsContract.PageSetup.PrintArea = "A26:K78"
-  $wsContract.PageSetup.FitToPagesTall = 1
-} else {
-  $endRow = 78 + (${assets.length} - 12)
-  $wsContract.PageSetup.PrintArea = "A26:K$endRow"
-  $wsContract.PageSetup.FitToPagesTall = $false
-}
-
-# --- 3. 체크리스트 및 안전점검결과서 시트 복제 및 데이터 주입 ---
-# JSON 배열 데이터를 PowerShell 객체로 파싱
-$assetsJson = '${JSON.stringify(assets).replace(/'/g, "''")}' | ConvertFrom-Json
-
-for ($i = 0; $i -lt $assetsJson.Count; $i++) {
-    $asset = $assetsJson[$i]
-    
-    if ($i -eq 0) {
-        $curChecklist = $wsChecklistBase
-        $curSafety = $wsSafetyBase
-    } else {
-        $wsChecklistBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
-        $curChecklist = $wb.Sheets.Item($wb.Sheets.Count)
-        $wsSafetyBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
-        $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
-    }
-    
-    Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
-    Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
-    $curChecklist.PageSetup.Orientation = 1
-    $curChecklist.PageSetup.Zoom = $false
-    $curChecklist.PageSetup.FitToPagesWide = 1
-    $curChecklist.PageSetup.FitToPagesTall = 1
-
-    Replace-Tag $curSafety "{사업장명}" "${siteName}"
-    Replace-Tag $curSafety "{형식}" "자주식 시저형"
-    Replace-Tag $curSafety "{제조사}" "SINOBOOM"
-    Replace-Tag $curSafety "{테넌트}" "${tenantName}"
-    Replace-Tag $curSafety "(주)기연리프트" "${tenantName}"
-    Replace-Tag $curSafety "{고객명}" "${custName}"
-    Replace-Tag $curSafety "{동력방식}" "배터리식"
-    Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
-    Replace-Tag $curSafety "{중량}" "1,520 kg"
-    Replace-Tag $curSafety "{운행속도}" "3.5 km/h"
-    Replace-Tag $curSafety "{작업높이}" "6.0 m"
-    Replace-Tag $curSafety "{적재}" "230 kg"
-    Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
-    Replace-Tag $curSafety "{제조연도}" "2021년"
-    Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
-    Replace-Tag $curSafety "{Today}" "${inspectionDate}"
-    Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
-    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
-    Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
-    Replace-Tag $curSafety "{점검자}" "김관주"
-    $curSafety.PageSetup.Orientation = 1
-    $curSafety.PageSetup.Zoom = $false
-    $curSafety.PageSetup.FitToPagesWide = 1
-    $curSafety.PageSetup.FitToPagesTall = 1
-}
-
-# --- 4. 전체 워크북 1회 Export (모든 시트가 1개의 PDF로) ---
-$wb.ExportAsFixedFormat(0, $masterPdf)
-$wb.Close($false)
-
-$excel.Quit()
-[System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
-`;
-
-    const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
-    fs.writeFileSync(psFile, psScript, 'utf8');
-
-    // Excel 변환 실행 (다수 자산 계약 대응을 위해 인위적 짧은 타임아웃 제거)
-    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 600000, windowsHide: true });
-
-    // PDF 병합 (pdf-lib)
-    const { PDFDocument } = require('pdf-lib');
-
-    const mergedPdf = await PDFDocument.create();
-    const pdfSources = [
-      path.join(tempBuildDir, '01.계약서패키지.pdf')
-    ];
-
-    // 중복 모델 제거
-    const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
-    
-    // Eq_doc 내의 모델 폴더에서 PDF 파일들 추가
-    for (const model of uniqueModels) {
-      const eqDocDir = path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
-      if (fs.existsSync(eqDocDir)) {
-        const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
-        files.sort();
-        for (const f of files) {
-          pdfSources.push(path.join(eqDocDir, f));
-        }
-      }
-    }
-
-    // 공통 서류 추가
-    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
-    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
-    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
-
-    for (const p of pdfSources) {
-      if (fs.existsSync(p)) {
-        const bytes = fs.readFileSync(p);
-        const doc = await PDFDocument.load(bytes);
-        const copied = await mergedPdf.copyPages(doc, doc.getPageIndices());
-        copied.forEach(page => mergedPdf.addPage(page));
-      }
-    }
-
-    const finalPdfBytes = await mergedPdf.save();
-    const pageCount = mergedPdf.getPageCount();
-    const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
-    const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
-    const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
-    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || '기연리프트';
-    const fileName = `[${cleanTenantPrefix}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
-
-    // 로컬 문서고 영구 아카이빙
-    const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
-    const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
-    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
-    const localSavePath = path.join(archiveDir, fileName);
-    fs.writeFileSync(localSavePath, finalPdfBytes);
-
-    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
-
-    agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
-    broadcastStudioLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
-    return {
-      success: true,
-      fileName,
-      pageCount,
-      localPath: localSavePath,
-      message: `100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
-    };
-  } catch (bundleErr) {
-    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
-    throw bundleErr;
-  }
-}
-
-function processSystemJobQueue() {
-  if (isSystemJobWorkerRunning) return;
-  const nextJob = systemJobQueue.find(j => j.status === 'PENDING');
-  if (!nextJob) return;
-
-  isSystemJobWorkerRunning = true;
-  (async () => {
-    try {
-      nextJob.status = 'RUNNING';
-      nextJob.startedAt = new Date().toISOString();
-      agentLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
-      broadcastStudioLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
-
-      if (nextJob.jobType === 'SEND_EMAIL') {
-        nextJob.result = await executeSendEmailInternal(nextJob.payload);
-      } else if (nextJob.jobType === 'CONTRACT_BUNDLE_EMAIL') {
-        const { bundleOptions, emailPayload } = nextJob.payload;
-        let pdfFilePath = emailPayload?.localPath;
-        let pdfFileName = emailPayload?.fileName;
-        let pageCount = emailPayload?.pageCount || 0;
-        if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
-          const bundleRes = await executeContractBundleInternal(bundleOptions);
-          pdfFilePath = bundleRes.localPath;
-          pdfFileName = bundleRes.fileName;
-          pageCount = bundleRes.pageCount;
-        }
-        const finalEmailPayload = {
-          ...emailPayload,
-          attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
-        };
-        const mailRes = await executeSendEmailInternal(finalEmailPayload);
-        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount };
-      } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
-        const bundleRes = await executeContractBundleInternal(nextJob.payload);
-        if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
-          exec(`cmd /c start "" "${bundleRes.localPath}"`, { windowsHide: true });
-        }
-        nextJob.result = {
-          success: true,
-          fileName: bundleRes.fileName,
-          pageCount: bundleRes.pageCount,
-          localPath: bundleRes.localPath
-        };
-      }
-      nextJob.status = 'COMPLETED';
-      nextJob.completedAt = new Date().toISOString();
-      agentLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
-      broadcastStudioLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
-    } catch (err) {
-      nextJob.status = 'FAILED';
-      nextJob.error = err.message || String(err);
-      nextJob.completedAt = new Date().toISOString();
-      agentLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
-      broadcastStudioLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
-    } finally {
-      isSystemJobWorkerRunning = false;
-      setTimeout(processSystemJobQueue, 200);
-    }
-  })();
-}
-
-function enqueueSystemJob(jobType, payload) {
-  const job = {
-    id: `JOB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
-    jobType,
-    payload,
-    status: 'PENDING',
-    createdAt: new Date().toISOString()
-  };
-  systemJobQueue.unshift(job);
-  if (systemJobQueue.length > 100) systemJobQueue.pop();
-  processSystemJobQueue();
-  return job;
-}
 
   // 3-2-1-B. 로컬 파일/폴더 즉시 열기 API (/api/open-local-file)
   if (req.method === 'POST' && pathname === '/api/open-local-file') {
