@@ -369,25 +369,45 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
   const requestedTimeout = init?.timeout || 3500;
   const requireAgent = Boolean(init?.requireAgent);
   const actionName = init?.actionName || '로컬 연동 작업';
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
+  const hasExtension = isExtensionBridgeAvailable();
 
   // 🛡️ [사전 실행 상태 확인 (Pre-flight Health Check)]
-  // 무거운 작업(타임아웃 > 5000ms) 또는 requireAgent=true인 프로세스는 본 요청 전 1.2초 빠른 핑으로 에이전트 생존 여부를 선행 확인합니다.
+  // 무거운 작업(타임아웃 > 5000ms) 또는 requireAgent=true인 프로세스는 본 요청 전 빠른 핑으로 에이전트 생존 여부를 선행 확인합니다.
   if (!isHealthCheck && !init?.skipPrecheck && (requireAgent || requestedTimeout > 5000 || !lastKnownAgentOnline)) {
     let alive = false;
-    const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
-    for (const h of precheckHosts) {
+
+    // 0-1. HTTPS + 브라우저 확장 프로그램이 있으면 확장 프로그램 브리지로 먼저 핑 확인 (PNA/Mixed-Content 차단 우회)
+    if (isHttps && hasExtension) {
       try {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 1200);
-        const pingRes = await fetch(`${h}/health`, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
-        clearTimeout(tid);
-        if (pingRes.ok) {
+        const extPing = await fetchViaExtensionBridge('/health', {
+          method: 'GET',
+          timeout: 1500
+        } as RequestInit & { timeout?: number });
+        if (extPing.ok) {
           alive = true;
-          activeAgentBaseUrl = h;
           setGlobalAgentStatus(true);
-          break;
         }
       } catch {}
+    }
+
+    // 0-2. 직접 루프백 /health 핑 확인
+    if (!alive) {
+      const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
+      for (const h of precheckHosts) {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 1200);
+          const pingRes = await fetch(`${h}/health`, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
+          clearTimeout(tid);
+          if (pingRes.ok) {
+            alive = true;
+            activeAgentBaseUrl = h;
+            setGlobalAgentStatus(true);
+            break;
+          }
+        } catch {}
+      }
     }
 
     if (!alive) {
@@ -399,15 +419,14 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     }
   }
 
-  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
-  const hasExtension = isExtensionBridgeAvailable();
-
-  // 1. HTTPS 환경이며 확장 프로그램이 실제 활성화되어 있는 경우에만 1순위로 시도 (최대 1500ms 빠른 타임아웃)
-  if (isHttps && hasExtension && requestedTimeout <= 5000) {
+  // 1. HTTPS 환경이며 확장 프로그램이 실제 활성화되어 있는 경우 1순위로 시도
+  //    (기존에 requestedTimeout <= 5000 제한이 있어서 이메일 발송/PDF 생성 등 긴 타임아웃 요청이 확장 프로그램 브리지를 건너뛰던 문제 수정!)
+  if (isHttps && hasExtension) {
     try {
+      const extTimeout = isHealthCheck ? Math.min(requestedTimeout, 1500) : requestedTimeout;
       const extRes = await fetchViaExtensionBridge(path, {
         ...init,
-        timeout: Math.min(requestedTimeout, 1500)
+        timeout: extTimeout
       } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);
@@ -455,16 +474,19 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
       if (timeoutTimer) clearTimeout(timeoutTimer);
       lastErr = e;
       // 첫 번째 호스트에서 이미 긴 타임아웃(>5초)을 소진한 경우 두 번째 호스트에서 또 대기하지 않고 즉시 탈출
-      if (requestedTimeout > 5000) {
+      if (requestedTimeout > 5000 && e?.name === 'TimeoutError') {
         break;
       }
     }
   }
 
-  // 3. 만약 직접 fetch가 실패했고 확장 프로그램을 아직 시도 안 했다면 보조 시도
-  if (!isHttps && hasExtension) {
+  // 3. 만약 직접 fetch가 실패했고 확장 프로그램이 있다면 최종 보조 시도 (HTTPS/HTTP 불문)
+  if (hasExtension) {
     try {
-      const extRes = await fetchViaExtensionBridge(path, init);
+      const extRes = await fetchViaExtensionBridge(path, {
+        ...init,
+        timeout: requestedTimeout
+      } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);
         return extRes;

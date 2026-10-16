@@ -23,6 +23,22 @@ export const AgentRequiredModal: React.FC<Props> = ({
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryResult, setRetryResult] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setRetryResult(null);
+      setIsRetrying(false);
+    }
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (isOpen && retryResult === 'SUCCESS') {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, retryResult, onClose]);
+
   if (!isOpen) return null;
 
   const handleDownload = () => {
@@ -34,7 +50,7 @@ export const AgentRequiredModal: React.FC<Props> = ({
     setRetryResult(null);
     try {
       // 로컬 에이전트 헬스체크 핑 (5175 포트)
-      const res = await fetchWithAgentFallback('/health', { method: 'GET', signal: AbortSignal.timeout(2000) }).catch(() => null);
+      const res = await fetchWithAgentFallback('/health', { method: 'GET', timeout: 2500 }).catch(() => null);
       if (res && res.ok) {
         setRetryResult('SUCCESS');
         if (typeof window !== 'undefined') {
@@ -43,9 +59,6 @@ export const AgentRequiredModal: React.FC<Props> = ({
         if (onRetry) {
           try { await onRetry(); } catch {}
         }
-        setTimeout(() => {
-          onClose();
-        }, 800);
       } else {
         setRetryResult('FAILED');
       }
