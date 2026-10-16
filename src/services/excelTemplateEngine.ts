@@ -134,6 +134,8 @@ export interface ContractExcelData {
 export interface PreDeliveryChecklistExcelData {
   modelName: string;           // 모델명 (예: 'Z-45/25J', 'GS-1930')
   serialNo: string;            // 관리번호 및 S/N (예: 'G19052 (GS30D-13533)')
+  inspectionDate?: string;     // 점검일시 (Row 3 D3)
+  inspectorName?: string;      // 점검자 (Row 3 J3)
 }
 
 /**

@@ -745,8 +745,10 @@ function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
 }
 
-# --- 1. 마스터 파일 복사 및 열기 ---
+# --- 1. 마스터 파일 복사 및 열기 (02.반입전체크리스트.xlsx 및 03.안전점검결과서.xlsx 최신 시트 실시간 결합) ---
 $masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\01.계약서패키지_마스터.xlsx'
+$checkIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\02.반입전체크리스트.xlsx'
+$safetyIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\03.안전점검결과서.xlsx'
 $masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.마스터_작업용.xlsx'
 $masterPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약서패키지.pdf'
 Copy-Item $masterIn $masterWork -Force
@@ -759,6 +761,30 @@ function Get-SheetByKeyword($workbook, $keyword, $fallbackIndex) {
         }
     }
     return $workbook.Sheets.Item($fallbackIndex)
+}
+
+if (Test-Path $checkIn) {
+    try {
+        $wbCheck = $excel.Workbooks.Open($checkIn, 0, $true)
+        $oldCheck = Get-SheetByKeyword $wb "반입전|체크리스트" 2
+        $wbCheck.Sheets.Item(1).Copy($oldCheck)
+        $newCheck = $wb.Sheets.Item($oldCheck.Index - 1)
+        $oldCheck.Delete()
+        $newCheck.Name = "반입전체크리스트"
+        $wbCheck.Close($false)
+    } catch {}
+}
+
+if (Test-Path $safetyIn) {
+    try {
+        $wbSafety = $excel.Workbooks.Open($safetyIn, 0, $true)
+        $oldSafety = Get-SheetByKeyword $wb "안전점검|결과서" 3
+        $wbSafety.Sheets.Item(1).Copy($oldSafety)
+        $newSafety = $wb.Sheets.Item($oldSafety.Index - 1)
+        $oldSafety.Delete()
+        $newSafety.Name = "안전점검결과서"
+        $wbSafety.Close($false)
+    } catch {}
 }
 
 $wsContract = Get-SheetByKeyword $wb "계약서" 1
@@ -852,11 +878,20 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
         $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
     }
     
+    $assetInspDate = if ($asset.inspectionDate) { "$($asset.inspectionDate)" } else { "${inspectionDate}" }
+    $assetInspName = if ($asset.inspectorName) { "$($asset.inspectorName)" } else { "${inspectorName}" }
+
     Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
     Replace-Tag $curChecklist "(주)기연리프트" "${tenantCorp}"
     Replace-Tag $curChecklist "기연리프트" "${tenantName}"
     Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
     Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
+    Replace-Tag $curChecklist "{점검일시}" "$assetInspDate"
+    Replace-Tag $curChecklist "{안전점검일시}" "$assetInspDate"
+    Replace-Tag $curChecklist "{Today}" "$assetInspDate"
+    Replace-Tag $curChecklist "{점검자}" "$assetInspName"
+    Replace-Tag $curChecklist "{점점자}" "$assetInspName"
+    Replace-Tag $curChecklist "김관주" "$assetInspName"
     $curChecklist.PageSetup.Orientation = 1
     $curChecklist.PageSetup.Zoom = $false
     $curChecklist.PageSetup.FitToPagesWide = 1
@@ -878,11 +913,15 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
     Replace-Tag $curSafety "{제조연도}" "2021년"
     Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
-    Replace-Tag $curSafety "{Today}" "${inspectionDate}"
-    Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
-    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
-    Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
-    Replace-Tag $curSafety "{점검자}" "${inspectorName}"
+    Replace-Tag $curSafety "{Today}" "$assetInspDate"
+    Replace-Tag $curSafety "{점검일시}" "$assetInspDate"
+    Replace-Tag $curSafety "{안전점검일시}" "$assetInspDate"
+    Replace-Tag $curSafety "{{배차일)-2} 또는 {지정}" "$assetInspDate"
+    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "$assetInspDate"
+    Replace-Tag $curSafety "{(배차일)-2}" "$assetInspDate"
+    Replace-Tag $curSafety "{점검자}" "$assetInspName"
+    Replace-Tag $curSafety "{점점자}" "$assetInspName"
+    Replace-Tag $curSafety "김관주" "$assetInspName"
     $curSafety.PageSetup.Orientation = 1
     $curSafety.PageSetup.Zoom = $false
     $curSafety.PageSetup.FitToPagesWide = 1

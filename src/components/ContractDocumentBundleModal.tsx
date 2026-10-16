@@ -29,7 +29,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   const { 
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, googleConfigs, currentUser,
-    currentTenant, showErrorModal, hasPermission, users
+    currentTenant, showErrorModal, hasPermission, users, outboundInspections
   } = useApp();
 
   // 계약서 패키지 생성 권한: 계약 저장/열람 권한 또는 에이전트 권한 보유자
@@ -168,10 +168,29 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   }, [baseDeliveryDate]);
 
   const [customInspectionDate, setCustomInspectionDate] = useState<string>('');
+  const [customInspectorName, setCustomInspectorName] = useState<string>('');
+
+  const defaultInspectorName = useMemo(() => {
+    if (selectedContract && outboundInspections && outboundInspections.length > 0) {
+      const insp = outboundInspections.find(
+        i => i.contractId === selectedContract.id && (i.inspectorId || (i as any).inspectorName || (i as any).completedByName)
+      );
+      if (insp) {
+        const matchedUser = insp.inspectorId ? users?.find(u => u.id === insp.inspectorId) : null;
+        const resolved = matchedUser?.name || (insp as any).inspectorName || (insp as any).completedByName;
+        if (resolved) return String(resolved).trim();
+      }
+    }
+    return '김관주';
+  }, [selectedContract, outboundInspections, users]);
 
   useEffect(() => {
     setCustomInspectionDate(defaultInspectionDate);
   }, [defaultInspectionDate]);
+
+  useEffect(() => {
+    setCustomInspectorName(defaultInspectorName);
+  }, [defaultInspectorName]);
 
   const mappedAssets = useMemo(() => {
     if (!selectedContract) return [];
@@ -186,6 +205,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const model = a?.modelName || ca.expectedModel || 'GS-2646';
       const prod = products.find(p => p.modelName === model);
 
+      const assetInsp = outboundInspections?.find(
+        i => (i.contractAssetId && i.contractAssetId === ca.id) || (i.contractId === selectedContract.id && i.assetId === ca.assetId)
+      );
+      const inspUser = assetInsp?.inspectorId ? users?.find(u => u.id === assetInsp.inspectorId) : null;
+      const assetInspector = customInspectorName.trim() || inspUser?.name || (assetInsp as any)?.inspectorName || defaultInspectorName;
+      const assetInspDate = customInspectionDate || (assetInsp?.inspectedAt ? String(assetInsp.inspectedAt).slice(0, 10) : '') || defaultInspectionDate;
+
       return {
         assetNo: a?.assetNo || 'G26006',
         modelName: model,
@@ -197,10 +223,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         workingHeight: prod?.workingHeight || '9.92 M',
         platformHeight: prod?.platformHeight || '7.92 M',
         capacityPreExt: prod?.capacityPreExt || '454 kg',
-        certDate: (prod as any)?.certDate || '2010-12-29'
+        certDate: (prod as any)?.certDate || '2010-12-29',
+        inspectionDate: assetInspDate,
+        inspectorName: assetInspector
       };
     });
-  }, [selectedContract, contractAssets, assets, products]);
+  }, [selectedContract, contractAssets, assets, products, filterDate, outboundInspections, users, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
 
   // 고유 모델 목록
   const uniqueModelList = useMemo(() => {
@@ -486,6 +514,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         contractEndDate: selectedContract.endDate,
         deliveryDate: baseDeliveryDate,
         inspectionDate: customInspectionDate || defaultInspectionDate,
+        inspectorName: customInspectorName.trim() || defaultInspectorName,
         siteName: siteName,
         siteAddress: siteAddress,
         contractNo: selectedContract.id,
@@ -962,7 +991,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             </div>
           )}
 
-          {/* 2-1. 안전점검결과서 점검일시 설정 (배차일 D-2 자동 또는 직접 지정) */}
+          {/* 2-1. 반입전체크리스트 & 안전점검결과서 점검일시·점검자 설정 (배차일 D-2 자동 또는 직접 지정) */}
           <div style={{
             backgroundColor: 'var(--bg-app)',
             borderRadius: '8px',
@@ -974,40 +1003,68 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             flexWrap: 'wrap',
             gap: '10px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                안전점검일시 설정:
-              </span>
-              <input
-                type="date"
-                value={customInspectionDate}
-                onChange={e => setCustomInspectionDate(e.target.value)}
-                disabled={isGenerating || isSendingEmail}
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-main)'
-                }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  점검일시:
+                </span>
+                <input
+                  type="date"
+                  value={customInspectionDate}
+                  onChange={e => setCustomInspectionDate(e.target.value)}
+                  disabled={isGenerating || isSendingEmail}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  점검자:
+                </span>
+                <input
+                  type="text"
+                  value={customInspectorName}
+                  onChange={e => setCustomInspectorName(e.target.value)}
+                  placeholder="점검자 성명"
+                  disabled={isGenerating || isSendingEmail}
+                  style={{
+                    width: '100px',
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+              </div>
               <span style={{
                 fontSize: '11.5px',
                 padding: '2px 8px',
                 borderRadius: '4px',
                 backgroundColor: customInspectionDate === defaultInspectionDate ? 'rgba(59,130,246,0.1)' : 'rgba(245,158,11,0.1)',
                 color: customInspectionDate === defaultInspectionDate ? 'var(--primary)' : '#d97706',
-                fontWeight: 600
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
               }}>
                 {customInspectionDate === defaultInspectionDate ? `배차일 D-2 자동 산출 (${baseDeliveryDate} 기준)` : '사용자 지정 일자 적용'}
               </span>
             </div>
-            {customInspectionDate !== defaultInspectionDate && (
+            {(customInspectionDate !== defaultInspectionDate || customInspectorName !== defaultInspectorName) && (
               <button
                 type="button"
-                onClick={() => setCustomInspectionDate(defaultInspectionDate)}
+                onClick={() => {
+                  setCustomInspectionDate(defaultInspectionDate);
+                  setCustomInspectorName(defaultInspectorName);
+                }}
                 style={{
                   fontSize: '11.5px',
                   color: 'var(--primary)',
@@ -1015,10 +1072,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
                   border: 'none',
                   cursor: 'pointer',
                   textDecoration: 'underline',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
                 }}
               >
-                D-2 기본값({defaultInspectionDate}) 복원
+                기본값({defaultInspectionDate} / {defaultInspectorName}) 복원
               </button>
             )}
           </div>
