@@ -867,6 +867,7 @@ async function executeSendEmailInternal(payload) {
   const isSecure = resolvedPort === 465;
 
   agentLog('INFO', `[SMTP] 메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail}, To=${to}`);
+  broadcastStudioLog('SMTP', `메일 발송 시도: Host=${resolvedHost}, User=${cleanEmail} -> To=${to}${cc ? ` (CC: ${cc})` : ''}`);
 
   const transporter = nodemailer.createTransport({
     host: resolvedHost,
@@ -908,6 +909,7 @@ async function executeSendEmailInternal(payload) {
   });
 
   agentLog('INFO', `[SMTP] 메일 발송 완료: MessageId=${info.messageId}, To=${to}`);
+  broadcastStudioLog('SMTP', `메일 발송 완료: To=${to} (MessageId: ${info.messageId})`);
   return { success: true, messageId: info.messageId, accepted: info.accepted };
 }
 
@@ -1174,6 +1176,7 @@ $excel.Quit()
 
     const b64 = Buffer.from(finalPdfBytes).toString('base64');
     agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
+    broadcastStudioLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
     return {
       success: true,
       fileName,
@@ -1199,6 +1202,7 @@ function processSystemJobQueue() {
       nextJob.status = 'RUNNING';
       nextJob.startedAt = new Date().toISOString();
       agentLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
+      broadcastStudioLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
 
       if (nextJob.jobType === 'SEND_EMAIL') {
         nextJob.result = await executeSendEmailInternal(nextJob.payload);
@@ -1206,17 +1210,21 @@ function processSystemJobQueue() {
         const { bundleOptions, emailPayload } = nextJob.payload;
         let pdfFilePath = emailPayload?.localPath;
         let pdfFileName = emailPayload?.fileName;
+        let pageCount = emailPayload?.pageCount || 0;
+        let base64Content = '';
         if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
           const bundleRes = await executeContractBundleInternal(bundleOptions);
           pdfFilePath = bundleRes.localPath;
           pdfFileName = bundleRes.fileName;
+          pageCount = bundleRes.pageCount;
+          base64Content = bundleRes.base64Content;
         }
         const finalEmailPayload = {
           ...emailPayload,
           attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
         };
         const mailRes = await executeSendEmailInternal(finalEmailPayload);
-        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName };
+        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount, base64Content };
       } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
         const bundleRes = await executeContractBundleInternal(nextJob.payload);
         if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
@@ -1226,17 +1234,20 @@ function processSystemJobQueue() {
           success: true,
           fileName: bundleRes.fileName,
           pageCount: bundleRes.pageCount,
-          localPath: bundleRes.localPath
+          localPath: bundleRes.localPath,
+          base64Content: bundleRes.base64Content
         };
       }
       nextJob.status = 'COMPLETED';
       nextJob.completedAt = new Date().toISOString();
       agentLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
+      broadcastStudioLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
     } catch (err) {
       nextJob.status = 'FAILED';
       nextJob.error = err.message || String(err);
       nextJob.completedAt = new Date().toISOString();
       agentLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
+      broadcastStudioLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
     } finally {
       isSystemJobWorkerRunning = false;
       setTimeout(processSystemJobQueue, 200);
@@ -1350,6 +1361,7 @@ function enqueueSystemJob(jobType, payload) {
         res.end(JSON.stringify(info));
       } catch (err) {
         agentLog('ERROR', '메일 전송 오류: ' + (err.message || err));
+        broadcastStudioLog('ERROR', '메일 전송 오류: ' + (err.message || err));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: err.message || '이메일 발송에 실패했습니다.' }));
       }
@@ -1375,6 +1387,7 @@ function enqueueSystemJob(jobType, payload) {
         res.end(JSON.stringify(bundleRes));
       } catch (bundleErr) {
         agentLog('ERROR', '서류팩 생성 실패: ' + (bundleErr.message || bundleErr));
+        broadcastStudioLog('ERROR', '서류팩 생성 실패: ' + (bundleErr.message || bundleErr));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: bundleErr.message }));
       }
@@ -1659,6 +1672,14 @@ $excel.Quit()
           '.json': 'application/json'
         };
         const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+        // 0순위: fileName이 C:\eBroAgent 하위 절대 경로로 전달된 경우 즉시 반환
+        if (path.isAbsolute(fileName) && fs.existsSync(fileName) && fs.statSync(fileName).isFile()) {
+          const fileBuf = fs.readFileSync(fileName);
+          res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'LOCAL_ABSOLUTE' });
+          res.end(fileBuf);
+          return;
+        }
 
         // 1순위: 로컬 미러링 폴더(C:\eBroAgent\drive_mirror\)에서 파일 확인
         let localFilePath = path.join(DRIVE_MIRROR_DIR, fileName);
