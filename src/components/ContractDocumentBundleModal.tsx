@@ -210,7 +210,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       );
       const inspUser = assetInsp?.inspectorId ? users?.find(u => u.id === assetInsp.inspectorId) : null;
       const assetInspector = customInspectorName.trim() || inspUser?.name || (assetInsp as any)?.inspectorName || defaultInspectorName;
-      const assetInspDate = customInspectionDate || (assetInsp?.inspectedAt ? String(assetInsp.inspectedAt).slice(0, 10) : '') || defaultInspectionDate;
+      // 💡 02.반입전체크리스트 {점검일시} 값은 03.안전점검결과서 {{배차일)-2} 또는 {지정} 값과 100% 동일한 값 사용
+      const unifiedInspectionDate = customInspectionDate || defaultInspectionDate;
 
       return {
         assetNo: a?.assetNo || 'G26006',
@@ -224,7 +225,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         platformHeight: prod?.platformHeight || '7.92 M',
         capacityPreExt: prod?.capacityPreExt || '454 kg',
         certDate: (prod as any)?.certDate || '2010-12-29',
-        inspectionDate: assetInspDate,
+        inspectionDate: unifiedInspectionDate,
         inspectorName: assetInspector
       };
     });

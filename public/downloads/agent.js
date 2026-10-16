@@ -878,7 +878,7 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
         $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
     }
     
-    $assetInspDate = if ($asset.inspectionDate) { "$($asset.inspectionDate)" } else { "${inspectionDate}" }
+    $assetInspDate = "${inspectionDate}"
     $assetInspName = if ($asset.inspectorName) { "$($asset.inspectorName)" } else { "${inspectorName}" }
 
     Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
@@ -888,6 +888,9 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
     Replace-Tag $curChecklist "{점검일시}" "$assetInspDate"
     Replace-Tag $curChecklist "{안전점검일시}" "$assetInspDate"
+    Replace-Tag $curChecklist "{{배차일)-2} 또는 {지정}" "$assetInspDate"
+    Replace-Tag $curChecklist "{(배차일)-2} 또는 {지정}" "$assetInspDate"
+    Replace-Tag $curChecklist "{(배차일)-2}" "$assetInspDate"
     Replace-Tag $curChecklist "{Today}" "$assetInspDate"
     Replace-Tag $curChecklist "{점검자}" "$assetInspName"
     Replace-Tag $curChecklist "{점점자}" "$assetInspName"
