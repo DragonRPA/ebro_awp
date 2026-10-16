@@ -520,24 +520,39 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
       if (agentRes.queued && agentRes.jobId) {
         const jobId = agentRes.jobId;
         let pollAttempts = 0;
+        let nullJobCount = 0;
         while (pollAttempts < 150) {
           pollAttempts++;
           await new Promise(r => setTimeout(r, 1000));
-          const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
-            method: 'GET',
-            skipPrecheck: true
-          });
-          if (pollResp.ok) {
-            const pollData = await pollResp.json();
-            const job = pollData.job;
-            if (job) {
-              if (job.status === 'COMPLETED' && job.result) {
-                agentRes = job.result;
-                break;
-              } else if (job.status === 'FAILED') {
-                throw new Error(job.error || '거래명세서 PDF 생성 작업 실패');
+          try {
+            const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+              method: 'GET',
+              skipPrecheck: true,
+              timeout: 8000
+            });
+            if (pollResp.ok) {
+              const pollData = await pollResp.json();
+              const job = pollData.job;
+              if (job) {
+                nullJobCount = 0;
+                if (job.status === 'COMPLETED' && job.result) {
+                  agentRes = job.result;
+                  break;
+                } else if (job.status === 'FAILED') {
+                  throw new Error(job.error || '거래명세서 PDF 생성 작업 실패');
+                }
+              } else {
+                nullJobCount++;
+                if (nullJobCount >= 10) {
+                  throw new Error(`에이전트 작업 큐에서 거래명세서 생성 작업(${jobId})을 찾을 수 없습니다.`);
+                }
               }
             }
+          } catch (pollErr: any) {
+            if (pollErr?.message?.includes('작업 실패') || pollErr?.message?.includes('찾을 수 없습니다')) {
+              throw pollErr;
+            }
+            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
         }
         if (agentRes.queued) {

@@ -304,13 +304,12 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
 
     window.addEventListener('message', handler);
 
-    // 명시적 양수 timeoutMs가 지정된 경우(예: /health 핑)에만 타이머 작동, 본 작업(0 또는 미지정)은 완료까지 무제한 대기
-    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
-      timer = setTimeout(() => {
-        window.removeEventListener('message', handler);
-        reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
-      }, timeoutMs);
-    }
+    // 명시적 timeoutMs가 지정된 경우 해당 값 사용, 미지정(0)인 경우에도 확장 프로그램 서비스 워커 슬립 방지를 위해 최대 15초 안전 타임아웃 적용
+    const safeBridgeTimeout = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 15000;
+    timer = setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
+    }, safeBridgeTimeout);
 
     if (init?.signal) {
       if (init.signal.aborted) {
@@ -345,7 +344,7 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
         method: init?.method || 'GET',
         headers: headerObj,
         body: typeof init?.body === 'string' ? init.body : undefined,
-        timeout: typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 0
+        timeout: safeBridgeTimeout
       }
     }, '*');
   });
@@ -368,41 +367,39 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
   const hasExtension = isExtensionBridgeAvailable();
 
   // 🛡️ [1단계: 사전 실행 상태 확인 (Pre-flight Health Check)]
-  // 본 작업을 실행하기 전에 먼저 짧은 /health 핑(1.5초)으로 로컬 에이전트가 실행 중인지 확인합니다.
+  // 본 작업을 실행하기 전에 먼저 짧은 /health 핑으로 로컬 에이전트가 실행 중인지 확인합니다.
   if (!isHealthCheck && !init?.skipPrecheck) {
     let alive = false;
 
-    // 0-1. HTTPS + 브라우저 확장 프로그램이 있으면 확장 프로그램 브리지로 먼저 핑 확인 (PNA/Mixed-Content 차단 우회)
-    if (isHttps && hasExtension) {
+    // 0-1. 직접 루프백 /health 핑 최우선 확인 (가장 빠르고 확실함, 2500ms 여유 부여)
+    const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
+    for (const h of precheckHosts) {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 2500);
+        const pingRes = await fetch(`${h}/health`, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
+        clearTimeout(tid);
+        if (pingRes.ok) {
+          alive = true;
+          activeAgentBaseUrl = h;
+          setGlobalAgentStatus(true);
+          break;
+        }
+      } catch {}
+    }
+
+    // 0-2. 직접 루프백이 PNA 등으로 차단된 경우 확장 프로그램 브리지로 보조 핑 확인
+    if (!alive && isHttps && hasExtension) {
       try {
         const extPing = await fetchViaExtensionBridge('/health', {
           method: 'GET',
-          timeout: 1500
+          timeout: 2500
         } as RequestInit & { timeout?: number });
         if (extPing.ok) {
           alive = true;
           setGlobalAgentStatus(true);
         }
       } catch {}
-    }
-
-    // 0-2. 직접 루프백 /health 핑 확인
-    if (!alive) {
-      const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
-      for (const h of precheckHosts) {
-        try {
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 1200);
-          const pingRes = await fetch(`${h}/health`, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
-          clearTimeout(tid);
-          if (pingRes.ok) {
-            alive = true;
-            activeAgentBaseUrl = h;
-            setGlobalAgentStatus(true);
-            break;
-          }
-        } catch {}
-      }
     }
 
     if (!alive) {
@@ -414,24 +411,11 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     }
   }
 
-  // 🚀 [2단계: 에이전트 생존 확인 완료 -> 본 작업 실행 (인위적 타임아웃 없이 완료까지 대기)]
+  // 🚀 [2단계: 에이전트 생존 확인 완료 -> 본 작업 실행]
   // 💡 에이전트로부터 HTTP 응답(200, 400, 404, 500 등 상태 코드 무관)을 수신했다면 에이전트는 정상 가동 중임.
   //    500(SMTP 인증 오류, 파일 생성 오류 등)을 에이전트 미실행으로 오판하여 재시도하거나 AgentRequiredModal을 띄우지 않는다.
-  // 2-1. HTTPS 환경이며 확장 프로그램이 활성화되어 있는 경우 1순위 시도
-  if (isHttps && hasExtension) {
-    try {
-      const extRes = await fetchViaExtensionBridge(path, {
-        ...init,
-        timeout: effectiveTimeout
-      } as RequestInit & { timeout?: number });
-      setGlobalAgentStatus(true);
-      return extRes;
-    } catch (extErr) {
-      // 확장 프로그램 브리지 통신 자체 실패 시 루프백 직접 fetch로 인계
-    }
-  }
 
-  // 2-2. 직접 루프백 fetch 시도 (사전 점검에서 응답한 activeAgentBaseUrl 최우선)
+  // 2-1. 직접 루프백 fetch 최우선 시도 (사전 점검에서 응답한 activeAgentBaseUrl 최우선, 확장 프로그램 워커 슬립 영향 없음)
   const candidateHosts = activeAgentBaseUrl === 'http://localhost:5175'
     ? ['http://localhost:5175', 'http://127.0.0.1:5175']
     : ['http://127.0.0.1:5175', 'http://localhost:5175'];
@@ -467,7 +451,7 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     }
   }
 
-  // 2-3. 직접 fetch가 네트워크 레벨에서 실패했고 확장 프로그램이 있다면 최종 보조 시도
+  // 2-2. 직접 루프백 fetch가 브라우저 정책(PNA/CORS 등)으로 차단된 경우 확장 프로그램 브리지로 보조 시도
   if (hasExtension) {
     try {
       const extRes = await fetchViaExtensionBridge(path, {
@@ -476,7 +460,9 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
       } as RequestInit & { timeout?: number });
       setGlobalAgentStatus(true);
       return extRes;
-    } catch (e) {}
+    } catch (e: any) {
+      lastErr = e;
+    }
   }
 
   if (requireAgent) {

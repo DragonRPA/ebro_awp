@@ -206,29 +206,34 @@ class RealGmailService {
           while (pollAttempts < 90) {
             pollAttempts++;
             await new Promise(r => setTimeout(r, 800));
-            const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
-              method: 'GET',
-              skipPrecheck: true
-            });
-            if (pollResp.ok) {
-              const pollData = await pollResp.json();
-              const job = pollData.job;
-              if (job) {
-                nullJobCount = 0;
-                if (job.status === 'COMPLETED') {
-                  localRes = job.result || { success: true };
-                  break;
-                } else if (job.status === 'FAILED') {
-                  localRes = { success: false, error: job.error || '이메일 발송 작업 실패' };
-                  break;
-                }
-              } else {
-                nullJobCount++;
-                if (nullJobCount >= 10) {
-                  localRes = { success: false, error: `에이전트 작업 큐에서 메일 발송 작업(${jobId})을 찾을 수 없습니다.` };
-                  break;
+            try {
+              const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+                method: 'GET',
+                skipPrecheck: true,
+                timeout: 8000
+              });
+              if (pollResp.ok) {
+                const pollData = await pollResp.json();
+                const job = pollData.job;
+                if (job) {
+                  nullJobCount = 0;
+                  if (job.status === 'COMPLETED') {
+                    localRes = job.result || { success: true };
+                    break;
+                  } else if (job.status === 'FAILED') {
+                    localRes = { success: false, error: job.error || '이메일 발송 작업 실패' };
+                    break;
+                  }
+                } else {
+                  nullJobCount++;
+                  if (nullJobCount >= 10) {
+                    localRes = { success: false, error: `에이전트 작업 큐에서 메일 발송 작업(${jobId})을 찾을 수 없습니다.` };
+                    break;
+                  }
                 }
               }
+            } catch {
+              // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
             }
           }
           if (localRes.queued) {

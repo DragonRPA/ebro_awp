@@ -464,13 +464,32 @@ async function checkAndApplyUpdate(force = false) {
 setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
 setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 12 * 3600 * 1000);
 
-// ── 하드웨어 다이렉트 프린터 출력 엔진 (Edge Headless PDF + 64비트 Sumatra 무인 스풀) ──
-function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리프트_출력물') {
+// ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지) ──
+function runCommandAsync(cmd, options = {}) {
+  return new Promise((resolve, reject) => {
+    const timeoutMs = options.timeout || 120000;
+    const child = exec(cmd, {
+      cwd: options.cwd,
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 20 * 1024 * 1024,
+      timeout: timeoutMs
+    }, (err, stdout, stderr) => {
+      if (err) {
+        return reject(new Error(stderr?.trim() || err.message || '프로세스 실행 오류'));
+      }
+      resolve(stdout || '');
+    });
+  });
+}
+
+// ── 하드웨어 다이렉트 프린터 출력 엔진 (Edge Headless PDF + 64비트 Sumatra 무인 스풀 — 100% 비동기 Non-blocking) ──
+async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리프트_출력물') {
   if (!htmlContent) {
     throw new Error('인쇄할 HTML 내용이 비어 있습니다.');
   }
 
-  const ts = Date.now();
+  const ts = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const tempPrintHtml = path.join(AGENT_HOME, `print_temp_${ts}.html`);
   const tempPrintPdf = path.join(AGENT_HOME, `print_temp_${ts}.pdf`);
 
@@ -519,12 +538,12 @@ function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리�
 
   const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${userProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
   try {
-    execSync(edgeCmd, { windowsHide: true, timeout: 20000 });
+    await runCommandAsync(edgeCmd, { timeout: 20000 });
   } catch (cmdErr) {
     agentLog('WARN', 'Edge 변환 프로세스 경고 (비동기 완료 대기 진입): ' + cmdErr.message);
   }
 
-  // PDF 파일 생성 및 디스크 기록 완결 대기 (최대 12초 폴링)
+  // PDF 파일 생성 및 디스크 기록 완결 대기 (최대 12초 비동기 폴링 — 이벤트 루프 블로킹 없음)
   const startWait = Date.now();
   let pdfReady = false;
   while (Date.now() - startWait < 12000) {
@@ -532,7 +551,7 @@ function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리�
       pdfReady = true;
       break;
     }
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
+    await new Promise(r => setTimeout(r, 150));
   }
 
   if (!pdfReady || !fs.existsSync(tempPrintPdf) || fs.statSync(tempPrintPdf).size === 0) {
@@ -558,11 +577,11 @@ function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리�
   if (sumatraExe) {
     agentLog('PRINT', `하드웨어 스풀러 전송 [SumatraPDF 64bit -> ${printerName}]`);
     const sumatraCmd = `"${sumatraExe}" -print-to "${printerName}" -silent "${tempPrintPdf}"`;
-    execSync(sumatraCmd, { windowsHide: true, timeout: 25000 });
+    await runCommandAsync(sumatraCmd, { timeout: 25000 });
   } else {
     agentLog('WARN', `SumatraPDF 부재로 OS 기본 스풀러 시도 -> [${printerName}]`);
     const psCmd = `Start-Process -FilePath "${tempPrintPdf}" -Verb PrintTo -ArgumentList '"${printerName}"' -NoNewWindow`;
-    execSync(`powershell -NoProfile -Command "${psCmd}"`, { windowsHide: true, timeout: 15000 });
+    await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`, { timeout: 15000 });
   }
 
   agentLog('PRINT', `물리 프린터 스풀 전송 완료: [${printerName}]`);
@@ -863,7 +882,7 @@ $excel.Quit()
     const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
     fs.writeFileSync(psFile, psScript, 'utf8');
 
-    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 600000, windowsHide: true });
+    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, timeout: 600000 });
 
     const { PDFDocument } = require('pdf-lib');
 
@@ -1124,11 +1143,9 @@ $excel.Quit()
     const psFile = path.join(tempBuildDir, 'generate_statement.ps1');
     fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
 
-    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
+    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
       cwd: tempBuildDir,
-      encoding: 'utf8',
-      timeout: 60000,
-      windowsHide: true
+      timeout: 60000
     });
 
     const statementPdfPath = path.join(tempBuildDir, '거래명세서.pdf');
@@ -1856,35 +1873,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 6. 로컬 설치 프린터 목록 조회 API
+  // 6. 로컬 설치 프린터 목록 조회 API (비동기 Non-blocking)
   if (req.method === 'GET' && pathname === '/api/printers') {
-    try {
-      const psCmd = 'Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default | ConvertTo-Json';
-      const output = execSync(`powershell -NoProfile -Command "${psCmd}"`, { encoding: 'utf8', windowsHide: true }).trim();
-      let printerData = [];
+    (async () => {
       try {
-        const parsed = JSON.parse(output || '[]');
-        printerData = Array.isArray(parsed) ? parsed : [parsed];
-      } catch (e) {
-        printerData = [];
+        const psCmd = 'Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default | ConvertTo-Json';
+        const output = (await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`, { timeout: 10000 })).trim();
+        let printerData = [];
+        try {
+          const parsed = JSON.parse(output || '[]');
+          printerData = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          printerData = [];
+        }
+
+        const printers = printerData.map(p => p.Name).filter(Boolean);
+        const defaultPrinterObj = printerData.find(p => p.Default);
+        const defaultPrinter = defaultPrinterObj ? defaultPrinterObj.Name : (printers[0] || '');
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          printers,
+          defaultPrinter,
+          count: printers.length
+        }));
+      } catch (err) {
+        agentLog('ERROR', '프린터 목록 조회 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message, printers: [], defaultPrinter: '' }));
       }
-
-      const printers = printerData.map(p => p.Name).filter(Boolean);
-      const defaultPrinterObj = printerData.find(p => p.Default);
-      const defaultPrinter = defaultPrinterObj ? defaultPrinterObj.Name : (printers[0] || '');
-
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        success: true,
-        printers,
-        defaultPrinter,
-        count: printers.length
-      }));
-    } catch (err) {
-      agentLog('ERROR', '프린터 목록 조회 오류: ' + (err.message || err));
-      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ success: false, error: err.message, printers: [], defaultPrinter: '' }));
-    }
+    })();
     return;
   }
 
@@ -1905,7 +1924,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        sendHtmlToPhysicalPrinter(htmlContent, printerName, title);
+        await sendHtmlToPhysicalPrinter(htmlContent, printerName, title);
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
@@ -2326,7 +2345,7 @@ async function checkAndProcessPrintQueue() {
     const title = job.title || '기연리프트_출력물';
 
     agentLog('PRINT', `원격 인쇄 작업 처리 시작: 프린터 [${printerName}], 작업: ${job.id}`);
-    sendHtmlToPhysicalPrinter(job.documentHtml, printerName, title);
+    await sendHtmlToPhysicalPrinter(job.documentHtml, printerName, title);
 
     // 3. 완료 상태 업데이트
     await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {

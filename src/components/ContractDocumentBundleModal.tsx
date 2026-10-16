@@ -547,29 +547,37 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         while (pollAttempts < 150) {
           pollAttempts++;
           await new Promise(r => setTimeout(r, 1200));
-          const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
-            method: 'GET',
-            skipPrecheck: true
-          });
-          if (pollResp.ok) {
-            const pollData = await pollResp.json();
-            const job = pollData.job;
-            if (job) {
-              nullJobCount = 0;
-              if (job.status === 'COMPLETED' && job.result) {
-                agentRes = job.result;
-                break;
-              } else if (job.status === 'FAILED') {
-                throw new Error(job.error || '에이전트 큐 작업 중 오류가 발생했습니다.');
+          try {
+            const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+              method: 'GET',
+              skipPrecheck: true,
+              timeout: 8000
+            });
+            if (pollResp.ok) {
+              const pollData = await pollResp.json();
+              const job = pollData.job;
+              if (job) {
+                nullJobCount = 0;
+                if (job.status === 'COMPLETED' && job.result) {
+                  agentRes = job.result;
+                  break;
+                } else if (job.status === 'FAILED') {
+                  throw new Error(job.error || '에이전트 큐 작업 중 오류가 발생했습니다.');
+                } else {
+                  setProgressPercent(prev => Math.min(88, prev + 6));
+                }
               } else {
-                setProgressPercent(prev => Math.min(88, prev + 6));
-              }
-            } else {
-              nullJobCount++;
-              if (nullJobCount >= 10) {
-                throw new Error(`에이전트 작업 큐에서 작업(${jobId})을 찾을 수 없습니다. 에이전트가 재시작되었거나 구버전일 수 있습니다.`);
+                nullJobCount++;
+                if (nullJobCount >= 10) {
+                  throw new Error(`에이전트 작업 큐에서 작업(${jobId})을 찾을 수 없습니다. 에이전트가 재시작되었거나 구버전일 수 있습니다.`);
+                }
               }
             }
+          } catch (pollErr: any) {
+            if (pollErr?.message?.includes('큐 작업 중 오류') || pollErr?.message?.includes('찾을 수 없습니다')) {
+              throw pollErr;
+            }
+            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
         }
         if (agentRes.queued) {
