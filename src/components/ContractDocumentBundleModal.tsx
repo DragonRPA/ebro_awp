@@ -526,7 +526,6 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bundleOptions),
-        timeout: 60000,
         requireAgent: true,
         actionName: '계약서 패키지 PDF 생성'
       });
@@ -577,7 +576,6 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath: pdf.filePath }),
-        timeout: 5000,
         requireAgent: true,
         actionName: '로컬 PDF 파일 열기'
       });

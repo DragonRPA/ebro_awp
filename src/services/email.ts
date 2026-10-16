@@ -186,13 +186,12 @@ class RealGmailService {
       fromName: resolvedFromName
     };
 
-    // 2-1. 로컬 에이전트 시도 (사전 /health 핑 확인 후 25초 타임아웃 부여)
+    // 2-1. 로컬 에이전트 시도 (사전 /health 핑 확인 후 완료 시까지 대기)
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(localPayload),
-        timeout: 25000,
         requireAgent: hasLocalPathAttachment,
         actionName: '이메일 발송'
       });

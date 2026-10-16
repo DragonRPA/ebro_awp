@@ -270,7 +270,7 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
     }
 
     const requestId = 'req_' + Math.random().toString(36).substring(2, 10);
-    const timeoutMs = (init as any)?.timeout || 120000;
+    const timeoutMs = (init as any)?.timeout;
 
     let timer: any = null;
 
@@ -278,7 +278,7 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
       if (event.source !== window || !event.data || event.data.source !== 'EBRO_EXTENSION') return;
       if (event.data.type === 'PROXY_FETCH_RESPONSE' && event.data.requestId === requestId) {
         window.removeEventListener('message', handler);
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
 
         const res = event.data.response;
         if (!res || !res.success) {
@@ -304,20 +304,23 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
 
     window.addEventListener('message', handler);
 
-    timer = setTimeout(() => {
-      window.removeEventListener('message', handler);
-      reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
-    }, timeoutMs);
+    // 명시적 양수 timeoutMs가 지정된 경우(예: /health 핑)에만 타이머 작동, 본 작업(0 또는 미지정)은 완료까지 무제한 대기
+    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+      timer = setTimeout(() => {
+        window.removeEventListener('message', handler);
+        reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
+      }, timeoutMs);
+    }
 
     if (init?.signal) {
       if (init.signal.aborted) {
         window.removeEventListener('message', handler);
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         return reject(new DOMException('The user aborted a request.', 'AbortError'));
       }
       init.signal.addEventListener('abort', () => {
         window.removeEventListener('message', handler);
-        clearTimeout(timer);
+        if (timer) clearTimeout(timer);
         reject(new DOMException('The user aborted a request.', 'AbortError'));
       }, { once: true });
     }
@@ -342,23 +345,14 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
         method: init?.method || 'GET',
         headers: headerObj,
         body: typeof init?.body === 'string' ? init.body : undefined,
-        timeout: timeoutMs
+        timeout: typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 0
       }
     }, '*');
   });
 }
 
-/**
- * 로컬 에이전트 통신 헬퍼 (확장 프로그램 프록시 ➔ 루프백 fetch 상호 폴백 지원)
- */
-/**
- * 로컬 에이전트 통신 헬퍼 (확장 프로그램 프록시 ➔ 루프백 fetch 상호 폴백 지원)
- * - 신호 소진(Signal Exhaustion) 방지: 확장 프로그램 대기로 부모 AbortSignal이 소진되어 루프백이 즉사하는 결함 원천 차단
- * - 확장 프로그램 미설치 시 불필요한 2초 대기 없이 루프백으로 즉각 직행
- * - W3C Potentially Trustworthy Origin 표준 준수: http://localhost:5175 1순위 시도
- */
 export interface AgentFetchOptions extends RequestInit {
-  timeout?: number;
+  timeout?: number;       // /health 등 상태 핑에만 사용 (본 작업은 사전 생존 확인 후 완료 시까지 무제한 대기)
   requireAgent?: boolean; // true인 경우 에이전트 미응답 시 즉시 AgentRequiredModal 표출 및 명확한 안내 에러 반환
   actionName?: string;    // AgentRequiredModal에 표시할 작업명 (예: '계약서 패키지 생성', '이메일 발송')
   skipPrecheck?: boolean; // true인 경우 사전 /health 핑 생략
@@ -366,15 +360,16 @@ export interface AgentFetchOptions extends RequestInit {
 
 export async function fetchWithAgentFallback(path: string, init?: AgentFetchOptions): Promise<Response> {
   const isHealthCheck = path.startsWith('/health');
-  const requestedTimeout = init?.timeout || 3500;
+  // 헬스체크(/health)만 빠른 응답 확인용 기본 타임아웃(2500ms)을 두고, 실제 본 작업은 타임아웃 제한을 두지 않음(0)
+  const effectiveTimeout = isHealthCheck ? (init?.timeout || 2500) : (init?.timeout ?? 0);
   const requireAgent = Boolean(init?.requireAgent);
   const actionName = init?.actionName || '로컬 연동 작업';
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
   const hasExtension = isExtensionBridgeAvailable();
 
-  // 🛡️ [사전 실행 상태 확인 (Pre-flight Health Check)]
-  // 무거운 작업(타임아웃 > 5000ms) 또는 requireAgent=true인 프로세스는 본 요청 전 빠른 핑으로 에이전트 생존 여부를 선행 확인합니다.
-  if (!isHealthCheck && !init?.skipPrecheck && (requireAgent || requestedTimeout > 5000 || !lastKnownAgentOnline)) {
+  // 🛡️ [1단계: 사전 실행 상태 확인 (Pre-flight Health Check)]
+  // 본 작업을 실행하기 전에 먼저 짧은 /health 핑(1.5초)으로 로컬 에이전트가 실행 중인지 확인합니다.
+  if (!isHealthCheck && !init?.skipPrecheck) {
     let alive = false;
 
     // 0-1. HTTPS + 브라우저 확장 프로그램이 있으면 확장 프로그램 브리지로 먼저 핑 확인 (PNA/Mixed-Content 차단 우회)
@@ -419,25 +414,24 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     }
   }
 
-  // 1. HTTPS 환경이며 확장 프로그램이 실제 활성화되어 있는 경우 1순위로 시도
-  //    (기존에 requestedTimeout <= 5000 제한이 있어서 이메일 발송/PDF 생성 등 긴 타임아웃 요청이 확장 프로그램 브리지를 건너뛰던 문제 수정!)
+  // 🚀 [2단계: 에이전트 생존 확인 완료 -> 본 작업 실행 (인위적 타임아웃 없이 완료까지 대기)]
+  // 2-1. HTTPS 환경이며 확장 프로그램이 활성화되어 있는 경우 1순위 시도
   if (isHttps && hasExtension) {
     try {
-      const extTimeout = isHealthCheck ? Math.min(requestedTimeout, 1500) : requestedTimeout;
       const extRes = await fetchViaExtensionBridge(path, {
         ...init,
-        timeout: extTimeout
+        timeout: effectiveTimeout
       } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);
         return extRes;
       }
     } catch (extErr) {
-      // 확장 프로그램 응답 지연/미응답 시 즉시 루프백 직접 fetch 시도로 인계
+      // 확장 프로그램 응답 실패 시 루프백 직접 fetch로 인계
     }
   }
 
-  // 2. 직접 루프백 fetch 시도 (Windows IPv6 ::1 지연 방지를 위해 127.0.0.1 1순위 시도)
+  // 2-2. 직접 루프백 fetch 시도 (사전 점검에서 응답한 activeAgentBaseUrl 최우선)
   const candidateHosts = activeAgentBaseUrl === 'http://localhost:5175'
     ? ['http://localhost:5175', 'http://127.0.0.1:5175']
     : ['http://127.0.0.1:5175', 'http://localhost:5175'];
@@ -447,14 +441,13 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     let timeoutTimer: any = null;
     try {
       const freshController = new AbortController();
-      const hostTimeoutMs = requestedTimeout;
 
       if (init?.signal && !init.signal.aborted) {
         init.signal.addEventListener('abort', () => freshController.abort(init.signal?.reason), { once: true });
-      } else {
+      } else if (effectiveTimeout > 0) {
         timeoutTimer = setTimeout(() => {
-          freshController.abort(new DOMException('로컬 에이전트 응답 대기 시간이 초과되었습니다 (Timeout).', 'TimeoutError'));
-        }, hostTimeoutMs);
+          freshController.abort(new DOMException('로컬 에이전트 상태 확인 응답 시간 초과', 'TimeoutError'));
+        }, effectiveTimeout);
       }
 
       const mergedInit: RequestInit = {
@@ -473,19 +466,15 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     } catch (e: any) {
       if (timeoutTimer) clearTimeout(timeoutTimer);
       lastErr = e;
-      // 첫 번째 호스트에서 이미 긴 타임아웃(>5초)을 소진한 경우 두 번째 호스트에서 또 대기하지 않고 즉시 탈출
-      if (requestedTimeout > 5000 && e?.name === 'TimeoutError') {
-        break;
-      }
     }
   }
 
-  // 3. 만약 직접 fetch가 실패했고 확장 프로그램이 있다면 최종 보조 시도 (HTTPS/HTTP 불문)
+  // 2-3. 직접 fetch가 실패했고 확장 프로그램이 있다면 최종 보조 시도
   if (hasExtension) {
     try {
       const extRes = await fetchViaExtensionBridge(path, {
         ...init,
-        timeout: requestedTimeout
+        timeout: effectiveTimeout
       } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);

@@ -148,7 +148,6 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
       const res = await fetchWithAgentFallback('/api/hometax/purchase-invoices', {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
-        timeout: 10000,
         requireAgent: true,
         actionName: '홈택스 매입 세금계산서 수집'
       });
