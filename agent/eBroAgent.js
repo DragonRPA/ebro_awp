@@ -1174,7 +1174,6 @@ $excel.Quit()
 
     try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
 
-    const b64 = Buffer.from(finalPdfBytes).toString('base64');
     agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
     broadcastStudioLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
     return {
@@ -1182,7 +1181,6 @@ $excel.Quit()
       fileName,
       pageCount,
       localPath: localSavePath,
-      base64Content: b64,
       message: `100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
     };
   } catch (bundleErr) {
@@ -1211,20 +1209,18 @@ function processSystemJobQueue() {
         let pdfFilePath = emailPayload?.localPath;
         let pdfFileName = emailPayload?.fileName;
         let pageCount = emailPayload?.pageCount || 0;
-        let base64Content = '';
         if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
           const bundleRes = await executeContractBundleInternal(bundleOptions);
           pdfFilePath = bundleRes.localPath;
           pdfFileName = bundleRes.fileName;
           pageCount = bundleRes.pageCount;
-          base64Content = bundleRes.base64Content;
         }
         const finalEmailPayload = {
           ...emailPayload,
           attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
         };
         const mailRes = await executeSendEmailInternal(finalEmailPayload);
-        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount, base64Content };
+        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount };
       } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
         const bundleRes = await executeContractBundleInternal(nextJob.payload);
         if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
@@ -1234,8 +1230,7 @@ function processSystemJobQueue() {
           success: true,
           fileName: bundleRes.fileName,
           pageCount: bundleRes.pageCount,
-          localPath: bundleRes.localPath,
-          base64Content: bundleRes.base64Content
+          localPath: bundleRes.localPath
         };
       }
       nextJob.status = 'COMPLETED';

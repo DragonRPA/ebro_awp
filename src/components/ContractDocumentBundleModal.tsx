@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
 import { 
-  X, FileText, Download, Eye, CheckCircle2, AlertCircle, 
+  X, FileText, FolderOpen, CheckCircle2, AlertCircle, 
   RefreshCw, FileCheck, Mail, Send, Plus, Users, Check, Play, Filter
 } from 'lucide-react';
 import { emailService } from '../services/email';
@@ -570,36 +570,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         throw new Error(agentRes.error || '에이전트에서 PDF 생성 및 문서고 저장에 실패했습니다. (경로가 반환되지 않았습니다.)');
       }
 
-      setProgressPercent(92);
-
-      let blobUrl = '';
-      try {
-        if (agentRes.base64Content) {
-          const byteChars = atob(agentRes.base64Content);
-          const byteNumbers = new Array(byteChars.length);
-          for (let i = 0; i < byteChars.length; i++) {
-            byteNumbers[i] = byteChars.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'application/pdf' });
-          blobUrl = URL.createObjectURL(blob);
-        } else {
-          const fileResp = await fetchWithAgentFallback(`/api/get-file?fileName=${encodeURIComponent(returnedPath)}`, {
-            method: 'GET',
-            skipPrecheck: true
-          });
-          if (fileResp.ok) {
-            const blob = await fileResp.blob();
-            blobUrl = URL.createObjectURL(blob);
-          }
-        }
-      } catch (blobErr) {
-        console.warn('PDF Blob 생성 생략:', blobErr);
-      }
-
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
       const finalRes = {
-        url: blobUrl,
+        url: '',
         filePath: returnedPath,
         fileName: agentRes.fileName || `[${tenantBrand}]_계약서패키지_${custName}_${siteName}(${agentRes.pageCount || 37}p).pdf`,
         pageCount: agentRes.pageCount || 37
@@ -622,73 +595,32 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     }
   };
 
-  // ── [액션 1] 계약서패키지 PDF 다운로드 핸들러 (브라우저 파일 다운로드 + 로컬 뷰어 열기) ──
-  const handleDownloadPdf = async () => {
+  // ── [액션 1, 2 공통] 로컬 문서고 PDF 파일 즉시 열기 (base64 전송 없이 에이전트가 로컬 파일 오픈) ──
+  const handleOpenLocalFile = async () => {
     try {
       let pdf = generatedResult;
       if (!pdf || !pdf.filePath) {
         pdf = await buildBundlePdf();
       }
 
-      let downloadedInBrowser = false;
-      if (pdf.url) {
-        const a = document.createElement('a');
-        a.href = pdf.url;
-        a.download = pdf.fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        downloadedInBrowser = true;
-      }
-
-      if (pdf.filePath) {
-        const openResp = await fetchWithAgentFallback('/api/open-local-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath: pdf.filePath }),
-          requireAgent: !downloadedInBrowser,
-          actionName: '로컬 PDF 파일 열기'
-        }).catch(() => null);
-
-        if (!downloadedInBrowser && (!openResp || !openResp.ok)) {
-          throw new Error(`로컬 문서고에 저장된 파일(${pdf.filePath})을 열 수 없습니다.`);
-        }
+      const openResp = await fetchWithAgentFallback('/api/open-local-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: pdf.filePath }),
+        requireAgent: true,
+        actionName: '로컬 PDF 파일 열기'
+      });
+      if (!openResp.ok) {
+        const errJson = await openResp.json().catch(() => null);
+        throw new Error(errJson?.error || `로컬 파일 열기 실패 (HTTP ${openResp.status})`);
       }
     } catch (err: any) {
-      showErrorModal?.(`PDF 다운로드 실패:\n${err.message || err}`);
+      showErrorModal?.(`파일 열기 실패:\n${err.message || err}`);
     }
   };
 
-  // ── [액션 2] 새 창 미리보기 핸들러 ──
-  const handlePreviewPdf = async () => {
-    try {
-      let pdf = generatedResult;
-      if (!pdf || !pdf.filePath) {
-        pdf = await buildBundlePdf();
-      }
-
-      if (pdf.url) {
-        const win = window.open(pdf.url, '_blank');
-        if (win) return;
-      }
-
-      if (pdf.filePath) {
-        const openResp = await fetchWithAgentFallback('/api/open-local-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath: pdf.filePath }),
-          requireAgent: true,
-          actionName: '로컬 PDF 파일 열기'
-        });
-        if (!openResp.ok) {
-          const errJson = await openResp.json().catch(() => null);
-          throw new Error(errJson?.error || `로컬 파일 열기 실패 (HTTP ${openResp.status})`);
-        }
-      }
-    } catch (err: any) {
-      showErrorModal?.(`파일 미리보기 실패:\n${err.message || err}`);
-    }
-  };
+  const handleDownloadPdf = handleOpenLocalFile;
+  const handlePreviewPdf = handleOpenLocalFile;
 
   // ── [액션 3] 계약서패키지 이메일 발송 핸들러 (1-A, 2-A, 3-yes 완벽 적용) ──
   const handleSendPackageEmail = async () => {
@@ -1446,26 +1378,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               닫기
             </button>
 
-            <button
-              type="button"
-              onClick={handlePreviewPdf}
-              disabled={isGenerating || isSendingEmail}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-card)',
-                color: 'var(--text-main)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: isGenerating ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <Eye size={14} /> 새 창 미리보기
-            </button>
+
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -1489,8 +1402,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
                 opacity: (!canGeneratePackage || isAgentOnline === false) ? 0.5 : 1
               }}
             >
-              {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-              계약서패키지 PDF 다운로드
+              {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <FolderOpen size={14} />}
+              문서고 저장 파일 열기
             </button>
 
             {/* 2. 이메일 발송 버튼 (논스톱 발송) */}

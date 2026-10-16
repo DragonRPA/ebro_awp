@@ -202,19 +202,42 @@ class RealGmailService {
       fromName: resolvedFromName
     };
 
-    // 2-1. 로컬 에이전트 시도 (사전 /health 핑 확인 후 완료 시까지 대기)
+    // 2-1. 로컬 에이전트 작업 큐에 이메일 발송 등록 후 결과 확인 (HTTP 연결 블로킹 제거, localPath 직접 첨부)
     let agentResponded = false;
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localPayload),
+        body: JSON.stringify({ ...localPayload, asyncQueue: true }),
         requireAgent: hasLocalPathAttachment,
         actionName: '이메일 발송'
       });
       agentResponded = true;
       if (localResp.ok) {
-        const localRes = await localResp.json();
+        let localRes = await localResp.json();
+        if (localRes.queued && localRes.jobId) {
+          const jobId = localRes.jobId;
+          while (true) {
+            await new Promise(r => setTimeout(r, 800));
+            const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+              method: 'GET',
+              skipPrecheck: true
+            });
+            if (pollResp.ok) {
+              const pollData = await pollResp.json();
+              const job = pollData.job;
+              if (job) {
+                if (job.status === 'COMPLETED') {
+                  localRes = job.result || { success: true };
+                  break;
+                } else if (job.status === 'FAILED') {
+                  localRes = { success: false, error: job.error || '이메일 발송 작업 실패' };
+                  break;
+                }
+              }
+            }
+          }
+        }
         if (localRes.success) {
           sendSuccess = true;
         } else {
