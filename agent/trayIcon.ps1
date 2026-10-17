@@ -1,4 +1,4 @@
-# agent/trayIcon.ps1
+﻿# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
@@ -169,6 +169,9 @@ function Get-TenantLoginUrl {
 
     if ($subdomain) {
         $cleanSub = $subdomain.Trim().ToLower()
+        if ($cleanSub -eq "giyeonlift" -or $cleanSub -eq "giyeun" -or $cleanSub -eq "giyuen" -or $cleanSub -eq "kiyuen") {
+            return "https://giyeon.ebro.run"
+        }
         return "https://$cleanSub.ebro.run"
     }
 

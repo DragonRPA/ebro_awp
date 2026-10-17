@@ -2149,6 +2149,14 @@ function startTrayWorker() {
 
   if (targetScript) {
     try {
+      // 💡 Windows PowerShell 5.1 한글 파싱 오류 방지를 위해 UTF-8 BOM(0xEF,0xBB,0xBF) 강제 보장
+      try {
+        const rawBuf = fs.readFileSync(targetScript);
+        if (rawBuf.length >= 3 && !(rawBuf[0] === 0xEF && rawBuf[1] === 0xBB && rawBuf[2] === 0xBF)) {
+          fs.writeFileSync(targetScript, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), rawBuf]));
+        }
+      } catch (bomErr) {}
+
       try {
         execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
       } catch (kErr) {}
@@ -2608,8 +2616,9 @@ server.listen(PORT, '127.0.0.1', () => {
     setTimeout(() => {
       const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
       const activeCode = policy.tenantCode || TENANT_CODE || 'GIYEONLIFT';
-      const subdomain = policy.subdomain || ((activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeon' : activeCode.toLowerCase());
-      const loginUrl = `https://${subdomain}.ebro.run`;
+      let rawSub = policy.subdomain || ((activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeon' : activeCode.toLowerCase());
+      if (String(rawSub).toLowerCase() === 'giyeonlift' || String(rawSub).toLowerCase() === 'giyeun') rawSub = 'giyeon';
+      const loginUrl = `https://${rawSub}.ebro.run`;
       openDefaultBrowser(loginUrl);
     }, 600);
   }
