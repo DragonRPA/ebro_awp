@@ -6727,9 +6727,14 @@ class LocalDB {
       if (val === undefined) {
         continue;
       }
-      // contracts 테이블 프론트엔드 전용 상태 필드 격리
-      if (resolvedTable === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(key)) { continue; }
+      // contracts 테이블 프론트엔드 전용 상태 필드 및 구버전/미존재 컬럼 격리
+      if (resolvedTable === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms', 'paymentDay'].includes(key)) { continue; }
       if (resolvedTable === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(key)) { continue; }
+      if (resolvedTable === 'contract_assets' && ['outboundDeliveryId', 'inboundDeliveryId'].includes(key)) { continue; }
+      if (resolvedTable === 'contract_assets' && key === 'assetId' && (val === '' || val === null || val === undefined)) {
+        sanitized['assetId'] = null;
+        continue;
+      }
       // DB consumables 스키마에 없는 supplier, category, note, repairingQty 컬럼 오염 방지
       if (resolvedTable === 'consumables' && (key === 'supplier' || key === 'category' || key === 'note' || key === 'repairingQty')) {
         continue;
@@ -6748,7 +6753,13 @@ class LocalDB {
       if (resolvedTable === 'assets' && key === 'antiEntrapmentOwnership') {
         continue;
       }
-      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
+      if (resolvedTable === 'products' && key === 'shortName') {
+        continue;
+      }
+      if (resolvedTable === 'customers' && key === 'paymentDueMonthOffset') {
+        continue;
+      }
+      if (resolvedTable === 'customer_sites' && ['siteMasterId', 'contacts', 'paymentDueMonthOffset', 'billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
       // equipment_manuals mediaType -> media_type 정제
       if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
         sanitized['media_type'] = val;
@@ -6919,6 +6930,17 @@ class LocalDB {
       if (obj.solutionType !== undefined) {
         sanitized.solutionType = obj.solutionType || 'AWP';
       }
+    }
+
+    // 🕒 [타임스탬프 NOT NULL 보장]: PostgreSQL 테이블(products, customers, customer_sites, deliveries 등)의 createdAt/updatedAt 필수 보존
+    const nowIso = new Date().toISOString();
+    if (!sanitized.createdAt && obj.createdAt) {
+      sanitized.createdAt = obj.createdAt;
+    } else if (!sanitized.createdAt && resolvedTable !== 'tenants' && resolvedTable !== 'system_settings') {
+      sanitized.createdAt = nowIso;
+    }
+    if (!sanitized.updatedAt && resolvedTable !== 'tenants' && resolvedTable !== 'system_settings' && resolvedTable !== 'purchase_settlement_items') {
+      sanitized.updatedAt = obj.updatedAt || nowIso;
     }
 
     return sanitized;

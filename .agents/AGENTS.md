@@ -174,6 +174,15 @@
 - **이메일 및 알림 오발송 원천 차단**: RWTT(스트레스 테스트) 및 자동화 스크립트 수행 중 청구서 이메일 발송, 카카오 알림톡 등 외부로 데이터가 발송되는 시나리오를 검증할 때, 실제 DB에 등록된 고객사나 담당자에게 테스트 메일이 오발송되는 사고를 절대적으로 방지해야 한다.
 - **수신인 개발자 제한 의무**: 테스트 과정에서 발생하는 모든 외부 발송 액션은 실행 직전 DOM 조작이나 파라미터 변조를 통해, 반드시 수신인(Recipient/Email) 주소를 '개발자 본인 이메일' 또는 '안전하게 격리된 사내 테스트 전용 계정'으로 제한(Override)한 후 실행해야 한다.
 
+### 5.10 RWTT 데모 전용 환경 및 데모 테넌트 격리 수행 헌장 (Demo DB & Demo Tenant Only Doctrine)
+- **절대적 격리 원칙**: 사용자가 지시하는 **모든 RWTT(도메인 관통 스트레스 테스트) 및 자동화 E2E 테스트는 100% 예외 없이 '데모 데이터베이스(Demo Supabase)'와 '데모 테넌트(`giyeun` eBroAWP 렌탈 / 데모 환경)' 위에서만 수행**되어야 한다.
+- **실운영 프로덕션 DB 침범 영구 금지**: 실운영(프로덕션) 데이터베이스(`wywgkikkjgbnlljkkmnz.supabase.co`) 및 실제 운영사 도메인(`ebro.run`, `giyuenlift.ebro.run` 등) 환경에서 RWTT 테스트 데이터를 생성, 변경, 조작하는 행위를 절대 엄격히 금지한다.
+- **데모 환경 기준선**:
+  - **데모 Supabase URL**: `https://idfecoovqkjopgbezcpo.supabase.co` (`DEMO_SUPABASE_CONFIG`)
+  - **데모 실행 모드**: `?demo=true` 쿼리 파라미터 또는 데모 도메인 환경(`awp-demo.ebro.run`, `localStorage.setItem('ebro_demo_mode', 'true')`)
+  - **테넌트 격리**: 데모 테넌트(`tenant_id: 'giyeun'`) 컨텍스트 및 데모 계정(`u-admin` 등)을 사용하여 실운영 데이터와의 혼선을 원천 차단한다.
+
+
 
 ## 📦 [카테고리 VI] 버전 관리 및 배포 정책 (Version Control & Deployment)
 
