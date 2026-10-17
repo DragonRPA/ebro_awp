@@ -4412,6 +4412,152 @@ export const SEED_TENANTS: Tenant[] = [
       statementPrintAreaBase: "A1:J",
       statementPrintAreaStartRow: 1
     }
+  },
+  {
+    id: 'tenant-ebro-awp',
+    tenantCode: 'EBRO_AWP',
+    solutionType: 'AWP',
+    systemName: 'eBro System',
+    displayName: 'eBroAWP 렌탈',
+    corporateName: '주식회사 이브로에이더블유피렌탈',
+    tradeName: 'eBroAWP 렌탈',
+    businessNumber: '107-86-99999',
+    corporateRegistrationNumber: '110111-9999999',
+    representativeName: '이정용',
+    openingDate: '2026-01-01',
+    businessAddress: '경기도 화성시 남양읍 시청로 160번길 20 (eBro 데모 주기장)',
+    headOfficeAddress: '경기도 화성시 남양읍 시청로 160번길 20',
+    businessCategory: '사업지원 및 임대서비스업',
+    businessItem: '고소작업대임대·건설기계임대',
+    businessTypes: [
+      { bizType: '사업지원 및 임대서비스업', bizItem: '고소작업대임대' },
+      { bizType: '도매 및 소매업', bizItem: '건설기계·부품 및 수리업' }
+    ],
+    isUnitTaxation: false,
+    taxEmail: 'demo@ebro.run',
+    taxOffice: '화성세무서장',
+    certificateIssueDate: '2026-01-01',
+    tel: '031-355-8899',
+    fax: '031-355-8898',
+    salesPhone: '010-3344-5566',
+    email: 'demo@ebro.run',
+    websiteUrl: 'https://awp-demo.ebro.run',
+    subdomain: 'awp-demo',
+    targetRepo: 'DragonRPA/ebro_awp',
+    privacyOfficer: {
+      name: '이정용',
+      position: '대표이사 / 개인정보보호책임자',
+      department: '경영지원본부',
+      phone: '031-355-8899',
+      email: 'demo@ebro.run',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    },
+    privacyOfficerName: '이정용',
+    privacyOfficerPosition: '대표이사 / 개인정보보호책임자',
+    privacyOfficerDepartment: '경영지원본부',
+    privacyOfficerPhone: '031-355-8899',
+    privacyOfficerEmail: 'demo@ebro.run',
+    workplaces: [
+      {
+        id: 'wp-demo-01',
+        workplaceCode: 'HQ-DEMO',
+        name: '화성 본점 (데모)',
+        isHeadquarter: true,
+        businessNumber: '107-86-99999',
+        subBizNumber: '0000',
+        address: '경기도 화성시 남양읍 시청로 160번길 20',
+        addressDetail: '본관 3층',
+        tel: '031-355-8899',
+        fax: '031-355-8898',
+        managerName: '이정용',
+        managerPhone: '010-3344-5566',
+        managerEmail: 'demo@ebro.run',
+        memo: 'eBroAWP 렌탈 본사 및 관제센터',
+        createdAt: '2026-01-01T00:00:00.000Z'
+      }
+    ],
+    yards: [
+      {
+        id: 'yard-demo-01',
+        yardCode: 'YARD-DEMO-01',
+        name: 'eBroAWP 화성 메인 주기장',
+        isDefault: true,
+        address: '경기도 화성시 남양읍 시청로 160번길 20',
+        addressDetail: '야드 A구역',
+        operatingCapacity: 150,
+        managerName: '데모운영팀',
+        managerPhone: '031-355-8899',
+        tel: '031-355-8899',
+        operatingHours: '08:00 ~ 18:00',
+        memo: '고소작업대 시저/엔진/직진붐 데모 장비 주기장',
+        createdAt: '2026-01-01T00:00:00.000Z'
+      }
+    ],
+    mainYardAddress: '경기도 화성시 남양읍 시청로 160번길 20 (eBro 데모 주기장)',
+    bankAccounts: [
+      {
+        bankName: '우리은행',
+        accountNumber: '1002-123-999999',
+        accountHolder: '주식회사 이브로에이더블유피렌탈',
+        isDefault: true
+      },
+      {
+        bankName: '신한은행',
+        accountNumber: '110-345-999999',
+        accountHolder: '주식회사 이브로에이더블유피렌탈',
+        isDefault: false
+      }
+    ],
+    logoUrl: '/favicon.svg',
+    ciUrl: '/favicon.svg',
+    features: {
+      telegramBot: true,
+      callRecordingStt: true,
+      kakaoContract: true,
+      autoTaxInvoice: true,
+      voiceAssistance: true,
+      agentAiEnabled: true
+    },
+    subscription: {
+      plan: 'ENTERPRISE',
+      status: 'ACTIVE',
+      startDate: '2026-01-01',
+      endDate: '2029-12-31',
+      gracePeriodDays: 30,
+      billingCycle: 'YEARLY',
+      monthlyFee: 0,
+      autoRenew: true,
+      maxAssets: 0,
+      maxUsers: 0,
+      licenseKey: 'EBR-DEMO-AWP-20291231-LIVE',
+      memo: '공식 AWP 데모 시연 및 테스트 전용 테넌트'
+    },
+    stampImageUrl: OFFICIAL_STAMP_BASE64,
+    status: 'ACTIVE',
+    isDefault: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: true,
+    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'],
+    excelMappingRules: {
+      contractAssetsStartRow: 44,
+      contractModelCol: 1,
+      contractQtyCol: 3,
+      contractSnCol: 4,
+      contractFeeCol: 5,
+      contractAmountCol: 7,
+      contractPrintAreaBase: 'A26:K',
+      contractPrintAreaStartRow: 26,
+      statementAssetsStartRow: 21,
+      statementModelCol: 1,
+      statementSnCol: 2,
+      statementPeriodCol: 3,
+      statementQtyCol: 4,
+      statementPriceCol: 5,
+      statementAmountCol: 8,
+      statementPrintAreaBase: 'A1:J',
+      statementPrintAreaStartRow: 1
+    }
   }
 ];
 
@@ -5683,7 +5829,8 @@ class LocalDB {
                  code === sub ||
                  sub.startsWith(code) ||
                  code.startsWith(sub) ||
-                 (sub.includes('giyeon') && (code === 'giyeonlift' || code === 'giyeon')) ||
+                 (sub.includes('demo') && (code === 'ebro_awp' || subField === 'awp-demo') ||
+                 sub.includes('giyeon') && (code === 'giyeonlift' || code === 'giyeon')) ||
                  (sub.includes('giyeonlift') && (code === 'giyeonlift' || code === 'giyeon')) ||
                  (sub.includes('giyeun') && (code === 'giyeonlift' || code === 'giyeun')) ||
                  (sub.includes('giyuen') && (code === 'giyeonlift' || code === 'giyeun')) ||
