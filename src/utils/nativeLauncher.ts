@@ -454,7 +454,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   }
 
   if (delivery.closingMemo && delivery.closingMemo.trim()) {
-    lines.push(``, `[옵션 및 보양]`, `- ${delivery.closingMemo.trim()}`);
+    lines.push(``, `[유상 및 무상옵션]`, `- ${delivery.closingMemo.trim()}`);
   }
 
   lines.push(``, `※ 현장 도착 30분 전 인수자에게 사전 연락 부탁드립니다.`);

@@ -929,7 +929,7 @@ export const STANDARD_SPECS: SpecItem[] = [
   { id: 'spec21', label: '부착물 세트 (인증서, 제원표, 보험증권, 반입전 체크리스트)', keywords: ['부착물', '제원표', '비상하강사용법', '보험증권', '인증서', '반입전', '체크리스트', '출고서류', '안전점검결과서', '직인날인', '점검자 직인'] }
 ];
 
-// 🏷️ 전사 표준 옵션 마스터 인터페이스 (유상옵션 / 보양작업 / 요구사양)
+// 🏷️ 전사 표준 옵션 마스터 인터페이스 (유상옵션 / 무상옵션 / 요구사양)
 export interface StandardOption {
   id: string;
   category: 'PAID' | 'PROTECTION' | 'SPEC';
@@ -957,8 +957,8 @@ export const SEED_STANDARD_OPTIONS: StandardOption[] = [
   { id: 'opt_paid_joystick', category: 'PAID', name: '조이스틱 커버 연장', defaultPrice: 10000, unit: '월', description: '상부 조작기 보호용 투명 연장 커버', isActive: true, sortOrder: 9, createdAt: '2026-01-01' },
   { id: 'opt_paid_tubefire', category: 'PAID', name: '튜브소화기 (자동확산)', defaultPrice: 30000, unit: '월', description: '배터리실 내부 화재감지 자동 소화튜브', isActive: true, sortOrder: 10, createdAt: '2026-01-01' },
 
-  // 2. 보양 작업 (PROTECTION)
-  { id: 'opt_prot_none', category: 'PROTECTION', name: 'NONE (보양 없음)', defaultPrice: 0, unit: '건', description: '별도 보양 작업 미요청', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
+  // 2. 무상 옵션 (PROTECTION)
+  { id: 'opt_prot_none', category: 'PROTECTION', name: 'NONE (무상옵션 없음)', defaultPrice: 0, unit: '건', description: '별도 무상옵션 미요청', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
   { id: 'opt_prot_mesh', category: 'PROTECTION', name: '4면 철망 보양', defaultPrice: 0, unit: '건', description: '난간 4면 보호 완충 보양재 시공', isActive: true, sortOrder: 2, createdAt: '2026-01-01' },
   { id: 'opt_prot_tin', category: 'PROTECTION', name: '함석 보양', defaultPrice: 0, unit: '건', description: '장비 하부 및 데크 함석 보양', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
   { id: 'opt_prot_ladder', category: 'PROTECTION', name: '탑승구 사다리 보양', defaultPrice: 0, unit: '건', description: '탑승 사다리 발판 및 난간 완충 보양', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
@@ -1100,7 +1100,7 @@ export interface Customer {
   
   // 🌟 [신규] 고객사 기본 옵션/보양/요구사양 자동 재사용 마스터 (수량 제외 순수 품목명)
   defaultPaidOptions?: string;       // 기본 유상옵션 품목 (예: '협착난간대, 상부덮개, 소화기함' - 장비 대수 비례 수량 표기 제외)
-  defaultProtection?: string;        // 기본 보양작업 (예: '4면 철망 보양, 탑승구 사다리')
+  defaultProtection?: string;        // 기본 무상옵션 (예: '4면 철망 보양, 탑승구 사다리')
   defaultCheckedSpecs?: Record<string, boolean>; // 기본 요구 사양 체크 상태
   specialNotes?: string;             // 고객사 특이사항 메모 (예: '재임대 출고건으로 운반비 및 배차 한솔렌탈 부담')
 
@@ -1186,7 +1186,7 @@ export interface CustomerSite {
   
   // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속, 수량 제외 순수 품목명)
   paidOptions?: string;              // 현장 전용 유상옵션 품목 (장비 대수 비례 수량 표기 제외)
-  protection?: string;               // 현장 전용 보양작업
+  protection?: string;               // 현장 전용 무상옵션
   checkedSpecs?: Record<string, boolean>; // 현장 전용 요구 사양 체크 상태
   billingDay?: number;               // 청구서(세금계산서) 마감일
   statementClosingDay?: number;      // 거래명세서 마감일

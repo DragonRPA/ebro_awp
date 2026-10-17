@@ -1902,7 +1902,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
               <div>⏰ <strong>하차일시:</strong> {dateTimeResult?.displayText}</div>
               <div>🚚 <strong>운송비:</strong> {billableToCustomer ? '🔴 고객부담(청구)' : '🟢 당사부담'}</div>
               <div>🛡️ <strong>유상옵션:</strong> {paidOptions || '표준 사양'}</div>
-              <div>📦 <strong>보양작업:</strong> {protection || '표준 사양'}</div>
+              <div>📦 <strong>무상옵션:</strong> {protection || '표준 사양'}</div>
               <div style={{ gridColumn: 'span 2' }}>📄 <strong>마감/결제:</strong> {closingDay || '말일'} 마감 / {paymentDay || '익월 25일'} 결제</div>
               {specialMemo && <div style={{ gridColumn: 'span 2', color: '#f59e0b' }}>📝 <strong>특이사항:</strong> {specialMemo}</div>}
             </div>

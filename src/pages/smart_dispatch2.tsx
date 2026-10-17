@@ -1042,7 +1042,7 @@ export const SmartDispatch2: React.FC = () => {
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>
-                  보양작업 조건
+                  무상옵션 조건
                   {(inheritedFieldList.includes('보양작업(현장)') || inheritedFieldList.includes('보양작업(고객기본)')) &&
                     <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>

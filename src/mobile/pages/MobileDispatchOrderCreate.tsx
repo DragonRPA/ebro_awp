@@ -1532,7 +1532,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           </div>
         </div>
 
-        {/* 4. 유상옵션 및 보양작업 / 요구 사양 (출고 및 대차 모드) */}
+        {/* 4. 유상옵션 및 무상옵션 / 요구 사양 (출고 및 대차 모드) */}
         {dispatchMode !== 'RETURN' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3.5">
             <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
@@ -1589,10 +1589,10 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
               </div>
             </div>
 
-            {/* 보양작업 입력 및 추천 칩 */}
+            {/* 무상옵션 입력 및 추천 칩 */}
             <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-800/80">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] text-slate-400 font-bold">보양 작업 (바닥보양/휠보양/사다리 등)</label>
+                <label className="text-[11px] text-slate-400 font-bold">무상 옵션 (바닥보양/휠보양/사다리 등)</label>
                 {protection && (
                   <button
                     type="button"

@@ -3229,7 +3229,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           optionMemoParts.push(`[회수옵션] ${cleanPaidOptions}`);
         }
         if (cleanProtection !== 'NONE') {
-          optionMemoParts.push(`[보양작업] ${cleanProtection}`);
+          optionMemoParts.push(`[무상옵션] ${cleanProtection}`);
         }
         const optionMemoStr = optionMemoParts.length > 0 ? `${optionMemoParts.join(' | ')} | ` : '';
 

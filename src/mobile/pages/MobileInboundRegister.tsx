@@ -387,7 +387,7 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
             </div>
             <div className="text-slate-300 pl-5">
               {inheritedOptionsInfo.paidOptions && <div>• 유상옵션: <span className="font-semibold text-emerald-400">{inheritedOptionsInfo.paidOptions}</span></div>}
-              {inheritedOptionsInfo.protection && <div>• 보양작업: <span className="font-semibold text-blue-400">{inheritedOptionsInfo.protection}</span></div>}
+              {inheritedOptionsInfo.protection && <div>• 무상옵션: <span className="font-semibold text-blue-400">{inheritedOptionsInfo.protection}</span></div>}
             </div>
           </div>
         )}

@@ -490,7 +490,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                     )}
                     {siteObj?.protection && (
                       <div className="text-xs text-slate-300">
-                        <span className="text-slate-500 mr-2">보양작업:</span>
+                        <span className="text-slate-500 mr-2">무상옵션:</span>
                         {siteObj.protection}
                       </div>
                     )}

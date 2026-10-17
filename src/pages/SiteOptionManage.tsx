@@ -748,7 +748,7 @@ export const SiteOptionManage: React.FC = () => {
           "현장명": s.name,
           '현장주소': s.address || '-',
           '유상옵션': s.paidOptions || '미지정',
-          '보양작업': s.protection || 'NONE',
+          '무상옵션': s.protection || 'NONE',
           '사용고객수': `${siteCustomerStatsMap[s.id]?.activeCustomerCount || 0}개사`,
           '진행계약수': `${siteCustomerStatsMap[s.id]?.activeContractCount || 0}건`,
           '사용고객목록': siteCustomerStatsMap[s.id]?.activeCustomerNames?.join(', ') || '-',
@@ -1098,7 +1098,7 @@ export const SiteOptionManage: React.FC = () => {
               whiteSpace: 'nowrap',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
             }}
-            title="전사 유상옵션 및 보양작업 표준 품목/단가 관리"
+            title="전사 유상옵션 및 무상옵션 표준 품목/단가 관리"
           >
             <Sliders size={13} color="#ffffff" />
             옵션 품목 마스터
@@ -1554,11 +1554,11 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 2. 보양 작업 (PROTECTION) 섹션 */}
+                  {/* 2. 무상 옵션 (PROTECTION) 섹션 */}
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#059669" /> 2. 보양 작업
+                        <Shield size={15} color="#059669" /> 2. 무상 옵션
                       </span>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         * 복수 선택 가능 (NONE 선택 시 전체 해제)
@@ -1687,7 +1687,7 @@ export const SiteOptionManage: React.FC = () => {
                       적용 유상옵션: <strong>{paidEnabledOptions.length}건</strong>
                     </span>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      보양작업: <strong>{protectionEnabledDisplay}</strong>
+                      무상옵션: <strong>{protectionEnabledDisplay}</strong>
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8' }}>
                       💰 월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}
@@ -1811,7 +1811,7 @@ export const SiteOptionManage: React.FC = () => {
                           backgroundColor: isPaid ? 'rgba(37, 99, 235, 0.12)' : 'rgba(5, 150, 105, 0.12)',
                           color: isPaid ? '#1d4ed8' : '#059669'
                         }}>
-                          {isPaid ? '유상옵션' : opt.category === 'PROTECTION' ? '보양작업' : '요구사양'}
+                          {isPaid ? '유상옵션' : opt.category === 'PROTECTION' ? '무상옵션' : '요구사양'}
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -1914,7 +1914,7 @@ export const SiteOptionManage: React.FC = () => {
                 }}
               >
                 <option value="PAID">유상 옵션</option>
-                <option value="PROTECTION">보양 작업</option>
+                <option value="PROTECTION">무상 옵션</option>
                 <option value="SPEC">요구 사양</option>
               </select>
             </div>

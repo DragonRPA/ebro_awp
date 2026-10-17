@@ -1027,7 +1027,7 @@ export const SmartDispatch3: React.FC = () => {
                   <input type="text" value={paidOptions} onChange={e => setPaidOptions(e.target.value)} placeholder="예: 3면 함석" />
                 </div>
                 <div style={fieldWrap}>
-                  <label style={labelSt}>보양작업 조건</label>
+                  <label style={labelSt}>무상옵션 조건</label>
                   <input type="text" value={protection} onChange={e => setProtection(e.target.value)} placeholder="예: 4면 망 보양" />
                 </div>
               </div>

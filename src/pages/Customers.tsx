@@ -697,7 +697,7 @@ export const Customers: React.FC = () => {
         return isPrivileged ? (cs.contact || '-') : maskPhoneNumber(cs.contact);
       })(),
       '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
-      '보양작업': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
+      '무상옵션': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
       '사용여부': siteMasters.find(sm => sm.id === cs.siteMasterId)?.isActive !== false ? '사용' : '종료',
       '등록 일시': cs.createdAt?.substring(0, 10) || '-'
     }));
@@ -2873,7 +2873,7 @@ const handleDeleteAccount = async (accId: string) => {
                         </span>
                         <span>•</span>
                         <span>
-                          <strong>보양작업:</strong> {selectedRefSite.protection || '없음'}
+                          <strong>무상옵션:</strong> {selectedRefSite.protection || '없음'}
                         </span>
                         <span>•</span>
                         <span>
@@ -3437,18 +3437,18 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 2. 기본 보양작업 */}
+              {/* 2. 기본 무상옵션 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                    기본 보양작업
+                    기본 무상옵션
                   </label>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                     현재: {custOptionForm.defaultProtection || '미지정'}
                   </span>
                 </div>
 
-                {/* 표준 보양 칩 목록 */}
+                {/* 표준 무상옵션 칩 목록 */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
                   {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
                     const isSelected = custOptionForm.defaultProtection === opt.name;
@@ -3479,7 +3479,7 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <label style={labelStyle}>보양작업 설정값</label>
+                  <label style={labelStyle}>무상옵션 설정값</label>
                   <input
                     type="text"
                     style={inputStyle}
@@ -3681,7 +3681,7 @@ const handleDeleteAccount = async (accId: string) => {
                       </span>
                       <span>•</span>
                       <span>
-                        <strong>보양작업:</strong> {selectedRefSite.protection || '없음'}
+                        <strong>무상옵션:</strong> {selectedRefSite.protection || '없음'}
                       </span>
                       <span>•</span>
                       <span>
@@ -3733,10 +3733,10 @@ const handleDeleteAccount = async (accId: string) => {
                 />
               </div>
 
-              {/* 2. 현장 전용 보양작업 */}
+              {/* 2. 현장 전용 무상옵션 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  현장 전용 보양작업
+                  현장 전용 무상옵션
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                   {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
@@ -3854,7 +3854,7 @@ const handleDeleteAccount = async (accId: string) => {
                       cursor: 'pointer'
                     }}
                   >
-                    {cat === 'ALL' ? '전체' : cat === 'PAID' ? '유상옵션' : '보양작업'}
+                    {cat === 'ALL' ? '전체' : cat === 'PAID' ? '유상옵션' : '무상옵션'}
                   </button>
                 ))}
               </div>
@@ -3875,7 +3875,7 @@ const handleDeleteAccount = async (accId: string) => {
                     className="btn-secondary"
                     style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #059669', color: 'var(--success)' }}
                   >
-                    <Plus size={12} /> 보양작업 등록
+                    <Plus size={12} /> 무상옵션 등록
                   </button>
                 </div>
               )}
@@ -3900,7 +3900,7 @@ const handleDeleteAccount = async (accId: string) => {
                       onChange={e => setEditingOption({ ...editingOption, category: e.target.value as any })}
                     >
                       <option value="PAID">유상옵션</option>
-                      <option value="PROTECTION">보양작업</option>
+                      <option value="PROTECTION">무상옵션</option>
                     </select>
                   </div>
                   <div>
@@ -3998,7 +3998,7 @@ const handleDeleteAccount = async (accId: string) => {
                             color: opt.category === 'PAID' ? '#2563eb' : '#059669',
                             border: opt.category === 'PAID' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)'
                           }}>
-                            {opt.category === 'PAID' ? '유상옵션' : '보양작업'}
+                            {opt.category === 'PAID' ? '유상옵션' : '무상옵션'}
                           </span>
                         </td>
                         <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>

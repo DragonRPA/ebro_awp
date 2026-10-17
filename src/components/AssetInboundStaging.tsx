@@ -475,7 +475,7 @@ export const AssetInboundStaging: React.FC = () => {
                     {(hasPaidOpt || hasProt) && (
                       <div style={{ fontSize: '12px', color: '#1e3a8a', padding: '4px 8px', backgroundColor: '#e0f2fe', borderRadius: '4px' }}>
                         {hasPaidOpt && <div>• 유상옵션: <strong>{paidOpt}</strong></div>}
-                        {hasProt && <div>• 보양작업: <strong>{prot}</strong></div>}
+                        {hasProt && <div>• 무상옵션: <strong>{prot}</strong></div>}
                       </div>
                     )}
                     {outboundOptionsData?.inspectionNote && (

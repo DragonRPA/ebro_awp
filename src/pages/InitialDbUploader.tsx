@@ -2324,7 +2324,7 @@ export const InitialDbUploader: React.FC = () => {
                     { label: '유효 계약 고객사', value: `${dispatchAnalysisResult.stats.contractedCustomerCount}개사`, color: 'var(--primary)' },
                     { label: '유효 계약 현장', value: `${dispatchAnalysisResult.stats.contractedSiteCount}개소`, color: 'var(--primary)' },
                     { label: '추출 기본 유상옵션', value: `${dispatchAnalysisResult.stats.extractedOptionCount}건`, color: 'var(--success)' },
-                    { label: '추출 기본 보양작업', value: `${dispatchAnalysisResult.stats.extractedProtectionCount}건`, color: 'var(--warning)' },
+                    { label: '추출 기본 무상옵션', value: `${dispatchAnalysisResult.stats.extractedProtectionCount}건`, color: 'var(--warning)' },
                     { label: '제외된 미계약 건', value: `${dispatchAnalysisResult.stats.ignoredCount}건`, color: 'var(--text-muted)' },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
@@ -2338,7 +2338,7 @@ export const InitialDbUploader: React.FC = () => {
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                      고객사 기본옵션 설정(유상옵션·보양작업) 추출 내역 ({dispatchAnalysisResult.matchedEnrichments.length}개사)
+                      고객사 기본옵션 설정(유상옵션·무상옵션) 추출 내역 ({dispatchAnalysisResult.matchedEnrichments.length}개사)
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       * 시계열 최신값 우선 & 고객/현장 기본옵션 자동 상속
@@ -2353,7 +2353,7 @@ export const InitialDbUploader: React.FC = () => {
                           <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>계약수</th>
                           <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>최신일자</th>
                           <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기본 유상옵션</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기본 보양작업</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기본 무상옵션</th>
                           <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>현장/담당자</th>
                           <th style={{ padding: '8px 10px', minWidth: '180px' }}>고객 특이사항</th>
                         </tr>

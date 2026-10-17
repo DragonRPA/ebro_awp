@@ -641,9 +641,9 @@ export const SmartDispatch: React.FC = () => {
 - 하차스케줄 : ${unloadingTime || '-'}
 - 임대 장비 : ${equipments.map(e => `${e.modelName || '미지정'} * ${e.qty}대`).join(' / ')}
 
-■ 옵션 및 보양 스펙
+■ 옵션 및 무상옵션 스펙
 - 유상옵션 : ${paidOptions || '없음'}
-- 보양작업 : ${protection || '없음'}
+- 무상옵션 : ${protection || '없음'}
 - 필수 요구사항 (적용 항목) :
 ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') || '  - 특이 적용 사양 없음'}
 
@@ -1513,7 +1513,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 </div>
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>보양작업 조건</span>
+                    <span>무상옵션 조건</span>
                     {(inheritedFieldList.includes('보양작업(현장)') || inheritedFieldList.includes('보양작업(고객기본)')) && (
                       <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>
                         [{inheritedFieldList.includes('보양작업(현장)') ? '현장 DB 상속' : '고객 기본 상속'}]

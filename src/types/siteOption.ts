@@ -28,7 +28,7 @@ export function inheritOptionsFromMaster(
 ): SiteOptionItem[] {
   const paidList = (currentPaidString || '').split(',').map(s => s.trim()).filter(Boolean);
   const protList = (currentProtString || '').split(',').map(s => s.trim()).filter(Boolean);
-  const isNoneOrEmpty = protList.length === 0 || protList.some(p => p.toUpperCase() === 'NONE' || p.includes('보양 없음') || p.includes('보양없음'));
+  const isNoneOrEmpty = protList.length === 0 || protList.some(p => p.toUpperCase() === 'NONE' || p.includes('무상옵션 없음') || p.includes('무상옵션없음') || p.includes('보양 없음') || p.includes('보양없음'));
 
   return (masterOptions || []).map((opt, idx) => {
     let isEnabled = false;
@@ -39,7 +39,7 @@ export function inheritOptionsFromMaster(
         return cleanP === cleanOptName || (cleanP.length > 2 && (cleanOptName.includes(cleanP) || cleanP.includes(cleanOptName)));
       });
     } else if (opt.category === 'PROTECTION') {
-      const isOptNone = opt.name.toUpperCase().includes('NONE') || opt.name.includes('보양 없음') || opt.name.includes('보양없음');
+      const isOptNone = opt.name.toUpperCase().includes('NONE') || opt.name.includes('무상옵션 없음') || opt.name.includes('무상옵션없음') || opt.name.includes('보양 없음') || opt.name.includes('보양없음');
       if (isOptNone) {
         isEnabled = isNoneOrEmpty;
       } else {
