@@ -78,7 +78,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.9';
+const VERSION = 'v2.0.0.Build.10';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -2301,9 +2301,13 @@ async function fetchR2BucketAllObjects() {
           'Authorization': authHeader
         }
       }, res => {
-        let d = '';
-        res.on('data', c => d += c);
-        res.on('end', () => res.statusCode === 200 ? resolve(d) : reject(new Error('HTTP ' + res.statusCode + ': ' + d)));
+        const chunks = [];
+        res.on('data', c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        res.on('end', () => {
+          const d = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode === 200) resolve(d);
+          else reject(new Error('HTTP ' + res.statusCode + ': ' + d));
+        });
       });
       req.on('error', reject);
       req.end();
@@ -2315,20 +2319,49 @@ async function fetchR2BucketAllObjects() {
     const tokenMatch = /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(xmlData);
     nextContinuationToken = tokenMatch ? tokenMatch[1] : null;
 
-    const contentRegex = /<Contents>[\s\S]*?<Key>([^<]+)<\/Key>[\s\S]*?<Size>(\d+)<\/Size>[\s\S]*?<\/Contents>/g;
-    let match;
-    while ((match = contentRegex.exec(xmlData)) !== null) {
-      const key = match[1];
-      const size = parseInt(match[2], 10);
+    const contentBlockRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
+    let blockMatch;
+    while ((blockMatch = contentBlockRegex.exec(xmlData)) !== null) {
+      const block = blockMatch[1];
+      const keyMatch = /<Key>([^<]+)<\/Key>/.exec(block);
+      const sizeMatch = /<Size>(\d+)<\/Size>/.exec(block);
+      const etagMatch = /<ETag>([^<]+)<\/ETag>/.exec(block);
+      const lastModMatch = /<LastModified>([^<]+)<\/LastModified>/.exec(block);
+      if (!keyMatch || !sizeMatch) continue;
+
+      const key = keyMatch[1]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+      const size = parseInt(sizeMatch[1], 10);
+      const etag = etagMatch ? etagMatch[1].replace(/&quot;|"/g, '').trim().toLowerCase() : '';
+      const lastModified = lastModMatch ? lastModMatch[1].trim() : '';
       const isDirectory = key.endsWith('/');
-      allObjects.push({ key, size, isDirectory });
+      allObjects.push({ key, size, etag, lastModified, isDirectory });
     }
   }
 
   return allObjects;
 }
 
+function computeFileMd5(filePath) {
+  try {
+    const buf = fs.readFileSync(filePath);
+    return crypto.createHash('md5').update(buf).digest('hex').toLowerCase();
+  } catch (e) {
+    return '';
+  }
+}
+
+let isR2SyncRunning = false;
+
 async function autoSyncFromCloudflare() {
+  if (isR2SyncRunning) {
+    return { success: true, message: 'Cloudflare R2 동기화가 이미 진행 중입니다.' };
+  }
+  isR2SyncRunning = true;
   agentLog('SYNC', 'Cloudflare R2 원본 저장소 동기화 시작');
   try {
     const objects = await fetchR2BucketAllObjects();
@@ -2351,7 +2384,7 @@ async function autoSyncFromCloudflare() {
         continue;
       }
 
-      // 일반 파일 다운로드
+      // 일반 파일 다운로드 및 무결성 대조 (1. 파일크기 Size + 2. 내용 해시 ETag/MD5 + 3. 수정시각 LastModified)
       const targetFile = path.join(DRIVE_MIRROR_DIR, obj.key);
       const targetDir = path.dirname(targetFile);
       if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
@@ -2361,8 +2394,24 @@ async function autoSyncFromCloudflare() {
         if (st.isDirectory()) {
           fs.rmSync(targetFile, { recursive: true, force: true });
         } else if (st.size === obj.size && st.size > 0) {
-          skipped++;
-          continue;
+          let isSameContent = true;
+          if (obj.etag && !obj.etag.includes('-')) {
+            const localMd5 = computeFileMd5(targetFile);
+            if (localMd5 && localMd5 !== obj.etag) {
+              isSameContent = false;
+              agentLog('SYNC', `파일 내용 변경 감지 (MD5 불일치): ${obj.key}`);
+            }
+          } else if (obj.lastModified) {
+            const remoteTime = new Date(obj.lastModified).getTime();
+            if (!isNaN(remoteTime) && Math.abs(remoteTime - st.mtimeMs) > 2000 && remoteTime > st.mtimeMs) {
+              isSameContent = false;
+              agentLog('SYNC', `원본 최신 수정 시각 감지: ${obj.key}`);
+            }
+          }
+          if (isSameContent) {
+            skipped++;
+            continue;
+          }
         }
       }
 
@@ -2371,6 +2420,12 @@ async function autoSyncFromCloudflare() {
         const dlUrl = `${CF_PUBLIC_URL}/${encKey}`;
         await downloadFileWithRedirects(dlUrl, targetFile);
         if (fs.existsSync(targetFile) && fs.statSync(targetFile).size > 0) {
+          if (obj.lastModified) {
+            const remoteDate = new Date(obj.lastModified);
+            if (!isNaN(remoteDate.getTime())) {
+              try { fs.utimesSync(targetFile, remoteDate, remoteDate); } catch (uErr) {}
+            }
+          }
           downloaded++;
           agentLog('SYNC', `파일 동기화 완료: ${obj.key}`);
         }
@@ -2400,6 +2455,8 @@ async function autoSyncFromCloudflare() {
       error: err.message,
       message: ` Cloudflare R2 버킷 스캔 오류: ${err.message}`
     };
+  } finally {
+    isR2SyncRunning = false;
   }
 }
 
@@ -2652,6 +2709,10 @@ server.listen(PORT, '127.0.0.1', () => {
   
   setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
   sendAgentHeartbeat();
+
+  //  Cloudflare R2 원본 저장소 기동 즉시 동기화 및 5분 주기 자동 미러링
+  setTimeout(() => { autoSyncFromCloudflare().catch(() => {}); }, 1000);
+  setInterval(() => { autoSyncFromCloudflare().catch(() => {}); }, 5 * 60 * 1000);
 
   // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
   const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
