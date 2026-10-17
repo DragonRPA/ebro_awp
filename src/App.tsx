@@ -582,9 +582,9 @@ const App: React.FC = () => {
 
       } else if (res.requireDeviceVerification) {
         setPendingDeviceLogin({ id: loginId, pw: password });
-        // 🛡️ 모바일 환경이거나 지문 지원 시 PC 등록기 대신 지문(생체인증) 모달 우선 표출
-        const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
-        if (isMobileDevice || (window.PublicKeyCredential && window.location.protocol === 'https:')) {
+        // 🛡️ 모바일 환경에서만 지문(생체인증) 모달 표출, PC에서는 단말기 인가 모달 표출
+        const isMobileDevice = isMobileView || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobileDevice) {
           setShowBiometricModal(true);
         } else {
           setShowDeviceGuardModal(true);
@@ -1227,8 +1227,8 @@ const App: React.FC = () => {
               {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
 
-            {/* 👆 admin 입력 시 2단계 지문(생체인증) 바로가기 버튼 */}
-            {loginId.trim().toLowerCase() === 'admin' && (
+            {/* 👆 모바일 전용: admin 입력 시 2단계 지문(생체인증) 로그인 버튼 (PC에서는 비노출) */}
+            {isMobileView && loginId.trim().toLowerCase() === 'admin' && (
               <button
                 type="button"
                 onClick={() => {
@@ -1247,11 +1247,12 @@ const App: React.FC = () => {
                   gap: '8px',
                   border: '1.5px solid var(--primary)',
                   color: 'var(--primary)',
-                  backgroundColor: 'var(--primary-light)'
+                  backgroundColor: 'var(--primary-light)',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <Fingerprint size={16} />
-                <span>지문(스마트폰/Windows Hello)으로 즉시 로그인</span>
+                <span>지문 로그인</span>
               </button>
             )}
           </form>
@@ -1315,7 +1316,8 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* 💻 PC 에이전트 설치 프로그램 다운로드 (접속 URL 기준 테넌트 자동 식별) */}
+          {/* 💻 PC 전용: PC 에이전트 설치 프로그램 다운로드 (모바일 화면 모드에서는 비노출) */}
+          {!isMobileView && (
           <div style={{
             marginTop: '16px',
             padding: '14px 16px',
@@ -1422,9 +1424,8 @@ const App: React.FC = () => {
                 {installerDownloadMsg}
               </div>
             )}
-
-
           </div>
+          )}
 
           {/* 접속 화면 모드 선택 (모바일 / PC) */}
           <div style={{
