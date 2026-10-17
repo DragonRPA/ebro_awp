@@ -78,7 +78,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.6';
+const VERSION = 'v2.0.0.Build.7';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -368,14 +368,19 @@ async function checkAndApplyUpdate(force = false) {
                 updateState.message = '새 코어로 무소음 재기동 중...';
 
                 const hostExe = process.execPath;
-                const child = spawn(hostExe, process.argv.slice(1), {
-                  detached: true,
-                  stdio: 'ignore',
-                  windowsHide: true
-                });
-                child.unref();
+                try {
+                  const psDetach = `Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList '"${hostExe}" --daemon'`;
+                  execSync(`powershell.exe -NoProfile -WindowStyle Hidden -Command "${psDetach}"`, { stdio: 'ignore', windowsHide: true });
+                } catch (e) {
+                  const child = spawn(hostExe, process.argv.slice(1), {
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                  });
+                  child.unref();
+                }
 
-                setTimeout(() => { process.exit(0); }, 1200);
+                setTimeout(() => { process.exit(0); }, 800);
               } catch (vErr) {
                 agentLog('ERROR', '코어 무결성 검증 실패: ' + vErr.message);
                 try { fs.unlinkSync(coreDownloadPath); } catch (e) {}
@@ -1427,10 +1432,16 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ success: true, message: '에이전트를 1초 후 자동 재시작합니다.' }));
     setTimeout(() => {
-      const child = spawn(TARGET_EXE_PATH, ['--daemon'], { detached: true, stdio: 'ignore', windowsHide: true });
-      child.unref();
+      try {
+        // WMI Win32_Process.Create를 통해 부모 Job Object와 완전히 분리된 독립 데몬으로 기동
+        const psDetach = `Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList '"${TARGET_EXE_PATH}" --daemon'`;
+        execSync(`powershell.exe -NoProfile -WindowStyle Hidden -Command "${psDetach}"`, { stdio: 'ignore', windowsHide: true });
+      } catch (e) {
+        const child = spawn(TARGET_EXE_PATH, ['--daemon'], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.unref();
+      }
       process.exit(0);
-    }, 500);
+    }, 400);
     return;
   }
 

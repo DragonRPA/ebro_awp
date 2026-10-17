@@ -1346,7 +1346,8 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       });
 
       evtSource.onerror = () => {
-        setTimeout(initSSE, 3000);
+        try { evtSource.close(); } catch (e) {}
+        setTimeout(initSSE, 2000);
       };
     }
 

@@ -1,6 +1,6 @@
 {
-  "version": "v2.0.0.Build.6",
-  "buildTime": "2026-10-04T15:45:00.000Z",
+  "version": "v2.0.0.Build.7",
+  "buildTime": "2026-10-17T09:48:00.000Z",
   "coreUrl": "https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/engine.dat",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",

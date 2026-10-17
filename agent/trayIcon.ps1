@@ -1,4 +1,4 @@
-﻿# agent/trayIcon.ps1
+# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
@@ -195,8 +195,12 @@ $menu.Items.Add("-") | Out-Null
 
 $appContext = New-Object System.Windows.Forms.ApplicationContext
 
+$script:userRequestedExit = $false
+$script:lastRestartTick = [DateTime]::MinValue
+
 $mExit = $menu.Items.Add("종료 (Exit eBro Agent)")
 $mExit.add_Click({
+    $script:userRequestedExit = $true
     $notify.Visible = $false
     $notify.Dispose()
     Get-Process -Name eBroAgent -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -212,19 +216,28 @@ $notify.ShowBalloonTip(2500)
 
 $script:hasShownTip = $false
 
-# 350ms 주기 모니터링 타이머: 스튜디오 창이 최소화(_)되면 작업표시줄에서 숨기고 시스템 트레이로 수납!
+# 350ms 주기 모니터링 타이머: 에이전트 무중단 Watchdog 자가 복구 & 스튜디오 창 최소화 시 트레이 수납
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 350
 $timer.add_Tick({
-    # 1. 부모 Agent PID 감시 (에이전트 종료 시 트레이도 자동 종료)
-    if ($AgentPid -gt 0) {
-        $p = Get-Process -Id $AgentPid -ErrorAction SilentlyContinue
-        if (-not $p) {
-            $notify.Visible = $false
-            $notify.Dispose()
-            $appContext.ExitThread()
-            return
+    if ($script:userRequestedExit) { return }
+
+    # 1. 부모 Agent 프로세스 감시 및 무중단 Watchdog 자동 복구
+    $runningAgents = Get-Process -Name eBroAgent -ErrorAction SilentlyContinue
+    if (-not $runningAgents) {
+        $now = [DateTime]::Now
+        if (($now - $script:lastRestartTick).TotalSeconds -ge 4) {
+            $script:lastRestartTick = $now
+            $exePath = "C:\eBroAgent\eBroAgent.exe"
+            if (Test-Path $exePath) {
+                try {
+                    Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList "`"$exePath`" --daemon" | Out-Null
+                } catch {
+                    Start-Process -FilePath $exePath -ArgumentList "--daemon" -WindowStyle Hidden
+                }
+            }
         }
+        return
     }
 
     # 2. 스튜디오 창 감시: 사용자가 창 우측 상단의 최소화(_) 버튼을 클릭하면 작업표시줄에서 숨김 (SW_HIDE)
