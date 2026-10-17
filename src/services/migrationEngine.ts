@@ -787,7 +787,59 @@ export async function resetAllDatabaseTables(
       }
     } else {
       DELETION_ORDER.forEach(tbl => {
-        const camelKey = tbl === 'inspection_checklist_items' ? 'inspectionChecklistItems' : tbl === 'site_masters' ? 'siteMasters' : tbl === 'customer_sites' ? 'sites' : tbl;
+        const TABLE_TO_CAMEL: Record<string, string> = {
+          inspection_checklist_items: 'inspectionChecklistItems',
+          site_masters: 'siteMasters',
+          customer_sites: 'sites',
+          customer_contacts: 'contacts',
+          contract_assets: 'contractAssets',
+          contract_history: 'contractHistory',
+          transport_companies: 'transportCompanies',
+          transport_drivers: 'transportDrivers',
+          billing_details: 'billingDetails',
+          billing_invoices: 'billingInvoices',
+          payment_deposit_links: 'paymentDepositLinks',
+          bank_matching_rules: 'bankMatchingRules',
+          bank_transactions: 'bankTransactions',
+          bank_initial_balances: 'bankInitialBalances',
+          cash_flow_snapshots: 'cashFlowSnapshots',
+          prepaid_transactions: 'prepaidTransactions',
+          delinquency_action_logs: 'delinquencyActionLogs',
+          legal_notice_logs: 'legalNoticeLogs',
+          legal_notice_templates: 'legalNoticeTemplates',
+          depreciation_logs: 'depreciationLogs',
+          repair_consumables: 'repairConsumables',
+          stocktaking_audit_items: 'stocktakingAuditItems',
+          stocktaking_audits: 'stocktakingAudits',
+          collected_parts: 'collectedParts',
+          consumable_logs: 'consumableLogs',
+          mechanic_consumable_stocks: 'mechanicConsumableStocks',
+          consumable_purchases: 'consumablePurchases',
+          consumable_lots: 'consumableLots',
+          outbound_inspections: 'outboundInspections',
+          asset_inout_logs: 'assetInOutLogs',
+          external_leases: 'externalLeases',
+          purchase_settlements: 'purchaseSettlements',
+          purchase_settlement_items: 'purchaseSettlementItems',
+          settlement_payment_logs: 'settlementPaymentLogs',
+          vehicle_fuel_logs: 'vehicleFuelLogs',
+          vehicle_operation_logs: 'vehicleOperationLogs',
+          corporate_vehicles: 'corporateVehicles',
+          print_queue: 'printQueue',
+          print_stations: 'printStations',
+          privacy_access_logs: 'privacyAccessLogs',
+          annual_leave_quotas: 'annualLeaveQuotas',
+          leave_usages: 'leaveUsages',
+          overtime_records: 'overtimeRecords',
+          payroll_closings: 'payrollClosings',
+          google_configs: 'googleConfigs',
+          standard_options: 'standardOptions',
+          custom_roles: 'customRoles',
+          role_permissions: 'rolePermissions',
+          monthly_income_statements: 'monthlyIncomeStatements',
+          developer_authorized_devices: 'developerAuthorizedDevices'
+        };
+        const camelKey = TABLE_TO_CAMEL[tbl] || tbl.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
         if (Array.isArray((db as any)[camelKey])) {
           (db as any)[camelKey] = (db as any)[camelKey].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
         } else if (Array.isArray((db as any)[tbl])) {

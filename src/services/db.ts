@@ -5993,13 +5993,13 @@ class LocalDB {
   get todos() { return this.get<Todo>('todos', SEED_TODOS); }
   set todos(val: Todo[]) { this.set('todos', val); }
 
-  get bankTransactions() { return this.get<BankTransaction>('bankTransactions', SEED_BANK_TRANSACTIONS); }
+  get bankTransactions() { return this.get<BankTransaction>('bankTransactions', []); }
   set bankTransactions(val: BankTransaction[]) { this.set('bankTransactions', val); }
 
-  get bankMatchingRules() { return this.get<BankMatchingRule>('bankMatchingRules', SEED_BANK_MATCHING_RULES); }
+  get bankMatchingRules() { return this.get<BankMatchingRule>('bankMatchingRules', []); }
   set bankMatchingRules(val: BankMatchingRule[]) { this.set('bankMatchingRules', val); }
 
-  get bankInitialBalances() { return this.get<BankAccountInitialBalance>('bankInitialBalances', SEED_BANK_INITIAL_BALANCES); }
+  get bankInitialBalances() { return this.get<BankAccountInitialBalance>('bankInitialBalances', []); }
   set bankInitialBalances(val: BankAccountInitialBalance[]) { this.set('bankInitialBalances', val); }
 
   get googleConfigs() { return this.get<GoogleConfig>('googleConfigs', []); }
