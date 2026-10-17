@@ -602,6 +602,10 @@ export const InitialDbUploader: React.FC = () => {
       const res = await resetAllDatabaseTables(keepAdminUser, targetTenantId);
       if (res.success) {
         showSuccessToast?.(res.message);
+        // 🛡️ 로컬 인메모리/캐시 즉시 제로화 (UI 잔존 방지)
+        db.siteMasters = [];
+        db.sites = [];
+        refreshAllData();
         // ✅ DB 초기화 완료 후 localStorage stale 캐시 차단 + Supabase 최신 상태로 React state 즉시 동기화
         await fullRefreshFromServer();
       } else {

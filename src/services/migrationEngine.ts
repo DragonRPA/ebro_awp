@@ -576,6 +576,7 @@ export async function restoreFullDatabaseBackup(
     'vendors',
     'customers',
     'customer_sites',
+    'site_masters',
     'customer_contacts',
     'products',
     'assets',
@@ -731,6 +732,7 @@ export async function resetAllDatabaseTables(
     'products',
     'customer_contacts',
     'customer_sites',
+    'site_masters',
     'customers',
     'vendors',
     'vehicle_fuel_logs',
@@ -785,7 +787,7 @@ export async function resetAllDatabaseTables(
       }
     } else {
       DELETION_ORDER.forEach(tbl => {
-        const camelKey = tbl === 'inspection_checklist_items' ? 'inspectionChecklistItems' : tbl;
+        const camelKey = tbl === 'inspection_checklist_items' ? 'inspectionChecklistItems' : tbl === 'site_masters' ? 'siteMasters' : tbl === 'customer_sites' ? 'sites' : tbl;
         if (Array.isArray((db as any)[camelKey])) {
           (db as any)[camelKey] = (db as any)[camelKey].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
         } else if (Array.isArray((db as any)[tbl])) {
