@@ -95,7 +95,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
 
     tenantAccounts.forEach((acc, idx) => {
       const key = acc.bankName;
-      const initBal = initialBalancesMap[`${acc.bankName}_${acc.accountNumber}`] ?? initialBalancesMap[acc.bankName] ?? (idx === 0 ? 15000000 : 10000000);
+      const initBal = initialBalancesMap[`${acc.bankName}_${acc.accountNumber}`] ?? initialBalancesMap[acc.bankName] ?? 0;
       bankAccountMap[key] = {
         id: `bank-${idx}-${acc.bankName}`,
         bankName: acc.bankName,

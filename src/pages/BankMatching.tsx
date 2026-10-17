@@ -100,7 +100,7 @@ export const BankMatching: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'MATCHING' | 'RULES'>('MATCHING');
   const [isInitBalanceModalOpen, setIsInitBalanceModalOpen] = useState(false);
   const [editingBankName, setEditingBankName] = useState('우리은행');
-  const [editingInitialBalance, setEditingInitialBalance] = useState<number>(15000000);
+  const [editingInitialBalance, setEditingInitialBalance] = useState<number>(0);
   const [editingAccountNumber, setEditingAccountNumber] = useState('');
 
   // ── 입력 상태 (필터 패널 바인딩용: 기본값 = 전 기간 미매칭 내역)
@@ -431,7 +431,7 @@ export const BankMatching: React.FC = () => {
       const latestDate = latestTx ? latestTx.transactionDate : '내역없음';
       const latestAccNumber = latestTx?.accountNumber || '';
 
-      // 사장님 지시 원칙: 업로드된 입출금 내역 중 최신 거래일시의 '잔액' 컬럼 실제 값을 계좌 잔액으로 처리
+      // 사장님 지시 원칙: 업로드된 입출금 내역 중 최신 거래일시의 '잔액' 컬럼 실제 값을 계좌 잔액으로 처리 (없을 시 설정된 기초 잔액 또는 0)
       let finalBalance = 0;
       if (latestTx && typeof latestTx.balance === 'number' && latestTx.balance > 0) {
         finalBalance = latestTx.balance;
@@ -440,7 +440,7 @@ export const BankMatching: React.FC = () => {
         if (txWithBalance && txWithBalance.balance) {
           finalBalance = txWithBalance.balance;
         } else {
-          finalBalance = bName === '우리은행' ? 14400000 : bName === '신한은행' ? 10550000 : 0;
+          finalBalance = initBalanceByBankNameMap.get(bName)?.initialBalance || 0;
         }
       }
 
@@ -556,20 +556,7 @@ export const BankMatching: React.FC = () => {
     return { unpaidSettlements: arr, totalUnpaidSettlementAmount: totalAmt };
   }, [purchaseSettlements]);
 
-  // 3. 모의 데이터 생성
-  const handleGenerateMockData = async () => {
-    const mockTxs: Omit<BankTransaction, 'id' | 'createdAt'>[] = [
-      { bankName: '우리은행', accountNumber: 'XXXX-XX-XXXXXXX01', transactionDate: '2026-08-05 08:44:37', summary: '인터넷', counterparty: '주식회사 기연', senderName: '주식회사 기연', depositAmount: 600000, withdrawAmount: 0, balance: 12500000, branchName: '신한은행(021497)', memo: '렌탈료입금', isDeposit: true },
-      { bankName: '우리은행', accountNumber: 'XXXX-XX-XXXXXXX01', transactionDate: '2026-08-05 09:30:15', summary: '타행IB', counterparty: '대현테크', senderName: '대현테크', depositAmount: 1050000, withdrawAmount: 0, balance: 13550000, branchName: '우리은행', memo: '7월수금', isDeposit: true },
-      { bankName: '신한은행', accountNumber: 'XXX-XXXXXXXXX-XX', transactionDate: '2026-08-05 18:50:39', summary: 'CMS지', counterparty: '한성건설', senderName: '한성건설', depositAmount: 900000, withdrawAmount: 0, balance: 8900000, branchName: '자금부', memo: 'CMS자동입금', isDeposit: true },
-      { bankName: '신한은행', accountNumber: 'XXX-XXXXXXXXX-XX', transactionDate: '2026-08-05 18:31:44', summary: 'FB자동', counterparty: '삼성물산', senderName: '삼성물산', depositAmount: 1200000, withdrawAmount: 0, balance: 10100000, branchName: 'FI영2', memo: '공사대금결제', isDeposit: true },
-      { bankName: '우리은행', accountNumber: 'XXXX-XX-XXXXXXX01', transactionDate: '2026-08-06 11:00:00', summary: '인터넷', counterparty: '현대건설', senderName: '현대건설', depositAmount: 850000, withdrawAmount: 0, balance: 14400000, branchName: '우리은행', memo: '장비렌탈비', isDeposit: true },
-      { bankName: '신한은행', accountNumber: 'XXX-XXXXXXXXX-XX', transactionDate: '2026-08-06 14:20:00', summary: '타행PC', counterparty: '기연산업', senderName: '기연산업', depositAmount: 450000, withdrawAmount: 0, balance: 10550000, branchName: '(기업)', memo: '렌탈료', isDeposit: true }
-    ];
-    uploadBankTransactions(mockTxs);
-    await db.awaitPendingWrites();
-    showToast('모의 통장 거래 내역 6건이 생성되었습니다.');
-  };
+
 
   // 4. 다중 은행 엑셀 업로드 처리 (동적 헤더 감지 파서)
   const handleBankExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1115,7 +1102,7 @@ export const BankMatching: React.FC = () => {
             onClick={() => {
               const bInfo = bankBalances.bankMap['우리은행'];
               setEditingBankName('우리은행');
-              setEditingInitialBalance(initBalanceByBankNameMap.get('우리은행')?.initialBalance || 15000000);
+              setEditingInitialBalance(initBalanceByBankNameMap.get('우리은행')?.initialBalance || 0);
               setEditingAccountNumber(bInfo?.accountNumber || '');
               setIsInitBalanceModalOpen(true);
             }}
@@ -1452,17 +1439,7 @@ export const BankMatching: React.FC = () => {
                 />
               </label>
 
-              {isDeveloper && (
-                <button
-                  onClick={handleGenerateMockData}
-                  className="btn btn-secondary"
-                  style={{ fontSize: '11.5px', padding: '4px 10px', height: '28px', whiteSpace: 'nowrap', marginBottom: '1px' }}
-                  title="개발자 전용 테스트 데이터 생성"
-                >
-                  <Plus size={13} style={{ marginRight: '3px' }} />
-                  샘플 엑셀 데이터
-                </button>
-              )}
+
 
               <button
                 onClick={handleExport}
@@ -2569,7 +2546,7 @@ export const BankMatching: React.FC = () => {
                     setEditingBankName(bName);
                     const initRec = initBalanceByBankNameMap.get(bName);
                     const bInfo = bankBalances.bankMap[bName];
-                    setEditingInitialBalance(initRec?.initialBalance || (bName === '우리은행' ? 15000000 : 10000000));
+                    setEditingInitialBalance(initRec?.initialBalance || 0);
                     setEditingAccountNumber(bInfo?.accountNumber || '');
                   }}
                   className="form-control"
@@ -2605,7 +2582,7 @@ export const BankMatching: React.FC = () => {
                   type="number"
                   min="0"
                   required
-                  placeholder="예: 15000000"
+                  placeholder="예: 0"
                   value={editingInitialBalance}
                   onChange={(e) => {
                     const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
