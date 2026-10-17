@@ -23,17 +23,18 @@ const {
   sendTestTelegramMessage
 } = require('./telegramEngine');
 
-// 작업 큐 인메모리 캐시
+// 작업 큐 인메모리 캐시 (최신 30개만 유지)
+const MAX_QUEUE_SIZE = 30;
 let taskQueue = [];
 const taskCompletionCallbacks = new Map(); // taskId -> callback(task)
 let isWorkerRunning = false;
 let sseClients = new Set();
 let ollamaStatusCache = { available: false, model: 'none', checkedAt: 0 };
 
-// 실시간 스튜디오 로그 버퍼
-const MAX_LOG_HISTORY = 200;
+// 실시간 스튜디오 로그 버퍼 (최신 30개 작업큐 범위 내 로그만 유지)
+const MAX_LOG_HISTORY = 150;
 const studioLogHistory = [
-  `[${new Date().toTimeString().slice(0, 8)}] [SYSTEM] eBro AI Agent 데스크톱 스튜디오 엔진 초기화 완료`
+  { taskId: null, log: `[${new Date().toTimeString().slice(0, 8)}] [SYSTEM] eBro AI Agent 데스크톱 스튜디오 엔진 초기화 완료` }
 ];
 
 function stripEmojis(str) {
@@ -41,41 +42,66 @@ function stripEmojis(str) {
   return str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, '').trim();
 }
 
+function pruneQueueAndLogs() {
+  if (taskQueue.length > MAX_QUEUE_SIZE) {
+    taskQueue = taskQueue.slice(0, MAX_QUEUE_SIZE);
+  }
+  const activeTaskIds = new Set(taskQueue.map(t => t.id));
+  for (let i = studioLogHistory.length - 1; i >= 0; i--) {
+    const entry = studioLogHistory[i];
+    if (entry && entry.taskId && !activeTaskIds.has(entry.taskId)) {
+      studioLogHistory.splice(i, 1);
+    }
+  }
+  while (studioLogHistory.length > MAX_LOG_HISTORY) {
+    studioLogHistory.shift();
+  }
+}
+
 // 실시간 스튜디오 로그 브로드캐스트 (이모지 100% 배제, [TYPE] 형식 강제)
-function broadcastStudioLog(type, message) {
+function broadcastStudioLog(type, message, taskId = null) {
   const cleanType = String(type || 'INFO').toUpperCase().replace(/[^A-Z0-9_-]/g, '');
   const cleanMsg = stripEmojis(message);
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
   const logLine = `[${timeStr}] [${cleanType}] ${cleanMsg}`;
 
-  studioLogHistory.push(logLine);
-  if (studioLogHistory.length > MAX_LOG_HISTORY) {
-    studioLogHistory.shift();
-  }
+  studioLogHistory.push({ taskId, log: logLine });
+  pruneQueueAndLogs();
 
-  broadcastEvent('LOG_APPEND', { log: logLine });
+  broadcastEvent('LOG_APPEND', { taskId, log: logLine });
 }
 
-// 큐 파일 로드
+// 큐 파일 로드 (최신 30개만 복원 및 저장된 작업 로그 동기화)
 function loadQueue() {
   try {
     if (fs.existsSync(QUEUE_FILE)) {
       const data = fs.readFileSync(QUEUE_FILE, 'utf8');
-      taskQueue = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      taskQueue = Array.isArray(parsed) ? parsed.slice(0, MAX_QUEUE_SIZE) : [];
+      // 최신 30개 작업에 속한 로그 복원 (오래된 순 -> 최신 순)
+      taskQueue.slice().reverse().forEach(t => {
+        if (Array.isArray(t.logs)) {
+          t.logs.forEach(l => {
+            studioLogHistory.push({ taskId: t.id, log: String(l) });
+          });
+        }
+      });
+      pruneQueueAndLogs();
     }
   } catch (e) {
     taskQueue = [];
   }
 }
 
-// 큐 파일 저장
+// 큐 파일 저장 (최신 30개만 기억)
 function saveQueue() {
   try {
+    pruneQueueAndLogs();
     if (!fs.existsSync(AGENT_HOME)) {
       fs.mkdirSync(AGENT_HOME, { recursive: true });
     }
-    fs.writeFileSync(QUEUE_FILE, JSON.stringify(taskQueue.slice(0, 200), null, 2), 'utf8');
+    fs.writeFileSync(QUEUE_FILE, JSON.stringify(taskQueue.slice(0, MAX_QUEUE_SIZE), null, 2), 'utf8');
   } catch (e) {}
 }
 
@@ -336,7 +362,9 @@ function appendTaskLog(task, message) {
   const cleanMsg = stripEmojis(message);
   const logLine = `[${timeStr}] [TASK] ${cleanMsg}`;
   task.logs.push(logLine);
-  if (task.logs.length > 50) task.logs.shift();
+  if (task.logs.length > 30) task.logs.shift();
+  studioLogHistory.push({ taskId: task.id, log: logLine });
+  pruneQueueAndLogs();
   broadcastEvent('LOG_APPEND', { taskId: task.id, log: logLine });
   saveQueue();
 }
@@ -760,25 +788,32 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     header {
       background-color: var(--bg-surface);
       border-bottom: 1px solid var(--border-color);
-      padding: 10px 18px;
+      padding: 8px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 12px;
       flex-shrink: 0;
+      white-space: nowrap;
+      overflow-x: auto;
     }
     .header-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     .brand-title {
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 800;
       color: #60a5fa;
       letter-spacing: -0.3px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .badge {
       font-size: 11px;
@@ -796,32 +831,41 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     .header-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
     .status-indicator {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 11.5px;
-      color: var(--text-muted);
+      color: #cbd5e1;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border-color);
+      padding: 3px 9px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       display: inline-block;
+      flex-shrink: 0;
     }
     .dot-green { background: var(--success); box-shadow: 0 0 6px var(--success); }
     .dot-yellow { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
     .dot-red { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
 
-    /* ── 2. 메인 컨테이너 (그리드 레이아웃) ── */
+    /* ── 2. 메인 컨테이너 (그리드 레이아웃: 작업큐 모니터 축소 & 하단 로그 영역 확대) ── */
     main {
       flex: 1;
       display: grid;
-      grid-template-rows: auto 1fr 200px;
-      gap: 12px;
-      padding: 14px;
+      grid-template-rows: auto 185px 1fr;
+      gap: 10px;
+      padding: 12px 14px;
       overflow: hidden;
     }
 
@@ -830,10 +874,10 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       background-color: var(--bg-surface);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      padding: 12px 16px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     .section-label {
       font-size: 11.5px;
@@ -844,6 +888,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       display: flex;
       justify-content: space-between;
       align-items: center;
+      white-space: nowrap;
     }
     .input-row {
       display: flex;
@@ -858,7 +903,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     }
     textarea {
       width: 100%;
-      height: 48px;
+      height: 42px;
       background: var(--bg-base);
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -900,8 +945,8 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       color: #ffffff;
       border: none;
       border-radius: 6px;
-      padding: 0 20px;
-      height: 48px;
+      padding: 0 18px;
+      height: 42px;
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
@@ -914,7 +959,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     }
     .btn-submit:hover { background: var(--primary-hover); }
 
-    /* ── 2-2. 중앙 작업 큐 모니터 (테이블) ── */
+    /* ── 2-2. 중앙 작업 큐 모니터 (테이블 - 컴팩트 3~4행 기준) ── */
     .queue-section {
       background-color: var(--bg-surface);
       border: 1px solid var(--border-color);
@@ -924,12 +969,13 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       overflow: hidden;
     }
     .queue-header {
-      padding: 10px 16px;
+      padding: 7px 14px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
       background: rgba(15, 23, 42, 0.4);
+      white-space: nowrap;
     }
     .queue-table-container {
       flex: 1;
@@ -946,7 +992,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       background: #182234;
       color: #94a3b8;
       font-weight: 700;
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border-color);
       white-space: nowrap;
       position: sticky;
@@ -954,7 +1000,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       z-index: 2;
     }
     td {
-      padding: 8px 12px;
+      padding: 6px 12px;
       border-bottom: 1px solid #283548;
       color: #e2e8f0;
       white-space: nowrap;
@@ -985,7 +1031,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       transition: width 0.3s ease;
     }
 
-    /* ── 2-3. 하단 실시간 콘솔 로그 ── */
+    /* ── 2-3. 하단 실시간 콘솔 로그 (확대 영역) ── */
     .log-section {
       background-color: var(--bg-surface);
       border: 1px solid var(--border-color);
@@ -993,9 +1039,10 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      min-height: 0;
     }
     .log-header {
-      padding: 8px 14px;
+      padding: 7px 14px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
@@ -1003,15 +1050,16 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       background: rgba(15, 23, 42, 0.4);
       font-size: 11.5px;
       color: #94a3b8;
+      white-space: nowrap;
     }
     .log-content {
       flex: 1;
-      padding: 8px 12px;
+      padding: 10px 14px;
       overflow-y: auto;
       font-family: var(--font-mono);
-      font-size: 11.5px;
+      font-size: 12px;
       color: #cbd5e1;
-      line-height: 1.5;
+      line-height: 1.55;
       background: #090e17;
       user-select: text;
     }
@@ -1025,11 +1073,16 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       background: var(--bg-card);
       border: 1px solid var(--border-color);
       color: #cbd5e1;
-      padding: 3px 8px;
+      padding: 4px 9px;
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 11.5px;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
     .btn-action:hover {
       background: #334155;
@@ -1137,7 +1190,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
   <header>
     <div class="header-left">
       <div class="brand-title">
-        <img src="/icon-32.png" width="22" height="22" style="border-radius:4px; vertical-align:middle; object-fit:contain; box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);" alt="eBro">
+        <img src="/icon-32.png" width="20" height="20" style="border-radius:4px; vertical-align:middle; object-fit:contain; flex-shrink:0;" alt="eBro">
         <span>eBro AI Agent 스튜디오</span>
       </div>
       <span class="badge badge-primary">${version}</span>
@@ -1150,16 +1203,16 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
         <span class="dot dot-green" id="agentDot"></span>
         <span id="agentStatusText">에이전트 온라인</span>
       </div>
-      <div class="status-indicator" style="display:flex; align-items:center; gap:6px;">
+      <div class="status-indicator">
         <span class="dot dot-yellow" id="ollamaDot"></span>
         <label for="ollamaModelSelect" style="font-size: 11px; color: #94a3b8; white-space: nowrap;">Ollama:</label>
-        <select id="ollamaModelSelect" class="btn-action" style="background:#0f172a; color:#38bdf8; border:1px solid #334155; font-size:11px; padding:2px 8px; border-radius:4px; outline:none; cursor:pointer;" onchange="onOllamaModelChange(this.value)">
-          <option value="">확인 중...</option>
+        <select id="ollamaModelSelect" style="background:transparent; color:#38bdf8; border:none; font-size:11.5px; font-weight:600; padding:0 2px; outline:none; cursor:pointer; white-space:nowrap;" onchange="onOllamaModelChange(this.value)">
+          <option value="" style="background:#0f172a; color:#f8fafc;">확인 중...</option>
         </select>
       </div>
-      <button class="btn-action" onclick="openConfigModal()">⚙️ 환경설정</button>
+      <button class="btn-action" onclick="openConfigModal()">환경설정</button>
       <button class="btn-action" onclick="refreshQueue()">새로고침</button>
-      <button class="btn-action" onclick="minimizeToTray()" title="작업표시줄을 비우고 시스템 트레이로 숨깁니다">📥 트레이로 숨기기</button>
+      <button class="btn-action" onclick="minimizeToTray()" title="작업표시줄을 비우고 시스템 트레이로 숨깁니다">트레이로 숨기기</button>
     </div>
   </header>
 
@@ -1173,7 +1226,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
           <span style="font-size: 11px; color: #64748b; margin-right: 4px;">실행 모드:</span>
           <button type="button" class="mode-btn active" data-mode="AUTO" onclick="setMode('AUTO')">자동 판단</button>
           <button type="button" class="mode-btn" data-mode="BROWSER" onclick="setMode('BROWSER')">브라우저 조작</button>
-          <button type="button" class="mode-btn" data-mode="DIRECT_QUERY" onclick="setMode('DIRECT_QUERY')">ERP 쿼리 직통</button>
+          <button type="button" class="mode-btn" data-mode="DIRECT_QUERY" onclick="setMode('DIRECT_QUERY')">ERP 쿼리</button>
           <button type="button" class="mode-btn" data-mode="LOCAL_ACTION" onclick="setMode('LOCAL_ACTION')">로컬/출력</button>
         </div>
       </div>
@@ -1193,6 +1246,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
         <div style="font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
           <span>작업 큐 모니터</span>
           <span class="badge badge-primary" id="queueCountBadge">0건</span>
+          <span style="font-size: 11px; color: #64748b; font-weight: 500;">최신 30건 유지</span>
         </div>
         <div style="display: flex; gap: 6px;">
           <button class="btn-action" onclick="clearCompletedTasks()">완료 작업 정리</button>
@@ -1214,7 +1268,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
           </thead>
           <tbody id="queueTbody">
             <tr>
-              <td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">
+              <td colspan="7" style="text-align: center; color: #64748b; padding: 22px;">
                 등록된 작업이 없습니다. 상단에서 자연어로 지시를 등록해 주세요.
               </td>
             </tr>
@@ -1226,12 +1280,13 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     <!-- 2-3. 하단 실시간 콘솔 로그 -->
     <section class="log-section">
       <div class="log-header">
-        <span style="font-weight: 700;">실시간 실행 콘솔 로그</span>
+        <span style="font-weight: 700;">실행 콘솔 로그 (최신 30개 작업큐 연동)</span>
         <button class="btn-action" onclick="clearLogs()">로그 지우기</button>
       </div>
       <div class="log-content" id="logContent">
         <div class="log-line" style="color: #64748b;">[시스템] eBro AI Agent 데스크톱 스튜디오가 준비되었습니다.</div>
       </div>
+    </section>
   </main>
 
   <!-- 3. 환경설정 모달 -->
@@ -1300,8 +1355,9 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       evtSource.addEventListener('INIT', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          tasks = payload.data || [];
+          tasks = (payload.data || []).slice(0, 30);
           renderQueueTable();
+          pruneDomLogsByTasks();
         } catch (err) {}
       });
 
@@ -1309,7 +1365,11 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
         try {
           const payload = JSON.parse(e.data);
           tasks.unshift(payload.data);
+          if (tasks.length > 30) {
+            tasks = tasks.slice(0, 30);
+          }
           renderQueueTable();
+          pruneDomLogsByTasks();
         } catch (err) {}
       });
 
@@ -1322,18 +1382,32 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
             tasks[idx] = updated;
           } else {
             tasks.unshift(updated);
+            if (tasks.length > 30) {
+              tasks = tasks.slice(0, 30);
+            }
           }
           renderQueueTable();
+          pruneDomLogsByTasks();
         } catch (err) {}
       });
 
       evtSource.addEventListener('INIT_LOGS', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          if (Array.isArray(payload.data) && payload.data.length > 0) {
+          if (Array.isArray(payload.data)) {
             const logContent = document.getElementById('logContent');
             logContent.innerHTML = '';
-            payload.data.forEach(line => appendLogLine(line));
+            if (payload.data.length === 0) {
+              logContent.innerHTML = '<div class="log-line" style="color: #64748b;">[시스템] 작업 큐 실행 엔진이 대기 중입니다.</div>';
+            } else {
+              payload.data.forEach(item => {
+                if (typeof item === 'string') {
+                  appendLogLine(item, null);
+                } else if (item && item.log) {
+                  appendLogLine(item.log, item.taskId || null);
+                }
+              });
+            }
           }
         } catch (err) {}
       });
@@ -1341,7 +1415,9 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       evtSource.addEventListener('LOG_APPEND', (e) => {
         try {
           const payload = JSON.parse(e.data);
-          appendLogLine(payload.data.log);
+          if (payload && payload.data) {
+            appendLogLine(payload.data.log, payload.data.taskId || null);
+          }
         } catch (err) {}
       });
 
@@ -1351,6 +1427,19 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       };
     }
 
+    function pruneDomLogsByTasks() {
+      const validIds = new Set(tasks.map(t => t.id));
+      const logContent = document.getElementById('logContent');
+      if (!logContent) return;
+      const lines = logContent.querySelectorAll('.log-line[data-task-id]');
+      lines.forEach(el => {
+        const tid = el.getAttribute('data-task-id');
+        if (tid && !validIds.has(tid)) {
+          el.remove();
+        }
+      });
+    }
+
     // ── 2. 작업 테이블 렌더링 ──
     function renderQueueTable() {
       const tbody = document.getElementById('queueTbody');
@@ -1358,7 +1447,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       badge.textContent = tasks.length + '건';
 
       if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">등록된 작업이 없습니다. 상단에서 자연어로 지시를 등록해 주세요.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">등록된 작업이 없습니다.</td></tr>';
         return;
       }
 
@@ -1393,17 +1482,20 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       }).join('');
     }
 
-    function appendLogLine(line) {
+    function appendLogLine(line, taskId) {
       const logContent = document.getElementById('logContent');
       const div = document.createElement('div');
       div.className = 'log-line';
+      if (taskId) {
+        div.setAttribute('data-task-id', taskId);
+      }
       div.textContent = line;
       logContent.appendChild(div);
       logContent.scrollTop = logContent.scrollHeight;
     }
 
     function clearLogs() {
-      document.getElementById('logContent').innerHTML = '<div class="log-line" style="color: #64748b;">[시스템] 로그가 초기화되었습니다.</div>';
+      document.getElementById('logContent').innerHTML = '<div class="log-line" style="color: #64748b;">[시스템] 로그 초기화 완료</div>';
     }
 
     // ── 3. 지시 등록 전송 ──
@@ -1975,8 +2067,10 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
   // 6. 완료 작업 일괄 정리 (/api/queue/clear-completed)
   if (req.method === 'POST' && pathname === '/api/queue/clear-completed') {
     taskQueue = taskQueue.filter(t => t.status === 'PENDING' || t.status === 'RUNNING');
+    pruneQueueAndLogs();
     saveQueue();
     broadcastEvent('INIT', taskQueue);
+    broadcastEvent('INIT_LOGS', studioLogHistory);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ success: true, count: taskQueue.length }));
     return true;

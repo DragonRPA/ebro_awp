@@ -78,7 +78,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.7';
+const VERSION = 'v2.0.0.Build.8';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -1343,7 +1343,7 @@ function enqueueSystemJob(jobType, payload) {
     createdAt: new Date().toISOString()
   };
   systemJobQueue.unshift(job);
-  if (systemJobQueue.length > 100) systemJobQueue.pop();
+  if (systemJobQueue.length > 30) systemJobQueue.pop();
   processSystemJobQueue();
   return job;
 }
