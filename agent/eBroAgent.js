@@ -78,7 +78,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.8';
+const VERSION = 'v2.0.0.Build.9';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -1017,42 +1017,49 @@ async function executeGenerateStatementInternal(payload) {
     if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
 
     const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
-    const tenantName = payload.tenantName || payload.lessorName || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
-    const lessorName = payload.lessorName || policy.corporateName || tenantName;
-    const lessorBizNo = payload.lessorBizNo || policy.businessNumber || '';
-    const lessorCeo = payload.lessorCeo || policy.representativeName || '';
-    const lessorAddress = payload.lessorAddress || policy.businessAddress || '';
-    const lessorBizType = payload.lessorBizType || policy.businessCategory || '';
-    const lessorBizItem = payload.lessorBizItem || policy.businessItem || '';
+    const tenantName = payload.tenantName || payload.lessorName || policy.tenantName || policy.corporateName || TENANT_CODE || '(주)기연리프트';
+    const lessorName = (payload.lessorName || policy.tenantName || policy.corporateName || tenantName).replace(/"/g, '""');
+    const lessorBizNo = (payload.lessorBizNo || policy.businessNumber || '138-81-83251').replace(/"/g, '""');
+    const lessorCeo = (payload.lessorCeo || policy.representativeName || '이수용').replace(/"/g, '""');
+    const lessorAddress = (payload.lessorAddress || policy.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33').replace(/"/g, '""');
+    const lessorBizType = (payload.lessorBizType || policy.businessCategory || '사업지원및임대서비스업').replace(/"/g, '""');
+    const lessorBizItem = (payload.lessorBizItem || policy.businessItem || '고소장비임대업').replace(/"/g, '""');
+    const lessorTel = (payload.billingManagerPhone || payload.lessorTel || policy.tel || '031-334-5295').replace(/"/g, '""');
+    const lessorEmail = (payload.lessorEmail || policy.taxEmail || policy.email || 'giyeonlift@naver.com').replace(/"/g, '""');
 
-    const custName = payload.customerName || '고객사';
-    const bizRegNo = payload.customerBizNo || payload.bizRegNo || '등록번호미지정';
-    const ceoName = payload.customerCeo || '대표자';
-    const billingDate = payload.billingDate || new Date().toISOString().split('T')[0];
-    const siteName = payload.siteName || '현장';
-    const siteAddress = payload.customerAddress || payload.siteAddress || payload.address || '';
-    const siteManagerName = payload.siteManagerName || '-';
-    const siteManagerPhone = payload.siteManagerPhone || '-';
-    const custBillingName = payload.custBillingManagerName || payload.customerBillingManagerName || '-';
-    const custBillingPhone = payload.custBillingManagerPhone || payload.customerBillingManagerPhone || '-';
-    const custBillingEmail = payload.custBillingEmail || payload.customerBillingEmail || '-';
-    const custBizType = payload.customerBizType || '-';
-    const custBizItem = payload.customerBizItem || '-';
+    let defaultBank = '기업은행 123-456789-01-011 ((주)기연리프트)';
+    if (Array.isArray(policy.bankAccounts) && policy.bankAccounts.length > 0) {
+      const b0 = policy.bankAccounts[0];
+      if (typeof b0 === 'object' && b0.bankName) {
+        defaultBank = `${b0.bankName} ${b0.accountNumber || ''} (${b0.accountHolder || b0.holder || lessorName})`;
+      }
+    }
+    const bankAccount = (payload.bankAccount || defaultBank).replace(/"/g, '""');
 
-    const salespersonName = payload.salespersonName || lessorCeo || '영업담당자';
-    const salespersonPhone = payload.salespersonPhone || payload.lessorTel || policy.salesPhone || policy.tel || '-';
-    const billingManagerName = payload.billingManagerName || lessorCeo || '청구담당자';
-    const billingManagerPhone = payload.billingManagerPhone || payload.lessorTel || policy.tel || '-';
+    const custName = (payload.customerName || '고객사').replace(/"/g, '""');
+    const bizRegNo = (payload.customerBizNo || payload.bizRegNo || '-').replace(/"/g, '""');
+    const ceoName = (payload.customerCeo || '-').replace(/"/g, '""');
+    const billingDate = (payload.billingDate || new Date().toISOString().split('T')[0]).replace(/"/g, '""');
+    const siteName = (payload.siteName || '현장').replace(/"/g, '""');
+    const siteAddress = (payload.customerAddress || payload.siteAddress || payload.address || '-').replace(/"/g, '""');
+    const siteManagerName = (payload.siteManagerName || '-').replace(/"/g, '""');
+    const siteManagerPhone = (payload.siteManagerPhone || '-').replace(/"/g, '""');
+    const custBillingName = (payload.custBillingManagerName || payload.customerBillingManagerName || '-').replace(/"/g, '""');
+    const custBillingPhone = (payload.custBillingManagerPhone || payload.customerBillingManagerPhone || '-').replace(/"/g, '""');
+    const custBillingEmail = (payload.custBillingEmail || payload.customerBillingEmail || '-').replace(/"/g, '""');
+    const custBizType = (payload.customerBizType || '-').replace(/"/g, '""');
+    const custBizItem = (payload.customerBizItem || '-').replace(/"/g, '""');
+
+    const salespersonName = (payload.salespersonName || lessorCeo || '영업담당자').replace(/"/g, '""');
+    const salespersonPhone = (payload.salespersonPhone || payload.lessorTel || policy.salesPhone || policy.tel || '-').replace(/"/g, '""');
+    const billingManagerName = (payload.billingManagerName || '정수아').replace(/"/g, '""');
+    const billingManagerPhone = (payload.billingManagerPhone || lessorTel).replace(/"/g, '""');
     const yyyyMm = (payload.billingYm || (payload.billingDate ? payload.billingDate.substring(0, 7) : new Date().toISOString().substring(0, 7))).replace(/[\\/:*?"<>|]/g, '');
-    const supplySummary = (payload.supplySummary || payload.billingDescription || `${yyyyMm}분 고소작업대 렌탈료`).replace(/"/g, '""');
 
     const items = payload.items || [];
-    const totalSupply = payload.totalSupply || 0;
-    const totalVat = payload.totalVat || 0;
-    const totalGrand = payload.totalGrand || 0;
 
-    // 11개 단위 분할 (다중 페이지 거래명세서 엔진)
-    const chunkSize = 11;
+    // 13개 단위 분할 (Row 16 ~ Row 28: 다중 페이지 거래명세서 엔진)
+    const chunkSize = 13;
     const chunks = [];
     for (let i = 0; i < items.length; i += chunkSize) {
       chunks.push(items.slice(i, i + chunkSize));
@@ -1077,15 +1084,15 @@ function Replace-Tag($targetWs, $tag, $val) {
 function Setup-Sheet-Page($targetWs) {
   $targetWs.PageSetup.PaperSize = 9
   $targetWs.PageSetup.Orientation = 1
-  $targetWs.PageSetup.PrintArea = "A1:U28"
+  $targetWs.PageSetup.PrintArea = "B1:AA30"
   $targetWs.PageSetup.Zoom = $false
   $targetWs.PageSetup.FitToPagesWide = 1
   $targetWs.PageSetup.FitToPagesTall = 1
   $targetWs.PageSetup.CenterHorizontally = $true
-  $targetWs.PageSetup.LeftMargin = $excel.InchesToPoints(0.2)
-  $targetWs.PageSetup.RightMargin = $excel.InchesToPoints(0.2)
-  $targetWs.PageSetup.TopMargin = $excel.InchesToPoints(0.25)
-  $targetWs.PageSetup.BottomMargin = $excel.InchesToPoints(0.25)
+  $targetWs.PageSetup.LeftMargin = $excel.InchesToPoints(0.15)
+  $targetWs.PageSetup.RightMargin = $excel.InchesToPoints(0.15)
+  $targetWs.PageSetup.TopMargin = $excel.InchesToPoints(0.2)
+  $targetWs.PageSetup.BottomMargin = $excel.InchesToPoints(0.2)
 }
 
 # --- 1. 거래명세서 마스터 템플릿 복사 및 열기 ---
@@ -1105,112 +1112,148 @@ $wsBase = $wb.Sheets.Item(1)
 
       let s = '';
       if (isFirst) {
+        if (totalPages > 1) {
+          // 다중 페이지일 때는 1페이지 수정 전에 원본 템플릿 시트를 필요한 만큼 미리 복제해 둔다
+          for (let p = 2; p <= totalPages; p++) {
+            s += `$wsBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))\n`;
+            s += `$wb.Sheets.Item($wb.Sheets.Count).Name = "거래명세서_${p}"\n`;
+          }
+          s += `$wsBase.Name = "거래명세서_1"\n`;
+        }
         s += `\n$curWs = $wsBase\n`;
       } else {
-        s += `
-$wsBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
-$curWs = $wb.Sheets.Item($wb.Sheets.Count)
-`;
+        s += `\n$curWs = $wb.Sheets.Item(${pageNum})\n`;
       }
 
       s += `
-# 페이지 ${pageNum} 공급자(테넌트) 및 공급받는자(고객사) 데이터 주입
-Replace-Tag $curWs "{테넌트}" "${lessorName}"
-Replace-Tag $curWs "(주)기연리프트" "${lessorName}"
-Replace-Tag $curWs "주식회사 기연리프트" "${lessorName}"
-Replace-Tag $curWs "기연리프트" "${tenantName}"
-${lessorBizNo ? `Replace-Tag $curWs "138-81-83251" "${lessorBizNo}"` : ''}
-${lessorCeo ? `Replace-Tag $curWs "이수용" "${lessorCeo}"` : ''}
-${lessorAddress ? `Replace-Tag $curWs "{공급자주소}" "${lessorAddress}"` : ''}
-${lessorBizType ? `Replace-Tag $curWs "{공급자업태}" "${lessorBizType}"` : ''}
-${lessorBizItem ? `Replace-Tag $curWs "{공급자종목}" "${lessorBizItem}"` : ''}
-Replace-Tag $curWs "{사업자등록번호}" "${bizRegNo}"
-Replace-Tag $curWs "{고객명}" "${custName}"
-Replace-Tag $curWs "{대표자}" "${ceoName}"
-Replace-Tag $curWs "{주소}" "${siteAddress}"
-Replace-Tag $curWs "{업태}" "${custBizType}"
-Replace-Tag $curWs "{종목}" "${custBizItem}"
+# 페이지 ${pageNum} 공급자(테넌트) 및 공급받는자(고객사) {} 태그 치환
+Replace-Tag $curWs "{테넌트사업자등록번호}" "${lessorBizNo}"
+Replace-Tag $curWs "{테넌트상호}" "${lessorName}"
+Replace-Tag $curWs "{테넌트대표}" "${lessorCeo}"
+Replace-Tag $curWs "{테넌트주소}" "${lessorAddress}"
+Replace-Tag $curWs "{테넌트업태}" "${lessorBizType}"
+Replace-Tag $curWs "{테넌트종목}" "${lessorBizItem}"
+Replace-Tag $curWs "{영업담당자}" "${salespersonName}"
+Replace-Tag $curWs "{영업담당자연락처}" "${salespersonPhone}"
+Replace-Tag $curWs "{테넌트계산서담당자}" "${billingManagerName}"
+Replace-Tag $curWs "{테넌트전화}" "${billingManagerPhone}"
+Replace-Tag $curWs "{테넌트세금계산서메일}" "${lessorEmail}"
+Replace-Tag $curWs "{테넌트계좌}" "${bankAccount}"
+
+Replace-Tag $curWs "{고객사업자등록증번호}" "${bizRegNo}"
+Replace-Tag $curWs "{고객상호}" "${custName}"
+Replace-Tag $curWs "{고객대표}" "${ceoName}"
+Replace-Tag $curWs "{고객주소}" "${siteAddress}"
+Replace-Tag $curWs "{고객업태}" "${custBizType}"
+Replace-Tag $curWs "{고객종목}" "${custBizItem}"
 Replace-Tag $curWs "{현장담당자}" "${siteManagerName}"
 Replace-Tag $curWs "{현장담당자연락처}" "${siteManagerPhone}"
 Replace-Tag $curWs "{계산서담당자}" "${custBillingName}"
 Replace-Tag $curWs "{계산서담당자연락처}" "${custBillingPhone}"
-Replace-Tag $curWs "{계산서이메일}" "${custBillingEmail}"
+Replace-Tag $curWs "{계산서메일}" "${custBillingEmail}"
 Replace-Tag $curWs "{현장명}" "${siteName}${pageTag}"
-
-Replace-Tag $curWs "{영업사원}" "${salespersonName}"
-Replace-Tag $curWs "{영업사원연락처}" "${salespersonPhone}"
-Replace-Tag $curWs "{청구담당자}" "${billingManagerName}"
-Replace-Tag $curWs "{청구담당자연락처}" "${billingManagerPhone}"
-
-$curWs.Cells.Item(12, 5).Value2 = "${supplySummary}"
-$curWs.Cells.Item(12, 15).Value2 = "${siteName}${pageTag}"
-$curWs.Cells.Item(13, 5).Value2 = "${billingDate}${pageTag}"
-
+Replace-Tag $curWs "{작성일자}" "${billingDate}${pageTag}"
 `;
 
-      // 품목 기입 (Row 16 ~ Row 26)
-      for (let r = 0; r < 11; r++) {
+      // 품목 기입 (Row 16 ~ Row 28, 최대 13행)
+      for (let r = 0; r < 13; r++) {
         const item = chunk[r];
         const rowNum = 16 + r;
         if (item) {
           const globalNo = startGlobalIdx + r + 1;
-          let m = item.month || '';
-          let d = item.day || '';
-          if ((!m || !d) && (item.billingDate || item.date || item.transactionDate)) {
-            const dtParts = String(item.billingDate || item.date || item.transactionDate).split('-');
+          let m = item.month !== undefined && item.month !== null ? item.month : '';
+          let d = item.day !== undefined && item.day !== null ? item.day : '';
+          if ((!m || !d) && (item.billingDate || item.date || item.transactionDate || billingDate)) {
+            const dtParts = String(item.billingDate || item.date || item.transactionDate || billingDate).split('-');
             if (dtParts.length === 3) {
               if (!m) m = parseInt(dtParts[1], 10);
               if (!d) d = parseInt(dtParts[2], 10);
             }
           }
-          const rawDesc = item.itemDescription || item.description || item.itemName || [item.model, item.assetNo ? `[${item.assetNo}]` : '', item.spec].filter(Boolean).join(' ') || '고소작업대 렌탈료';
-          const desc = rawDesc.replace(/"/g, '""');
-          const qty = item.quantity || item.qty || 1;
+
+          let model = String(item.modelName || item.model || '').trim();
+          let height = String(item.workingHeight || item.height || '').trim();
+          let assetNo = String(item.assetNo || '').trim();
+          let siteEntryDate = String(item.siteEntryDate || '').trim();
+          let periodStart = String(item.periodStart || '').trim();
+          let periodEnd = String(item.periodEnd || '').trim();
+          let billingCategory = String(item.billingCategory || '').trim();
+          const rawDesc = String(item.itemDescription || item.description || item.itemName || '').trim();
+
+          if (!model && rawDesc) {
+            const parts = rawDesc.split('_');
+            if (parts.length >= 3 && parts[parts.length - 1].includes('~')) {
+              model = parts[0];
+              if (!assetNo) assetNo = parts[1];
+              const [ps, pe] = parts[parts.length - 1].split('~');
+              if (!periodStart && ps) periodStart = ps.trim();
+              if (!periodEnd && pe) periodEnd = pe.trim();
+            } else {
+              model = rawDesc;
+            }
+          }
+          const modelAndHeight = (item.modelAndHeight || (height ? `${model} / ${height}` : (model || rawDesc || '-'))).replace(/"/g, '""');
+          const safeAssetNo = (assetNo || '-').replace(/"/g, '""');
+          const safeSiteEntry = (siteEntryDate || periodStart || '-').replace(/"/g, '""');
+          const safePStart = (periodStart || '-').replace(/"/g, '""');
+          const safePEnd = (periodEnd || '-').replace(/"/g, '""');
+          const safeTilde = (safePStart !== '-' || safePEnd !== '-') ? '~' : '';
+          const safeCategory = (billingCategory || '임대료').replace(/"/g, '""');
+
+          const qty = Number(item.quantity || item.qty || 1);
           const priceNum = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
           const supplyNum = item.supplyAmount !== undefined ? Number(item.supplyAmount) : (item.amount !== undefined ? Number(item.amount) : (priceNum * qty));
           const vatNum = item.vatAmount !== undefined ? Number(item.vatAmount) : (item.vat !== undefined ? Number(item.vat) : Math.round(supplyNum * 0.1));
-          const price = priceNum.toLocaleString();
-          const supply = supplyNum.toLocaleString();
-          const vat = vatNum.toLocaleString();
-          const notes = (item.notes || item.remarks || item.memo || '').replace(/"/g, '""');
+          const notes = String(item.notes || item.remarks || item.memo || '').replace(/"/g, '""');
 
           s += `
-$curWs.Cells.Item(${rowNum}, 2).Value2 = "${globalNo}"
+$curWs.Range("Y${rowNum}:AA${rowNum}").Merge()
+$curWs.Cells.Item(${rowNum}, 2).Value2 = ${globalNo}
 $curWs.Cells.Item(${rowNum}, 3).Value2 = "${m}"
 $curWs.Cells.Item(${rowNum}, 4).Value2 = "${d}"
-$curWs.Cells.Item(${rowNum}, 5).Value2 = "${desc}"
-$curWs.Cells.Item(${rowNum}, 12).Value2 = "${qty}"
-$curWs.Cells.Item(${rowNum}, 13).Value2 = "${price}"
-$curWs.Cells.Item(${rowNum}, 15).Value2 = "${supply}"
-$curWs.Cells.Item(${rowNum}, 17).Value2 = "${vat}"
-$curWs.Cells.Item(${rowNum}, 20).Value2 = "${notes}"
+$curWs.Cells.Item(${rowNum}, 5).Value2 = "${modelAndHeight}"
+$curWs.Cells.Item(${rowNum}, 8).Value2 = "${safeAssetNo}"
+$curWs.Cells.Item(${rowNum}, 11).Value2 = "${safeSiteEntry}"
+$curWs.Cells.Item(${rowNum}, 12).Value2 = "${safePStart}"
+$curWs.Cells.Item(${rowNum}, 13).Value2 = "${safeTilde}"
+$curWs.Cells.Item(${rowNum}, 14).Value2 = "${safePEnd}"
+$curWs.Cells.Item(${rowNum}, 15).Value2 = "${safeCategory}"
+$curWs.Cells.Item(${rowNum}, 17).Value2 = ${qty}
+$curWs.Cells.Item(${rowNum}, 18).Value2 = ${priceNum}
+$curWs.Cells.Item(${rowNum}, 20).Value2 = ${supplyNum}
+$curWs.Cells.Item(${rowNum}, 23).Value2 = ${vatNum}
+$curWs.Cells.Item(${rowNum}, 25).Value2 = "${notes}"
 `;
         } else {
           s += `
-$curWs.Cells.Item(${rowNum}, 2).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 3).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 4).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 5).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 12).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 13).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 15).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 17).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 20).Value2 = ""
+$curWs.Range("Y${rowNum}:AA${rowNum}").Merge()
+$curWs.Cells.Item(${rowNum}, 2).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 3).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 4).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 5).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 8).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 11).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 12).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 13).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 14).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 15).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 17).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 18).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 20).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 23).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 25).Value2 = $null
 `;
         }
       }
 
       s += `
-# 합계 행 치환
-Replace-Tag $curWs "{공급가합계}" "${totalSupply.toLocaleString()}"
-Replace-Tag $curWs "{부가세합계}" "${totalVat.toLocaleString()}"
-Replace-Tag $curWs "{총액}" "${totalGrand.toLocaleString()}"
-
+$curWs.Calculate()
 Setup-Sheet-Page $curWs
 `;
 
       return s;
     }).join('\n') + `
+$wb.Save()
 
 # --- 5. 전체 워크북 1회 Export (모든 시트가 1개의 단일 다중 페이지 PDF로) ---
 $wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.Missing]::Value, [System.Reflection.Missing]::Value, $false)

@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload, TenantBankAccount, Tenant } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings, Scissors } from 'lucide-react';
 import { emailService } from '../services/email';
-import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
+import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName, buildStatementItemFromDetail } from '../services/excel';
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
 import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
 import { CustomStatementEditModal } from '../components/CustomStatementEditModal';
@@ -1121,6 +1121,13 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           return {
             month: dateM,
             day: dateD,
+            modelName: ci.itemDescription || '',
+            workingHeight: ci.specification || '',
+            assetNo: '-',
+            siteEntryDate: contract?.startDate || '-',
+            periodStart: '-',
+            periodEnd: '-',
+            billingCategory: '임대료',
             itemDescription: ci.specification ? `${ci.itemDescription} (${ci.specification})` : ci.itemDescription,
             quantity: ci.quantity,
             unitPrice: ci.unitPrice,
@@ -1130,28 +1137,10 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           };
         })
       : details.map(d => {
-          let unitPrice = d.unitPrice || 0;
-          let quantity = d.quantity || 1;
-          const supplyAmount = d.amount || (unitPrice * quantity);
-          const isRental = Boolean(d.contractAssetId || d.assetId);
-          if (isRental && quantity >= 28 && supplyAmount > 0) {
-            quantity = 1;
-            unitPrice = supplyAmount;
-          }
-          const vatAmount = Math.round(supplyAmount * 0.1);
-          totalSupply += supplyAmount;
-          totalVat += vatAmount;
-
-          return {
-            month: dateM,
-            day: dateD,
-            itemDescription: formatStatementItemName(d, billing, contract),
-            quantity,
-            unitPrice,
-            supplyAmount,
-            vatAmount,
-            notes: (d as any).memo || (d as any).notes || ''
-          };
+          const item = buildStatementItemFromDetail(d, billing, contract, dateM, dateD);
+          totalSupply += item.supplyAmount;
+          totalVat += item.vatAmount;
+          return item;
         });
 
     try {
@@ -1163,11 +1152,13 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         lessorName: currentTenant?.tradeName || currentTenant?.corporateName || '(주)임대인',
         lessorCeo: currentTenant?.representativeName || '대표자',
         lessorAddress: currentTenant?.businessAddress || '',
+        lessorBizType: currentTenant?.businessCategory || '사업지원및임대서비스업',
+        lessorBizItem: currentTenant?.businessItem || '고소장비임대업',
         salespersonName: salesperson?.name || (contract as any)?.salespersonName || '-',
         salespersonPhone: (salesperson as any)?.mobile || salesperson?.phone || '-',
-        billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '경영지원팀',
+        billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '정수아',
         billingManagerPhone: currentTenant?.tel || '031-334-5295',
-        lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'tax@ebro.com',
+        lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'giyeonlift@naver.com',
 
         customerBizNo: customer?.bizRegNo || '-',
         customerName: customer?.name || '-',
@@ -1253,6 +1244,13 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           return {
             month: dateM,
             day: dateD,
+            modelName: ci.itemDescription || '',
+            workingHeight: ci.specification || '',
+            assetNo: '-',
+            siteEntryDate: contract?.startDate || '-',
+            periodStart: '-',
+            periodEnd: '-',
+            billingCategory: '임대료',
             itemDescription: ci.specification ? `${ci.itemDescription} (${ci.specification})` : ci.itemDescription,
             quantity: ci.quantity,
             unitPrice: ci.unitPrice,
@@ -1262,28 +1260,10 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           };
         })
       : details.map(d => {
-          let unitPrice = d.unitPrice || 0;
-          let quantity = d.quantity || 1;
-          const supplyAmount = d.amount || (unitPrice * quantity);
-          const isRental = Boolean(d.contractAssetId || d.assetId);
-          if (isRental && quantity >= 28 && supplyAmount > 0) {
-            quantity = 1;
-            unitPrice = supplyAmount;
-          }
-          const vatAmount = Math.round(supplyAmount * 0.1);
-          totalSupply += supplyAmount;
-          totalVat += vatAmount;
-
-          return {
-            month: dateM,
-            day: dateD,
-            itemDescription: formatStatementItemName(d, billing, contract),
-            quantity,
-            unitPrice,
-            supplyAmount,
-            vatAmount,
-            notes: (d as any).memo || (d as any).notes || ''
-          };
+          const item = buildStatementItemFromDetail(d, billing, contract, dateM, dateD);
+          totalSupply += item.supplyAmount;
+          totalVat += item.vatAmount;
+          return item;
         });
 
     try {
@@ -1295,11 +1275,13 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         lessorName: currentTenant?.tradeName || currentTenant?.corporateName || '(주)임대인',
         lessorCeo: currentTenant?.representativeName || '대표자',
         lessorAddress: currentTenant?.businessAddress || '',
+        lessorBizType: currentTenant?.businessCategory || '사업지원및임대서비스업',
+        lessorBizItem: currentTenant?.businessItem || '고소장비임대업',
         salespersonName: salesperson?.name || (contract as any)?.salespersonName || '-',
         salespersonPhone: (salesperson as any)?.mobile || salesperson?.phone || '-',
-        billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '경영지원팀',
+        billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '정수아',
         billingManagerPhone: currentTenant?.tel || '031-334-5295',
-        lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'tax@ebro.com',
+        lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'giyeonlift@naver.com',
 
         customerBizNo: customer?.bizRegNo || '-',
         customerName: customer?.name || '-',
@@ -1388,6 +1370,13 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           return {
             month: dateM,
             day: dateD,
+            modelName: ci.itemDescription || '',
+            workingHeight: ci.specification || '',
+            assetNo: '-',
+            siteEntryDate: contract?.startDate || '-',
+            periodStart: '-',
+            periodEnd: '-',
+            billingCategory: '임대료',
             itemDescription: ci.specification ? `${ci.itemDescription} (${ci.specification})` : ci.itemDescription,
             quantity: ci.quantity,
             unitPrice: ci.unitPrice,
@@ -1397,28 +1386,10 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
           };
         })
       : details.map(d => {
-          let unitPrice = d.unitPrice || 0;
-          let quantity = d.quantity || 1;
-          const supplyAmount = d.amount || (unitPrice * quantity);
-          const isRental = Boolean(d.contractAssetId || d.assetId);
-          if (isRental && quantity >= 28 && supplyAmount > 0) {
-            quantity = 1;
-            unitPrice = supplyAmount;
-          }
-          const vatAmount = Math.round(supplyAmount * 0.1);
-          totalSupply += supplyAmount;
-          totalVat += vatAmount;
-
-          return {
-            month: dateM,
-            day: dateD,
-            itemDescription: formatStatementItemName(d, billing, contract),
-            quantity,
-            unitPrice,
-            supplyAmount,
-            vatAmount,
-            notes: (d as any).memo || (d as any).notes || ''
-          };
+          const item = buildStatementItemFromDetail(d, billing, contract, dateM, dateD);
+          totalSupply += item.supplyAmount;
+          totalVat += item.vatAmount;
+          return item;
         });
 
     const spName = salesperson?.name || (contract as any)?.salespersonName || '-';
@@ -1440,7 +1411,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
 [1. 공급자 정보]
 - 사업자등록번호: ${currentTenant?.businessNumber || '-'} | 상호: ${currentTenant?.tradeName || currentTenant?.corporateName || '-'} | 대표자: ${currentTenant?.representativeName || '-'}
 - 계약담당자(영업): ${spName} (연락처: ${spPhone})
-- 계산서담당자(경영): ${currentTenant?.workplaces?.[0]?.managerName || '경영지원팀'} (연락처: ${currentTenant?.tel || '-'})
+- 계산서담당자(경영): ${currentTenant?.workplaces?.[0]?.managerName || '정수아'} (연락처: ${currentTenant?.tel || '-'})
 - 이메일: ${currentTenant?.taxEmail || currentTenant?.email || '-'}
 
 [2. 공급받는 자 정보]
@@ -1454,7 +1425,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
 [3. 거래 세부 내역]
 ----------------------------------------------------------------------------------------
 ${items.map((item, idx) => {
-  return `${idx + 1}. ${item.itemDescription}
+  return `${idx + 1}. ${item.modelName || item.itemDescription}${item.workingHeight ? ` / ${item.workingHeight}` : ''} [관리번호: ${item.assetNo || '-'}] (현장투입일: ${item.siteEntryDate || '-'} | 사용기간: ${item.periodStart || '-'} ~ ${item.periodEnd || '-'} | 구분: ${item.billingCategory || '임대료'})
    - 수량: ${item.quantity}대 | 단가: ${item.unitPrice.toLocaleString()}원 | 공급가액: ${item.supplyAmount.toLocaleString()}원 | 부가세: ${item.vatAmount.toLocaleString()}원 | 합계: ${(item.supplyAmount + item.vatAmount).toLocaleString()}원`;
 }).join('\n----------------------------------------------------------------------------------------\n')}
 ----------------------------------------------------------------------------------------
@@ -1492,11 +1463,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           lessorName: currentTenant?.tradeName || currentTenant?.corporateName || '(주)임대인',
           lessorCeo: currentTenant?.representativeName || '대표자',
           lessorAddress: currentTenant?.businessAddress || '',
+          lessorBizType: currentTenant?.businessCategory || '사업지원및임대서비스업',
+          lessorBizItem: currentTenant?.businessItem || '고소장비임대업',
           salespersonName: spName,
           salespersonPhone: spPhone,
-          billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '경영지원팀',
+          billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '정수아',
           billingManagerPhone: currentTenant?.tel || '031-334-5295',
-          lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'tax@ebro.com',
+          lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'giyeonlift@naver.com',
 
           customerBizNo: customer?.bizRegNo || '-',
           customerName: customer?.name || '-',

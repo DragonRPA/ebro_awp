@@ -24,6 +24,7 @@ import {
   type TransactionStatementPdfData,
   type TransactionStatementItem
 } from '../services/excelTemplateEngine';
+import { buildStatementItemFromDetail } from '../services/excel';
 import { calculatePaymentDueDate, type BillingInvoice, type Billing, type BillingDetail } from '../services/db';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 
@@ -522,23 +523,42 @@ export const BillingInvoiceTab: React.FC = () => {
 
   // ── 공통 거래명세서 주입 데이터 생성 헬퍼 ──
   const buildStatementData = (): TransactionStatementPdfData => {
-    const custName = selectedCustomer?.name || '고객사';
     const firstSiteName = selectedBillingsData[0]?.siteName || '';
+    const items: TransactionStatementItem[] = [];
 
-    const items: TransactionStatementItem[] = statementItems.map(item => {
-      const parts = (item.date || '').split('-');
-      const m = parts.length >= 2 ? parseInt(parts[0], 10) : parseInt(selectedYm.split('-')[1], 10);
-      const d = parts.length >= 2 ? parseInt(parts[1], 10) : 1;
-      return {
-        month: isNaN(m) ? (parseInt(selectedYm.split('-')[1], 10) || 8) : m,
-        day: isNaN(d) ? 1 : d,
-        itemDescription: item.itemName,
-        quantity: item.qty || 1,
-        unitPrice: item.unitPrice || 0,
-        supplyAmount: item.amount || 0,
-        vatAmount: item.vat || 0,
-        notes: item.memo || item.spec || ''
-      };
+    selectedBillingsData.forEach(b => {
+      const bParts = (b.billingDate || '').split('-');
+      const m = bParts.length >= 2 ? parseInt(bParts[1], 10) : (parseInt(selectedYm.split('-')[1], 10) || 10);
+      const dNum = bParts.length >= 3 ? parseInt(bParts[2], 10) : 1;
+      if (b.details && b.details.length > 0) {
+        b.details.forEach(d => {
+          items.push(buildStatementItemFromDetail(d, b, b.contract, m, dNum));
+        });
+      } else {
+        const supply = b.totalAmount || 0;
+        const vat = Math.floor(supply * 0.1);
+        const cat = b.category === 'REPAIR' ? '수리비' : b.category === 'TRANSPORT' ? '운반비' : '임대료';
+        const name = b.category === 'REPAIR' ? '장비 파손 수리비'
+          : b.category === 'TRANSPORT' ? '장비 배차 운반비'
+          : `렌탈료 (${b.siteName || b.billingYm})`;
+        items.push({
+          month: m,
+          day: dNum,
+          modelName: name.replace(/\(가상\)/g, '').trim(),
+          workingHeight: '',
+          assetNo: '-',
+          siteEntryDate: b.contract?.startDate || '-',
+          periodStart: '-',
+          periodEnd: '-',
+          billingCategory: cat,
+          itemDescription: name.replace(/\(가상\)/g, '').trim(),
+          quantity: 1,
+          unitPrice: supply,
+          supplyAmount: supply,
+          vatAmount: vat,
+          notes: b.memo || ''
+        });
+      }
     });
 
     return {
@@ -546,26 +566,33 @@ export const BillingInvoiceTab: React.FC = () => {
       billingYm: selectedYm || initialYm,
       contractNo: selectedBillingsData[0]?.contract?.contractNo || '',
       lessorBizNo: currentTenant?.businessNumber || '138-81-83251',
-      lessorName: currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트',
+      lessorName: currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트',
       lessorCeo: currentTenant?.representativeName || '이수용',
-      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3',
+      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33',
+      lessorBizType: currentTenant?.businessCategory || '사업지원및임대서비스업',
+      lessorBizItem: currentTenant?.businessItem || '고소장비임대업',
       salespersonName: '영업부',
       salespersonPhone: currentTenant?.salesPhone || currentTenant?.tel || '031-334-5296',
-      billingManagerName: '정수아',
+      billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '정수아',
       billingManagerPhone: currentTenant?.tel || '031-334-5295',
-      lessorEmail: currentTenant?.taxEmail || 'giyeonlift@naver.com',
+      lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'giyeonlift@naver.com',
       stampImageUrl: currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64,
       stampBase64: (currentTenant as any)?.stampBase64 || currentTenant?.stampImageUrl,
-      customerBizNo: selectedCustomer?.businessNumber || '',
-      customerName: selectedCustomer?.name || '',
-      customerCeo: selectedCustomer?.representativeName || '',
-      customerAddress: selectedCustomer?.address || '',
-      customerBizType: selectedCustomer?.bizType || '',
-      customerBizItem: selectedCustomer?.bizItem || '',
-      siteName: firstSiteName,
+      customerBizNo: (selectedCustomer as any)?.bizRegNo || selectedCustomer?.businessNumber || '-',
+      customerName: selectedCustomer?.name || '-',
+      customerCeo: (selectedCustomer as any)?.representative || selectedCustomer?.representativeName || '-',
+      customerAddress: selectedCustomer?.address || '-',
+      customerBizType: selectedCustomer?.bizType || '-',
+      customerBizItem: selectedCustomer?.bizItem || '-',
+      siteManagerName: (selectedCustomer as any)?.managerName || '-',
+      siteManagerPhone: (selectedCustomer as any)?.phone || '-',
+      custBillingManagerName: (selectedCustomer as any)?.billingManagerName || (selectedCustomer as any)?.managerName || '-',
+      custBillingManagerPhone: (selectedCustomer as any)?.billingManagerPhone || (selectedCustomer as any)?.phone || '-',
+      custBillingEmail: (selectedCustomer as any)?.billingEmail || (selectedCustomer as any)?.email || '-',
+      siteName: firstSiteName || '-',
       bankAccount: currentTenant?.bankAccounts?.[0]
-        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'})`
-        : '신한은행 140-010-007060 (주식회사 기연리프트)',
+        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.tradeName || currentTenant?.corporateName || '(주)기연리프트'})`
+        : '기업은행 123-456789-01-011 ((주)기연리프트)',
       items,
       totalSupply: accountingSummary.supplyAmount,
       totalVat: accountingSummary.vatAmount,
@@ -654,7 +681,7 @@ export const BillingInvoiceTab: React.FC = () => {
       const tenantBank = currentTenant?.bankAccounts?.[0];
       const bankAccountStr = tenantBank
         ? `${tenantBank.bankName} ${tenantBank.accountNumber} (${tenantBank.accountHolder || tenantCorp})`
-        : '신한은행 140-010-007060 (주식회사 기연리프트)';
+        : '기업은행 123-456789-01-011 ((주)기연리프트)';
 
       const attachments: { filename: string; content: string }[] = [];
 
@@ -719,31 +746,29 @@ export const BillingInvoiceTab: React.FC = () => {
 
     const items: TransactionStatementItem[] = [];
     childBillings.forEach(b => {
+      const m = parseInt((b.billingDate || '').split('-')[1] || inv.billingYm.split('-')[1] || '10', 10);
+      const dNum = parseInt((b.billingDate || '').split('-')[2] || '1', 10);
       if (b.details && b.details.length > 0) {
         b.details.forEach(d => {
-          const supply = d.amount || (d.unitPrice * d.quantity) || 0;
-          const vat = d.vatAmount != null ? d.vatAmount : Math.floor(supply * 0.1);
-          const cleanItemName = (d.itemName || d.description || '품목').replace(/\(가상\)/g, '').replace(/\s+/g, ' ').trim();
-          items.push({
-            month: parseInt((b.billingDate || '').split('-')[1] || inv.billingYm.split('-')[1] || '8', 10),
-            day: parseInt((b.billingDate || '').split('-')[2] || '1', 10),
-            itemDescription: cleanItemName,
-            quantity: d.quantity || 1,
-            unitPrice: d.unitPrice || supply,
-            supplyAmount: supply,
-            vatAmount: vat,
-            notes: d.memo || d.spec || b.contract?.contractNo || ''
-          });
+          items.push(buildStatementItemFromDetail(d, b, b.contract, m, dNum));
         });
       } else {
         const supply = b.totalAmount || 0;
         const vat = Math.floor(supply * 0.1);
+        const cat = b.category === 'REPAIR' ? '수리비' : b.category === 'TRANSPORT' ? '운반비' : '임대료';
         const name = b.category === 'REPAIR' ? '장비 파손 수리비'
           : b.category === 'TRANSPORT' ? '장비 배차 운반비'
           : `렌탈료 (${b.siteName || inv.billingYm})`;
         items.push({
-          month: parseInt((b.billingDate || '').split('-')[1] || inv.billingYm.split('-')[1] || '8', 10),
-          day: parseInt((b.billingDate || '').split('-')[2] || '1', 10),
+          month: m,
+          day: dNum,
+          modelName: name.replace(/\(가상\)/g, '').trim(),
+          workingHeight: '',
+          assetNo: '-',
+          siteEntryDate: b.contract?.startDate || '-',
+          periodStart: '-',
+          periodEnd: '-',
+          billingCategory: cat,
           itemDescription: name.replace(/\(가상\)/g, '').trim(),
           quantity: 1,
           unitPrice: supply,
@@ -759,26 +784,33 @@ export const BillingInvoiceTab: React.FC = () => {
       billingYm: inv.billingYm,
       contractNo: childBillings[0]?.contract?.contractNo || '',
       lessorBizNo: currentTenant?.businessNumber || '138-81-83251',
-      lessorName: currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트',
+      lessorName: currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트',
       lessorCeo: currentTenant?.representativeName || '이수용',
-      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3',
+      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33',
+      lessorBizType: currentTenant?.businessCategory || '사업지원및임대서비스업',
+      lessorBizItem: currentTenant?.businessItem || '고소장비임대업',
       salespersonName: '영업부',
       salespersonPhone: currentTenant?.salesPhone || currentTenant?.tel || '031-334-5296',
-      billingManagerName: '정수아',
+      billingManagerName: currentTenant?.workplaces?.[0]?.managerName || '정수아',
       billingManagerPhone: currentTenant?.tel || '031-334-5295',
-      lessorEmail: currentTenant?.taxEmail || 'giyeonlift@naver.com',
+      lessorEmail: currentTenant?.taxEmail || currentTenant?.email || 'giyeonlift@naver.com',
       stampImageUrl: currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64,
       stampBase64: (currentTenant as any)?.stampBase64 || currentTenant?.stampImageUrl,
-      customerBizNo: cust?.businessNumber || '',
-      customerName: cust?.name || '',
-      customerCeo: cust?.representativeName || '',
-      customerAddress: cust?.address || '',
-      customerBizType: cust?.bizType || '',
-      customerBizItem: cust?.bizItem || '',
-      siteName: firstSite,
+      customerBizNo: (cust as any)?.bizRegNo || cust?.businessNumber || '-',
+      customerName: cust?.name || '-',
+      customerCeo: (cust as any)?.representative || cust?.representativeName || '-',
+      customerAddress: cust?.address || '-',
+      customerBizType: cust?.bizType || '-',
+      customerBizItem: cust?.bizItem || '-',
+      siteManagerName: (cust as any)?.managerName || '-',
+      siteManagerPhone: (cust as any)?.phone || '-',
+      custBillingManagerName: (cust as any)?.billingManagerName || (cust as any)?.managerName || '-',
+      custBillingManagerPhone: (cust as any)?.billingManagerPhone || (cust as any)?.phone || '-',
+      custBillingEmail: (cust as any)?.billingEmail || (cust as any)?.email || '-',
+      siteName: firstSite || '-',
       bankAccount: currentTenant?.bankAccounts?.[0]
-        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'})`
-        : '신한은행 140-010-007060 (주식회사 기연리프트)',
+        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.tradeName || currentTenant?.corporateName || '(주)기연리프트'})`
+        : '기업은행 123-456789-01-011 ((주)기연리프트)',
       items,
       totalSupply: inv.totalAmount,
       totalVat: inv.vatAmount,

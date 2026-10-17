@@ -443,17 +443,24 @@ export async function generateSafetyInspectionPdf(data: SafetyInspectionExcelDat
 }
 
 /**
- * 거래명세서 정품 A4 PDF 렌더링 규격 인터페이스
+ * 거래명세서 정품 A4 PDF / Excel 렌더링 규격 인터페이스 (00.거래명세서양식.xlsx 27열 B1:AA30 기준)
  */
 export interface TransactionStatementItem {
-  month: number;
-  day: number;
-  itemDescription: string; // {모델명}[{관리번호}]_{청구시작일}~{청구종료일}
-  quantity: number;
-  unitPrice: number;
-  supplyAmount: number;
-  vatAmount: number;
-  notes?: string;
+  month: number | string;
+  day: number | string;
+  modelName?: string;        // {모델}
+  workingHeight?: string;    // {높이} (작업높이, 예: '10 M')
+  assetNo?: string;          // {관리번호}
+  siteEntryDate?: string;    // {현장투입일} (계약 자산 시작일 startDate)
+  periodStart?: string;      // {청구시작일}
+  periodEnd?: string;        // {청구종료일}
+  billingCategory?: string;  // {청구구분} (임대료 / 운반비 / 수리비 / 매각 / 기타)
+  itemDescription: string;   // 레거시/이메일 본문 요약 호환용
+  quantity: number;          // {수량}
+  unitPrice: number;         // {단가}
+  supplyAmount: number;      // {공급가}
+  vatAmount: number;         // {세액}
+  notes?: string;            // 비고 (Y열)
 }
 
 export interface TransactionStatementPdfData {
@@ -461,44 +468,120 @@ export interface TransactionStatementPdfData {
   billingYm: string;   // YYYY-MM
   contractNo?: string;
 
-  // 공급자 (당사)
-  lessorBizNo?: string;
-  lessorName?: string;
-  lessorCeo?: string;
-  lessorAddress?: string;
-  lessorBizType?: string;
-  lessorBizItem?: string;
-  lessorTel?: string;
+  // 공급자 (당사 테넌트)
+  lessorBizNo?: string;          // {테넌트사업자등록번호}
+  lessorName?: string;           // {테넌트상호}
+  lessorCeo?: string;            // {테넌트대표}
+  lessorAddress?: string;        // {테넌트주소}
+  lessorBizType?: string;        // {테넌트업태}
+  lessorBizItem?: string;        // {테넌트종목}
+  lessorTel?: string;            // {테넌트전화}
   lessorFax?: string;
-  salespersonName?: string;
-  salespersonPhone?: string;
-  billingManagerName?: string;
-  billingManagerPhone?: string;
-  lessorEmail?: string;
+  salespersonName?: string;      // {영업담당자}
+  salespersonPhone?: string;     // {영업담당자연락처}
+  billingManagerName?: string;   // {테넌트계산서담당자}
+  billingManagerPhone?: string;  // {테넌트전화}
+  lessorEmail?: string;          // {테넌트세금계산서메일}
   stampImageUrl?: string;
   stampBase64?: string;
 
   // 공급받는 자 (고객사)
-  customerBizNo?: string;
-  customerName?: string;
-  customerCeo?: string;
-  customerAddress?: string;
-  customerBizType?: string;
-  customerBizItem?: string;
-  siteManagerName?: string;
-  siteManagerPhone?: string;
-  custBillingManagerName?: string;
-  custBillingManagerPhone?: string;
-  custBillingEmail?: string;
-  siteName?: string;
-  bankAccount?: string;
+  customerBizNo?: string;        // {고객사업자등록증번호}
+  customerName?: string;         // {고객상호}
+  customerCeo?: string;          // {고객대표}
+  customerAddress?: string;      // {고객주소}
+  customerBizType?: string;      // {고객업태}
+  customerBizItem?: string;      // {고객종목}
+  siteManagerName?: string;      // {현장담당자}
+  siteManagerPhone?: string;     // {현장담당자연락처}
+  custBillingManagerName?: string;  // {계산서담당자}
+  custBillingManagerPhone?: string; // {계산서담당자연락처}
+  custBillingEmail?: string;        // {계산서메일}
+  siteName?: string;                // {현장명}
+  bankAccount?: string;             // {테넌트계좌}
 
-  // 품목 내역 (최대 11행)
+  // 품목 내역 (페이지당 최대 13행: Row 16 ~ Row 28)
   items: TransactionStatementItem[];
 
   totalSupply: number;
   totalVat: number;
   totalGrand: number;
+}
+
+/**
+ * 거래명세서 품목 1행에서 {모델} / {높이}, {관리번호}, {현장투입일}, {청구시작일}, {청구종료일}, {청구구분} 추출 정규화 헬퍼
+ */
+export function resolveStatementRowColumns(item: TransactionStatementItem, fallbackYm?: string) {
+  let model = (item.modelName || '').trim();
+  let height = (item.workingHeight || '').trim();
+  let assetNo = (item.assetNo || '').trim();
+  let siteEntryDate = (item.siteEntryDate || '').trim();
+  let periodStart = (item.periodStart || '').trim();
+  let periodEnd = (item.periodEnd || '').trim();
+  let billingCategory = (item.billingCategory || '').trim();
+
+  // itemDescription 에서 보조 파싱 (예: JCPT1012AC_K10304_2026-08-01~2026-08-31)
+  const desc = (item.itemDescription || '').trim();
+  if (!model && desc) {
+    const parts = desc.split('_');
+    if (parts.length >= 3 && parts[parts.length - 1].includes('~')) {
+      model = parts[0];
+      if (!assetNo) assetNo = parts[1];
+      const [ps, pe] = parts[parts.length - 1].split('~');
+      if (!periodStart && ps) periodStart = ps.trim();
+      if (!periodEnd && pe) periodEnd = pe.trim();
+    } else if (parts.length === 2 && parts[1].includes('~')) {
+      model = parts[0];
+      const [ps, pe] = parts[1].split('~');
+      if (!periodStart && ps) periodStart = ps.trim();
+      if (!periodEnd && pe) periodEnd = pe.trim();
+    } else {
+      model = desc;
+    }
+  }
+
+  // 제품 마스터에서 작업높이(workingHeight) 자동 보완
+  if (!height && model && db.products && db.products.length > 0) {
+    const cleanModel = model.replace(/\s+/g, '').toUpperCase();
+    const matchedProd = db.products.find(p =>
+      p.modelName && (
+        p.modelName.replace(/\s+/g, '').toUpperCase() === cleanModel ||
+        cleanModel.includes(p.modelName.replace(/\s+/g, '').toUpperCase())
+      )
+    );
+    if (matchedProd?.workingHeight) {
+      height = matchedProd.workingHeight;
+    }
+  }
+
+  // 청구구분 기본값 판별 (임대료 / 운반비 / 수리비 / 매각 / 기타)
+  if (!billingCategory) {
+    const checkStr = `${model} ${desc}`;
+    if (/운반|운송|배차|회수|상하차/.test(checkStr)) {
+      billingCategory = '운반비';
+    } else if (/수리|파손|정비|부품|AS/i.test(checkStr)) {
+      billingCategory = '수리비';
+    } else if (/매각|양도|판매/.test(checkStr)) {
+      billingCategory = '매각';
+    } else if (assetNo || periodStart || /렌탈|임대/.test(checkStr) || height) {
+      billingCategory = '임대료';
+    } else {
+      billingCategory = '기타';
+    }
+  }
+
+  const modelAndHeight = height ? `${model} / ${height}` : (model || desc || '-');
+
+  return {
+    model: model || '-',
+    height: height || '',
+    modelAndHeight,
+    assetNo: assetNo || '-',
+    siteEntryDate: siteEntryDate || periodStart || '-',
+    periodStart: periodStart || '-',
+    periodEnd: periodEnd || '-',
+    billingCategory
+  };
 }
 
 /**
@@ -510,13 +593,29 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
     const curTenant = db.currentTenant;
     const primaryAccount = curTenant?.bankAccounts?.[0];
     const defaultBankAccount = primaryAccount
-      ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder})`
+      ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder || (primaryAccount as any).holder || curTenant?.tradeName || curTenant?.corporateName || ''})`
       : '';
+
+    const normalizedItems = (data.items || []).map(item => {
+      const resolved = resolveStatementRowColumns(item, data.billingYm);
+      return {
+        ...item,
+        modelName: resolved.model,
+        workingHeight: resolved.height,
+        modelAndHeight: resolved.modelAndHeight,
+        assetNo: resolved.assetNo,
+        siteEntryDate: resolved.siteEntryDate,
+        periodStart: resolved.periodStart,
+        periodEnd: resolved.periodEnd,
+        billingCategory: resolved.billingCategory
+      };
+    });
 
     const payload = {
       ...data,
-      tenantName: data.lessorName || curTenant?.displayName || curTenant?.tradeName || curTenant?.corporateName,
-      lessorName: data.lessorName || curTenant?.corporateName || curTenant?.tradeName || curTenant?.displayName,
+      items: normalizedItems,
+      tenantName: data.lessorName || curTenant?.tradeName || curTenant?.corporateName || curTenant?.displayName,
+      lessorName: data.lessorName || curTenant?.tradeName || curTenant?.corporateName || curTenant?.displayName,
       lessorBizNo: data.lessorBizNo || curTenant?.businessNumber,
       lessorCeo: data.lessorCeo || curTenant?.representativeName,
       lessorAddress: data.lessorAddress || curTenant?.businessAddress,
@@ -525,6 +624,8 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
       lessorTel: data.lessorTel || curTenant?.tel,
       lessorFax: data.lessorFax || curTenant?.fax,
       lessorEmail: data.lessorEmail || curTenant?.taxEmail || curTenant?.email,
+      billingManagerName: data.billingManagerName || curTenant?.workplaces?.[0]?.managerName || '정수아',
+      billingManagerPhone: data.billingManagerPhone || curTenant?.tel || '031-334-5295',
       bankAccount: data.bankAccount || defaultBankAccount,
       excelMappingRules: curTenant?.excelMappingRules,
       asyncQueue: true
@@ -599,12 +700,15 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
 
 /**
  * 5. 거래명세서 정품 엑셀 파일(.xlsx) 원본 생성 엔진
- * - 템플릿: public/00.거래명세서양식.xlsx
- * - ExcelJS를 통해 셀 단위로 데이터를 주입한 정품 .xlsx 바이너리 반환
+ * - 템플릿: /tenants/${tenantId}/templates/00.거래명세서양식.xlsx (또는 /거래명세서양식.xlsx)
+ * - 39개 {} 플레이스홀더 및 13개 품목 행(Row 16 ~ Row 28) 정밀 매핑
  */
 export async function generateTransactionStatementExcel(data: TransactionStatementPdfData): Promise<ArrayBuffer> {
   const tenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-  const resp = await fetch(`/tenants/${tenantId}/templates/00.거래명세서양식.xlsx`);
+  let resp = await fetch(`/tenants/${tenantId}/templates/00.거래명세서양식.xlsx`);
+  if (!resp.ok) {
+    resp = await fetch(`/거래명세서양식.xlsx`);
+  }
   if (!resp.ok) {
     throw new Error(`거래명세서 엑셀 마스터 템플릿(00.거래명세서양식.xlsx)을 불러올 수 없습니다. (${tenantId})`);
   }
@@ -615,16 +719,33 @@ export async function generateTransactionStatementExcel(data: TransactionStateme
   const baseWs = workbook.worksheets[0];
   if (!baseWs) throw new Error('엑셀 템플릿 워크시트를 찾을 수 없습니다.');
 
-  // 11개 단위 분할
+  const curTenant = db.currentTenant;
+  const primaryAccount = curTenant?.bankAccounts?.[0];
+  const defaultBankAccount = primaryAccount
+    ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder || (primaryAccount as any).holder || curTenant?.tradeName || curTenant?.corporateName || ''})`
+    : '';
+
+  const lessorBizNo = data.lessorBizNo || curTenant?.businessNumber || '138-81-83251';
+  const lessorName = data.lessorName || curTenant?.tradeName || curTenant?.corporateName || curTenant?.displayName || '(주)기연리프트';
+  const lessorCeo = data.lessorCeo || curTenant?.representativeName || '이수용';
+  const lessorAddress = data.lessorAddress || curTenant?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33';
+  const lessorBizType = data.lessorBizType || curTenant?.businessCategory || '사업지원및임대서비스업';
+  const lessorBizItem = data.lessorBizItem || curTenant?.businessItem || '고소장비임대업';
+  const lessorTel = data.billingManagerPhone || data.lessorTel || curTenant?.tel || '031-334-5295';
+  const lessorBillingMgr = data.billingManagerName || curTenant?.workplaces?.[0]?.managerName || '정수아';
+  const lessorEmail = data.lessorEmail || curTenant?.taxEmail || curTenant?.email || 'giyeonlift@naver.com';
+  const bankAccount = data.bankAccount || defaultBankAccount;
+
+  // 13개 단위 분할 (Row 16 ~ Row 28)
   const items = data.items || [];
-  const chunkSize = 11;
+  const chunkSize = 13;
   const chunks: TransactionStatementItem[][] = [];
   for (let i = 0; i < items.length; i += chunkSize) {
     chunks.push(items.slice(i, i + chunkSize));
   }
   if (chunks.length === 0) chunks.push([]);
   const totalPages = chunks.length;
-  const pristineModel = JSON.stringify(baseWs.model); // 💡 원본 서식 상태 보존 (다중 페이지 템플릿 태그 유실 방지)
+  const pristineModel = JSON.stringify(baseWs.model);
 
   for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
     const chunk = chunks[pageIdx];
@@ -632,82 +753,115 @@ export async function generateTransactionStatementExcel(data: TransactionStateme
     const pageTag = totalPages > 1 ? ` ( ${pageNum} / ${totalPages} 쪽 )` : '';
     const startGlobalIdx = pageIdx * chunkSize;
 
-    // 첫 번째 시트는 기존 시트 사용, 이후 시트는 복제
     let ws: ExcelJS.Worksheet;
     if (pageIdx === 0) {
       ws = baseWs;
       ws.name = totalPages > 1 ? `거래명세서_1` : '거래명세서';
     } else {
-      // 시트 복제 및 서식 유지 (💡 원본 보존 모델 사용)
       ws = workbook.addWorksheet(`거래명세서_${pageNum}`);
       ws.model = JSON.parse(pristineModel);
       ws.name = `거래명세서_${pageNum}`;
     }
 
-    // 태그 치환 헬퍼
     const replaceTagInSheet = (tag: string, val: string) => {
       ws.eachRow((row) => {
         row.eachCell((cell) => {
           if (cell.value && typeof cell.value === 'string' && cell.value.includes(tag)) {
-            cell.value = cell.value.replace(tag, val);
+            cell.value = cell.value.split(tag).join(val);
           }
         });
       });
     };
 
-    // 1. 공급자/공급받는자 태그 치환
-    replaceTagInSheet('{사업자등록번호}', data.customerBizNo || '-');
-    replaceTagInSheet('{고객명}', data.customerName || '-');
-    replaceTagInSheet('{대표자}', data.customerCeo || '-');
-    replaceTagInSheet('{주소}', data.customerAddress || '-');
-    replaceTagInSheet('{업태}', data.customerBizType || '-');
-    replaceTagInSheet('{종목}', data.customerBizItem || '-');
+    // 1. 공급자(테넌트) {} 플레이스홀더 치환
+    replaceTagInSheet('{테넌트사업자등록번호}', lessorBizNo);
+    replaceTagInSheet('{테넌트상호}', lessorName);
+    replaceTagInSheet('{테넌트대표}', lessorCeo);
+    replaceTagInSheet('{테넌트주소}', lessorAddress);
+    replaceTagInSheet('{테넌트업태}', lessorBizType);
+    replaceTagInSheet('{테넌트종목}', lessorBizItem);
+    replaceTagInSheet('{영업담당자}', data.salespersonName || '-');
+    replaceTagInSheet('{영업담당자연락처}', data.salespersonPhone || lessorTel);
+    replaceTagInSheet('{테넌트계산서담당자}', lessorBillingMgr);
+    replaceTagInSheet('{테넌트전화}', lessorTel);
+    replaceTagInSheet('{테넌트세금계산서메일}', lessorEmail);
+    replaceTagInSheet('{테넌트계좌}', bankAccount);
+
+    // 2. 공급받는자(고객사) {} 플레이스홀더 치환
+    replaceTagInSheet('{고객사업자등록증번호}', data.customerBizNo || '-');
+    replaceTagInSheet('{고객상호}', data.customerName || '-');
+    replaceTagInSheet('{고객대표}', data.customerCeo || '-');
+    replaceTagInSheet('{고객주소}', data.customerAddress || '-');
+    replaceTagInSheet('{고객업태}', data.customerBizType || '-');
+    replaceTagInSheet('{고객종목}', data.customerBizItem || '-');
     replaceTagInSheet('{현장담당자}', data.siteManagerName || '-');
     replaceTagInSheet('{현장담당자연락처}', data.siteManagerPhone || '-');
     replaceTagInSheet('{계산서담당자}', data.custBillingManagerName || '-');
     replaceTagInSheet('{계산서담당자연락처}', data.custBillingManagerPhone || '-');
-    replaceTagInSheet('{계산서이메일}', data.custBillingEmail || '-');
+    replaceTagInSheet('{계산서메일}', data.custBillingEmail || '-');
     replaceTagInSheet('{현장명}', `${data.siteName || '-'}${pageTag}`);
+    replaceTagInSheet('{작성일자}', `${data.billingDate || new Date().toISOString().split('T')[0]}${pageTag}`);
 
-    replaceTagInSheet('{영업사원}', data.salespersonName || '-');
-    replaceTagInSheet('{영업사원연락처}', data.salespersonPhone || '-');
-    replaceTagInSheet('{청구담당자}', data.billingManagerName || '정수아');
-    replaceTagInSheet('{청구담당자연락처}', data.billingManagerPhone || '031-334-5295');
+    // 3. 품목 13행 기입 (Row 16 ~ Row 28)
+    let pageSupply = 0;
+    let pageVat = 0;
 
-    // 작성일자 (E13)
-    ws.getCell('E13').value = `${data.billingDate || new Date().toISOString().split('T')[0]}${pageTag}`;
-
-    // 2. 품목 11행 기입 (Row 16 ~ Row 26)
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 13; i++) {
       const rowNum = 16 + i;
       const item = chunk[i];
+      if (!ws.getCell(`Y${rowNum}`).isMerged) {
+        try { ws.mergeCells(`Y${rowNum}:AA${rowNum}`); } catch (e) {}
+      }
+
       if (item) {
+        const resolved = resolveStatementRowColumns(item, data.billingYm);
+        const qty = Number(item.quantity ?? 1);
+        const unitPrice = Number(item.unitPrice ?? 0);
+        const supplyAmount = Number(item.supplyAmount ?? (unitPrice * qty));
+        const vatAmount = Number(item.vatAmount ?? Math.round(supplyAmount * 0.1));
+        pageSupply += supplyAmount;
+        pageVat += vatAmount;
+
         ws.getCell(`B${rowNum}`).value = startGlobalIdx + i + 1;
-        ws.getCell(`C${rowNum}`).value = item.month || '';
-        ws.getCell(`D${rowNum}`).value = item.day || '';
-        ws.getCell(`E${rowNum}`).value = item.itemDescription || '';
-        ws.getCell(`L${rowNum}`).value = item.quantity || 1;
-        ws.getCell(`M${rowNum}`).value = item.unitPrice ? item.unitPrice.toLocaleString() : '';
-        ws.getCell(`O${rowNum}`).value = item.supplyAmount ? item.supplyAmount.toLocaleString() : '';
-        ws.getCell(`Q${rowNum}`).value = item.vatAmount ? item.vatAmount.toLocaleString() : '';
-        ws.getCell(`T${rowNum}`).value = item.notes || '';
+        ws.getCell(`C${rowNum}`).value = item.month !== undefined && item.month !== '' ? Number(item.month) : '';
+        ws.getCell(`D${rowNum}`).value = item.day !== undefined && item.day !== '' ? Number(item.day) : '';
+        ws.getCell(`E${rowNum}`).value = resolved.modelAndHeight;
+        ws.getCell(`H${rowNum}`).value = resolved.assetNo;
+        ws.getCell(`K${rowNum}`).value = resolved.siteEntryDate;
+        ws.getCell(`L${rowNum}`).value = resolved.periodStart;
+        ws.getCell(`M${rowNum}`).value = (resolved.periodStart !== '-' || resolved.periodEnd !== '-') ? '~' : '';
+        ws.getCell(`N${rowNum}`).value = resolved.periodEnd;
+        ws.getCell(`O${rowNum}`).value = resolved.billingCategory;
+        ws.getCell(`Q${rowNum}`).value = qty;
+        ws.getCell(`R${rowNum}`).value = unitPrice;
+        ws.getCell(`T${rowNum}`).value = supplyAmount;
+        ws.getCell(`W${rowNum}`).value = vatAmount;
+        ws.getCell(`Y${rowNum}`).value = item.notes || '';
       } else {
-        ws.getCell(`B${rowNum}`).value = '';
-        ws.getCell(`C${rowNum}`).value = '';
-        ws.getCell(`D${rowNum}`).value = '';
-        ws.getCell(`E${rowNum}`).value = '';
-        ws.getCell(`L${rowNum}`).value = '';
-        ws.getCell(`M${rowNum}`).value = '';
-        ws.getCell(`O${rowNum}`).value = '';
-        ws.getCell(`Q${rowNum}`).value = '';
-        ws.getCell(`T${rowNum}`).value = '';
+        ws.getCell(`B${rowNum}`).value = null;
+        ws.getCell(`C${rowNum}`).value = null;
+        ws.getCell(`D${rowNum}`).value = null;
+        ws.getCell(`E${rowNum}`).value = null;
+        ws.getCell(`H${rowNum}`).value = null;
+        ws.getCell(`K${rowNum}`).value = null;
+        ws.getCell(`L${rowNum}`).value = null;
+        ws.getCell(`M${rowNum}`).value = null;
+        ws.getCell(`N${rowNum}`).value = null;
+        ws.getCell(`O${rowNum}`).value = null;
+        ws.getCell(`Q${rowNum}`).value = null;
+        ws.getCell(`R${rowNum}`).value = null;
+        ws.getCell(`T${rowNum}`).value = null;
+        ws.getCell(`W${rowNum}`).value = null;
+        ws.getCell(`Y${rowNum}`).value = null;
       }
     }
 
-    // 3. 합계 치환
-    replaceTagInSheet('{공급가합계}', data.totalSupply.toLocaleString());
-    replaceTagInSheet('{부가세합계}', data.totalVat.toLocaleString());
-    replaceTagInSheet('{총액}', data.totalGrand.toLocaleString());
+    // 4. 합계 행 (Row 29: 수식 보존 및 캐시 result 기입)
+    const finalSupply = totalPages === 1 ? (data.totalSupply || pageSupply) : pageSupply;
+    const finalVat = totalPages === 1 ? (data.totalVat || pageVat) : pageVat;
+    ws.getCell('E29').value = { formula: 'SUM(T16:V28)', result: finalSupply };
+    ws.getCell('L29').value = { formula: 'SUM(W16:X28)', result: finalVat };
+    ws.getCell('Q29').value = { formula: 'E29+L29', result: finalSupply + finalVat };
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
