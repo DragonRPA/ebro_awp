@@ -1513,6 +1513,20 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     const leaseStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대개시일', '임차개시일', '임차시작일', '매입일'], -1));
     const leaseReturnDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대반납일', '임차반납일', '임차처반납일', '매입반납일'], -1));
 
+    const rowStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['계약시작일', '시작일', '출고일'], 4)) || '2026-08-01';
+    const rowEndDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['계약종료일', '종료일'], 5)) || '9999-12-31';
+    const rowMonthlyFee = sanitizeNumber(getCol(r, mainHeaderMap, ['월렌탈료', '렌탈료', '단가'], 22)) || (sanitizeNumber(getCol(r, mainHeaderMap, ['당월청구액', '청구합계'], 25)) > 0 ? sanitizeNumber(getCol(r, mainHeaderMap, ['당월청구액', '청구합계'], 25)) : 300000);
+    const rowDailyFee = Math.round(rowMonthlyFee / 30);
+    // Col[8]=계약구분 ('연장','종료','가상' 등). '상태'/'결재상태' 헤더는 없으므로 직접 인덱스 사용
+    const contractStatusStr = (r[8] && String(r[8]).trim()) ? String(r[8]).trim() : '';
+    // 계약기간 만료 자산도 연장/반납 미결 상태이므로 ACTIVE 유지.
+    // 엑셀 Col[8]에 '종료'로 명시된 경우에만 COMPLETED 처리.
+    const isCompleted = contractStatusStr === '종료';
+    const effectiveLeaseReturnDate = leaseReturnDate || (isCompleted && rowEndDate !== '9999-12-31' ? rowEndDate : null);
+
+    // Col[3] = 최초개시일 (실제 계약 시작일). Col[4] = 개시일은 당월 기산일
+    const firstStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['최초개시일', '최초출고일'], 3)) || sanitizeExcelDate(r[3]) || rowStartDate;
+
     let matchedAsset: any = null;
 
     if (ownAssetNo) {
@@ -1562,7 +1576,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
           manufacturer: inferMakerFromModel(targetModel),
           manufactureYear: '2025년',
           ownerType: 'RENTED',
-          status: leaseReturnDate ? 'RENTED_RETURNED' : 'AVAILABLE',
+          status: effectiveLeaseReturnDate ? 'RENTED_RETURNED' : 'AVAILABLE',
           acquisitionDate: '2026-08-01',
           acquisitionPrice: 0,
           depreciationMonths: 0,
@@ -1574,10 +1588,10 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
           vendorId: null,           // 아래 leaseVendor 처리 후 주입
           renter: leaseVendorName || '미지정',
           rentStart: leaseStartDate || sanitizeExcelDate(r[4]) || '2026-08-01',
-          rentEnd: leaseReturnDate,
+          rentEnd: effectiveLeaseReturnDate,
           monthlyRentFee: leasePrice,
           dailyRentFee: Math.round(leasePrice / 30),
-          actualRentReturnDate: leaseReturnDate,
+          actualRentReturnDate: effectiveLeaseReturnDate,
           currentCustomerId: null,
           currentSiteId: null,
           contractStart: null,
@@ -1632,8 +1646,8 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         monthlyRentFee: leasePrice,
         dailyRentFee: Math.round(leasePrice / 30),
         leaseStartDate: sanitizeExcelDate(r[4]) || '2026-08-01',
-        leaseEndDate: leaseReturnDate,
-        status: leaseReturnDate ? 'RETURNED' : 'ACTIVE',
+        leaseEndDate: effectiveLeaseReturnDate,
+        status: effectiveLeaseReturnDate ? 'RETURNED' : 'ACTIVE',
         statementFileUrl: null,
         memo: `임차처: ${leaseVendorName}`,
         createdAt: nowIso,
@@ -1658,20 +1672,6 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         });
       }
     }
-
-
-    const rowStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['계약시작일', '시작일', '출고일'], 4)) || '2026-08-01';
-    const rowEndDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['계약종료일', '종료일'], 5)) || '9999-12-31';
-    const rowMonthlyFee = sanitizeNumber(getCol(r, mainHeaderMap, ['월렌탈료', '렌탈료', '단가'], 22)) || (sanitizeNumber(getCol(r, mainHeaderMap, ['당월청구액', '청구합계'], 25)) > 0 ? sanitizeNumber(getCol(r, mainHeaderMap, ['당월청구액', '청구합계'], 25)) : 300000);
-    const rowDailyFee = Math.round(rowMonthlyFee / 30);
-    // Col[8]=계약구분 ('연장','종료','가상' 등). '상태'/'결재상태' 헤더는 없으므로 직접 인덱스 사용
-    const contractStatusStr = (r[8] && String(r[8]).trim()) ? String(r[8]).trim() : '';
-    // 계약기간 만료 자산도 연장/반납 미결 상태이므로 ACTIVE 유지.
-    // 엑셀 Col[8]에 '종료'로 명시된 경우에만 COMPLETED 처리.
-    const isCompleted = contractStatusStr === '종료';
-
-    // Col[3] = 최초개시일 (실제 계약 시작일). Col[4] = 개시일은 당월 기산일
-    const firstStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['최초개시일', '최초출고일'], 3)) || sanitizeExcelDate(r[3]) || rowStartDate;
 
     // ── 계약 그룹핑: 헌장 원칙에 따라 동일 (고객사 + 현장) = 단 1개 계약 ──
     // 동일 현장의 장비는 출고일자가 다르더라도 단일 계약에 묶이며 자산별로 독립 라이프사이클을 가짐
@@ -1757,6 +1757,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
 
     if (isRealAssetRow) {
       caId = `CA-${String(caSeq++).padStart(7, '0')}`;
+      const returnDateStr = isCompleted || leaseReturnDate ? (leaseReturnDate || rowEndDate || nowIso.split('T')[0]) : null;
       contractAssets.push({
         id: caId,
         contractId: contractId,
@@ -1768,10 +1769,22 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         endDate: rowEndDate,
         firstStartDate: firstStartDate,
         status: isCompleted || leaseReturnDate ? 'RETURNED' : 'RENTED',
-        actualReturnDate: isCompleted || leaseReturnDate ? (leaseReturnDate || rowEndDate || nowIso.split('T')[0]) : null,
+        actualReturnDate: returnDateStr,
         createdAt: nowIso,
         updatedAt: nowIso
       });
+
+      if (returnDateStr) {
+        contractHistories.push({
+          id: `CH-${String(histSeq++).padStart(7, '0')}`,
+          contractId: contractId,
+          changeType: 'RETURN',
+          changeDate: returnDateStr,
+          description: `장비 반납 완료: ${targetModel}${ownAssetNo || leaseAssetNo ? ` (${ownAssetNo || leaseAssetNo})` : ''} (${rowStartDate} ~ ${returnDateStr})`,
+          createdAt: nowIso,
+          updatedAt: nowIso
+        });
+      }
     }
 
     // [A-01 fix] 전대 자산인 경우: leaseEntity.contractId를 이제 확정된 contractId로 주입
