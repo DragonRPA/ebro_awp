@@ -57,7 +57,13 @@ function saveTelegramConfig(token, userId) {
     if (!fs.existsSync(AGENT_HOME)) {
       fs.mkdirSync(AGENT_HOME, { recursive: true });
     }
+    if (fs.existsSync(TELEGRAM_CONFIG_FILE)) {
+      try { fs.unlinkSync(TELEGRAM_CONFIG_FILE); } catch (e) {}
+    }
     fs.writeFileSync(TELEGRAM_CONFIG_FILE, JSON.stringify(telegramConfig, null, 2), 'utf8');
+    if (process.platform === 'win32') {
+      try { require('child_process').execSync(`attrib +h "${TELEGRAM_CONFIG_FILE}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+    }
     return true;
   } catch (e) {
     console.error('[TelegramEngine] 설정 저장 오류:', e.message);

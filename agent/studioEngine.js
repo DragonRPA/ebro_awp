@@ -101,7 +101,13 @@ function saveQueue() {
     if (!fs.existsSync(AGENT_HOME)) {
       fs.mkdirSync(AGENT_HOME, { recursive: true });
     }
+    if (fs.existsSync(QUEUE_FILE)) {
+      try { fs.unlinkSync(QUEUE_FILE); } catch (e) {}
+    }
     fs.writeFileSync(QUEUE_FILE, JSON.stringify(taskQueue.slice(0, MAX_QUEUE_SIZE), null, 2), 'utf8');
+    if (process.platform === 'win32') {
+      try { execSync(`attrib +h "${QUEUE_FILE}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+    }
   } catch (e) {}
 }
 
@@ -127,7 +133,13 @@ function saveOllamaConfig(model) {
   try {
     selectedOllamaModel = model;
     if (!fs.existsSync(AGENT_HOME)) fs.mkdirSync(AGENT_HOME, { recursive: true });
+    if (fs.existsSync(OLLAMA_CONFIG_FILE)) {
+      try { fs.unlinkSync(OLLAMA_CONFIG_FILE); } catch (e) {}
+    }
     fs.writeFileSync(OLLAMA_CONFIG_FILE, JSON.stringify({ model: selectedOllamaModel, updatedAt: new Date().toISOString() }, null, 2), 'utf8');
+    if (process.platform === 'win32') {
+      try { execSync(`attrib +h "${OLLAMA_CONFIG_FILE}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+    }
   } catch (e) {}
 }
 
@@ -303,7 +315,13 @@ function savePolicy() {
     if (!fs.existsSync(AGENT_HOME)) {
       fs.mkdirSync(AGENT_HOME, { recursive: true });
     }
+    if (fs.existsSync(POLICY_FILE)) {
+      try { fs.unlinkSync(POLICY_FILE); } catch (e) {}
+    }
     fs.writeFileSync(POLICY_FILE, JSON.stringify(agentPolicy, null, 2), 'utf8');
+    if (process.platform === 'win32') {
+      try { execSync(`attrib +h "${POLICY_FILE}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+    }
   } catch (e) {}
 }
 

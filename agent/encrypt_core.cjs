@@ -41,6 +41,7 @@ const authTag = cipher.getAuthTag();
 
 // 파일 구조: [12바이트 IV] + [16바이트 GCM AuthTag] + [암호화된 바이트스트림]
 const datPayload = Buffer.concat([iv, authTag, ciphertext]);
+try { if (fs.existsSync(OUTPUT_DAT)) fs.unlinkSync(OUTPUT_DAT); } catch (e) {}
 fs.writeFileSync(OUTPUT_DAT, datPayload);
 
 // 임시 평문 번들 파일 즉시 영구 삭제 (보안 강화)

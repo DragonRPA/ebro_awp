@@ -175,6 +175,9 @@ async function main() {
     'eBroAgent_Setup_GIYEONLIFT.exe',
     'eBroAgent_Setup.exe',
     'eBroAgent_Setup_GIYEUN.exe',
+    'eBroAgent_Setup_DEMO.exe',
+    'eBroAgent_Setup_EBRO.exe',
+    'eBroAgent_Setup_HANSOL.exe',
     'eBroAgent.exe',
     'engine.dat'
   ];

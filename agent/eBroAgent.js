@@ -73,12 +73,16 @@ function agentLog(type, message) {
   } catch (e) {}
 
   try {
+    const logExisted = fs.existsSync('C:\\eBroAgent\\agent.log');
     fs.appendFileSync('C:\\eBroAgent\\agent.log', formattedLine + '\r\n', 'utf8');
+    if (!logExisted && process.platform === 'win32') {
+      exec('attrib +h "C:\\eBroAgent\\agent.log"', { windowsHide: true });
+    }
   } catch (e) {}
 }
 
 
-const VERSION = 'v2.0.0.Build.10';
+const VERSION = 'v2.0.0.Build.11';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -138,7 +142,11 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
           const src = path.join(path.dirname(currentExePath), fname);
           const dest = path.join(AGENT_HOME, fname);
           if (fs.existsSync(src)) {
-            try { fs.copyFileSync(src, dest); } catch (e) {}
+            try {
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              fs.copyFileSync(src, dest);
+              exec(`attrib +h "${dest}"`, { windowsHide: true });
+            } catch (e) {}
           }
         }
         agentLog('UPDATE', '바이너리 교체 완료, 최신 엔진 기동');
@@ -156,11 +164,39 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
   }
 }
 
-// 디렉토리 자동 생성 (정식 위치 실행 시)
+// 디렉토리 자동 생성 및 불필요 파일 정리 / 시스템 파일 숨김(Hidden) 정책 집행
 try {
   if (!fs.existsSync(AGENT_HOME)) fs.mkdirSync(AGENT_HOME, { recursive: true });
   if (!fs.existsSync(ARCHIVE_ROOT)) fs.mkdirSync(ARCHIVE_ROOT, { recursive: true });
   if (!fs.existsSync(DRIVE_MIRROR_DIR)) fs.mkdirSync(DRIVE_MIRROR_DIR, { recursive: true });
+
+  if (process.platform === 'win32') {
+    const obsoleteEntries = ['eBroAgent.js', 'studioEngine.js', 'BroAgent.js', 'agent.js', 'SumatraPDF-settings.txt', 'tray.log'];
+    if (fs.existsSync(path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'))) {
+      obsoleteEntries.push('SumatraPDF.exe');
+    }
+    for (const obs of obsoleteEntries) {
+      const obsPath = path.join(AGENT_HOME, obs);
+      if (fs.existsSync(obsPath)) {
+        try { fs.unlinkSync(obsPath); } catch (e) {}
+      }
+    }
+    const entries = fs.readdirSync(AGENT_HOME);
+    const VISIBLE_ALLOWLIST = new Set(['ebroagent.exe', '문서고', 'drive_mirror']);
+    for (const entryName of entries) {
+      const lower = entryName.toLowerCase();
+      const fullPath = path.join(AGENT_HOME, entryName);
+      if (/^(print_temp_|test_).+\.(html|pdf)$/i.test(entryName)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+        continue;
+      }
+      if (VISIBLE_ALLOWLIST.has(lower) || entryName === '문서고') {
+        exec(`attrib -h "${fullPath}"`, { windowsHide: true });
+      } else {
+        exec(`attrib +h "${fullPath}"`, { windowsHide: true });
+      }
+    }
+  }
 } catch (e) {
   agentLog('WARN', '디렉토리 생성 경고: ' + e.message);
 }
@@ -536,7 +572,10 @@ async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기�
   agentLog('PRINT', `문서 렌더링 시작: 대상 프린터 [${printerName}], 제목: ${title}`);
   const userProfDir = path.join(AGENT_HOME, 'edge_prof');
   if (!fs.existsSync(userProfDir)) {
-    try { fs.mkdirSync(userProfDir, { recursive: true }); } catch (e) {}
+    try {
+      fs.mkdirSync(userProfDir, { recursive: true });
+      if (process.platform === 'win32') exec(`attrib +h "${userProfDir}"`, { windowsHide: true });
+    } catch (e) {}
   }
 
   const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${userProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
@@ -2107,7 +2146,11 @@ const server = http.createServer(async (req, res) => {
           machineName: payload.machineName || MACHINE_NAME,
           updatedAt: new Date().toISOString()
         };
+        if (fs.existsSync(STATION_CONFIG_FILE)) {
+          try { fs.unlinkSync(STATION_CONFIG_FILE); } catch (e) {}
+        }
         fs.writeFileSync(STATION_CONFIG_FILE, JSON.stringify(activeStationConfig, null, 2), 'utf8');
+        if (process.platform === 'win32') exec(`attrib +h "${STATION_CONFIG_FILE}"`, { windowsHide: true });
         agentLog('SYSTEM', `스테이션 설정 저장: ${activeStationConfig.stationName} -> [${activeStationConfig.localPrinterName}]`);
 
         // 즉시 중앙 DB 하트비트 전송 및 인쇄 대기열 감시 활성화
@@ -2196,7 +2239,9 @@ function startTrayWorker() {
       try {
         const rawBuf = fs.readFileSync(targetScript);
         if (rawBuf.length >= 3 && !(rawBuf[0] === 0xEF && rawBuf[1] === 0xBB && rawBuf[2] === 0xBF)) {
+          try { fs.unlinkSync(targetScript); } catch (e) {}
           fs.writeFileSync(targetScript, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), rawBuf]));
+          if (process.platform === 'win32') exec(`attrib +h "${targetScript}"`, { windowsHide: true });
         }
       } catch (bomErr) {}
 

@@ -33,7 +33,13 @@ function hostLog(type, msg) {
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
   const line = `[${timeStr}] [${cleanType}] [HOST] ${msg}`;
   try { console.log(line); } catch (e) {}
-  try { fs.appendFileSync(LOG_FILE, line + '\r\n', 'utf8'); } catch (e) {}
+  try {
+    const existed = fs.existsSync(LOG_FILE);
+    fs.appendFileSync(LOG_FILE, line + '\r\n', 'utf8');
+    if (!existed && process.platform === 'win32') {
+      try { require('child_process').exec(`attrib +h "${LOG_FILE}"`, { windowsHide: true }); } catch (e) {}
+    }
+  } catch (e) {}
 }
 
 // ── AES-256-GCM 인메모리 복호화 키 (32바이트 SHA-256 파생) ──

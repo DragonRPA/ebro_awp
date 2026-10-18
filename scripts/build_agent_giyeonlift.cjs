@@ -70,16 +70,28 @@ try {
 console.log('\n[5/6] 로컬 설치 경로 및 public/downloads 동기화 중...');
 if (fs.existsSync('C:\\eBroAgent')) {
   try {
-    fs.copyFileSync(agentExe, installedExe);
+    const safeCopy = (src, dest, hide = false) => {
+      if (fs.existsSync(dest)) {
+        try { execSync(`attrib -h "${dest}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+        try { fs.unlinkSync(dest); } catch (e) {}
+      }
+      fs.copyFileSync(src, dest);
+      if (hide) {
+        try { execSync(`attrib +h "${dest}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
+      }
+    };
+
+    safeCopy(agentExe, installedExe, false);
     console.log(`[SYNC] ${installedExe} 최신 호스트 바이너리 교체 완료`);
     
     const installedCoreDir = 'C:\\eBroAgent\\core';
     if (!fs.existsSync(installedCoreDir)) fs.mkdirSync(installedCoreDir, { recursive: true });
-    fs.copyFileSync(coreDat, path.join(installedCoreDir, 'engine.dat'));
+    safeCopy(coreDat, path.join(installedCoreDir, 'engine.dat'), true);
+    try { execSync(`attrib +h "${installedCoreDir}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
     console.log(`[SYNC] C:\\eBroAgent\\core\\engine.dat 암호화 코어 동기화 완료`);
 
     if (fs.existsSync(path.join(agentDir, 'trayIcon.ps1'))) {
-      fs.copyFileSync(path.join(agentDir, 'trayIcon.ps1'), 'C:\\eBroAgent\\trayIcon.ps1');
+      safeCopy(path.join(agentDir, 'trayIcon.ps1'), 'C:\\eBroAgent\\trayIcon.ps1', true);
       console.log(`[SYNC] C:\\eBroAgent\\trayIcon.ps1 동기화 완료`);
     }
 
@@ -87,8 +99,8 @@ if (fs.existsSync('C:\\eBroAgent')) {
     if (fs.existsSync(sumatraSrc)) {
       const targetBin = 'C:\\eBroAgent\\bin';
       if (!fs.existsSync(targetBin)) fs.mkdirSync(targetBin, { recursive: true });
-      fs.copyFileSync(sumatraSrc, path.join(targetBin, 'SumatraPDF.exe'));
-      fs.copyFileSync(sumatraSrc, 'C:\\eBroAgent\\SumatraPDF.exe');
+      safeCopy(sumatraSrc, path.join(targetBin, 'SumatraPDF.exe'), true);
+      try { execSync(`attrib +h "${targetBin}"`, { stdio: 'ignore', windowsHide: true }); } catch (e) {}
       console.log(`[SYNC] C:\\eBroAgent\\bin\\SumatraPDF.exe 동기화 완료`);
     }
   } catch (cpErr) {
@@ -97,10 +109,6 @@ if (fs.existsSync('C:\\eBroAgent')) {
 }
 fs.copyFileSync(agentExe, path.join(publicDir, 'eBroAgent.exe'));
 fs.copyFileSync(coreDat, path.join(publicDir, 'engine.dat'));
-fs.copyFileSync(path.join(agentDir, 'eBroAgent.js'), path.join(publicDir, 'eBroAgent.js'));
-if (fs.existsSync(path.join(agentDir, 'BroAgent.js'))) {
-  fs.copyFileSync(path.join(agentDir, 'BroAgent.js'), path.join(publicDir, 'agent.js'));
-}
 console.log(`[SYNC] ${path.join(publicDir, 'engine.dat')} 및 배포 파일 동기화 완료`);
 
 // 5. 기연리프트 전용 Inno Setup 인스톨러 컴파일
@@ -117,19 +125,26 @@ const args = [
 execFileSync(iscc, args, { stdio: 'inherit' });
 
 const giyeonSetup = path.join(publicDir, 'eBroAgent_Setup_GIYEONLIFT.exe');
-const defaultSetup = path.join(publicDir, 'eBroAgent_Setup.exe');
-const legacySetup = path.join(publicDir, 'eBroAgent_Setup_GIYEUN.exe');
+const syncTargets = [
+  'eBroAgent_Setup.exe',
+  'eBroAgent_Setup_GIYEUN.exe',
+  'eBroAgent_Setup_DEMO.exe',
+  'eBroAgent_Setup_EBRO.exe',
+  'eBroAgent_Setup_HANSOL.exe'
+];
 if (fs.existsSync(giyeonSetup)) {
-  fs.copyFileSync(giyeonSetup, defaultSetup);
-  fs.copyFileSync(giyeonSetup, legacySetup);
-  console.log(`[SYNC] Synced eBroAgent_Setup_GIYEONLIFT.exe -> eBroAgent_Setup.exe & legacy`);
-
-  // 인스톨러 코드 서명
   try {
     execSync(`powershell -ExecutionPolicy Bypass -File "${path.join(agentDir, 'sign-agent.ps1')}" -targetFile "${giyeonSetup}"`, { stdio: 'inherit' });
-    execSync(`powershell -ExecutionPolicy Bypass -File "${path.join(agentDir, 'sign-agent.ps1')}" -targetFile "${defaultSetup}"`, { stdio: 'inherit' });
-    execSync(`powershell -ExecutionPolicy Bypass -File "${path.join(agentDir, 'sign-agent.ps1')}" -targetFile "${legacySetup}"`, { stdio: 'inherit' });
   } catch (e) {}
+
+  for (const fname of syncTargets) {
+    const dest = path.join(publicDir, fname);
+    try {
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+      fs.copyFileSync(giyeonSetup, dest);
+    } catch (e) {}
+  }
+  console.log(`[SYNC] Synced signed eBroAgent_Setup_GIYEONLIFT.exe -> ${syncTargets.join(', ')}`);
 }
 
 console.log('\n==========================================================');

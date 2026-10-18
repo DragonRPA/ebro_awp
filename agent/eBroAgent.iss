@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.6
+AppVersion=v2.0.0.Build.11
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
@@ -53,28 +53,41 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 [Tasks]
 Name: "desktopicon"; Description: "바탕화면에 eBro AI Agent 바로가기 아이콘 생성"; GroupDescription: "추가 작업:"; Flags: checkedonce
 
+[Dirs]
+Name: "{app}\문서고"
+Name: "{app}\drive_mirror"
+Name: "{app}\core"; Attribs: hidden
+Name: "{app}\bin"; Attribs: hidden
+Name: "{app}\hometax_invoices"; Attribs: hidden
+
 [Files]
 ; 🛡️ 완벽한 소스코드 보호: eBroAgent.js / studioEngine.js 원본 소스코드 완전 배제!
-; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 배포 (고객 PC 소스코드 노출 0%)
+; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 사용자에게 노출하고 내부 엔진/리소스 파일은 전부 숨김(hidden) 처리
 Source: "eBroAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "core\engine.dat"; DestDir: "{app}\core"; Flags: ignoreversion
-Source: "bin\SumatraPDF.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
-Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
-Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
-Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "kill-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "eBroAgent.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "eBroAgent.png"; DestDir: "{app}"; Flags: ignoreversion
-Source: "favicon.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "icon-32.png"; DestDir: "{app}"; Flags: ignoreversion
-Source: "icon-192.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "core\engine.dat"; DestDir: "{app}\core"; Attribs: hidden; Flags: ignoreversion
+Source: "bin\SumatraPDF.exe"; DestDir: "{app}\bin"; Attribs: hidden; Flags: ignoreversion
+Source: "trayIcon.ps1"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "start-agent.bat"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "kill-agent.bat"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "eBroAgent.ico"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "eBroAgent.png"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "favicon.ico"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "icon-32.png"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
+Source: "icon-192.png"; DestDir: "{app}"; Attribs: hidden; Flags: ignoreversion
 
 [InstallDelete]
-; 🧹 구버전 소스코드 및 임시 파일 정리
+; 🧹 구버전 소스코드, 중복 바이너리 및 임시 파일 정리
 Type: files; Name: "{app}\agent.js"
 Type: files; Name: "{app}\BroAgent.js"
 Type: files; Name: "{app}\eBroAgent.js"
 Type: files; Name: "{app}\studioEngine.js"
+Type: files; Name: "{app}\SumatraPDF.exe"
+Type: files; Name: "{app}\SumatraPDF-settings.txt"
+Type: files; Name: "{app}\bin\SumatraPDF-settings.txt"
+Type: files; Name: "{app}\tray.log"
+Type: files; Name: "{app}\print_temp_*"
+Type: files; Name: "{app}\test_*"
 Type: files; Name: "{app}\package.json"
 Type: files; Name: "{app}\package-lock.json"
 Type: files; Name: "{app}\update_staging.exe"
@@ -86,6 +99,7 @@ Type: files; Name: "{app}\measure_*.ps1"
 Type: files; Name: "{app}\verify_*.ps1"
 Type: files; Name: "{app}\print_*.ps1"
 Type: filesandordirs; Name: "{app}\node_modules"
+Type: filesandordirs; Name: "{app}\studio_profile"
 Type: filesandordirs; Name: "{app}\temp_build_*"
 
 [Icons]
@@ -120,6 +134,20 @@ begin
   Exec('taskkill.exe', '/F /IM eBroAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ''*trayIcon.ps1*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
+end;
+
+// 설치 직후 언인스톨러(unins000.*) 등 부수 파일 즉시 숨김(+h) 및 사용자 노출 대상(문서고, drive_mirror, eBroAgent.exe) 보임(-h) 확정
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    Exec('attrib.exe', '+h "' + ExpandConstant('{app}\unins000.exe') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('attrib.exe', '+h "' + ExpandConstant('{app}\unins000.dat') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('attrib.exe', '-h "' + ExpandConstant('{app}\drive_mirror') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('attrib.exe', '-h "' + ExpandConstant('{app}\문서고') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
 end;
 
 // 이미 Root 저장소에 인증서가 존재하는지 검사 (중복 팝업 원천 방지)
