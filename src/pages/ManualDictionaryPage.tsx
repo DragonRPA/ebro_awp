@@ -20,14 +20,19 @@ export const ManualDictionaryPage: React.FC = () => {
       }
 
       if (menu.processes && menu.processes.length > 0) {
-        menu.processes.forEach((proc: any) => {
+        menu.processes.forEach((proc: any, pIdx: number) => {
           list.push({
             menuId: menu.menuId,
             menuName: menu.menuName,
-            processId: proc.processId,
+            processId: proc.processId || proc.id || `proc_${pIdx + 1}`,
             title: proc.title,
-            description: proc.description,
-            steps: proc.steps || []
+            description: proc.description || proc.title,
+            steps: (proc.steps || []).map((s: any, sIdx: number) => ({
+              ...s,
+              seq: s.seq || sIdx + 1,
+              label: s.label || `단계 ${sIdx + 1}`,
+              description: s.description || s.text || '',
+            }))
           });
         });
       }

@@ -5,6 +5,7 @@ import { centralSupabase } from '../services/centralDb';
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
 import { ALL_MENU_MANUALS, getManualPageForMenu, getMenuManual } from '../data/allMenuManuals';
 import { MODAL_MANUAL_REGISTRY, getModalManualPage } from '../data/modalManuals';
+import { generateDefaultMenuSpecMarkdown } from '../utils/menuSpecMarkdown';
 
 const TENANT_ID = 'default';
 
@@ -21,7 +22,7 @@ export function useManual() {
     // seq 자동 재정렬 (Auto Re-indexing)
     const reindexed: ManualPage = {
       ...page,
-      items: page.items.map((item, i) => ({ ...item, seq: i + 1 })),
+      items: (page.items || []).map((item, i) => ({ ...item, seq: i + 1 })),
       version: (page.version || 0) + 1,
     };
 
@@ -72,7 +73,7 @@ export function useManual() {
       ? getModalManualPage(pageId, pageTitle)
       : getManualPageForMenu(pageId, pageTitle);
 
-    if (centralSupabase) {
+    if (centralSupabase && seed) {
       try {
         const { data, error: e } = await centralSupabase
           .from('manual_annotations')
@@ -87,8 +88,12 @@ export function useManual() {
 
           // 💡 [SSOT 버전 정합성 보장] 코드 시드 버전이 DB보다 더 높으면 최신 시드를 반환하고 DB 자동 갱신
           if (seedVersion > dbVersion) {
-            savePage(seed).catch(err => console.warn('[useManual] Auto-update to higher seed failed:', err));
-            return seed;
+            const enrichedSeed = {
+              ...seed,
+              specDocMarkdown: generateDefaultMenuSpecMarkdown(pageId),
+            };
+            savePage(enrichedSeed as any).catch(err => console.warn('[useManual] Auto-update to higher seed failed:', err));
+            return enrichedSeed as any;
           }
 
           if (ann) {
@@ -109,27 +114,34 @@ export function useManual() {
 
     // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 반환 및 정규 메뉴/모달인 경우에만 백그라운드 저장
     const isKnownMenu = Boolean(getMenuManual(pageId)) || pageId.startsWith('modal_');
-    if (centralSupabase && isKnownMenu) {
-      savePage(seed).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
+    if (centralSupabase && isKnownMenu && seed) {
+      const enrichedSeed = {
+        ...seed,
+        specDocMarkdown: generateDefaultMenuSpecMarkdown(pageId),
+      };
+      savePage(enrichedSeed as any).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
     }
 
     return seed;
   }, [savePage]);
 
-  /** 전사 51개 모든 메뉴 및 20개 모달 팝업의 표준 매뉴얼을 DB에 일괄 주입(Batch Seed) */
+  /** 전사 모든 메뉴 및 모달 팝업의 표준 매뉴얼(기능정의서 포함)을 DB에 일괄 주입(Batch Seed) */
   const seedAllManuals = useCallback(async (updatedBy?: string): Promise<{ success: number; failed: number }> => {
     if (!centralSupabase) return { success: 0, failed: 0 };
     setSaving(true);
     let success = 0;
     let failed = 0;
 
-    // 1. 메뉴 매뉴얼 일괄 주입
+    // 1. 메뉴 매뉴얼 및 기능정의서 일괄 주입
     for (const menu of ALL_MENU_MANUALS) {
-      const pageData: ManualPage = {
+      const pageData: any = {
         pageId: menu.menuId,
         pageTitle: menu.menuName,
         version: menu.version || 1,
-        items: menu.annotations.map((item, i) => ({ ...item, seq: i + 1 })),
+        items: (menu.annotations || []).map((item, i) => ({ ...item, seq: i + 1 })),
+        basicGuide: menu.basicGuide || [],
+        processes: menu.processes || [],
+        specDocMarkdown: generateDefaultMenuSpecMarkdown(menu.menuId),
       };
 
       try {
@@ -141,13 +153,14 @@ export function useManual() {
       }
     }
 
-    // 2. 모달 팝업 매뉴얼 일괄 주입
+    // 2. 모달 팝업 매뉴얼 및 기능정의서 일괄 주입
     for (const modal of Object.values(MODAL_MANUAL_REGISTRY)) {
-      const modalData: ManualPage = {
+      const modalData: any = {
         pageId: modal.modalId,
         pageTitle: modal.modalName,
-        version: 1,
-        items: modal.annotations.map((item, i) => ({ ...item, seq: i + 1 })),
+        version: 6,
+        items: (modal.annotations || []).map((item, i) => ({ ...item, seq: i + 1 })),
+        specDocMarkdown: generateDefaultMenuSpecMarkdown(modal.modalId),
       };
 
       try {

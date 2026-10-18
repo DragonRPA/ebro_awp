@@ -2,6 +2,7 @@
 // 전사 51개 메뉴 및 모달의 기능 목적, 버튼 목록, 모달 스펙을 정의하는 Markdown(MD) 엔진
 // 인앱 뷰어/편집기 및 미래 MCP (Model Context Protocol) 에이전트 자율 연동 Grounding 지원
 import { supabase } from '../services/db';
+import { centralSupabase } from '../services/centralDb';
 import { ALL_MENU_MANUALS, getMenuManual } from '../data/allMenuManuals';
 import { MODAL_MANUAL_REGISTRY } from '../data/modalManuals';
 
@@ -69,19 +70,23 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
     dept: `${manual.groupName} · ${manual.department}`,
     archetype: manual.archetype,
     objective: manual.objective,
-    buttons: (manual.basicGuide || manual.annotations || []).map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
+    buttons: (manual.basicGuide || manual.annotations || []).map((a: any, idx: number) => ({
+      seq: a.seq || idx + 1,
+      label: a.label || a.title || `단계 ${idx + 1}`,
+      color: a.badgeColor,
+    })),
     subTabs: (manual.subTabs || []).map(t => t.tabName),
     modals: (manual.modalWorkflows || []).map(m => m.modalName),
-    processes: ((manual as any).processes || []).map((p: any) => ({
-      processId: p.processId,
+    processes: ((manual as any).processes || []).map((p: any, pIdx: number) => ({
+      processId: p.processId || p.id || `proc_${pIdx + 1}`,
       title: p.title,
-      description: p.description,
+      description: p.description || '',
       stepCount: (p.steps || []).length,
-      steps: (p.steps || []).map((s: any) => ({
-        seq: s.seq,
-        label: s.label,
-        description: s.description,
-        type: s.type,
+      steps: (p.steps || []).map((s: any, sIdx: number) => ({
+        seq: s.seq || sIdx + 1,
+        label: s.label || `단계 ${sIdx + 1}`,
+        description: s.description || s.text || '',
+        type: s.type || 'click_ripple',
         badgeColor: s.badgeColor,
       }))
     })),
@@ -132,7 +137,7 @@ ${buttonList}
   // 주요 버튼 및 기능 목록
   const buttonsSection = manual.annotations.length > 0
     ? manual.annotations
-        .map(a => `- **[${a.seq}] \`${a.label}\`** (${a.type})\n  - **기능 설명**: ${a.description}\n  - **대상 셀렉터**: \`${a.selector}\`\n  - **안내 힌트**: ${a.positionHint || '자동'}`)
+        .map((a, idx) => `- **[${a.seq || idx + 1}] \`${a.label}\`** (${a.type})\n  - **기능 설명**: ${a.description}\n  - **대상 셀렉터**: \`${a.selector}\`\n  - **안내 힌트**: ${a.positionHint || '자동'}`)
         .join('\n')
     : '- 등록된 주요 버튼 항목이 없습니다.';
 
@@ -153,11 +158,12 @@ ${buttonList}
   // 단위업무 절차
   const processesSection = (manual as any).processes && (manual as any).processes.length > 0
     ? (manual as any).processes
-        .map((p: any) => {
+        .map((p: any, pIdx: number) => {
+          const procId = p.processId || p.id || `proc_${pIdx + 1}`;
           const stepList = (p.steps || [])
-            .map((s: any) => `  ${s.seq}. **${s.label}**: ${s.description}`)
+            .map((s: any, sIdx: number) => `  ${s.seq || sIdx + 1}. **${s.label || `단계 ${sIdx + 1}`}**: ${s.description || s.text || ''}`)
             .join('\n');
-          return `### 🔄 단위업무: ${p.title} (\`${p.processId}\`)\n- **업무 목적**: ${p.description}\n- **수행 절차 (${p.steps?.length || 0}단계)**:\n${stepList}`;
+          return `### 🔄 단위업무: ${p.title} (\`${procId}\`)\n- **업무 목적**: ${p.description || p.title}\n- **수행 절차 (${p.steps?.length || 0}단계)**:\n${stepList}`;
         })
         .join('\n\n')
     : '- 등록된 별도 단위업무 절차형 프로세스가 없습니다.';
@@ -175,6 +181,7 @@ ${buttonList}
 
 ## 1. 기본 메타데이터
 - **메뉴 식별자(ID)**: \`${manual.menuId}\`
+- **매뉴얼 버전**: \`v${manual.version || 1}\`
 - **상위 그룹**: ${manual.groupName} (\`${manual.groupId}\`)
 - **담당 부서**: ${manual.department}
 - **UI 아키타입**: ${manual.archetype}
@@ -217,81 +224,165 @@ ${precautionsSection}
 }
 
 /**
- * 특정 메뉴의 마크다운 기능 정의서 로드 (DB 커스텀 편집본 우선, 없으면 기본 생성)
+ * 특정 메뉴의 마크다운 기능 정의서 로드 (중앙 DB 커스텀 편집본 우선, 시드 버전이 더 높거나 없으면 기본 생성)
  */
 export async function loadMenuSpecMarkdown(menuId: string): Promise<string> {
-  if (supabase) {
+  const manual = getMenuManual(menuId);
+  const seedVersion = manual?.version || 1;
+
+  // 1. 중앙 플랫폼 DB (centralSupabase) 우선 조회
+  if (centralSupabase) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await centralSupabase
         .from('manual_annotations')
-        .select('annotations')
-        .eq('tenant_id', TENANT_ID)
+        .select('annotations, version')
         .eq('page_id', menuId)
-        .single();
+        .maybeSingle();
 
       if (!error && data?.annotations) {
         const ann = data.annotations as any;
-        if (ann.specDocMarkdown && typeof ann.specDocMarkdown === 'string' && ann.specDocMarkdown.trim()) {
+        const dbVersion = data.version || ann.version || 1;
+        // 코드 시드 버전이 DB보다 높은 경우 최신 개편사항이 반영된 기본 생성본 반환
+        if (seedVersion <= dbVersion && ann.specDocMarkdown && typeof ann.specDocMarkdown === 'string' && ann.specDocMarkdown.trim()) {
           return ann.specDocMarkdown;
         }
       }
     } catch (err) {
-      console.warn('[menuSpecMarkdown] Failed to load spec markdown from DB:', err);
+      console.warn('[menuSpecMarkdown] Failed to load spec markdown from centralSupabase:', err);
     }
   }
 
-  // DB에 커스텀 편집본이 없으면 SSOT 기반 마크다운 자동 생성 반환
+  // 2. 테넌트 DB (supabase) 폴백 조회
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('manual_annotations')
+        .select('annotations, version')
+        .eq('tenant_id', TENANT_ID)
+        .eq('page_id', menuId)
+        .maybeSingle();
+
+      if (!error && data?.annotations) {
+        const ann = data.annotations as any;
+        const dbVersion = data.version || ann.version || 1;
+        if (seedVersion <= dbVersion && ann.specDocMarkdown && typeof ann.specDocMarkdown === 'string' && ann.specDocMarkdown.trim()) {
+          return ann.specDocMarkdown;
+        }
+      }
+    } catch (err) {
+      console.warn('[menuSpecMarkdown] Failed to load spec markdown from tenant DB:', err);
+    }
+  }
+
+  // DB에 커스텀 편집본이 없거나 시드 버전이 업그레이드된 경우 SSOT 기반 마크다운 자동 생성 반환
   return generateDefaultMenuSpecMarkdown(menuId);
 }
 
 /**
- * 특정 메뉴의 마크다운 기능 정의서 저장 (DB manual_annotations 내 영구 보존)
+ * 특정 메뉴의 마크다운 기능 정의서 저장 (중앙 플랫폼 DB 및 테넌트 DB manual_annotations 내 영구 보존)
  */
 export async function saveMenuSpecMarkdown(menuId: string, markdown: string, updatedBy?: string): Promise<boolean> {
-  if (!supabase) return false;
+  const manual = getMenuManual(menuId);
+  const defaultTitle = manual?.menuName || menuId;
 
-  try {
-    // 1. 기존 레코드 조회
-    const { data } = await supabase
-      .from('manual_annotations')
-      .select('annotations, page_title, version')
-      .eq('tenant_id', TENANT_ID)
-      .eq('page_id', menuId)
-      .single();
+  let savedCentral = false;
+  if (centralSupabase) {
+    try {
+      const { data: existing } = await centralSupabase
+        .from('manual_annotations')
+        .select('id, annotations, page_title, version')
+        .eq('page_id', menuId)
+        .maybeSingle();
 
-    const manual = getMenuManual(menuId);
-    const pageTitle = data?.page_title || manual?.menuName || menuId;
-    const version = (data?.version || 1) + 1;
-    const currentAnnotations = data?.annotations || { pageId: menuId, pageTitle, items: manual?.annotations || [] };
+      const pageTitle = existing?.page_title || defaultTitle;
+      const version = Math.max((existing?.version || 1) + 1, manual?.version || 1);
+      const currentAnnotations = existing?.annotations || {
+        pageId: menuId,
+        pageTitle,
+        version,
+        items: manual?.annotations || [],
+        basicGuide: manual?.basicGuide || [],
+        processes: manual?.processes || [],
+      };
 
-    // 2. specDocMarkdown 필드 병합하여 upsert
-    const updatedAnnotations = {
-      ...currentAnnotations,
-      specDocMarkdown: markdown,
-    };
+      const updatedAnnotations = {
+        ...currentAnnotations,
+        version,
+        specDocMarkdown: markdown,
+      };
 
-    const { error } = await supabase
-      .from('manual_annotations')
-      .upsert({
-        tenant_id: TENANT_ID,
+      const payload = {
         page_id: menuId,
         page_title: pageTitle,
         version,
         annotations: updatedAnnotations,
+        solution_type: 'ALL',
         updated_by: updatedBy || null,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'tenant_id,page_id' });
+      };
 
-    if (error) {
-      console.error('[menuSpecMarkdown] Save error:', error);
-      return false;
+      if (existing?.id) {
+        const { error } = await centralSupabase
+          .from('manual_annotations')
+          .update(payload)
+          .eq('id', existing.id);
+        if (!error) savedCentral = true;
+      } else {
+        const { error } = await centralSupabase
+          .from('manual_annotations')
+          .insert(payload);
+        if (!error) savedCentral = true;
+      }
+    } catch (err) {
+      console.warn('[menuSpecMarkdown] Central DB save warning:', err);
     }
-
-    return true;
-  } catch (err) {
-    console.error('[menuSpecMarkdown] Unexpected save error:', err);
-    return false;
   }
+
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from('manual_annotations')
+        .select('annotations, page_title, version')
+        .eq('tenant_id', TENANT_ID)
+        .eq('page_id', menuId)
+        .maybeSingle();
+
+      const pageTitle = data?.page_title || defaultTitle;
+      const version = Math.max((data?.version || 1) + 1, manual?.version || 1);
+      const currentAnnotations = data?.annotations || {
+        pageId: menuId,
+        pageTitle,
+        version,
+        items: manual?.annotations || [],
+        basicGuide: manual?.basicGuide || [],
+        processes: manual?.processes || [],
+      };
+
+      const updatedAnnotations = {
+        ...currentAnnotations,
+        version,
+        specDocMarkdown: markdown,
+      };
+
+      const { error } = await supabase
+        .from('manual_annotations')
+        .upsert({
+          tenant_id: TENANT_ID,
+          page_id: menuId,
+          page_title: pageTitle,
+          version,
+          annotations: updatedAnnotations,
+          updated_by: updatedBy || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'tenant_id,page_id' });
+
+      if (!error) return true;
+    } catch (err) {
+      console.warn('[menuSpecMarkdown] Tenant DB save warning:', err);
+    }
+  }
+
+  return savedCentral;
 }
 
 // 🤖 MCP (Model Context Protocol) 및 브라우저 콘솔 자율 연동 헬퍼 글로벌 등록

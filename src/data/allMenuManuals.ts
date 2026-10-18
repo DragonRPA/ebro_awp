@@ -43,7 +43,7 @@ export interface MenuManualDetail {
 export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   {
     "menuId": "dashboard",
-    "version": 12,
+    "version": 16,
     "menuName": "ERP 대시보드",
     "groupId": "grp_top",
     "groupName": "메인",
@@ -214,7 +214,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "approvalInbox",
-    "version": 12,
+    "version": 16,
     "menuName": "내 결재함 (수신)",
     "groupId": "grp_approval",
     "groupName": "결재 센터",
@@ -408,7 +408,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "approvalRules",
-    "version": 12,
+    "version": 16,
     "menuName": "결재선 규칙 설정",
     "groupId": "grp_approval",
     "groupName": "결재 센터",
@@ -597,22 +597,23 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "customer",
-    "version": 12,
+    "version": 16,
     "menuName": "고객 관리",
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "[data-mid='customer-search-filter']",
+        "selector": "[data-mid=\"customer-search-filter\"]",
         "type": "highlight",
         "label": "검색 및 필터 영역",
-        "description": "[검색 및 필터 영역] 화면 영역입니다. 검색어, 거래 상태 또는 필수 서류 누락 여부로 고객사 목록을 필터링하는 기본 기능을 제공합니다."
+        "description": "[검색 및 필터 영역] 화면 영역입니다. 검색어, 거래 상태 또는 필수 서류 누락 여부로 고객사 목록을 필터링합니다.",
+        "positionHint": "bottom"
       },
       {
         "seq": 2,
-        "selector": "[data-mid='customer-list-panel']",
+        "selector": "[data-mid=\"customer-list-panel\"]",
         "type": "highlight",
         "label": "고객사 목록",
-        "description": "[고객사 목록] 화면 영역입니다. 등록된 고객사 목록을 표시하며, 클릭하여 상세 제원을 조회하는 기본 기능을 제공합니다.",
+        "description": "[고객사 목록] 화면 영역입니다. 등록된 고객사 목록을 표시하며, 클릭하여 상세 제원 및 N:M 연결 현장을 조회합니다.",
         "positionHint": "right"
       }
     ],
@@ -620,78 +621,85 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "register_customer",
         "title": "고객 등록",
-        "description": "신규 고객사의 기본 정보를 입력하여 정식 등록합니다.",
+        "description": "신규 고객사의 사업자 기본 정보 및 결제·청구 조건을 입력하여 정식 등록합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid='btn-new-customer']",
+            "selector": "[data-mid=\"btn-new-customer\"]",
             "type": "click_ripple",
             "label": "신규 고객 등록 버튼",
-            "description": "[신규 고객 등록 버튼] UI 요소를 조작합니다. 신규 고객 등록 버튼을 클릭하여 입력 팝업 창을 엽니다."
+            "description": "우상단 [신규 고객 등록] 버튼을 클릭하여 입력 팝업 창을 엽니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='input-customer-name']",
+            "selector": "[data-mid=\"input-customer-name\"]",
             "type": "callout",
-            "label": "고객사명",
-            "description": "[고객사명] UI 요소를 조작합니다. 등록할 신규 고객사의 공식 상호명을 입력하십시오."
+            "label": "고객사명 입력",
+            "description": "등록할 신규 고객사의 공식 상호명을 입력합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "[data-mid='input-biz-no']",
+            "selector": "[data-mid=\"input-biz-no\"]",
             "type": "callout",
-            "label": "사업자등록번호",
-            "description": "[사업자등록번호] UI 요소를 조작합니다. 국세청 사업자등록번호 10자리를 입력하십시오."
+            "label": "사업자등록번호 및 홈택스 검증",
+            "description": "국세청 사업자등록번호 10자리를 입력하고 휴폐업 진위를 확인합니다.",
+            "positionHint": "bottom"
           }
         ]
       },
       {
         "processId": "view_customer_details",
-        "title": "고객 상세 조회",
-        "description": "선택한 고객사의 상세 정보, 현장 내역, 담당자 연락처를 조회합니다.",
+        "title": "고객 상세 및 연결 현장 조회",
+        "description": "선택한 고객사의 상세 정보, N:M 연결 현장 내역, 담당자 연락처를 조회합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid='customer-grid-item']",
+            "selector": "[data-mid=\"customer-grid-item\"]",
             "type": "click_ripple",
             "label": "고객사 선택",
-            "description": "[고객사 선택] UI 요소를 조작합니다. 목록에서 고객사 행을 클릭하여 상세 정보를 화면에 불러옵니다."
+            "description": "목록에서 고객사 행을 클릭하여 상세 도시에 정보를 화면에 불러옵니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='customer-detail-dossier']",
+            "selector": "[data-mid=\"customer-detail-dossier\"]",
             "type": "highlight",
-            "label": "고객사 상세 정보",
-            "description": "[고객사 상세 정보] UI 요소를 조작합니다. 선택한 고객사의 상세 제원, 소속 현장 목록, 계약 이력을 정밀 검토하십시오.",
+            "label": "고객사 상세 도시에 확인",
+            "description": "선택한 고객사의 사업자 제원, N:M 소속 현장 목록, 계약 이력을 정밀 검토합니다.",
             "positionHint": "left"
           }
         ]
       },
       {
         "processId": "register_site_options_sync",
-        "title": "현장 등록 및 옵션 속성 조회",
-        "description": "고객사의 신규 현장을 등록하거나 수정할 때, 현장별 옵션관리에 등록된 현장 중 검색하여 유상/보양/사양 속성을 1클릭 복사하고 일치시킵니다.",
+        "title": "물리 현장(N:M) 등록 및 무상·유상옵션 1클릭 복사",
+        "description": "고객사의 신규 현장을 등록하거나 기존 물리 현장을 N:M 연결할 때, 현장별 옵션관리에 등록된 현장을 검색하여 유상옵션·무상옵션·요구사양 속성을 1클릭 복사합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid='btn-new-site'], button:contains('현장 추가')",
+            "selector": "[data-mid=\"btn-new-site\"], button:contains(\"현장 추가\")",
             "type": "click_ripple",
-            "label": "현장 등록 버튼",
-            "description": "[현장 등록 버튼] UI 요소를 조작합니다. 현장 추가 버튼을 클릭하여 현장 등록·수정 모달을 엽니다."
+            "label": "현장 등록 버튼 클릭",
+            "description": "[현장 추가] 버튼을 클릭하여 현장 등록·수정 모달을 엽니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='site-option-ref-search-box']",
+            "selector": "[data-mid=\"site-option-ref-search-box\"]",
             "type": "callout",
             "label": "옵션 참조 현장 검색 및 복사",
-            "description": "[옵션 참조 현장 검색 및 복사] UI 요소를 조작합니다. 초성 검색을 통해 현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 무상옵션, 요구사양을 즉시 일치시킵니다."
+            "description": "초성 검색을 통해 현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사]를 눌러 유상옵션, 무상옵션, 요구사양을 즉시 일치시킵니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "button[type='submit']",
+            "selector": "button[type=\"submit\"]",
             "type": "click_ripple",
-            "label": "현장 정보 저장",
-            "description": "[현장 정보 저장] UI 요소에 값을 입력하거나 조작합니다. 복사 및 조정한 옵션 속성과 현장 기본 정보를 데이터베이스에 저장하십시오."
+            "label": "현장 정보 저장 (SiteMaster & customer_sites)",
+            "description": "복사 및 조정한 옵션 속성과 현장 기본 정보를 SiteMaster 및 고객-현장 조인 테이블에 저장합니다.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -700,74 +708,64 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "거래처 사업자등록번호 검증, 담당자 연락처 및 납품 현장 마스터 등록 관리",
-    "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 전자세금계산서 발행 이메일, 현장 담당자 정보",
+    "objective": "거래처 사업자 진위 검증, 담당자 연락망 및 N:M 정규화 물리 현장(SiteMaster) 연결·무상옵션/유상옵션 동기화 관리",
+    "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 전자세금계산서 이메일, 거래제한 상태(정상/추가계약금지/전면차단), 물리 현장(SiteMaster) N:M 조인 링크(customer_sites), 현장별 유상옵션·무상옵션·요구사양",
     "cognitiveSequence": [
-      "1. 거래처 통합 검색 및 거래 상태/초성 필터링 (상호, 사업자번호, 대표자, 거래제한 여부)",
-      "2. 고객 및 현장 운용 KPI 실시간 집계 검토 (총 고객사, 정상사, 거래제한/폐업, 현장수)",
-      "3. 고객사 대장 목록 탐색 및 선택 (등록증 미등록 업체 및 결손 정보 즉시 파악)",
-      "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 청구조건)",
-      "5. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어"
+      "1. 거래처 통합 검색 및 거래 상태/초성 필터링 (상호, 사업자번호, 대표자, 거래제한 여부, 서류 누락 여부)",
+      "2. 고객 및 현장 운용 KPI 실시간 집계 검토 (총 고객사, 정상 거래처, 거래제한/폐업, 연결 현장수)",
+      "3. 고객사 대장 목록 탐색 및 선택 (활성 계약 또는 연결 현장이 존재하는 거래처 삭제 시 무결성 가드 안내 모달 작동)",
+      "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 기본 유상옵션/무상옵션/요구사양, 청구조건)",
+      "5. 물리 현장(SiteMaster) N:M 등록 및 연결: 복수 고객사가 동일 물리 현장을 중복 차단 없이 공유 연결하며, 현장 주소 미입력 시 본사 주소로 임의 대체하지 않고 [현장주소 미입력] 배지를 명확히 표출",
+      "6. 현장별 옵션관리 참조 복사: 현장 등록/수정 모달에서 기등록 현장을 초성 검색하여 유상옵션·무상옵션·요구사양을 1클릭 복사 일치",
+      "7. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어 완결"
     ],
     "subTabs": [
       {
         "tabId": "CUST_LIST",
         "tabName": "고객 목록",
-        "purpose": "등록 거래처 기본 정보 및 여신 한도 조회",
+        "purpose": "등록 거래처 기본 정보, 거래제한 등급 및 여신 한도 조회",
         "keyActions": [
-          "거래처 등록",
+          "거래처 등록/수정",
           "홈택스 진위 검증",
-          "여신 수정"
+          "거래처 삭제 무결성 검증"
         ]
       },
       {
         "tabId": "SITE_LIST",
-        "tabName": "현장 목록",
-        "purpose": "고객사 소속 납품 현장 목록",
+        "tabName": "현장 목록 (N:M SiteMaster)",
+        "purpose": "고객사와 N:M 조인(customer_sites)된 물리 현장 목록 및 현장 옵션 조회",
         "keyActions": [
-          "현장 등록",
-          "현장 이동"
+          "물리 현장 추가/연결",
+          "기등록 현장 옵션 1클릭 복사"
         ]
       }
     ],
     "modalWorkflows": [
       {
         "modalName": "거래처 등록/수정 모달 (CustModal)",
-        "triggerButton": "신규 거래처 등록",
+        "triggerButton": "신규 고객 등록",
         "keyFields": [
           "상호명",
           "사업자등록번호",
           "대표자",
           "업태/종목",
-          "주소",
-          "여신한도"
+          "본점 주소",
+          "기본 유상옵션/무상옵션"
         ],
         "terminalAction": "저장",
         "afterStateTransition": "고객사 마스터 생성 및 거래 상태 ALLOWED 설정"
       },
       {
-        "modalName": "담당자 등록 모달 (ContactModal)",
-        "triggerButton": "담당자 추가",
-        "keyFields": [
-          "성명",
-          "부서/직급",
-          "휴대전화",
-          "이메일"
-        ],
-        "terminalAction": "담당자 저장",
-        "afterStateTransition": "고객사 소속 담당자 연락망 1:N 추가"
-      },
-      {
-        "modalName": "현장 등록 모달 (SiteModal)",
+        "modalName": "현장 등록·연결 모달 (SiteModal)",
         "triggerButton": "현장 추가",
         "keyFields": [
-          "현장명",
-          "현장 주소",
-          "현장 담당자",
-          "도착지 특이사항"
+          "현장명(정규화 중복 검증)",
+          "현장 실주소(본사 주소 임의 폴백 금지)",
+          "현장 담당자(장비/마감/안전)",
+          "옵션 참조 현장 검색 및 복사(유상옵션/무상옵션/요구사양)"
         ],
         "terminalAction": "현장 저장",
-        "afterStateTransition": "SiteMaster 연결 및 고객-현장 조인 링크(customer_sites) 결합"
+        "afterStateTransition": "SiteMaster 마스터 생성/재사용 및 고객-현장 N:M 조인 링크(customer_sites) 결합"
       },
       {
         "modalName": "국세청 진위 확인 모달 (NtsAuditModal)",
@@ -781,14 +779,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "국세청 휴폐업 상태(계속사업자) 검증 결과 반영"
       }
     ],
-    "auditResult": "국세청 사업자 진위 확인 완료 및 N:M 정규화에 따른 고객-현장 관계 결합 확정",
+    "auditResult": "국세청 사업자 진위 확인 완료 및 헌장 1.5조 N:M 정규화(Customer ↔ customer_sites ↔ SiteMaster) 무결성 확정",
     "rulesCompliance": [
-      "헌장 3.2 [줄바꿈 방지 원칙]: 거래처명, 사업자번호, 대표자 셀에 `white-space: nowrap` 적용",
-      "헌장 3.4 [상하 스택 배치]: 등록 모달 폼의 모든 레이블-입력창 상하 세로 스택 준수"
+      "헌장 1.4 [1단어 1뜻 표준화]: 레거시 무상옵션 용어를 폐기하고 무상옵션 단일 표준 명칭 사용",
+      "헌장 1.5 [N:M 객체 지향 데이터 정규화]: 물리 현장 속성은 오직 SiteMaster에만 보관하며 복수 고객사 간 동일 현장 N:M 공유 연결 보장",
+      "헌장 3.2 [줄바꿈 방지 원칙]: 거래처명, 사업자번호, 대표자 셀에 white-space: nowrap 적용"
     ],
     "precautions": [
-      "동일 사업자등록번호의 중복 등록을 엄격히 방지하여 매출/미수금 집계 왜곡 차단",
-      "세금계산서 역발행 업체의 경우 전용 전자계산서 수신 이메일을 정확히 기재"
+      "진행 중인 계약이나 연결된 현장이 있는 고객사는 데이터 무결성 보호를 위해 즉시 삭제가 차단되며 안내 모달이 표출됩니다.",
+      "현장 주소가 미입력된 경우 본사 주소를 임의로 복사하지 않으며 [현장주소 미입력] 배지로 노출되어 배차 오발송을 예방합니다."
     ],
     "annotations": [
       {
@@ -811,7 +810,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"customer-detail-dossier\"]",
         "label": "고객사 상세 도시에",
-        "description": "사업자 제원, 현장, 담당자 연락망 360도 조망",
+        "description": "사업자 제원, N:M 현장, 담당자 연락망 360도 조망",
         "colorToken": "BLUE",
         "type": "CALLOUT"
       },
@@ -835,36 +834,33 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "site_options",
-    "version": 8,
+    "version": 16,
     "menuName": "현장별 옵션 관리",
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 출고부",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "물리 현장별 가동 상태, 안전요구사양, 유상옵션 및 무상옵션 기준 설정",
-    "scopeInfo": "고객사 필터, 현장 검색어, 선택된 현장, 옵션품목마스터(StandardOption) 품목군(유상/무상/사양), 현장 특약단가, 필수 장착 여부, 현장 메모",
+    "objective": "물리 현장(SiteMaster)별 가동 상태, 유상옵션, 무상옵션 및 현장요구사양(21개 표준 체크리스트) 단일 진실의 원천(SSOT) 관리",
+    "scopeInfo": "고객사 필터(N:M 연결 고객사 전원 표시), 현장 검색어, 물리 현장(SiteMaster), 옵션품목마스터(StandardOption: 유상옵션 PAID / 무상옵션 PROTECTION / 요구사양 SPEC), 현장 특약단가, 현장 메모",
     "cognitiveSequence": [
-      "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 현장 스코핑",
-      "2. 좌측 등록 현장 목록에서 옵션을 설정할 특정 현장 선택",
-      "3. 우측 작업대 상단에서 대상 현장의 옵션 품목을 점검하고 표준 유상/무상/사양 항목 설정 진행",
-      "4. 중앙 1. 유상 옵션 그리드에서 적용할 옵션 체크박스 활성화 및 현장 특약단가(₩) 오버라이드 입력",
-      "5. 2. 무상 옵션 카드에서 해당 현장 환경에 부합하는 무상옵션 규격 1종 선택",
-      "6. 3. 현장 요구 사양에서 안전인증, 경광등, 센서 연동 등 필수 점검 항목 체크",
+      "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 물리 현장(SiteMaster) 스코핑",
+      "2. 좌측 등록 현장 목록에서 옵션을 설정할 특정 현장 선택 (복수 고객사가 공유 중인 현장도 단일 SiteMaster로 통합 표시)",
+      "3. 우측 작업대 상단에서 [옵션 품목 마스터] 탭 또는 [현장별 옵션 설정] 탭 전환",
+      "4. 중앙 [1. 유상 옵션] 그리드에서 적용할 옵션 체크박스 활성화 및 현장 특약단가(₩) 오버라이드 입력",
+      "5. [2. 무상 옵션] 카드에서 해당 현장 환경에 부합하는 무상옵션 규격 선택",
+      "6. [3. 현장 요구 사양]에서 철망, 감지봉, 주행속도, 부착물 세트 등 21개 표준 필수 안전 점검 항목 체크",
       "7. 우하단 요약 바에서 적용 유상옵션 건수, 선택된 무상옵션, 월 유상옵션 총액 합계 검증",
-      "8. 우하단 [현장 옵션 설정 저장] 버튼을 클릭하여 CustomerSite DB에 100% 동기화 저장 완료"
+      "8. 우하단 [현장 옵션 설정 저장] 버튼을 클릭하여 SiteMaster 단일 진실의 원천 DB에 100% 동기화 저장 완료"
     ],
-    "auditResult": "SiteMaster 단일 진실의 원천(SSOT) 옵션 프로필 저장 및 역정규화 필드 0건 유지",
+    "auditResult": "SiteMaster 단일 진실의 원천(SSOT) 옵션 프로필(유상옵션·무상옵션·요구사양) 저장 및 역정규화 필드 0건 유지",
     "rulesCompliance": [
-      "헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 활용하여 현장 옵션값을 구축하며, 고객 관리 메뉴 현장 등록/수정 시 기등록 현장의 옵션 속성을 실시간 검색하여 1클릭 복사 일치시키는 최대 편익 달성",
-      "헌장 2.2: 옵션품목마스터 기준단가 기반 현장별 옵션 속성 관리 및 계약/출고 자동 연동 원칙 준수",
-      "헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수",
-      "헌장 3.2: 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지",
-      "헌장 3.5: 좌측 현장 스코프 ➔ 우측 작업대 ➔ 우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립"
+      "헌장 1.4 [1단어 1뜻 표준화]: 구 무상옵션 명칭을 전면 폐기하고 무상옵션 단일 표준 명칭으로 통일",
+      "헌장 1.5 [N:M 정규화 및 역정규화 영구 금지]: 유상옵션·무상옵션·요구사양·가동여부는 오직 SiteMaster에만 보관하며 customer_sites 역정규화 저장을 영구 금지",
+      "헌장 3.5 [Gutenberg Z-패턴]: 좌측 현장 스코프 ➔ 우측 작업대 ➔ 우하단 월 옵션 총액 및 최종 저장 동선 준수"
     ],
     "precautions": [
-      "현장별 옵션은 반드시 옵션품목마스터(StandardOption)의 품목 체계를 상속받아 구성되어야 합니다.",
-      "현장에서 특약 단가를 변경한 경우 계약서 및 견적서 옵션 청구 항목에 해당 특약 단가가 우선 적용됩니다.",
-      "무상옵션은 현장별 1종 선택(라디오)이 원칙이며, 미선택 시 기본 상속 처리됩니다."
+      "동일 물리 현장에 연결된 모든 고객사는 SiteMaster의 유상옵션·무상옵션·요구사양을 100% 동일하게 공유합니다.",
+      "현장에서 특약 단가를 변경한 경우 계약서 및 견적서 옵션 청구 항목에 해당 특약 단가가 우선 적용됩니다."
     ],
     "annotations": [
       {
@@ -887,7 +883,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"tab-toggle\"]",
         "label": "옵션 탭 전환",
-        "description": "마스터 옵션 vs 현장별 옵션 탭 전환",
+        "description": "옵션 품목 마스터 vs 현장별 옵션 설정 탭 전환",
         "colorToken": "BLUE",
         "type": "CALLOUT"
       },
@@ -895,15 +891,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"table-paid-options\"]",
         "label": "유상 옵션 대장",
-        "description": "현장별 유상 옵션 설정 그리드",
+        "description": "현장별 유상 옵션 및 특약단가 그리드",
         "colorToken": "AMBER",
         "type": "HIGHLIGHT_BOX"
       },
       {
         "seq": 5,
         "selector": "[data-mid=\"card-protection-options\"]",
-        "label": "보양 작업 설정",
-        "description": "바퀴 보양 및 외관 보호 옵션",
+        "label": "무상 옵션 설정",
+        "description": "현장별 무상 옵션 규격 설정",
         "colorToken": "PURPLE",
         "type": "CALLOUT"
       },
@@ -911,7 +907,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"card-spec-options\"]",
         "label": "현장 요구 사양",
-        "description": "현장 출입 필수 안전스펙 체크",
+        "description": "현장 반입 필수 안전스펙 21개 체크리스트",
         "colorToken": "BLUE",
         "type": "CALLOUT"
       },
@@ -929,85 +925,78 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "callout",
-        "label": "현장 검색 및 선택",
-        "description": "[현장 검색 및 선택] 화면 영역입니다. 옵션 단가를 설정할 대상 현장을 검색하고 선택하는 기본 기능을 제공합니다.",
+        "label": "물리 현장 검색 및 선택",
+        "description": "[현장 검색 및 선택] 화면 영역입니다. 유상옵션·무상옵션·요구사양을 설정할 대상 물리 현장을 검색하고 선택합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"table-paid-options\"]",
         "type": "highlight",
-        "label": "현장 안전옵션 매트릭스",
-        "description": "[현장 안전옵션 매트릭스] 화면 영역입니다. 해당 현장의 유상옵션 및 법정 안전사양 단가를 실시간 조망하는 기본 기능을 제공합니다.",
+        "label": "현장 유상옵션·무상옵션·요구사양 매트릭스",
+        "description": "[현장 옵션 매트릭스] 화면 영역입니다. 해당 현장의 유상옵션, 무상옵션 및 법정 안전 요구사양을 실시간 설정합니다.",
         "positionHint": "top"
       }
     ],
     "processes": [
       {
         "processId": "process_site_master_options",
-        "title": "옵션 품목 마스터 정렬 및 삭제",
-        "description": "전사 기준 풀에 등록된 옵션 품목들을 헤더를 클릭하여 정렬하고, 불필요한 마스터 옵션은 수정 모달에서 삭제합니다.",
+        "title": "옵션 품목 마스터 정렬 및 수정·삭제",
+        "description": "전사 기준 풀에 등록된 유상옵션·무상옵션 품목들을 정렬하고 수정 모달에서 단가 변경 또는 삭제를 수행합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "th:contains('분류'), th:contains('옵션 품목명'), th:contains('기준단가'), th:contains('단위'), th:contains('설명'), th:contains('상태')",
+            "selector": "th:contains(\"분류\"), th:contains(\"옵션 품목명\"), th:contains(\"기준단가\")",
             "type": "click_ripple",
-            "label": "헤더 클릭 정렬",
-            "description": "[헤더 클릭 정렬] UI 요소를 조작합니다. 테이블 헤더를 클릭하여 오름차순, 내림차순, 정렬 안 함 순으로 목록을 정렬하십시오.",
+            "label": "테이블 헤더 클릭 정렬",
+            "description": "테이블 컬럼 헤더를 클릭하여 오름차순·내림차순으로 옵션 마스터를 정렬합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "td button:contains('수정')",
+            "selector": "td button:contains(\"수정\")",
             "type": "click_ripple",
-            "label": "옵션 수정 버튼",
-            "description": "[옵션 수정 버튼] UI 요소를 조작합니다. 수정할 옵션의 우측 수정 버튼을 클릭하여 수정 모달을 엽니다."
-          },
-          {
-            "seq": 3,
-            "selector": "button:contains('삭제')",
-            "type": "highlight",
-            "label": "옵션 마스터 삭제",
-            "description": "[옵션 마스터 삭제] UI 요소에 값을 입력하거나 조작합니다. 수정 모달 하단의 삭제 버튼을 눌러 불필요한 옵션 마스터를 전사 풀에서 제거하십시오.",
+            "label": "옵션 마스터 수정 및 삭제",
+            "description": "수정할 옵션 행의 [수정] 버튼을 클릭하여 기준단가를 변경하거나 하단 [삭제] 버튼으로 제거합니다.",
             "positionHint": "top"
           }
         ]
       },
       {
         "processId": "process_site_options_sync",
-        "title": "현장별 안전옵션 특약 설정 및 저장",
-        "description": "현장 특성에 맞는 안전옵션을 지정하고 계약 및 배차 파이프라인으로 100% 자동 연동합니다.",
+        "title": "현장별 유상옵션·무상옵션·요구사양 설정 및 저장",
+        "description": "물리 현장 특성에 맞는 유상옵션, 무상옵션, 요구사양을 지정하고 계약 및 출고 검수 파이프라인으로 자동 연동합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid=\"panel-site-scope\"]",
             "type": "callout",
-            "label": "관리 대상 현장 선택",
-            "description": "[관리 대상 현장 선택] UI 요소를 조작합니다. 좌측 현장 목록에서 옵션을 설정할 공사 현장을 선택하십시오.",
+            "label": "관리 대상 물리 현장 선택",
+            "description": "좌측 현장 목록에서 옵션을 설정할 공사 현장(SiteMaster)을 선택합니다.",
             "positionHint": "right"
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"table-paid-options\"]",
             "type": "click_ripple",
-            "label": "유상 옵션 항목 설정",
-            "description": "[유상 옵션 항목 설정] UI 요소에 값을 입력하거나 조작합니다. 현장에 투입될 유상옵션 적용 여부와 특약단가를 설정하십시오.",
+            "label": "유상옵션 항목 및 특약단가 설정",
+            "description": "현장에 투입될 유상옵션 적용 여부와 특약단가를 설정합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"card-protection-options\"]",
             "type": "highlight",
-            "label": "보양 작업 규격 선택",
-            "description": "[보양 작업 규격 선택] UI 요소를 조작합니다. 현장 환경에 부합하는 보호 완충/함석 보양 규격을 선택하십시오.",
+            "label": "무상옵션 규격 선택",
+            "description": "현장 환경에 부합하는 무상옵션 규격을 선택합니다.",
             "positionHint": "top"
           },
           {
             "seq": 4,
             "selector": "[data-mid=\"btn-save-site-options\"]",
             "type": "click_ripple",
-            "label": "옵션 설정 확정 저장",
-            "description": "[옵션 설정 확정 저장] UI 요소에 값을 입력하거나 조작합니다. 변경된 현장 안전옵션 구성을 DB에 영구 저장하십시오.",
+            "label": "현장 옵션 설정 확정 저장",
+            "description": "우하단 [현장 옵션 설정 저장] 버튼을 눌러 SiteMaster DB에 영구 저장합니다.",
             "positionHint": "bottom"
           }
         ]
@@ -1017,20 +1006,22 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "tabId": "MASTER_OPTIONS",
         "tabName": "옵션 마스터",
-        "purpose": "전사 표준 안전/유상 옵션 항목 관리",
+        "purpose": "전사 표준 유상옵션·무상옵션·요구사양 품목 및 기준단가 관리",
         "keyActions": [
-          "옵션 추가",
-          "단가 설정"
+          "신규 옵션 마스터 추가",
+          "헤더 클릭 정렬",
+          "옵션 수정 및 삭제"
         ]
       },
       {
         "tabId": "SITE_OPTIONS",
         "tabName": "현장별 옵션",
-        "purpose": "물리 현장별 필수 적용 옵션 프로필 설정",
+        "purpose": "물리 현장(SiteMaster)별 유상옵션·무상옵션·현장요구사양 프로필 설정",
         "keyActions": [
           "현장 선택",
-          "옵션 토글",
-          "보양 작업 지정"
+          "유상옵션 토글 및 특약단가 입력",
+          "무상옵션 지정",
+          "현장요구사양 체크"
         ]
       }
     ],
@@ -1040,174 +1031,148 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "triggerButton": "현장 정보 수정",
         "keyFields": [
           "현장명",
-          "주소",
-          "진입 제한 높이",
-          "통제구역 여부"
+          "현장 실주소",
+          "가동 상태(진행중/종료)",
+          "현장 특이사항 메모"
         ],
         "terminalAction": "저장",
-        "afterStateTransition": "SiteMaster 물리 속성 갱신 (전사 동기화)"
+        "afterStateTransition": "SiteMaster 물리 속성 갱신 (연결된 N개 고객사 전체에 즉시 동기화)"
       },
       {
-        "modalName": "옵션 마스터 등록 모달 (MasterModal)",
-        "triggerButton": "신규 옵션 등록",
+        "modalName": "옵션 마스터 등록·수정 모달 (MasterModal)",
+        "triggerButton": "신규 옵션 등록 / 수정",
         "keyFields": [
-          "옵션 코드",
-          "옵션 명칭",
-          "유무상 구분",
-          "표준 장착비"
+          "분류(유상옵션/무상옵션/요구사양)",
+          "옵션 품목명",
+          "기준단가",
+          "단위"
         ],
-        "terminalAction": "저장",
-        "afterStateTransition": "전사 공통 옵션 마스터 추가"
+        "terminalAction": "저장 / 삭제",
+        "afterStateTransition": "전사 공통 옵션 마스터(StandardOption) 갱신"
       }
     ]
   },
   {
     "menuId": "contract",
-    "version": 12,
+    "version": 16,
     "menuName": "계약 관리",
     "basicGuide": [
       {
         "seq": 1,
         "selector": "div[data-mid=\"contract-detailed-filters\"]",
         "type": "highlight",
-        "label": "상세 검색 필터",
-        "description": "[상세 검색 필터] 화면 영역입니다. 다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
+        "label": "상세 검색 및 진행상태 필터",
+        "description": "[상세 검색 필터] 영역입니다. 고객사, 현장, 모델명 검색과 함께 전체/출고진행/진행중/종결건 상태별로 계약을 신속히 스코핑합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "div[data-mid=\"contract-table\"]",
         "type": "highlight",
-        "label": "계약 목록 그리드",
-        "description": "[계약 목록 그리드] 화면 영역입니다. 조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
+        "label": "계약 대장 그리드 및 출고 4대 마일스톤",
+        "description": "[계약 목록 그리드] 영역입니다. 배차·장비할당·출고검수·계약서패키지 4대 마일스톤 배지를 확인하고 1열 [상세 ➔] 버튼으로 진입합니다.",
         "positionHint": "top"
-      },
-      {
-        "seq": 3,
-        "selector": "div[data-mid=\"contract-filter-panel\"] > div:nth-child(3)",
-        "type": "highlight",
-        "label": "상태별 퀵 필터",
-        "description": "[상태별 퀵 필터] 화면 영역입니다. 진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링하는 기본 기능을 제공합니다.",
-        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
         "processId": "process_contract_register",
-        "title": "신규 계약 등록",
-        "description": "새로운 렌탈 계약을 등록하고 자산을 할당하는 절차입니다.",
+        "title": "신규 렌탈·매각 계약 등록 (중복 현장 인터셉트 연동)",
+        "description": "고객사와 물리 현장을 선택하고 장비 바스켓을 구성하여 신규 계약을 체결합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "button[data-mid=\"btn-new-contract\"]",
             "type": "click_ripple",
-            "label": "신규 등록 탭 진입",
-            "description": "[신규 등록 탭 진입] UI 요소를 조작합니다. '신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
+            "label": "신규 계약 등록 진입",
+            "description": "우상단 [+ 신규 계약 등록] 버튼을 클릭하여 작성 화면으로 진입합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "div[data-mid=\"create-contract-cust\"] select",
             "type": "callout",
-            "label": "고객사 선택",
-            "description": "[고객사 선택] UI 요소를 조작합니다. 계약을 체결할 고객사를 검색하고 선택하십시오."
+            "label": "고객사 및 물리 현장 선택",
+            "description": "계약 고객사와 현장을 선택합니다. 동일 고객+현장에 활성 계약이 있으면 기존 계약 장비 추가 안내 모달이 자동 작동합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "div[data-mid=\"create-contract-start-date\"] input",
-            "type": "callout",
-            "label": "계약 시작일 지정",
-            "description": "[계약 시작일 지정] UI 요소를 조작합니다. 렌탈이 시작되는 계약 시작일을 입력하십시오."
+            "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
+            "type": "click_ripple",
+            "label": "장비 바스켓 담기 및 단가 설정",
+            "description": "투입할 제품 모델, 수량, 월/일 렌탈료 및 운송비 조건을 설정하여 바스켓에 추가합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 4,
-            "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
-            "type": "click_ripple",
-            "label": "자산 바스켓 추가",
-            "description": "[자산 바스켓 추가] UI 요소에 값을 입력하거나 조작합니다. 제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
-          },
-          {
-            "seq": 5,
             "selector": "button[data-mid=\"create-contract-submit\"]",
             "type": "click_ripple",
-            "label": "계약 등록 완료",
-            "description": "[계약 등록 완료] UI 요소를 조작합니다. 모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료하십시오."
+            "label": "계약 체결 완료",
+            "description": "[계약 등록] 버튼을 클릭하여 계약 원장 생성 및 출고 배차 의뢰를 동시에 발행합니다.",
+            "positionHint": "bottom"
           }
         ]
       },
       {
         "processId": "process_contract_extend",
-        "title": "계약 연장 및 단축",
-        "description": "진행 중인 계약의 기간을 변경(연장/단축)하는 절차입니다.",
+        "title": "선택적 기간 연장·단축 및 현장간 장비 이동",
+        "description": "계약 체결 장비 전체 또는 일부 장비를 선택하여 기간을 연장/단축하거나 타 현장으로 이동(Site Transfer) 처리합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "button[data-mid=\"contract-detail-action\"]",
             "type": "click_ripple",
-            "label": "계약 상세 진입",
-            "description": "[계약 상세 진입] UI 요소를 조작합니다. 진행 중인 계약 목록에서 '상세 ' 버튼을 클릭하십시오."
+            "label": "계약 상세 스튜디오 진입",
+            "description": "계약 목록 1열의 [상세 ➔] 버튼을 클릭하여 계약 상세 화면을 엽니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "div[data-subview=\"contract_detail\"] > div.card:first-child button.btn-primary",
+            "selector": "div[data-subview=\"contract_detail\"] button.btn-primary",
             "type": "click_ripple",
-            "label": "기간 연장/단축 실행",
-            "description": "[기간 연장/단축 실행] UI 요소를 조작합니다. 화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
+            "label": "기간 연장/단축 또는 현장 이동 실행",
+            "description": "상단 액션 바에서 [기간 연장/단축], [계약 승계], 또는 [현장간 장비 이동] 버튼을 클릭합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"date\"]",
-            "type": "callout",
-            "label": "종료일 변경",
-            "description": "[종료일 변경] UI 요소를 조작합니다. 새롭게 변경할 만료일(종료일)을 지정하십시오."
-          },
-          {
-            "seq": 4,
             "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
             "type": "click_ripple",
-            "label": "변경 내용 저장",
-            "description": "[변경 내용 저장] UI 요소를 조작합니다. 사유를 기재한 후 '저장' 버튼을 클릭해 반영하십시오."
+            "label": "대상 장비 선택 및 변경 확정",
+            "description": "적용할 장비를 체크하고 변경 일자·사유를 입력한 뒤 저장하여 계약 이력(contractHistory)에 반영합니다.",
+            "positionHint": "bottom"
           }
         ]
       },
       {
         "processId": "process_contract_exchange",
-        "title": "대차 출고 의뢰",
-        "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
+        "title": "대차 출고 의뢰 (단일 EXCHANGE 왕복 배차)",
+        "description": "현장 가동 장비 고장 시 단일 EXCHANGE 왕복 배차 의뢰를 발행하고 계약 속성을 자동 승계합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "button[data-mid=\"contract-detail-action\"]",
             "type": "click_ripple",
             "label": "계약 상세 진입",
-            "description": "[계약 상세 진입] UI 요소를 조작합니다. 진행 중인 계약 목록에서 '상세 ' 버튼을 클릭하십시오."
+            "description": "대상 계약의 1열 [상세 ➔] 버튼을 클릭합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "div[data-subview=\"contract_detail\"] > div:nth-child(3) > div:nth-child(2) > div:first-child button.btn-secondary",
+            "selector": "div[data-subview=\"contract_detail\"] button.btn-secondary",
             "type": "click_ripple",
-            "label": "대차 의뢰 실행",
-            "description": "[대차 의뢰 실행] UI 요소를 조작합니다. 체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭하십시오."
+            "label": "자산 교체/대차 의뢰 모달 오픈",
+            "description": "체결 자산 목록 상단의 [자산 교체/대차 의뢰] 버튼을 클릭합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "div[style*=\"z-index: 1000\"] form.card select:first-of-type",
-            "type": "callout",
-            "label": "회수 자산 선택",
-            "description": "[회수 자산 선택] UI 요소를 조작합니다. 회수할 기존 자산 번호 혹은 모델을 선택하십시오."
-          },
-          {
-            "seq": 4,
-            "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"text\"]",
-            "type": "callout",
-            "label": "사유 입력",
-            "description": "[사유 입력] UI 요소에 값을 입력하거나 조작합니다. 대차가 필요한 사유 및 현장 상황을 기재하십시오."
-          },
-          {
-            "seq": 5,
             "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
             "type": "click_ripple",
-            "label": "대차 의뢰 완료",
-            "description": "[대차 의뢰 완료] UI 요소를 조작합니다. '대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행하십시오."
+            "label": "회수 전자산 지정 및 단일 EXCHANGE 발행",
+            "description": "회수할 전자산과 교체 사유를 입력하고 [대차 의뢰 접수]를 눌러 1건의 EXCHANGE 왕복 배차를 발행합니다.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -1216,103 +1181,106 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "렌탈 계약 체결, 기간 연장/단축, 단가 변경, 현장 이동 및 계약 승계 관리",
-    "scopeInfo": "고객사, 현장 주소, 요구 장비 규격/수량, 임대 시작/종료일, 월 렌탈료 단가, 청구 마감일 조건",
+    "objective": "렌탈·매각 계약 체결, 출고 4대 마일스톤 관제, 선택적 기간 연장/단축·계약 승계, 현장간 장비 이동(Site Transfer), EXCHANGE 대차 의뢰 및 계약서 패키지 발송",
+    "scopeInfo": "계약 유형(렌탈 계약 RENTAL / 자산 매각 계약 SALE), 진행 상태 필터(전체 / 출고진행 / 진행중 / 종결건), 출고 4대 마일스톤(배차·장비할당·출고검수·계약서패키지), 체결 자산 슬롯(ContractAsset), 계약 변경 이력(ContractHistory)",
     "cognitiveSequence": [
-      "1. 계약 조회 조건 설정 및 스코핑 (고객사, 현장, 계약기간, 진행상태 필터링)",
-      "2. 계약 운용 실시간 KPI 지표 검토 (총 계약건수, 진행/연장, 만료임박, 월 렌탈료 합계)",
-      "3. 통합 빠른 검색 및 계약 유형 전환 (렌탈 계약 ↔ 매각 계약 1클릭 전환)",
-      "4. 고밀도 계약 대장 그리드 1:1 대사 (출고 마일스톤, 투입 장비 모델/수량, 마감일 검증)",
-      "5. 계약 상세 조회 및 라이프사이클 조치 ([상세 ] 클릭: 기간변경, 단가조정, EXCHANGE 대차)",
-      "6. 계약서 패키지 통합 발행 및 엑셀 대장 출력 (계약서·작업지시서·안전옵션 PDF 및 엑셀)",
-      "7. 신규 계약 작성 및 전자 체결 ([+ 신규 계약 등록] 클릭: 고객/현장 매핑 및 장비 단가 체결)"
+      "1. 계약 유형 및 상태 스코핑: 상단 탭에서 [렌탈 계약] 또는 [자산 매각 계약]을 선택하고, 진행 상태 칩(전체 / 출고진행 / 진행중 / 종결건)으로 대상을 필터링 (종결건 선택 시 세부 상태 필터 자동 연동)",
+      "2. 계약 운용 실시간 KPI 검토: 총 계약건수, 출고진행(출고검수 완료 대기 포함), 진행중, 만료임박, 종결건 및 월 렌탈료 합계 확인",
+      "3. 고밀도 계약 대장 그리드 1:1 대사: 1열 [상세 ➔] 버튼, 출고 진행 4대 마일스톤(배차·장비할당·출고검수·계약서패키지) 배지, 투입 모델/수량, 청구 마감일 확인",
+      "4. 계약서 패키지 조립 및 발송: [계약서패키지] 배지 또는 상세 화면에서 임대차계약서, 반입전체크리스트({점검일시}={배차일-2} 및 {점검자} 자동 기입), R2 안전인증서·제원표(Eq_doc/{모델명}/)를 원클릭 패키징하여 이메일 발송",
+      "5. 계약 상세 라이프사이클 조치: [상세 ➔] 진입 후 전체 또는 일부 장비 선택적 [기간 연장/단축], [단가 변경], [선택적 계약 승계], [현장간 장비 이동], [EXCHANGE 대차 의뢰] 수행",
+      "6. 동일 고객+현장 중복 계약 인터셉트: 신규 계약 작성 시 동일 고객사·동일 물리 현장에 활성 계약이 존재하면 기존 계약 장비 추가(ADD_ASSET)로 자동 안내",
+      "7. 모든 계약 변동 이벤트를 contractHistory 타임라인에 무누락 보존하고 정밀 일할 매출 기여액(헌장 4.1) 정합성 확정"
     ],
     "subTabs": [
       {
-        "tabId": "ACTIVE",
-        "tabName": "진행중 계약",
-        "purpose": "현재 가동 중인 렌탈 계약 목록",
+        "tabId": "RENTAL_TAB",
+        "tabName": "렌탈 계약 대장",
+        "purpose": "장비 임대차 계약 목록, 출고 4대 마일스톤 및 가동·연장·대차·종결 관리",
         "keyActions": [
-          "계약 상세",
-          "기간 연장",
-          "단가 변경",
-          "대차 교체"
+          "출고진행/진행중/종결건 필터",
+          "계약서 패키지 발송",
+          "선택적 기간 연장/단축",
+          "현장간 장비 이동",
+          "EXCHANGE 대차 의뢰"
         ]
       },
       {
-        "tabId": "TERMINATED",
-        "tabName": "종료 계약",
-        "purpose": "회수 완료 및 마감된 계약 이력",
+        "tabId": "SALE_TAB",
+        "tabName": "자산 매각 계약 대장",
+        "purpose": "중고/유휴 자산 매각 계약 체결, 일시불/할부 대금 일정 및 인도 조건 관리",
         "keyActions": [
-          "계약서 열람",
-          "정산 내역 검토"
+          "매각 계약 등록",
+          "매각 청구서 연동",
+          "매각 자산 상태 전환"
         ]
       }
     ],
     "modalWorkflows": [
       {
-        "modalName": "단가 변경 모달 (FeeModal)",
-        "triggerButton": "단가 변경",
+        "modalName": "선택적 기간 연장/단축 모달 (ExtendModal)",
+        "triggerButton": "기간 연장/단축",
         "keyFields": [
-          "변경 월 임대료",
-          "변경 일 임대료",
-          "적용 시작일",
-          "변경 사유"
+          "대상 장비 체크박스 선택(전체 또는 일부 장비 분할 연장/단축)",
+          "변경 종료일자",
+          "변경 사유(결재선 연동)"
         ],
-        "terminalAction": "단가 확정",
-        "afterStateTransition": "해당 일자 이후 일할 단가 승계 반영"
-      },
-      {
-        "modalName": "기간 연장/단축 모달 (ExtendModal)",
-        "triggerButton": "기간 변경",
-        "keyFields": [
-          "변경 계약 종료일",
-          "변경 사유"
-        ],
-        "terminalAction": "기간 확정",
-        "afterStateTransition": "계약 종료일 갱신 및 가동일수 재계산"
+        "terminalAction": "변경 내용 저장",
+        "afterStateTransition": "선택된 장비의 종료일 갱신(일부 장비만 변경 시 개별 슬롯 기간 분리) 및 이력 보존"
       },
       {
         "modalName": "대차 교체 의뢰 모달 (ExchangeModal)",
-        "triggerButton": "대차 요청",
+        "triggerButton": "자산 교체/대차 의뢰",
         "keyFields": [
-          "회수 대상 자산",
-          "대차 투입 모델",
+          "회수 대상 전자산",
+          "대차 요구 모델(동일/동등 제원)",
           "교체 희망일",
           "교체 사유"
         ],
-        "terminalAction": "대차 의뢰 발행",
-        "afterStateTransition": "단일 EXCHANGE 배차 의뢰 발행 및 최초 계약 조건 100% 자동 상속"
+        "terminalAction": "대차 의뢰 접수",
+        "afterStateTransition": "헌장 2.3 단일 EXCHANGE 왕복 배차 의뢰 1건 발행 및 계약 속성 100% 자동 상속"
       },
       {
-        "modalName": "계약 승계 모달 (TransferModal)",
-        "triggerButton": "계약 승계",
+        "modalName": "선택적 계약 승계 및 현장간 이동 모달 (TransferModal)",
+        "triggerButton": "계약 승계 / 현장 이동",
         "keyFields": [
-          "승계 양수 고객사",
-          "승계 일자",
-          "미수금 인계 여부"
+          "승계/이동 대상 장비 선택",
+          "양수 고객사 또는 이동할 신규 현장(SiteMaster)",
+          "승계/이동 기준일자",
+          "이동 배차 발행 여부"
         ],
-        "terminalAction": "승계 완료",
-        "afterStateTransition": "기존 계약 마감 및 신규 고객사 승계 계약 자동 체결"
+        "terminalAction": "승계/이동 확정",
+        "afterStateTransition": "기존 계약 전일 마감 및 신규 고객사/현장 당일 승계 계약 자동 생성"
+      },
+      {
+        "modalName": "계약서 패키지 조립 및 발송 모달 (PackageModal)",
+        "triggerButton": "[계약서패키지] 마일스톤 배지 또는 [패키지 발송]",
+        "keyFields": [
+          "임대차계약서",
+          "02.반입전체크리스트.xlsx({점검일시}={배차일-2}, {점검자} 자동 기입)",
+          "R2 장비 제원표·안전인증서(Eq_doc/{모델명}/)",
+          "수신자 이메일"
+        ],
+        "terminalAction": "패키지 통합 발송",
+        "afterStateTransition": "계약 packageSentAt 기록 및 4대 마일스톤 [계약서패키지] 완료 전환"
       }
     ],
-    "auditResult": "계약별 총 청구액 = 자산별 누적 매출 기여액 합계 보존 및 계약 상태 일치",
+    "auditResult": "계약별 총 청구액 = 자산별 누적 매출 기여액 합계 보존, 출고 4대 마일스톤 및 계약 변경 이력 100% 일치",
     "rulesCompliance": [
-      "헌장 2.1 [부서 R&R 엄격 분리]: 영업부서는 계약 관점 대차 요구 발행만 담당, 개별 자산번호 직접 선택 금지",
-      "헌장 2.2 [계약 속성 100% 자동 상속]: 대차 장비는 최초 계약 단가/마감일/현장속성 자동 상속",
-      "헌장 4.1 [자산별 매출 기여액 정밀 일할 집계]: 전자산 전일 마감  후장비 당일 승계 완벽 일치",
-      "헌장 4.2 [대차 교체 1:1 완벽 추적성]: contractHistory에 CHANGE_TYPE=EXCHANGE 무누락 보존"
+      "헌장 1.3 [출고 검수 승인 시 RENTED 전환]: 체결 자산이 모두 출고검수 승인(RENTED)되기 전까지는 [출고진행] 상태로 구분 표기하여 현장 투입 진행률을 명확히 관제",
+      "헌장 2.1~2.3 [영업/출고 R&R 분리 · 계약 속성 상속 · 단일 EXCHANGE 배차]: 대차 의뢰 시 1건의 EXCHANGE 왕복 배차만 발행하며 단가·마감일 100% 자동 상속",
+      "헌장 4.1~4.2 [자산별 매출 기여액 일할 집계 및 1:1 추적성]: 전자산 전일 마감 ➔ 후장비 당일 승계 및 현장 이동 시 일할 매출 1원 오차 없이 집계"
     ],
     "precautions": [
-      "계약 기간 연장/단축 시 반드시 [기간 변경] 기능을 통해 일할 정산 기준일 갱신 필수",
-      "현장 주소 오기입 시 배차 운송비 차액이 발생하므로 도로명 주소 정밀 확인"
+      "진행 상태 필터에서 [종결건] 칩을 클릭하면 상단 세부 상태 드롭다운도 자동으로 전체/종결 상태로 연동되어 종결된 계약이 즉시 조회됩니다.",
+      "[출고진행]은 계약 소속 장비 중 아직 배차·장비할당·출고검수가 완료되지 않은 장비가 남아 있는 상태이며, 모든 장비가 출고검수 승인(대여중)되면 순수 가동 상태로 관리됩니다."
     ],
     "annotations": [
       {
         "seq": 1,
         "selector": "[data-mid=\"contract-kpi-summary\"]",
         "label": "계약 KPI 요약",
-        "description": "가동 계약수, 대여 자산수, 당월 청구 예정액",
+        "description": "전체, 출고진행, 진행중, 만료임박, 종결건 및 월 렌탈료 합계",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
@@ -1320,7 +1288,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"contract-filter-panel\"]",
         "label": "계약 조회 스코프",
-        "description": "거래처, 현장, 영업담당자 다차원 필터",
+        "description": "렌탈/매각 탭, 상태 칩(출고진행/진행중/종결건) 및 다차원 필터",
         "colorToken": "PURPLE",
         "type": "HIGHLIGHT_BOX"
       },
@@ -1328,15 +1296,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"contract-search-bar\"]",
         "label": "계약 통합 검색",
-        "description": "계약번호, 현장명 고속 검색",
+        "description": "계약번호, 고객사, 현장명, 호기번호 고속 검색",
         "colorToken": "AMBER",
         "type": "CALLOUT"
       },
       {
         "seq": 4,
         "selector": "[data-mid=\"contract-table\"]",
-        "label": "계약 대장 그리드",
-        "description": "체결 계약 상세, 기간, 단가, 가동 자산 현황",
+        "label": "계약 대장 및 출고 4대 마일스톤",
+        "description": "배차·장비할당·출고검수·계약서패키지 실시간 상태 및 상세 진입",
         "colorToken": "GREEN",
         "type": "HIGHLIGHT_BOX"
       }
@@ -1344,7 +1312,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "contract_create",
-    "version": 12,
+    "version": 16,
     "menuName": "신규 계약 등록",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -1502,22 +1470,24 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "billing",
-    "version": 12,
-    "menuName": "청구 / 수납 관리",
+    "version": 16,
+    "menuName": "청구 수납 관리",
     "basicGuide": [
       {
         "seq": 1,
         "selector": "[data-mid='tab-billing-wizard']",
         "type": "callout",
         "label": "정산 마법사 탭",
-        "description": "[정산 마법사 탭] 화면 영역입니다. 정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다."
+        "description": "[정산 마법사 탭] 화면 영역입니다. 정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다.",
+        "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "[data-mid='tab-billing-list']",
         "type": "callout",
         "label": "청구 대장 목록 탭",
-        "description": "[청구 대장 목록 탭] 화면 영역입니다. 생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다."
+        "description": "[청구 대장 목록 탭] 화면 영역입니다. 생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
@@ -1531,21 +1501,24 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-wizard']",
             "type": "click_ripple",
             "label": "정산 마법사 탭 이동",
-            "description": "[정산 마법사 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구서를 생성하기 위해 미청구 정산 탭으로 이동하십시오."
+            "description": "[정산 마법사 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구서를 생성하기 위해 미청구 정산 탭으로 이동하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"wizard-period-scope\"] button:nth-child(2)",
             "type": "click_ripple",
             "label": "조회 기간 설정",
-            "description": "[조회 기간 설정] UI 요소를 조작합니다. 마감일 기준 검색 기간에서 당월을 선택하십시오."
+            "description": "[조회 기간 설정] UI 요소를 조작합니다. 마감일 기준 검색 기간에서 당월을 선택하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"wizard-bulk-generate-btn\"]",
             "type": "click_ripple",
             "label": "일괄 청구 생성",
-            "description": "[일괄 청구 생성] UI 요소에 값을 입력하거나 조작합니다. 외상미수금이 없는 일반 계약들을 대상으로 일괄 청구서를 생성하십시오."
+            "description": "[일괄 청구 생성] UI 요소에 값을 입력하거나 조작합니다. 외상미수금이 없는 일반 계약들을 대상으로 일괄 청구서를 생성하십시오.",
+            "positionHint": "bottom"
           }
         ]
       },
@@ -1559,14 +1532,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
             "label": "청구 대장 목록 탭 이동",
-            "description": "[청구 대장 목록 탭 이동] UI 요소를 확인합니다. 청구 내역을 확인하기 위해 청구 대장 탭으로 이동하십시오."
+            "description": "[청구 대장 목록 탭 이동] UI 요소를 확인합니다. 청구 내역을 확인하기 위해 청구 대장 탭으로 이동하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"billing-mail-btn\"]:first-of-type",
             "type": "click_ripple",
             "label": "이메일 발송 버튼 클릭",
-            "description": "[이메일 발송 버튼 클릭] UI 요소를 조작합니다. 목록에서 대상 청구건의 발송 버튼을 클릭하여 거래명세서를 전송하십시오."
+            "description": "[이메일 발송 버튼 클릭] UI 요소를 조작합니다. 목록에서 대상 청구건의 발송 버튼을 클릭하여 거래명세서를 전송하십시오.",
+            "positionHint": "bottom"
           }
         ]
       },
@@ -1580,28 +1555,32 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
             "label": "청구 대장 목록 탭 이동",
-            "description": "[청구 대장 목록 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구 대장 탭으로 이동하십시오."
+            "description": "[청구 대장 목록 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구 대장 탭으로 이동하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid='billing-list-item']",
             "type": "click_ripple",
             "label": "청구서 선택",
-            "description": "[청구서 선택] UI 요소를 조작합니다. 목록에서 취소 또는 분할할 청구서를 클릭하여 상세 내역을 엽니다."
+            "description": "[청구서 선택] UI 요소를 조작합니다. 목록에서 취소 또는 분할할 청구서를 클릭하여 상세 내역을 엽니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
             "selector": "[data-mid='btn-rollback-billing']",
             "type": "callout",
             "label": "청구 취소 (롤백)",
-            "description": "[청구 취소 (롤백)] UI 요소를 조작합니다. 이 버튼을 클릭하면 해당 청구서를 취소하고 최근 청구 정보를 직전 유효 상태로 되돌립니다."
+            "description": "[청구 취소 (롤백)] UI 요소를 조작합니다. 이 버튼을 클릭하면 해당 청구서를 취소하고 최근 청구 정보를 직전 유효 상태로 되돌립니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 4,
             "selector": "[data-mid='btn-split-billing']",
             "type": "callout",
             "label": "청구 분할",
-            "description": "[청구 분할] UI 요소에 값을 입력하거나 조작합니다. 이 버튼을 통해 하나의 청구서를 금액 기준으로 두 개의 청구서로 나눌 수 있습니다."
+            "description": "[청구 분할] UI 요소에 값을 입력하거나 조작합니다. 이 버튼을 통해 하나의 청구서를 금액 기준으로 두 개의 청구서로 나눌 수 있습니다.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -1610,24 +1589,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업/재무팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "월별 렌탈료 청구서 산출, 거래명세서 발행, 입금 수납 처리 및 미수금 정산",
-    "scopeInfo": "청구 귀속월(YYYY-MM), 고객사 초성/상호, 계약번호, 수납 상태(완납/미납), 메일 발송 여부, 통합 인보이스 구분",
+    "objective": "월별 렌탈료·운송비·수리비·매각대금 청구 산출, 00.거래명세서양식(39개 플레이스홀더) 정밀 출력, 공식메일설정 연동 발송 및 수납 대사",
+    "scopeInfo": "청구 귀속월(YYYY-MM), 고객사 초성/상호, 계약번호, 수납 상태(완납/부분수납/미납), 메일 발송 상태, 표준 거래명세서(00.거래명세서양식.xlsx 13행 레이아웃) 및 특수 거래명세서(custom_billing)",
     "cognitiveSequence": [
-      "1. 좌상단 청구 귀속 시작월~종료월 기간 설정",
-      "2. [당월] 및 [<], [>] 퀵 버튼으로 월 단위 빠른 점프 이동",
-      "3. 고객사 초성(예: ㅅㅅ) 또는 상호 입력으로 거래처 특정",
-      "4. 특정 계약 추적 시 계약번호 직접 입력",
-      "5. 수납 상태(전체/완납/미완료)로 미수 채권 청구서 추출",
-      "6. 메일 발송(미발송/발송) 및 통합 구분 필터링",
-      "7. [조회] 실행으로 DB 실시간 쿼리 및 [초기화]로 기본값 복원",
-      "8. 청구·수납 6대 종합 집계 (공급가, 세액, 총액, 수납액, 미수금, 통장잔액) 확인",
-      "9. 청구 대장 전체 데이터 엑셀(XLSX) 양식 다운로드",
-      "10. 월별 청구 대장 그리드에서 청구서 목록 조망 및 개별 행 클릭",
-      "11. 미납 청구서 [수납] 클릭  통장 입금 내역 1:1 매칭 및 영수 등록",
-      "12. [발송] 클릭  거래처 담당자에게 거래명세서 이메일 즉시 전송",
-      "13. 고객사 이의제기 시 [취소/재생성]으로 청구 취소 및 계약 직전 상태 롤백",
-      "14. 우측 명세서 스튜디오에서 장비별 일할 렌탈료 대조, [청구 분할 ️], 정품 PDF/엑셀 출력",
-      "15. 하단 회계 대차대조식 검증 바(청구총액 = 수납액 + 미수잔액) 무결성 확정 (Audit Result)"
+      "1. 좌상단 청구 귀속 시작월~종료월 기간 설정 및 [당월] / [<] / [>] 퀵 점프",
+      "2. 고객사 초성(예: ㅅㅅ) 또는 상호·계약번호 입력 및 수납 상태(전체/완납/미완료) 필터링",
+      "3. 청구·수납 6대 종합 집계(공급가, 세액, 청구총액, 수납액, 미수잔액, 통장잔액) 실시간 확인",
+      "4. 월별 청구 대장 그리드에서 청구서 목록 조망 및 개별 행 클릭하여 우측 명세서 스튜디오 오픈",
+      "5. 우측 명세서 스튜디오에서 장비별 일할 렌탈료 대조, [특수명세서 작성], [청구 분할], 표준 엑셀/PDF 출력(00.거래명세서양식.xlsx 39개 플레이스홀더 웹·에이전트 100% 동기화)",
+      "6. [발송] 클릭 시 중앙 공식메일설정(OfficialMailConfig) 연동 이메일 전송 (개발모드 시 안전 격리 / 서비스모드 시 실거래처 발송)",
+      "7. [수납] 클릭 시 통장 입금 내역 1:1 매칭 및 하단 대차대조 검증 바(📄 청구총액 = 🟢 수납액 + 🟡 미수잔액 | ⚖️ 대차 차액 ₩0) 무결성 확정"
     ],
     "subTabs": [
       {
@@ -1708,12 +1679,13 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "auditResult": "📄 청구총액 = 🟢 수납액 + 🟡 미수잔액 | ⚖️ 대차 차액 ₩0",
     "rulesCompliance": [
       "헌장 3.1 [무수식어 건조 UI 표준]: 과장된 수식어 전면 배제 및 건조한 명사·동사 단일 체계 준수",
-      "헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(1~7)  우상단(8~9)  중앙(10~14)  우하단(15) 실무 동선 일치",
-      "헌장 4.1 [정밀 일할 집계 정책]: 청구서별 장비 일할 렌탈료 및 추가비용 1:1 대사 검증"
+      "헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 스코프 ➔ 우상단 엑셀/정산 유입 ➔ 중앙 대장·스튜디오 ➔ 우하단 대차대조 검증 동선 일치",
+      "헌장 4.1 [정밀 일할 집계 정책]: 청구서별 장비 일할 렌탈료 및 추가비용(외상미수금 연동) 1:1 대사 검증",
+      "헌장 5.9 [외부 발송 안전 격리]: 테넌트 공식메일설정 개발모드/서비스모드 정책에 따라 거래명세서 메일 발송 제어"
     ],
     "precautions": [
-      "완납 처리된 청구서는 임의 삭제가 불가하므로 수납 전 입금 내역을 철저히 대조",
-      "취소/재생성 시 계약의 최근 청구 이력이 롤백되므로 이의제기 사유를 명확히 기재"
+      "완납 처리된 청구서는 임의 삭제가 불가하므로 수납 전 통장 입금 내역을 철저히 대조하십시오.",
+      "취소/재생성 시 계약의 최근 청구 마일스톤 이력이 직전 상태로 롤백되므로 이의제기 사유를 명확히 기재하십시오."
     ],
     "annotations": [
       {
@@ -1776,7 +1748,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "billing_wizard",
-    "version": 12,
+    "version": 16,
     "menuName": "미청구 정산",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -1902,7 +1874,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "billing_invoice",
-    "version": 12,
+    "version": 16,
     "menuName": "청구서통합",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -2029,7 +2001,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "billing_waiver",
-    "version": 12,
+    "version": 16,
     "menuName": "청구 면제 대장",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -2142,7 +2114,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "receivable",
-    "version": 11,
+    "version": 16,
     "menuName": "외상미수금 대장",
     "basicGuide": [
       {
@@ -2150,14 +2122,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": ".table-container",
         "type": "highlight",
         "label": "미수금 관리 그리드",
-        "description": "[미수금 관리 그리드] 화면 영역입니다. 미청구 및 부분 청구 잔액을 포함한 모든 외상미수금 내역을 조회·관리하는 기본 기능을 제공합니다."
+        "description": "[미수금 관리 그리드] 화면 영역입니다. 미청구 및 부분 청구 잔액을 포함한 모든 외상미수금 내역을 조회·관리하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": ".card:first-of-type",
         "type": "highlight",
         "label": "검색 및 필터 패널",
-        "description": "[검색 및 필터 패널] 화면 영역입니다. 고객사, 비용 유형, 청구 상태, 기간 범위를 지정하여 미수금을 조회하는 기본 기능을 제공합니다."
+        "description": "[검색 및 필터 패널] 화면 영역입니다. 고객사, 비용 유형, 청구 상태, 기간 범위를 지정하여 미수금을 조회하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
@@ -2171,28 +2145,32 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "click_ripple",
             "label": "신규 미수금 등록 버튼",
-            "description": "[신규 미수금 등록 버튼] UI 요소를 조작합니다. 등록 버튼을 클릭하여 외상미수금 입력 팝업 창을 엽니다."
+            "description": "[신규 미수금 등록 버튼] UI 요소를 조작합니다. 등록 버튼을 클릭하여 외상미수금 입력 팝업 창을 엽니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid='rec-modal-cost-type'] select",
             "type": "callout",
             "label": "비용 유형 선택",
-            "description": "[비용 유형 선택] UI 요소를 조작합니다. 발생한 비용의 적합한 항목(수리비, 운송비, 자재비 등)을 선택하십시오."
+            "description": "[비용 유형 선택] UI 요소를 조작합니다. 발생한 비용의 적합한 항목(수리비, 운송비, 자재비 등)을 선택하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
             "selector": "[data-mid='rec-modal-total-amount'] input",
             "type": "callout",
             "label": "청구 총액 입력",
-            "description": "[청구 총액 입력] UI 요소를 조작합니다. 청구할 외상미수금 총액을 입력하십시오."
+            "description": "[청구 총액 입력] UI 요소를 조작합니다. 청구할 외상미수금 총액을 입력하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 4,
             "selector": "[data-mid='rec-modal-submit-btn']",
             "type": "click_ripple",
             "label": "미수금 등록 확정",
-            "description": "[미수금 등록 확정] UI 요소를 조작합니다. 등록 완료 버튼을 클릭하여 신규 미수금 채권을 DB에 저장하십시오."
+            "description": "[미수금 등록 확정] UI 요소를 조작합니다. 등록 완료 버튼을 클릭하여 신규 미수금 채권을 DB에 저장하십시오.",
+            "positionHint": "bottom"
           }
         ]
       },
@@ -2206,14 +2184,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "table tbody tr:first-child button.btn-secondary",
             "type": "click_ripple",
             "label": "단독 청구 선택",
-            "description": "[단독 청구 선택] UI 요소를 조작합니다. 미결 미수금 행의 단독 청구 버튼을 클릭하십시오."
+            "description": "[단독 청구 선택] UI 요소를 조작합니다. 미결 미수금 행의 단독 청구 버튼을 클릭하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "body",
             "type": "callout",
             "label": "청구 사유 입력",
-            "description": "[청구 사유 입력] UI 요소를 조작합니다. 입력 창에 단독 청구 사유를 기재하여 발행을 진행하십시오."
+            "description": "[청구 사유 입력] UI 요소를 조작합니다. 입력 창에 단독 청구 사유를 기재하여 발행을 진행하십시오.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -2320,14 +2300,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"dispatch4-block-customer\"]",
         "type": "highlight",
         "label": "고객사 선택",
-        "description": "[고객사 선택] 화면 영역입니다. 출고를 진행할 대상 고객사를 선택하는 기본 기능을 제공합니다."
+        "description": "[고객사 선택] 화면 영역입니다. 출고를 진행할 대상 고객사를 선택하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"dispatch4-block-equipments\"]",
         "type": "highlight",
         "label": "장비 매핑",
-        "description": "[장비 매핑] 화면 영역입니다. 출고 요청된 모델 및 수량을 배차 주문에 매핑하는 기본 기능을 제공합니다."
+        "description": "[장비 매핑] 화면 영역입니다. 출고 요청된 모델 및 수량을 배차 주문에 매핑하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
@@ -2341,33 +2323,37 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dispatch4-customer-search\"]",
             "type": "callout",
             "label": "고객사 검색 및 선택",
-            "description": "[고객사 검색 및 선택] UI 요소를 조작합니다. 출고 대상 고객사를 검색하여 선택하십시오."
+            "description": "[고객사 검색 및 선택] UI 요소를 조작합니다. 출고 대상 고객사를 검색하여 선택하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"dispatch4-model-chips\"]",
             "type": "callout",
             "label": "요청 장비 추가",
-            "description": "[요청 장비 추가] UI 요소를 조작합니다. 출고할 고소작업대 모델을 선택하십시오."
+            "description": "[요청 장비 추가] UI 요소를 조작합니다. 출고할 고소작업대 모델을 선택하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"dispatch4-block-site\"]",
             "type": "callout",
             "label": "현장 정보 및 일정 입력",
-            "description": "[현장 정보 및 일정 입력] UI 요소를 조작합니다. 반입 현장 주소, 담당자 연락처 및 상하차 일정을 입력하십시오."
+            "description": "[현장 정보 및 일정 입력] UI 요소를 조작합니다. 반입 현장 주소, 담당자 연락처 및 상하차 일정을 입력하십시오.",
+            "positionHint": "bottom"
           },
           {
             "seq": 4,
             "selector": "[data-mid=\"dispatch4-btn-submit\"]",
             "type": "click_ripple",
             "label": "출고 의뢰 접수",
-            "description": "[출고 의뢰 접수] UI 요소를 조작합니다. 버튼을 클릭하여 출고 배차 의뢰를 최종 접수하십시오."
+            "description": "[출고 의뢰 접수] UI 요소를 조작합니다. 버튼을 클릭하여 출고 배차 의뢰를 최종 접수하십시오.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 11,
+    "version": 16,
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
@@ -2464,7 +2450,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "smart_return",
-    "version": 12,
+    "version": 16,
     "menuName": "회수 요청",
     "basicGuide": [
       {
@@ -2597,7 +2583,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "smart_as_request",
-    "version": 12,
+    "version": 16,
     "menuName": "AS 요청",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -2687,7 +2673,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "delinquency",
-    "version": 11,
+    "version": 16,
     "menuName": "미수 채권 연체 관리",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -2838,54 +2824,55 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "product",
-    "version": 11,
+    "version": 16,
     "menuName": "제품 관리",
     "groupId": "grp_product_asset",
-    "groupName": "제품 / 자산관리",
+    "groupName": "자산관리",
     "department": "자산/품질관리팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "고소작업대 모델별 제원 마스터, 작업높이, 적재중량 및 R2 매뉴얼 관리",
-    "scopeInfo": "제조사(스카이잭, 지니, 딩리, 시노붐 등), 모델 규격, 플랫폼 확장 제원, 전력 사양",
+    "objective": "고소작업대 모델별 19개 표준 제원(상세·수정·신규등록 100% 일치) 관리, 영문 대문자 정규화 캐스케이드 및 Cloudflare R2 제품 문서함(Eq_doc) 운영",
+    "scopeInfo": "19개 표준 관리 항목 — ①기본 식별/분류(7개: 모델명, 약칭/검색별칭, 제조사, 장비 분류, 동력원, 구동 방식, 운용 상태), ②핵심 작업 제원(5개: 최대 작업높이, 최대 발판높이, 장비 중량, 정격하중, 등판능력), ③차체·배터리 상세 치수(7개: 보관높이, 전체길이, 전체폭, 휠베이스, 발판 치수, 연장발판, 배터리 규격) 및 R2 클라우드 문서함(Eq_doc/{모델명}/)",
     "cognitiveSequence": [
-      "1. 장비 분류 스코핑 (시저형, 굴절형, 직진형, 궤도형 고소작업대)",
-      "2. 신규 모델명, 제조사, 플랫폼 최대 작업 높이 제원 입력",
-      "3. 정격 하중(수용 인원 및 공구 중량), 자체 중량, 등판각도 스펙 검증",
-      "4. 표준 월 렌탈료 단가표 및 일할 단가 기준 등록",
-      "5. 정기 안전인증(KCs) 및 비파괴 검사 기준 주기 설정",
-      "6. 권장 정비 부품 및 필수 소모품(배터리, 모터, 오일) BOM 매핑",
-      "7. 장비 모델 마스터 최종 승인 및 렌탈 자산 등록 가용화"
+      "1. 좌상단 (Scope): 제조사, 장비 분류(시저형/굴절형/직진형/마스트형 등), 동력원 및 모델명/약칭 검색 필터링",
+      "2. 우상단 (Pipeline): [+ 신규 제품 등록] 모달 오픈 또는 제품 대장 엑셀 내보내기 실행",
+      "3. 신규 등록 19개 제원 일괄 입력: 상세 조회·수정 화면과 100% 동일한 3대 섹션 19개 제원 항목을 신규 등록 시점에 누락 없이 입력",
+      "4. 중앙 좌측 (Product Grid): 등록된 장비 모델 목록에서 작업높이, 적재하중, 보유 자산 대수, 운용 상태 조망 및 대상 모델 선택",
+      "5. 중앙 우측 (Detail & Edit Studio): 선택한 모델의 19개 상세 제원 조망 및 [정보 수정] 전환 시 동일 19개 필드 인라인 편집 (모델명 대소문자 수정 시 소속 실물 자산 modelName 자동 캐스케이드 업데이트)",
+      "6. 하단 (Cloudflare R2 제품 문서함): Eq_doc/{모델명}/ 경로의 안전인증서(KCs), 제원표, 비상하강 매뉴얼 PDF를 실시간 조회·업로드·삭제 (계약서 패키지 발송 시 자동 첨부 연동)",
+      "7. 우하단 (Terminal Action): [저장] 클릭으로 제품 마스터 DB 및 연결 자산 모델명 정합성 확정"
     ],
-    "auditResult": "모델별 기술 제원 무결성 확보 및 실물 자산 매핑 100% 연결",
+    "auditResult": "상세 조회 · 수정 · 신규 등록 모달 간 19개 관리 제원 100% 일치, 모델명 대문자 정규화 캐스케이드 및 R2 문서함(Eq_doc) 연동 확정",
     "rulesCompliance": [
-      "헌장 5.3 [SSOT 단일 진실의 원천]: 모델 제원 정보를 전사 단일 마스터 테이블에서 관리",
-      "헌장 3.1 [무수식어 건조 UI]: \"최고급\", \"최신형\" 등 수식어 배제, 객관적 제원(m, kg) 표기"
+      "헌장 1.1 [최대 편익 달성]: 상세 화면에서 관리·수정 가능한 19개 모든 제원 항목을 신규 등록 모달에서도 동일하게 입력하도록 일원화하여 사후 재입력 번복 제거",
+      "헌장 3.4 [레이블-입력 필드 상하 스택 배치]: 3대 섹션 19개 입력 필드를 상하 세로 스택 그리드로 정교하게 배치",
+      "헌장 5.3 [SSOT 단일 진실의 원천]: 모델명 변경(소문자➔대문자 정규화 등) 시 소속 자산(assets.modelName)까지 원자적으로 일괄 동기화"
     ],
     "precautions": [
-      "작업 높이(Platform Height vs Working Height) 표기 혼동 방지 (작업높이 = 발판높이 + 2m)",
-      "차체 중량 오기입 시 셀프 배차 톤수 초과로 인한 과적 단속 위험 발생"
+      "모델명은 영문 대문자 표준(예: GS-1930, JCPT1008AC)으로 정규화되며, 기존 소문자 모델명을 대문자로 수정 저장하면 연결된 실물 자산도 자동 업데이트됩니다.",
+      "보유 자산이 연결되어 운용 중인 모델은 임의 삭제가 차단되며, 단종 처리 시 운용 상태를 [단종(비활성)]으로 변경하십시오."
     ],
     "annotations": [
       {
         "seq": 1,
-        "selector": "[data-mid=\"product-header\"]",
-        "label": "제품 모델 헤더",
-        "description": "고소작업대 모델 마스터 관리",
-        "colorToken": "BLUE",
-        "type": "STAMP"
-      },
-      {
-        "seq": 2,
-        "selector": "[data-mid=\"product-btn-add\"]",
-        "label": "모델 등록",
-        "description": "신규 장비 모델 마스터 추가",
+        "selector": "[data-mid=\"btn-new-product\"]",
+        "label": "신규 제품 등록 (19개 항목)",
+        "description": "상세/수정과 100% 동일한 19개 제원 신규 등록 모달",
         "colorToken": "GREEN",
         "type": "STAMP"
       },
       {
+        "seq": 2,
+        "selector": "[data-mid=\"product-list-panel\"]",
+        "label": "제품 모델 대장",
+        "description": "모델명, 작업높이, 보유 자산 대수 목록",
+        "colorToken": "BLUE",
+        "type": "HIGHLIGHT_BOX"
+      },
+      {
         "seq": 3,
-        "selector": "[data-mid=\"product-table\"]",
-        "label": "모델 대장 그리드",
-        "description": "작업높이, 적재중량, 보유대수, 매핑 현황",
+        "selector": "[data-mid=\"product-detail-panel\"]",
+        "label": "19개 제원 스튜디오 및 R2 문서함",
+        "description": "19개 상세 제원 인라인 수정 및 Eq_doc 클라우드 문서 관리",
         "colorToken": "AMBER",
         "type": "HIGHLIGHT_BOX"
       }
@@ -2893,118 +2880,103 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "[data-mid=\"product-type-filter\"], .type-filter-bar",
-        "type": "highlight",
-        "label": "장비 기종 분류",
-        "description": "[장비 기종 분류] 화면 영역입니다. 시저형, 굴절형, 직진형 등 장비 메커니즘별로 목록을 스코핑하는 기본 기능을 제공합니다.",
+        "selector": "[data-mid=\"btn-new-product\"]",
+        "type": "click_ripple",
+        "label": "신규 제품 등록 (19개 제원 통합 폼)",
+        "description": "[신규 제품 등록] 버튼입니다. 상세/수정 화면과 100% 동일한 19개 관리 항목(기본분류 7개 + 작업제원 5개 + 차체/배터리 7개)을 한 번에 입력하여 신규 모델을 등록합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
-        "selector": "[data-mid=\"product-model-input\"], .model-input-group",
+        "selector": "[data-mid=\"product-list-panel\"]",
         "type": "highlight",
-        "label": "모델명 및 작업 높이",
-        "description": "[모델명 및 작업 높이] 화면 영역입니다. 제조사와 모델명, 최대 플랫폼 작업 가능 높이(m)를 등록하는 기본 기능을 제공합니다.",
-        "positionHint": "bottom"
+        "label": "제품 모델 목록 및 검색",
+        "description": "[제품 모델 목록] 영역입니다. 모델명, 약칭, 제조사, 분류별로 검색하고 모델별 보유 자산 대수를 확인합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 3,
+        "selector": "[data-mid=\"product-detail-panel\"]",
+        "type": "highlight",
+        "label": "19개 제원 상세/수정 및 Cloudflare R2 문서함",
+        "description": "[제품 상세 및 R2 문서함] 영역입니다. 19개 제원을 조회·수정하고 Cloudflare R2(Eq_doc/{모델명}/)의 제원표·안전인증서 PDF를 업로드·열람합니다.",
+        "positionHint": "left"
       }
     ],
     "processes": [
       {
-        "processId": "main_process",
-        "title": "핵심 단위 업무 조작 흐름",
-        "description": "제품 관리의 주요 기능 조작 절차입니다.",
+        "processId": "product_register_19_specs",
+        "title": "19개 표준 제원 기반 신규 제품 모델 등록",
+        "description": "신규 고소작업대 도입 시 기본 분류(7개), 핵심 작업 제원(5개), 차체·배터리 상세 치수(7개) 등 19개 관리 항목을 모두 입력하여 등록합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid=\"product-type-filter\"], .type-filter-bar",
+            "selector": "[data-mid=\"btn-new-product\"]",
             "type": "click_ripple",
-            "label": "장비 기종 분류",
-            "description": "[장비 기종 분류] UI 요소에 값을 입력하거나 조작합니다. 시저형, 굴절형, 직진형 등 장비 메커니즘별로 목록을 스코핑하십시오.",
+            "label": "신규 제품 등록 모달 열기",
+            "description": "우상단 [+ 신규 제품 등록] 버튼을 클릭하여 19개 제원 등록 모달을 엽니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid=\"product-model-input\"], .model-input-group",
-            "type": "click_ripple",
-            "label": "모델명 및 작업 높이",
-            "description": "[모델명 및 작업 높이] UI 요소에 값을 입력하거나 조작합니다. 제조사와 모델명, 최대 플랫폼 작업 가능 높이(m)를 등록하십시오.",
+            "selector": "[data-mid=\"input-product-model\"]",
+            "type": "callout",
+            "label": "기본 식별·분류(7개) 및 핵심 작업 제원(5개) 입력",
+            "description": "모델명, 약칭, 제조사, 장비 분류, 동력원, 구동 방식, 운용 상태와 최대 작업높이, 발판높이, 장비 중량, 정격하중, 등판능력을 입력합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "[data-mid=\"product-specs-card\"], .specs-card",
+            "selector": "[data-mid=\"btn-submit-product\"]",
             "type": "click_ripple",
-            "label": "적재 하중 및 자체 중량",
-            "description": "[적재 하중 및 자체 중량] UI 요소에 값을 입력하거나 조작합니다. 정격 적재 하중(kg), 탑승 인원, 장비 자체 중량 제원을 검증하십시오.",
+            "label": "차체·배터리 상세 치수(7개) 입력 후 등록 완료",
+            "description": "보관높이, 전체길이, 전체폭, 휠베이스, 발판 치수, 연장발판, 배터리 규격을 입력한 뒤 [제품 등록 완료] 버튼을 눌러 저장합니다.",
             "positionHint": "top"
+          }
+        ]
+      },
+      {
+        "processId": "product_spec_edit_and_r2_docs",
+        "title": "제품 제원 수정 및 Cloudflare R2 인증서·제원표 관리",
+        "description": "등록된 제품의 19개 제원을 수정하고 Cloudflare R2 클라우드 문서함(Eq_doc)에 모델별 제원표와 안전인증서를 등록합니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"product-grid-item\"]",
+            "type": "click_ripple",
+            "label": "대상 제품 모델 선택",
+            "description": "좌측 목록에서 제원을 수정하거나 인증서를 업로드할 모델을 클릭합니다.",
+            "positionHint": "right"
           },
           {
-            "seq": 4,
-            "selector": "[data-mid=\"product-pricing-card\"], .pricing-card",
-            "type": "click_ripple",
-            "label": "표준 렌탈 단가표",
-            "description": "[표준 렌탈 단가표] UI 요소를 조작합니다. 표준 월 렌탈 단가와 일할 계산 단가 기준을 입력하십시오.",
-            "positionHint": "top"
-          },
-          {
-            "seq": 5,
-            "selector": "[data-mid=\"product-safety-cert\"], .safety-cert-box",
-            "type": "click_ripple",
-            "label": "법정 안전인증 기준",
-            "description": "[법정 안전인증 기준] UI 요소에 값을 입력하거나 조작합니다. 안전보건공단 안전인증(KCs) 및 비파괴 검사 만료 주기를 설정하십시오.",
-            "positionHint": "top"
-          },
-          {
-            "seq": 6,
-            "selector": "[data-mid=\"product-bom-mapping\"], .bom-box",
-            "type": "click_ripple",
-            "label": "소모품 부품목록 매핑",
-            "description": "[소모품 부품목록 매핑] UI 요소에 값을 입력하거나 조작합니다. 해당 기종에 투입되는 정품 배터리 규격과 유압 부품을 연결하십시오.",
+            "seq": 2,
+            "selector": "[data-mid=\"product-detail-panel\"]",
+            "type": "highlight",
+            "label": "19개 제원 수정 및 R2 문서 업로드",
+            "description": "우측 상단 [정보 수정]으로 19개 제원을 편집하거나, 하단 제품 문서함에서 안전인증서·제원표 PDF를 Cloudflare R2에 업로드합니다.",
             "positionHint": "left"
-          },
-          {
-            "seq": 7,
-            "selector": "[data-mid=\"btn-save-product\"], button:contains(\"모델 저장\")",
-            "type": "click_ripple",
-            "label": "모델 마스터 확정",
-            "description": "[모델 마스터 확정] UI 요소에 값을 입력하거나 조작합니다. 모델 제원을 최종 저장하고 실물 자산 취득 및 계약에 가용화하십시오.",
-            "positionHint": "bottom"
           }
         ]
       }
     ],
     "modalWorkflows": [
       {
-        "modalName": "신규 모델 등록 모달 (AddModal)",
-        "triggerButton": "모델 등록",
+        "modalName": "신규 제품 등록 모달 (19개 제원 표준 폼)",
+        "triggerButton": "[+ 신규 제품 등록]",
         "keyFields": [
-          "제조사",
-          "모델명",
-          "피트(규격)",
-          "작업높이",
-          "적재중량",
-          "동력원"
+          "1. 기본 식별 및 분류(7개): 모델명(영문 대문자 정규화), 약칭(검색별칭), 제조사, 장비 분류, 동력원, 구동 방식, 운용 상태(운용중/단종)",
+          "2. 핵심 작업 제원(5개): 최대 작업높이, 최대 발판높이, 장비 중량, 정격하중, 등판능력",
+          "3. 차체 및 배터리 상세 치수(7개): 보관높이, 전체길이, 전체폭, 휠베이스, 발판 치수, 연장발판, 배터리 규격"
         ],
-        "terminalAction": "저장",
-        "afterStateTransition": "신규 제품 모델 마스터 생성"
-      },
-      {
-        "modalName": "기술 제원 미리보기 모달 (SpecPreviewModal)",
-        "triggerButton": "제원 보기",
-        "keyFields": [
-          "외형 치수",
-          "등판 능력",
-          "주행 속도",
-          "허용 풍속"
-        ],
-        "terminalAction": "닫기",
-        "afterStateTransition": "제원 조회 완료"
+        "terminalAction": "[제품 등록 완료]",
+        "afterStateTransition": "products 테이블에 19개 제원 완비 모델 마스터 생성 및 R2 문서함(Eq_doc/{모델명}/) 경로 활성화"
       }
-    ]
+    ],
+    "subTabs": []
   },
   {
     "menuId": "asset",
-    "version": 12,
+    "version": 16,
     "menuName": "자산 관리 (대장)",
     "basicGuide": [
       {
@@ -3204,7 +3176,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "acquisition_disposal",
-    "version": 12,
+    "version": 16,
     "menuName": "당사자산 취득 / 매각",
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
@@ -3321,7 +3293,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "rent_asset",
-    "version": 12,
+    "version": 16,
     "menuName": "임차 장비 관리",
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
@@ -3440,7 +3412,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "delivery",
-    "version": 12,
+    "version": 16,
     "menuName": "배차 / 운송 관리",
     "basicGuide": [
       {
@@ -3448,14 +3420,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid='dispatch-mode-tabs']",
         "type": "highlight",
         "label": "업무 탭 (배차/대사)",
-        "description": "[업무 탭 (배차/대사)] 화면 영역입니다. '배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행하는 기본 기능을 제공합니다."
+        "description": "[업무 탭 (배차/대사)] 화면 영역입니다. '배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "div[data-mid='dispatch-status-tabs']",
         "type": "highlight",
         "label": "배차 상태 필터",
-        "description": "[배차 상태 필터] 화면 영역입니다. 배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
+        "description": "[배차 상태 필터] 화면 영역입니다. 배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
@@ -3646,7 +3620,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "transport_master",
-    "version": 12,
+    "version": 16,
     "menuName": "운송 거래처 관리",
     "groupId": "grp_logistics",
     "groupName": "배차 / 운송관리",
@@ -3782,7 +3756,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "daily_inout",
-    "version": 8,
+    "version": 16,
     "menuName": "일일 입출고 조회",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -3968,7 +3942,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "asset_inout_history",
-    "version": 12,
+    "version": 16,
     "menuName": "자산 입출고",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -4072,7 +4046,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "dispatch_assign",
-    "version": 12,
+    "version": 16,
     "menuName": "장비 할당 / 매핑",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -4146,7 +4120,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "outbound_inspections",
-    "version": 12,
+    "version": 16,
     "menuName": "출고 검수 관리",
     "basicGuide": [
       {
@@ -4366,7 +4340,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "consumable_stock",
-    "version": 12,
+    "version": 16,
     "menuName": "주기장 소모품 재고",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -4522,7 +4496,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "print_queue_monitor",
-    "version": 12,
+    "version": 16,
     "menuName": "프린트 큐 모니터",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -4673,7 +4647,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "consumable_purchase",
-    "version": 12,
+    "version": 16,
     "menuName": "소모품 구매",
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
@@ -4784,7 +4758,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "consumable_inout",
-    "version": 12,
+    "version": 16,
     "menuName": "소모품 입출고",
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
@@ -4896,7 +4870,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "field_as",
-    "version": 12,
+    "version": 16,
     "menuName": "현장 AS 관리",
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
@@ -4993,7 +4967,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "repair",
-    "version": 12,
+    "version": 16,
     "menuName": "주기장 정비 관리",
     "basicGuide": [
       {
@@ -5125,7 +5099,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "inspection_checklist_manage",
-    "version": 12,
+    "version": 16,
     "menuName": "정비 항목 관리",
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
@@ -5226,7 +5200,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "leave_application",
-    "version": 12,
+    "version": 16,
     "menuName": "연차신청",
     "basicGuide": [
       {
@@ -5348,7 +5322,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "ot_management",
-    "version": 12,
+    "version": 16,
     "menuName": "OT 관리",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -5467,7 +5441,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "vehicle_log",
-    "version": 12,
+    "version": 16,
     "menuName": "차량 / 주유관리",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -5632,7 +5606,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "purchase_settlement",
-    "version": 12,
+    "version": 16,
     "menuName": "월말 매입 정산",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -5726,7 +5700,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "vendors",
-    "version": 12,
+    "version": 16,
     "menuName": "매입처 (공급자 / 외주처) 관리",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -5813,7 +5787,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "bank_matching",
-    "version": 12,
+    "version": 16,
     "menuName": "은행 입출금 대장",
     "basicGuide": [
       {
@@ -5960,7 +5934,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "corporate_card",
-    "version": 12,
+    "version": 16,
     "menuName": "법인카드 매입정산",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -6048,7 +6022,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "cash_flow",
-    "version": 13,
+    "version": 16,
     "menuName": "유동자금 관리",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -6291,7 +6265,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "depreciation_execution",
-    "version": 12,
+    "version": 16,
     "menuName": "감가상각 마감 실행",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -6365,7 +6339,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "regular_reports",
-    "version": 15,
+    "version": 16,
     "menuName": "정기보고서 생성",
     "groupId": "grp_management",
     "groupName": "경영관리",
@@ -6575,7 +6549,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "organization",
-    "version": 12,
+    "version": 16,
     "menuName": "조직 / 인사 관리",
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
@@ -6716,85 +6690,93 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "permission",
-    "version": 12,
+    "version": 16,
     "menuName": "사용자 및 권한",
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "[data-mid='btn-inherit-role']",
-        "type": "highlight",
-        "label": "사용자 그리드",
-        "description": "[사용자 그리드] 화면 영역입니다. 개별 직원 목록을 조회하고 시스템 등급 및 권한 명칭을 부여할 수 있는 사용자 그리드 탭입니다.",
-        "positionHint": "bottom"
+        "selector": "[data-mid=\"role-list-title\"]",
+        "type": "callout",
+        "label": "커스텀 권한 역할 목록 (생성·수정·삭제)",
+        "description": "[커스텀 권한 역할 목록] 영역입니다. 사내 직무별 권한 명칭을 생성하고 인라인 [수정] 버튼으로 역할명과 설명을 편집합니다.",
+        "positionHint": "right"
       },
       {
         "seq": 2,
-        "selector": "[data-mid='matrix-title']",
-        "type": "callout",
-        "label": "권한 설정 매트릭스",
-        "description": "[권한 설정 매트릭스] 화면 영역입니다. 선택한 역할(Role)에 대해 각 메뉴별 조회 및 저장 권한을 상세하게 제어할 수 있는 영역입니다.",
+        "selector": "[data-mid=\"matrix-title\"]",
+        "type": "highlight",
+        "label": "테넌트 맞춤 메뉴 권한 매트릭스",
+        "description": "[권한 설정 매트릭스] 영역입니다. 현재 테넌트에 활성화된 메뉴들에 대해 조회(View) 및 저장(Save) 권한을 정밀하게 제어합니다.",
         "positionHint": "left"
+      },
+      {
+        "seq": 3,
+        "selector": "[data-mid=\"btn-inherit-role\"]",
+        "type": "callout",
+        "label": "직원 권한 상속 배정 탭",
+        "description": "[직원 권한 상속 배정] 탭입니다. 임직원별로 정의된 권한 역할을 1클릭 배정하여 메뉴 권한을 일괄 상속시킵니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
         "processId": "process_grant_permission",
-        "title": "권한 부여 및 수정",
-        "description": "대상을 선택하고 세부 메뉴 권한을 수정한 뒤 저장하는 과정입니다.",
+        "title": "권한 역할 생성·인라인 수정 및 메뉴 매트릭스 설정",
+        "description": "직무별 권한 역할을 생성하거나 명칭을 수정하고, 테넌트 활성 메뉴별 조회/저장 권한을 설정하여 저장합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid='role-list-title']",
+            "selector": "[data-mid=\"role-list-title\"]",
             "type": "click_ripple",
-            "label": "대상 선택",
-            "description": "[대상 선택] UI 요소를 조작합니다. 좌측 목록에서 권한을 수정할 대상을 클릭하여 선택하십시오.",
+            "label": "권한 역할 선택 및 인라인 수정",
+            "description": "좌측 권한 역할 목록에서 대상 역할을 클릭하거나 [수정] 버튼을 눌러 역할명·설명을 정비합니다.",
             "positionHint": "right"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='permission-matrix-grid'], [data-mid='matrix-title']",
+            "selector": "[data-mid=\"permission-matrix-grid\"], [data-mid=\"matrix-title\"]",
             "type": "highlight",
-            "label": "권한 토글",
-            "description": "[권한 토글] UI 요소를 조작합니다. 우측 매트릭스에서 부여할 특정 메뉴의 조회 또는 저장 권한 체크박스를 클릭하여 변경하십시오.",
+            "label": "메뉴별 조회·저장 권한 토글",
+            "description": "우측 매트릭스에서 테넌트 활성 메뉴별 조회(View) 또는 저장(Save) 체크박스를 설정합니다.",
             "positionHint": "top"
           },
           {
             "seq": 3,
-            "selector": "[data-mid='btn-save-permissions']",
+            "selector": "[data-mid=\"btn-save-permissions\"]",
             "type": "click_ripple",
-            "label": "설정 저장",
-            "description": "[설정 저장] UI 요소를 조작합니다. 변경 사항을 시스템에 반영하기 위해 상단의 저장 버튼을 클릭하십시오.",
+            "label": "권한 매트릭스 저장 확정",
+            "description": "상단 [설정 저장] 버튼을 클릭하여 역할 권한을 DB에 영구 반영합니다.",
             "positionHint": "bottom"
           }
         ]
       },
       {
         "processId": "process_map_user_role",
-        "title": "직원 권한 상속 배정",
-        "description": "개별 임직원을 검색하고 사내 직무에 부합하는 권한 역할을 1:1 매핑 부여합니다.",
+        "title": "임직원 권한 역할 상속 배정",
+        "description": "개별 임직원을 검색하여 직무에 맞는 커스텀 권한 역할을 1:1 배정합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid='btn-inherit-role']",
+            "selector": "[data-mid=\"btn-inherit-role\"]",
             "type": "click_ripple",
-            "label": "직원 권한 배정 탭 진입",
-            "description": "[직원 권한 배정 탭 진입] UI 요소를 조작합니다. 상단 탭 바에서 [직원 권한 상속 배정] 탭을 클릭하여 전환하십시오.",
+            "label": "직원 권한 상속 배정 탭 이동",
+            "description": "상단 탭 바에서 [직원 권한 상속 배정] 탭을 클릭합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='permission-user-filter']",
+            "selector": "[data-mid=\"permission-user-filter\"]",
             "type": "callout",
-            "label": "임직원 검색 및 필터",
-            "description": "[임직원 검색 및 필터] UI 요소를 조작합니다. 성명, 부서, 직급 조건을 입력하여 권한을 배정할 직원을 검색하십시오.",
+            "label": "임직원 검색 및 부서 필터링",
+            "description": "성명, 부서, 직급으로 권한을 배정할 대상 직원을 검색합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "[data-mid='permission-user-grid']",
+            "selector": "[data-mid=\"permission-user-grid\"]",
             "type": "highlight",
-            "label": "권한 역할 드롭다운 선택",
-            "description": "[권한 역할 드롭다운 선택] UI 요소를 조작합니다. 해당 직원 행의 권한 명칭 드롭다운에서 부여할 역할을 선택하여 즉시 매핑하십시오.",
+            "label": "권한 역할 드롭다운 매핑",
+            "description": "대상 직원 행의 권한 역할 드롭다운에서 역할을 선택하여 즉시 상속 적용합니다.",
             "positionHint": "top"
           }
         ]
@@ -6802,70 +6784,93 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
-    "department": "시스템관리자",
+    "department": "경영관리팀 / 시스템관리자",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "역할별 시스템 메뉴 접근 권한, 데이터 쓰기/삭제 권한 매트릭스 설정",
-    "scopeInfo": "로그인 ID, 사원 성명, 소속 부서, 직급, 티어 레벨(0~7), 메뉴별 권한 매트릭스(view, edit, delete, export)",
+    "objective": "커스텀 권한 역할(CustomRole) 정의·인라인 수정, 테넌트 활성 메뉴 연동 권한 매트릭스 설정 및 임직원 역할 상속 배정",
+    "scopeInfo": "테넌트 노출 허용 메뉴(allowedPages/hiddenPages/allowedModules), 커스텀 역할(custom_roles), 역할별 메뉴 권한(role_permissions: canView, canSave), 임직원별 역할 매핑 및 개별 예외 권한(user_permissions)",
     "cognitiveSequence": [
-      "1. 역할 그룹(ADMIN, MANAGER, STAFF, DRIVER, GUEST) 스코핑",
-      "2. 51개 전사 메뉴별 접근 권한(조회, 등록, 수정, 삭제, 엑셀) 매트릭스 점검",
-      "3. 부서별(영업, 배차, 주기장, 정비, 관리) R&R 헌장 부합성 검증 (헌장 2.1)",
-      "4. 특수 민감 메뉴(급여, 자금, 결재선 설정) 관리자 전용 권한 제한",
-      "5. 원격 Supabase Row-Level Security(RLS) 정책 일치성 검증",
-      "6. 권한 변경 시뮬레이션 및 권한 테스트 유저 전환 검증",
-      "7. 권한 매트릭스 최종 적용 및 전사 세션 실시간 반영"
+      "1. 좌상단 탭 전환: [역할별 권한 매트릭스 설정] 탭과 [직원 권한 상속 배정] 탭 중 작업 대상 선택",
+      "2. 커스텀 역할 관리: 좌측 역할 목록에서 신규 권한 명칭 생성, 기존 역할 인라인 [수정](명칭/설명 변경) 또는 [삭제] 수행",
+      "3. 테넌트 맞춤 메뉴 매트릭스 조망: 현재 테넌트에 라이선스 할당된 활성 메뉴(개발자 전용 메뉴 및 미사용 모듈 자동 제외)에 대해 [조회(View)] 및 [저장/수정(Save)] 권한 체크",
+      "4. 전체/그룹 일괄 제어: 카테고리 그룹별 전체 조회·저장 일괄 체크 및 업무매뉴얼·오류신고 등 도구 메뉴 권한 통제",
+      "5. 우하단 [역할 권한 저장]: 변경된 역할 권한 매트릭스를 DB에 저장하고 해당 역할을 상속받는 전 직원에게 실시간 동기화",
+      "6. 직원 권한 상속 배정: [직원 권한 상속 배정] 탭에서 부서/직급별 직원을 검색(플랫폼 developer 계정 자동 은닉)하여 권한 역할을 1:1 매핑하거나 개별 예외 권한 부여"
     ],
     "subTabs": [
       {
         "tabId": "ROLES",
         "tabName": "역할/권한 그룹 설정",
-        "purpose": "영업, 주기장, 정비, 회계, 관리자 등 역할별 메뉴 접근 및 수정 권한 매트릭스 정의",
+        "purpose": "영업, 주기장, 정비, 회계, 관리자 등 커스텀 역할 생성·인라인 수정 및 테넌트 활성 메뉴별 조회/저장 권한 매트릭스 정의",
         "keyActions": [
-          "신규 권한 그룹 생성",
-          "메뉴별 읽기/쓰기 체크박스 설정"
+          "신규 권한 역할 생성",
+          "역할명/설명 인라인 수정",
+          "메뉴별 조회/저장 체크박스 설정",
+          "역할 권한 저장"
         ]
       },
       {
         "tabId": "USERS",
-        "tabName": "사용자별 역할 매핑",
-        "purpose": "개별 임직원 계정에 특정 권한 그룹을 매핑하여 시스템 접근 통제",
+        "tabName": "직원 권한 상속 배정",
+        "purpose": "개별 임직원 계정에 커스텀 권한 역할을 배정하여 메뉴 권한을 자동 상속하거나 개인별 특례 권한을 오버라이드",
         "keyActions": [
-          "임직원 권한 변경",
-          "임시 관리자 권한 부여"
+          "임직원 역할 드롭다운 배정",
+          "개별 직원 예외 권한 수정",
+          "권한 현황 엑셀 내보내기"
         ]
       }
     ],
-    "auditResult": "직무분리(SoD) 기준 준수 및 불법 권한 오남용 차단 확정",
+    "auditResult": "테넌트 라이선스 활성 메뉴 100% 정합 노출, 직무분리(SoD) 준수 및 업무매뉴얼/오류신고 포함 전 메뉴 권한 통제 무결성 확정",
     "rulesCompliance": [
-      "헌장 2.1 [부서 R&R 엄격 분리]: 영업사원 계정에는 장비 할당/배차 편집 권한 부여 금지",
-      "헌장 5.3 [SSOT 권한]: 권한 정의를 DB user_permissions 단일 테이블로 일관 관리"
+      "헌장 2.1 [부서 R&R 엄격 분리]: 영업부서와 출고/자산부서 간 역할별 메뉴 조회·저장 권한 엄격 분리",
+      "헌장 5.3 [SSOT 권한]: 테넌트별 활성 메뉴(allowedModules/hiddenPages)와 권한 설정 매트릭스를 1:1 일치시켜 미사용 메뉴 노출로 인한 혼란 원천 방지",
+      "헌장 5.2 [무음 실패 방지]: 역할 생성·수정·삭제 및 권한 저장 시 DB 트랜잭션 완료 대기 후 즉시 UI 반영"
     ],
     "precautions": [
-      "퇴사자 발생 시 즉시 계정 상태를 [비활성(Inactive)]으로 전환하여 접근 차단",
-      "관리자(Tier 7) 권한은 대표이사 및 전산 책임자 외 임의 부여 절대 금지"
+      "업무매뉴얼(operations_manual) 및 오류 신고(error_report) 메뉴도 권한 매트릭스의 조회(canView)/저장(canSave) 설정에 따라 엄격히 통제됩니다.",
+      "플랫폼 개발자(developer) 계정은 테넌트 일반 관리자 화면에서 자동 은닉되어 오조작이 방지됩니다."
     ],
     "annotations": [
       {
         "seq": 1,
-        "selector": "[data-mid=\"permission-header\"]",
-        "label": "권한 설정 헤더",
-        "description": "역할별 메뉴 접근 및 CUD 권한 매트릭스",
+        "selector": "[data-mid=\"role-list-title\"]",
+        "label": "커스텀 역할 관리",
+        "description": "직무 역할 생성, 인라인 명칭/설명 수정 및 삭제",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
       {
         "seq": 2,
-        "selector": "[data-mid=\"permission-inspection-grid\"]",
-        "label": "권한 매트릭스 그리드",
-        "description": "메뉴별 읽기/쓰기/삭제 권한 체크",
+        "selector": "[data-mid=\"matrix-title\"]",
+        "label": "테넌트 활성 메뉴 매트릭스",
+        "description": "테넌트 라이선스 연동 메뉴별 조회/저장 권한 제어",
         "colorToken": "GREEN",
         "type": "HIGHLIGHT_BOX"
+      },
+      {
+        "seq": 3,
+        "selector": "[data-mid=\"btn-save-permissions\"]",
+        "label": "권한 설정 저장",
+        "description": "역할 및 사용자 권한 DB 즉시 반영",
+        "colorToken": "AMBER",
+        "type": "STAMP"
+      }
+    ],
+    "modalWorkflows": [
+      {
+        "modalName": "커스텀 역할 인라인 수정 모드",
+        "triggerButton": "역할 카드 우측 [수정] 버튼",
+        "keyFields": [
+          "권한 역할 명칭(name)",
+          "권한 역할 설명(description)"
+        ],
+        "terminalAction": "[저장]",
+        "afterStateTransition": "custom_roles 테이블 역할 명칭·설명 즉시 갱신 및 소속 직원 배지 동기화"
       }
     ]
   },
   {
     "menuId": "payroll",
-    "version": 12,
+    "version": 16,
     "menuName": "급여 정산",
     "basicGuide": [
       {
@@ -6963,7 +6968,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "leave_management",
-    "version": 12,
+    "version": 16,
     "menuName": "연차관리",
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
@@ -7089,7 +7094,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "privacy_audit",
-    "version": 12,
+    "version": 16,
     "menuName": "개인정보 접속 감사",
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
@@ -7206,31 +7211,31 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "operations_manual",
-    "version": 12,
+    "version": 16,
     "menuName": "업무매뉴얼",
     "groupId": "grp_tools",
     "groupName": "도구 및 다운로드",
     "department": "전사 임직원",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "부서별 전사 업무 프로세스 표준 가이드라인 및 직무별 매뉴얼 조회",
-    "scopeInfo": "전사 51개 메뉴별 상세 매뉴얼, 부서별 퀵 네비게이션, 검색 키워드, A4 인쇄 서식",
+    "objective": "전사 72개 메뉴 및 26개 모달의 기능정의서(Markdown)·단위업무 매뉴얼·인앱 가이드 투어(Ctrl+M) 통합 조회 및 중앙 플랫폼 DB 동기화",
+    "scopeInfo": "전사 72개 메뉴 매뉴얼(ALL_MENU_MANUALS v16), 26개 모달 매뉴얼(MODAL_MANUAL_REGISTRY v6), 마크다운 기능정의서(MenuSpecDocModal), 부서별 필터 및 A4 인쇄 레이아웃",
     "cognitiveSequence": [
-      "1. 전사 51개 메뉴 및 20개 모달 매뉴얼 목록 스코핑",
-      "2. 매뉴얼별 단계 뱃지 수, 버전, 최근 수정자 현황 확인",
-      "3. 화면별 7단계 표준 업무 흐름 및 인지 조작 시퀀스 적합성 검토",
-      "4. 마크다운 기능 정의서 편집기 호출 및 비즈니스 헌장 규격 갱신",
-      "5. 모달 및 신규 기능 추가 시 인앱 단계 가이드 실시간 작성 및 위치 보정",
-      "6. 전사 매뉴얼 시드 일괄 동기화(seedAllManuals) 실행",
-      "7. 전사 운영 표준 매뉴얼 무결성 확정 및 배포"
+      "1. 좌상단 부서 필터(전체, 영업, 입출고/자산, 정비, 배차, 경영관리, 특수, 개발자) 및 키워드 검색으로 대상 매뉴얼 스코핑 (로그인 사용자의 조회 권한이 있는 메뉴만 노출)",
+      "2. 좌측 그룹별 메뉴 트리에서 열람할 메뉴 클릭",
+      "3. 중앙 매뉴얼 상세 보드에서 업무 최종 목표(Objective), 시작 전제 조건(Scope), 1-Way 인지 조작 동선, 하위 탭 및 연동 모달 워크플로우 검토",
+      "4. 단위업무 매뉴얼(Processes) 섹션에서 단계별 조작 절차를 확인하고 [가이드 시작] 클릭 시 해당 메뉴로 즉시 이동하여 인앱 스포트라이트 투어 실행",
+      "5. 우상단 [DB 일괄 주입] 클릭 시 전사 72개 메뉴와 26개 모달의 단계 가이드·단위업무 프로세스·기능정의서(specDocMarkdown)를 중앙 플랫폼 DB(centralSupabase)에 일괄 동기화",
+      "6. 우상단 [A4 인쇄] 클릭으로 선택 메뉴 또는 전사 매뉴얼 편람 출력 완결"
     ],
-    "auditResult": "전사 73개 메뉴 표준 지침 100% 열람 지원 및 최신 개정본 유지",
+    "auditResult": "전사 72개 메뉴·26개 모달 기능정의서 및 단위업무 매뉴얼 최신 개편사항 100% 동기화 확정",
     "rulesCompliance": [
-      "헌장 1.1 [시스템 최우선 사명]: 최소 노력 대비 최대 편익 창출을 위한 전사 지식 기반 확립",
-      "헌장 3.1 [무수식어 건조 표준]: 감성적 미사여구를 배제한 명확한 업무 지침 전수 수록"
+      "헌장 1.1 [최대 편익]: 문서 열람과 실제 화면 인앱 가이드 투어(Ctrl+M)를 단일 SSOT 데이터로 통합 제공",
+      "헌장 1.4 [1단어 1뜻 표준화]: 공식메일설정, 무상옵션, EXCHANGE 등 전사 표준 용어로 모든 매뉴얼 기술 통일",
+      "헌장 3.1 [무수식어 건조 표준]: 감성적 미사여구를 배제한 건조하고 명확한 명사·동사형 업무 지침 수록"
     ],
     "precautions": [
-      "현장 프로세스 개편 시 매뉴얼도 즉시 동기화 갱신하여 지식의 노후화 방지",
-      "인쇄물 배포 시 버전 관리 번호(v1.8.x)를 확인하여 구버전 매뉴얼 파기"
+      "화면 기능 개편 시 allMenuManuals.ts의 version 번호를 상향하면 인앱 매뉴얼 및 기능정의서가 최신 개편본으로 자동 갱신됩니다.",
+      "업무매뉴얼 메뉴 접근 및 편집 권한은 [사용자 및 권한] 메뉴의 직무 권한 매트릭스를 통해 엄격히 통제됩니다."
     ],
     "annotations": [
       {
@@ -7352,7 +7357,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "error_report",
-    "version": 12,
+    "version": 16,
     "menuName": "오류 신고",
     "groupId": "grp_tools",
     "groupName": "도구 및 다운로드",
@@ -7504,7 +7509,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "agentic_ai_lab",
-    "version": 12,
+    "version": 16,
     "menuName": "에이전틱 AI 샌드박스 랩",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -7602,7 +7607,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "agentic_dispatch_studio",
-    "version": 12,
+    "version": 16,
     "menuName": "에이전틱 배차 관제 스튜디오",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -7684,7 +7689,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "agentic_settlement_autopilot",
-    "version": 12,
+    "version": 16,
     "menuName": "에이전틱 월말 대사 정산 오토파일럿",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -7814,7 +7819,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "agentic_asset_lifecycle",
-    "version": 12,
+    "version": 16,
     "menuName": "에이전틱 자산 라이프사이클 관제",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -7944,22 +7949,20 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "initial_db_upload",
-    "version": 12,
+    "version": 16,
     "menuName": "초기DB 업로드",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
-    "department": "시스템관리자",
+    "department": "시스템관리자 / 데이터엔지니어",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "과거 엑셀 데이터, 밴드 AS 이력, 소급 청구서 일괄 DB 적재 및 무결성 검증",
-    "scopeInfo": "엑셀 템플릿(고객사, 자산대장, 단가표), 데이터 유효성 검증 규칙, 테넌트 ID",
+    "objective": "레거시 엑셀 원장·밴드 AS 이력·소급 청구서 일괄 마이그레이션 적재, 운반비 단발 계약 슬롯 자동 보정 및 테넌트 안전 초기화(공식메일설정·매뉴얼 영구 보존)",
+    "scopeInfo": "통합 마스터 엑셀(고객사, 물리현장 SiteMaster, 제품 19개 제원, 실물자산, 계약, 청구), 정합성 대사 엔진, DB 스냅샷 백업 및 테넌트 안전 초기화(resetAllDatabaseTables)",
     "cognitiveSequence": [
-      "1. 업로드 대상 마스터 탭(고객, 장비모델, 실물자산, 부품, 계약) 스코핑",
-      "2. 전사 표준 엑셀 양식 템플릿 다운로드 및 컬럼 규격 확인",
-      "3. 작성된 엑셀 파일 드래그 앤 드롭 업로드 및 실시간 파싱",
-      "4. 엑셀 데이터 유효성 사전 검증 (중복 사업자번호, 필수 제원 누락 적발)",
-      "5. 오류 행 인라인 수정 및 정상 데이터 임시 적재 테이블 매핑",
-      "6. Supabase DB 일괄 트랜잭션 주입 (await db.awaitPendingWrites()) (헌장 5.2)",
-      "7. 초기 데이터 적재 결과 검증 (총 건수, 성공 건수) 및 기준정보 확정"
+      "1. 상단 작업 단계 탭(초기데이터 적재 INGEST / 정합성 대사 CLEANUP / DB 백업 BACKUP / 데이터 초기화 RESET) 선택",
+      "2. 표준 엑셀 양식 업로드 및 파싱: 고객사·현장(N:M 정규화)·장비·계약·청구 데이터를 파싱하고, 순수 운반비 단발 청구건(예: 장비이동 운반비)도 가상 운반비 슬롯을 자동 생성하여 무자산 고아 계약 방지",
+      "3. 정합성 대사(CLEANUP): 외래키 고아 레코드, 중복 사업자번호/현장명 정규화 및 모델명 대문자 일괄 보정 실행",
+      "4. DB 스냅샷 백업(BACKUP): 마이그레이션 또는 초기화 전 전체 테이블 JSON/XLSX 스냅샷 백업 생성",
+      "5. 테넌트 안전 초기화(RESET): [데이터 초기화] 실행 시 중앙 플랫폼의 테넌트 원장·공식메일설정(officialMailConfig)·전사 매뉴얼·관리자 계정은 100% 보존하고, 은행(bank_*) 및 물리 현장(site_masters)을 포함한 테넌트 비즈니스 데이터와 로컬 캐시만 완전 초기화 후 refreshAllData() 즉시 동기화"
     ],
     "subTabs": [
       {
@@ -7997,14 +8000,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         ]
       }
     ],
-    "auditResult": "적재 대상 레코드 100% 정상 영구 보존 및 외래키 정합성 확보",
+    "auditResult": "적재 레코드 외래키 정합성 100% 확보 및 테넌트 초기화 시 공식메일설정·매뉴얼 유실 0건 확정",
     "rulesCompliance": [
-      "헌장 5.3 [로컬 DB 스키마 정합성 자가 검증]: 로컬 schema.sql 정의와 완벽 일치 검증",
-      "헌장 5.2 [무음 실패 방지]: 실패 행 발생 시 즉시 상세 에러 모달 표출"
+      "헌장 1.5 [N:M 정규화 준수]: 초기 데이터 업로드 및 초기화 시 SiteMaster와 customer_sites 조인 구조를 엄격히 보존·초기화",
+      "헌장 5.2 [무음 실패 방지]: 초기화 및 일괄 적재 시 await db.awaitPendingWrites() 및 refreshAllData() 동기 수행으로 잔존 캐시 0건 보장",
+      "헌장 5.3 [SSOT 보존]: 테넌트 비즈니스 데이터 초기화 시 중앙 플랫폼 DB의 공식메일설정(tenants.features.officialMailConfig)과 매뉴얼 데이터는 절대 삭제하지 않음"
     ],
     "precautions": [
-      "기존 데이터가 존재하는 운영 테넌트에 업로드 시 덮어쓰기 위험이 있으므로 사전 백업 필수",
-      "사업자번호 및 자산번호의 중복 키 충돌 여부 사전 확인"
+      "데이터 초기화(RESET) 실행 전 반드시 [DB 백업] 탭에서 최신 스냅샷 백업본을 다운로드하십시오.",
+      "초기화 직후 브라우저 로컬 스토리지 캐시가 자동 클리어되며 화면 상태가 즉시 0건으로 갱신됩니다."
     ],
     "annotations": [
       {
@@ -8077,143 +8081,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ]
   },
   {
-    "menuId": "google_config",
-    "version": 12,
-    "menuName": "구글 관리자 설정",
-    "groupId": "grp_system_dev",
-    "groupName": "시스템관리 - 개발자",
-    "department": "시스템관리자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "구글 드라이브, Supabase 버킷, Cloudflare R2 스토리지 인증 및 백업 환경 설정",
-    "scopeInfo": "Google Client ID, Client Secret, 서비스 계정 JSON 키, Drive 공유 폴더 ID, OCR 엔드포인트",
-    "cognitiveSequence": [
-      "1. 구글 워크스페이스 서비스 계정(OAuth2) 인증 상태 스코핑",
-      "2. 동기화 대상 루트 폴더 ID 및 하위 폴더(계약서, 세금계산서, 검수사진) 구조 지정",
-      "3. 자동 미러링 주기 및 실시간 동기화 데몬 연결 상태 확인",
-      "4. 파일 업로드 테스트 (테스트 PDF 드라이브 전송 및 공유 링크 발급 검증)",
-      "5. 드라이브 용량 한도 및 네트워크 타임아웃 예외 처리 설정",
-      "6. 로컬 백업 사본 보존 정책 및 동기화 실패 재시도 큐 점검",
-      "7. 구글 드라이브 클라우드 백업 설정 저장 및 정상 가동 확정"
-    ],
-    "modalWorkflows": [
-      {
-        "modalName": "클라우드 파일 업로드/관리 팝업",
-        "triggerButton": "[스토리지 파일 관리]",
-        "keyFields": [
-          "버킷 선택",
-          "업로드 대상 파일",
-          "접근 권한(공개/비공개)"
-        ],
-        "terminalAction": "[파일 업로드]",
-        "afterStateTransition": "Cloudflare R2 스토리지에 영구 보존 및 CDN URL 발급"
-      }
-    ],
-    "auditResult": "클라우드 스토리지 연결 인증 성공 및 동기화 환경설정 영구 저장",
-    "rulesCompliance": [
-      "헌장 5.8 [외부 의존성 물리적 작동 필수]: 가짜 성공 배제, 실제 Google API 응답 코드 검증",
-      "헌장 1.2 [이벤트 기록]: API 연동 설정 변경 이력 감사 로그 보존"
-    ],
-    "precautions": [
-      "서비스 계정 비공개 키가 소스코드에 하드코딩되지 않도록 환경변수/DB 보안 저장 필수",
-      "Google Drive 스토리지 용량 한도 주기적 모니터링"
-    ],
-    "annotations": [
-      {
-        "seq": 1,
-        "selector": "[data-mid=\"google_config-header\"]",
-        "label": "클라우드 설정 헤더",
-        "description": "구글 드라이브, Supabase, R2 스토리지 연동",
-        "colorToken": "BLUE",
-        "type": "STAMP"
-      }
-    ],
-    "basicGuide": [
-      {
-        "seq": 1,
-        "selector": "[data-mid=\"google_config-header\"]",
-        "type": "highlight",
-        "label": "구글 및 클라우드 연동 헤더",
-        "description": "[구글 및 클라우드 연동 헤더] 화면 영역입니다. 클라우드 인프라 및 구글 계정 연동 화면의 상태를 안내하는 기본 기능을 제공합니다.",
-        "positionHint": "bottom"
-      },
-      {
-        "seq": 2,
-        "selector": "[data-mid=\"google_config-auth\"]",
-        "type": "highlight",
-        "label": "구글 인증 계정 설정",
-        "description": "[구글 인증 계정 설정] 화면 영역입니다. 시스템 알림 발송 및 드라이브 백업에 사용할 구글 인증 계정을 설정하는 기본 기능을 제공합니다.",
-        "positionHint": "bottom"
-      }
-    ],
-    "processes": [
-      {
-        "processId": "main_process",
-        "title": "핵심 단위 업무 조작 흐름",
-        "description": "구글 관리자 설정의 주요 기능 조작 절차입니다.",
-        "steps": [
-          {
-            "seq": 1,
-            "selector": "[data-mid=\"google_config-header\"]",
-            "type": "click_ripple",
-            "label": "구글 및 클라우드 연동 헤더",
-            "description": "[구글 및 클라우드 연동 헤더] UI 요소에 값을 입력하거나 조작합니다. 클라우드 인프라 및 구글 계정 연동 화면의 상태를 안내하십시오.",
-            "positionHint": "bottom"
-          },
-          {
-            "seq": 2,
-            "selector": "[data-mid=\"google_config-auth\"]",
-            "type": "click_ripple",
-            "label": "구글 인증 계정 설정",
-            "description": "[구글 인증 계정 설정] UI 요소에 값을 입력하거나 조작합니다. 시스템 알림 발송 및 드라이브 백업에 사용할 구글 인증 계정을 설정하십시오.",
-            "positionHint": "bottom"
-          },
-          {
-            "seq": 3,
-            "selector": "[data-mid=\"google_config-storage\"]",
-            "type": "click_ripple",
-            "label": "Supabase 스토리지 버킷 설정",
-            "description": "[Supabase 스토리지 버킷 설정] UI 요소에 값을 입력하거나 조작합니다. 사진 및 검수 증빙 파일을 저장할 클라우드 스토리지 버킷 및 보안 정책을 관리하십시오.",
-            "positionHint": "bottom"
-          },
-          {
-            "seq": 4,
-            "selector": "[data-mid=\"google_config-mode\"]",
-            "type": "click_ripple",
-            "label": "시스템 운영 모드 설정",
-            "description": "[시스템 운영 모드 설정] UI 요소에 값을 입력하거나 조작합니다. 테스트용 로컬 모드와 클라우드 원격 운영을 위한 실무 모드를 전환하십시오.",
-            "positionHint": "top"
-          },
-          {
-            "seq": 5,
-            "selector": "[data-mid=\"google_config-r2\"]",
-            "type": "click_ripple",
-            "label": "Cloudflare R2 스토리지 설정",
-            "description": "[Cloudflare R2 스토리지 설정] UI 요소에 값을 입력하거나 조작합니다. 대용량 미디어 및 백업 데이터를 저장할 Cloudflare R2 버킷 정보를 설정하십시오.",
-            "positionHint": "top"
-          },
-          {
-            "seq": 6,
-            "selector": "[data-mid=\"google_config-folders\"]",
-            "type": "click_ripple",
-            "label": "구글 드라이브 폴더 매핑",
-            "description": "[구글 드라이브 폴더 매핑] UI 요소를 조작합니다. 계약서, 거래명세서 등 각종 문서를 백업할 구글 드라이브 전용 폴더 ID를 지정하십시오.",
-            "positionHint": "top"
-          },
-          {
-            "seq": 7,
-            "selector": "[data-mid=\"google_config-save\"]",
-            "type": "click_ripple",
-            "label": "클라우드 환경설정 영구 저장",
-            "description": "[클라우드 환경설정 영구 저장] UI 요소를 조작합니다. 입력된 모든 클라우드 인프라 및 연동 설정을 DB에 영구 반영하십시오.",
-            "positionHint": "top"
-          }
-        ]
-      }
-    ]
-  },
-  {
     "menuId": "dev_uploader",
-    "version": 11,
+    "version": 16,
     "menuName": "[개발] DB 데이터 업로더",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -8359,28 +8228,30 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "official_mail",
-    "version": 8,
+    "version": 16,
     "menuName": "공식 메일 발송",
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 고객센터",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "거래처 대상 최고장, 공문, 계약 서류 등 공식 문서 전자 발송",
-    "scopeInfo": "고객사, 담당자 이메일, 현장명, 견적 템플릿(장비기종, 임대료, 운송비)",
+    "objective": "중앙 공식메일설정(OfficialMailConfig) 연동 거래처 견적서·최고장·계약서류·R2 제원표/인증서 전자 발송 및 발송 로그 무누락 보존",
+    "scopeInfo": "중앙 플랫폼 DB 공식메일설정(tenants.features.officialMailConfig: 네이버/구글 SMTP 계정 및 개발모드/서비스모드 상태), 수신 고객사·담당자 이메일, 발송 서식 템플릿(견적서/공문/최고장), Cloudflare R2 제품 문서함(Eq_doc) 첨부파일",
     "cognitiveSequence": [
-      "1. 좌측 패널에서 수신 대상 고객사, 현장 및 담당자 선택",
-      "2. 발송 서식 템플릿(견적서/회사소개서/제원표) 선택",
-      "3. 자동 완성된 메일 제목, 본문 및 첨부 파일 확인/편집",
-      "4. 우하단 이메일 발송 버튼 클릭하여 공식 발신 완료"
+      "1. 상단 발송 환경 배지 확인: 테넌트 관리 센터에 설정된 공식메일설정 계정 및 현재 모드([개발모드 안전격리] 또는 [서비스모드 실발송]) 확인",
+      "2. 좌측 패널에서 수신 대상 고객사, 현장 및 담당자 이메일 선택",
+      "3. 발송 서식 템플릿(임대 견적서, 회사소개서, 최고장, 안전인증서/제원표 안내) 선택",
+      "4. 자동 완성된 메일 제목, 본문 및 Cloudflare R2 제품 문서함(Eq_doc/{모델명}/) 첨부 파일 확인·편집",
+      "5. 우하단 [공식 메일 발송] 버튼 클릭으로 SMTP 발신 완결 및 발송 이력 DB 영구 기록"
     ],
-    "auditResult": "발송 문서 스토리지 저장 및 이메일 전송 성공 로그 무누락 기록",
+    "auditResult": "중앙 공식메일설정 기반 SMTP 발송 완료 및 발송 감사 로그 무누락 보존",
     "rulesCompliance": [
-      "헌장 1.4 [1단어 1뜻 SSOT]: 공식 발신 명칭 및 표준 서식 준수",
-      "헌장 5.2 [무음 실패 방지]: 메일 발송 실패 시 오류 상세 표출"
+      "헌장 1.4 [1단어 1뜻 SSOT]: 공식메일설정(OfficialMailConfig) 단일 표준 용어 관통",
+      "헌장 5.2 [무음 실패 방지]: SMTP 인증 실패 또는 네트워크 오류 시 즉시 상세 에러 모달 표출",
+      "헌장 5.9 [외부 발송 안전 격리]: 개발모드 활성 시 외부 고객사 오발송을 원천 차단하고 지정 테스트 주소로만 안전 격리 발송"
     ],
     "precautions": [
-      "대용량 첨부 파일(20MB 이상) 시 압축 파일 첨부 권장",
-      "수신자 이메일 주소 오기입 시 반송 안내 확인"
+      "공식 발신 이메일 계정 변경 및 [개발모드 ↔ 서비스모드] 전환은 플랫폼 개발자 전용 메뉴인 [테넌트 관리]에서 통합 수행됩니다.",
+      "대용량 첨부 파일(20MB 이상) 발송 시 Cloudflare R2 공개 문서 링크 첨부를 권장합니다."
     ],
     "basicGuide": [
       {
@@ -8454,7 +8325,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "public_construction_permits",
-    "version": 8,
+    "version": 16,
     "menuName": "인허가 건축공정 조회",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -8555,66 +8426,95 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "tenant_management",
-    "version": 8,
+    "version": 16,
     "menuName": "테넌트 관리",
-    "groupId": "grp_management_special",
-    "groupName": "경영관리 - 특수",
-    "department": "최고관리자",
+    "groupId": "grp_system_dev",
+    "groupName": "시스템관리 - 개발자",
+    "department": "플랫폼 아키텍트 / 개발자",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "멀티 테넌트 환경 고객사 코드, 격리 정책, 권한 및 서비스 온보딩 관리",
-    "scopeInfo": "테넌트 영문 코드, 표시 상호, 사업자번호, 구독 플랜, 만료일자",
+    "objective": "멀티 테넌트 법인 개설, 모듈 라이선스·특수기능 제어, 중앙 공식메일설정(개발모드/서비스모드 전환) 및 Cloudflare R2 스토리지 통합 관제",
+    "scopeInfo": "테넌트 영문 코드, 표시 상호, 사업자등록번호, 구독 플랜/만료일, 허용 모듈(allowedModules), 특수기능(specialFeatures/AI스튜디오), 공식메일설정(officialMailConfig: SMTP 계정 및 개발모드/서비스모드), Cloudflare R2 설정(r2Config)",
     "cognitiveSequence": [
-      "1. 테넌트 검색어(상호, 코드, 사업자번호) 및 구독 상태 스코핑",
-      "2. 신규 테넌트 등록 또는 기존 테넌트 설정 진입",
-      "3. 구독 플랜(TRIAL, BASIC, PRO, ENTERPRISE) 및 라이선스 만료일 확정",
-      "4. 테넌트 마스터 저장 및 대상 테넌트 작업공간 즉시 전환 검증"
+      "1. 좌상단 (Scope): 테넌트 검색어(상호명, 테넌트 코드, 사업자번호) 및 구독/가동 상태 필터링",
+      "2. 우상단 (Pipeline): [신규 테넌트 등록], [원클릭 온보딩], [엑셀 내보내기] 실행",
+      "3. 중앙 본문 (Inspection): 테넌트 대장 그리드에서 법인 정보, 구독 만료일, 로컬 에이전트 상태, [공식메일설정] 컬럼의 발송 계정 및 [개발모드 ↔ 서비스모드] 인라인 토글 확인",
+      "4. 인라인 모드 전환: 목록 테이블의 [개발모드] 또는 [서비스모드] 버튼을 클릭하여 테넌트 공식 메일 발송 모드를 중앙 플랫폼 DB(ebro-platform-core)에 즉시 전환 반영",
+      "5. 테넌트 상세 설정 모달: [설정] 클릭 시 6대 탭(기본 사업자·인감·CPO / 사업장·주기장 / 모듈 라이선스 / 특수기능·AI / 공식메일설정(EMAIL) / 클라우드 스토리지(R2)) 정밀 구성",
+      "6. 공식메일설정 및 R2 스토리지 검증: 네이버·구글·커스텀 SMTP 계정 및 Cloudflare R2 버킷 연결 테스트 실행 (테넌트 DB 초기화 시에도 중앙 플랫폼 DB에 영구 보존)",
+      "7. 우하단 (Terminal Action): [테넌트 설정 저장] 및 [작업공간 전환]으로 멀티 테넌트 격리 정책 확정"
     ],
-    "auditResult": "테넌트 데이터 격리 보장 및 신규 테넌트 초기화 완결",
+    "auditResult": "중앙 플랫폼 DB(tenants.features) 기반 테넌트 라이선스·공식메일설정·R2 스토리지 영구 보존 및 테넌트 DB 초기화 시 설정 유실 0건 확정",
     "rulesCompliance": [
-      "헌장 5.3 [단일 진실의 원천(SSOT)]: 중앙 ebro-platform-core DB와 로컬 테넌트 원장 100% 일치"
+      "헌장 1.4 [1단어 1뜻 단일 의미 표준화]: 레거시 google_configs 명칭을 전면 폐기하고 공식메일설정(OfficialMailConfig) 단일 표준 용어로 통합",
+      "헌장 5.3 [단일 진실의 원천(SSOT)]: 테넌트별 공식메일설정과 R2 스토리지 설정을 중앙 플랫폼 DB(ebro-platform-core)에서 통합 관리하여 테넌트 초기화 시에도 설정 영구 보존",
+      "헌장 5.9 [외부 발송 안전 격리 원칙]: 테넌트별 [개발모드] ↔ [서비스모드] 1클릭 전환을 통해 테스트 중 실거래처 오발송 원천 차단"
     ],
     "precautions": [
-      "테넌트 영문 코드는 DB 스키마 및 스토리지 경로의 고유 식별자이므로 생성 후 수정 불가"
+      "테넌트 영문 코드는 DB 스키마 및 스토리지 경로의 고유 식별자이므로 최초 생성 후 변경할 수 없습니다.",
+      "실제 거래처로 메일을 발송하려면 해당 테넌트의 공식메일설정 모드를 [개발모드]에서 [서비스모드]로 전환해야 합니다."
     ],
     "basicGuide": [
       {
         "seq": 1,
         "selector": "[data-mid=\"tenant-scope-search\"]",
         "type": "callout",
-        "label": "테넌트 검색 및 필터",
-        "description": "[테넌트 검색 및 필터] 화면 영역입니다. 상호명, 테넌트 코드, 사업자등록번호를 입력하여 관리 대상을 신속 검색하는 기본 기능을 제공합니다.",
+        "label": "테넌트 검색 및 상태 필터",
+        "description": "[테넌트 검색 및 상태 필터] 화면 영역입니다. 상호명, 테넌트 코드, 사업자등록번호로 관리 대상 고객사 테넌트를 신속히 스코핑합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"tenant-inspection-grid\"]",
         "type": "highlight",
-        "label": "테넌트 마스터 대장",
-        "description": "[테넌트 마스터 대장] 화면 영역입니다. 가동 상태, 구독 플랜, 만료일자, 대표자 및 브랜드 에셋을 한눈에 조망하는 기본 기능을 제공합니다.",
+        "label": "테넌트 관리 대장 및 인라인 공식메일설정",
+        "description": "[테넌트 관리 대장] 화면 영역입니다. 구독 플랜, 만료일, 공식메일설정 계정 및 [개발모드 ↔ 서비스모드] 인라인 전환 버튼을 한눈에 조망하고 즉시 제어합니다.",
         "positionHint": "top"
       }
     ],
     "processes": [
       {
         "processId": "tenant_register_workflow",
-        "title": "신규 테넌트 생성 및 초기화",
-        "description": "새로운 고객사 테넌트를 생성하고 구독 플랜과 기본 마스터 속성을 설정합니다.",
+        "title": "신규 테넌트 법인 개설 및 모듈 라이선스 할당",
+        "description": "새로운 렌탈/유통 고객사 테넌트를 등록하고 구독 플랜과 허용 메뉴 모듈을 할당합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid=\"tenant-pipeline-add\"]",
             "type": "click_ripple",
-            "label": "테넌트 등록 버튼 클릭",
-            "description": "[테넌트 등록 버튼 클릭] UI 요소를 조작합니다. 우상단의 [테넌트 등록] 버튼을 클릭하여 설정 모달을 엽니다.",
+            "label": "신규 테넌트 등록 모달 오픈",
+            "description": "우상단 [신규 테넌트 등록] 버튼을 클릭하여 테넌트 설정 스튜디오를 엽니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"tenant-inspection-grid\"]",
             "type": "highlight",
-            "label": "등록 결과 확인",
-            "description": "[등록 결과 확인] UI 요소를 확인합니다. 그리드 대장에서 신규 생성된 테넌트의 가동 상태와 구독 만료일을 확인하십시오.",
+            "label": "모듈 라이선스 및 사업자 정보 저장",
+            "description": "사업자 기본 정보와 허용 모듈(렌탈/유통 등)을 지정한 뒤 저장하여 대장 등록 결과를 확인합니다.",
             "positionHint": "top"
+          }
+        ]
+      },
+      {
+        "processId": "tenant_official_mail_mode",
+        "title": "테넌트별 공식메일설정 및 개발모드·서비스모드 전환",
+        "description": "테넌트 관리 센터에서 테넌트별 공식 발신 메일(SMTP) 계정을 설정하고 개발모드(안전 격리)와 서비스모드(실발송)를 전환합니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"tenant-inspection-grid\"]",
+            "type": "click_ripple",
+            "label": "목록 인라인 개발모드 ↔ 서비스모드 전환",
+            "description": "테넌트 목록의 [공식메일설정] 컬럼에서 [개발모드] 또는 [서비스모드] 배지 버튼을 클릭하여 발송 모드를 즉시 전환합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"tenant-inspection-grid\"] button",
+            "type": "callout",
+            "label": "공식메일설정(EMAIL) 상세 계정 구성",
+            "description": "테넌트 우측 [설정] 모달의 [공식메일설정] 탭에서 네이버/구글 SMTP 계정과 앱 비밀번호를 입력하고 연결 테스트 후 저장합니다.",
+            "positionHint": "left"
           }
         ]
       }
@@ -8624,7 +8524,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"tenant-scope-search\"]",
         "label": "테넌트 검색",
-        "description": "고객사 테넌트 코드 및 상호 검색",
+        "description": "고객사 테넌트 코드, 상호, 사업자번호 검색",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
@@ -8632,20 +8532,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"tenant-scope-status\"]",
         "label": "상태 필터",
-        "description": "활성, 대기, 정지 테넌트 스코핑",
+        "description": "활성, 정지, 만료 테넌트 스코핑",
         "colorToken": "PURPLE",
         "type": "CALLOUT"
       },
       {
         "seq": 3,
-        "selector": "[data-mid=\"tenant-pipeline-excel\"]",
-        "label": "엑셀 내보내기",
-        "description": "전사 테넌트 목록 엑셀 추출",
-        "colorToken": "AMBER",
-        "type": "CALLOUT"
-      },
-      {
-        "seq": 4,
         "selector": "[data-mid=\"tenant-pipeline-onboard\"]",
         "label": "온보딩 실행",
         "description": "신규 테넌트 초기 데이터베이스 프로비저닝",
@@ -8653,20 +8545,85 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "type": "CALLOUT"
       },
       {
-        "seq": 5,
+        "seq": 4,
         "selector": "[data-mid=\"tenant-pipeline-add\"]",
-        "label": "테넌트 추가",
-        "description": "신규 고객사 테넌트 등록",
+        "label": "테넌트 등록",
+        "description": "신규 테넌트 법인 개설 및 통합 설정",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
       {
-        "seq": 6,
+        "seq": 5,
         "selector": "[data-mid=\"tenant-inspection-grid\"]",
-        "label": "테넌트 관리 대장",
-        "description": "테넌트별 계약 기간, 계정수, 격리 정책",
+        "label": "테넌트 대장 및 공식메일설정",
+        "description": "구독 상태, 공식메일설정(개발모드/서비스모드 토글), R2 스토리지 및 작업공간 전환",
         "colorToken": "GREEN",
         "type": "HIGHLIGHT_BOX"
+      }
+    ],
+    "subTabs": [
+      {
+        "tabId": "BASIC_INFO",
+        "tabName": "기본 사업자·인감·CPO",
+        "purpose": "법인 사업자 정보, 대표 계좌, 법인 인감 이미지 및 개인정보 보호책임자(CPO) 설정",
+        "keyActions": [
+          "사업자 정보 입력",
+          "법인 인감 등록",
+          "CPO 지정"
+        ]
+      },
+      {
+        "tabId": "MODULES",
+        "tabName": "모듈 라이선스 설정",
+        "purpose": "테넌트별 허용 메뉴 그룹(영업-유통, 렌탈, 정비 등) 및 노출 페이지(allowedPages/hiddenPages) 할당",
+        "keyActions": [
+          "모듈 체크박스 토글",
+          "권한 매트릭스 연동"
+        ]
+      },
+      {
+        "tabId": "FEATURES",
+        "tabName": "특수기능 및 에이전트 AI",
+        "purpose": "특수 거래명세서 허용 여부 및 로컬 에이전트 Silent Core(AI OFF) / Full AI Studio(AI ON) 제어",
+        "keyActions": [
+          "특수기능 인가",
+          "에이전트 AI 토글"
+        ]
+      },
+      {
+        "tabId": "EMAIL",
+        "tabName": "공식메일설정 (OfficialMailConfig)",
+        "purpose": "테넌트별 공식 발신 SMTP 계정(네이버/구글/다음/커스텀) 및 개발모드(안전 격리)/서비스모드(실발송) 중앙 영구 설정",
+        "keyActions": [
+          "SMTP 계정 입력",
+          "개발모드/서비스모드 전환",
+          "발송 연결 테스트"
+        ]
+      },
+      {
+        "tabId": "STORAGE",
+        "tabName": "클라우드 스토리지 (Cloudflare R2)",
+        "purpose": "테넌트별 R2 버킷, Access Key, 공개 도메인 및 로컬 에이전트 드라이브 미러링 폴더 설정",
+        "keyActions": [
+          "R2 자격증명 입력",
+          "R2 연결 테스트",
+          "폴더 미러링 설정"
+        ]
+      }
+    ],
+    "modalWorkflows": [
+      {
+        "modalName": "테넌트 통합 설정 모달 (TenantConfigModal)",
+        "triggerButton": "[신규 테넌트 등록] 또는 행 우측 [설정]",
+        "keyFields": [
+          "테넌트 코드 및 법인 사업자 제원",
+          "구독 요금제(TRIAL/BASIC/PRO/ENTERPRISE) 및 만료일",
+          "허용 모듈(allowedModules) 및 특수기능(specialFeatures)",
+          "공식메일설정(SMTP 계정, 앱 비밀번호, 개발모드/서비스모드 토글)",
+          "Cloudflare R2 스토리지(Account ID, 버킷명, 공개 도메인)"
+        ],
+        "terminalAction": "[테넌트 설정 저장]",
+        "afterStateTransition": "중앙 플랫폼 DB(ebro-platform-core tenants.features) 및 테넌트 원장에 동시 영구 보존"
       }
     ]
   },
@@ -8737,39 +8694,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "tp_bg_1",
-        "title": "검색 필터",
-        "text": "좌상단의 카테고리와 판매 상태 드롭다운을 통해 관리할 상품을 좁힙니다.",
-        "elementSelector": ".filter-group"
+        "seq": 1,
+        "selector": ".filter-group",
+        "type": "highlight",
+        "label": "검색 필터",
+        "description": "좌상단의 카테고리와 판매 상태 드롭다운을 통해 관리할 상품을 좁힙니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tp_bg_2",
-        "title": "상품 그리드",
-        "text": "중앙 표에서 상품의 단가와 이동평균원가(COGS) 방식을 한눈에 확인합니다.",
-        "elementSelector": ".grid-container"
+        "seq": 2,
+        "selector": ".grid-container",
+        "type": "highlight",
+        "label": "상품 그리드",
+        "description": "중앙 표에서 상품의 단가와 이동평균원가(COGS) 방식을 한눈에 확인합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tp_proc_1",
+        "processId": "tp_proc_1",
         "title": "신규 상품 등록 흐름",
+        "description": "신규 상품 등록 흐름",
         "steps": [
           {
-            "text": "우상단 [신규 등록] 버튼을 클릭하세요.",
-            "selector": ".btn-new"
+            "seq": 1,
+            "selector": ".btn-new",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "우상단 [신규 등록] 버튼을 클릭하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "입력창에 [상품명]과 [표준 판매가]를 입력하세요.",
-            "selector": "input[name='itemName']"
+            "seq": 2,
+            "selector": "input[name='itemName']",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "입력창에 [상품명]과 [표준 판매가]를 입력하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [변경 저장]을 눌러 상품 원장에 등록을 완결하세요.",
-            "selector": ".btn-save"
+            "seq": 3,
+            "selector": ".btn-save",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [변경 저장]을 눌러 상품 원장에 등록을 완결하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "trade_purchases",
@@ -8831,43 +8805,60 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "tpu_bg_1",
-        "title": "입고 대기 목록",
-        "text": "좌상단의 필터를 통해 입고 처리가 필요한 발주 건들을 화면에 호출합니다.",
-        "elementSelector": ".filter-group"
+        "seq": 1,
+        "selector": ".filter-group",
+        "type": "highlight",
+        "label": "입고 대기 목록",
+        "description": "좌상단의 필터를 통해 입고 처리가 필요한 발주 건들을 화면에 호출합니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tpu_bg_2",
-        "title": "수량 대사 그리드",
-        "text": "발주서 수량과 현장 검수 수량의 차액을 중앙 테이블에서 직접 확인합니다.",
-        "elementSelector": ".grid-container"
+        "seq": 2,
+        "selector": ".grid-container",
+        "type": "highlight",
+        "label": "수량 대사 그리드",
+        "description": "발주서 수량과 현장 검수 수량의 차액을 중앙 테이블에서 직접 확인합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tpu_proc_1",
+        "processId": "tpu_proc_1",
         "title": "상품 입고 검수 및 확정",
+        "description": "상품 입고 검수 및 확정",
         "steps": [
           {
-            "text": "중앙 그리드에서 [실제 입고 수량] 셀을 클릭하고 숫자를 입력하세요.",
-            "selector": ".qty-input"
+            "seq": 1,
+            "selector": ".qty-input",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "중앙 그리드에서 [실제 입고 수량] 셀을 클릭하고 숫자를 입력하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "수량 불일치 시 우측 셀의 [사유] 드롭다운에서 파손/오배송을 선택하세요.",
-            "selector": ".reason-select"
+            "seq": 2,
+            "selector": ".reason-select",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "수량 불일치 시 우측 셀의 [사유] 드롭다운에서 파손/오배송을 선택하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [입고 일괄 확정] 버튼을 눌러 재고 수불부에 더하세요.",
-            "selector": ".btn-confirm"
+            "seq": 3,
+            "selector": ".btn-confirm",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [입고 일괄 확정] 버튼을 눌러 재고 수불부에 더하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "trade_contracts",
-    "version": 15,
+    "version": 16,
     "menuName": "유통 계약 관리",
     "groupId": "grp_distribution",
     "groupName": "영업-유통",
@@ -9106,39 +9097,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "to_bg_1",
-        "title": "출고 지시 요약",
-        "text": "상단에서 언제 어디로 보내야 하는지 수주 지시 원문을 확인합니다.",
-        "elementSelector": ".request-summary"
+        "seq": 1,
+        "selector": ".request-summary",
+        "type": "highlight",
+        "label": "출고 지시 요약",
+        "description": "상단에서 언제 어디로 보내야 하는지 수주 지시 원문을 확인합니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "to_bg_2",
-        "title": "피킹/패킹 작업대",
-        "text": "중앙 카드에서 실제 창고의 어느 구역에서 물건을 꺼낼지(피킹) 할당 상태를 봅니다.",
-        "elementSelector": ".picking-card"
+        "seq": 2,
+        "selector": ".picking-card",
+        "type": "highlight",
+        "label": "피킹/패킹 작업대",
+        "description": "중앙 카드에서 실제 창고의 어느 구역에서 물건을 꺼낼지(피킹) 할당 상태를 봅니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "to_proc_1",
+        "processId": "to_proc_1",
         "title": "재고 할당 및 출고 승인",
+        "description": "재고 할당 및 출고 승인",
         "steps": [
           {
-            "text": "우상단의 [재고 할당] 버튼을 눌러 부족한 재고가 없는지 시스템 연산을 실행하세요.",
-            "selector": ".btn-allocate"
+            "seq": 1,
+            "selector": ".btn-allocate",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "우상단의 [재고 할당] 버튼을 눌러 부족한 재고가 없는지 시스템 연산을 실행하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "중앙의 현장 특이사항(포장 주의 등) 텍스트를 읽고 검수 체크박스를 틱(V) 하세요.",
-            "selector": ".checkbox-inspect"
+            "seq": 2,
+            "selector": ".checkbox-inspect",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "중앙의 현장 특이사항(포장 주의 등) 텍스트를 읽고 검수 체크박스를 틱(V) 하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [출고 승인] 버튼을 눌러 재고를 완전히 차감하고 배송 파트너에게 넘기세요.",
-            "selector": ".btn-approve"
+            "seq": 3,
+            "selector": ".btn-approve",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [출고 승인] 버튼을 눌러 재고를 완전히 차감하고 배송 파트너에게 넘기세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "courier_dispatch",
@@ -9191,39 +9199,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "cd_bg_1",
-        "title": "발송 목록 필터",
-        "text": "좌상단에서 오늘 발송해야 할 택배사별 물량을 좁혀서 조회합니다.",
-        "elementSelector": ".filter-group"
+        "seq": 1,
+        "selector": ".filter-group",
+        "type": "highlight",
+        "label": "발송 목록 필터",
+        "description": "좌상단에서 오늘 발송해야 할 택배사별 물량을 좁혀서 조회합니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "cd_bg_2",
-        "title": "송장 맵핑 그리드",
-        "text": "중앙 표에서 고객 주소와 부여된 택배 운송장 번호가 올바르게 매칭되었는지 확인합니다.",
-        "elementSelector": ".grid-container"
+        "seq": 2,
+        "selector": ".grid-container",
+        "type": "highlight",
+        "label": "송장 맵핑 그리드",
+        "description": "중앙 표에서 고객 주소와 부여된 택배 운송장 번호가 올바르게 매칭되었는지 확인합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "cd_proc_1",
+        "processId": "cd_proc_1",
         "title": "송장 부여 및 배송 마감",
+        "description": "송장 부여 및 배송 마감",
         "steps": [
           {
-            "text": "우상단 [엑셀 송장 업로드] 버튼을 클릭해 택배사에서 받은 운송장 번호 파일을 업로드하세요.",
-            "selector": ".btn-upload-invoice"
+            "seq": 1,
+            "selector": ".btn-upload-invoice",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "우상단 [엑셀 송장 업로드] 버튼을 클릭해 택배사에서 받은 운송장 번호 파일을 업로드하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "중앙 그리드의 [운송장 번호] 칸에 빈칸이 없는지 시각적으로 확인하세요.",
-            "selector": ".invoice-cell"
+            "seq": 2,
+            "selector": ".invoice-cell",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "중앙 그리드의 [운송장 번호] 칸에 빈칸이 없는지 시각적으로 확인하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [배송 일괄 마감] 버튼을 클릭해 고객에게 발송 알림을 보내세요.",
-            "selector": ".btn-dispatch"
+            "seq": 3,
+            "selector": ".btn-dispatch",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [배송 일괄 마감] 버튼을 클릭해 고객에게 발송 알림을 보내세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "trade_billing",
@@ -9276,39 +9301,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "tb_bg_1",
-        "title": "청구 대상 스코프",
-        "text": "좌상단 달력에서 마감할 월을 선택하여 미청구된 유통 판매 내역을 부릅니다.",
-        "elementSelector": ".filter-month"
+        "seq": 1,
+        "selector": ".filter-month",
+        "type": "highlight",
+        "label": "청구 대상 스코프",
+        "description": "좌상단 달력에서 마감할 월을 선택하여 미청구된 유통 판매 내역을 부릅니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tb_bg_2",
-        "title": "대차대조 및 차액 검증",
-        "text": "중앙 표와 우하단 요약 영역에서 받을 돈과 발행할 명세서 금액의 차이가 ₩0 인지 검증합니다.",
-        "elementSelector": ".audit-summary"
+        "seq": 2,
+        "selector": ".audit-summary",
+        "type": "highlight",
+        "label": "대차대조 및 차액 검증",
+        "description": "중앙 표와 우하단 요약 영역에서 받을 돈과 발행할 명세서 금액의 차이가 ₩0 인지 검증합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tb_proc_1",
+        "processId": "tb_proc_1",
         "title": "매출 마감 및 명세서 발행",
+        "description": "매출 마감 및 명세서 발행",
         "steps": [
           {
-            "text": "우상단 [미청구액 불러오기] 버튼을 눌러 지난달 판매액을 모두 끌어오세요.",
-            "selector": ".btn-fetch"
+            "seq": 1,
+            "selector": ".btn-fetch",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "우상단 [미청구액 불러오기] 버튼을 눌러 지난달 판매액을 모두 끌어오세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "중앙 그리드에서 청구 대상 거래처 좌측의 [체크박스]를 모두 선택하세요.",
-            "selector": ".row-checkbox"
+            "seq": 2,
+            "selector": ".row-checkbox",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "중앙 그리드에서 청구 대상 거래처 좌측의 [체크박스]를 모두 선택하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [명세서 일괄 발행] 버튼을 클릭하여 청구서를 확정하세요.",
-            "selector": ".btn-issue"
+            "seq": 3,
+            "selector": ".btn-issue",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [명세서 일괄 발행] 버튼을 클릭하여 청구서를 확정하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "trade_returns",
@@ -9369,39 +9411,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "tr_bg_1",
-        "title": "반품 원계약 추적",
-        "text": "상단에서 고객이 언제, 얼마에 사간 물건인지 원본 판매 이력을 대조합니다.",
-        "elementSelector": ".original-contract-info"
+        "seq": 1,
+        "selector": ".original-contract-info",
+        "type": "highlight",
+        "label": "반품 원계약 추적",
+        "description": "상단에서 고객이 언제, 얼마에 사간 물건인지 원본 판매 이력을 대조합니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tr_bg_2",
-        "title": "검수 및 판정 영역",
-        "text": "중앙 화면에서 박스 개봉 사진을 첨부하고 다시 팔 수 있는지 없는지를 기록합니다.",
-        "elementSelector": ".inspection-form"
+        "seq": 2,
+        "selector": ".inspection-form",
+        "type": "highlight",
+        "label": "검수 및 판정 영역",
+        "description": "중앙 화면에서 박스 개봉 사진을 첨부하고 다시 팔 수 있는지 없는지를 기록합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tr_proc_1",
+        "processId": "tr_proc_1",
         "title": "상품 반환 검수 및 환입",
+        "description": "상품 반환 검수 및 환입",
         "steps": [
           {
-            "text": "우상단 [원계약 조회] 버튼을 눌러 과거 판매 기록을 팝업으로 띄워 확인하세요.",
-            "selector": ".btn-view-origin"
+            "seq": 1,
+            "selector": ".btn-view-origin",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "우상단 [원계약 조회] 버튼을 눌러 과거 판매 기록을 팝업으로 띄워 확인하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "중앙 폼의 [검수 상태] 드롭다운에서 '정상(재판매)' 또는 '불량(수리/폐기)'을 정확히 선택하세요.",
-            "selector": "select[name='condition']"
+            "seq": 2,
+            "selector": "select[name='condition']",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "중앙 폼의 [검수 상태] 드롭다운에서 '정상(재판매)' 또는 '불량(수리/폐기)'을 정확히 선택하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [환입 완료] 버튼을 눌러 재고와 회계 원장에 반품을 확정하세요.",
-            "selector": ".btn-return"
+            "seq": 3,
+            "selector": ".btn-return",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [환입 완료] 버튼을 눌러 재고와 회계 원장에 반품을 확정하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "trade_profitability",
@@ -9446,43 +9505,60 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "basicGuide": [
       {
-        "id": "tprof_bg_1",
-        "title": "마진 분석 스코프",
-        "text": "좌상단 필터에서 이번 달 어떤 품목이 얼마나 남았는지 분석할 범위를 정합니다.",
-        "elementSelector": ".filter-group"
+        "seq": 1,
+        "selector": ".filter-group",
+        "type": "highlight",
+        "label": "마진 분석 스코프",
+        "description": "좌상단 필터에서 이번 달 어떤 품목이 얼마나 남았는지 분석할 범위를 정합니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tprof_bg_2",
-        "title": "이익률 대차대조표",
-        "text": "중앙 표에서 매출액에서 매입원가를 뺀 실제 마진율(%)을 상품별로 건조하게 직관적으로 확인합니다.",
-        "elementSelector": ".grid-container"
+        "seq": 2,
+        "selector": ".grid-container",
+        "type": "highlight",
+        "label": "이익률 대차대조표",
+        "description": "중앙 표에서 매출액에서 매입원가를 뺀 실제 마진율(%)을 상품별로 건조하게 직관적으로 확인합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tprof_proc_1",
+        "processId": "tprof_proc_1",
         "title": "월간 유통 수익성 결산",
+        "description": "월간 유통 수익성 결산",
         "steps": [
           {
-            "text": "좌상단 [분석 기간] 달력을 눌러 지난달 1일부터 말일까지로 세팅하세요.",
-            "selector": ".date-picker"
+            "seq": 1,
+            "selector": ".date-picker",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "좌상단 [분석 기간] 달력을 눌러 지난달 1일부터 말일까지로 세팅하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우상단 [분석 실행] 버튼을 눌러 DB에 저장된 확정 원가와 매출액을 계산해 오세요.",
-            "selector": ".btn-analyze"
+            "seq": 2,
+            "selector": ".btn-analyze",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "우상단 [분석 실행] 버튼을 눌러 DB에 저장된 확정 원가와 매출액을 계산해 오세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단의 [총 마진율 %]를 확인하고, 보고서 제출을 위해 [엑셀 내보내기]를 누르세요.",
-            "selector": ".btn-export"
+            "seq": 3,
+            "selector": ".btn-export",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단의 [총 마진율 %]를 확인하고, 보고서 제출을 위해 [엑셀 내보내기]를 누르세요.",
+            "positionHint": "bottom"
           }
         ]
       }
     ],
-    "version": 3
+    "version": 16
   },
   {
     "menuId": "custom_billing",
-    "version": 3,
+    "version": 16,
     "menuName": "특수 거래명세서 (특수청구) 작성",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -9550,20 +9626,33 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "processes": [
       {
-        "id": "custom_billing_proc_1",
+        "processId": "custom_billing_proc_1",
         "title": "특수 거래명세서 품목 구성 및 발행",
+        "description": "특수 거래명세서 품목 구성 및 발행",
         "steps": [
           {
-            "text": "청구 대장에서 [특수명세서 작성] 버튼을 클릭하여 모달을 오픈하세요.",
-            "selector": ".btn-custom-statement"
+            "seq": 1,
+            "selector": ".btn-custom-statement",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "청구 대장에서 [특수명세서 작성] 버튼을 클릭하여 모달을 오픈하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "변환 사유를 입력하고 품목 목록에 행을 추가하여 규격과 금액을 기재하세요.",
-            "selector": ".custom-statement-table"
+            "seq": 2,
+            "selector": ".custom-statement-table",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "변환 사유를 입력하고 품목 목록에 행을 추가하여 규격과 금액을 기재하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우하단 대차 차액 ₩0 표시를 확인한 후 [특수 거래명세서 품목 저장]을 누르세요.",
-            "selector": ".btn-save-custom-statement"
+            "seq": 3,
+            "selector": ".btn-save-custom-statement",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "우하단 대차 차액 ₩0 표시를 확인한 후 [특수 거래명세서 품목 저장]을 누르세요.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -9571,7 +9660,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "stocktaking",
-    "version": 3,
+    "version": 16,
     "menuName": "재고/자산 실사",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
@@ -9640,20 +9729,33 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "processes": [
       {
-        "id": "stocktaking_proc_1",
+        "processId": "stocktaking_proc_1",
         "title": "주기장 및 차량 재고 실사 수행",
+        "description": "주기장 및 차량 재고 실사 수행",
         "steps": [
           {
-            "text": "실사 구역을 선택하고 [실사 시작] 버튼을 누르세요.",
-            "selector": ".btn-start-audit"
+            "seq": 1,
+            "selector": ".btn-start-audit",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "실사 구역을 선택하고 [실사 시작] 버튼을 누르세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "바코드 입력창에 장비/부품 바코드를 연속 스캔하세요.",
-            "selector": "input[placeholder*='바코드']"
+            "seq": 2,
+            "selector": "input[placeholder*='바코드']",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "바코드 입력창에 장비/부품 바코드를 연속 스캔하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "오차 품목을 재확인한 뒤 우하단 [실사 확정]을 눌러 재고를 동기화하세요.",
-            "selector": ".btn-confirm-audit"
+            "seq": 3,
+            "selector": ".btn-confirm-audit",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "오차 품목을 재확인한 뒤 우하단 [실사 확정]을 눌러 재고를 동기화하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -9661,7 +9763,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "data_formation",
-    "version": 3,
+    "version": 16,
     "menuName": "초기자료형성",
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
@@ -9730,20 +9832,33 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "processes": [
       {
-        "id": "data_formation_proc_1",
+        "processId": "data_formation_proc_1",
         "title": "초기 엑셀 데이터 이관 및 적재",
+        "description": "초기 엑셀 데이터 이관 및 적재",
         "steps": [
           {
-            "text": "대상 엔티티를 선택하고 엑셀 파일을 업로드하세요.",
-            "selector": ".btn-upload-excel"
+            "seq": 1,
+            "selector": ".btn-upload-excel",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "대상 엔티티를 선택하고 엑셀 파일을 업로드하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "헤더 매핑을 확인하고 [갭 분석] 버튼을 눌러 오류를 검사하세요.",
-            "selector": ".btn-gap-analysis"
+            "seq": 2,
+            "selector": ".btn-gap-analysis",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "헤더 매핑을 확인하고 [갭 분석] 버튼을 눌러 오류를 검사하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "결함 0건 상태에서 [DB 일괄 적재]를 클릭하여 데이터를 형성하세요.",
-            "selector": ".btn-insert-db"
+            "seq": 3,
+            "selector": ".btn-insert-db",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "결함 0건 상태에서 [DB 일괄 적재]를 클릭하여 데이터를 형성하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -9803,7 +9918,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "voice_dispatch",
-    "version": 3,
+    "version": 16,
     "menuName": "음성 출고지시",
     "groupId": "grp_sales",
     "groupName": "영업관리",
@@ -9856,20 +9971,33 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "processes": [
       {
-        "id": "voice_dispatch_proc_1",
+        "processId": "voice_dispatch_proc_1",
         "title": "음성을 통한 신속 출고 요청",
+        "description": "음성을 통한 신속 출고 요청",
         "steps": [
           {
-            "text": "마이크 버튼을 클릭하고 출고 지시 내용을 음성으로 말씀하세요.",
-            "selector": ".btn-mic-record"
+            "seq": 1,
+            "selector": ".btn-mic-record",
+            "type": "click_ripple",
+            "label": "단계 1",
+            "description": "마이크 버튼을 클릭하고 출고 지시 내용을 음성으로 말씀하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "화면에 표시된 파싱 결과를 눈으로 확인하세요.",
-            "selector": ".parsed-entity-card"
+            "seq": 2,
+            "selector": ".parsed-entity-card",
+            "type": "click_ripple",
+            "label": "단계 2",
+            "description": "화면에 표시된 파싱 결과를 눈으로 확인하세요.",
+            "positionHint": "bottom"
           },
           {
-            "text": "[출고요청서 발행] 버튼을 눌러 접수를 완료하세요.",
-            "selector": ".btn-submit-voice-dispatch"
+            "seq": 3,
+            "selector": ".btn-submit-voice-dispatch",
+            "type": "click_ripple",
+            "label": "단계 3",
+            "description": "[출고요청서 발행] 버튼을 눌러 접수를 완료하세요.",
+            "positionHint": "bottom"
           }
         ]
       }
@@ -9877,58 +10005,76 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "manual_dictionary",
-    "version": 3,
+    "version": 16,
     "menuName": "전사 업무 매뉴얼 사전",
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
-    "department": "경영관리팀 / 감사실",
+    "department": "경영관리팀 / 전사 공통",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "헌장 1.4조 1단어 1뜻 표준 용어 사전 조회 및 다의어/동의어 파편화 방지",
-    "scopeInfo": "전사 표준 용어집(SSOT), 헌장 조항(카테고리 I~VII), 부서별 표준 업무 절차",
+    "objective": "전사 메뉴별 핵심 단위업무 매뉴얼(Process Flow) 절차 검색, 단계별 매뉴얼 열람 및 1클릭 인앱 인터랙티브 가이드 투어 실행",
+    "scopeInfo": "사용자에게 조회(view) 권한이 부여된 메뉴의 전체 단위업무 프로세스(processes), 메뉴별 필터 드롭다운, 키워드 검색창",
     "cognitiveSequence": [
-      "1. 상단 검색창에 용어 또는 헌장 번호(예: '1.3', 'EXCHANGE', 'RENTED') 입력",
-      "2. 좌측 조항/용어 목록에서 상세 정의 및 금지 안티패턴 확인",
-      "3. 우측 전사 적용 메뉴 및 관련 DB 스키마 1:1 관통 상태 조망",
-      "4. 표준 준수 자가 진단 체크리스트 확인"
+      "1. 상단 [메뉴 필터] 드롭다운에서 특정 메뉴를 선택하거나 [업무명 또는 설명 검색] 창에 업무 키워드(예: 신규 계약, 공식메일설정, 19개 제원, 대차, 수납) 입력",
+      "2. 권한 격리 검증: 로그인한 사용자가 접근 권한(canView)을 보유한 메뉴의 단위업무 프로세스만 안전하게 필터링되어 카드 형태로 노출",
+      "3. 중앙 카드 리스트에서 단위업무 제목, 업무 목적 및 단계별(1~N단계) 조작 설명(Label & Description) 숙지",
+      "4. 카드 우상단 [가이드 시작] 버튼 클릭 시 대상 메뉴 화면으로 즉시 자동 이동하며 인앱 단계별 클릭/하이라이트 가이드 투어 개시"
     ],
     "modalWorkflows": [],
-    "auditResult": "표준 도메인 용어 단일 진실의 원천(SSOT) 정의 보존",
+    "auditResult": "전사 단위업무 매뉴얼 프로세스 표준 스키마(processId, title, description, steps) 100% 정합 및 권한별 격리 열람 확정",
     "rulesCompliance": [
-      "헌장 1.4 [1단어 1뜻 전사 단일 의미 표준화 원칙] 준수: 다의어 및 동의어 파편화 영구 퇴치",
-      "헌장 5.3 [단일 진실의 원천(SSOT) 준수] 의무화"
+      "헌장 1.1 [최우선 개발 사명]: 신입 및 실무 담당자가 업무 절차를 검색 즉시 실제 화면에서 따라 할 수 있는 인터랙티브 실행 환경 제공",
+      "헌장 1.4 [1단어 1뜻 전사 단일 의미 표준화 원칙]: 모든 단위업무 절차의 용어를 전사 표준 용어집(SSOT)과 100% 일치 유지"
     ],
     "precautions": [
-      "신규 기능을 기획하거나 용어를 정의할 때는 반드시 본 사전의 등록 여부를 선행 검증해야 합니다."
+      "사용자에게 조회 권한이 없는 메뉴의 단위업무는 사전 목록 및 드롭다운에서 자동으로 제외됩니다."
     ],
     "annotations": [
       {
         "seq": 1,
         "selector": "[data-mid=\"manual_dictionary-process-list\"]",
-        "label": "용어 사전 프로세스",
-        "description": "1단어 1뜻 표준 도메인 용어 정의 목록",
+        "label": "단위업무 프로세스 사전",
+        "description": "메뉴별 단위업무 단계 절차 및 1클릭 가이드 투어 실행",
         "colorToken": "BLUE",
-        "type": "STAMP"
+        "type": "HIGHLIGHT_BOX"
       }
     ],
     "processes": [
       {
-        "id": "manual_dictionary_proc_1",
-        "title": "전사 표준 용어 검색 및 검증",
+        "processId": "manual_dictionary_proc_1",
+        "title": "단위업무 매뉴얼 검색 및 인앱 가이드 투어 실행",
+        "description": "수행하려는 단위업무를 검색하여 단계별 절차를 확인하고 [가이드 시작]으로 인터랙티브 투어를 시작합니다.",
         "steps": [
           {
-            "text": "검색창에 확인하고자 하는 비즈니스 용어를 입력하세요.",
-            "selector": "input[placeholder*='용어']"
+            "seq": 1,
+            "selector": "input[placeholder*=\"신규 계약\"]",
+            "type": "callout",
+            "label": "단위업무 키워드 검색",
+            "description": "검색창에 찾고자 하는 업무명(예: 계약 등록, 대차, 청구, 제품 등록)을 입력합니다.",
+            "positionHint": "bottom"
           },
           {
-            "text": "정의 카드에서 1:1 표준 명칭과 적용 규칙을 확인하세요.",
-            "selector": ".dictionary-detail-card"
+            "seq": 2,
+            "selector": "[data-mid=\"manual_dictionary-process-list\"] button.btn-primary",
+            "type": "click_ripple",
+            "label": "가이드 시작 클릭",
+            "description": "대상 단위업무 카드 우측의 [가이드 시작] 버튼을 클릭하여 해당 메뉴로 이동 후 인앱 가이드를 실행합니다.",
+            "positionHint": "left"
           }
         ]
+      }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"manual_dictionary-process-list\"]",
+        "type": "highlight",
+        "label": "단위업무 매뉴얼 카드 리스트 및 가이드 시작",
+        "description": "[단위업무 매뉴얼 리스트] 영역입니다. 메뉴별 단위업무의 단계별 절차를 확인하고 [가이드 시작] 버튼으로 실제 화면 투어를 실행합니다.",
+        "positionHint": "top"
       }
     ]
   }
 ];
-
 export const getMenuManual = (menuId: string): MenuManualDetail | undefined => {
   return ALL_MENU_MANUALS.find(m => m.menuId === menuId);
 };

@@ -69,20 +69,22 @@ export const OperationManualPage: React.FC = () => {
       centralMap.set(item.menu_id, item);
     });
 
-    // 1. 기존 ALL_MENU_MANUALS의 항목에 중앙 DB 데이터 우선 적용
+    // 1. 기존 ALL_MENU_MANUALS의 항목에 중앙 DB manual_url 병합 (개편된 최신 SSOT 명칭/목적 우선)
     const merged = ALL_MENU_MANUALS.map(m => {
       const c = centralMap.get(m.menuId);
       if (!c) return m;
+      const isLatestSsot = (m.version || 1) >= 15;
       return {
         ...m,
-        menuName: c.title || m.menuName,
-        objective: c.description || m.objective,
+        menuName: isLatestSsot ? m.menuName : (c.title || m.menuName),
+        objective: isLatestSsot ? m.objective : (c.description || m.objective),
         manualUrl: c.manual_url || m.manualUrl,
       };
     });
 
-    // 2. 중앙 DB에만 존재하는 신규 dynamic 메뉴 매뉴얼 추가
+    // 2. 중앙 DB에만 존재하는 신규 dynamic 메뉴 매뉴얼 추가 (폐기된 google_config 제외)
     centralManuals.forEach(c => {
+      if (c.menu_id === 'google_config') return;
       const exists = ALL_MENU_MANUALS.some(m => m.menuId === c.menu_id);
       if (!exists) {
         merged.push({

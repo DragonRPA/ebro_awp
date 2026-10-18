@@ -1238,6 +1238,146 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
       },
     ],
   },
+
+  // ── 24. 신규 제품 등록 모달 (19개 제원 항목 표준화) ──
+  modal_product_register: {
+    modalId: 'modal_product_register',
+    modalName: '신규 제품 등록 (19개 제원 표준 폼)',
+    category: '제품/자산',
+    keywords: ['신규 제품 등록', '제품 등록', '모델 등록', '신규 모델 등록'],
+    annotations: [
+      {
+        seq: 1,
+        selector: '[data-mid="input-product-model"], input[placeholder*="모델명"]',
+        type: 'callout',
+        label: '1. 기본 식별 및 분류 (7개 항목)',
+        description: '모델명(영문 대문자 정규화), 약칭(검색별칭), 제조사, 장비 분류(시저형/굴절형/직진형 등), 동력원, 구동 방식, 운용 상태를 입력합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 2,
+        selector: '[data-mid="input-product-height"], input[placeholder*="작업높이"]',
+        type: 'stamp',
+        label: '2. 핵심 작업 제원 (5개 항목)',
+        description: '최대 작업높이(m), 최대 발판높이(m), 장비 중량(kg), 정격하중(kg), 등판능력(%)을 상세 조회/수정 폼과 100% 동일한 항목으로 입력합니다.',
+        badgeColor: '#047857',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 3,
+        selector: 'input[placeholder*="보관높이"], input[placeholder*="전체길이"], input[placeholder*="배터리"]',
+        type: 'stamp',
+        label: '3. 차체 및 배터리 상세 치수 (7개 항목)',
+        description: '보관높이, 전체길이, 전체폭, 휠베이스, 발판 치수, 연장발판, 배터리 규격을 입력하여 배차 톤수 산정 및 출고 서류 제원표와 연동합니다.',
+        badgeColor: '#B45309',
+        positionHint: 'top',
+        spotlight: false,
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="btn-submit-product"], button[type="submit"]',
+        type: 'click_ripple',
+        label: '제품 등록 완료',
+        description: '19개 제원 정보를 제품 마스터 DB에 즉시 저장하며, 이후 자산 취득 및 Cloudflare R2 문서함(Eq_doc/{모델명}/)과 연동됩니다.',
+        badgeColor: '#DC2626',
+        positionHint: 'top',
+        spotlight: true,
+      },
+    ],
+  },
+
+  // ── 25. 테넌트 설정 및 공식메일설정·R2 스토리지 모달 ──
+  modal_tenant_config: {
+    modalId: 'modal_tenant_config',
+    modalName: '테넌트 설정 (공식메일설정 / R2 스토리지 / 모듈 라이선스)',
+    category: '시스템/테넌트',
+    keywords: ['테넌트 설정', '신규 테넌트 등록', '공식메일설정', '모듈 라이선스', '클라우드 스토리지'],
+    annotations: [
+      {
+        seq: 1,
+        selector: '[data-mid*="tenant-modal-tab"], button:contains("기본 사업자"), button:contains("공식메일설정")',
+        type: 'callout',
+        label: '테넌트 통합 설정 탭 바',
+        description: '기본 사업자·인감·CPO, 사업장·주기장, 모듈 라이선스, 특수기능/AI, 공식메일설정(EMAIL), 클라우드 스토리지(R2) 탭을 전환합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 2,
+        selector: 'button:contains("개발모드"), button:contains("서비스모드"), input[placeholder*="smtp"], input[placeholder*="이메일"]',
+        type: 'stamp',
+        label: '공식메일설정 및 발송 모드 (개발모드 ↔ 서비스모드)',
+        description: '중앙 플랫폼 DB(tenants.features.officialMailConfig)에 테넌트별 SMTP 계정과 발송 모드(개발모드 안전 격리 / 서비스모드 실발송)를 영구 보존합니다.',
+        badgeColor: '#047857',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 3,
+        selector: 'input[placeholder*="r2"], input[placeholder*="버킷"], button:contains("연결 테스트")',
+        type: 'stamp',
+        label: 'Cloudflare R2 스토리지 및 드라이브 미러링',
+        description: '테넌트 전용 R2 버킷, Access Key, 공개 도메인 및 폴더 경로를 설정하고 연결 테스트를 수행합니다.',
+        badgeColor: '#B45309',
+        positionHint: 'top',
+        spotlight: false,
+      },
+      {
+        seq: 4,
+        selector: 'button[type="submit"], button.btn-primary:contains("저장")',
+        type: 'click_ripple',
+        label: '중앙 플랫폼 원장 및 테넌트 동기화 저장',
+        description: '변경된 테넌트 설정과 공식메일설정을 중앙 플랫폼 DB 및 테넌트 DB에 동시에 영구 저장합니다.',
+        badgeColor: '#DC2626',
+        positionHint: 'top',
+        spotlight: true,
+      },
+    ],
+  },
+
+  // ── 26. 계약서 패키지 조립 및 발송 모달 ──
+  modal_contract_package: {
+    modalId: 'modal_contract_package',
+    modalName: '계약서 패키지 조립 및 이메일 발송',
+    category: '계약/출고서류',
+    keywords: ['계약서패키지', '계약서 패키지', '반입전체크리스트', '패키지 발송'],
+    annotations: [
+      {
+        seq: 1,
+        selector: 'input[type="checkbox"], .package-doc-list',
+        type: 'callout',
+        label: '표준 출고·계약 서류 패키지 구성 선택',
+        description: '임대차계약서, 반입전체크리스트(점검일시=배차일-2일 자동 기입), 장비 제원표·안전인증서(Cloudflare R2 Eq_doc/{모델명}/), 사업자등록증·통장사본·보험증권을 선택합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 2,
+        selector: 'input[type="email"], input[placeholder*="이메일"]',
+        type: 'stamp',
+        label: '수신 담당자 이메일 및 공식메일설정 모드 확인',
+        description: '고객사/현장 담당자 이메일을 확인하며, 테넌트 공식메일설정이 개발모드인 경우 안전 격리 주소로 발송됩니다.',
+        badgeColor: '#047857',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 3,
+        selector: 'button.btn-primary:contains("발송"), button:contains("패키지 발송")',
+        type: 'click_ripple',
+        label: '계약서 패키지 통합 발송 및 마일스톤 완결',
+        description: '선택된 문서를 일괄 조립·발송하고 계약의 [계약서패키지] 마일스톤(packageSentAt)을 즉시 완료 전환합니다.',
+        badgeColor: '#DC2626',
+        positionHint: 'top',
+        spotlight: true,
+      },
+    ],
+  },
 };
 
 /**
@@ -1389,7 +1529,7 @@ export function getModalManualPage(modalKey: string, customTitle?: string): Manu
   return {
     pageId: def.modalId,
     pageTitle: customTitle || def.modalName,
-    version: 5,
+    version: 6,
     items: def.annotations,
   };
 }
