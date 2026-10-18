@@ -2,7 +2,7 @@ import { supabase, db, calculateAssetDepreciation, normalizeCustomerName, findCu
 import { centralSupabase } from './centralDb';
 import * as XLSX from 'xlsx';
 import { PRESET_PRODUCT_SPECS, ProductPresetSpec } from '../data/presetProductSpecs';
-import { isModelMatch } from '../utils/modelUtils';
+import { isModelMatch, getCanonicalModelKey, resolveCanonicalModelName } from '../utils/modelUtils';
 import { isMissingSiteAddress, sanitizeSiteAddressInput, normalizeSiteNameKey, findMatchingSiteMaster } from '../utils/siteMatcher';
 
 // ──────────────────────────────────────────────
@@ -282,7 +282,7 @@ export function sanitizeExcelDate(val: any): string | null {
 
 export function sanitizeModelName(m: any): string {
   if (!m) return '';
-  return String(m).trim().replace(/\s+/g, ' ').toUpperCase();
+  return resolveCanonicalModelName(String(m));
 }
 
 export function parseClosingDay(dayStr: any): number {
@@ -399,23 +399,39 @@ export function extractContactPosition(rawName: string): { name: string; positio
 }
 
 function inferMakerFromModel(m: string): string {
-  if (m.startsWith('ES') || m.startsWith('1930ES') || m.startsWith('1230ES') || m.startsWith('ES1330') || m.startsWith('2632ES')) return 'JLG';
-  if (m.startsWith('GS') || m.startsWith('Z-')) return 'Genie';
-  if (m.startsWith('SJ')) return 'SKYJACK';
-  if (m.startsWith('GTJZ') || m.startsWith('GTBZ') || m.startsWith('S08') || m.startsWith('S10') || m.startsWith('S12') || m.startsWith('S14') || m.startsWith('S16') || m.startsWith('1414E')) return 'SINOBOOM';
-  if (m.startsWith('STAR') || m.startsWith('OPTIMUM')) return 'Haulotte';
-  if (m.startsWith('JCPT')) return 'Dingli';
+  const u = (m || '').toUpperCase();
+  if (u.startsWith('ES') || u.startsWith('1930ES') || u.startsWith('1230ES') || u.startsWith('2632ES') || u.startsWith('2646ES') || u.startsWith('3246ES') || u.startsWith('1532R') || u.startsWith('R1532') || u.startsWith('4069LE') || u.startsWith('JLG')) return 'JLG';
+  if (u.startsWith('GS') || u.startsWith('Z-') || u.startsWith('GENIE')) return 'GENIE';
+  if (u.startsWith('SJ')) return 'SKYJACK';
+  if (u.startsWith('JCPT') || u.endsWith('AC+') || u.endsWith('AC')) return 'DINGLI';
+  if (u === 'S0808E' || u === 'S0812E' || u === 'S1012E' || u === 'S1413E' || u.startsWith('SR')) return 'LGMG';
+  if (u.startsWith('GTJZ') || u.startsWith('GTBZ') || u.startsWith('S08') || u.startsWith('S10') || u.startsWith('S12') || u.startsWith('S14') || u.startsWith('S16') || u.startsWith('1414E')) return 'SINOBOOM';
+  if (u.startsWith('STAR') || u.startsWith('OPTIMUM') || u.startsWith('COMPACT')) return 'HAULOTTE';
+  if (u.startsWith('MS')) return 'MANLIFT';
   return '기타제조사';
 }
 
 function inferFeetFromModel(m: string, heightM: number = 0): number {
-  if (heightM > 0) return Math.round(heightM * 3.28084);
-  if (m.includes('1930') || m.includes('1330') || m.includes('1432') || m.includes('3215') || m.includes('0608')) return 19;
-  if (m.includes('2646') || m.includes('2632') || m.includes('0812') || m.includes('0808') || m.includes('3219')) return 26;
-  if (m.includes('3246') || m.includes('1012') || m.includes('1008')) return 32;
-  if (m.includes('4047') || m.includes('4046') || m.includes('1212')) return 40;
-  if (m.includes('4655') || m.includes('1412') || m.includes('1414')) return 46;
-  if (m.includes('1612') || m.includes('1614')) return 53;
+  const u = (m || '').toUpperCase();
+  // 1순위: 모델명 고유 번호에서 표준 발판높이(피트) 추출 (작업높이 왜곡 원천 차단)
+  if (u.includes('1230')) return 12;
+  if (u.includes('1330')) return 13;
+  if (u.includes('1432')) return 14;
+  if (u.includes('1532') || u.includes('3215')) return 15;
+  if (u.includes('1930') || u.includes('3219') || u.includes('SJ319') || u.includes('0607') || u.includes('0608') || u.includes('STAR6')) return 19;
+  if (u.includes('2032') || u.includes('3220') || u.includes('4620') || u.includes('0807') || u.includes('OPTIMUM') || u.includes('COMPACT8')) return 20;
+  if (u.includes('2646') || u.includes('2632') || u.includes('3226') || u.includes('4626') || u.includes('0812') || u.includes('0808')) return 26;
+  if (u.includes('3246') || u.includes('4632') || u.includes('1012') || u.includes('1008')) return 32;
+  if (u.includes('4047') || u.includes('4046') || u.includes('4069') || u.includes('1212')) return 40;
+  if (u.includes('45/25') || u.includes('1412') || u.includes('1413')) return 45;
+  if (u.includes('4655') || u.includes('1414')) return 46;
+  if (u.includes('5390') || u.includes('1612') || u.includes('1614') || u.includes('1623') || u.includes('GTBZ16')) return 53;
+  if (u.includes('600JP')) return 60;
+  // 2순위: 모델명에서 추론 불가 시 작업높이(M)에서 2M(작업자 신장) 차감하여 발판높이(ft) 환산
+  if (heightM > 0) {
+    const platformM = heightM > 4 ? heightM - 2 : heightM;
+    return Math.round(platformM * 3.28084);
+  }
   return 19;
 }
 
@@ -932,6 +948,7 @@ export function parseInitialExcelWorkbook(
   // ────────────────────────────────────────────────────────────────
 
   const productMap = new Map<string, any>();
+  const canonicalProductKeyMap = new Map<string, string>();
   const vendorMap = new Map<string, any>();
   const customerMap = new Map<string, any>();
   const siteMasterMap = new Map<string, any>();
@@ -944,15 +961,27 @@ export function parseInitialExcelWorkbook(
     return `PROD-${String(++productSeqCounter).padStart(7, '0')}`;
   };
 
+  const resolveProductModel = (raw: any): string => {
+    const sanitized = sanitizeModelName(raw);
+    if (!sanitized) return '';
+    const cKey = getCanonicalModelKey(sanitized);
+    if (cKey && canonicalProductKeyMap.has(cKey)) {
+      return canonicalProductKeyMap.get(cKey)!;
+    }
+    return sanitized;
+  };
+
   Object.values(PRESET_PRODUCT_SPECS).forEach(spec => {
     const cleanModel = sanitizeModelName(spec.modelName);
     if (!cleanModel) return;
+    const shortName = spec.shortName ? String(spec.shortName).trim().toUpperCase() : null;
     productMap.set(cleanModel, {
       id: spec.id || generateUniqueProductId(),
       modelName: cleanModel,
+      shortName: shortName,
       feet: spec.feet || 19,
       spec: spec.spec || `${spec.feet || 19}ft 고소작업대`,
-      manufacturer: spec.manufacturer || '기타제조사',
+      manufacturer: (spec.manufacturer || '기타제조사').toUpperCase(),
       powerSource: spec.powerSource || '배터리',
       workingHeight: spec.workingHeight || null,
       platformHeight: spec.platformHeight || null,
@@ -975,6 +1004,12 @@ export function parseInitialExcelWorkbook(
       createdAt: nowIso,
       updatedAt: nowIso
     });
+    const mKey = getCanonicalModelKey(cleanModel);
+    if (mKey) canonicalProductKeyMap.set(mKey, cleanModel);
+    if (shortName) {
+      const sKey = getCanonicalModelKey(shortName);
+      if (sKey) canonicalProductKeyMap.set(sKey, cleanModel);
+    }
   });
 
   // ── 1. 보유자산현황 시트 파싱 (보유자산현황 / 보유장비 임대현황 등 유연 매칭) ──
@@ -1004,9 +1039,10 @@ export function parseInitialExcelWorkbook(
     const rawAssetNo = getCol(r, assetHeaderMap, ['관리번호', '자산번호'], 4);
     if (!rawModel && !rawAssetNo) return;
 
-    const modelName = sanitizeModelName(rawModel) || 'ES1330L';
+    const modelName = resolveProductModel(rawModel) || 'ES1330L';
     const assetNo = String(rawAssetNo || `TEMP-${assetSeq}`).trim().toUpperCase();
-    const maker = getCol(r, assetHeaderMap, ['제조사', '제조업체'], 7) ? String(r[7]).trim() : inferMakerFromModel(modelName);
+    const rawMaker = getCol(r, assetHeaderMap, ['제조사', '제조업체'], 7);
+    const maker = rawMaker ? String(rawMaker).trim().toUpperCase() : inferMakerFromModel(modelName);
     const supplier = getCol(r, assetHeaderMap, ['공급처', '구입처'], 8) ? String(r[8]).trim() : '';
     const rawHeight = getCol(r, assetHeaderMap, ['작업높이', '규격'], 6);
     const heightM = typeof rawHeight === 'number' ? rawHeight : parseFloat(String(rawHeight || '5.8')) || 5.8;
@@ -1019,6 +1055,7 @@ export function parseInitialExcelWorkbook(
       productMap.set(modelName, {
         id: generateUniqueProductId(),
         modelName: modelName,
+        shortName: null,
         feet: feet,
         spec: `${heightM}M (${feet}ft)`,
         manufacturer: maker,
@@ -1032,6 +1069,8 @@ export function parseInitialExcelWorkbook(
         createdAt: nowIso,
         updatedAt: nowIso
       });
+      const mKey = getCanonicalModelKey(modelName);
+      if (mKey) canonicalProductKeyMap.set(mKey, modelName);
     }
 
     if (supplier && !vendorMap.has(supplier)) {
@@ -1438,15 +1477,16 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       siteMap.set(legacySiteKey, site);
     }
 
-    const targetModel = sanitizeModelName(rawModel) || 'ES1330L';
+    const targetModel = resolveProductModel(rawModel) || 'ES1330L';
     // 높이는 모델명에서 추론 (Col[3]=최초개시일(날짜시리얼)을 높이로 잘못 읽는 버그 차단)
     const feet = inferFeetFromModel(targetModel, 0);
-    const heightM = feet > 0 ? feet * 0.3048 : 5.8; // feet→미터 환산, 불명 시 5.8M 기본값
+    const heightM = feet > 0 ? Number((feet * 0.3048 + 2).toFixed(1)) : 5.8; // 발판높이(feet→M) + 2M = 작업높이
 
     if (!productMap.has(targetModel)) {
       productMap.set(targetModel, {
         id: generateUniqueProductId(),
         modelName: targetModel,
+        shortName: null,
         feet: feet,
         spec: `${heightM}M (${feet}ft)`,
         manufacturer: inferMakerFromModel(targetModel),
@@ -1460,6 +1500,8 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         createdAt: nowIso,
         updatedAt: nowIso
       });
+      const mKey = getCanonicalModelKey(targetModel);
+      if (mKey) canonicalProductKeyMap.set(mKey, targetModel);
     }
 
     // 💡 [단일 진실의 원천]: '반납일'이라는 범용 명칭과 하드코딩된 컬럼 인덱스(19)가 '고객사 현장 반납일'과 충돌하여 

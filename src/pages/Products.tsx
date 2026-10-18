@@ -9,6 +9,7 @@ import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { decryptSecret } from '../utils/cryptoVault';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { getCanonicalModelKey } from '../utils/modelUtils';
 
 interface R2DocFile {
   key: string;
@@ -122,19 +123,57 @@ export const Products: React.FC = () => {
     }
   };
 
-  // 모델별 보유 자산 통계 매핑 (O(A + P) 단일 패스 집계)
+  // 모델별 보유 자산 통계 매핑 (1자산 1모델 배타 매핑 — 중복 합산 원천 차단 및 shortName 축약명 흡수)
   const assetStatsMap = useMemo(() => {
     type ModelAssetStats = { total: number; owned: number; leased: number; available: number; rented: number; assigned: number; repairing: number };
-    const statsByCleanKey = new Map<string, ModelAssetStats>();
+    const map = new Map<string, ModelAssetStats>();
+    const exactModelToProdId = new Map<string, string>();
+    const shortNameToProdId = new Map<string, string>();
+    const canonicalKeyToProdId = new Map<string, string>();
+
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      map.set(p.id, { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 });
+      const exactKey = (p.modelName || '').trim().toUpperCase();
+      if (exactKey) exactModelToProdId.set(exactKey, p.id);
+
+      const cKey = getCanonicalModelKey(p.modelName);
+      if (cKey) {
+        // 동일 정규화 키에 복수 제품이 존재하는 경우 공식 하이픈 표기 또는 제원 보유 모델 우선
+        const existingId = canonicalKeyToProdId.get(cKey);
+        if (!existingId) {
+          canonicalKeyToProdId.set(cKey, p.id);
+        } else {
+          const existingProd = products.find(x => x.id === existingId);
+          const preferNew = (p.modelName.includes('-') && !existingProd?.modelName.includes('-')) || (Boolean(p.weight) && !existingProd?.weight);
+          if (preferNew) canonicalKeyToProdId.set(cKey, p.id);
+        }
+      }
+
+      if (p.shortName) {
+        const sExact = p.shortName.trim().toUpperCase();
+        if (sExact) shortNameToProdId.set(sExact, p.id);
+        const sKey = getCanonicalModelKey(p.shortName);
+        if (sKey && !canonicalKeyToProdId.has(sKey)) {
+          canonicalKeyToProdId.set(sKey, p.id);
+        }
+      }
+    }
 
     for (let i = 0; i < assets.length; i++) {
       const a = assets[i];
-      const key = clean(a.modelName) || a.modelName || '';
-      let st = statsByCleanKey.get(key);
-      if (!st) {
-        st = { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
-        statsByCleanKey.set(key, st);
-      }
+      const rawUpper = (a.modelName || '').trim().toUpperCase();
+      const cKey = getCanonicalModelKey(rawUpper);
+
+      const targetProdId =
+        exactModelToProdId.get(rawUpper) ||
+        shortNameToProdId.get(rawUpper) ||
+        canonicalKeyToProdId.get(cKey);
+
+      if (!targetProdId) continue;
+      const st = map.get(targetProdId);
+      if (!st) continue;
+
       st.total++;
       if (a.ownerType === 'OWNED' || !a.ownerType) st.owned++;
       if (a.ownerType === 'RENTED') st.leased++;
@@ -144,36 +183,35 @@ export const Products: React.FC = () => {
       if (a.status === 'REPAIRING') st.repairing++;
     }
 
-    const emptyStats: ModelAssetStats = { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
-    const map = new Map<string, ModelAssetStats>();
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
-      const pKey = clean(p.modelName) || p.modelName || '';
-      map.set(p.id, statsByCleanKey.get(pKey) || emptyStats);
-    }
     return map;
   }, [products, assets]);
 
-  // 모델별 R2 문서 매핑 (사전 파싱 후 매칭)
+  // 모델별 R2 문서 매핑 (사전 파싱 후 정규화 키 1:1 매칭 — E-Drive와 일반 모델 간 문서 혼입 차단)
   const r2FilesByModelMap = useMemo(() => {
     const map = new Map<string, R2DocFile[]>();
-    const parsedR2: { file: R2DocFile; folderModel: string; fClean: string }[] = [];
+    const parsedR2: { file: R2DocFile; folderModel: string; fCanonical: string }[] = [];
     for (let i = 0; i < r2Files.length; i++) {
       const f = r2Files[i];
       const parts = f.key.split('/');
       if (parts.length >= 3) {
         const folderModel = parts[1];
-        parsedR2.push({ file: f, folderModel, fClean: clean(folderModel) });
+        parsedR2.push({ file: f, folderModel, fCanonical: getCanonicalModelKey(folderModel) });
       }
     }
 
     for (let i = 0; i < products.length; i++) {
       const p = products[i];
-      const pClean = clean(p.modelName);
+      const pCanonical = getCanonicalModelKey(p.modelName);
+      const sCanonical = p.shortName ? getCanonicalModelKey(p.shortName) : '';
       const matched: R2DocFile[] = [];
       for (let j = 0; j < parsedR2.length; j++) {
-        const { file, folderModel, fClean } = parsedR2[j];
-        if (folderModel === p.modelName || fClean === pClean || fClean.includes(pClean) || pClean.includes(fClean)) {
+        const { file, folderModel, fCanonical } = parsedR2[j];
+        if (
+          folderModel === p.modelName ||
+          (pCanonical && fCanonical === pCanonical) ||
+          (sCanonical && fCanonical === sCanonical) ||
+          (pCanonical === 'Z4525J' && fCanonical === 'Z45')
+        ) {
           matched.push(file);
         }
       }

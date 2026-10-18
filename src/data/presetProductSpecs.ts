@@ -1,6 +1,7 @@
 export interface ProductPresetSpec {
   id?: string;
   modelName: string;
+  shortName?: string | null;
   manufacturer: string;
   feet: number;
   spec?: string | null;
@@ -251,9 +252,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS4046": {
+  "GS-4046": {
     "id": "PROD-0000047",
-    "modelName": "GS4046",
+    "modelName": "GS-4046",
     "feet": 40,
     "spec": "배터리, 13.7 M, 적재 350 kg",
     "manufacturer": "GENIE",
@@ -277,7 +278,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS4046"
   },
   "JCPT1614ACZ": {
     "id": "PROD-0000046",
@@ -338,7 +340,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "Z-45/25J": {
     "id": "PROD-0000037",
     "modelName": "Z-45/25J",
-    "feet": 19,
+    "feet": 45,
     "spec": "배터리, 15.9 M, 적재 227 kg",
     "manufacturer": "GENIE",
     "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/Z-45/25J/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_Z-4525J(2009%EB%85%849%EC%9B%9414%EC%9D%BC).pdf",
@@ -361,7 +363,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "Z4525J"
   },
   "S1412AC+": {
     "id": "PROD-0000034",
@@ -394,7 +397,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "GTBZ16AE": {
     "id": "PROD-0000051",
     "modelName": "GTBZ16AE",
-    "feet": 19,
+    "feet": 52,
     "spec": "19ft 고소작업대",
     "manufacturer": "SINOBOOM",
     "safetyCertUrl": null,
@@ -419,9 +422,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS4655": {
+  "GS-4655": {
     "id": "PROD-0000048",
-    "modelName": "GS4655",
+    "modelName": "GS-4655",
     "feet": 46,
     "spec": "배터리, 15.95 M, 적재 349 kg",
     "manufacturer": "GENIE",
@@ -445,12 +448,13 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "136 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS4655"
   },
-  "GS5390RT": {
+  "GS-5390RT": {
     "id": "PROD-0000049",
-    "modelName": "GS5390RT",
-    "feet": 19,
+    "modelName": "GS-5390RT",
+    "feet": 53,
     "spec": "디젤, 18 M, 적재 680 kg",
     "manufacturer": "GENIE",
     "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-5390RT/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-5390(2010%EB%85%849%EC%9B%9429%EC%9D%BC).pdf",
@@ -473,12 +477,13 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "110 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS5390RT"
   },
   "2632ES": {
     "id": "PROD-0000009",
     "modelName": "2632ES",
-    "feet": 19,
+    "feet": 26,
     "spec": "수직형",
     "manufacturer": "JLG",
     "safetyCertUrl": null,
@@ -534,9 +539,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "GS-3246 E-DRIVE": {
     "id": "PROD-0000015",
     "modelName": "GS-3246 E-DRIVE",
-    "feet": 38,
-    "spec": "11.7M (38ft)",
-    "manufacturer": "Genie",
+    "feet": 32,
+    "spec": "배터리, 11.7 M, 적재 318 kg",
+    "manufacturer": "GENIE",
     "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246%20E-DRIVE/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-3246(2021%EB%85%842%EC%9B%949%EC%9D%BC).pdf",
     "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246%20E-DRIVE/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
     "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246%20E-DRIVE/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EB%B2%95GS_E-Drive.pdf",
@@ -546,23 +551,24 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "powerSource": "배터리",
     "workingHeight": "11.7 M",
     "platformHeight": "9.70 M",
-    "weight": null,
-    "capacityPreExt": "230 kg",
-    "machineDimensions": null,
-    "platformDimensions": null,
-    "gradeability": null,
-    "speed": null,
+    "weight": "2,374 Kg",
+    "capacityPreExt": "318 kg",
+    "machineDimensions": "2.44 x 1.17 x 2.39 M",
+    "platformDimensions": "2.26 x 1.16 M",
+    "gradeability": "25 %",
+    "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
-    "capacityPostExtMain": null,
-    "capacityPostExtDeck": null,
+    "capacityPostExtMain": "205 kg",
+    "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS-3246E"
   },
   "SJ3215": {
     "id": "PROD-0000003",
     "modelName": "SJ3215",
-    "feet": 22,
+    "feet": 15,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -590,90 +596,6 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "GS-1930": {
     "id": "PROD-0000010",
     "modelName": "GS-1930",
-    "feet": 26,
-    "spec": "배터리, 7.8 M, 적재 227 kg",
-    "manufacturer": "GENIE",
-    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS1930/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS1930(2021%EB%85%842%EC%9B%949%EC%9D%BC).pdf",
-    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS1930/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-1930.pdf",
-    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS1930/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EC%9E%91%EB%8F%99%EB%B2%95(GS-1930).pdf",
-    "isActive": true,
-    "createdAt": "2026-08-31T09:27:54.700Z",
-    "updatedAt": "2026-08-31T09:42:50.483Z",
-    "powerSource": "배터리",
-    "workingHeight": "7.8 M",
-    "platformHeight": "5.8 M",
-    "weight": "1226 Kg",
-    "capacityPreExt": "227 kg",
-    "machineDimensions": "1.83 x 0.77 x 2.16 M",
-    "platformDimensions": "1.64 x 0.76 M",
-    "gradeability": "25 %",
-    "speed": "4 Km/h",
-    "asContact": "031-334-5296",
-    "capacityPostExtMain": "114 kg",
-    "capacityPostExtDeck": "113 kg",
-    "maxWindSpeed": "12.5 m/s 이내",
-    "maxHeightCapacity": null,
-    "safetyCertDate": null
-  },
-  "GS-3246": {
-    "id": "PROD-0000014",
-    "modelName": "GS-3246",
-    "feet": 39,
-    "spec": "배터리, 11.8 M, 적재 205 kg",
-    "manufacturer": "GENIE",
-    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS3246/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-3246(2021%EB%85%842%EC%9B%949%EC%9D%BC).pdf",
-    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS3246/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246.pdf",
-    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS3246/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EB%B2%95GS_E-Drive.pdf",
-    "isActive": true,
-    "createdAt": "2026-08-31T09:27:54.700Z",
-    "updatedAt": "2026-08-31T09:42:50.483Z",
-    "powerSource": "배터리",
-    "workingHeight": "11.8 M",
-    "platformHeight": "9.8 M",
-    "weight": "2367 Kg",
-    "capacityPreExt": "205 kg",
-    "machineDimensions": "2.44 x 1.18 x 2.44 M",
-    "platformDimensions": "2.26 x 1.18 M",
-    "gradeability": "25 %",
-    "speed": "3.2 Km/h",
-    "asContact": "031-334-5296",
-    "capacityPostExtMain": "113 kg",
-    "capacityPostExtDeck": null,
-    "maxWindSpeed": "12.5 m/s 이내",
-    "maxHeightCapacity": null,
-    "safetyCertDate": null
-  },
-  "GS-4047": {
-    "id": "PROD-0000016",
-    "modelName": "GS-4047",
-    "feet": 45,
-    "spec": "배터리, 13.7 M, 적재 350 kg",
-    "manufacturer": "GENIE",
-    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-4047(2013%EB%85%8403%EC%9B%9411%EC%9D%BC).pdf",
-    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
-    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EB%B2%95(GS-4047).pdf",
-    "isActive": true,
-    "createdAt": "2026-08-31T09:27:54.700Z",
-    "updatedAt": "2026-08-31T09:42:50.483Z",
-    "powerSource": "배터리",
-    "workingHeight": "13.7 M",
-    "platformHeight": "11.7 M",
-    "weight": "3,260 Kg",
-    "capacityPreExt": "350 kg",
-    "machineDimensions": "2.48 x 1.19 x 2.54 M",
-    "platformDimensions": "2.26 x 1.16 M",
-    "gradeability": "25 %",
-    "speed": "3.2 Km/h",
-    "asContact": "031-334-5296",
-    "capacityPostExtMain": "237 kg",
-    "capacityPostExtDeck": "113 kg",
-    "maxWindSpeed": "12.5 m/s 이내",
-    "maxHeightCapacity": null,
-    "safetyCertDate": null
-  },
-  "GS1930": {
-    "id": "PROD-0000018",
-    "modelName": "GS1930",
     "feet": 19,
     "spec": "배터리, 7.8 M, 적재 227 kg",
     "manufacturer": "GENIE",
@@ -697,11 +619,12 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS1930"
   },
-  "GS3246": {
-    "id": "PROD-0000020",
-    "modelName": "GS3246",
+  "GS-3246": {
+    "id": "PROD-0000014",
+    "modelName": "GS-3246",
     "feet": 32,
     "spec": "배터리, 11.8 M, 적재 205 kg",
     "manufacturer": "GENIE",
@@ -725,7 +648,37 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": null,
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS3246"
+  },
+  "GS-4047": {
+    "id": "PROD-0000016",
+    "modelName": "GS-4047",
+    "feet": 40,
+    "spec": "배터리, 13.7 M, 적재 350 kg",
+    "manufacturer": "GENIE",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-4047(2013%EB%85%8403%EC%9B%9411%EC%9D%BC).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EB%B2%95(GS-4047).pdf",
+    "isActive": true,
+    "createdAt": "2026-08-31T09:27:54.700Z",
+    "updatedAt": "2026-08-31T09:42:50.483Z",
+    "powerSource": "배터리",
+    "workingHeight": "13.7 M",
+    "platformHeight": "11.7 M",
+    "weight": "3,260 Kg",
+    "capacityPreExt": "350 kg",
+    "machineDimensions": "2.48 x 1.19 x 2.54 M",
+    "platformDimensions": "2.26 x 1.16 M",
+    "gradeability": "25 %",
+    "speed": "3.2 Km/h",
+    "asContact": "031-334-5296",
+    "capacityPostExtMain": "237 kg",
+    "capacityPostExtDeck": "113 kg",
+    "maxWindSpeed": "12.5 m/s 이내",
+    "maxHeightCapacity": null,
+    "safetyCertDate": null,
+    "shortName": "GS4047"
   },
   "1930ES": {
     "id": "PROD-0000021",
@@ -758,7 +711,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "SJ3226": {
     "id": "PROD-0000011",
     "modelName": "SJ3226",
-    "feet": 19,
+    "feet": 26,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -786,7 +739,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "SJ4626": {
     "id": "PROD-0000012",
     "modelName": "SJ4626",
-    "feet": 19,
+    "feet": 26,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -814,7 +767,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "2646ES": {
     "id": "PROD-0000013",
     "modelName": "2646ES",
-    "feet": 19,
+    "feet": 26,
     "spec": "수직형",
     "manufacturer": "JLG",
     "safetyCertUrl": null,
@@ -867,9 +820,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS2646": {
+  "GS-2646": {
     "id": "PROD-0000026",
-    "modelName": "GS2646",
+    "modelName": "GS-2646",
     "feet": 26,
     "spec": "배터리, 9.92 M, 적재 454 kg",
     "manufacturer": "GENIE",
@@ -893,7 +846,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS2646"
   },
   "R1532I": {
     "id": "PROD-0000027",
@@ -919,34 +873,6 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "asContact": "031-334-5296",
     "capacityPostExtMain": "155 kg",
     "capacityPostExtDeck": "120 kg",
-    "maxWindSpeed": "12.5 m/s 이내",
-    "maxHeightCapacity": null,
-    "safetyCertDate": null
-  },
-  "GS4047": {
-    "id": "PROD-0000028",
-    "modelName": "GS4047",
-    "feet": 40,
-    "spec": "배터리, 13.7 M, 적재 350 kg",
-    "manufacturer": "GENIE",
-    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-4047(2013%EB%85%8403%EC%9B%9411%EC%9D%BC).pdf",
-    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
-    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/7.%EB%B9%84%EC%83%81%20%ED%95%98%EA%B0%95%EB%B2%95(GS-4047).pdf",
-    "isActive": true,
-    "createdAt": "2026-08-31T09:27:54.700Z",
-    "updatedAt": "2026-08-31T09:42:50.483Z",
-    "powerSource": "배터리",
-    "workingHeight": "13.7 M",
-    "platformHeight": "11.7 M",
-    "weight": "3,260 Kg",
-    "capacityPreExt": "350 kg",
-    "machineDimensions": "2.48 x 1.19 x 2.54 M",
-    "platformDimensions": "2.26 x 1.16 M",
-    "gradeability": "25 %",
-    "speed": "3.2 Km/h",
-    "asContact": "031-334-5296",
-    "capacityPostExtMain": "237 kg",
-    "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
     "safetyCertDate": null
@@ -1007,12 +933,12 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "1414EPLUS": {
+  "1414E PLUS": {
     "id": "PROD-0000031",
-    "modelName": "1414EPLUS",
+    "modelName": "1414E PLUS",
     "feet": 46,
     "spec": "배터리, 15.8 M, 적재 350 kg",
-    "manufacturer": "Sinoboom",
+    "manufacturer": "SINOBOOM",
     "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1414E%20Plus/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(1414E%20Plus)2023%EB%85%846%EC%9B%9420%EC%9D%BC).pdf",
     "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1414E%20Plus/4.%EC%A0%9C%EC%9B%90%ED%91%9C(1414E%20Plus).pdf",
     "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1414E%20Plus/7.%EB%B9%84%EC%83%81%ED%95%98%EA%B0%95%EC%9E%91%EB%8F%99%EB%B2%95_%EC%8B%9C%EB%85%B8%EB%B6%90.pdf",
@@ -1033,7 +959,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "1414EPLUS"
   },
   "S1612AC+": {
     "id": "PROD-0000032",
@@ -1119,10 +1046,10 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS2032": {
+  "GS-2032": {
     "id": "PROD-0000005",
-    "modelName": "GS2032",
-    "feet": 19,
+    "modelName": "GS-2032",
+    "feet": 20,
     "spec": "수직형",
     "manufacturer": "GENIE",
     "safetyCertUrl": null,
@@ -1145,12 +1072,13 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": null,
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS2032"
   },
   "SJ3220": {
     "id": "PROD-0000006",
     "modelName": "SJ3220",
-    "feet": 19,
+    "feet": 20,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -1178,7 +1106,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "SJ4620": {
     "id": "PROD-0000007",
     "modelName": "SJ4620",
-    "feet": 19,
+    "feet": 20,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -1262,7 +1190,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "3246ES": {
     "id": "PROD-0000017",
     "modelName": "3246ES",
-    "feet": 19,
+    "feet": 32,
     "spec": "수직형",
     "manufacturer": "JLG",
     "safetyCertUrl": null,
@@ -1290,7 +1218,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
   "SJ4632": {
     "id": "PROD-0000019",
     "modelName": "SJ4632",
-    "feet": 19,
+    "feet": 32,
     "spec": "수직형",
     "manufacturer": "SKYJACK",
     "safetyCertUrl": null,
@@ -1399,9 +1327,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS-1930 E": {
+  "GS-1930 E-DRIVE": {
     "id": "PROD-0000036",
-    "modelName": "GS-1930 E",
+    "modelName": "GS-1930 E-DRIVE",
     "feet": 19,
     "spec": "배터리, 7.8 M, 적재 227 kg",
     "manufacturer": "GENIE",
@@ -1425,12 +1353,13 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS-1930E"
   },
   "JCPT1614AC": {
     "id": "PROD-0000024",
     "modelName": "JCPT1614AC",
-    "feet": 19,
+    "feet": 53,
     "spec": "수직형",
     "manufacturer": "DINGLI",
     "safetyCertUrl": null,
@@ -1483,34 +1412,6 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS-3246 E": {
-    "id": "PROD-0000040",
-    "modelName": "GS-3246 E",
-    "feet": 32,
-    "spec": "배터리, 11.7 M, 적재 318 kg",
-    "manufacturer": "GENIE",
-    "safetyCertUrl": null,
-    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246%20E/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
-    "emergencyGuideUrl": null,
-    "isActive": true,
-    "createdAt": "2026-07-25T08:54:45.017Z",
-    "updatedAt": "2026-08-31T09:42:50.483Z",
-    "powerSource": "배터리",
-    "workingHeight": "11.7 M",
-    "platformHeight": "9.7 M",
-    "weight": "2,374 Kg",
-    "capacityPreExt": "318 kg",
-    "machineDimensions": "2.44 x 1.17 x 2.39 M",
-    "platformDimensions": "2.26 x 1.16 M",
-    "gradeability": "25 %",
-    "speed": "3.5 Km/h",
-    "asContact": "031-334-5296",
-    "capacityPostExtMain": "205 kg",
-    "capacityPostExtDeck": "113 kg",
-    "maxWindSpeed": "12.5 m/s 이내",
-    "maxHeightCapacity": null,
-    "safetyCertDate": null
-  },
   "GS-1330M": {
     "id": "PROD-0000054",
     "modelName": "GS-1330M",
@@ -1537,7 +1438,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "91 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS1330M"
   },
   "GS-4069DC": {
     "id": "PROD-0000058",
@@ -1565,7 +1467,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS4069DC"
   },
   "4069LE": {
     "id": "PROD-0000023",
@@ -1595,9 +1498,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS-2632 E": {
+  "GS-2632 E-DRIVE": {
     "id": "PROD-0000055",
-    "modelName": "GS-2632 E",
+    "modelName": "GS-2632 E-DRIVE",
     "feet": 26,
     "spec": "배터리, 10 M, 적재 227 kg",
     "manufacturer": "GENIE",
@@ -1621,11 +1524,12 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS-2632E"
   },
-  "GS-2646 E": {
+  "GS-2646 E-DRIVE": {
     "id": "PROD-0000056",
-    "modelName": "GS-2646 E",
+    "modelName": "GS-2646 E-DRIVE",
     "feet": 26,
     "spec": "배터리, 10 M, 적재 454 kg",
     "manufacturer": "GENIE",
@@ -1649,7 +1553,8 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": null,
+    "shortName": "GS-2646E"
   },
   "MS10.4": {
     "id": "PROD-0000074",
@@ -1815,6 +1720,64 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "asContact": "031-334-5296",
     "capacityPostExtMain": "136 kg",
     "capacityPostExtDeck": "-",
+    "maxWindSpeed": "12.5 m/s 이내",
+    "maxHeightCapacity": null,
+    "safetyCertDate": null
+  },
+  "GS-1432": {
+    "id": "PROD-0000081",
+    "modelName": "GS-1432",
+    "shortName": "GS1432",
+    "feet": 14,
+    "spec": "배터리, 6.3 M, 적재 227 kg",
+    "manufacturer": "GENIE",
+    "safetyCertUrl": null,
+    "specSheetUrl": null,
+    "emergencyGuideUrl": null,
+    "isActive": true,
+    "createdAt": "2026-08-31T09:27:54.700Z",
+    "updatedAt": "2026-08-31T09:42:50.483Z",
+    "powerSource": "배터리",
+    "workingHeight": "6.3 M",
+    "platformHeight": "4.3 M",
+    "weight": "900 Kg",
+    "capacityPreExt": "227 kg",
+    "machineDimensions": "1.40 x 0.81 x 1.88 M",
+    "platformDimensions": "1.26 x 0.67 M",
+    "gradeability": "25 %",
+    "speed": "4 Km/h",
+    "asContact": "031-334-5296",
+    "capacityPostExtMain": "136 kg",
+    "capacityPostExtDeck": "91 kg",
+    "maxWindSpeed": "12.5 m/s 이내",
+    "maxHeightCapacity": null,
+    "safetyCertDate": null
+  },
+  "GS-2632": {
+    "id": "PROD-0000082",
+    "modelName": "GS-2632",
+    "shortName": "GS2632",
+    "feet": 26,
+    "spec": "배터리, 9.92 M, 적재 227 kg",
+    "manufacturer": "GENIE",
+    "safetyCertUrl": null,
+    "specSheetUrl": null,
+    "emergencyGuideUrl": null,
+    "isActive": true,
+    "createdAt": "2026-08-31T09:27:54.700Z",
+    "updatedAt": "2026-08-31T09:42:50.483Z",
+    "powerSource": "배터리",
+    "workingHeight": "9.92 M",
+    "platformHeight": "7.92 M",
+    "weight": "1,956 Kg",
+    "capacityPreExt": "227 kg",
+    "machineDimensions": "2.44 x 0.81 x 2.26 M",
+    "platformDimensions": "2.26 x 0.81 M",
+    "gradeability": "25 %",
+    "speed": "3.5 Km/h",
+    "asContact": "031-334-5296",
+    "capacityPostExtMain": "114 kg",
+    "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
     "safetyCertDate": null
