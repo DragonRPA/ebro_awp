@@ -26,6 +26,7 @@ export function getCanonicalModelKey(name?: string): string {
   if (/^GS4655E(?:DRIVE)?$/.test(u)) return 'GS4655';
   if (u === 'GS5390') return 'GS5390RT';
   if (u === 'E600JP') return 'JLGE600JP';
+  if (u === 'ES1330') return 'ES1330L';
   u = u.replace(/^(GS\d{4})E(?:DRIVE)?$/, '$1EDRIVE');
   return u;
 }
@@ -34,6 +35,7 @@ export function getCanonicalModelKey(name?: string): string {
  * 공식 모델명(modelName) 및 축약명(shortName) 전사 표준 사전
  */
 export const CANONICAL_MODEL_META: Record<string, { modelName: string; shortName?: string; feet: number; manufacturer: string }> = {
+  'ES1330L': { modelName: 'ES1330L', shortName: 'ES1330', feet: 13, manufacturer: 'JLG' },
   'GS1330M': { modelName: 'GS-1330M', shortName: 'GS1330M', feet: 13, manufacturer: 'GENIE' },
   'GS1432': { modelName: 'GS-1432', shortName: 'GS1432', feet: 14, manufacturer: 'GENIE' },
   'GS1930': { modelName: 'GS-1930', shortName: 'GS1930', feet: 19, manufacturer: 'GENIE' },

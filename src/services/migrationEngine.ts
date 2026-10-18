@@ -1477,7 +1477,8 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       siteMap.set(legacySiteKey, site);
     }
 
-    const targetModel = resolveProductModel(rawModel) || 'ES1330L';
+    const preMatchedAsset = (ownAssetNo && assetMap.get(ownAssetNo)) || (leaseAssetNo && assetMap.get(leaseAssetNo)) || null;
+    const targetModel = preMatchedAsset?.modelName || resolveProductModel(rawModel) || 'ES1330L';
     // 높이는 모델명에서 추론 (Col[3]=최초개시일(날짜시리얼)을 높이로 잘못 읽는 버그 차단)
     const feet = inferFeetFromModel(targetModel, 0);
     const heightM = feet > 0 ? Number((feet * 0.3048 + 2).toFixed(1)) : 5.8; // 발판높이(feet→M) + 2M = 작업높이
