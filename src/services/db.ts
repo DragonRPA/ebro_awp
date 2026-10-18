@@ -348,6 +348,15 @@ export const TENANTS_DDL_STATEMENTS: string[] = [
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampImageUrl" TEXT;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampBase64" TEXT;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "specialFeatures" JSONB DEFAULT \'[]\'::jsonb;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "excelMappingRules" JSONB;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "privacyOfficer" JSONB;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "tenantId" TEXT;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpProvider" TEXT;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpHost" TEXT;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "appsScriptUrl" TEXT;',
+  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "oauthClientId" TEXT;',
   `NOTIFY pgrst, 'reload schema';`
 ];
 
@@ -5530,7 +5539,14 @@ const FK_RULES_MAP: Record<string, { targetTable: string; targetProp: string | n
   'delegation_records.delegate_id': { targetTable: 'users', targetProp: 'users', notNull: false }
 };
 
-const VIRTUAL_USER_IDS = new Set(['sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
+export const isSystemDeveloperUser = (u: any): boolean => {
+  if (!u) return false;
+  const id = String(u.id || '').trim();
+  const loginId = String(u.loginId || '').trim().toLowerCase();
+  return id === 'u-1' || id === 'sys-admin' || loginId === 'admin';
+};
+
+const VIRTUAL_USER_IDS = new Set(['u-1', 'sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
 
 class LocalDB {
   private inMemoryCache: Map<string, any> = new Map();
@@ -5855,7 +5871,14 @@ class LocalDB {
   get users() { 
     const raw = this.get<User>('users', SEED_USERS); 
     let updated = false;
-    const mapped = raw.map(u => {
+    const filtered = raw.filter(u => {
+      if (isSystemDeveloperUser(u)) {
+        updated = true;
+        return false;
+      }
+      return true;
+    });
+    const mapped = filtered.map(u => {
       if (!u.customRoleId) {
         let assignedRoleId = '';
         const dept = (u.departmentId || u.department || '').toUpperCase();
@@ -5875,7 +5898,7 @@ class LocalDB {
     }
     return mapped;
   }
-  set users(val: User[]) { this.set('users', val); }
+  set users(val: User[]) { this.set('users', (val || []).filter(u => !isSystemDeveloperUser(u))); }
 
   get customRoles() { return this.get<CustomRole>('customRoles', SEED_CUSTOM_ROLES); }
   set customRoles(val: CustomRole[]) { this.set('customRoles', val); }
@@ -6823,6 +6846,20 @@ class LocalDB {
         sanitized['media_type'] = val;
         continue;
       }
+      // tenant_id / tenantId 미보유 테이블 원천 격리 및 google_configs(tenantId) 보존
+      const TABLES_WITHOUT_TENANT_ID = new Set([
+        'tenants', 'equipment_manuals', 'system_manuals', 'manual_annotations',
+        'legal_notice_templates', 'apk_releases', 'call_uploads', 'call_pipeline_logs',
+        'draft_dispatch_orders', 'rule_consensus', 'approval_steps', 'user_work_status',
+        'developer_authorized_devices'
+      ]);
+      if ((key === 'tenantId' || key === 'tenant_id') && TABLES_WITHOUT_TENANT_ID.has(resolvedTable || '')) {
+        continue;
+      }
+      if (resolvedTable === 'google_configs' && (key === 'tenantId' || key === 'tenant_id')) {
+        sanitized['tenantId'] = val;
+        continue;
+      }
       // tenantId -> tenant_id 자동 표준화 (PostgreSQL snake_case 스키마 정합성 보장)
       if (key === 'tenantId') {
         sanitized['tenant_id'] = val;
@@ -6847,7 +6884,7 @@ class LocalDB {
         }
       }
       // users 테이블 전용 허용 컬럼 방어벽 (유령 스키마 paidOptions, protection, checkedSpecs 원천 차단)
-      if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'department', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
+      if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'tier_level', 'department', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
 
@@ -6939,7 +6976,7 @@ class LocalDB {
       sanitized[key] = val;
     }
     // consumables 테이블 호환 (name, spec)
-    if (tableName === 'consumables') {
+    if (resolvedTable === 'consumables') {
       if (!sanitized.name && obj.modelName) {
         sanitized.name = obj.modelName;
       }
@@ -6948,7 +6985,7 @@ class LocalDB {
       }
     }
     // repairs 테이블의 경우 siteAddress를 locationDetail 또는 memo에 무누락 백업 (원격 DB 컬럼 미반영 환경 100% 호환)
-    if (tableName === 'repairs' && obj.siteAddress && typeof obj.siteAddress === 'string' && obj.siteAddress.trim()) {
+    if (resolvedTable === 'repairs' && obj.siteAddress && typeof obj.siteAddress === 'string' && obj.siteAddress.trim()) {
       const addr = obj.siteAddress.trim();
       if (!sanitized.locationDetail || !sanitized.locationDetail.trim()) {
         sanitized.locationDetail = addr;
@@ -6959,7 +6996,7 @@ class LocalDB {
       }
     }
     // delinquency_action_logs 테이블 NOT NULL content 및 actionType check constraint 완벽 보정
-    if (tableName === 'delinquency_action_logs') {
+    if (resolvedTable === 'delinquency_action_logs') {
       if (!sanitized.content || String(sanitized.content).trim() === '') {
         sanitized.content = sanitized.actionDetails || sanitized.actionType || '연체 채권 조치 기록';
       }
@@ -6976,8 +7013,46 @@ class LocalDB {
       delete sanitized.blockType;
     }
 
+    // ☁️ google_configs 테이블 전용 데이터 정제 및 컬럼 화이트리스트 (tenant_id 변환 방지 및 NOT NULL 기본값 보장)
+    if (resolvedTable === 'google_configs') {
+      if (obj.tenantId !== undefined) {
+        sanitized.tenantId = obj.tenantId;
+      } else if (obj.tenant_id !== undefined) {
+        sanitized.tenantId = obj.tenant_id;
+      }
+      delete sanitized.tenant_id;
+
+      if (sanitized.googleEmail === undefined || sanitized.googleEmail === null) sanitized.googleEmail = '';
+      if (sanitized.contractFolder === undefined || sanitized.contractFolder === null) sanitized.contractFolder = '';
+      if (sanitized.consumableFolder === undefined || sanitized.consumableFolder === null) sanitized.consumableFolder = '';
+      if (sanitized.deliveryFolder === undefined || sanitized.deliveryFolder === null) sanitized.deliveryFolder = '';
+      if (sanitized.maintenanceFolder === undefined || sanitized.maintenanceFolder === null) sanitized.maintenanceFolder = '';
+      if (sanitized.isDevMode === undefined || sanitized.isDevMode === null) sanitized.isDevMode = false;
+      if (sanitized.mirrorRecursive === undefined || sanitized.mirrorRecursive === null) sanitized.mirrorRecursive = true;
+
+      const GOOGLE_CONFIGS_COLS = new Set([
+        'id', 'tenantId', 'googleEmail', 'googlePassword', 'gmailAppPassword',
+        'smtpProvider', 'smtpHost', 'smtpPort',
+        'contractFolder', 'consumableFolder', 'deliveryFolder', 'maintenanceFolder',
+        'isDevMode', 'mirrorRecursive',
+        'quotationTemplateUrl', 'contractTemplateUrl', 'safetyInspectionTemplateUrl',
+        'preDeliveryChecklistTemplateUrl', 'bizRegCertUrl', 'bankbookCopyUrl',
+        'transactionStatementTemplateUrl', 'defaultRootFolderId',
+        'currentInsuranceStartDate', 'currentInsuranceEndDate',
+        'nextInsuranceCertUrl', 'nextInsuranceStartDate', 'nextInsuranceEndDate',
+        'appsScriptUrl', 'oauthClientId',
+        'r2AccountId', 'r2BucketName', 'r2AccessKeyId', 'r2SecretAccessKey', 'r2PublicDomain',
+        'createdAt', 'updatedAt'
+      ]);
+      for (const k of Object.keys(sanitized)) {
+        if (!GOOGLE_CONFIGS_COLS.has(k)) {
+          delete sanitized[k];
+        }
+      }
+    }
+
     // 🏢 tenants 테이블 전용 데이터 정제 및 컬럼 매핑 (centralSupabase.tenants 실제 컬럼 화이트리스트 및 JSONB 패킹)
-    if (tableName === 'tenants') {
+    if (resolvedTable === 'tenants') {
       // 1. 프론트엔드 stampImageUrl ↔ DB stampBase64 완벽 호환 (직인 컬럼 불일치 해결)
       if (obj.stampImageUrl !== undefined && obj.stampImageUrl !== null) {
         sanitized.stampBase64 = obj.stampImageUrl;
@@ -7009,6 +7084,10 @@ class LocalDB {
       }
       if (obj.excelMappingRules !== undefined) {
         mergedFeatures.excelMappingRules = obj.excelMappingRules;
+        featuresTouched = true;
+      }
+      if (obj.r2Config !== undefined) {
+        mergedFeatures.r2Config = obj.r2Config;
         featuresTouched = true;
       }
       if (
@@ -7052,30 +7131,40 @@ class LocalDB {
       }
     }
 
-    // 🕒 [타임스탬프 NOT NULL 보장]: PostgreSQL 테이블(products, customers, customer_sites, deliveries 등)의 createdAt/updatedAt 필수 보존
+    // 🕒 [타임스탬프 NOT NULL 보장 및 미보유 테이블 createdAt/updatedAt 원천 제거]
     const NO_CREATED_AT = new Set([
-      'tenants', 'system_settings',
+      'system_settings',
       'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
       'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
-      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders',
+      'agent_heartbeats', 'agent_task_queues', 'inspection_checklists', 'inspection_items',
+      'tenant_customization_specs', 'hindsight_experiences', 'hindsight_mental_models',
+      'hindsight_observations', 'hindsight_world_facts'
     ]);
     const NO_UPDATED_AT = new Set([
-      'tenants', 'system_settings',
+      'system_settings',
       'payment_deposit_links', 'purchase_settlement_items', 'settlement_payment_logs',
       'prepaid_transactions', 'delinquency_action_logs', 'stocktaking_audit_items', 'collected_parts',
       'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
       'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
-      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders',
+      'agent_heartbeats', 'agent_task_queues', 'inspection_checklists', 'inspection_items',
+      'tenant_customization_specs', 'hindsight_experiences', 'hindsight_mental_models',
+      'hindsight_observations', 'hindsight_world_facts'
     ]);
     const nowIso = new Date().toISOString();
-    if (!NO_CREATED_AT.has(resolvedTable || '')) {
+    if (NO_CREATED_AT.has(resolvedTable || '')) {
+      delete sanitized.createdAt;
+    } else {
       if (!sanitized.createdAt && obj.createdAt) {
         sanitized.createdAt = obj.createdAt;
       } else if (!sanitized.createdAt) {
         sanitized.createdAt = nowIso;
       }
     }
-    if (!NO_UPDATED_AT.has(resolvedTable || '')) {
+    if (NO_UPDATED_AT.has(resolvedTable || '')) {
+      delete sanitized.updatedAt;
+    } else {
       if (!sanitized.updatedAt) {
         sanitized.updatedAt = obj.updatedAt || nowIso;
       }
@@ -7172,7 +7261,12 @@ class LocalDB {
       id: newId
     };
     const newRow = formattedRow as unknown as T;
-    list.push(newRow);
+    const existingIdx = list.findIndex(item => item && item.id === newId);
+    if (existingIdx > -1) {
+      list[existingIdx] = { ...list[existingIdx], ...newRow };
+    } else {
+      list.push(newRow);
+    }
     this.set(tableKey, list);
 
     const tableName = this.mapToSupabaseTable(tableKey as string);
@@ -7188,7 +7282,7 @@ class LocalDB {
             const msg = error.message || String(error);
             console.error(`Supabase upsert failed for ${tableName}:`, error);
 
-            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+            if ((tableName === 'tenants' || tableName === 'google_configs') && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));
@@ -7240,17 +7334,22 @@ class LocalDB {
     const tableName = this.mapToSupabaseTable(tableKey as string);
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
     if (targetClient) {
-      let payloadForSupabase = this.sanitizeSupabasePayload({ id, ...updatedPayload }, tableName);
+      // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 null 필드를 sanitize 이전에 반영하여 화이트리스트 우회 오염 원천 차단
+      const rawForSanitize: any = (tableName === 'tenants' || tableName === 'google_configs')
+        ? { ...updated, id }
+        : { id, ...updatedPayload };
 
-      // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 undefined/null 필드를 Supabase null로 정확히 반영
-      for (const updateKey in updates) {
-        if (updates[updateKey] === undefined || updates[updateKey] === null) {
-          if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(updateKey)) continue;
-          if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(updateKey)) continue;
-          if (tableName === 'tenants' && ['specialFeatures', 'excelMappingRules', 'privacyOfficer', 'privacyOfficerName', 'privacyOfficerPosition', 'privacyOfficerDepartment', 'privacyOfficerPhone', 'privacyOfficerEmail'].includes(updateKey)) continue;
-          payloadForSupabase[updateKey] = null;
+      if (tableName !== 'tenants' && tableName !== 'google_configs') {
+        for (const updateKey in updates) {
+          if (updates[updateKey] === undefined || updates[updateKey] === null) {
+            if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(updateKey)) continue;
+            if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(updateKey)) continue;
+            rawForSanitize[updateKey] = null;
+          }
         }
       }
+
+      let payloadForSupabase = this.sanitizeSupabasePayload(rawForSanitize, tableName);
 
       if (tableName === 'consumable_purchases') {
         const targetConsumableId = ('consumableId' in payloadForSupabase) ? payloadForSupabase.consumableId : (originalItem as any)?.consumableId;
@@ -7264,20 +7363,23 @@ class LocalDB {
       }
       payloadForSupabase = encryptEntityPrivacyFields(tableName, payloadForSupabase);
 
-      const promise = targetClient
-        .from(tableName)
-        .update(payloadForSupabase as any)
-        .eq('id', id)
+      const dbOp = (tableName === 'tenants' || tableName === 'google_configs')
+        ? targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
+        : targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+
+      const promise = dbOp
         .then(async ({ data, error }) => {
           if (error) {
             const msg = error.message || String(error);
             console.error(`Supabase update failed for ${tableName}:`, error);
 
-            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+            if ((tableName === 'tenants' || tableName === 'google_configs') && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));
-                const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+                const retryRes = (tableName === 'tenants' || tableName === 'google_configs')
+                  ? await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
+                  : await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
                 if (!retryRes.error) {
                   return retryRes.data;
                 }
@@ -7286,7 +7388,9 @@ class LocalDB {
 
             if (error.code === '23503' || msg.includes('foreign key constraint')) {
               await new Promise(r => setTimeout(r, 300));
-              const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+              const retryRes = (tableName === 'tenants' || tableName === 'google_configs')
+                ? await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
+                : await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
               if (!retryRes.error) {
                 return retryRes.data;
               }
@@ -7472,7 +7576,7 @@ class LocalDB {
       return rest as Department;
     });
     const cleanUsers: User[] = users
-      .filter(u => !isTester(u))
+      .filter(u => !isTester(u) && !isSystemDeveloperUser(u))
       .map(u => {
         const { modelName, supplier, ...rest } = (u as any);
         return rest as User;

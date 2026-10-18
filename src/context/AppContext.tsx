@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement } from '../services/db';
+import { db, supabase, isSystemDeveloperUser, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement } from '../services/db';
 import { useApproval } from '../hooks/useApproval';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
@@ -1270,16 +1270,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     // 🛡️ [세션 위변조 방어 로드 (Tamper-Proof Session Hydration)]
+    const normalizeDeveloperIdentity = (u: User): User => {
+      if (isSystemDeveloperUser(u)) {
+        return {
+          ...u,
+          name: '개발자',
+          department: '개발자',
+          position: '개발자',
+          departmentId: ''
+        };
+      }
+      return u;
+    };
+
     const savedUser = sessionStorage.getItem('user');
     const autoUser = localStorage.getItem('auto_user');
     if (savedUser) {
       try {
-        const parsed = parseSessionUser<User>(savedUser);
-        if (parsed) {
-          if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
-            parsed.name = '개발자';
-          }
-          const isDev = parsed.loginId === 'admin' || parsed.role === 'ADMIN' || parsed.id === 'sys-admin';
+        const rawParsed = parseSessionUser<User>(savedUser);
+        if (rawParsed) {
+          const parsed = normalizeDeveloperIdentity(rawParsed);
+          const isDev = isSystemDeveloperUser(parsed) || parsed.role === 'ADMIN';
           if (isDev) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
@@ -1301,12 +1312,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } else if (autoUser) {
       try {
-        const parsed = parseSessionUser<User>(autoUser);
-        if (parsed) {
-          if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
-            parsed.name = '개발자';
-          }
-          const isDev = parsed.loginId === 'admin' || parsed.role === 'ADMIN' || parsed.id === 'sys-admin';
+        const rawParsed = parseSessionUser<User>(autoUser);
+        if (rawParsed) {
+          const parsed = normalizeDeveloperIdentity(rawParsed);
+          const isDev = isSystemDeveloperUser(parsed) || parsed.role === 'ADMIN';
           if (isDev) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
@@ -1387,7 +1396,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const fallbackAdmin: User = { 
         id: 'sys-admin', loginId: 'admin', passwordHash: hashPassword('admin123'), 
-        name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
+        name: '개발자', department: '개발자', position: '개발자', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
       };
       setCurrentUser(fallbackAdmin);
       sessionStorage.setItem('user', signSessionUser(fallbackAdmin));
@@ -1462,10 +1471,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (suUsers && suUsers.length > 0 && suUsers[0]) {
             const foundUser = suUsers[0] as User;
             user = foundUser;
-            // 로컬 캐시에 즉시 보강 저장
-            const currentList = db.users;
-            if (!currentList.some(u => u.id === foundUser.id)) {
-              db.users = [...currentList, foundUser];
+            // 개발자 계정이 아닌 일반 테넌트 사원만 로컬 캐시에 보강 저장
+            if (!isSystemDeveloperUser(foundUser)) {
+              const currentList = db.users;
+              if (!currentList.some(u => u.id === foundUser.id)) {
+                db.users = [...currentList, foundUser];
+              }
             }
           }
         } catch (suErr) {
@@ -1544,7 +1555,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : currentTenant;
 
     if (targetTenant) {
-      const isStaff = user.role !== 'ADMIN' && user.loginId !== 'admin' && user.id !== 'sys-admin';
+      const isStaff = user.role !== 'ADMIN' && !isSystemDeveloperUser(user);
       if (isStaff) {
         let isSuspended = targetTenant.status === 'SUSPENDED' || targetTenant.subscription?.status === 'SUSPENDED';
         let isExpiredPastGrace = targetTenant.status === 'EXPIRED';
@@ -1607,7 +1618,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 🛡️ [물리 단말기 2단계 인가 검증 - 최고관리자/개발자 권한 계정]
-    const isDevAdmin = user.role === 'ADMIN' || user.id === 'sys-admin' || user.loginId === 'admin';
+    const isDevAdmin = user.role === 'ADMIN' || isSystemDeveloperUser(user);
     if (isDevAdmin && !bypassDeviceCheck) {
       const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
       if (!deviceAuth.isAuthorized) {
@@ -1626,8 +1637,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     // 9. 로그인 성공 확정
-    if (user.loginId === 'admin' && user.name === '최고관리자') {
-      user.name = '개발자';
+    if (isSystemDeveloperUser(user)) {
+      user = {
+        ...user,
+        name: '개발자',
+        department: '개발자',
+        position: '개발자',
+        departmentId: ''
+      };
     }
     setCurrentUser(user);
     sessionStorage.setItem('user', signSessionUser(user));
@@ -1667,12 +1684,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const switchUser = (userId: string) => {
     let targetUser = users.find(u => u.id === userId);
     if (!targetUser) {
-      // sys-admin 등 users 배열에 없는 fallback 계정으로의 복귀 처리
+      // sys-admin / u-1 등 users 배열에 없는 개발자 계정으로의 복귀 처리
       const originalAdminStr = sessionStorage.getItem('original_admin_user');
       if (originalAdminStr) {
         const originalAdmin = parseSessionUser<User>(originalAdminStr);
-        if (originalAdmin && originalAdmin.id === userId) {
-          targetUser = originalAdmin;
+        if (originalAdmin && (originalAdmin.id === userId || isSystemDeveloperUser(originalAdmin))) {
+          targetUser = isSystemDeveloperUser(originalAdmin)
+            ? { ...originalAdmin, name: '개발자', department: '개발자', position: '개발자', departmentId: '' }
+            : originalAdmin;
         }
       }
     }
@@ -1685,7 +1704,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         targetSubjectName: targetUser.name
       }).catch(console.error);
 
-      if (currentUser?.role === 'ADMIN' && !sessionStorage.getItem('original_admin_user')) {
+      if ((currentUser?.role === 'ADMIN' || isSystemDeveloperUser(currentUser)) && !sessionStorage.getItem('original_admin_user') && currentUser) {
         sessionStorage.setItem('original_admin_user', signSessionUser(currentUser));
       }
       setCurrentUser(targetUser);

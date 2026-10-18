@@ -168,12 +168,15 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     let loadedDepts: Department[] = (db.departments && db.departments.length > 0) ? db.departments : INITIAL_DEPTS;
     let loadedUsers: UserNode[] = (db.users && db.users.length > 0) ? (db.users as any) : INITIAL_USERS;
 
-    // 🛡️ [테스터 배제] 로컬스토리지나 DB 캐시에 잔존하는 테스터 계정 원천 차단
-    const isTester = (u: any) =>
+    // 🛡️ [테스터 및 개발자 배제] 로컬스토리지나 DB 캐시에 잔존하는 테스터/개발자 계정 원천 차단
+    const isTesterOrDev = (u: any) =>
       u.id?.startsWith('usr-tester') ||
       u.name?.includes('테스터') ||
-      u.loginId?.includes('tester');
-    loadedUsers = loadedUsers.filter(u => !isTester(u));
+      u.loginId?.includes('tester') ||
+      u.id === 'u-1' ||
+      u.id === 'sys-admin' ||
+      String(u.loginId || '').trim().toLowerCase() === 'admin';
+    loadedUsers = loadedUsers.filter(u => !isTesterOrDev(u));
 
     // 로컬 스토리지에 잔류할 수 있는 오염 필드(modelName, supplier 등) 원천 제거
     loadedDepts = loadedDepts.map(d => {
@@ -235,13 +238,16 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
           functionalTags: d.functionalTags || d.functional_tags || []
         } as Department;
       });
-      // 🛡️ [테스터 배제] 테스터 계정이 DB로 유입되는 것을 원천 차단
-      const isTester = (u: any) =>
+      // 🛡️ [테스터 및 개발자 배제] 테스터/개발자 계정이 일반 직원 목록으로 유입되는 것을 원천 차단
+      const isTesterOrDev = (u: any) =>
         u.id?.startsWith('usr-tester') ||
         u.name?.includes('테스터') ||
-        u.loginId?.includes('tester');
+        u.loginId?.includes('tester') ||
+        u.id === 'u-1' ||
+        u.id === 'sys-admin' ||
+        String(u.loginId || '').trim().toLowerCase() === 'admin';
       const cleanUsers = users
-        .filter(u => !isTester(u))
+        .filter(u => !isTesterOrDev(u))
         .map(u => {
           const { modelName, supplier, ...rest } = (u as any);
           const dept = cleanDepts.find(d => d.id === u.departmentId);

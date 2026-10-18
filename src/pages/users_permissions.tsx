@@ -184,12 +184,15 @@ export const UsersPermissions: React.FC = () => {
     return 4;
   };
 
-  // 테스터 제외 실사용자 목록
+  // 테스터 및 개발자 제외 실사용자 목록
   const activeUsers = useMemo(() => {
     return users.filter(u => 
       !u.id?.startsWith('usr-tester') &&
       !u.name?.includes('테스터') &&
-      !u.loginId?.includes('tester')
+      !u.loginId?.includes('tester') &&
+      u.id !== 'u-1' &&
+      u.id !== 'sys-admin' &&
+      String(u.loginId || '').trim().toLowerCase() !== 'admin'
     );
   }, [users]);
 

@@ -2120,9 +2120,9 @@ const App: React.FC = () => {
               if (originalAdminStr && !originalAdmin) {
                 try { sessionStorage.removeItem('original_admin_user'); } catch {}
               }
-              const isSuperAdmin = currentUser.role === 'ADMIN' || originalAdmin?.role === 'ADMIN';
+              const isTrueDev = (u?: any) => Boolean(u && (u.loginId === 'admin' || u.id === 'sys-admin' || u.id === 'u-1'));
+              const isSuperAdmin = currentUser.role === 'ADMIN' || originalAdmin?.role === 'ADMIN' || isTrueDev(currentUser) || isTrueDev(originalAdmin);
 
-              const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
               const getUserDisplayName = (u?: any) => {
                 if (!u) return '임직원';
                 if (isTrueDev(u)) return '개발자';
@@ -2136,11 +2136,13 @@ const App: React.FC = () => {
               };
 
               if (isSuperAdmin) {
-                const allUsers = [...users];
-                if (originalAdmin && !allUsers.find(u => u.id === originalAdmin.id)) {
+                const allUsers = users.filter(u => !isTrueDev(u));
+                if (isTrueDev(originalAdmin) && originalAdmin && !allUsers.find(u => u.id === originalAdmin.id)) {
                   allUsers.unshift(originalAdmin);
-                } else if (currentUser.id === 'sys-admin' && !allUsers.find(u => u.id === 'sys-admin')) {
+                } else if (isTrueDev(currentUser) && !allUsers.find(u => u.id === currentUser.id)) {
                   allUsers.unshift(currentUser);
+                } else if (originalAdmin && !isTrueDev(originalAdmin) && !allUsers.find(u => u.id === originalAdmin.id)) {
+                  allUsers.unshift(originalAdmin);
                 }
 
                 if (allUsers.length > 0) {
@@ -2164,10 +2166,18 @@ const App: React.FC = () => {
                         }}
                         title="[관리자 전용] 다른 사용자로 권한 테스트 전환"
                       >
-                        <option value={currentUser.id}>{getUserDisplayName(currentUser)} ({currentUser.department}) - 현재</option>
+                        <option value={currentUser.id}>
+                          {isTrueDev(currentUser)
+                            ? '개발자 - 현재'
+                            : `${getUserDisplayName(currentUser)} (${currentUser.department}) - 현재`}
+                        </option>
                         <optgroup label="다른 사용자로 전환">
                           {allUsers.filter(u => u.id !== currentUser.id).map(u => (
-                            <option key={u.id} value={u.id}>{getUserDisplayName(u)} ({u.department} / {getUserRoleLabel(u)})</option>
+                            <option key={u.id} value={u.id}>
+                              {isTrueDev(u)
+                                ? '개발자'
+                                : `${getUserDisplayName(u)} (${u.department} / ${getUserRoleLabel(u)})`}
+                            </option>
                           ))}
                         </optgroup>
                       </select>
@@ -2178,8 +2188,12 @@ const App: React.FC = () => {
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', whiteSpace: 'nowrap' }}>{getUserDisplayName(currentUser)} {getUserRoleLabel(currentUser)}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{currentUser.department} ({getUserRoleLabel(currentUser)})</span>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                    {isTrueDev(currentUser) ? '개발자' : `${getUserDisplayName(currentUser)} ${getUserRoleLabel(currentUser)}`}
+                  </span>
+                  {!isTrueDev(currentUser) && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{currentUser.department} ({getUserRoleLabel(currentUser)})</span>
+                  )}
                 </div>
               );
             })()}
@@ -2187,7 +2201,7 @@ const App: React.FC = () => {
               width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0, fontSize: '13px'
             }}>
-              {(((currentUser.loginId === 'admin' || currentUser.id === 'sys-admin') ? '개발자' : (currentUser.name || 'U'))).substring(0, 1)}
+              {(((currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1') ? '개발자' : (currentUser.name || 'U'))).substring(0, 1)}
             </div>
           </div>
 
