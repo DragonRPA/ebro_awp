@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ebro web agent",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "eBro ERP 전용 로컬 AI 지능형 브라우저 제어 에이전트 (SoM 오버레이, DOM 추상화, 로컬 WebSocket 오케스트레이션)",
   "icons": {
     "16": "icons/icon16.png",

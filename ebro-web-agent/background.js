@@ -143,6 +143,17 @@ let pingInterval = null;
             dataUrl: dataUrl,
             timestamp: new Date().toISOString()
           }));
+        } else if (msg.type === 'REGISTERED') {
+          chrome.runtime.sendMessage({
+            type: 'AGENT_POLICY_STATUS',
+            aiEnabled: msg.aiEnabled !== false
+          }).catch(() => {});
+        } else if (msg.type === 'ERROR') {
+          chrome.runtime.sendMessage({
+            type: 'COMMAND_ERROR',
+            reason: msg.reason || 'ERROR',
+            message: msg.message || '명령 처리 중 오류가 발생했습니다.'
+          }).catch(() => {});
         } else if (msg.type === 'COMMAND_RESULT') {
           // FSM 다단계 파이프라인 완결 결과를 팝업에 브로드캐스트
           chrome.runtime.sendMessage({
@@ -151,7 +162,12 @@ let pingInterval = null;
             result: msg.result
           }).catch(() => {});
         } else if (msg.type === 'PONG') {
-          // 서버 응답 수신으로 연결 유지 확인
+          if (typeof msg.aiEnabled === 'boolean') {
+            chrome.runtime.sendMessage({
+              type: 'AGENT_POLICY_STATUS',
+              aiEnabled: msg.aiEnabled
+            }).catch(() => {});
+          }
         } else if (msg.type === 'PING') {
           socket.send(JSON.stringify({ type: 'PONG' }));
         }

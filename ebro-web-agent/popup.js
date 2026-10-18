@@ -102,6 +102,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'STATUS_UPDATE') {
       updatePcStatus(msg.isConnected);
+    } else if (msg.type === 'COMMAND_ERROR') {
+      appendLog(`[차단/오류] ${msg.message || msg.reason}`, 'error');
+    } else if (msg.type === 'AGENT_POLICY_STATUS') {
+      if (msg.aiEnabled === false) {
+        pcStatusText.innerText = 'PC 에이전트 연결됨 (Silent Core)';
+      } else {
+        pcStatusText.innerText = 'PC 에이전트 연결됨';
+      }
     } else if (msg.type === 'COMMAND_COMPLETED') {
       const res = msg.result;
       if (res && res.success) {
