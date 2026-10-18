@@ -2317,3 +2317,19 @@ SELECT
     ) AS ui_context_bundle,
     created_at
 FROM hindsight_experiences;
+
+-- ------------------------------------------------------------------------------
+-- 테넌트 및 구글/R2 클라우드 설정 컬럼 동기화 (Idempotent Schema Sync)
+-- ------------------------------------------------------------------------------
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "excelMappingRules" JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseUrl" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseAnonKey" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantId" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "tenantId" TEXT DEFAULT 'tenant-giyeonlift';
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "tenant_id" TEXT DEFAULT 'tenant-giyeonlift';
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpProvider" TEXT;
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpHost" TEXT;
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER;
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "appsScriptUrl" TEXT;
+ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "oauthClientId" TEXT;

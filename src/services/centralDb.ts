@@ -47,6 +47,7 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
         ...decrypted,
         specialFeatures,
         excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,
+        r2Config: (decrypted as any).r2Config || decrypted.features?.r2Config,
         privacyOfficer: po,
         privacyOfficerName: decrypted.privacyOfficerName || po?.name || '',
         privacyOfficerPosition: decrypted.privacyOfficerPosition || po?.position || '',
@@ -88,6 +89,10 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
       mergedFeatures.excelMappingRules = payload.excelMappingRules;
       featuresTouched = true;
     }
+    if (payload.r2Config !== undefined) {
+      mergedFeatures.r2Config = payload.r2Config;
+      featuresTouched = true;
+    }
     if (
       payload.privacyOfficer !== undefined ||
       payload.privacyOfficerName !== undefined ||
@@ -110,6 +115,25 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
       payload.features = mergedFeatures;
     }
 
+    const nowIso = new Date().toISOString();
+    payload.tenantCode = payload.tenantCode || 'TENANT';
+    payload.displayName = payload.displayName || payload.tenantCode;
+    payload.systemName = payload.systemName || 'e-Bro System';
+    payload.corporateName = payload.corporateName || payload.displayName;
+    payload.tradeName = payload.tradeName || payload.displayName;
+    payload.businessNumber = payload.businessNumber ?? '';
+    payload.representativeName = payload.representativeName ?? '';
+    payload.openingDate = payload.openingDate ?? nowIso.slice(0, 10);
+    payload.businessAddress = payload.businessAddress ?? '';
+    payload.businessCategory = payload.businessCategory ?? '사업지원및임대서비스업';
+    payload.businessItem = payload.businessItem ?? '고소작업대임대';
+    payload.taxEmail = payload.taxEmail ?? '';
+    payload.tel = payload.tel ?? '';
+    payload.isDefault = payload.isDefault ?? false;
+    payload.status = payload.status || 'ACTIVE';
+    payload.createdAt = payload.createdAt || payload.created_at || nowIso;
+    payload.updatedAt = payload.updatedAt || payload.updated_at || nowIso;
+
     const CENTRAL_TENANTS_COLS = new Set([
       'id', 'tenantCode', 'subdomain', 'displayName', 'corporateName', 'tradeName',
       'businessNumber', 'corporateRegistrationNumber', 'representativeName', 'openingDate',
@@ -118,7 +142,7 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
       'ciUrl', 'logoUrl', 'stampImageUrl', 'stampBase64', 'status', 'isDefault',
       'allowCustomBillingStatement', 'solutionType', 'targetRepo', 'subscription',
       'features', 'bankAccounts', 'yards', 'workplaces', 'allowedPages', 'hiddenPages',
-      'tenantSupabaseUrl', 'tenantSupabaseAnonKey', 'created_at', 'updated_at',
+      'tenantSupabaseUrl', 'tenantSupabaseAnonKey',
       'systemName', 'businessTypes', 'isUnitTaxation', 'certificateIssueDate',
       'email', 'mainYardAddress', 'createdAt', 'updatedAt'
     ]);

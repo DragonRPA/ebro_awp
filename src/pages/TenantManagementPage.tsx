@@ -223,13 +223,14 @@ export const TenantManagementPage: React.FC = () => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
     if (tenant) {
-      const gConfig = db.googleConfigs.find(c => c.tenantId === tenant.id);
+      const gConfig = db.googleConfigs.find(c => c.tenantId === tenant.id || (c as any).tenant_id === tenant.id || c.id === `cfg-${tenant.id}`);
+      const fallbackR2 = (tenant as any).r2Config || (tenant.features as any)?.r2Config || {};
       setR2Config({
-        r2AccountId: gConfig?.r2AccountId || '',
-        r2BucketName: gConfig?.r2BucketName || '',
-        r2AccessKeyId: gConfig?.r2AccessKeyId || '',
-        r2SecretAccessKey: gConfig?.r2SecretAccessKey || '',
-        r2PublicDomain: gConfig?.r2PublicDomain || '',
+        r2AccountId: gConfig?.r2AccountId || fallbackR2.r2AccountId || '',
+        r2BucketName: gConfig?.r2BucketName || fallbackR2.r2BucketName || '',
+        r2AccessKeyId: gConfig?.r2AccessKeyId || fallbackR2.r2AccessKeyId || '',
+        r2SecretAccessKey: gConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || '',
+        r2PublicDomain: gConfig?.r2PublicDomain || fallbackR2.r2PublicDomain || '',
       });
       setEditingTenant(tenant);
       setFormData({
@@ -738,6 +739,7 @@ export const TenantManagementPage: React.FC = () => {
 
     try {
       setIsSaving(true);
+      const nowIso = new Date().toISOString();
       const tenantToSave: Partial<Tenant> = {
         ...formData,
         tenantCode: cleanCode,
@@ -746,55 +748,63 @@ export const TenantManagementPage: React.FC = () => {
         corporateName: formData.corporateName?.trim() || formData.displayName?.trim() || cleanCode,
         tradeName: formData.tradeName?.trim() || formData.displayName?.trim() || cleanCode,
         systemName: formData.systemName || 'e-Bro System',
+        representativeName: formData.representativeName ?? '',
+        openingDate: formData.openingDate || nowIso.slice(0, 10),
+        businessAddress: formData.businessAddress ?? '',
+        businessCategory: formData.businessCategory || '사업지원및임대서비스업',
+        businessItem: formData.businessItem || '고소작업대임대',
+        taxEmail: formData.taxEmail ?? '',
+        tel: formData.tel ?? '',
         features: {
           ...(formData.features || {}),
           specialFeatures: formData.specialFeatures || [],
-        },
+          r2Config: { ...r2Config },
+        } as any,
         specialFeatures: formData.specialFeatures || [],
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
       };
 
       if (editingTenant) {
         tenantToSave.id = editingTenant.id;
+        tenantToSave.createdAt = editingTenant.createdAt || formData.createdAt || nowIso;
       } else {
         tenantToSave.id = `tenant-${cleanCode.toLowerCase()}-${Date.now()}`;
-        tenantToSave.createdAt = new Date().toISOString();
+        tenantToSave.createdAt = nowIso;
       }
 
-      // 기본 테넌트 지정 시 다른 테넌트 해제
+      // 기본 테넌트 지정 시 다른 테넌트 해제 (순차 await 보장)
       if (tenantToSave.isDefault) {
-        (tenants || []).forEach(t => {
+        for (const t of (tenants || [])) {
           if (t.id !== tenantToSave.id && t.isDefault) {
-            saveTenant({ id: t.id, isDefault: false });
+            await saveTenant({ ...t, id: t.id, isDefault: false, updatedAt: nowIso });
           }
-        });
+        }
       }
 
       await saveTenant(tenantToSave);
 
-      // GoogleConfig에 R2 설정 저장/업데이트
+      // GoogleConfig에 R2 설정 저장/업데이트 (UPSERT 및 NOT NULL 컬럼 100% 보장)
       const targetTenantId = tenantToSave.id!;
-      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || c.id === `cfg-${targetTenantId}`);
+      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || (c as any).tenant_id === targetTenantId || c.id === `cfg-${targetTenantId}`);
+      const mergedGoogleConfig: GoogleConfig = {
+        ...(existingConfig || {}),
+        id: existingConfig?.id || `cfg-${targetTenantId}`,
+        tenantId: targetTenantId,
+        googleEmail: existingConfig?.googleEmail ?? '',
+        contractFolder: existingConfig?.contractFolder ?? '',
+        consumableFolder: existingConfig?.consumableFolder ?? '',
+        deliveryFolder: existingConfig?.deliveryFolder ?? '',
+        maintenanceFolder: existingConfig?.maintenanceFolder ?? '',
+        isDevMode: existingConfig?.isDevMode ?? false,
+        mirrorRecursive: existingConfig?.mirrorRecursive ?? true,
+        ...r2Config,
+        createdAt: existingConfig?.createdAt || nowIso,
+        updatedAt: nowIso
+      };
       if (existingConfig) {
-        db.updateRow<GoogleConfig>('googleConfigs', existingConfig.id, {
-          tenantId: targetTenantId,
-          ...r2Config,
-          updatedAt: new Date().toISOString()
-        });
+        db.updateRow<GoogleConfig>('googleConfigs', existingConfig.id, mergedGoogleConfig);
       } else {
-        db.insertRow<GoogleConfig>('googleConfigs', {
-          id: `cfg-${targetTenantId}`,
-          tenantId: targetTenantId,
-          googleEmail: '',
-          contractFolder: '',
-          consumableFolder: '',
-          deliveryFolder: '',
-          maintenanceFolder: '',
-          isDevMode: false,
-          ...r2Config,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+        db.insertRow<GoogleConfig>('googleConfigs', mergedGoogleConfig);
       }
       await db.awaitPendingWrites();
 
@@ -827,14 +837,15 @@ export const TenantManagementPage: React.FC = () => {
   const handleSetDefault = async (tenant: Tenant) => {
     if (tenant.isDefault) return;
     try {
+      const nowIso = new Date().toISOString();
       // 1. 기존 디폴트 해제
       for (const t of tenants) {
         if (t.id !== tenant.id && t.isDefault) {
-          await saveTenant({ id: t.id, isDefault: false });
+          await saveTenant({ ...t, id: t.id, isDefault: false, updatedAt: nowIso });
         }
       }
       // 2. 신규 디폴트 설정
-      await saveTenant({ id: tenant.id, isDefault: true });
+      await saveTenant({ ...tenant, id: tenant.id, isDefault: true, updatedAt: nowIso });
     } catch (err: any) {
       showErrorModal(`기본 테넌트 변경 실패: ${err?.message || err}`);
     }

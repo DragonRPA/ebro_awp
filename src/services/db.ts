@@ -6495,6 +6495,16 @@ class LocalDB {
       }
     }
 
+    // ☁️ [google_configs tenantId 정규화]
+    if (tableName === 'google_configs') {
+      if (!normalized.tenantId && normalized.tenant_id) {
+        normalized.tenantId = normalized.tenant_id;
+      }
+      if (!normalized.tenantId && typeof normalized.id === 'string' && normalized.id.startsWith('cfg-')) {
+        normalized.tenantId = normalized.id.slice(4);
+      }
+    }
+
     // 🏢 [tenants 직인 및 features JSONB 확장 속성 상호 복원]
     if (tableName === 'tenants' || normalized.stampBase64 !== undefined || normalized.stampImageUrl !== undefined) {
       const stampVal = normalized.stampBase64 || normalized.stampImageUrl;
@@ -6508,6 +6518,9 @@ class LocalDB {
         }
         if (!normalized.excelMappingRules && normalized.features?.excelMappingRules) {
           normalized.excelMappingRules = normalized.features.excelMappingRules;
+        }
+        if (!normalized.r2Config && normalized.features?.r2Config) {
+          normalized.r2Config = normalized.features.r2Config;
         }
         if (normalized.features?.privacyOfficer) {
           const po = normalized.features.privacyOfficer;
@@ -7112,6 +7125,27 @@ class LocalDB {
         sanitized.features = mergedFeatures;
       }
 
+      // 4. tenants 테이블 NOT NULL 컬럼 방어 (기존 레코드 또는 안전한 기본값으로 보완)
+      const ex: any = existingTenant || {};
+      sanitized.tenantCode = sanitized.tenantCode || ex.tenantCode || 'TENANT';
+      sanitized.displayName = sanitized.displayName || ex.displayName || sanitized.tenantCode;
+      sanitized.systemName = sanitized.systemName || ex.systemName || 'e-Bro System';
+      sanitized.corporateName = sanitized.corporateName || ex.corporateName || sanitized.displayName;
+      sanitized.tradeName = sanitized.tradeName || ex.tradeName || sanitized.displayName;
+      sanitized.businessNumber = sanitized.businessNumber ?? ex.businessNumber ?? '';
+      sanitized.representativeName = sanitized.representativeName ?? ex.representativeName ?? '';
+      sanitized.openingDate = sanitized.openingDate ?? ex.openingDate ?? new Date().toISOString().slice(0, 10);
+      sanitized.businessAddress = sanitized.businessAddress ?? ex.businessAddress ?? '';
+      sanitized.businessCategory = sanitized.businessCategory ?? ex.businessCategory ?? '사업지원및임대서비스업';
+      sanitized.businessItem = sanitized.businessItem ?? ex.businessItem ?? '고소작업대임대';
+      sanitized.taxEmail = sanitized.taxEmail ?? ex.taxEmail ?? '';
+      sanitized.tel = sanitized.tel ?? ex.tel ?? '';
+      sanitized.isDefault = sanitized.isDefault ?? ex.isDefault ?? false;
+      sanitized.status = sanitized.status || ex.status || 'ACTIVE';
+
+      if (!sanitized.createdAt && obj.created_at) sanitized.createdAt = obj.created_at;
+      if (!sanitized.updatedAt && obj.updated_at) sanitized.updatedAt = obj.updated_at;
+
       const CENTRAL_TENANTS_COLS = new Set([
         'id', 'tenantCode', 'subdomain', 'displayName', 'corporateName', 'tradeName',
         'businessNumber', 'corporateRegistrationNumber', 'representativeName', 'openingDate',
@@ -7120,7 +7154,7 @@ class LocalDB {
         'ciUrl', 'logoUrl', 'stampImageUrl', 'stampBase64', 'status', 'isDefault',
         'allowCustomBillingStatement', 'solutionType', 'targetRepo', 'subscription',
         'features', 'bankAccounts', 'yards', 'workplaces', 'allowedPages', 'hiddenPages',
-        'tenantSupabaseUrl', 'tenantSupabaseAnonKey', 'created_at', 'updated_at',
+        'tenantSupabaseUrl', 'tenantSupabaseAnonKey',
         'systemName', 'businessTypes', 'isUnitTaxation', 'certificateIssueDate',
         'email', 'mainYardAddress', 'createdAt', 'updatedAt'
       ]);
