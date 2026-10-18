@@ -22,6 +22,10 @@ export function normalizeModelKey(name?: string): string {
 export function getCanonicalModelKey(name?: string): string {
   if (!name) return '';
   let u = String(name).trim().toUpperCase().replace(/[\s\-_\/]+/g, '');
+  // GS4655는 단일 기종(제원표 GS-4655, CF 폴더 GS-4655 E-Drive)이므로 GS4655로 통합
+  if (/^GS4655E(?:DRIVE)?$/.test(u)) return 'GS4655';
+  if (u === 'GS5390') return 'GS5390RT';
+  if (u === 'E600JP') return 'JLGE600JP';
   u = u.replace(/^(GS\d{4})E(?:DRIVE)?$/, '$1EDRIVE');
   return u;
 }
@@ -34,7 +38,6 @@ export const CANONICAL_MODEL_META: Record<string, { modelName: string; shortName
   'GS1432': { modelName: 'GS-1432', shortName: 'GS1432', feet: 14, manufacturer: 'GENIE' },
   'GS1930': { modelName: 'GS-1930', shortName: 'GS1930', feet: 19, manufacturer: 'GENIE' },
   'GS1930EDRIVE': { modelName: 'GS-1930 E-DRIVE', shortName: 'GS-1930E', feet: 19, manufacturer: 'GENIE' },
-  'GS2032': { modelName: 'GS-2032', shortName: 'GS2032', feet: 20, manufacturer: 'GENIE' },
   'GS2632': { modelName: 'GS-2632', shortName: 'GS2632', feet: 26, manufacturer: 'GENIE' },
   'GS2632EDRIVE': { modelName: 'GS-2632 E-DRIVE', shortName: 'GS-2632E', feet: 26, manufacturer: 'GENIE' },
   'GS2646': { modelName: 'GS-2646', shortName: 'GS2646', feet: 26, manufacturer: 'GENIE' },
@@ -46,7 +49,11 @@ export const CANONICAL_MODEL_META: Record<string, { modelName: string; shortName
   'GS4069DC': { modelName: 'GS-4069DC', shortName: 'GS4069DC', feet: 40, manufacturer: 'GENIE' },
   'GS4655': { modelName: 'GS-4655', shortName: 'GS4655', feet: 46, manufacturer: 'GENIE' },
   'GS5390RT': { modelName: 'GS-5390RT', shortName: 'GS5390RT', feet: 53, manufacturer: 'GENIE' },
+  'Z3422DC': { modelName: 'Z-34/22DC', shortName: 'Z3422DC', feet: 34, manufacturer: 'GENIE' },
   'Z4525J': { modelName: 'Z-45/25J', shortName: 'Z4525J', feet: 45, manufacturer: 'GENIE' },
+  'JLGE600JP': { modelName: 'JLG-E600JP', shortName: 'E600JP', feet: 60, manufacturer: 'JLG' },
+  'OPTIMUM8': { modelName: 'OPTIMUM 8', shortName: 'OPTIMUM8', feet: 20, manufacturer: 'HAULOTTE' },
+  'STAR6': { modelName: 'STAR6', shortName: 'STAR-6', feet: 19, manufacturer: 'HAULOTTE' },
   '1414EPLUS': { modelName: '1414E PLUS', shortName: '1414EPLUS', feet: 46, manufacturer: 'SINOBOOM' }
 };
 
