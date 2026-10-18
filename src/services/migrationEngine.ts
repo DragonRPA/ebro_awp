@@ -1408,7 +1408,8 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     const rawModel = ownModelRaw || leaseModelRaw;  // 당사 있으면 우선, 없으면 전대
 
     // Col[10]=당사장비 관리번호, Col[13]=전대장비 관리번호
-    const ownAssetNo   = (r[10] && String(r[10]).trim() && String(r[10]).trim() !== 'nan') ? String(r[10]).trim().toUpperCase() : '';
+    const rawOwnAssetNo = (r[10] && String(r[10]).trim() && String(r[10]).trim() !== 'nan') ? String(r[10]).trim().toUpperCase() : '';
+    const ownAssetNo   = rawOwnAssetNo === '13004' ? 'G13004' : rawOwnAssetNo;
     const leaseAssetNo = (r[13] && String(r[13]).trim() && String(r[13]).trim() !== 'nan') ? String(r[13]).trim().toUpperCase() : '';
     const rawCustName = getCol(r, mainHeaderMap, ['업체명', '거래처명', '고객명'], 0);
     if (!rawCustName && !rawModel) return;
@@ -1517,6 +1518,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     if (ownAssetNo) {
       matchedAsset = assetMap.get(ownAssetNo);
       if (!matchedAsset) {
+        const isVirtualRow = String(r[8] || '').trim() === '가상';
         const assetId = `ASSET-${String(assetSeq++).padStart(7, '0')}`;
         matchedAsset = {
           id: assetId,
@@ -1541,7 +1543,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
           currentSiteId: null,
           contractStart: null,
           contractEnd: null,
-          memo: '계약현황(202608) 시트 기반 자동등록',
+          memo: isVirtualRow ? '가상장비' : '계약현황(202608) 시트 기반 자동등록',
           createdAt: nowIso,
           updatedAt: nowIso
         };
