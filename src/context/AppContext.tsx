@@ -1253,7 +1253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const rawParsed = parseSessionUser<User>(savedUser);
         if (rawParsed) {
           const parsed = normalizeDeveloperIdentity(rawParsed);
-          const isDev = isSystemDeveloperUser(parsed) || parsed.role === 'ADMIN';
+          const isDev = isSystemDeveloperUser(parsed);
           if (isDev) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
@@ -1278,7 +1278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const rawParsed = parseSessionUser<User>(autoUser);
         if (rawParsed) {
           const parsed = normalizeDeveloperIdentity(rawParsed);
-          const isDev = isSystemDeveloperUser(parsed) || parsed.role === 'ADMIN';
+          const isDev = isSystemDeveloperUser(parsed);
           if (isDev) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
@@ -1580,19 +1580,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 🛡️ [물리 단말기 2단계 인가 검증 - 최고관리자/개발자 권한 계정]
-    const isDevAdmin = user.role === 'ADMIN' || isSystemDeveloperUser(user);
+    // 🛡️ [물리 단말기 2단계 인가 검증 - 시스템 개발자 계정 전용]
+    const isDevAdmin = isSystemDeveloperUser(user);
     if (isDevAdmin && !bypassDeviceCheck) {
       const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
       if (!deviceAuth.isAuthorized) {
-        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 관리자 권한 로그인 시도 (${user.name})`, {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 개발자 권한 로그인 시도 (${user.name})`, {
           userId: user.loginId || user.id,
           userName: user.name
         }).catch(console.error);
         return {
           success: false,
           requireDeviceVerification: true,
-          reason: '🚨 [물리 단말기 인가 필요] 최고관리자/개발자 권한은 사전에 등록 및 인가된 물리적 개발자 PC(MAC 주소/하드웨어 지문)에서만 로그인이 허용됩니다.',
+          reason: '🚨 [물리 단말기 인가 필요] 개발자 권한은 사전에 등록 및 인가된 물리적 개발자 PC(MAC 주소/하드웨어 지문)에서만 로그인이 허용됩니다.',
           detectedFingerprint: deviceAuth.detectedFingerprint,
           detectedMacs: deviceAuth.detectedMacs
         };
