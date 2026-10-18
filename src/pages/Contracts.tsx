@@ -342,25 +342,48 @@ export const Contracts: React.FC = () => {
   const getContractOutboundMilestones = (c: Contract) => {
     const relDels = deliveriesByContractMap.get(c.id) || [];
     const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
-    const isDelivered = outboundDel ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED') : false;
-
-    // 1. 배차 여부: 배차완료(DISPATCHED/DELIVERED 또는 기사 배정) vs 배차대기
-    const isDispatched = outboundDel 
-      ? (outboundDel.status === 'DISPATCHED' || outboundDel.status === 'DELIVERED' || Boolean(outboundDel.driverName && outboundDel.driverName.trim())) 
-      : false;
 
     // 2. 장비할당 여부: 계약 체결 자산 슬롯 전체에 assetId 매핑 여부
     const cas = contractAssetsByContractMap.get(c.id) || [];
     let unassignedCount = 0;
+    let activeCaCount = 0;
+    let rentedCaCount = 0;
     for (const ca of cas) {
       if (!ca.assetId) unassignedCount++;
+      if (ca.status !== 'RETURNED') {
+        activeCaCount++;
+        const mappedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+        if (mappedAsset?.status === 'RENTED' || ca.status === 'RENTED') {
+          rentedCaCount++;
+        }
+      }
     }
     const isAssigned = cas.length > 0 && unassignedCount === 0;
 
     // 3. 출고검수 완료 여부: outboundInspections 전체가 COMPLETED 여부
     const relInsps = outboundInspectionsByContractMap.get(c.id) || [];
-    const isInspected = relInsps.length > 0 && relInsps.every(oi => oi.status === 'COMPLETED');
+    const hasPendingInsp = relInsps.some(oi => oi.status !== 'COMPLETED');
     const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
+
+    // 현장 기투입(대여중) 여부: 배차/출고검수 대기 건이 없고, 체결된 활성 장비 전체가 자산 매핑 완료 및 대여중(RENTED) 상태인 경우
+    const hasPendingOutboundDel = outboundDel ? (outboundDel.status !== 'DELIVERED' && outboundDel.status !== 'COMPLETED') : false;
+    const isFieldDeployedRented =
+      isAssigned &&
+      activeCaCount > 0 &&
+      activeCaCount === rentedCaCount &&
+      !hasPendingOutboundDel &&
+      !hasPendingInsp;
+
+    const isDelivered = outboundDel
+      ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED')
+      : isFieldDeployedRented;
+
+    // 1. 배차 여부: 배차완료(DISPATCHED/DELIVERED 또는 기사 배정) vs 배차대기
+    const isDispatched = outboundDel 
+      ? (outboundDel.status === 'DISPATCHED' || outboundDel.status === 'DELIVERED' || Boolean(outboundDel.driverName && outboundDel.driverName.trim())) 
+      : isFieldDeployedRented;
+
+    const isInspected = (relInsps.length > 0 && !hasPendingInsp) || isFieldDeployedRented;
 
     // 4. 계약서패키지 발송 여부: packageSentAt 존재 또는 DOCUMENT_SENT / 계약서패키지 이력
     const isPackageSent = Boolean(c.packageSentAt) || packageSentContractIds.has(c.id);
@@ -519,13 +542,6 @@ export const Contracts: React.FC = () => {
       const matchesType = contractTypeFilter === 'ALL' || (c.contractType || 'RENTAL') === contractTypeFilter;
       if (!matchesType) return false;
 
-      if (statusFilter !== 'ALL') {
-        const matchesStatus = statusFilter === 'ACTIVE'
-          ? (c.status === 'ACTIVE' || c.status === 'EXTENDED')
-          : c.status === statusFilter;
-        if (!matchesStatus) return false;
-      }
-
       if (customerFilter !== 'ALL' && c.customerId !== customerFilter) return false;
       if (siteFilter !== 'ALL' && c.siteId !== siteFilter) return false;
       if (startDateFilter && (!c.startDate || c.startDate < startDateFilter)) return false;
@@ -533,20 +549,25 @@ export const Contracts: React.FC = () => {
 
       const cas = contractAssetsByContractMap.get(c.id) || [];
 
-      if (quickChipFilter === 'PENDING_DELIVERY') {
+      if (quickChipFilter === 'COMPLETED') {
+        if (c.status !== 'COMPLETED') return false;
+      } else if (quickChipFilter === 'ACTIVE') {
+        if (!(c.status === 'ACTIVE' || c.status === 'EXTENDED')) return false;
+      } else if (quickChipFilter === 'PENDING_DELIVERY') {
         const isMySalesContract = !currentUser || currentUser.role === 'ADMIN' || !hasCurrentUserSalesContracts || c.salespersonId === currentUser.id;
         const m = getContractOutboundMilestones(c);
         if (!(isMySalesContract && c.status !== 'COMPLETED' && !m.isDelivered)) return false;
-      } else if (quickChipFilter === 'ACTIVE') {
-        if (!(c.status === 'ACTIVE' || c.status === 'EXTENDED')) return false;
       } else if (quickChipFilter === 'ASSIGNED') {
         if (!cas.some(ca => ca.assetId && assetMap.get(ca.assetId)?.status === 'ASSIGNED')) return false;
       } else if (quickChipFilter === 'D3') {
-        if (!getDDayText(c.endDate).isWarning) return false;
+        if (c.status === 'COMPLETED' || !getDDayText(c.endDate).isWarning) return false;
       } else if (quickChipFilter === 'ZERO_FEE') {
-        if (!cas.some(ca => ca.monthlyRentalFee === 0)) return false;
-      } else if (quickChipFilter === 'COMPLETED') {
-        if (c.status !== 'COMPLETED') return false;
+        if (c.status === 'COMPLETED' || !cas.some(ca => ca.monthlyRentalFee === 0)) return false;
+      } else if (statusFilter !== 'ALL') {
+        const matchesStatus = statusFilter === 'ACTIVE'
+          ? (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+          : c.status === statusFilter;
+        if (!matchesStatus) return false;
       }
 
       if (matcher) {
@@ -1884,7 +1905,13 @@ export const Contracts: React.FC = () => {
                 <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>상태</label>
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => {
+                    const nextStatus = e.target.value;
+                    setStatusFilter(nextStatus);
+                    if (nextStatus === 'ALL') setQuickChipFilter('ALL');
+                    else if (nextStatus === 'ACTIVE') setQuickChipFilter('ACTIVE');
+                    else if (nextStatus === 'COMPLETED') setQuickChipFilter('COMPLETED');
+                  }}
                   onKeyDown={e => { if (e.key === 'Enter') handleSearchClick(); }}
                   style={{ padding: '5px 8px', borderRadius: '6px', fontSize: '12px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
                 >
@@ -1922,13 +1949,14 @@ export const Contracts: React.FC = () => {
               </div>
 
               {/* 필터 초기화 버튼 */}
-              {(statusFilter !== 'ACTIVE' || customerFilter !== 'ALL' || siteFilter !== 'ALL' || startDateFilter || endDateFilter || searchTerm) && (
+              {(statusFilter !== 'ACTIVE' || quickChipFilter !== 'ALL' || customerFilter !== 'ALL' || siteFilter !== 'ALL' || startDateFilter || endDateFilter || searchTerm) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, visibility: 'hidden', whiteSpace: 'nowrap', userSelect: 'none' }}>초기화</label>
                   <button
                     type="button"
                     onClick={() => {
                       setStatusFilter('ACTIVE');
+                      setQuickChipFilter('ALL');
                       setCustomerFilter('ALL');
                       setCustomerInputText('');
                       setSiteFilter('ALL');
@@ -1972,7 +2000,13 @@ export const Contracts: React.FC = () => {
               ].map(chip => (
                 <button
                   key={chip.id}
-                  onClick={() => setQuickChipFilter(chip.id as any)}
+                  onClick={() => {
+                    const nextChip = chip.id as any;
+                    setQuickChipFilter(nextChip);
+                    if (nextChip === 'ALL') setStatusFilter('ALL');
+                    else if (nextChip === 'COMPLETED') setStatusFilter('COMPLETED');
+                    else setStatusFilter('ACTIVE');
+                  }}
                   style={{
                     padding: '4px 10px',
                     borderRadius: '4px',

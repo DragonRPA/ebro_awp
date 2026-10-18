@@ -1666,34 +1666,42 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
 
     // ── 계약 그룹핑: 헌장 원칙에 따라 동일 (고객사 + 현장) = 단 1개 계약 ──
     // 동일 현장의 장비는 출고일자가 다르더라도 단일 계약에 묶이며 자산별로 독립 라이프사이클을 가짐
+    // 🌟 [방어 가드]: 실물 장비 식별자(ownAssetNo, leaseAssetNo, rawModel)가 전무한 행은
+    // 유상수리비, 안전옵션/부품비, 운송비, 전월 미수금 등 단순 부대비용/정산 청구 행임.
+    // ➔ 기존 (고객+현장) 계약이 없을 때 빈 껍데기 계약(contracts / contract_history)이나
+    //    장비 슬롯(contract_assets)을 생성하지 않고, 청구서(billing_details)로만 직행시켜
+    //    빈 계약 생성·장비 할당 대기 화면 잔류 및 소급 청구 왜곡을 원천 차단함.
+    const isRealAssetRow = Boolean(ownAssetNo || leaseAssetNo || rawModel);
     const contractGroupKey = `${customer.id}_${site.id}`;
-    let contractId: string;
-    let contractNo: string;
+    let contractId: string | null = null;
+    let contractNo: string | null = null;
 
     if (contractGroupMap.has(contractGroupKey)) {
       // 이미 동일 (고객+현장) 계약이 존재 → 기존 계약 재사용 및 정보 갱신
       const existingContract = contractGroupMap.get(contractGroupKey);
       contractId = existingContract.id;
       contractNo = existingContract.contractNo;
-      existingContract._totalMonthlyFee = (existingContract._totalMonthlyFee || 0) + rowMonthlyFee;
+      if (isRealAssetRow) {
+        existingContract._totalMonthlyFee = (existingContract._totalMonthlyFee || 0) + rowMonthlyFee;
 
-      // 더 이른 최초개시일이 발견되면 시작일 보정
-      if (firstStartDate && (!existingContract._firstStartDate || firstStartDate < existingContract._firstStartDate)) {
-        existingContract._firstStartDate = firstStartDate;
-      }
-      if (rowStartDate && rowStartDate < existingContract.startDate) {
-        existingContract.startDate = rowStartDate;
-      }
+        // 더 이른 최초개시일이 발견되면 시작일 보정
+        if (firstStartDate && (!existingContract._firstStartDate || firstStartDate < existingContract._firstStartDate)) {
+          existingContract._firstStartDate = firstStartDate;
+        }
+        if (rowStartDate && rowStartDate < existingContract.startDate) {
+          existingContract.startDate = rowStartDate;
+        }
 
-      // 진행중인 장비가 1대라도 있으면 계약 전체 상태는 ACTIVE 유지
-      if (!isCompleted) {
-        existingContract.status = 'ACTIVE';
-        existingContract.endDate = '9999-12-31';
-      } else if (existingContract.status === 'COMPLETED' && rowEndDate > existingContract.endDate) {
-        existingContract.endDate = rowEndDate;
+        // 진행중인 장비가 1대라도 있으면 계약 전체 상태는 ACTIVE 유지
+        if (!isCompleted) {
+          existingContract.status = 'ACTIVE';
+          existingContract.endDate = '9999-12-31';
+        } else if (existingContract.status === 'COMPLETED' && rowEndDate > existingContract.endDate) {
+          existingContract.endDate = rowEndDate;
+        }
       }
-    } else {
-      // 신규 계약 생성: 최초 발생월(YYMM) 기준 채번
+    } else if (isRealAssetRow) {
+      // 신규 계약 생성: 실물 장비 행인 경우에만 최초 발생월(YYMM) 기준 채번
       const effStartDate = firstStartDate || rowStartDate || '2026-08-01';
       const yymm = effStartDate.replace(/-/g, '').substring(2, 6) || '2608';
       const currentSeq = (contractSeqByYm.get(yymm) || 0) + 1;
@@ -1739,14 +1747,9 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       });
     }
 
-    // 🌟 [방어 가드]: 실물 장비 식별자(ownAssetNo, leaseAssetNo, rawModel)가 전무한 행은
-    // 유상수리비, 안전옵션/부품비, 운송비, 전월 미수금 등 단순 부대비용/정산 청구 행임.
-    // ➔ contract_assets(장비 슬롯)를 생성하지 않고, 청구서(billing_details)로만 직행시켜
-    //    장비 할당 대기 화면 잔류 및 소급 청구 왜곡을 원천 차단함.
-    const isRealAssetRow = Boolean(ownAssetNo || leaseAssetNo || rawModel);
     let caId: string | null = null;
 
-    if (isRealAssetRow) {
+    if (isRealAssetRow && contractId) {
       caId = `CA-${String(caSeq++).padStart(7, '0')}`;
       const returnDateStr = isCompleted || leaseReturnDate ? (leaseReturnDate || rowEndDate || nowIso.split('T')[0]) : null;
       contractAssets.push({
@@ -2247,6 +2250,19 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   for (const el of externalLeases) {
     if (el.contractAssetId && caIdRemap.has(el.contractAssetId)) {
       el.contractAssetId = caIdRemap.get(el.contractAssetId);
+    }
+  }
+
+  // 🌟 [방어 가드]: 체결 자산(contract_assets)이 단 1건도 없는 빈 껍데기 계약(0-asset contract) 및 연관 이력 제거
+  const validContractIds = new Set(contractAssets.map(ca => ca.contractId));
+  for (let i = contracts.length - 1; i >= 0; i--) {
+    if (!validContractIds.has(contracts[i].id)) {
+      contracts.splice(i, 1);
+    }
+  }
+  for (let i = contractHistories.length - 1; i >= 0; i--) {
+    if (!validContractIds.has(contractHistories[i].contractId)) {
+      contractHistories.splice(i, 1);
     }
   }
 
