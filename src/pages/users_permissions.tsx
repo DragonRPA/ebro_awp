@@ -20,13 +20,35 @@ export const MENU_CATEGORIES = SYSTEM_MENU_CONFIG;
 
 export const UsersPermissions: React.FC = () => {
   const { 
-    users, permissions, updatePermissions, saveUser, currentUser, hasPermission, showErrorModal,
+    users, permissions, updatePermissions, saveUser, currentUser, currentTenant, hasPermission, showErrorModal,
     customRoles, rolePermissions, saveCustomRole, deleteCustomRole, saveRolePermissions, assignUserRole,
     loadTablesForMenu
   } = useApp();
 
   const isSuperAdmin = currentUser?.id === 'u-1' || currentUser?.id === 'sys-admin';
   const canSave = hasPermission('permission', 'save');
+
+  // 🏢 현재 테넌트에 노출(활성화)된 메뉴 그룹 및 항목만 필터링 (숨김 페이지 및 개발자 전용 메뉴 배제)
+  const visibleMenuCategories = useMemo<MenuCategoryGroup[]>(() => {
+    const rawHidden = Array.isArray(currentTenant?.hiddenPages) ? currentTenant!.hiddenPages : [];
+    const rawAllowed = Array.isArray(currentTenant?.allowedPages) ? currentTenant!.allowedPages : [];
+    const normHiddenSet = new Set(rawHidden.map(p => normalizeMenuId(p)));
+    const normAllowedSet = new Set(rawAllowed.map(p => normalizeMenuId(p)));
+
+    return MENU_CATEGORIES
+      .filter(grp => grp.id !== 'grp_system_dev')
+      .map(grp => ({
+        ...grp,
+        items: grp.items.filter(item => {
+          const normId = normalizeMenuId(item.id);
+          if (normId === 'tenant_management') return false;
+          if (normHiddenSet.has(normId)) return false;
+          if (normAllowedSet.size > 0 && !normAllowedSet.has(normId)) return false;
+          return true;
+        })
+      }))
+      .filter(grp => grp.items.length > 0);
+  }, [currentTenant]);
 
   // 상단 메인 탭 ('ROLES': 권한 명칭 정의 마스터 | 'USERS': 직원 권한 상속 배정)
   const [activeTab, setActiveTab] = useState<'ROLES' | 'USERS'>('ROLES');
@@ -390,7 +412,7 @@ export const UsersPermissions: React.FC = () => {
   // ── [액션 5: 전체 메뉴 일괄 토글 (선택된 권한)] ──
   const handleAllMenusBulkToggle = (type: 'view' | 'save' | 'off') => {
     if (!canSave || !selectedRoleId) return;
-    const allItems = MENU_CATEGORIES.flatMap(g => g.items);
+    const allItems = visibleMenuCategories.flatMap(g => g.items);
 
     setWorkingRolePerms(prev => {
       const updated = { ...prev };
@@ -543,12 +565,19 @@ export const UsersPermissions: React.FC = () => {
   const getUserInheritedMenus = (u: User) => {
     if (u.role === 'ADMIN') return { total: '전체 (관리자)', preview: '전 메뉴 허용' };
     if (!u.customRoleId) return { total: '0개', preview: '권한 미지정' };
-    const perms = rolePermissions.filter(p => p.roleId === u.customRoleId && (p.canView || p.canSave));
-    const allItems = MENU_CATEGORIES.flatMap(g => g.items);
-    const names = perms.map(p => allItems.find(i => normalizeMenuId(i.id) === normalizeMenuId(p.menuId))?.name || p.menuId);
+    const allVisibleItems = visibleMenuCategories.flatMap(g => g.items);
+    const visibleItemMap = new Map(allVisibleItems.map(i => [normalizeMenuId(i.id), i.name]));
+    const perms = rolePermissions.filter(p => 
+      p.roleId === u.customRoleId && 
+      (p.canView || p.canSave) && 
+      visibleItemMap.has(normalizeMenuId(p.menuId))
+    );
+    const names = perms.map(p => visibleItemMap.get(normalizeMenuId(p.menuId)) || p.menuId);
     return {
       total: `${perms.length}개 메뉴`,
-      preview: names.slice(0, 3).join(', ') + (names.length > 3 ? ` 외 ${names.length - 3}개` : '')
+      preview: names.length > 0
+        ? names.slice(0, 3).join(', ') + (names.length > 3 ? ` 외 ${names.length - 3}개` : '')
+        : '허용 메뉴 없음'
     };
   };
 
@@ -1100,7 +1129,7 @@ export const UsersPermissions: React.FC = () => {
 
             {/* 고밀도 카테고리별 아코디언 메뉴 테이블 */}
             <div style={{ maxHeight: '680px', overflowY: 'auto' }}>
-              {MENU_CATEGORIES.map(grp => {
+              {visibleMenuCategories.map(grp => {
                 const isCollapsed = collapsedRoleGroups[grp.id];
                 const allViewsChecked = grp.items.every(i => workingRolePerms[normalizeMenuId(i.id)]?.canView);
                 const allSavesChecked = grp.items.every(i => workingRolePerms[normalizeMenuId(i.id)]?.canSave);
@@ -1596,7 +1625,7 @@ export const UsersPermissions: React.FC = () => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {MENU_CATEGORIES.map(grp => {
+                  {visibleMenuCategories.map(grp => {
                     const permittedItems = grp.items.filter(item => {
                       const perm = rolePermissions.find(p => p.roleId === previewUser.customRoleId && normalizeMenuId(p.menuId) === normalizeMenuId(item.id));
                       return perm?.canView || perm?.canSave || normalizeMenuId(item.id) === 'leave_application';

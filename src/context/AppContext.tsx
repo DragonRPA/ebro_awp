@@ -562,7 +562,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveTenant = async (tenant: Partial<Tenant> & { id?: string }): Promise<Tenant> => {
     let saved: Tenant;
-    if (tenant.id) {
+    const existingInDb = tenant.id ? (db.tenants || []).find(t => t && t.id === tenant.id) : undefined;
+    const existingInState = tenant.id ? (tenants || []).find(t => t && t.id === tenant.id) : undefined;
+    if (tenant.id && existingInDb) {
+      saved = db.updateRow<Tenant>('tenants', tenant.id, tenant as any) as Tenant;
+    } else if (tenant.id && existingInState) {
+      db.tenants = [...(db.tenants || []), existingInState];
       saved = db.updateRow<Tenant>('tenants', tenant.id, tenant as any) as Tenant;
     } else {
       saved = db.insertRow<Tenant>('tenants', tenant as any) as Tenant;
@@ -570,12 +575,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await db.awaitPendingWrites();
     setTenants([...db.tenants]);
     
-    // 🌐 [중앙 플랫폼 SSOT 동기화] ebro-platform-core 프로젝트에 실시간 복제 완결 대기 (헌장 5.2)
+    // 🌐 [중앙 플랫폼 SSOT & 운영 DB 이중 동기화] ebro-platform-core 프로젝트 및 운영 DB에 실시간 복제 완결 대기 (헌장 5.2)
     if (saved && saved.id) {
       try {
         await saveCentralTenant(saved);
       } catch (err: any) {
         console.error('[Central DB Sync Error]:', err);
+      }
+      if (supabase) {
+        try {
+          const opPayload = db.sanitizeSupabasePayload(saved, 'tenants');
+          await supabase.from('tenants').upsert([opPayload], { onConflict: 'id' });
+        } catch (opErr: any) {
+          console.warn('[Operational DB Tenant Sync Warning]:', opErr);
+        }
       }
     }
 
@@ -1160,7 +1173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'vendors':              ['vendors'],
     'organization':         ['users', 'departments'],
     'permission':           ['users', 'permissions', 'departments', 'customRoles', 'rolePermissions'],
-    'tenant_management':    ['tenants', 'users'],
+    'tenant_management':    ['tenants', 'users', 'googleConfigs'],
     'payroll':              ['users', 'departments'],
     'corporate_card':       ['vendors', 'billings'],
     'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
@@ -1736,21 +1749,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (currentTenant) {
-
       const rawHidden = Array.isArray(currentTenant.hiddenPages) ? currentTenant.hiddenPages : [];
       const rawAllowed = Array.isArray(currentTenant.allowedPages) ? currentTenant.allowedPages : [];
 
       const normHiddenPages = rawHidden.map(p => normalizeMenuId(p));
       const normAllowedPages = rawAllowed.map(p => normalizeMenuId(p));
 
-      // 1) hiddenPages에 포함된 메뉴는 일반 사용자에게 원천 차단 (단, 시스템 개발자/최고관리자 isSuperAdmin에게는 전면 상시 개방)
-      if (normHiddenPages.includes(normMenuId) && !isSuperAdmin) {
+      // 1) hiddenPages에 포함된 메뉴는 테넌트 화면에서 전면 차단
+      if (normHiddenPages.includes(normMenuId)) {
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (단, 공통 기본 메뉴는 전원 상시 개방)
-      const commonAlwaysOpen = ['dashboard', 'manual_dictionary', 'operations_manual', 'leave_application', 'error_report', 'approvalInbox', 'approval_inbox'];
-      if (!isSuperAdmin && normAllowedPages.length > 0 && !commonAlwaysOpen.includes(normMenuId) && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 제외)
+      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
         return false;
       }
     }
@@ -1889,7 +1900,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const rowsToUpsert = [
           { ...payload, createdAt: (payload as any).createdAt || nowIso },
           ...sameTenantIds.map(dupId => ({ ...payload, id: dupId, createdAt: nowIso }))
-        ];
+        ].map(r => db.sanitizeSupabasePayload(r, 'google_configs'));
         let { error } = await supabase
           .from('google_configs')
           .upsert(rowsToUpsert, { onConflict: 'id' });
