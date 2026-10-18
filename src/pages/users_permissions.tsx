@@ -209,6 +209,40 @@ export const UsersPermissions: React.FC = () => {
     return customRoles.find(r => r.id === selectedRoleId) || customRoles[0];
   }, [customRoles, selectedRoleId]);
 
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [editRoleName, setEditRoleName] = useState('');
+  const [editRoleDesc, setEditRoleDesc] = useState('');
+
+  const handleStartEditRole = (role: CustomRole) => {
+    setEditingRoleId(role.id);
+    setEditRoleName(role.name || '');
+    setEditRoleDesc(role.description || '');
+  };
+
+  const handleSaveEditRole = async (role: CustomRole) => {
+    if (!canSave) return;
+    const name = editRoleName.trim();
+    if (!name) {
+      showToast('권한 명칭을 입력해 주십시오.', 'error');
+      return;
+    }
+    if (customRoles.some(r => r.id !== role.id && r.name.toLowerCase() === name.toLowerCase())) {
+      showToast('이미 동일한 이름의 권한 명칭이 존재합니다.', 'error');
+      return;
+    }
+    try {
+      await saveCustomRole({
+        ...role,
+        name,
+        description: editRoleDesc.trim() || undefined
+      });
+      setEditingRoleId(null);
+      showToast(`권한 명칭이 [${name}](으)로 수정되었습니다.`);
+    } catch (err: any) {
+      console.error('handleSaveEditRole error:', err);
+    }
+  };
+
   // ── [액션 1: 신규 권한 명칭 추가] ──
   const handleCreateRole = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -755,6 +789,7 @@ export const UsersPermissions: React.FC = () => {
                 {customRoles.map(role => {
                   const isSelected = role.id === selectedRoleId;
                   const count = roleUserCountMap[role.id] || 0;
+                  const isEditingThis = editingRoleId === role.id;
                   return (
                     <div
                       key={role.id}
@@ -771,46 +806,157 @@ export const UsersPermissions: React.FC = () => {
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main, #0f172a)' }}>
-                          {role.name}
-                        </strong>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{
-                            padding: '1px 6px',
-                            borderRadius: '10px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            backgroundColor: count > 0 ? 'var(--primary-light, #dbeafe)' : 'var(--bg-secondary)',
-                            color: count > 0 ? 'var(--primary)' : 'var(--text-muted)'
-                          }}>
-                            {count}명 상속
-                          </span>
-                          {!role.isSystem && canSave && count === 0 && (
-                            <button data-hs-trigger="Delete"
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteRole(role);
+                      {isEditingThis ? (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <label style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>권한 명칭</label>
+                            <input
+                              type="text"
+                              value={editRoleName}
+                              onChange={(e) => setEditRoleName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEditRole(role);
+                                if (e.key === 'Escape') setEditingRoleId(null);
                               }}
-                              title="권한 삭제"
                               style={{
-                                background: 'none',
-                                border: 'none',
+                                padding: '5px 8px',
+                                fontSize: '12px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--primary)',
+                                backgroundColor: 'var(--bg-card, #ffffff)',
+                                color: 'var(--text-main)',
+                                outline: 'none'
+                              }}
+                              autoFocus
+                            />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <label style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>권한 설명</label>
+                            <input
+                              type="text"
+                              value={editRoleDesc}
+                              onChange={(e) => setEditRoleDesc(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEditRole(role);
+                                if (e.key === 'Escape') setEditingRoleId(null);
+                              }}
+                              style={{
+                                padding: '5px 8px',
+                                fontSize: '11.5px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card, #ffffff)',
+                                color: 'var(--text-main)',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px', marginTop: '2px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setEditingRoleId(null)}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                borderRadius: '4px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card, #ffffff)',
+                                color: 'var(--text-secondary)',
                                 cursor: 'pointer',
-                                padding: '2px',
-                                color: 'var(--danger)'
+                                whiteSpace: 'nowrap'
                               }}
                             >
-                              <Trash2 size={13} />
+                              취소
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditRole(role)}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                borderRadius: '4px',
+                                border: 'none',
+                                backgroundColor: 'var(--primary)',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              저장
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      {role.description && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>
-                          {role.description}
-                        </span>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                            <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main, #0f172a)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {role.name}
+                            </strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                              <span style={{
+                                padding: '1px 6px',
+                                borderRadius: '10px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                backgroundColor: count > 0 ? 'var(--primary-light, #dbeafe)' : 'var(--bg-secondary)',
+                                color: count > 0 ? 'var(--primary)' : 'var(--text-muted)',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {count}명 상속
+                              </span>
+                              {canSave && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditRole(role);
+                                  }}
+                                  style={{
+                                    padding: '1px 5px',
+                                    fontSize: '11px',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '3px',
+                                    backgroundColor: 'transparent',
+                                    color: 'var(--primary)',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  수정
+                                </button>
+                              )}
+                              {!role.isSystem && canSave && count === 0 && (
+                                <button data-hs-trigger="Delete"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteRole(role);
+                                  }}
+                                  title="권한 삭제"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '2px',
+                                    color: 'var(--danger)'
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {role.description && (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>
+                              {role.description}
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
                   );
