@@ -4,7 +4,7 @@ import {
   Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
   Mic, FileSignature, Receipt, ArrowRight, ToggleLeft, ToggleRight, X,
   MapPin, CreditCard, Layers, Calendar, Clock, Key, AlertTriangle, 
-  CheckCircle2, XCircle, Zap, Bot
+  CheckCircle2, XCircle, Zap, Bot, Mail
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -12,6 +12,7 @@ import {
   TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo,
   SolutionType, db, supabase, GoogleConfig 
 } from '../services/db';
+import { encryptSecret, decryptSecret } from '../utils/cryptoVault';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
@@ -65,7 +66,7 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'EMAIL' | 'STORAGE'>('BASIC');
   const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -160,6 +161,36 @@ export const TenantManagementPage: React.FC = () => {
     r2PublicDomain: '',
   });
 
+  const [emailConfig, setEmailConfig] = useState<{
+    smtpProvider: 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
+    smtpHost: string;
+    smtpPort: number;
+    googleEmail: string;
+    googlePassword: string;
+    gmailAppPassword: string;
+    isDevMode: boolean;
+  }>({
+    smtpProvider: 'NAVER',
+    smtpHost: 'smtp.naver.com',
+    smtpPort: 465,
+    googleEmail: '',
+    googlePassword: '',
+    gmailAppPassword: '',
+    isDevMode: true,
+  });
+  const [showSmtpPassword, setShowSmtpPassword] = useState<boolean>(false);
+  const [showSmtpAppPassword, setShowSmtpAppPassword] = useState<boolean>(false);
+
+  const handleSmtpProviderChange = (provider: 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM') => {
+    const nextHost = provider === 'GMAIL' ? 'smtp.gmail.com' : provider === 'NAVER' ? 'smtp.naver.com' : provider === 'DAUM' ? 'smtp.daum.net' : emailConfig.smtpHost;
+    setEmailConfig(prev => ({
+      ...prev,
+      smtpProvider: provider,
+      smtpHost: nextHost,
+      smtpPort: 465,
+    }));
+  };
+
   // 파일 업로드 참조
   const ciFileInputRef = useRef<HTMLInputElement>(null);
   const stampFileInputRef = useRef<HTMLInputElement>(null);
@@ -219,18 +250,33 @@ export const TenantManagementPage: React.FC = () => {
   const { sortedData: sortedTenants, sortKey: tenantSortKey, sortDirection: tenantSortDir, handleSort: handleTenantSort } = useSortableData<Tenant>(filteredTenants);
 
   // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE' = 'BASIC') => {
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'EMAIL' | 'STORAGE' = 'BASIC') => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
+    setShowSmtpPassword(false);
+    setShowSmtpAppPassword(false);
     if (tenant) {
       const gConfig = db.googleConfigs.find(c => c.tenantId === tenant.id || (c as any).tenant_id === tenant.id || c.id === `cfg-${tenant.id}`);
       const fallbackR2 = (tenant as any).r2Config || (tenant.features as any)?.r2Config || {};
+      const fallbackSmtp = (tenant as any).smtpConfig || (tenant.features as any)?.smtpConfig || {};
       setR2Config({
         r2AccountId: gConfig?.r2AccountId || fallbackR2.r2AccountId || '',
         r2BucketName: gConfig?.r2BucketName || fallbackR2.r2BucketName || '',
         r2AccessKeyId: gConfig?.r2AccessKeyId || fallbackR2.r2AccessKeyId || '',
-        r2SecretAccessKey: gConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || '',
+        r2SecretAccessKey: decryptSecret(gConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || ''),
         r2PublicDomain: gConfig?.r2PublicDomain || fallbackR2.r2PublicDomain || '',
+      });
+      const initialEmail = (gConfig?.googleEmail || fallbackSmtp.googleEmail || '').trim();
+      const initialProvider = (gConfig?.smtpProvider || fallbackSmtp.smtpProvider || (initialEmail.toLowerCase().endsWith('@naver.com') ? 'NAVER' : initialEmail.toLowerCase().endsWith('@daum.net') ? 'DAUM' : 'GMAIL')) as 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
+      const initialHost = gConfig?.smtpHost || fallbackSmtp.smtpHost || (initialProvider === 'NAVER' ? 'smtp.naver.com' : initialProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+      setEmailConfig({
+        smtpProvider: initialProvider,
+        smtpHost: initialHost,
+        smtpPort: gConfig?.smtpPort || fallbackSmtp.smtpPort || 465,
+        googleEmail: initialEmail,
+        googlePassword: decryptSecret(gConfig?.googlePassword || fallbackSmtp.googlePassword || ''),
+        gmailAppPassword: decryptSecret(gConfig?.gmailAppPassword || fallbackSmtp.gmailAppPassword || ''),
+        isDevMode: gConfig?.isDevMode ?? fallbackSmtp.isDevMode ?? true,
       });
       // 원격 DB(google_configs)에서 최신 설정을 비동기 조회하여 admin 도메인 등 로컬 캐시 공백 시에도 기존 설정 보존 보장
       supabase
@@ -244,9 +290,21 @@ export const TenantManagementPage: React.FC = () => {
               r2AccountId: prev.r2AccountId || remoteCfg.r2AccountId || '',
               r2BucketName: prev.r2BucketName || remoteCfg.r2BucketName || '',
               r2AccessKeyId: prev.r2AccessKeyId || remoteCfg.r2AccessKeyId || '',
-              r2SecretAccessKey: prev.r2SecretAccessKey || remoteCfg.r2SecretAccessKey || '',
+              r2SecretAccessKey: prev.r2SecretAccessKey || decryptSecret(remoteCfg.r2SecretAccessKey || ''),
               r2PublicDomain: prev.r2PublicDomain || remoteCfg.r2PublicDomain || '',
             }));
+            const rEmail = (remoteCfg.googleEmail || fallbackSmtp.googleEmail || '').trim();
+            const rProvider = (remoteCfg.smtpProvider || fallbackSmtp.smtpProvider || (rEmail.toLowerCase().endsWith('@naver.com') ? 'NAVER' : rEmail.toLowerCase().endsWith('@daum.net') ? 'DAUM' : 'GMAIL')) as 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
+            const rHost = remoteCfg.smtpHost || fallbackSmtp.smtpHost || (rProvider === 'NAVER' ? 'smtp.naver.com' : rProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+            setEmailConfig({
+              smtpProvider: rProvider,
+              smtpHost: rHost,
+              smtpPort: remoteCfg.smtpPort || fallbackSmtp.smtpPort || 465,
+              googleEmail: rEmail,
+              googlePassword: decryptSecret(remoteCfg.googlePassword || fallbackSmtp.googlePassword || ''),
+              gmailAppPassword: decryptSecret(remoteCfg.gmailAppPassword || fallbackSmtp.gmailAppPassword || ''),
+              isDevMode: remoteCfg.isDevMode ?? fallbackSmtp.isDevMode ?? true,
+            });
           }
         });
       setEditingTenant(tenant);
@@ -291,6 +349,15 @@ export const TenantManagementPage: React.FC = () => {
         r2AccessKeyId: '',
         r2SecretAccessKey: '',
         r2PublicDomain: '',
+      });
+      setEmailConfig({
+        smtpProvider: 'NAVER',
+        smtpHost: 'smtp.naver.com',
+        smtpPort: 465,
+        googleEmail: '',
+        googlePassword: '',
+        gmailAppPassword: '',
+        isDevMode: true,
       });
       setEditingTenant(null);
       const today = new Date().toISOString().slice(0, 10);
@@ -757,8 +824,46 @@ export const TenantManagementPage: React.FC = () => {
     try {
       setIsSaving(true);
       const nowIso = new Date().toISOString();
+      const targetTenantId = editingTenant ? editingTenant.id : `tenant-${cleanCode.toLowerCase()}-${Date.now()}`;
+
+      const localConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || (c as any).tenant_id === targetTenantId || c.id === `cfg-${targetTenantId}`);
+      const { data: remoteConfig } = await supabase
+        .from('google_configs')
+        .select('*')
+        .or(`tenantId.eq.${targetTenantId},id.eq.cfg-${targetTenantId}`)
+        .maybeSingle();
+      const existingConfig: Partial<GoogleConfig> | undefined = remoteConfig || localConfig;
+
+      const finalGoogleEmail = (emailConfig.googleEmail || existingConfig?.googleEmail || '').trim();
+      const rawPass = (emailConfig.googlePassword || '').trim();
+      const finalGooglePassword = rawPass
+        ? (rawPass.startsWith('__EBRO_ENC__v1__') ? rawPass : encryptSecret(rawPass))
+        : (existingConfig?.googlePassword || '');
+      const rawAppPass = (emailConfig.gmailAppPassword || '').trim();
+      const finalGmailAppPassword = rawAppPass
+        ? (rawAppPass.startsWith('__EBRO_ENC__v1__') ? rawAppPass : encryptSecret(rawAppPass))
+        : (existingConfig?.gmailAppPassword || '');
+      const finalSmtpProvider = emailConfig.smtpProvider || existingConfig?.smtpProvider || 'NAVER';
+      const finalSmtpHost = emailConfig.smtpHost || existingConfig?.smtpHost || (finalSmtpProvider === 'NAVER' ? 'smtp.naver.com' : finalSmtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+      const finalSmtpPort = emailConfig.smtpPort || existingConfig?.smtpPort || 465;
+      const finalIsDevMode = emailConfig.isDevMode ?? existingConfig?.isDevMode ?? true;
+
+      const rawR2Secret = (r2Config.r2SecretAccessKey || '').trim();
+      const finalR2Secret = rawR2Secret
+        ? (rawR2Secret.startsWith('__EBRO_ENC__v1__') ? rawR2Secret : encryptSecret(rawR2Secret))
+        : (existingConfig?.r2SecretAccessKey || '');
+      const finalR2Config = {
+        r2AccountId: r2Config.r2AccountId || existingConfig?.r2AccountId || '',
+        r2BucketName: r2Config.r2BucketName || existingConfig?.r2BucketName || '',
+        r2AccessKeyId: r2Config.r2AccessKeyId || existingConfig?.r2AccessKeyId || '',
+        r2SecretAccessKey: finalR2Secret,
+        r2PublicDomain: r2Config.r2PublicDomain || existingConfig?.r2PublicDomain || '',
+      };
+
       const tenantToSave: Partial<Tenant> = {
         ...formData,
+        id: targetTenantId,
+        createdAt: editingTenant ? (editingTenant.createdAt || formData.createdAt || nowIso) : nowIso,
         tenantCode: cleanCode,
         subdomain: cleanSubdomain,
         displayName: formData.displayName?.trim() || cleanCode,
@@ -775,19 +880,20 @@ export const TenantManagementPage: React.FC = () => {
         features: {
           ...(formData.features || {}),
           specialFeatures: formData.specialFeatures || [],
-          r2Config: { ...r2Config },
+          r2Config: finalR2Config,
+          smtpConfig: {
+            googleEmail: finalGoogleEmail,
+            googlePassword: finalGooglePassword,
+            gmailAppPassword: finalGmailAppPassword,
+            smtpProvider: finalSmtpProvider,
+            smtpHost: finalSmtpHost,
+            smtpPort: finalSmtpPort,
+            isDevMode: finalIsDevMode,
+          },
         } as any,
         specialFeatures: formData.specialFeatures || [],
         updatedAt: nowIso,
       };
-
-      if (editingTenant) {
-        tenantToSave.id = editingTenant.id;
-        tenantToSave.createdAt = editingTenant.createdAt || formData.createdAt || nowIso;
-      } else {
-        tenantToSave.id = `tenant-${cleanCode.toLowerCase()}-${Date.now()}`;
-        tenantToSave.createdAt = nowIso;
-      }
 
       // 기본 테넌트 지정 시 다른 테넌트 해제 (순차 await 보장)
       if (tenantToSave.isDefault) {
@@ -800,57 +906,33 @@ export const TenantManagementPage: React.FC = () => {
 
       await saveTenant(tenantToSave);
 
-      // GoogleConfig에 R2 설정 저장/업데이트 (원격 google_configs 선행 조회로 이메일·SMTP·R2 설정 덮어쓰기/초기화 완벽 방지)
-      const targetTenantId = tenantToSave.id!;
-      const localConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || (c as any).tenant_id === targetTenantId || c.id === `cfg-${targetTenantId}`);
-      const { data: remoteConfig } = await supabase
-        .from('google_configs')
-        .select('*')
-        .or(`tenantId.eq.${targetTenantId},id.eq.cfg-${targetTenantId}`)
-        .maybeSingle();
-      const existingConfig: Partial<GoogleConfig> | undefined = remoteConfig || localConfig;
-
-      const hasR2Input = Boolean(
-        r2Config.r2AccountId ||
-        r2Config.r2BucketName ||
-        r2Config.r2AccessKeyId ||
-        r2Config.r2SecretAccessKey ||
-        r2Config.r2PublicDomain
-      );
-
-      // 기존 레코드가 있고 R2 입력 변경도 없는 경우 불필요한 덮어쓰기 생략
-      if (!existingConfig || hasR2Input || modalTab === 'STORAGE') {
-        const mergedGoogleConfig: GoogleConfig = {
-          ...(existingConfig || {}),
-          id: existingConfig?.id || `cfg-${targetTenantId}`,
-          tenantId: targetTenantId,
-          googleEmail: existingConfig?.googleEmail ?? '',
-          googlePassword: existingConfig?.googlePassword,
-          gmailAppPassword: existingConfig?.gmailAppPassword,
-          smtpProvider: existingConfig?.smtpProvider,
-          smtpHost: existingConfig?.smtpHost,
-          smtpPort: existingConfig?.smtpPort,
-          contractFolder: existingConfig?.contractFolder ?? '',
-          consumableFolder: existingConfig?.consumableFolder ?? '',
-          deliveryFolder: existingConfig?.deliveryFolder ?? '',
-          maintenanceFolder: existingConfig?.maintenanceFolder ?? '',
-          isDevMode: existingConfig?.isDevMode ?? true,
-          mirrorRecursive: existingConfig?.mirrorRecursive ?? true,
-          r2AccountId: r2Config.r2AccountId || existingConfig?.r2AccountId || '',
-          r2BucketName: r2Config.r2BucketName || existingConfig?.r2BucketName || '',
-          r2AccessKeyId: r2Config.r2AccessKeyId || existingConfig?.r2AccessKeyId || '',
-          r2SecretAccessKey: r2Config.r2SecretAccessKey || existingConfig?.r2SecretAccessKey || '',
-          r2PublicDomain: r2Config.r2PublicDomain || existingConfig?.r2PublicDomain || '',
-          createdAt: existingConfig?.createdAt || nowIso,
-          updatedAt: nowIso
-        };
-        if (localConfig) {
-          db.updateRow<GoogleConfig>('googleConfigs', mergedGoogleConfig.id, mergedGoogleConfig);
-        } else {
-          db.insertRow<GoogleConfig>('googleConfigs', mergedGoogleConfig);
-        }
-        await db.awaitPendingWrites();
+      // GoogleConfig에 공식 메일(SMTP) 및 R2 설정 통합 저장/업데이트
+      const mergedGoogleConfig: GoogleConfig = {
+        ...(existingConfig || {}),
+        id: existingConfig?.id || `cfg-${targetTenantId}`,
+        tenantId: targetTenantId,
+        googleEmail: finalGoogleEmail,
+        googlePassword: finalGooglePassword,
+        gmailAppPassword: finalGmailAppPassword,
+        smtpProvider: finalSmtpProvider,
+        smtpHost: finalSmtpHost,
+        smtpPort: finalSmtpPort,
+        contractFolder: existingConfig?.contractFolder ?? '',
+        consumableFolder: existingConfig?.consumableFolder ?? '',
+        deliveryFolder: existingConfig?.deliveryFolder ?? '',
+        maintenanceFolder: existingConfig?.maintenanceFolder ?? '',
+        isDevMode: finalIsDevMode,
+        mirrorRecursive: existingConfig?.mirrorRecursive ?? true,
+        ...finalR2Config,
+        createdAt: existingConfig?.createdAt || nowIso,
+        updatedAt: nowIso
+      };
+      if (localConfig) {
+        db.updateRow<GoogleConfig>('googleConfigs', mergedGoogleConfig.id, mergedGoogleConfig);
+      } else {
+        db.insertRow<GoogleConfig>('googleConfigs', mergedGoogleConfig);
       }
+      await db.awaitPendingWrites();
 
       setIsModalOpen(false);
       setEditingTenant(null);
@@ -1650,7 +1732,8 @@ export const TenantManagementPage: React.FC = () => {
               display: 'flex',
               borderBottom: '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-app)',
-              padding: '0 16px'
+              padding: '0 16px',
+              overflowX: 'auto'
             }}>
               {[
                 { key: 'BASIC', label: '기본 정보' },
@@ -1663,6 +1746,7 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'AGENTS', label: '에이전트 관제' },
                 { key: 'TEMPLATES', label: '서식 관리' },
                 { key: 'INITIAL_DB', label: '초기 DB 업로드' },
+                { key: 'EMAIL', label: '공식 메일 설정' },
                 { key: 'STORAGE', label: '스토리지 설정' },
               ].map(tab => (
                 <button
@@ -1670,15 +1754,16 @@ export const TenantManagementPage: React.FC = () => {
                   type="button"
                   onClick={() => setModalTab(tab.key as any)}
                   style={{
-                    padding: '12px 18px',
+                    padding: '12px 14px',
                     border: 'none',
                     borderBottom: modalTab === tab.key ? '2px solid var(--primary)' : '2px solid transparent',
                     backgroundColor: 'transparent',
                     color: modalTab === tab.key ? 'var(--primary)' : 'var(--text-secondary)',
                     fontWeight: modalTab === tab.key ? 800 : 600,
-                    fontSize: '13px',
+                    fontSize: '12.5px',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   {tab.label}
@@ -4081,7 +4166,162 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
+
+              {/* ── 탭 11: 공식 메일 설정 (EMAIL) ── */}
+              {modalTab === 'EMAIL' && (
+                <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Mail size={15} color="var(--primary)" />
+                      공식 메일 설정 (SMTP 발송 계정)
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      테넌트 공식 메일 발송 및 청구서·계약서 메일 전송에 사용되는 SMTP 계정 정보를 관리합니다. 데이터 초기화 시에도 삭제되지 않고 보존됩니다.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>이메일 공급자</label>
+                      <select
+                        value={emailConfig.smtpProvider}
+                        onChange={e => handleSmtpProviderChange(e.target.value as any)}
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      >
+                        <option value="NAVER">Naver (smtp.naver.com)</option>
+                        <option value="GMAIL">Gmail (smtp.gmail.com)</option>
+                        <option value="DAUM">Daum (smtp.daum.net)</option>
+                        <option value="CUSTOM">직접 입력</option>
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>SMTP 서버 주소</label>
+                      <input
+                        type="text"
+                        value={emailConfig.smtpHost}
+                        onChange={e => setEmailConfig({ ...emailConfig, smtpHost: e.target.value })}
+                        disabled={emailConfig.smtpProvider !== 'CUSTOM'}
+                        placeholder="예: smtp.naver.com"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: emailConfig.smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>SMTP 포트</label>
+                      <input
+                        type="number"
+                        value={emailConfig.smtpPort}
+                        onChange={e => setEmailConfig({ ...emailConfig, smtpPort: Number(e.target.value) || 465 })}
+                        disabled={emailConfig.smtpProvider !== 'CUSTOM'}
+                        placeholder="465"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: emailConfig.smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>공식 발신 이메일 계정</label>
+                      <input
+                        type="email"
+                        value={emailConfig.googleEmail}
+                        onChange={e => {
+                          const nextEmail = e.target.value;
+                          const lower = nextEmail.toLowerCase();
+                          let nextProvider = emailConfig.smtpProvider;
+                          let nextHost = emailConfig.smtpHost;
+                          if (lower.endsWith('@naver.com')) {
+                            nextProvider = 'NAVER';
+                            nextHost = 'smtp.naver.com';
+                          } else if (lower.endsWith('@gmail.com')) {
+                            nextProvider = 'GMAIL';
+                            nextHost = 'smtp.gmail.com';
+                          } else if (lower.endsWith('@daum.net') || lower.endsWith('@hanmail.net')) {
+                            nextProvider = 'DAUM';
+                            nextHost = 'smtp.daum.net';
+                          }
+                          setEmailConfig({ ...emailConfig, googleEmail: nextEmail, smtpProvider: nextProvider, smtpHost: nextHost });
+                        }}
+                        placeholder="예: giyeonlift7@naver.com"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>계정 비밀번호</label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type={showSmtpPassword ? 'text' : 'password'}
+                          value={emailConfig.googlePassword}
+                          onChange={e => setEmailConfig({ ...emailConfig, googlePassword: e.target.value })}
+                          placeholder="메일 계정 로그인 비밀번호"
+                          className="input-field"
+                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                          style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        >
+                          {showSmtpPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>앱 비밀번호 (SMTP 발송용)</label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type={showSmtpAppPassword ? 'text' : 'password'}
+                          value={emailConfig.gmailAppPassword}
+                          onChange={e => setEmailConfig({ ...emailConfig, gmailAppPassword: e.target.value })}
+                          placeholder="2단계 인증 앱 비밀번호 (예: TUR31NMZ6JD3)"
+                          className="input-field"
+                          style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtpAppPassword(!showSmtpAppPassword)}
+                          style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        >
+                          {showSmtpAppPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          발송 실행 모드: <span style={{ color: emailConfig.isDevMode ? '#d97706' : '#059669' }}>{emailConfig.isDevMode ? '개발 안전 격리 모드' : '실무 발송 모드'}</span>
+                        </span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          개발 안전 격리 모드에서는 모든 외부 발송 메일이 개발자 검증 메일함으로 안전 우회됩니다.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEmailConfig(prev => ({ ...prev, isDevMode: !prev.isDevMode }))}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: emailConfig.isDevMode ? '#fef3c7' : '#dcfce7',
+                          color: emailConfig.isDevMode ? '#92400e' : '#166534',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {emailConfig.isDevMode ? '개발 모드 유지중' : '실무 모드 가동중'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {modalTab === 'STORAGE' && (
                 <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -4156,6 +4396,7 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
 
             {/* 모달 푸터 */}
             <div style={{

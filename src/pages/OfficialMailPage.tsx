@@ -91,10 +91,16 @@ export const OfficialMailPage: React.FC = () => {
       }
     } catch {}
 
+    // 4. 중앙 테넌트 마스터(currentTenant.features.smtpConfig) 폴백
+    const tenantSmtpFallback = (currentTenant?.features as any)?.smtpConfig || (currentTenant as any)?.smtpConfig;
+    if (tenantSmtpFallback?.googleEmail) {
+      return tenantSmtpFallback;
+    }
+
     return undefined;
   }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain, currentTenant]);
 
-  const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (공식 메일 연동 설정 필요)';
+  const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (테넌트 관리 > 공식 메일 설정 필요)';
   const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || 'e-Bro ERP';
 
   // 최근 발송 이력 로드

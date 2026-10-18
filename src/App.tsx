@@ -786,7 +786,6 @@ const App: React.FC = () => {
         { id: 'agentic_settlement_autopilot', name: '월말 대사 정산', icon: <TrendingUp size={16} />, component: <AgenticSettlementAutopilotPage /> },
         { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제', icon: <Layers size={16} />, component: <AgenticAssetLifecyclePage /> },
         { id: 'initial_db_upload', name: '초기DB 업로드', icon: <DatabaseIcon size={16} />, component: <InitialDbUploader /> },
-        { id: 'google_config', name: '공식 메일 연동 설정', icon: <Settings size={16} />, component: <GoogleConfig /> },
         { id: 'dev_uploader', name: 'DB 데이터 업로더', icon: <DatabaseIcon size={16} />, component: <DevDataUploader /> },
         { id: 'tenant_management', name: '테넌트 관리', icon: <Building2 size={16} />, component: <TenantManagementPage /> },
       ]

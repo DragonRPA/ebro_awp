@@ -138,7 +138,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'agentic_settlement_autopilot', name: '월말 대사 정산' },
       { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제' },
       { id: 'initial_db_upload', name: '초기DB 업로드' },
-      { id: 'google_config', name: '공식 메일 연동 설정' },
       { id: 'dev_uploader', name: 'DB 데이터 업로더' },
       { id: 'tenant_management', name: '테넌트 관리' }
     ]

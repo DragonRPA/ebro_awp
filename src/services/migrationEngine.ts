@@ -699,8 +699,8 @@ export async function resetAllDatabaseTables(
   keepAdmin: boolean = true,
   targetTenantId?: string
 ): Promise<{ success: boolean; message: string }> {
-  // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates) 및
-  // 테넌트 원장(tenants), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
+  // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates),
+  // 테넌트 원장(tenants), 공식 메일·스토리지 설정(google_configs), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
   const DELETION_ORDER = [
     'monthly_income_statements',
     'settlement_payment_logs',
@@ -758,8 +758,7 @@ export async function resetAllDatabaseTables(
     'leave_usages',
     'overtime_records',
     'payroll_closings',
-    'todos',
-    'google_configs'
+    'todos'
   ];
 
   try {
@@ -785,12 +784,7 @@ export async function resetAllDatabaseTables(
         const { error } = await supabase.from(table).delete().in('tenant_id', tenantVariants);
         if (error) {
           const msg = error.message || '';
-          if (msg.includes('tenant_id') && table === 'google_configs') {
-            const { error: gErr } = await supabase.from(table).delete().in('tenantId', tenantVariants);
-            if (gErr && !gErr.message.includes('not found')) {
-              throw new Error(`[DB 초기화 삭제 실패] ${table}: ${gErr.message}`);
-            }
-          } else if (!msg.includes('not found') && !msg.includes('schema cache')) {
+          if (!msg.includes('not found') && !msg.includes('schema cache')) {
             throw new Error(`[DB 초기화 삭제 실패] ${table}: ${msg}`);
           }
         }
