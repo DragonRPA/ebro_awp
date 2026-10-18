@@ -4379,7 +4379,7 @@ export const SEED_TENANTS: Tenant[] = [
       kakaoContract: true,
       autoTaxInvoice: true,
       voiceAssistance: true,
-      agentAiEnabled: true,
+      agentAiEnabled: false,
     },
     subscription: {
       plan: 'ENTERPRISE',
