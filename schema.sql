@@ -2059,6 +2059,91 @@ CREATE TABLE IF NOT EXISTS monthly_income_statements (
 
 ALTER TABLE monthly_income_statements DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON monthly_income_statements TO anon, authenticated, service_role;
+
+-- 소모품 로트 재고 (consumable_lots)
+CREATE TABLE IF NOT EXISTS consumable_lots (
+    id TEXT PRIMARY KEY,
+    "consumableId" TEXT,
+    "lotNo" TEXT,
+    "inboundDate" TEXT,
+    "receivedDate" TEXT,
+    "unitPrice" NUMERIC DEFAULT 0,
+    "unitCost" NUMERIC DEFAULT 0,
+    "initialQty" NUMERIC DEFAULT 0,
+    "currentQty" NUMERIC DEFAULT 0,
+    "remainingQty" NUMERIC DEFAULT 0,
+    "purchaseRequestId" TEXT,
+    "purchaseId" TEXT,
+    "createdAt" TEXT,
+    "updatedAt" TEXT,
+    tenant_id TEXT DEFAULT 'giyeonlift'
+);
+
+ALTER TABLE consumable_lots DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON consumable_lots TO anon, authenticated, service_role;
+
+-- 오류 신고 관리 (error_reports)
+CREATE TABLE IF NOT EXISTS error_reports (
+    id TEXT PRIMARY KEY,
+    "reportNo" TEXT,
+    title TEXT,
+    description TEXT,
+    "menuId" TEXT,
+    "menuName" TEXT,
+    category TEXT,
+    severity TEXT,
+    status TEXT DEFAULT 'REGISTERED',
+    "reporterId" TEXT,
+    "reporterName" TEXT,
+    "reporterDept" TEXT,
+    "reporterPhone" TEXT,
+    "reportedAt" TEXT,
+    attachments JSONB DEFAULT '[]'::jsonb,
+    "environmentInfo" JSONB,
+    "receiverId" TEXT,
+    "receiverName" TEXT,
+    "receivedAt" TEXT,
+    "assigneeId" TEXT,
+    "assigneeName" TEXT,
+    "receptionNote" TEXT,
+    "targetCompletionDate" TEXT,
+    "resolverId" TEXT,
+    "resolverName" TEXT,
+    "completedAt" TEXT,
+    "resolutionNote" TEXT,
+    "resolvedVersion" TEXT,
+    "rootCause" TEXT,
+    "createdAt" TEXT,
+    "updatedAt" TEXT,
+    tenant_id TEXT DEFAULT 'giyeonlift'
+);
+
+ALTER TABLE error_reports DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON error_reports TO anon, authenticated, service_role;
+
+-- 공인 개발자 인가 단말기 관리 (developer_authorized_devices)
+CREATE TABLE IF NOT EXISTS developer_authorized_devices (
+    id TEXT PRIMARY KEY,
+    "deviceId" TEXT,
+    "developerId" TEXT,
+    "developerName" TEXT,
+    "machineName" TEXT,
+    "macAddress" TEXT,
+    "hardwareFingerprint" TEXT,
+    platform TEXT,
+    status TEXT DEFAULT 'ACTIVE',
+    "isPrimary" BOOLEAN DEFAULT false,
+    "emergencyBreakGlassUsed" BOOLEAN DEFAULT false,
+    note TEXT,
+    "registeredAt" TEXT,
+    "lastVerifiedAt" TEXT,
+    "createdAt" TEXT,
+    "updatedAt" TEXT,
+    tenant_id TEXT DEFAULT 'giyeonlift'
+);
+
+ALTER TABLE developer_authorized_devices DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON developer_authorized_devices TO anon, authenticated, service_role;
 -- ==============================================================================
 -- ?�� eBro ERP: Hindsight 4-Tier Memory System DDL Specification
 -- ?���??�?��?�?개인?�보보호�?PIPA) �??�사 ?�스??개발 ?��? ?�장 준??-- ?? Supabase Pro (pgvector HNSW, JSONB, RLS, 4?� 메모�??�키?�처)

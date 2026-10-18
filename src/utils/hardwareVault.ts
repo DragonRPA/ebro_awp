@@ -9,7 +9,7 @@
  */
 
 import { encryptSecret, decryptSecret } from './cryptoVault';
-import { db, DeveloperDeviceProfile, PrivacyAccessLog } from '../services/db';
+import { db, supabase, DeveloperDeviceProfile, PrivacyAccessLog } from '../services/db';
 import { centralSupabase, saveCentralDeveloperDevice, fetchCentralDeveloperDevices } from '../services/centralDb';
 
 export type { DeveloperDeviceProfile };
@@ -173,18 +173,22 @@ export function getAuthorizedDeveloperDevices(): DeveloperDeviceProfile[] {
 }
 
 /**
- * 3-1. 중앙 플랫폼(ebro-platform-core) 원격 DB 실시간 인가 단말기 목록 조회 (테넌트 독립 SSOT)
+ * 3-1. 원격 DB 실시간 인가 단말기 목록 조회
  */
 export async function fetchAuthorizedDeveloperDevicesLive(): Promise<DeveloperDeviceProfile[]> {
   try {
-    if (centralSupabase) {
-      const { data } = await centralSupabase
+    if (supabase) {
+      const { data } = await supabase
         .from('developer_authorized_devices')
         .select('*')
         .order('registeredAt', { ascending: false });
       if (Array.isArray(data) && data.length > 0) {
         return data as DeveloperDeviceProfile[];
       }
+    }
+    const centralDevices = await fetchCentralDeveloperDevices();
+    if (Array.isArray(centralDevices) && centralDevices.length > 0) {
+      return centralDevices as DeveloperDeviceProfile[];
     }
   } catch (e) {
     console.warn('fetchAuthorizedDeveloperDevicesLive fallback to local cache:', e);
@@ -266,51 +270,61 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
     };
   }
 
-  // 4순위: 중앙 플랫폼(ebro-platform-core) 원격 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
+  // 4순위: 원격 DB 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
   try {
-    if (centralSupabase) {
-      const { data } = await centralSupabase
+    let liveData: any[] = [];
+    if (supabase) {
+      const { data } = await supabase
         .from('developer_authorized_devices')
         .select('*')
         .eq('status', 'ACTIVE');
-
       if (Array.isArray(data) && data.length > 0) {
-        // MAC 주소 일치 검증
-        for (const mac of detectedMacs) {
-          const normalizedMac = mac.toUpperCase().replace(/:/g, '-');
-          const matched = data.find(
-            (d: any) => d.status === 'ACTIVE' && d.macAddress && d.macAddress.toUpperCase().replace(/:/g, '-') === normalizedMac
-          );
-          if (matched) {
-            sealLocalDeviceToken(matched);
-            updateDeviceLastVerified(matched);
-            return {
-              isAuthorized: true,
-              matchedDevice: matched,
-              detectedFingerprint: fingerprint,
-              detectedMacs
-            };
-          }
-        }
+        liveData = data;
+      }
+    }
+    if (liveData.length === 0 && centralSupabase) {
+      const centralData = await fetchCentralDeveloperDevices();
+      if (Array.isArray(centralData) && centralData.length > 0) {
+        liveData = centralData.filter((d: any) => d.status === 'ACTIVE');
+      }
+    }
 
-        // 하드웨어 지문 일치 검증
-        const matchedFp = data.find(
-          (d: any) => d.status === 'ACTIVE' && d.hardwareFingerprint === fingerprint
+    if (liveData.length > 0) {
+      // MAC 주소 일치 검증
+      for (const mac of detectedMacs) {
+        const normalizedMac = mac.toUpperCase().replace(/:/g, '-');
+        const matched = liveData.find(
+          (d: any) => d.status === 'ACTIVE' && d.macAddress && d.macAddress.toUpperCase().replace(/:/g, '-') === normalizedMac
         );
-        if (matchedFp) {
-          sealLocalDeviceToken(matchedFp);
-          updateDeviceLastVerified(matchedFp);
+        if (matched) {
+          sealLocalDeviceToken(matched);
+          updateDeviceLastVerified(matched);
           return {
             isAuthorized: true,
-            matchedDevice: matchedFp,
+            matchedDevice: matched,
             detectedFingerprint: fingerprint,
             detectedMacs
           };
         }
       }
+
+      // 하드웨어 지문 일치 검증
+      const matchedFp = liveData.find(
+        (d: any) => d.status === 'ACTIVE' && d.hardwareFingerprint === fingerprint
+      );
+      if (matchedFp) {
+        sealLocalDeviceToken(matchedFp);
+        updateDeviceLastVerified(matchedFp);
+        return {
+          isAuthorized: true,
+          matchedDevice: matchedFp,
+          detectedFingerprint: fingerprint,
+          detectedMacs
+        };
+      }
     }
   } catch (liveErr) {
-    console.warn('[hardwareVault] 중앙 플랫폼 원격 실시간 인가 조회 경고:', liveErr);
+    console.warn('[hardwareVault] 원격 실시간 인가 조회 경고:', liveErr);
   }
 
   return {
