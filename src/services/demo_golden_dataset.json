@@ -1531,7 +1531,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-1"
     },
     {
       "id": "site-2",
@@ -1550,7 +1551,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-2"
     },
     {
       "id": "site-3",
@@ -1569,7 +1571,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-3"
     },
     {
       "id": "site-4",
@@ -1588,7 +1591,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-4"
     },
     {
       "id": "site-5",
@@ -1607,7 +1611,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-5"
     },
     {
       "id": "site-6",
@@ -1626,7 +1631,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-6"
     },
     {
       "id": "site-7",
@@ -1645,7 +1651,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-7"
     },
     {
       "id": "site-8",
@@ -1664,7 +1671,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-8"
     },
     {
       "id": "site-9",
@@ -1683,7 +1691,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-9"
     },
     {
       "id": "site-10",
@@ -1702,7 +1711,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-10"
     },
     {
       "id": "site-11",
@@ -1721,7 +1731,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-11"
     },
     {
       "id": "site-12",
@@ -1740,7 +1751,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-12"
     },
     {
       "id": "site-13",
@@ -1759,7 +1771,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-13"
     },
     {
       "id": "site-14",
@@ -1778,7 +1791,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-14"
     },
     {
       "id": "site-15",
@@ -1797,7 +1811,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-15"
     },
     {
       "id": "site-16",
@@ -1816,7 +1831,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-16"
     },
     {
       "id": "site-17",
@@ -1835,7 +1851,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-17"
     },
     {
       "id": "site-18",
@@ -1854,7 +1871,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-18"
     },
     {
       "id": "site-19",
@@ -1873,7 +1891,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-19"
     },
     {
       "id": "site-20",
@@ -1892,7 +1911,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-20"
     },
     {
       "id": "site-21",
@@ -1911,7 +1931,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-21"
     },
     {
       "id": "site-22",
@@ -1930,7 +1951,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-22"
     },
     {
       "id": "site-23",
@@ -1949,7 +1971,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-23"
     },
     {
       "id": "site-24",
@@ -1968,7 +1991,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-24"
     },
     {
       "id": "site-25",
@@ -1987,7 +2011,8 @@
       "isActive": true,
       "createdAt": "2026-01-01T00:00:00Z",
       "updatedAt": "2026-09-17T00:00:00Z",
-      "tenant_id": "giyeun"
+      "tenant_id": "giyeun",
+      "siteMasterId": "sm-25"
     }
   ],
   "assets": [
@@ -7301,6 +7326,308 @@
       "completedByUserId": null,
       "completedByName": null,
       "completionAction": null,
+      "tenant_id": "giyeun"
+    }
+  ],
+  "site_masters": [
+    {
+      "id": "sm-1",
+      "name": "판교 제2테크노밸리 사옥 신축공사",
+      "address": "경기도 성남시 수정구 금토동 100-1",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-2",
+      "name": "송도 바이오 연구단지 신축현장",
+      "address": "인천시 연수구 송도동 200-5",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-3",
+      "name": "고덕 삼성반도체 P4 클린룸 배관공사",
+      "address": "경기도 평택시 고덕동 1000",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-4",
+      "name": "화성 반도체 연구동 클린룸 증축",
+      "address": "경기도 화성시 반월동 300",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-5",
+      "name": "동탄 레이크꼬모 주상복합 2단지",
+      "address": "경기도 화성시 송동 50",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-6",
+      "name": "천안 제2일반산업단지 공장 증축",
+      "address": "충청남도 천안시 서북구 업성동 80",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-7",
+      "name": "세종 스마트시티 국가산단 인입토목",
+      "address": "세종특별자치시 연동면 명학리 12",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-8",
+      "name": "청주 융복합산단 물류창고 신축",
+      "address": "충청북도 청주시 흥덕구 옥산면 남촌리 90",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-9",
+      "name": "인천 송도국제업무단지 B3블록",
+      "address": "인천광역시 연수구 송도동 30-1",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-10",
+      "name": "울산 석유화학단지 탱크 교체공사",
+      "address": "울산광역시 남구 부곡동 110",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-11",
+      "name": "파주 디스플레이 OLED P10 배관공사",
+      "address": "경기도 파주시 월롱면 덕은리 20",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-12",
+      "name": "서초 복합문화센터 리모델링 현장",
+      "address": "서울시 서초구 서초동 1500",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-13",
+      "name": "안산 반월공단 배터리팩 자동화라인",
+      "address": "경기도 안산시 단원구 원시동 700",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-14",
+      "name": "대전 유성 테크노플라자 신축공사",
+      "address": "대전시 유성구 관평동 1300",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-15",
+      "name": "평택 고덕 물류센터 소방설비 배관",
+      "address": "경기도 평택시 고덕면 율포리 40",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-16",
+      "name": "아산 탕정 디스플레이 2캠퍼스 설비",
+      "address": "충남 아산시 탕정면 매곡리 15",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-17",
+      "name": "광주 첨단3지구 AI R&D센터 신축",
+      "address": "광주광역시 북구 오룡동 10",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-18",
+      "name": "부산 에코델타시티 스마트물류 복합센터",
+      "address": "부산광역시 강서구 강동동 500",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-19",
+      "name": "용인 원삼 SK하이닉스 부지 조성공사",
+      "address": "경기도 용인시 처인구 원삼면 독성리 5",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-20",
+      "name": "기흥 ICT밸리 지식산업센터 2차",
+      "address": "경기도 용인시 기흥구 구갈동 250",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-21",
+      "name": "이천 SK하이닉스 M16 배관 유지보수",
+      "address": "경기도 이천시 부발읍 아미리 산 10",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-22",
+      "name": "안성 물류단지 저온냉동창고 신축",
+      "address": "경기도 안성시 원곡면 칠곡리 70",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-23",
+      "name": "화성 남양 뉴타운 상업시설 신축",
+      "address": "경기도 화성시 남양읍 남양리 800",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-24",
+      "name": "청라 하나드림타운 글로벌센터",
+      "address": "인천광역시 서구 청라동 1-1",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
+      "tenant_id": "giyeun"
+    },
+    {
+      "id": "sm-25",
+      "name": "마곡 R&D 바이오 연구소 클린룸",
+      "address": "서울시 강서구 마곡동 750",
+      "isActive": true,
+      "paidOptions": null,
+      "protection": null,
+      "checkedSpecs": {},
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-09-17T00:00:00Z",
       "tenant_id": "giyeun"
     }
   ]

@@ -30,34 +30,27 @@ const DeveloperSiteMergeModal: React.FC<{
     const survivingName = survivor === 'A' ? masterA.name : masterB.name;
     const discardedName = survivor === 'A' ? masterB.name : masterA.name;
 
-    // 1. Update all CustomerSiteLinks
-    let updatedCount = 0;
-    const allSites = db.sites;
-    for (const link of allSites) {
-      if (link.siteMasterId === discardedId) {
-        db.updateRow('sites', link.id, { ...link, siteMasterId: survivingId, updatedAt: new Date().toISOString() });
-        updatedCount++;
+    try {
+      // 1. Update all CustomerSiteLinks
+      let updatedCount = 0;
+      const allSites = db.sites;
+      for (const link of allSites) {
+        if (link.siteMasterId === discardedId) {
+          db.updateRow('sites', link.id, { ...link, siteMasterId: survivingId, updatedAt: new Date().toISOString() });
+          updatedCount++;
+        }
       }
-    }
 
-    // 2. Delete discarded Master
-    if (supabase) {
-      const { error } = await supabase.from('site_masters').delete().eq('id', discardedId);
-      if (error) {
-        console.warn('Supabase delete master error:', error);
-      }
-    }
-    // Also remove locally
-    db.siteMasters = db.siteMasters.filter((m: SiteMaster) => m.id !== discardedId);
+      // 2. Delete discarded Master
+      db.deleteRow('siteMasters', discardedId);
+      await db.awaitPendingWrites();
 
-    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
-      await Promise.all(db.pendingWrites);
-      db.pendingWrites = [];
+      refreshAllData();
+      showErrorModal(`병합 완료! ${updatedCount}개의 계약/링크가 [${survivingName}] 현장으로 옮겨졌습니다.`, '병합 성공');
+      onClose();
+    } catch (err: any) {
+      showErrorModal(`현장 병합 실패: ${err?.message || String(err)}`);
     }
-
-    refreshAllData();
-    showErrorModal(`병합 완료! ${updatedCount}개의 계약/링크가 [${survivingName}] 현장으로 옯겨졌습니다.`, '병합 성공');
-    onClose();
   };
 
   return (
@@ -292,28 +285,23 @@ export const SiteOptionManage: React.FC = () => {
     }
     
     const rawName = quickSiteForm.name;
-    const normalizedName = rawName.replace(/s+/g, '');
+    const normalizedName = rawName.replace(/\s+/g, '');
     const duplicate = (siteMasters || []).find((s: any) => 
       (s.name || '').replace(/\s+/g, '') === normalizedName
     );
     if (duplicate) {
-      const cust = (customers || []).find(c => c.id === (duplicate as any).customerId);
-      showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n소속 고객사: [${cust?.name || '알 수 없음'}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 금지됩니다. 기존에 등록된 현장을 검색하여 활용해 주세요.`);
+      showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 금지됩니다. 기존에 등록된 현장을 검색하여 활용해 주세요.`);
       return;
     }
 
     try {
-      const newSite: any = {
-        customerId: '', // 독립 현장 마스터
+      const newSite: Partial<SiteMaster> = {
         name: quickSiteForm.name.trim(),
         address: quickSiteForm.address.trim(),
-        contactName: '',
-        contact: '',
-        email: '',
         isActive: true
       };
       await saveSiteMaster(newSite);
-      // alert user via showToast
+      showToast(`[${newSite.name}] 현장이 등록되었습니다.`);
       setShowQuickSiteModal(false);
       setQuickSiteForm({ customerId: '', name: '', address: '' });
       await fullRefreshFromServer();

@@ -26,8 +26,7 @@ export const CENTRAL_TABLE_NAMES = new Set([
   'system_manuals',
   'manual_annotations',
   'legal_notice_templates',
-  'apk_releases',
-  'developer_authorized_devices'
+  'apk_releases'
 ]);
 
 // 법인 표기어 및 공백 제거 정규화 파서
@@ -6493,9 +6492,9 @@ class LocalDB {
    * Supabase PostgREST 기본 1,000건 제한을 극복하여 대용량 테이블(billing_details 등)의 전체 레코드를 무누락 전수 로드합니다.
    * 중앙 플랫폼 테이블(tenants 등)은 centralSupabase(ebro-platform-core)에서 직접 조회합니다.
    */
-  private async fetchAllRowsFromSupabase(tableName: string): Promise<any[] | null> {
+  private async fetchAllRowsFromSupabase(tableName: string): Promise<any[]> {
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
-    if (!targetClient) return null;
+    if (!targetClient) return [];
     const PAGE_SIZE = 1000;
     let allRows: any[] = [];
     let from = 0;
@@ -6507,9 +6506,8 @@ class LocalDB {
         .range(from, from + PAGE_SIZE - 1);
 
       if (error) {
-        console.warn(`[db.ts] Supabase fetchAllRows failed for ${tableName} (range ${from}-${from + PAGE_SIZE - 1}):`, error);
-        if (allRows.length > 0) return allRows;
-        return null;
+        console.error(`[db.ts] Supabase fetchAllRows failed for ${tableName} (range ${from}-${from + PAGE_SIZE - 1}):`, error);
+        throw new Error(`[Supabase DB 조회 실패] ${tableName}\n\n사유: ${error.message || String(error)}`);
       }
 
       if (!data || data.length === 0) break;
@@ -6527,29 +6525,22 @@ class LocalDB {
     const tableName = this.mapToSupabaseTable(key);
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
     if (!targetClient) return null;
-    try {
-      const data = await this.fetchAllRowsFromSupabase(tableName);
-      if (data !== null) {
-        let normalizedData = this.normalizePayloadKeys(data, tableName);
-        if (key === 'customRoles' && (!normalizedData || normalizedData.length === 0)) {
-          normalizedData = SEED_CUSTOM_ROLES;
-          targetClient.from('custom_roles').upsert(
-            SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
-            { onConflict: 'id' }
-          ).then(({ error }) => {
-            if (error) console.warn('Auto-seed custom_roles warning:', error.message);
-          });
-        } else if (key === 'rolePermissions' && (!normalizedData || normalizedData.length === 0)) {
-          normalizedData = SEED_ROLE_PERMISSIONS;
-        }
-        this.set(key as keyof LocalDB, normalizedData);
-        return normalizedData;
+    const data = await this.fetchAllRowsFromSupabase(tableName);
+    let normalizedData = this.normalizePayloadKeys(data, tableName);
+    if (key === 'customRoles' && (!normalizedData || normalizedData.length === 0)) {
+      normalizedData = SEED_CUSTOM_ROLES;
+      const { error } = await targetClient.from('custom_roles').upsert(
+        SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
+        { onConflict: 'id' }
+      );
+      if (error) {
+        throw new Error(`[Supabase custom_roles 초기 시드 저장 실패]: ${error.message}`);
       }
-      return null;
-    } catch (e) {
-      console.warn(`pullTableFromSupabase exception for ${key}:`, e);
-      return null;
+    } else if (key === 'rolePermissions' && (!normalizedData || normalizedData.length === 0)) {
+      normalizedData = SEED_ROLE_PERMISSIONS;
     }
+    this.set(key as keyof LocalDB, normalizedData);
+    return normalizedData;
   }
 
 
@@ -6558,57 +6549,50 @@ class LocalDB {
 
     // 대기 중인 모든 로컬 백그라운드 쓰기(insert/update/delete)가 완료될 때까지 대기
     if (this.pendingWrites.length > 0) {
-      try {
-        await Promise.all(this.pendingWrites);
-      } catch (err) {
-        console.error("Error waiting for pending writes:", err);
-      }
-      this.pendingWrites = [];
+      await this.awaitPendingWrites();
     }
 
     const tables = ALL_DB_KEYS;
+    const pullErrors: string[] = [];
 
-    try {
-      const results = await Promise.all(
-        tables.map(async (key) => {
-          try {
-            const tableName = this.mapToSupabaseTable(key);
-            const data = await this.fetchAllRowsFromSupabase(tableName);
-            if (data === null) {
-              console.warn(`Supabase pull failed for table ${tableName}`);
-              return { key, data: null };
-            }
-            return { key, data: this.normalizePayloadKeys(data, tableName) };
-          } catch (e) {
-            console.warn(`Supabase pull failed for key ${key}:`, e);
-            return { key, data: null };
-          }
-        })
-      );
-
-      // 전체 로컬 스토리지 캐시를 원격 DB(Supabase) 최신 값으로 덮어쓰기 (Supabase가 단일 진실의 원천 SSOT)
-      results.forEach(({ key, data }) => {
-        if (data !== null) {
-          if (key === 'customRoles' && Array.isArray(data) && data.length === 0) {
-            this.set(key as keyof LocalDB, SEED_CUSTOM_ROLES);
-            if (supabase) {
-              supabase.from('custom_roles').upsert(
-                SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
-                { onConflict: 'id' }
-              ).then(({ error }) => {
-                if (error) console.warn('Auto-seed custom_roles warning:', error.message);
-              });
-            }
-          } else if (key === 'rolePermissions' && Array.isArray(data) && data.length === 0) {
-            this.set(key as keyof LocalDB, SEED_ROLE_PERMISSIONS);
-          } else {
-            this.set(key as keyof LocalDB, data);
-          }
+    const results = await Promise.all(
+      tables.map(async (key) => {
+        const tableName = this.mapToSupabaseTable(key);
+        try {
+          const data = await this.fetchAllRowsFromSupabase(tableName);
+          return { key, data: this.normalizePayloadKeys(data, tableName) };
+        } catch (e: any) {
+          console.error(`Supabase pull failed for table ${tableName} (key: ${key}):`, e);
+          pullErrors.push(`${tableName}: ${e?.message || String(e)}`);
+          return { key, data: null };
         }
-      });
-    } catch (err) {
-      console.error("Supabase pullFromSupabase failed, falling back to local cache:", err);
-      throw err;
+      })
+    );
+
+    // 전체 로컬 스토리지 캐시를 원격 DB(Supabase) 최신 값으로 덮어쓰기 (Supabase가 단일 진실의 원천 SSOT)
+    for (const { key, data } of results) {
+      if (data !== null) {
+        if (key === 'customRoles' && Array.isArray(data) && data.length === 0) {
+          this.set(key as keyof LocalDB, SEED_CUSTOM_ROLES);
+          if (supabase) {
+            const { error } = await supabase.from('custom_roles').upsert(
+              SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
+              { onConflict: 'id' }
+            );
+            if (error) {
+              pullErrors.push(`custom_roles seed: ${error.message}`);
+            }
+          }
+        } else if (key === 'rolePermissions' && Array.isArray(data) && data.length === 0) {
+          this.set(key as keyof LocalDB, SEED_ROLE_PERMISSIONS);
+        } else {
+          this.set(key as keyof LocalDB, data);
+        }
+      }
+    }
+
+    if (pullErrors.length > 0) {
+      throw new Error(`[원격 DB 동기화(Pull) 오류 발생]\n\n${pullErrors.join('\n')}`);
     }
   }
 
@@ -6659,6 +6643,7 @@ class LocalDB {
       case 'products':           prefix = 'PROD-';   break;
       case 'customers':          prefix = 'CUST-';   break;
       case 'assets':             prefix = 'ASSET-';  break;
+      case 'siteMasters':        prefix = 'SM-';     break;
       case 'sites':              prefix = 'SITE-';   break;
       case 'contacts':           prefix = 'CONT-';   break;
       case 'contracts':          prefix = 'CONTR-';  break;
@@ -6768,13 +6753,8 @@ class LocalDB {
       if (resolvedTable === 'assets' && key === 'antiEntrapmentOwnership') {
         continue;
       }
-      if (resolvedTable === 'products' && key === 'shortName') {
-        continue;
-      }
-      if (resolvedTable === 'customers' && key === 'paymentDueMonthOffset') {
-        continue;
-      }
-      if (resolvedTable === 'customer_sites' && ['siteMasterId', 'contacts', 'paymentDueMonthOffset', 'billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
+      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
+      if (resolvedTable === 'site_masters' && !['id', 'name', 'address', 'isActive', 'paidOptions', 'protection', 'checkedSpecs', 'createdAt', 'updatedAt', 'tenant_id', 'tenantId'].includes(key)) { continue; }
       // equipment_manuals mediaType -> media_type 정제
       if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
         sanitized['media_type'] = val;
@@ -6964,6 +6944,8 @@ class LocalDB {
   // Supabase 테이블명 / snake_case / 복수형 키를 LocalDB의 내부 프로퍼티 키로 상호 호환 정규화
   private normalizeKey(key: string): keyof LocalDB {
     const reverseMapping: Record<string, string> = {
+      site_masters: 'siteMasters',
+      siteMasters: 'siteMasters',
       customer_sites: 'sites',
       customer_contacts: 'contacts',
       customerSites: 'sites',
@@ -7055,102 +7037,37 @@ class LocalDB {
     if (targetClient) {
       let payloadForSupabase = this.sanitizeSupabasePayload(newRow, tableName);
       payloadForSupabase = encryptEntityPrivacyFields(tableName, payloadForSupabase);
-      // upsert(onConflict: 'id'): 동일 id가 이미 존재하면 update로 대체 — PK 중복 오류 방지
       const promise = targetClient
         .from(tableName)
         .upsert([payloadForSupabase], { onConflict: 'id' })
         .then(async ({ data, error }) => {
           if (error) {
             const msg = error.message || String(error);
-            const isTableMissing = msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
-            if (isTableMissing) {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
-              return null;
-            }
             console.error(`Supabase upsert failed for ${tableName}:`, error);
-            // 신규 미반영 컬럼 에러 시 2차 Fallback (주요 기본 컬럼만 전송하여 100% 저장 성공 보장)
-            if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-              // 💡 [tenants 테이블 스키마 자동 반영 시도]
-              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
-                try {
-                  const applied = await autoApplyTenantsDdl();
-                  if (applied) {
-                    await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
-                    if (!retryRes.error) {
-                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} upsert 정상 완료`);
-                      return retryRes.data;
-                    }
-                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
-                  }
-                } catch (ddlErr) {
-                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
+
+            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+              const applied = await autoApplyTenantsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
+                const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+                if (!retryRes.error) {
+                  return retryRes.data;
                 }
               }
-
-              const fallbackPayload = { ...payloadForSupabase };
-              delete fallbackPayload.defectsJson;
-              delete fallbackPayload.inboundNo;
-              delete fallbackPayload.maintenanceScore;
-              delete fallbackPayload.supplier;
-              delete fallbackPayload.category;
-              delete fallbackPayload.note;
-              delete fallbackPayload.repairingQty;
-              delete fallbackPayload.bankTransactionId;
-              delete fallbackPayload.department;
-
-              // 💡 미반영 컬럼 동적 감지 및 즉각 제거 후 재시도
-              const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
-              if (colMatch && colMatch[1]) {
-                delete fallbackPayload[colMatch[1]];
-              }
-
-              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
-              if (tableName === 'tenants') {
-                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
-                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
-                if (msg.includes('stampImageUrl') || msg.includes('column')) {
-                  delete fallbackPayload.stampImageUrl;
-                  if (!fallbackPayload.stampBase64 && payloadForSupabase.stampImageUrl) {
-                    fallbackPayload.stampBase64 = payloadForSupabase.stampImageUrl;
-                  }
-                }
-              }
-
-              return targetClient.from(tableName).upsert([fallbackPayload], { onConflict: 'id' }).then(({ data: d2, error: e2 }) => {
-                if (e2) {
-                  console.error(`Supabase fallback upsert failed for ${tableName}:`, e2);
-                  throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${e2.message || String(e2)}`);
-                }
-                return d2;
-              });
             }
 
-            // 🛡️ [외래키 제약조건 위반 자동 복구 Fallback 방어벽 (23503)]
-            // 부모 레코드(예: customer_sites) 비동기 커밋 지연 시 300ms 대기 후 1회 원본 재시도, 실패 시 Nullable FK는 null 격리 후 저장
+            // 부모 레코드 비동기 커밋 지연 시 300ms 대기 후 1회 원본 재시도 (절대로 FK를 null로 뭉개거나 숨기지 않음)
             if (error.code === '23503' || msg.includes('foreign key constraint')) {
               await new Promise(r => setTimeout(r, 300));
               const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
               if (!retryRes.error) {
-                console.log(`[FK 지연 커밋 재시도 성공] ${tableName} upsert 정상 완료`);
                 return retryRes.data;
-              }
-              // 2차: 제약조건에 명시된 컬럼 파싱 (예: contracts_siteId_fkey -> siteId)
-              const fkMatch = msg.match(/constraint "([a-zA-Z0-9]+)_([a-zA-Z0-9]+)_fkey"/i);
-              if (fkMatch) {
-                const constraintCol = fkMatch[2];
-                const rule = FK_RULES_MAP[`${tableName}.${constraintCol}`];
-                if (rule && !rule.notNull && payloadForSupabase[constraintCol] !== undefined) {
-                  const safeFkPayload = { ...payloadForSupabase, [constraintCol]: null };
-                  const nullRetryRes = await targetClient.from(tableName).upsert([safeFkPayload], { onConflict: 'id' });
-                  if (!nullRetryRes.error) {
-                    console.warn(`[FK 위반 방어 격리 성공] ${tableName}.${constraintCol}을 null로 격리 후 저장 완료`);
-                    return nullRetryRes.data;
-                  }
-                }
               }
             }
 
+            // 실패 시 로컬 캐시에서 롤백 후 즉시 에러 표출 (헌장 5.2 무음 실패 영구 금지)
+            const currentList = ((this[tableKey] || []) as unknown) as T[];
+            this.set(tableKey, currentList.filter(item => item && item.id !== newId));
             throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${msg}`);
           }
           return data;
@@ -7167,6 +7084,7 @@ class LocalDB {
     if (!Array.isArray(list)) return null;
     const index = list.findIndex(item => item && item.id === id);
     if (index === -1) return null;
+    const originalItem = list[index];
     const nowIso = new Date().toISOString();
     const updatedPayload = {
       ...updates,
@@ -7190,10 +7108,8 @@ class LocalDB {
         }
       }
 
-      // 🛡️ [FK 위반 원천 차단] consumable_purchases 테이블 업데이트 시,
-      // 기존 레코드에 남아있는 consumableId가 유효하지 않으면 consumableId = null을 명시하여 Supabase FK 오류를 완벽하게 예방
       if (tableName === 'consumable_purchases') {
-        const targetConsumableId = ('consumableId' in payloadForSupabase) ? payloadForSupabase.consumableId : (list[index] as any)?.consumableId;
+        const targetConsumableId = ('consumableId' in payloadForSupabase) ? payloadForSupabase.consumableId : (originalItem as any)?.consumableId;
         const isValid = typeof targetConsumableId === 'string' && targetConsumableId.trim() !== '' && this.consumables.some(c => c.id === targetConsumableId);
         if (!isValid) {
           payloadForSupabase = {
@@ -7211,91 +7127,35 @@ class LocalDB {
         .then(async ({ data, error }) => {
           if (error) {
             const msg = error.message || String(error);
-            const isTableMissing = msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
-            if (isTableMissing) {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
-              return null;
-            }
             console.error(`Supabase update failed for ${tableName}:`, error);
-            if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-              // 💡 [tenants 테이블 스키마 자동 반영 시도]
-              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
-                try {
-                  const applied = await autoApplyTenantsDdl();
-                  if (applied) {
-                    await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
-                    if (!retryRes.error) {
-                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} update 정상 완료`);
-                      return retryRes.data;
-                    }
-                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
-                  }
-                } catch (ddlErr) {
-                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
+
+            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+              const applied = await autoApplyTenantsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
+                const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+                if (!retryRes.error) {
+                  return retryRes.data;
                 }
               }
-
-              const fallbackPayload = { ...payloadForSupabase };
-              delete fallbackPayload.defectsJson;
-              delete fallbackPayload.inboundNo;
-              delete fallbackPayload.maintenanceScore;
-              delete fallbackPayload.supplier;
-              delete fallbackPayload.category;
-              delete fallbackPayload.note;
-              delete fallbackPayload.repairingQty;
-              delete fallbackPayload.bankTransactionId;
-
-              // 💡 미반영 컬럼 동적 감지 및 즉각 제거 후 재시도
-              const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
-              if (colMatch && colMatch[1]) {
-                delete fallbackPayload[colMatch[1]];
-              }
-
-              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
-              if (tableName === 'tenants') {
-                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
-                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
-                if (msg.includes('stampImageUrl') || msg.includes('column')) {
-                  delete fallbackPayload.stampImageUrl;
-                  if (!fallbackPayload.stampBase64 && (payloadForSupabase as any).stampImageUrl) {
-                    fallbackPayload.stampBase64 = (payloadForSupabase as any).stampImageUrl;
-                  }
-                }
-              }
-
-              return targetClient.from(tableName).update(fallbackPayload as any).eq('id', id).then(({ data: d2, error: e2 }) => {
-                if (e2) {
-                  console.error(`Supabase fallback update failed for ${tableName}:`, e2);
-                  throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${e2.message || String(e2)}`);
-                }
-                return d2;
-              });
             }
 
-            // 🛡️ [외래키 제약조건 위반 자동 복구 Fallback 방어벽 (23503)]
             if (error.code === '23503' || msg.includes('foreign key constraint')) {
               await new Promise(r => setTimeout(r, 300));
               const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
               if (!retryRes.error) {
-                console.log(`[FK 지연 커밋 재시도 성공] ${tableName} update 정상 완료`);
                 return retryRes.data;
-              }
-              const fkMatch = msg.match(/constraint "([a-zA-Z0-9]+)_([a-zA-Z0-9]+)_fkey"/i);
-              if (fkMatch) {
-                const constraintCol = fkMatch[2];
-                const rule = FK_RULES_MAP[`${tableName}.${constraintCol}`];
-                if (rule && !rule.notNull && payloadForSupabase[constraintCol] !== undefined) {
-                  const safeFkPayload = { ...payloadForSupabase, [constraintCol]: null };
-                  const nullRetryRes = await targetClient.from(tableName).update(safeFkPayload as any).eq('id', id);
-                  if (!nullRetryRes.error) {
-                    console.warn(`[FK 위반 방어 격리 성공] ${tableName}.${constraintCol}을 null로 격리 후 수정 완료`);
-                    return nullRetryRes.data;
-                  }
-                }
               }
             }
 
+            // 실패 시 로컬 캐시 원본으로 롤백 후 에러 표출 (헌장 5.2 무음 실패 영구 금지)
+            const currentList = ((this[tableKey] || []) as unknown) as T[];
+            const curIdx = currentList.findIndex(item => item && item.id === id);
+            if (curIdx !== -1 && originalItem) {
+              const restored = [...currentList];
+              restored[curIdx] = originalItem;
+              this.set(tableKey, restored);
+            }
             throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
           }
           return data;
@@ -7310,8 +7170,7 @@ class LocalDB {
     const tableKey = this.normalizeKey(key as string);
     // 최고 관리자 계정 삭제 방지
     if (tableKey === 'users' && (id === 'u-1' || id === 'sys-admin')) {
-      console.warn('Cannot delete system administrator account.');
-      return false;
+      throw new Error('시스템 최고 관리자 계정은 삭제할 수 없습니다.');
     }
     const list = ((this[tableKey] || []) as unknown) as T[];
     if (!Array.isArray(list)) return false;
@@ -7341,12 +7200,8 @@ class LocalDB {
             }
             console.error(`Supabase delete failed for ${tableName}:`, error);
             const msg = error.message || String(error);
-            if (msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || error.code === 'PGRST204' || error.code === '42P01') {
-              console.warn(`[Graceful Isolation] 로컬 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 쓰기 요청을 스킵합니다.`);
-              return null;
-            }
             const customError = new Error(`[Supabase DB 삭제 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
-            (customError as any).code = error.code; // 에러 코드 보존
+            (customError as any).code = error.code;
             throw customError;
           }
         });
@@ -7359,7 +7214,8 @@ class LocalDB {
   async upsertRows<T extends { id: string }>(key: keyof LocalDB | string, rows: T[]): Promise<void> {
     if (!rows || rows.length === 0) return;
     const tableKey = this.normalizeKey(key as string);
-    const list = [...(((this[tableKey] || []) as unknown) as T[])];
+    const previousList = [...(((this[tableKey] || []) as unknown) as T[])];
+    const list = [...previousList];
 
     rows.forEach(row => {
       const idx = list.findIndex(item => item && item.id === row.id);
@@ -7385,50 +7241,22 @@ class LocalDB {
           if (error) {
             console.error(`Supabase upsertRows failed for ${tableName}:`, error);
             const msg = error.message || String(error);
-            const isTableMissing = msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
-            if (isTableMissing) {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
-              return null;
-            }
-            if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-              if (tableName === 'tenants') {
-                try {
-                  const applied = await autoApplyTenantsDdl();
-                  if (applied) {
-                    await new Promise(r => setTimeout(r, 200));
-                    const retry = await targetClient.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
-                    if (!retry.error) return retry.data;
-                  }
-                } catch (ddlErr) {
-                  console.warn(`[tenants upsertRows DDL 예외]:`, ddlErr);
-                }
-                const fallbackRows = sanitizedRows.map(r => {
-                  const fb = { ...r };
-                  delete fb.targetRepo;
-                  delete fb.solutionType;
-                  delete fb.stampImageUrl;
-                  if (!fb.stampBase64 && (r as any).stampImageUrl) {
-                    fb.stampBase64 = (r as any).stampImageUrl;
-                  }
-                  return fb;
-                });
-                const retryFb = await targetClient.from(tableName).upsert(fallbackRows, { onConflict: 'id' });
-                if (!retryFb.error) return retryFb.data;
-              }
-              console.warn(`[Supabase upsertRows graceful fallback] ${tableName} column mismatch:`, msg);
-              return null;
-            }
-            if (error.code === '23503' && (tableName === 'role_permissions' || (tableName === 'users' && msg.includes('customRoleId')))) {
-              try {
-                const rolesToSync = (this.customRoles && this.customRoles.length > 0) ? [...this.customRoles] : [...SEED_CUSTOM_ROLES];
-                const sanitizedRoles = rolesToSync.map(r => this.sanitizeSupabasePayload(r, 'custom_roles'));
-                await targetClient.from('custom_roles').upsert(sanitizedRoles, { onConflict: 'id' });
+            if (tableName === 'tenants' && (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204')) {
+              const applied = await autoApplyTenantsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
                 const retry = await targetClient.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
                 if (!retry.error) return retry.data;
-              } catch (fkRetryErr) {
-                console.warn(`[${tableName} 23503 FK auto-recovery failed]:`, fkRetryErr);
               }
             }
+            if (error.code === '23503' && (tableName === 'role_permissions' || (tableName === 'users' && msg.includes('customRoleId')))) {
+              const rolesToSync = (this.customRoles && this.customRoles.length > 0) ? [...this.customRoles] : [...SEED_CUSTOM_ROLES];
+              const sanitizedRoles = rolesToSync.map(r => this.sanitizeSupabasePayload(r, 'custom_roles'));
+              await targetClient.from('custom_roles').upsert(sanitizedRoles, { onConflict: 'id' });
+              const retry = await targetClient.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
+              if (!retry.error) return retry.data;
+            }
+            this.set(tableKey, previousList);
             throw new Error(`[Supabase DB 일괄 저장 실패] ${tableName}\n\n사유: ${msg}`);
           }
         });
@@ -7441,39 +7269,23 @@ class LocalDB {
   async uploadAllTables(): Promise<void> {
     if (!supabase && !centralSupabase) return;
     const tables = ALL_DB_KEYS;
+    const uploadErrors: string[] = [];
     await Promise.all(tables.map(async (key) => {
       const data = (this as any)[key] as any[];
       const tableName = this.mapToSupabaseTable(key);
       const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
       if (!targetClient) return;
       const sanitizedData = Array.isArray(data) ? data.map(item => this.sanitizeSupabasePayload(item, tableName)) : [];
-      let { error } = await targetClient.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
+      if (sanitizedData.length === 0) return;
+      const { error } = await targetClient.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
       if (error) {
         console.error(`Bulk upsert error for ${tableName}:`, error);
-        if (tableName === 'tenants') {
-          try {
-            const applied = await autoApplyTenantsDdl();
-            if (applied) {
-              await new Promise(r => setTimeout(r, 200));
-              const retry = await targetClient.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
-              if (!retry.error) return;
-            }
-          } catch (e) {}
-          const fallbackData = sanitizedData.map((item: any) => {
-            const fb = { ...item };
-            delete fb.targetRepo;
-            delete fb.solutionType;
-            delete fb.stampImageUrl;
-            if (!fb.stampBase64 && item.stampImageUrl) {
-              fb.stampBase64 = item.stampImageUrl;
-            }
-            return fb;
-          });
-          const { error: e2 } = await targetClient.from(tableName).upsert(fallbackData, { onConflict: 'id' });
-          if (!e2) return;
-        }
+        uploadErrors.push(`${tableName}: ${error.message || String(error)}`);
       }
     }));
+    if (uploadErrors.length > 0) {
+      throw new Error(`[Supabase DB 전체 업로드 실패]\n\n${uploadErrors.join('\n')}`);
+    }
   }
 
   // Clear all data from Supabase tables
@@ -7486,11 +7298,18 @@ class LocalDB {
     });
     
     if (!supabase) return;
+    const clearErrors: string[] = [];
     await Promise.all(tables.map(async (key) => {
       const tableName = this.mapToSupabaseTable(key);
       const { error } = await supabase.from(tableName).delete().neq('id', '');
-      if (error) console.error(`Clear table error for ${tableName}:`, error);
+      if (error) {
+        console.error(`Clear table error for ${tableName}:`, error);
+        clearErrors.push(`${tableName}: ${error.message || String(error)}`);
+      }
     }));
+    if (clearErrors.length > 0) {
+      throw new Error(`[Supabase DB 전체 테이블 초기화 실패]\n\n${clearErrors.join('\n')}`);
+    }
   }
 
 
@@ -7570,7 +7389,7 @@ class LocalDB {
         if (cleanUsers.length > 0) {
           const nowIso = new Date().toISOString();
           const sanitizedUsers = cleanUsers.map(u => {
-            const rawUser = {
+            const rawUser = this.sanitizeSupabasePayload({
               id: u.id,
               loginId: u.loginId || '',
               passwordHash: u.passwordHash || '',
@@ -7580,7 +7399,6 @@ class LocalDB {
               managerId: (u as any).managerId || null,
               role: u.role || 'USER',
               status: u.status || 'ACTIVE',
-              department: (u as any).department || null,
               baseSalary: u.baseSalary ?? 0,
               phone: u.phone || null,
               email: u.email || null,
@@ -7592,34 +7410,13 @@ class LocalDB {
               customRoleId: (u as any).customRoleId || null,
               createdAt: u.createdAt || nowIso,
               updatedAt: nowIso
-            };
+            }, 'users');
             return encryptEntityPrivacyFields('users', rawUser);
           });
-          let { error: userErr } = await supabase.from('users').upsert(sanitizedUsers, { onConflict: 'id' });
-          if (userErr) {
-            const msg = userErr.message || String(userErr);
-            if (msg.includes('column') || msg.includes('Could not find') || userErr.code === 'PGRST200' || userErr.code === '42703' || userErr.code === 'PGRST204') {
-              console.warn('Supabase batch upsert users column error, attempting retry with minimal payload:', userErr);
-              const fallbackUsers = sanitizedUsers.map(u => {
-                const copy: any = { ...u };
-                delete copy.retireDate;
-                delete copy.profileImageUrl;
-                delete copy.customRoleId;
-                delete copy.email;
-                if ((copy as any).duty !== undefined) delete (copy as any).duty;
-                if ((copy as any).paidOptions !== undefined) delete (copy as any).paidOptions;
-                if ((copy as any).protection !== undefined) delete (copy as any).protection;
-                if ((copy as any).checkedSpecs !== undefined) delete (copy as any).checkedSpecs;
-                if ((copy as any).tier_level !== undefined) delete (copy as any).tier_level;
-                return copy;
-              });
-              const retryRes = await supabase.from('users').upsert(fallbackUsers, { onConflict: 'id' });
-              userErr = retryRes.error;
-            }
-          }
+          const { error: userErr } = await supabase.from('users').upsert(sanitizedUsers, { onConflict: 'id' });
           if (userErr) {
             console.error('Supabase batch upsert users failed:', userErr);
-            throw userErr;
+            throw new Error(`[Supabase 구성원 일괄 저장 실패]: ${userErr.message || String(userErr)}`);
           }
         }
       })();

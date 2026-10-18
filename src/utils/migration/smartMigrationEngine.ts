@@ -1640,6 +1640,34 @@ export async function ingestIntegratedEntitiesToDatabase(
   const tableResults: Array<{ table: string; count: number; success: boolean; error?: string }> = [];
   let totalInserted = 0;
 
+  // 🛡️ 헌장 1.5 준수: customerSites 적재 전 모든 현장이 siteMasters에 선행 등록되고 siteMasterId로 연결되도록 보장
+  const nowIso = new Date().toISOString();
+  const siteMasterList = [...(entities.siteMasters || [])];
+  const customerSiteList = (entities.customerSites || []).map(cs => {
+    const cleanName = String(cs.name || '기본현장').trim();
+    const normName = cleanName.replace(/\s+/g, '');
+    let matchedSm = cs.siteMasterId
+      ? siteMasterList.find(sm => sm.id === cs.siteMasterId)
+      : siteMasterList.find(sm => String(sm.name || '').replace(/\s+/g, '') === normName);
+    if (!matchedSm) {
+      const smId = cs.siteMasterId || makeDeterministicId('sm', cleanName);
+      matchedSm = {
+        id: smId,
+        name: cleanName,
+        address: cs.address || null,
+        isActive: cs.isActive !== false,
+        tenant_id: cs.tenant_id || tenantId,
+        createdAt: cs.createdAt || nowIso,
+        updatedAt: cs.updatedAt || nowIso
+      };
+      siteMasterList.push(matchedSm);
+    }
+    return {
+      ...cs,
+      siteMasterId: matchedSm.id
+    };
+  });
+
   // 계층적 위계 순서대로 적재 (Foreign Key 무결성 보존)
   const steps: Array<{ table: string; records: any[] }> = [
     { table: 'departments', records: entities.departments },
@@ -1651,9 +1679,9 @@ export async function ingestIntegratedEntitiesToDatabase(
     { table: 'products', records: entities.products },
     { table: 'users', records: entities.users },
     { table: 'transport_drivers', records: entities.transportDrivers },
-    { table: 'site_masters', records: entities.siteMasters },
+    { table: 'site_masters', records: siteMasterList },
     { table: 'customers', records: entities.customers },
-    { table: 'customer_sites', records: entities.customerSites },
+    { table: 'customer_sites', records: customerSiteList },
     { table: 'customer_contacts', records: entities.customerContacts },
     { table: 'assets', records: entities.assets },
     { table: 'repairs', records: entities.repairs },
@@ -1693,8 +1721,9 @@ export async function ingestIntegratedEntitiesToDatabase(
   if (db && typeof (db as any).awaitPendingWrites === 'function') {
     try {
       await (db as any).awaitPendingWrites();
-    } catch (e) {
-      console.warn('awaitPendingWrites warning:', e);
+    } catch (e: any) {
+      console.error('awaitPendingWrites error:', e);
+      tableResults.push({ table: 'pendingWrites', count: 0, success: false, error: e?.message || String(e) });
     }
   }
 

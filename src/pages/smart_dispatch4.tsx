@@ -164,6 +164,7 @@ export const SmartDispatch4: React.FC = () => {
     saveSmartDispatch, assets, deliveries, standardOptions,
     printStations, enqueuePrintJob, showPrintSuccessModal,
     products = [],
+    siteMasters = [],
     inspectionChecklistItems = [],
     setActiveTab: setGlobalActiveTab,
     refreshAllData
@@ -577,6 +578,8 @@ export const SmartDispatch4: React.FC = () => {
   const [selectedSite, setSelectedSite] = useState<CustomerSite | null>(null);
   const [selectedSiteAddress, setSelectedSiteAddress] = useState('');
   const [isRegisteringNewSite, setIsRegisteringNewSite] = useState(false);
+  const [selectedSiteMasterId, setSelectedSiteMasterId] = useState<string>('');
+  const [siteMasterSearchQuery, setSiteMasterSearchQuery] = useState<string>('');
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteAddress, setNewSiteAddress] = useState('');
   const [contactPerson, setContactPerson] = useState('');
@@ -620,6 +623,15 @@ export const SmartDispatch4: React.FC = () => {
     const matcher = createHangulMatcher(q);
     return base.filter(s => matcher.test(s.name)).slice(0, 16);
   }, [sitesByCustomerMap, selectedCustomer, siteQuery]);
+
+  // 🌟 물리 현장(SiteMaster) 선택 목록 (신규 현장 등록 / 신규 고객 모드 시)
+  const filteredSiteMasters = useMemo(() => {
+    const list = siteMasters || [];
+    const q = siteMasterSearchQuery.trim();
+    if (!q) return list;
+    const matcher = createHangulMatcher(q);
+    return list.filter(sm => matcher.test(sm.name) || matcher.test(sm.address || ''));
+  }, [siteMasters, siteMasterSearchQuery]);
 
   // 중복 접수 감지 (큐 + 배차 대장 동시 검사)
   const duplicateAlert = useMemo(() => {
@@ -1028,6 +1040,7 @@ export const SmartDispatch4: React.FC = () => {
   const handleSelectSite = (site: CustomerSite) => {
     setSelectedSite(site);
     setSelectedSiteAddress(site.address || '');
+    setSelectedSiteMasterId(site.siteMasterId || '');
     setIsRegisteringNewSite(false);
     setSiteQuery('');
     applyInheritance(selectedCustomer, site);
@@ -1044,6 +1057,7 @@ export const SmartDispatch4: React.FC = () => {
         setSelectedCustomer(null);
         setSelectedSite(null);
         setSelectedSiteAddress('');
+        setSelectedSiteMasterId('');
         setIsRegisteringNewSite(false);
         setContactPerson('');
         setContactPhone('');
@@ -1312,8 +1326,8 @@ export const SmartDispatch4: React.FC = () => {
   // ── 폼 초기화 ─────────────────────────────────────────────────────────────
   const resetForm = () => {
     setSelectedCustomer(null); setSelectedSite(null);
-    setSelectedSiteAddress(''); setIsRegisteringNewSite(false);
-    setCustomerQuery(''); setSiteQuery('');
+    setSelectedSiteAddress(''); setSelectedSiteMasterId(''); setIsRegisteringNewSite(false);
+    setCustomerQuery(''); setSiteQuery(''); setSiteMasterSearchQuery('');
     setEquipments([]);
     setLoadingDate(''); setLoadingTimeVal(''); setLoadingTimeType(null);
     setUnloadingDate(''); setUnloadingTimeVal(''); setUnloadingTimeType(null);
@@ -1370,6 +1384,13 @@ export const SmartDispatch4: React.FC = () => {
             ? '오후'
             : loadingTimeVal || '(시간 직접입력 필요)';
 
+    const candidateSmId = isNewCustomerMode || isRegisteringNewSite
+      ? selectedSiteMasterId
+      : (selectedSite?.siteMasterId || selectedSiteMasterId);
+    const effectiveSiteMasterId = candidateSmId || (
+      selectedSite?.name ? (siteMasters || []).find(sm => sm.name && sm.name.replace(/\s+/g, '') === selectedSite.name.replace(/\s+/g, ''))?.id : undefined
+    );
+
     const rules: ValidationRule[] = [
       {
         id: 'CUSTOMER',
@@ -1381,11 +1402,13 @@ export const SmartDispatch4: React.FC = () => {
       },
       {
         id: 'SITE',
-        label: '투입 현장명',
+        label: '투입 현장명 (물리 현장 연동 필수)',
         targetBlock: 'SITE',
-        status: siteNameVal ? 'VALID' : 'INVALID',
-        currentVal: siteNameVal || '(현장명 미선택)',
-        hint: '현장 검색 선택 또는 신규 현장명 입력',
+        status: (siteNameVal && effectiveSiteMasterId) ? 'VALID' : 'INVALID',
+        currentVal: siteNameVal
+          ? (effectiveSiteMasterId ? siteNameVal : `${siteNameVal} (물리현장 미연결)`)
+          : '(현장명 미선택)',
+        hint: effectiveSiteMasterId ? '현장 선택 완료' : '등록된 물리 현장(SiteMaster) 선택 필수',
       },
       {
         id: 'ADDRESS',
@@ -1536,6 +1559,13 @@ export const SmartDispatch4: React.FC = () => {
       const effectivePhone = (contactPhone || '').trim();
       const effectiveContact = (contactPerson || '').trim();
 
+      const candidateSmId = isNewCustomerMode || isRegisteringNewSite
+        ? selectedSiteMasterId
+        : (selectedSite?.siteMasterId || selectedSiteMasterId);
+      const effectiveSmId = candidateSmId || (
+        effectiveSiteName ? (siteMasters || []).find(sm => sm.name && sm.name.replace(/\s+/g, '') === effectiveSiteName.replace(/\s+/g, ''))?.id : undefined
+      );
+
       if (!effectiveCustomerName) {
         showToast('고객사명이 누락되었습니다.', 'error');
         return;
@@ -1618,6 +1648,7 @@ export const SmartDispatch4: React.FC = () => {
         type: isExchangeMode ? 'EXCHANGE' : 'OUTBOUND',
         retrievalAssetIds: retrievalAssetIds || [],
         paidOptions: Array.from(selectedSafetyOptions).join(', '),
+        siteMasterId: effectiveSmId || undefined,
         closingDay,
         statementClosingDay,
         paymentDay: paymentDueDay,
@@ -1957,6 +1988,7 @@ export const SmartDispatch4: React.FC = () => {
         type: isExchange ? 'EXCHANGE' : 'OUTBOUND',
         retrievalAssetIds: draft.retrievalAssetIds || [],
         paidOptions: draft.safetyOptions?.join(', ') || '',
+        siteMasterId: siteObj?.siteMasterId || undefined,
         closingDay: draft.closingDay,
         statementClosingDay: draft.statementClosingDay,
         paymentDay: draft.paymentDueDay,
@@ -2843,26 +2875,95 @@ export const SmartDispatch4: React.FC = () => {
             {openBlocks.has('SITE') && (
               <div className="dispatch4-block-body">
                 {isNewCustomerMode ? (
-                  /* 1. 신규 고객사 모드: 신규 현장명/주소/담당자/정산일정 */
+                  /* 1. 신규 고객사 모드: 물리 현장(SiteMaster) 선택 필수 + 담당자/정산일정 */
                   <div className="flex flex-col gap-3">
+                    {/* 🔍 물리 현장(SiteMaster) 선택 및 연결 (헌장 1.5 Strict N:M) */}
+                    <div className="p-3 bg-purple-950/30 border border-purple-600/50 rounded-xl flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                          <span>물리 현장(SiteMaster) 선택 *</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setGlobalActiveTab('site_options')}
+                          className="flex items-center gap-1 text-[11px] font-semibold text-purple-300 hover:text-white px-2 py-0.5 rounded bg-purple-900/60 hover:bg-purple-800/80 border border-purple-500/40 transition"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>현장별 옵션관리에서 신규 현장 등록 ➔</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                            placeholder="물리 현장명/주소 검색 (초성 가능)..."
+                            value={siteMasterSearchQuery}
+                            onChange={e => setSiteMasterSearchQuery(e.target.value)}
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        </div>
+                        <select
+                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                          value={selectedSiteMasterId}
+                          onChange={e => {
+                            const smId = e.target.value;
+                            setSelectedSiteMasterId(smId);
+                            if (smId) {
+                              const sm = (siteMasters || []).find(s => s.id === smId);
+                              if (sm) {
+                                setNewSiteName(sm.name);
+                                setNewSiteAddress(sm.address || '');
+                                if (sm.paidOptions || sm.protection) {
+                                  const opts = new Set<string>();
+                                  if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                  if (sm.protection && sm.protection !== 'NONE') opts.add(sm.protection);
+                                  setSelectedSafetyOptions(opts);
+                                }
+                              }
+                            } else {
+                              setNewSiteName('');
+                              setNewSiteAddress('');
+                            }
+                          }}
+                        >
+                          <option value="">-- [필수] 등록된 물리 현장(SiteMaster) 선택 ({filteredSiteMasters.length}개) --</option>
+                          {filteredSiteMasters.map(sm => (
+                            <option key={sm.id} value={sm.id}>
+                              {sm.name} {sm.address ? `(${sm.address})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedSiteMasterId && (
+                        <div className="text-[11px] text-purple-200 bg-purple-950/60 p-2 rounded border border-purple-800/40 flex items-center justify-between">
+                          <span>선택된 물리 현장: <strong>{newSiteName}</strong></span>
+                          <span className="text-slate-400 truncate max-w-[200px]">{newSiteAddress || '주소 없음'}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-300">신규 현장명 *</label>
+                      <label className="text-xs font-semibold text-slate-300">신규 현장명 (물리 현장 선택 시 자동 연동) *</label>
                       <input
                         data-mid="dispatch4-site-search"
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800/60 border border-slate-700 text-slate-300 rounded-lg p-2.5 text-xs focus:outline-none cursor-not-allowed"
                         value={newSiteName}
-                        onChange={e => setNewSiteName(e.target.value)}
-                        placeholder="예: 평택 고덕 P3 신축현장"
+                        readOnly
+                        placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-300">현장 상세주소 *</label>
+                      <label className="text-xs font-semibold text-slate-300">현장 상세주소 (물리 현장 선택 시 자동 연동) *</label>
                       <input
                         data-mid="dispatch4-site-address"
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800/60 border border-slate-700 text-slate-300 rounded-lg p-2.5 text-xs focus:outline-none cursor-not-allowed"
                         value={newSiteAddress}
-                        onChange={e => setNewSiteAddress(e.target.value)}
-                        placeholder="기사 배차용 도로명 주소 (예: 경기도 평택시 고덕면 ...)"
+                        readOnly
+                        placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"
                       />
                     </div>
                     <div data-mid="dispatch4-site-contact" className="pt-2 border-t border-slate-800 flex flex-col gap-2">
@@ -2952,7 +3053,7 @@ export const SmartDispatch4: React.FC = () => {
                     <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>1. 거래처 블록에서 거래처(고객사)를 지정하면 해당 고객사의 등록 현장 목록이 표시됩니다.</span>
                   </div>
                 ) : isRegisteringNewSite ? (
-                  /* 3. 신규 현장 등록 모드 (퀵카드/버튼 클릭 시) */
+                  /* 3. 신규 현장 등록 모드: 물리 현장(SiteMaster) 선택 필수 + 담당자/정산일정 */
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between p-2.5 bg-purple-950/40 border border-purple-800/60 rounded-xl">
                       <div className="flex items-center gap-2">
@@ -2963,6 +3064,7 @@ export const SmartDispatch4: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsRegisteringNewSite(false);
+                          setSelectedSiteMasterId('');
                           setNewSiteName('');
                           setNewSiteAddress('');
                           applyInheritance(selectedCustomer, null);
@@ -2973,22 +3075,92 @@ export const SmartDispatch4: React.FC = () => {
                         <span>기존현장 목록</span>
                       </button>
                     </div>
+
+                    {/* 🔍 물리 현장(SiteMaster) 선택 및 연결 (헌장 1.5 Strict N:M) */}
+                    <div className="p-3 bg-purple-950/30 border border-purple-600/50 rounded-xl flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-purple-400" />
+                          <span>물리 현장(SiteMaster) 선택 *</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setGlobalActiveTab('site_options')}
+                          className="flex items-center gap-1 text-[11px] font-semibold text-purple-300 hover:text-white px-2 py-0.5 rounded bg-purple-900/60 hover:bg-purple-800/80 border border-purple-500/40 transition"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>현장별 옵션관리에서 신규 현장 등록 ➔</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                            placeholder="물리 현장명/주소 검색 (초성 가능)..."
+                            value={siteMasterSearchQuery}
+                            onChange={e => setSiteMasterSearchQuery(e.target.value)}
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        </div>
+                        <select
+                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-purple-500"
+                          value={selectedSiteMasterId}
+                          onChange={e => {
+                            const smId = e.target.value;
+                            setSelectedSiteMasterId(smId);
+                            if (smId) {
+                              const sm = (siteMasters || []).find(s => s.id === smId);
+                              if (sm) {
+                                setNewSiteName(sm.name);
+                                setNewSiteAddress(sm.address || '');
+                                if (sm.paidOptions || sm.protection) {
+                                  const opts = new Set<string>();
+                                  if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                  if (sm.protection && sm.protection !== 'NONE') opts.add(sm.protection);
+                                  setSelectedSafetyOptions(opts);
+                                }
+                              }
+                            } else {
+                              setNewSiteName('');
+                              setNewSiteAddress('');
+                            }
+                          }}
+                        >
+                          <option value="">-- [필수] 등록된 물리 현장(SiteMaster) 선택 ({filteredSiteMasters.length}개) --</option>
+                          {filteredSiteMasters.map(sm => (
+                            <option key={sm.id} value={sm.id}>
+                              {sm.name} {sm.address ? `(${sm.address})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedSiteMasterId && (
+                        <div className="text-[11px] text-purple-200 bg-purple-950/60 p-2 rounded border border-purple-800/40 flex items-center justify-between">
+                          <span>선택된 물리 현장: <strong>{newSiteName}</strong></span>
+                          <span className="text-slate-400 truncate max-w-[200px]">{newSiteAddress || '주소 없음'}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-300">신규 현장명 *</label>
+                      <label className="text-xs font-semibold text-slate-300">신규 현장명 (물리 현장 선택 시 자동 연동) *</label>
                       <input
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-purple-500"
+                        className="bg-slate-800/60 border border-slate-700 text-slate-300 rounded-lg p-2.5 text-xs focus:outline-none cursor-not-allowed"
                         value={newSiteName}
-                        onChange={e => setNewSiteName(e.target.value)}
-                        placeholder="예: 송도 바이오클러스터 4공구"
+                        readOnly
+                        placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-300">신규 현장 상세주소 *</label>
+                      <label className="text-xs font-semibold text-slate-300">신규 현장 상세주소 (물리 현장 선택 시 자동 연동) *</label>
                       <input
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-purple-500"
+                        className="bg-slate-800/60 border border-slate-700 text-slate-300 rounded-lg p-2.5 text-xs focus:outline-none cursor-not-allowed"
                         value={newSiteAddress}
-                        onChange={e => setNewSiteAddress(e.target.value)}
-                        placeholder="배차 기사용 정확한 도로명 주소"
+                        readOnly
+                        placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"
                       />
                     </div>
                     <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
@@ -3217,6 +3389,8 @@ export const SmartDispatch4: React.FC = () => {
                           setIsRegisteringNewSite(true);
                           setSelectedSite(null);
                           setSelectedSiteAddress('');
+                          setSelectedSiteMasterId('');
+                          setSiteMasterSearchQuery('');
                           setNewSiteName('');
                           setNewSiteAddress('');
                           setContactPerson('');

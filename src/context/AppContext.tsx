@@ -1068,8 +1068,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (db.isSupabaseConnected()) {
       try {
         await db.pullFromSupabase();
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to sync from Supabase:", err);
+        showErrorModal(err?.message || String(err), 'DB 전체 동기화 오류');
       }
     }
 
@@ -1132,12 +1133,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // 메뉴별 관련 테이블만 Supabase pull (메뉴 전환 시 호출 — 최신 데이터 보장)
   const MENU_TABLE_MAP: Record<string, string[]> = {
     'dashboard':            ['deliveries', 'contracts', 'billings', 'todos', 'assets', 'users', 'departments', 'permissions', 'customRoles', 'rolePermissions'],
-    'delivery':             ['deliveries', 'transportCompanies', 'transportDrivers', 'contracts', 'assets', 'printStations', 'printQueue'],
+    'delivery':             ['deliveries', 'transportCompanies', 'transportDrivers', 'contracts', 'assets', 'sites', 'siteMasters', 'printStations', 'printQueue'],
     'transport_master':     ['transportCompanies', 'transportDrivers'],
-    'field_as':             ['repairs', 'assets', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'contracts'],
-    'smart_as_request':     ['repairs', 'customers', 'sites', 'contracts', 'contractAssets', 'assets'],
+    'field_as':             ['repairs', 'assets', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'siteMasters', 'contracts'],
+    'smart_as_request':     ['repairs', 'customers', 'sites', 'siteMasters', 'contracts', 'contractAssets', 'assets'],
     'repair':               ['repairs', 'assets', 'consumables', 'repairConsumables', 'mechanicConsumableStocks', 'vendors'],
-    'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'assets'],
+    'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'sites', 'siteMasters', 'assets'],
     'billing':              ['billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'bankTransactions', 'contracts', 'customers'],
     'customer':             ['customers', 'contacts', 'sites', 'siteMasters'],
     'site_options':         ['siteMasters', 'sites', 'standardOptions', 'customers', 'contracts', 'assets'],
@@ -1149,12 +1150,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'consumable_purchase':  ['consumables', 'consumablePurchases', 'vendors'],
     'consumable_inout':     ['consumables', 'consumableLogs', 'consumablePurchases', 'assets', 'mechanicConsumableStocks'],
     'consumable_stock':     ['consumables', 'consumableLogs', 'mechanicConsumableStocks', 'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts'],
-    'smart_dispatch':       ['deliveries', 'contracts', 'assets', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
-    'smart_dispatch4':      ['customers', 'sites', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
-    'smart_return':         ['deliveries', 'contracts', 'assets', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
+    'smart_dispatch':       ['deliveries', 'contracts', 'assets', 'sites', 'siteMasters', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
+    'smart_dispatch4':      ['customers', 'sites', 'siteMasters', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
+    'smart_return':         ['deliveries', 'contracts', 'assets', 'sites', 'siteMasters', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
     'asset_inout_history':  ['assetInOutLogs', 'assets', 'customers'],
-    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'customers', 'contractHistory'],
-    'outbound_inspections': ['outboundInspections', 'contracts', 'contractAssets', 'assets', 'customers', 'sites', 'deliveries'],
+    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'customers', 'sites', 'siteMasters', 'contractHistory'],
+    'outbound_inspections': ['outboundInspections', 'contracts', 'contractAssets', 'assets', 'customers', 'sites', 'siteMasters', 'deliveries'],
     'bank_matching':        ['bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'paymentDepositLinks', 'payments', 'billings', 'customers', 'purchaseSettlements'],
     'vendors':              ['vendors'],
     'organization':         ['users', 'departments'],
@@ -1164,7 +1165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'corporate_card':       ['vendors', 'billings'],
     'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
     'delinquency':          ['billings', 'customers', 'contracts'],
-    'official_mail':        ['googleConfigs', 'customers', 'contacts', 'sites', 'products'],
+    'official_mail':        ['googleConfigs', 'customers', 'contacts', 'sites', 'siteMasters', 'products'],
     'google_config':        ['googleConfigs'],
     'depreciation_execution': ['depreciationLogs', 'assets'],
     'leave_application':    ['users', 'annualLeaveQuotas', 'leaveUsages'],
@@ -1174,18 +1175,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'vehicle_log':          ['corporateVehicles', 'vehicleOperationLogs', 'vehicleFuelLogs', 'users'],
     'regular_reports':      ['contracts', 'contractAssets', 'deliveries', 'assets', 'repairs', 'purchaseSettlements', 'purchaseSettlementItems', 'externalLeases', 'depreciationLogs', 'billings', 'billingDetails', 'bankTransactions', 'customers', 'payrollClosings', 'vehicleFuelLogs', 'monthlyIncomeStatements'],
     'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'siteMasters', 'billings', 'billingDetails', 'bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'paymentDepositLinks'],
-    'data_formation':       ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'products'],
+    'data_formation':       ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'siteMasters', 'products'],
     'print_queue_monitor':  ['printStations', 'printQueue'],
     'privacy_audit':        ['privacyAccessLogs', 'users', 'departments'],
     'receivable':           ['billings', 'billingDetails', 'customers', 'contracts', 'bankTransactions'],
     'purchase_settlement':  ['purchaseSettlements', 'purchaseSettlementItems', 'vendors', 'assets'],
-    'inspection_checklist_manage': ['inspectionChecklists', 'inspectionItems'],
+    'inspection_checklist_manage': ['inspectionChecklistItems'],
     'error_report':         ['errorReports', 'users'],
     'agentic_ai_lab':       ['contracts', 'assets', 'billings', 'deliveries'],
     'agentic_dispatch_studio': ['deliveries', 'contracts', 'assets'],
     'agentic_settlement_autopilot': ['billings', 'billingDetails', 'bankTransactions', 'purchaseSettlements'],
     'agentic_asset_lifecycle': ['assets', 'contracts', 'repairs'],
-    'dev_uploader':         ['contracts', 'contractAssets', 'customers', 'assets'],
+    'dev_uploader':         ['contracts', 'contractAssets', 'customers', 'sites', 'siteMasters', 'assets'],
   };
 
   const loadTablesForMenu = async (menuId: string) => {
@@ -1195,8 +1196,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await Promise.all(keys.map(key => db.pullTableFromSupabase(key)));
       refreshAllData();
-    } catch (err) {
-      console.warn('loadTablesForMenu error:', err);
+    } catch (err: any) {
+      console.error('loadTablesForMenu error:', err);
+      showErrorModal(err?.message || String(err), '메뉴 데이터 동기화 오류');
     }
   };
 
@@ -2256,13 +2258,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } as Omit<CustomerContact, 'id'>);
     }
 
-    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
-      try {
-        await db.pendingWrites[db.pendingWrites.length - 1];
-      } catch (err) {
-        console.error("Supabase write await error:", err);
-        throw err;
-      }
+    try {
+      await db.awaitPendingWrites();
+    } catch (err: any) {
+      console.error("Supabase write await error:", err);
+      showErrorModal(err?.message || String(err));
+      throw err;
     }
 
     refreshAllData();
@@ -2280,13 +2281,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     db.deleteRow('contacts', id);
-    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
-      try {
-        await db.pendingWrites[db.pendingWrites.length - 1];
-      } catch (err) {
-        console.error("Supabase write await error:", err);
-        throw err;
-      }
+    try {
+      await db.awaitPendingWrites();
+    } catch (err: any) {
+      console.error("Supabase write await error:", err);
+      showErrorModal(err?.message || String(err));
+      throw err;
     }
     refreshAllData();
   };
@@ -5908,8 +5908,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       // ⚠️ FK(Foreign Key) 위반 방지: consumables 마스터 생성이 원격 DB에 먼저 반영되도록 1차 동기 대기
       try {
         await db.awaitPendingWrites();
-      } catch (e) {
-        console.warn('Consumable insert pending write warning:', e);
+      } catch (e: any) {
+        showErrorModal(e?.message || String(e), '소모품 마스터 생성 오류');
+        throw e;
       }
       db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, {
         consumableId: consumable.id
@@ -6814,10 +6815,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       let contract = db.contracts.find(c => c.id === origCa.contractId);
       if (!contract && db.isSupabaseConnected()) {
-        try {
-          await db.pullTableFromSupabase('contracts');
-          contract = db.contracts.find(c => c.id === origCa.contractId);
-        } catch (e) {}
+        await db.pullTableFromSupabase('contracts');
+        contract = db.contracts.find(c => c.id === origCa.contractId);
       }
 
       if (!origAsset) throw new Error('할당할 대상 장비를 찾을 수 없습니다.');
@@ -11150,13 +11149,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    refreshAllData();
-    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
-      try {
-        await db.pendingWrites[db.pendingWrites.length - 1];
-      } catch (err) {
-        console.error('Supabase write error:', err);
-      }
+    try {
+      await db.awaitPendingWrites();
+      refreshAllData();
+    } catch (err: any) {
+      console.error('Supabase write error:', err);
+      showErrorModal(err?.message || String(err));
+      throw err;
     }
   };
 

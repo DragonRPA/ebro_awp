@@ -530,7 +530,10 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
             .select('*')
             .range(from, from + pageSize - 1);
 
-          if (!error && data && data.length > 0) {
+          if (error) {
+            throw new Error(`[백업 조회 오류] 테이블(${table}): ${error.message}`);
+          }
+          if (data && data.length > 0) {
             allRows = allRows.concat(data);
             from += pageSize;
             if (data.length < pageSize) {
@@ -542,9 +545,9 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
         }
 
         backupData[table] = allRows;
-      } catch (e) {
-        console.warn(`[Backup Warning] ${table}:`, e);
-        backupData[table] = (db as any)[table] || [];
+      } catch (e: any) {
+        console.error(`[Backup Error] ${table}:`, e);
+        throw new Error(`[전체 DB 백업 실패] 테이블(${table}) 조회 중 오류: ${e?.message || String(e)}`);
       }
     } else {
       backupData[table] = (db as any)[table] || [];
@@ -575,8 +578,8 @@ export async function restoreFullDatabaseBackup(
     'role_permissions',
     'vendors',
     'customers',
-    'customer_sites',
     'site_masters',
+    'customer_sites',
     'customer_contacts',
     'products',
     'assets',
@@ -1134,6 +1137,20 @@ export function parseInitialExcelWorkbook(
     const rawSite = getCol(r, custHeaderMap, ['현장명', '현장'], 7) ? String(getCol(r, custHeaderMap, ['현장명', '현장'], 7)).trim() : '';
     if (rawSite && rawSite !== '-') {
       const { cleanSiteName } = extractSiteNameAndMemo(rawSite);
+      const normalizedName = cleanSiteName.replace(/\s+/g, '');
+      let siteMaster = siteMasterMap.get(normalizedName);
+      if (!siteMaster) {
+        siteMaster = {
+          id: `sitemaster-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          name: cleanSiteName,
+          address: getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8) ? String(getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8)).trim() : (custEntity.address || ''),
+          isActive: true,
+          createdAt: nowIso,
+          updatedAt: nowIso
+        };
+        siteMasterMap.set(normalizedName, siteMaster);
+      }
+
       const siteKey = `${custEntity.id}_${cleanSiteName}`;
       if (!siteMap.has(siteKey)) {
         const siteContactName = getCol(r, custHeaderMap, ['현장담당자'], 9) ? String(getCol(r, custHeaderMap, ['현장담당자'], 9)).trim() : '';
@@ -1165,6 +1182,7 @@ contact: siteBillingContact.includes('010') ? siteBillingContact : '',
 
         siteMap.set(siteKey, {
           id: `SITE-${String(siteSeq++).padStart(7, '0')}`,
+          siteMasterId: siteMaster.id,
           customerId: custEntity.id,
           name: cleanSiteName,
           address: getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8) ? String(getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8)).trim() : '',
@@ -2027,6 +2045,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   const parsedVendors = Array.from(vendorMap.values());
   const parsedCustomers = Array.from(customerMap.values());
   const parsedSites = Array.from(siteMap.values());
+  const parsedSiteMasters = Array.from(siteMasterMap.values());
   const parsedContacts = Array.from(contactMap.values());
 
   // ──────────────────────────────────────────────────────────────────
@@ -2173,7 +2192,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   };
 
   return {
-    siteMasters: [],
+    siteMasters: parsedSiteMasters,
     products: parsedProducts,
     vendors: parsedVendors,
     customers: parsedCustomers,
@@ -2296,6 +2315,7 @@ export async function ingestExcelInitialData(
         'vendors',
         'customer_contacts',
         'customer_sites',
+        'site_masters',
         'customers',
       ];
       for (const table of TRUNCATE_ORDER) {
@@ -2468,18 +2488,10 @@ export async function ingestExcelInitialData(
     // Step 11: 매입 청구서 및 외상미수금 대장
     onProgress?.(11, totalSteps, `11/13: 전대 매입 정산 및 외상미수금 대장 적재 중...`);
     if (parsed.purchaseBillings && parsed.purchaseBillings.length > 0) {
-      try {
-        await batchUpsertChunked('purchase_settlements', parsed.purchaseBillings, 100);
-      } catch (e) {
-        console.warn('[Ingest] purchase_settlements skipped or failed:', e);
-      }
+      await batchUpsertChunked('purchase_settlements', parsed.purchaseBillings, 100);
     }
     if (parsed.purchaseBillingDetails && parsed.purchaseBillingDetails.length > 0) {
-      try {
-        await batchUpsertChunked('purchase_settlement_items', parsed.purchaseBillingDetails, 100);
-      } catch (e) {
-        console.warn('[Ingest] purchase_settlement_items skipped or failed:', e);
-      }
+      await batchUpsertChunked('purchase_settlement_items', parsed.purchaseBillingDetails, 100);
     }
     if (parsed.receivables.length > 0) {
       await batchUpsertChunked('receivables', parsed.receivables, 100);
@@ -4049,51 +4061,72 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
 
       if (Object.keys(updates).length > 0) {
         db.updateRow('customers', item.customerId, updates);
-        if (supabase) {
-          try { await supabase.from('customers').update(updates).eq('id', item.customerId); } catch (e) {}
-        }
         updatedCustomers++;
       }
     }
 
-    // 2. 현장 마스터 빈칸 안전 보완
+    // 2. 현장 마스터(siteMasters) 빈칸 안전 보완 및 customer_sites N:M 연결 보장 (헌장 1.5 준수)
     for (const siteItem of item.sites) {
       if (siteItem.siteId) {
         let existingSite = db.getRow<any>('customer_sites', siteItem.siteId);
         if (!existingSite && supabase) {
-          try {
-            const { data } = await supabase.from('customer_sites').select('*').eq('id', siteItem.siteId).maybeSingle();
-            if (data) existingSite = data;
-          } catch {
-            // ignore
-          }
+          const { data, error } = await supabase.from('customer_sites').select('*').eq('id', siteItem.siteId).maybeSingle();
+          if (error) throw new Error(`[고객 현장 조회 오류] (${siteItem.siteId}): ${error.message}`);
+          if (data) existingSite = data;
         }
 
         if (existingSite) {
-          const siteUpdates: any = {};
-          if (siteItem.paidOptions) {
-            const normSitePaid = normalizeOptionList(siteItem.paidOptions);
-            const existingSiteNorm = normalizeOptionList(existingSite.paidOptions);
-            if (normSitePaid && (isEmptyVal(existingSite.paidOptions) || existingSite.paidOptions !== normSitePaid || existingSite.paidOptions !== existingSiteNorm)) {
-              siteUpdates.paidOptions = normSitePaid;
+          let targetMaster = existingSite.siteMasterId
+            ? db.siteMasters.find(m => m.id === existingSite.siteMasterId)
+            : db.siteMasters.find(m => m.name.replace(/\s+/g, '') === (existingSite.name || '').replace(/\s+/g, ''));
+
+          const nowIso = new Date().toISOString();
+          if (!targetMaster) {
+            targetMaster = db.insertRow<any>('siteMasters', {
+              name: existingSite.name,
+              address: (siteItem.siteAddress && siteItem.siteAddress !== '미상') ? siteItem.siteAddress : (existingSite.address || ''),
+              isActive: existingSite.isActive !== false,
+              paidOptions: siteItem.paidOptions ? normalizeOptionList(siteItem.paidOptions) : (existingSite.paidOptions || ''),
+              protection: siteItem.protection || existingSite.protection || '',
+              checkedSpecs: siteItem.checkedSpecs || existingSite.checkedSpecs || {},
+              createdAt: nowIso,
+              updatedAt: nowIso
+            });
+          } else {
+            const masterUpdates: any = {};
+            if (siteItem.paidOptions) {
+              const normSitePaid = normalizeOptionList(siteItem.paidOptions);
+              const existingSiteNorm = normalizeOptionList(targetMaster.paidOptions);
+              if (normSitePaid && (isEmptyVal(targetMaster.paidOptions) || targetMaster.paidOptions !== normSitePaid || targetMaster.paidOptions !== existingSiteNorm)) {
+                masterUpdates.paidOptions = normSitePaid;
+              }
+            }
+            if (isEmptyVal(targetMaster.protection) && siteItem.protection) {
+              masterUpdates.protection = siteItem.protection;
+            }
+            if (isEmptyVal(targetMaster.checkedSpecs) && siteItem.checkedSpecs) {
+              masterUpdates.checkedSpecs = siteItem.checkedSpecs;
+            }
+            if ((!targetMaster.address || targetMaster.address === '미상') && siteItem.siteAddress) {
+              masterUpdates.address = siteItem.siteAddress;
+            }
+            if (Object.keys(masterUpdates).length > 0) {
+              masterUpdates.updatedAt = nowIso;
+              db.updateRow('siteMasters', targetMaster.id, masterUpdates);
             }
           }
-          if (isEmptyVal(existingSite.protection) && siteItem.protection) {
-            siteUpdates.protection = siteItem.protection;
-          }
-          if (isEmptyVal(existingSite.checkedSpecs) && siteItem.checkedSpecs) {
-            siteUpdates.checkedSpecs = siteItem.checkedSpecs;
+
+          const siteLinkUpdates: any = {};
+          if (existingSite.siteMasterId !== targetMaster!.id) {
+            siteLinkUpdates.siteMasterId = targetMaster!.id;
           }
           if ((!existingSite.address || existingSite.address === '미상') && siteItem.siteAddress) {
-            siteUpdates.address = siteItem.siteAddress;
+            siteLinkUpdates.address = siteItem.siteAddress;
           }
-          if (Object.keys(siteUpdates).length > 0) {
-            db.updateRow('customer_sites', siteItem.siteId, siteUpdates);
-            if (supabase) {
-              try { await supabase.from('customer_sites').update(siteUpdates).eq('id', siteItem.siteId); } catch (e) {}
-            }
-            updatedSites++;
+          if (Object.keys(siteLinkUpdates).length > 0) {
+            db.updateRow('customer_sites', siteItem.siteId, siteLinkUpdates);
           }
+          updatedSites++;
         }
       }
     }

@@ -117,7 +117,7 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
       'outbound_inspections', 'deliveries',
       'contract_history', 'contract_assets', 'contracts',
       'assets',
-      'customer_contacts', 'customer_sites', 'customers',
+      'customer_contacts', 'customer_sites', 'site_masters', 'customers',
       'transport_drivers', 'transport_companies',
       'consumables', 'standard_options', 'products', 'vendors',
       'users', 'departments', 'tenants'
@@ -125,10 +125,9 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
 
     for (const tbl of deleteOrder) {
       if (onProgress) onProgress(`기존 데이터 정리 중: ${tbl}...`);
-      try {
-        await supabase.from(tbl).delete().neq('id', '___NEVER_MATCH___');
-      } catch (e) {
-        console.warn(`Clean warning on ${tbl}:`, e);
+      const { error } = await supabase.from(tbl).delete().neq('id', '___NEVER_MATCH___');
+      if (error) {
+        throw new Error(`[데모 데이터 초기화 삭제 오류] 테이블(${tbl}): ${error.message}`);
       }
     }
 
@@ -137,7 +136,7 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
       'tenants', 'departments', 'users',
       'products', 'standard_options', 'vendors', 'consumables', 'transport_companies',
       'transport_drivers',
-      'customers', 'customer_sites', 'customer_contacts',
+      'customers', 'site_masters', 'customer_sites', 'customer_contacts',
       'assets',
       'contracts', 'contract_assets', 'contract_history',
       'deliveries', 'outbound_inspections',
@@ -154,7 +153,7 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
       if (onProgress) onProgress(`골든 데이터 복원 중: ${tbl} (${rows.length}건)...`);
       const { error } = await supabase.from(tbl).upsert(rows, { onConflict: 'id' });
       if (error) {
-        console.error(`Error inserting into ${tbl}:`, error);
+        throw new Error(`[데모 데이터 복원 저장 오류] 테이블(${tbl}): ${error.message}`);
       }
     }
 

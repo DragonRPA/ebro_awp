@@ -107,6 +107,7 @@ const TABLE_LABEL_MAP: Record<string, string> = {
   payroll_closings: '급여 마감 내역',
   customers: '고객사',
   customer_contacts: '고객 담당자',
+  site_masters: '물리 현장 마스터',
   customer_sites: '고객 현장',
   products: '제품 (모델)',
   assets: '자산 (장비)',
@@ -749,6 +750,45 @@ export const DevDataUploader: React.FC = () => {
 
     const converted = parsedRows.map((row, idx) => convertRow(row, schema, idx));
 
+    // 🛡️ 헌장 1.5 준수: customer_sites 단일 테이블 업로드 시 물리 현장 마스터(site_masters) 선행 생성 및 siteMasterId 자동 매핑
+    if (schema.supabaseTable === 'customer_sites') {
+      const nowIso = new Date().toISOString();
+      const newMastersToUpsert: any[] = [];
+      converted.forEach((row: any, idx: number) => {
+        const cleanName = String(row.name || '기본현장').trim();
+        const normName = cleanName.replace(/\s+/g, '');
+        let matchedSm = row.siteMasterId
+          ? db.siteMasters.find(sm => sm.id === row.siteMasterId)
+          : db.siteMasters.find(sm => String(sm.name || '').replace(/\s+/g, '') === normName);
+        if (!matchedSm) {
+          matchedSm = {
+            id: row.siteMasterId || `SM-${Date.now().toString().slice(-4)}${String(idx + 1).padStart(4, '0')}`,
+            name: cleanName,
+            address: row.address || null,
+            isActive: row.isActive !== false,
+            paidOptions: row.paidOptions || null,
+            protection: row.protection || null,
+            checkedSpecs: row.checkedSpecs || {},
+            createdAt: row.createdAt || nowIso,
+            updatedAt: row.updatedAt || nowIso
+          } as any;
+          db.siteMasters.push(matchedSm as any);
+          newMastersToUpsert.push(matchedSm);
+        }
+        row.siteMasterId = matchedSm!.id;
+      });
+      if (newMastersToUpsert.length > 0) {
+        const { error: smErr } = await supabase.from('site_masters').upsert(newMastersToUpsert, { onConflict: 'id' });
+        if (smErr) {
+          const msg = `[물리 현장 마스터 선행 생성 실패]\n${smErr.message}`;
+          setLastUploadErrorDetails(msg);
+          showErrorModal(msg);
+          setUploading(false);
+          return;
+        }
+      }
+    }
+
     // Update local DB cache too
     const currentLocalData = (db as any)[selectedTableKey] || [];
     const updatedLocalData = [...currentLocalData];
@@ -780,6 +820,7 @@ export const DevDataUploader: React.FC = () => {
     setUploadResult({ success: successCount, failed: failedCount });
     if (errDetailsMsg) {
       setLastUploadErrorDetails(errDetailsMsg);
+      showErrorModal(errDetailsMsg);
     }
     setUploading(false);
   };
@@ -829,9 +870,9 @@ export const DevDataUploader: React.FC = () => {
         if (supabase) {
           const { data, error } = await supabase.from(t.supabaseTable).select('*');
           if (error) {
-            console.error(`Download error for ${t.key}:`, error);
+            throw new Error(`[${t.supabaseTable}] 다운로드 오류: ${error.message}`);
           }
-          dataArray = (data && data.length > 0) ? data : (db as any)[t.key] || [];
+          dataArray = data || [];
         } else {
           dataArray = (db as any)[t.key] || [];
         }
@@ -853,9 +894,9 @@ export const DevDataUploader: React.FC = () => {
       }));
       
       XLSX.writeFile(wb, `all_tables_current_data.xlsx`);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Bulk download error:", err);
-      alert("데이터 다운로드 중 오류가 발생했습니다.");
+      showErrorModal(`데이터 다운로드 중 오류가 발생했습니다:\n\n${err?.message || String(err)}`);
     } finally {
       setDownloadingBulk(false);
     }
@@ -897,9 +938,9 @@ export const DevDataUploader: React.FC = () => {
         });
         
         setBulkParsedData(parsedData);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error parsing Excel file:", err);
-        alert("엑셀 파일 파싱 중 오류가 발생했습니다.");
+        showErrorModal(`엑셀 파일 파싱 중 오류가 발생했습니다:\n\n${err?.message || String(err)}`);
       }
     };
     reader.readAsArrayBuffer(file);
@@ -937,10 +978,52 @@ export const DevDataUploader: React.FC = () => {
     let errDetailsMsg = '';
     
     try {
-      for (const sheetName of Object.keys(bulkParsedData)) {
+      const sheetNames = Object.keys(bulkParsedData);
+      // 🛡️ 헌장 1.5 준수: site_masters가 항상 customer_sites보다 먼저 처리되도록 정렬
+      sheetNames.sort((a, b) => {
+        if (a === 'site_masters' && b === 'customer_sites') return -1;
+        if (a === 'customer_sites' && b === 'site_masters') return 1;
+        return 0;
+      });
+
+      for (const sheetName of sheetNames) {
         const schema = TABLE_SCHEMAS.find(t => t.key === sheetName)!;
         const sheetRows = bulkParsedData[sheetName];
         const converted = sheetRows.map((row, idx) => convertRow(row, schema, idx));
+
+        if (schema.supabaseTable === 'customer_sites') {
+          const nowIso = new Date().toISOString();
+          const newMastersToUpsert: any[] = [];
+          converted.forEach((row: any, idx: number) => {
+            const cleanName = String(row.name || '기본현장').trim();
+            const normName = cleanName.replace(/\s+/g, '');
+            let matchedSm = row.siteMasterId
+              ? db.siteMasters.find(sm => sm.id === row.siteMasterId)
+              : db.siteMasters.find(sm => String(sm.name || '').replace(/\s+/g, '') === normName);
+            if (!matchedSm) {
+              matchedSm = {
+                id: row.siteMasterId || `SM-${Date.now().toString().slice(-4)}${String(idx + 1).padStart(4, '0')}`,
+                name: cleanName,
+                address: row.address || null,
+                isActive: row.isActive !== false,
+                paidOptions: row.paidOptions || null,
+                protection: row.protection || null,
+                checkedSpecs: row.checkedSpecs || {},
+                createdAt: row.createdAt || nowIso,
+                updatedAt: row.updatedAt || nowIso
+              } as any;
+              db.siteMasters.push(matchedSm as any);
+              newMastersToUpsert.push(matchedSm);
+            }
+            row.siteMasterId = matchedSm!.id;
+          });
+          if (newMastersToUpsert.length > 0) {
+            const { error: smErr } = await supabase.from('site_masters').upsert(newMastersToUpsert, { onConflict: 'id' });
+            if (smErr) {
+              throw new Error(`[물리 현장 마스터 선행 생성 실패] ${smErr.message}`);
+            }
+          }
+        }
         
         // Update local DB cache for this sheet
         const currentLocalData = (db as any)[sheetName] || [];
@@ -975,6 +1058,7 @@ export const DevDataUploader: React.FC = () => {
       setBulkUploadResult({ success: totalSuccess, failed: totalFailed });
       if (errDetailsMsg) {
         setLastBulkUploadErrorDetails(errDetailsMsg);
+        showErrorModal(errDetailsMsg);
       }
     } catch (err: any) {
       console.error("Bulk upload failed:", err);
@@ -1004,9 +1088,9 @@ export const DevDataUploader: React.FC = () => {
       setBulkUploadResult(null);
       setBulkFileName('');
       if (bulkFileInputRef.current) bulkFileInputRef.current.value = '';
-    } catch (err) {
+    } catch (err: any) {
       console.error("Clear all error:", err);
-      alert('데이터 초기화 중 오류가 발생했습니다.');
+      showErrorModal(`데이터 초기화 중 오류가 발생했습니다:\n\n${err?.message || String(err)}`);
     } finally {
       setBulkUploading(false);
     }
@@ -1021,9 +1105,10 @@ export const DevDataUploader: React.FC = () => {
       const { data, error } = await supabase.from(schema.supabaseTable).select('*');
       if (error) {
         console.error('Download error (Supabase):', error);
-        // fallback to local DB on error
+        showErrorModal(`[${schema.supabaseTable}] 다운로드 오류:\n\n${error.message}`);
+        return;
       }
-      dataArray = (data && data.length > 0) ? data : (db as any)[selectedTableKey] || [];
+      dataArray = data || [];
     } else {
       dataArray = (db as any)[selectedTableKey] || [];
     }
@@ -1068,7 +1153,7 @@ export const DevDataUploader: React.FC = () => {
     const { error } = await supabase.from(schema.supabaseTable).delete().neq('id', '');
     if (error) {
       console.error('Clear table error:', error);
-      alert('데이터 삭제에 실패했습니다.');
+      showErrorModal(`데이터 삭제에 실패했습니다:\n\n${error.message}`);
     } else {
       alert('전체 데이터가 삭제되었습니다.');
     }
