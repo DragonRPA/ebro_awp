@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext';
 import { 
   Tenant, TenantFeatures, TenantBankAccount, TenantYard, OFFICIAL_STAMP_BASE64,
   TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo,
-  SolutionType, db, GoogleConfig 
+  SolutionType, db, supabase, GoogleConfig 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
@@ -232,6 +232,23 @@ export const TenantManagementPage: React.FC = () => {
         r2SecretAccessKey: gConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || '',
         r2PublicDomain: gConfig?.r2PublicDomain || fallbackR2.r2PublicDomain || '',
       });
+      // 원격 DB(google_configs)에서 최신 설정을 비동기 조회하여 admin 도메인 등 로컬 캐시 공백 시에도 기존 설정 보존 보장
+      supabase
+        .from('google_configs')
+        .select('*')
+        .or(`tenantId.eq.${tenant.id},id.eq.cfg-${tenant.id}`)
+        .maybeSingle()
+        .then(({ data: remoteCfg }) => {
+          if (remoteCfg) {
+            setR2Config(prev => ({
+              r2AccountId: prev.r2AccountId || remoteCfg.r2AccountId || '',
+              r2BucketName: prev.r2BucketName || remoteCfg.r2BucketName || '',
+              r2AccessKeyId: prev.r2AccessKeyId || remoteCfg.r2AccessKeyId || '',
+              r2SecretAccessKey: prev.r2SecretAccessKey || remoteCfg.r2SecretAccessKey || '',
+              r2PublicDomain: prev.r2PublicDomain || remoteCfg.r2PublicDomain || '',
+            }));
+          }
+        });
       setEditingTenant(tenant);
       setFormData({
         ...tenant,
@@ -783,30 +800,57 @@ export const TenantManagementPage: React.FC = () => {
 
       await saveTenant(tenantToSave);
 
-      // GoogleConfig에 R2 설정 저장/업데이트 (UPSERT 및 NOT NULL 컬럼 100% 보장)
+      // GoogleConfig에 R2 설정 저장/업데이트 (원격 google_configs 선행 조회로 이메일·SMTP·R2 설정 덮어쓰기/초기화 완벽 방지)
       const targetTenantId = tenantToSave.id!;
-      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || (c as any).tenant_id === targetTenantId || c.id === `cfg-${targetTenantId}`);
-      const mergedGoogleConfig: GoogleConfig = {
-        ...(existingConfig || {}),
-        id: existingConfig?.id || `cfg-${targetTenantId}`,
-        tenantId: targetTenantId,
-        googleEmail: existingConfig?.googleEmail ?? '',
-        contractFolder: existingConfig?.contractFolder ?? '',
-        consumableFolder: existingConfig?.consumableFolder ?? '',
-        deliveryFolder: existingConfig?.deliveryFolder ?? '',
-        maintenanceFolder: existingConfig?.maintenanceFolder ?? '',
-        isDevMode: existingConfig?.isDevMode ?? false,
-        mirrorRecursive: existingConfig?.mirrorRecursive ?? true,
-        ...r2Config,
-        createdAt: existingConfig?.createdAt || nowIso,
-        updatedAt: nowIso
-      };
-      if (existingConfig) {
-        db.updateRow<GoogleConfig>('googleConfigs', existingConfig.id, mergedGoogleConfig);
-      } else {
-        db.insertRow<GoogleConfig>('googleConfigs', mergedGoogleConfig);
+      const localConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || (c as any).tenant_id === targetTenantId || c.id === `cfg-${targetTenantId}`);
+      const { data: remoteConfig } = await supabase
+        .from('google_configs')
+        .select('*')
+        .or(`tenantId.eq.${targetTenantId},id.eq.cfg-${targetTenantId}`)
+        .maybeSingle();
+      const existingConfig: Partial<GoogleConfig> | undefined = remoteConfig || localConfig;
+
+      const hasR2Input = Boolean(
+        r2Config.r2AccountId ||
+        r2Config.r2BucketName ||
+        r2Config.r2AccessKeyId ||
+        r2Config.r2SecretAccessKey ||
+        r2Config.r2PublicDomain
+      );
+
+      // 기존 레코드가 있고 R2 입력 변경도 없는 경우 불필요한 덮어쓰기 생략
+      if (!existingConfig || hasR2Input || modalTab === 'STORAGE') {
+        const mergedGoogleConfig: GoogleConfig = {
+          ...(existingConfig || {}),
+          id: existingConfig?.id || `cfg-${targetTenantId}`,
+          tenantId: targetTenantId,
+          googleEmail: existingConfig?.googleEmail ?? '',
+          googlePassword: existingConfig?.googlePassword,
+          gmailAppPassword: existingConfig?.gmailAppPassword,
+          smtpProvider: existingConfig?.smtpProvider,
+          smtpHost: existingConfig?.smtpHost,
+          smtpPort: existingConfig?.smtpPort,
+          contractFolder: existingConfig?.contractFolder ?? '',
+          consumableFolder: existingConfig?.consumableFolder ?? '',
+          deliveryFolder: existingConfig?.deliveryFolder ?? '',
+          maintenanceFolder: existingConfig?.maintenanceFolder ?? '',
+          isDevMode: existingConfig?.isDevMode ?? true,
+          mirrorRecursive: existingConfig?.mirrorRecursive ?? true,
+          r2AccountId: r2Config.r2AccountId || existingConfig?.r2AccountId || '',
+          r2BucketName: r2Config.r2BucketName || existingConfig?.r2BucketName || '',
+          r2AccessKeyId: r2Config.r2AccessKeyId || existingConfig?.r2AccessKeyId || '',
+          r2SecretAccessKey: r2Config.r2SecretAccessKey || existingConfig?.r2SecretAccessKey || '',
+          r2PublicDomain: r2Config.r2PublicDomain || existingConfig?.r2PublicDomain || '',
+          createdAt: existingConfig?.createdAt || nowIso,
+          updatedAt: nowIso
+        };
+        if (localConfig) {
+          db.updateRow<GoogleConfig>('googleConfigs', mergedGoogleConfig.id, mergedGoogleConfig);
+        } else {
+          db.insertRow<GoogleConfig>('googleConfigs', mergedGoogleConfig);
+        }
+        await db.awaitPendingWrites();
       }
-      await db.awaitPendingWrites();
 
       setIsModalOpen(false);
       setEditingTenant(null);
