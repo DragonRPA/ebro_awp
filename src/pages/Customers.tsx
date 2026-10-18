@@ -21,6 +21,11 @@ import { NtsStatusAuditModal } from '../components/NtsStatusAuditModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import {
+  isMissingSiteAddress,
+  sanitizeSiteAddressInput,
+  findMatchingSiteMaster
+} from '../utils/siteMatcher';
 
 // ⚡ 좌측 고객 목록 개별 아이템 메모이제이션 (선택 고객 변경 시 타 고객 불필요 재렌더링 방지)
 interface CustomerListItemProps {
@@ -280,18 +285,23 @@ export const Customers: React.FC = () => {
 
         if (customerId && row.siteName) {
           const rawSiteName = String(row.siteName).trim();
-          const siteAddress = String(row.siteAddress || row.address || '현장 주소 미지정').trim();
-          const normSiteName = rawSiteName.replace(/\s+/g, '');
+          // 현장주소가 비어 있을 때 고객 본사주소(row.address)로 덮어쓰지 않고 공란("")으로 유지하여 누락 식별 가능하게 처리
+          const siteAddress = sanitizeSiteAddressInput(row.siteAddress);
 
-          // 헌장 1.5 준수: 초기/일괄 엑셀 업로드 시 물리 현장(SiteMaster)을 먼저 조회하거나 생성한 뒤 고객 현장(CustomerSite)에 연결
-          let master = db.siteMasters.find(m => (m.name || '').replace(/\s+/g, '') === normSiteName);
-          if (!master) {
+          // 헌장 1.5 준수: 초기/일괄 엑셀 업로드 시 물리 현장(SiteMaster)을 정규화 명칭 + 상세주소 기준으로 조회하거나 생성한 뒤 고객 현장(CustomerSite)에 연결
+          let master = findMatchingSiteMaster(db.siteMasters, rawSiteName, siteAddress).matched;
+          if (master) {
+            if (isMissingSiteAddress(master.address) && !isMissingSiteAddress(siteAddress)) {
+              await saveSiteMaster({ id: master.id, address: siteAddress });
+              master = db.siteMasters.find(m => m.id === master!.id) || master;
+            }
+          } else {
             await saveSiteMaster({
               name: rawSiteName,
               address: siteAddress,
               isActive: true
             });
-            master = db.siteMasters.find(m => (m.name || '').replace(/\s+/g, '') === normSiteName);
+            master = findMatchingSiteMaster(db.siteMasters, rawSiteName, siteAddress).matched;
           }
           if (!master) {
             throw new Error(`물리 현장(SiteMaster) 생성에 실패했습니다: ${rawSiteName}`);
@@ -301,7 +311,7 @@ export const Customers: React.FC = () => {
             customerId,
             siteMasterId: master.id,
             name: master.name,
-            address: master.address || siteAddress,
+            address: sanitizeSiteAddressInput(master.address || siteAddress),
             contactName: String(row.contactName || '').trim(),
             contact: String(row.contactMobile || '').trim(),
             email: ''
@@ -1188,8 +1198,15 @@ export const Customers: React.FC = () => {
       const safetyContact = validContacts.find(c => c.contactType === 'SAFETY' && c.isActive !== false)
         || validContacts.find(c => c.contactType === 'SAFETY');
 
+      const cleanAddr = sanitizeSiteAddressInput(editingSite.address);
+      const linkedMaster = (siteMasters || []).find(m => m.id === editingSite.siteMasterId);
+      if (linkedMaster && isMissingSiteAddress(linkedMaster.address) && !isMissingSiteAddress(cleanAddr)) {
+        await saveSiteMaster({ id: linkedMaster.id, address: cleanAddr });
+      }
+
       const siteToSave: CustomerSite = {
         ...editingSite,
+        address: cleanAddr || sanitizeSiteAddressInput(linkedMaster?.address),
         // 1. 장비담당자 (하위호환 플랫 필드)
         contactName: eqContact?.name || editingSite.contactName || '',
         contact: eqContact?.contact || editingSite.contact || '',
@@ -2022,7 +2039,30 @@ const handleDeleteAccount = async (accId: string) => {
                                   </div>
                                 )}
                               </td>
-                              <td style={{ padding: '5px 6px', whiteSpace: 'nowrap', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cs.address}</td>
+                              <td style={{ padding: '5px 6px', whiteSpace: 'nowrap', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {isMissingSiteAddress(cs.address) ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '1px 6px',
+                                      fontSize: '10.5px',
+                                      fontWeight: 800,
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                                      color: '#b45309',
+                                      border: '1px solid rgba(245, 158, 11, 0.5)',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="현장 주소가 등록되지 않았습니다. [수정] 버튼에서 주소를 입력할 수 있습니다."
+                                  >
+                                    ⚠️ 주소 미등록
+                                  </span>
+                                ) : (
+                                  cs.address
+                                )}
+                              </td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
                               {cs.contacts && cs.contacts.filter(c => c.isActive !== false).length > 0 ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -2944,9 +2984,10 @@ const handleDeleteAccount = async (accId: string) => {
                         const paid = s.paidOptions ? s.paidOptions : '';
                         const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
                         const optSummary = [paid, prot].filter(Boolean).join(' | ');
+                        const addrFlag = isMissingSiteAddress(s.address) ? '[⚠️ 주소미등록] ' : '';
                         return (
                           <option key={s.id} value={s.id}>
-                            {s.name} {optSummary ? `(${optSummary})` : ''}
+                            {addrFlag}{s.name} {optSummary ? `(${optSummary})` : ''}
                           </option>
                         );
                       })}
@@ -2971,9 +3012,26 @@ const handleDeleteAccount = async (accId: string) => {
                         <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                           선택된 물리 현장: {selectedRefSite.name}
                         </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                          {selectedRefSite.address || '주소 없음'}
-                        </span>
+                        {isMissingSiteAddress(selectedRefSite.address) ? (
+                          <span
+                            style={{
+                              padding: '1px 6px',
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                              color: '#b45309',
+                              border: '1px solid rgba(245, 158, 11, 0.5)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            ⚠️ 주소 미등록
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                            {selectedRefSite.address}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>
                         <span>
@@ -3008,18 +3066,45 @@ const handleDeleteAccount = async (accId: string) => {
                 />
               </div>
 
-              <div>
-                <label style={labelStyle}>현장 주소 (물리 현장 선택 시 자동 연동) *</label>
-                <input
-                  type="text"
-                  style={{ ...inputStyle, backgroundColor: editingSite.siteMasterId ? 'rgba(0,0,0,0.03)' : 'var(--bg-app)' }}
-                  value={editingSite.address || ''}
-                  onChange={e => setEditingSite({ ...editingSite, address: e.target.value })}
-                  placeholder="도로명 주소"
-                  required
-                  readOnly={!!editingSite.siteMasterId}
-                />
-              </div>
+              {(() => {
+                const linkedMaster = (siteMasters || []).find(m => m.id === editingSite.siteMasterId);
+                const masterHasValidAddress = Boolean(linkedMaster && !isMissingSiteAddress(linkedMaster.address));
+                return (
+                  <div>
+                    <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>현장 주소 {masterHasValidAddress ? '(물리 현장 선택 시 자동 연동)' : '*'}</span>
+                      {editingSite.siteMasterId && !masterHasValidAddress && (
+                        <span
+                          style={{
+                            padding: '1px 6px',
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                            color: '#b45309',
+                            border: '1px solid rgba(245, 158, 11, 0.5)',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          ⚠️ 주소 미등록 (입력 시 물리 현장 마스터에 동시 반영)
+                        </span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      style={{
+                        ...inputStyle,
+                        backgroundColor: masterHasValidAddress ? 'rgba(0,0,0,0.03)' : 'var(--bg-app)',
+                        borderColor: editingSite.siteMasterId && !masterHasValidAddress && isMissingSiteAddress(editingSite.address) ? '#f59e0b' : undefined
+                      }}
+                      value={editingSite.address || ''}
+                      onChange={e => setEditingSite({ ...editingSite, address: e.target.value })}
+                      placeholder={masterHasValidAddress ? '도로명 주소' : '미등록된 현장 주소를 입력하십시오 (저장 시 물리 현장 마스터에 반영됩니다)'}
+                      readOnly={masterHasValidAddress}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* 👥 현장 담당자 섹션 (3대 유형: 장비담당자, 마감담당자, 안전담당자) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', backgroundColor: 'var(--bg-app)' }}>

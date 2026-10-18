@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { supabase, db } from '../../services/db';
 import { TABLE_COLUMNS, filterRecordBySchema, sanitizeNumber, sanitizeExcelDate } from '../../services/migrationEngine';
+import { isMissingSiteAddress, sanitizeSiteAddressInput, normalizeSiteNameKey, findMatchingSiteMaster } from '../siteMatcher';
 
 function inferMakerFromModel(m: string): string {
   if (m.startsWith('ES') || m.startsWith('1930ES') || m.startsWith('1230ES') || m.startsWith('ES1330') || m.startsWith('2632ES')) return 'JLG';
@@ -819,19 +820,27 @@ function parseMultiSheetWorkbook(
   raw3.forEach((row, idx) => {
     const siteName = String(row['물리현장명*'] || row['현장명'] || '').trim();
     const optName = String(row['옵션명칭*'] || row['옵션명'] || '').trim();
+    const cleanAddr = sanitizeSiteAddressInput(row['현장주소*'] || row['현장주소']);
 
-    if (siteName && !siteMap[siteName]) {
-      const smId = makeDeterministicId('sm', siteName);
-      siteMap[siteName] = smId;
-      siteMasters.push({
-        id: smId,
-        name: siteName,
-        address: String(row['현장주소*'] || row['현장주소'] || '').trim() || null,
-        isActive: true,
-        tenant_id: tenantId,
-        createdAt: now,
-        updatedAt: now
-      });
+    if (siteName) {
+      let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanAddr);
+      if (!existingSm) {
+        const normKey = normalizeSiteNameKey(siteName) || siteName;
+        const smId = makeDeterministicId('sm', normKey);
+        existingSm = {
+          id: smId,
+          name: siteName,
+          address: cleanAddr || '',
+          isActive: true,
+          tenant_id: tenantId,
+          createdAt: now,
+          updatedAt: now
+        };
+        siteMasters.push(existingSm);
+      } else if (isMissingSiteAddress(existingSm.address) && cleanAddr) {
+        existingSm.address = cleanAddr;
+      }
+      siteMap[siteName] = existingSm.id;
     }
 
     if (optName && !optMap[optName]) {
@@ -887,31 +896,41 @@ function parseMultiSheetWorkbook(
     }
 
     const siteName = String(row['현장명*'] || row['현장명'] || '').trim();
-    if (siteName) {
-      let smId = siteMap[siteName];
-      if (!smId) {
-        smId = makeDeterministicId('sm', siteName);
-        siteMap[siteName] = smId;
-        siteMasters.push({
+    if (siteName && siteName !== '-') {
+      const cleanSiteAddr = sanitizeSiteAddressInput(row['현장주소']);
+      let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanSiteAddr);
+      if (!existingSm) {
+        const normKey = normalizeSiteNameKey(siteName) || siteName;
+        const smId = makeDeterministicId('sm', normKey);
+        existingSm = {
           id: smId,
           name: siteName,
-          address: String(row['현장주소'] || '').trim() || null,
+          address: cleanSiteAddr || '',
           isActive: true,
           tenant_id: tenantId,
           createdAt: now,
           updatedAt: now
+        };
+        siteMasters.push(existingSm);
+      } else if (isMissingSiteAddress(existingSm.address) && cleanSiteAddr) {
+        existingSm.address = cleanSiteAddr;
+        customerSites.forEach(cs => {
+          if (cs.siteMasterId === existingSm!.id && isMissingSiteAddress(cs.address)) {
+            cs.address = cleanSiteAddr;
+          }
         });
       }
+      siteMap[siteName] = existingSm.id;
 
-      const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
-      if (!customerSites.some(cs => cs.id === csId)) {
+      const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
+      if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
         customerSites.push({
           id: csId,
           customerId: custId,
           customerName: custName,
-          siteMasterId: smId,
-          name: siteName,
-          address: String(row['현장주소'] || '').trim() || null,
+          siteMasterId: existingSm.id,
+          name: existingSm.name || siteName,
+          address: existingSm.address || cleanSiteAddr || '',
           isActive: true,
           tenant_id: tenantId,
           createdAt: now,
@@ -1118,11 +1137,45 @@ function parseMultiSheetWorkbook(
   raw8.forEach((row, i) => {
     const contractNo = String(row['계약번호*'] || row['계약번호'] || `CNT-2026-${String(i + 1).padStart(3, '0')}`).trim();
     const custName = String(row['고객사명*'] || row['고객사'] || '').trim();
-    const siteName = String(row['현장명*'] || row['현장명'] || '').trim();
+    const siteName = String(row['현장명*'] || row['현장명'] || '기본현장').trim();
+    const cleanContractSiteAddr = sanitizeSiteAddressInput(row['현장주소']);
     const assetNo = String(row['자산관리번호(호기)*'] || row['관리번호'] || row['호기'] || '').trim();
 
     const custId = custMap[custName] || makeDeterministicId('cust', custName);
-    const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
+
+    let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanContractSiteAddr);
+    if (!existingSm) {
+      const normKey = normalizeSiteNameKey(siteName) || siteName;
+      const smId = makeDeterministicId('sm', normKey);
+      existingSm = {
+        id: smId,
+        name: siteName,
+        address: cleanContractSiteAddr || '',
+        isActive: true,
+        tenant_id: tenantId,
+        createdAt: now,
+        updatedAt: now
+      };
+      siteMasters.push(existingSm);
+    } else if (isMissingSiteAddress(existingSm.address) && cleanContractSiteAddr) {
+      existingSm.address = cleanContractSiteAddr;
+    }
+
+    const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
+    if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
+      customerSites.push({
+        id: csId,
+        customerId: custId,
+        customerName: custName,
+        siteMasterId: existingSm.id,
+        name: existingSm.name || siteName,
+        address: existingSm.address || cleanContractSiteAddr || '',
+        isActive: true,
+        tenant_id: tenantId,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
 
     let ctId = ctMap[contractNo];
     if (!ctId) {
@@ -1134,7 +1187,7 @@ function parseMultiSheetWorkbook(
         customerId: custId,
         customerName: custName,
         siteId: csId,
-        siteName,
+        siteName: existingSm.name || siteName,
         startDate: sanitizeExcelDate(row['대여시작일*'] || row['대여시작일']) || '2026-08-01',
         endDate: sanitizeExcelDate(row['대여종료일']) || '2026-12-31',
         billingDay: sanitizeNumber(row['청구마감일(일)']) || 30,
@@ -1248,32 +1301,42 @@ function parseSingleFlatWorkbook(
       });
     }
 
-    // 2. 현장 추출
+    // 2. 현장 추출 (현장주소만 사용하고 고객 본사 주소로 덮어쓰지 않음)
     const siteName = String(row['현장명'] || row['현장'] || '기본현장').trim();
-    let smId = siteMap[siteName];
-    if (!smId) {
-      smId = makeDeterministicId('sm', siteName);
-      siteMap[siteName] = smId;
-      siteMasters.push({
+    const cleanFlatSiteAddr = sanitizeSiteAddressInput(row['현장주소'] || row['현장소재지']);
+    let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanFlatSiteAddr);
+    if (!existingSm) {
+      const normKey = normalizeSiteNameKey(siteName) || siteName;
+      const smId = makeDeterministicId('sm', normKey);
+      existingSm = {
         id: smId,
         name: siteName,
-        address: String(row['현장주소'] || row['주소'] || '').trim() || null,
+        address: cleanFlatSiteAddr || '',
         isActive: true,
         tenant_id: tenantId,
         createdAt: now,
         updatedAt: now
+      };
+      siteMasters.push(existingSm);
+    } else if (isMissingSiteAddress(existingSm.address) && cleanFlatSiteAddr) {
+      existingSm.address = cleanFlatSiteAddr;
+      customerSites.forEach(cs => {
+        if (cs.siteMasterId === existingSm!.id && isMissingSiteAddress(cs.address)) {
+          cs.address = cleanFlatSiteAddr;
+        }
       });
     }
+    siteMap[siteName] = existingSm.id;
 
-    const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
-    if (!customerSites.some(cs => cs.id === csId)) {
+    const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
+    if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
       customerSites.push({
         id: csId,
         customerId: custId,
         customerName: custName,
-        siteMasterId: smId,
-        name: siteName,
-        address: String(row['현장주소'] || '').trim() || null,
+        siteMasterId: existingSm.id,
+        name: existingSm.name || siteName,
+        address: existingSm.address || cleanFlatSiteAddr || '',
         isActive: true,
         tenant_id: tenantId,
         createdAt: now,

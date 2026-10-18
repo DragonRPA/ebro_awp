@@ -3,6 +3,7 @@ import { centralSupabase } from './centralDb';
 import * as XLSX from 'xlsx';
 import { PRESET_PRODUCT_SPECS, ProductPresetSpec } from '../data/presetProductSpecs';
 import { isModelMatch } from '../utils/modelUtils';
+import { isMissingSiteAddress, sanitizeSiteAddressInput, normalizeSiteNameKey, findMatchingSiteMaster } from '../utils/siteMatcher';
 
 // ──────────────────────────────────────────────
 // 타입 정의
@@ -1134,26 +1135,43 @@ export function parseInitialExcelWorkbook(
       customerMap.set(custName, custEntity);
     }
 
-    const rawSite = getCol(r, custHeaderMap, ['현장명', '현장'], 7) ? String(getCol(r, custHeaderMap, ['현장명', '현장'], 7)).trim() : '';
+    const rawSite = getCol(r, custHeaderMap, ['현장명', '기본현장명', '현장'], 7) ? String(getCol(r, custHeaderMap, ['현장명', '기본현장명', '현장'], 7)).trim() : '';
     if (rawSite && rawSite !== '-') {
       const { cleanSiteName } = extractSiteNameAndMemo(rawSite);
-      const normalizedName = cleanSiteName.replace(/\s+/g, '');
-      let siteMaster = siteMasterMap.get(normalizedName);
+      // 현장 주소만 추출 (고객사 본사 주소로 덮어쓰지 않고, 없으면 공란 '' 유지)
+      const rawSiteAddr = sanitizeSiteAddressInput(getCol(r, custHeaderMap, ['현장주소', '현장소재지', '공사현장주소'], 8));
+      const normalizedName = normalizeSiteNameKey(cleanSiteName) || cleanSiteName.replace(/\s+/g, '');
+
+      let { matched: siteMaster } = findMatchingSiteMaster(siteMasterMap.values(), cleanSiteName, rawSiteAddr);
       if (!siteMaster) {
         siteMaster = {
           id: `sitemaster-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           name: cleanSiteName,
-          address: getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8) ? String(getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8)).trim() : (custEntity.address || ''),
+          address: rawSiteAddr,
           isActive: true,
           createdAt: nowIso,
           updatedAt: nowIso
         };
         siteMasterMap.set(normalizedName, siteMaster);
+      } else {
+        // 기존 물리 현장에 주소가 비어있었고 현재 행에 유효한 현장 주소가 있다면 보완
+        if (isMissingSiteAddress(siteMaster.address) && rawSiteAddr) {
+          siteMaster.address = rawSiteAddr;
+          for (const existingCs of siteMap.values()) {
+            if (existingCs.siteMasterId === siteMaster.id && isMissingSiteAddress(existingCs.address)) {
+              existingCs.address = rawSiteAddr;
+            }
+          }
+        }
+        if (!siteMasterMap.has(normalizedName)) {
+          siteMasterMap.set(normalizedName, siteMaster);
+        }
       }
 
-      const siteKey = `${custEntity.id}_${cleanSiteName}`;
-      if (!siteMap.has(siteKey)) {
-        const siteContactName = getCol(r, custHeaderMap, ['현장담당자'], 9) ? String(getCol(r, custHeaderMap, ['현장담당자'], 9)).trim() : '';
+      const siteKey = `${custEntity.id}_${siteMaster.id}`;
+      const legacySiteKey = `${custEntity.id}_${cleanSiteName}`;
+      if (!siteMap.has(siteKey) && !siteMap.has(legacySiteKey)) {
+        const siteContactName = getCol(r, custHeaderMap, ['현장담당자', '담당자명'], 9) ? String(getCol(r, custHeaderMap, ['현장담당자', '담당자명'], 9)).trim() : '';
         const siteBillingContact = getCol(r, custHeaderMap, ['청구담당자', '마감담당자'], 10) ? String(getCol(r, custHeaderMap, ['청구담당자', '마감담당자'], 10)).trim() : '';
         const siteEmail = getCol(r, custHeaderMap, ['이메일', 'email'], 11) ? String(getCol(r, custHeaderMap, ['이메일', 'email'], 11)).trim() : '';
         
@@ -1180,15 +1198,17 @@ contact: siteBillingContact.includes('010') ? siteBillingContact : '',
           });
         }
 
-        siteMap.set(siteKey, {
+        const csEntity = {
           id: `SITE-${String(siteSeq++).padStart(7, '0')}`,
           siteMasterId: siteMaster.id,
           customerId: custEntity.id,
-          name: cleanSiteName,
-          address: getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8) ? String(getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8)).trim() : '',
+          name: siteMaster.name || cleanSiteName,
+          address: siteMaster.address || rawSiteAddr || '',
           createdAt: nowIso,
           updatedAt: nowIso
-        });
+        };
+        siteMap.set(siteKey, csEntity);
+        siteMap.set(legacySiteKey, csEntity);
       }
     }
 
@@ -1374,35 +1394,47 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       customerMap.set(custName, customer);
     }
 
-    const rawSite = getCol(r, mainHeaderMap, ['현장명'], 2) ? String(getCol(r, mainHeaderMap, ['현장명'], 2)).trim() : '';
+    const rawSite = getCol(r, mainHeaderMap, ['현장명', '기본현장명', '현장'], 2) ? String(getCol(r, mainHeaderMap, ['현장명', '기본현장명', '현장'], 2)).trim() : '';
     const { cleanSiteName, dispatchMemo } = extractSiteNameAndMemo(rawSite);
-    const normalizedName = cleanSiteName.replace(/\s+/g, '');
-    let siteMaster = siteMasterMap.get(normalizedName);
+    // 계약 시트에 현장주소 컬럼이 있는 경우만 추출하고, 없으면 고객 본사 주소를 넣지 않고 공란('') 유지
+    const rawContractSiteAddr = sanitizeSiteAddressInput(getCol(r, mainHeaderMap, ['현장주소', '현장소재지', '공사현장주소'], -1));
+    const normalizedName = normalizeSiteNameKey(cleanSiteName) || cleanSiteName.replace(/\s+/g, '');
+
+    let { matched: siteMaster } = findMatchingSiteMaster(siteMasterMap.values(), cleanSiteName, rawContractSiteAddr);
     if (!siteMaster) {
       siteMaster = {
         id: `sitemaster-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         name: cleanSiteName,
-        address: customer.address || '',
+        address: rawContractSiteAddr,
         isActive: true,
         createdAt: nowIso,
         updatedAt: nowIso
       };
       siteMasterMap.set(normalizedName, siteMaster);
+    } else if (isMissingSiteAddress(siteMaster.address) && rawContractSiteAddr) {
+      siteMaster.address = rawContractSiteAddr;
+      for (const existingCs of siteMap.values()) {
+        if (existingCs.siteMasterId === siteMaster.id && isMissingSiteAddress(existingCs.address)) {
+          existingCs.address = rawContractSiteAddr;
+        }
+      }
     }
 
-    const siteKey = `${customer.id}_${cleanSiteName}`;
-    let site = siteMap.get(siteKey);
+    const siteKey = `${customer.id}_${siteMaster.id}`;
+    const legacySiteKey = `${customer.id}_${cleanSiteName}`;
+    let site = siteMap.get(siteKey) || siteMap.get(legacySiteKey);
     if (!site) {
       site = {
         id: `SITE-${String(siteSeq++).padStart(7, '0')}`,
         siteMasterId: siteMaster.id,
         customerId: customer.id,
-        name: cleanSiteName,
-        address: customer.address || '',
+        name: siteMaster.name || cleanSiteName,
+        address: siteMaster.address || rawContractSiteAddr || '',
         createdAt: nowIso,
         updatedAt: nowIso
       };
       siteMap.set(siteKey, site);
+      siteMap.set(legacySiteKey, site);
     }
 
     const targetModel = sanitizeModelName(rawModel) || 'ES1330L';
@@ -2044,8 +2076,8 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   const parsedProducts = Array.from(productMap.values());
   const parsedVendors = Array.from(vendorMap.values());
   const parsedCustomers = Array.from(customerMap.values());
-  const parsedSites = Array.from(siteMap.values());
-  const parsedSiteMasters = Array.from(siteMasterMap.values());
+  const parsedSites = Array.from(new Map(Array.from(siteMap.values()).map((s: any) => [s.id, s])).values());
+  const parsedSiteMasters = Array.from(new Map(Array.from(siteMasterMap.values()).map((sm: any) => [sm.id, sm])).values());
   const parsedContacts = Array.from(contactMap.values());
 
   // ──────────────────────────────────────────────────────────────────
@@ -4076,15 +4108,16 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
         }
 
         if (existingSite) {
+          const cleanItemAddr = sanitizeSiteAddressInput(siteItem.siteAddress) || sanitizeSiteAddressInput(existingSite.address);
           let targetMaster = existingSite.siteMasterId
             ? db.siteMasters.find(m => m.id === existingSite.siteMasterId)
-            : db.siteMasters.find(m => m.name.replace(/\s+/g, '') === (existingSite.name || '').replace(/\s+/g, ''));
+            : findMatchingSiteMaster(db.siteMasters, existingSite.name || '', cleanItemAddr).matched;
 
           const nowIso = new Date().toISOString();
           if (!targetMaster) {
             targetMaster = db.insertRow<any>('siteMasters', {
               name: existingSite.name,
-              address: (siteItem.siteAddress && siteItem.siteAddress !== '미상') ? siteItem.siteAddress : (existingSite.address || ''),
+              address: cleanItemAddr,
               isActive: existingSite.isActive !== false,
               paidOptions: siteItem.paidOptions ? normalizeOptionList(siteItem.paidOptions) : (existingSite.paidOptions || ''),
               protection: siteItem.protection || existingSite.protection || '',
@@ -4107,8 +4140,8 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
             if (isEmptyVal(targetMaster.checkedSpecs) && siteItem.checkedSpecs) {
               masterUpdates.checkedSpecs = siteItem.checkedSpecs;
             }
-            if ((!targetMaster.address || targetMaster.address === '미상') && siteItem.siteAddress) {
-              masterUpdates.address = siteItem.siteAddress;
+            if (isMissingSiteAddress(targetMaster.address) && cleanItemAddr) {
+              masterUpdates.address = cleanItemAddr;
             }
             if (Object.keys(masterUpdates).length > 0) {
               masterUpdates.updatedAt = nowIso;

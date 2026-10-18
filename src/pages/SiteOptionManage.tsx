@@ -126,6 +126,11 @@ import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import {
+  isMissingSiteAddress,
+  sanitizeSiteAddressInput,
+  findMatchingSiteMaster
+} from '../utils/siteMatcher';
 
 export const SiteOptionManage: React.FC = () => {
   const { currentUser } = useApp();
@@ -143,7 +148,7 @@ export const SiteOptionManage: React.FC = () => {
 
   // 2. 검색 및 필터 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
-  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'COMPLETED' | 'READY_TO_CLOSE' | 'ALL'>('ACTIVE');
+  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'MISSING_ADDRESS' | 'COMPLETED' | 'READY_TO_CLOSE' | 'ALL'>('ACTIVE');
 
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
   const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
@@ -258,17 +263,23 @@ export const SiteOptionManage: React.FC = () => {
     });
   };
   const handleOpenEditMaster = (site: any) => {
-    setEditSiteMasterForm({ id: site.id, name: site.name || '', address: site.address || '' });
+    setEditSiteMasterForm({ id: site.id, name: site.name || '', address: isMissingSiteAddress(site.address) ? '' : (site.address || '') });
     setShowEditSiteMasterModal(true);
   };
   const handleSaveEditMaster = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editSiteMasterForm.name) {
+    const cleanName = (editSiteMasterForm.name || '').trim();
+    const cleanAddr = sanitizeSiteAddressInput(editSiteMasterForm.address);
+    if (!cleanName) {
       showErrorModal('현장명을 입력해주세요.');
       return;
     }
+    if (!cleanAddr) {
+      showErrorModal('현장 주소를 입력해주세요. (수동 등록/수정 시 현장 주소는 필수입니다)');
+      return;
+    }
     try {
-      await saveSiteMaster({ id: editSiteMasterForm.id, name: editSiteMasterForm.name.trim(), address: editSiteMasterForm.address.trim() });
+      await saveSiteMaster({ id: editSiteMasterForm.id, name: cleanName, address: cleanAddr });
       setShowEditSiteMasterModal(false);
       showToast('현장 마스터 정보가 수정되었습니다.');
     } catch (err: any) {
@@ -279,25 +290,31 @@ export const SiteOptionManage: React.FC = () => {
 
   const handleSaveQuickSite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickSiteForm.name) {
+    const rawName = (quickSiteForm.name || '').trim();
+    const rawAddr = sanitizeSiteAddressInput(quickSiteForm.address);
+    if (!rawName) {
       showErrorModal('현장명을 입력해주세요.');
       return;
     }
-    
-    const rawName = quickSiteForm.name;
-    const normalizedName = rawName.replace(/\s+/g, '');
-    const duplicate = (siteMasters || []).find((s: any) => 
-      (s.name || '').replace(/\s+/g, '') === normalizedName
-    );
+    if (!rawAddr) {
+      showErrorModal('현장 주소를 입력해주세요.\n신규 현장 등록 시 현장 주소는 공란으로 비워둘 수 없습니다.');
+      return;
+    }
+
+    const { matched: duplicate, matchReason } = findMatchingSiteMaster(siteMasters || [], rawName, rawAddr);
     if (duplicate) {
-      showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 금지됩니다. 기존에 등록된 현장을 검색하여 활용해 주세요.`);
+      showErrorModal(
+        matchReason === 'NAME'
+          ? `동일한 이름의 현장이 이미 등록되어 있습니다.\n\n• 입력 현장명: [${rawName}]\n• 기존 등록 현장: [${duplicate.name}] (${duplicate.address || '주소 미등록'})\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 제한됩니다. 기존 현장을 검색하여 활용해 주세요.`
+          : `동일한 상세 주소의 현장이 이미 등록되어 있습니다.\n\n• 입력 현장: [${rawName}] (${rawAddr})\n• 기존 등록 현장: [${duplicate.name}] (${duplicate.address})\n\n현장명 오타나 표기 차이로 인한 중복 현장 생성을 방지하기 위해 등록이 제한됩니다. 기존 현장을 검색하여 활용해 주세요.`
+      );
       return;
     }
 
     try {
       const newSite: Partial<SiteMaster> = {
-        name: quickSiteForm.name.trim(),
-        address: quickSiteForm.address.trim(),
+        name: rawName,
+        address: rawAddr,
         isActive: true
       };
       await saveSiteMaster(newSite);
@@ -480,6 +497,10 @@ export const SiteOptionManage: React.FC = () => {
     return stats;
   }, [siteMasters, sitesByMasterMap, contractsBySiteMap, customerMap]);
 
+  const missingAddressSiteCount = useMemo(() => {
+    return (siteMasters || []).filter((s: any) => isMissingSiteAddress(s.address)).length;
+  }, [siteMasters]);
+
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
     const kw = searchSiteKeyword.trim();
@@ -491,6 +512,7 @@ export const SiteOptionManage: React.FC = () => {
       const activeCustCount = stats?.activeCustomerCount || 0;
 
       if (siteStatusFilter === 'ACTIVE' && !sActive) return false;
+      if (siteStatusFilter === 'MISSING_ADDRESS' && !isMissingSiteAddress(s.address)) return false;
       if (siteStatusFilter === 'COMPLETED' && sActive) return false;
       if (siteStatusFilter === 'READY_TO_CLOSE') {
         if (!sActive || activeCustCount > 0) return false;
@@ -804,14 +826,14 @@ export const SiteOptionManage: React.FC = () => {
       style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
       
-      {/* 신규 현장 빠른 등록 모달 */}
+      {/* 현장 기본정보 수정 모달 */}
       {showEditSiteMasterModal && (
         <div className="modal-overlay" onClick={() => setShowEditSiteMasterModal(false)} style={{ zIndex: 10000 }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} />
-                현장 마스터 전역 수정 (개발자)
+                현장 기본정보(명칭/주소) 수정
               </h3>
               <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
@@ -827,8 +849,8 @@ export const SiteOptionManage: React.FC = () => {
                 <input required type="text" value={editSiteMasterForm.name} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, name: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>기본 현장 주소</label>
-                <input type="text" value={editSiteMasterForm.address} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, address: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장 주소 *</label>
+                <input required type="text" placeholder="예: 경기 평택시 고덕면 여염리 123" value={editSiteMasterForm.address} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, address: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
               </div>
               <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
@@ -840,13 +862,36 @@ export const SiteOptionManage: React.FC = () => {
       )}
       
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             현장별 옵션 관리
           </h2>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             총 <strong>{siteMasters?.length || 0}</strong>개소 (조회 <strong>{filteredSites.length}</strong>개소)
           </span>
+          {missingAddressSiteCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setSiteStatusFilter(siteStatusFilter === 'MISSING_ADDRESS' ? 'ALL' : 'MISSING_ADDRESS')}
+              style={{
+                fontSize: '11.5px',
+                fontWeight: 800,
+                padding: '3px 9px',
+                borderRadius: '6px',
+                border: '1px solid rgba(245, 158, 11, 0.5)',
+                backgroundColor: siteStatusFilter === 'MISSING_ADDRESS' ? '#d97706' : 'rgba(245, 158, 11, 0.14)',
+                color: siteStatusFilter === 'MISSING_ADDRESS' ? '#ffffff' : '#b45309',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title="클릭 시 주소 미등록 현장만 필터링합니다."
+            >
+              ⚠️ 주소 미등록 {missingAddressSiteCount}개소
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {isDeveloper && (
@@ -906,8 +951,9 @@ export const SiteOptionManage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장 주소 (선택)</label>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장 주소 *</label>
                 <input
+                  required
                   type="text"
                   placeholder="예: 서울시 영등포구 여의도동 22"
                   value={quickSiteForm.address}
@@ -993,6 +1039,7 @@ export const SiteOptionManage: React.FC = () => {
               }}
             >
               <option value="ACTIVE">진행중 현장</option>
+              <option value="MISSING_ADDRESS">⚠️ 주소 미등록 현장 ({missingAddressSiteCount})</option>
               <option value="READY_TO_CLOSE">완공 대상 (사용 고객 0개사)</option>
               <option value="COMPLETED">완공/종료 현장</option>
               <option value="ALL">전체 현장</option>
@@ -1224,17 +1271,33 @@ export const SiteOptionManage: React.FC = () => {
                       {/* 옵션 뱃지 행 */}
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                         {site.isActive === false && (
-                          <span className="badge badge-secondary" style={{ fontSize: '10.5px' }}>
+                          <span className="badge badge-secondary" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                             완공(종료)
                           </span>
                         )}
 
-                        <span className={`badge ${paidCount > 0 ? 'badge-primary' : 'badge-secondary'}`} style={{ fontSize: '10.5px' }}>
+                        {isMissingSiteAddress(site.address) && (
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                              color: '#b45309',
+                              border: '1px solid rgba(245, 158, 11, 0.5)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            ⚠️ 주소 미등록
+                          </span>
+                        )}
+
+                        <span className={`badge ${paidCount > 0 ? 'badge-primary' : 'badge-secondary'}`} style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                           유상옵션 {paidCount}개
                         </span>
 
                         {hasProt && (
-                          <span className="badge badge-success" style={{ fontSize: '10.5px' }}>
+                          <span className="badge badge-success" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                             {site.protection}
                           </span>
                         )}
@@ -1334,7 +1397,43 @@ export const SiteOptionManage: React.FC = () => {
                           </div>
 
                           <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {activeSite.address || '주소 미등록'}</span>
+                            {isMissingSiteAddress(activeSite.address) ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    color: '#b45309',
+                                    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                                    border: '1px solid rgba(245, 158, 11, 0.5)',
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ⚠️ 주소 미등록
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditMaster(activeSite)}
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    color: '#ffffff',
+                                    backgroundColor: '#d97706',
+                                    border: 'none',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  주소 입력
+                                </button>
+                              </span>
+                            ) : (
+                              <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {activeSite.address}</span>
+                            )}
                             {activeStats.totalLinkedCustomerCount > 0 && (
                               <span style={{ color: 'var(--text-secondary)' }}>
                                 • 등록 고객: {activeStats.linkedCustomerNames.join(', ')} ({activeStats.totalLinkedCustomerCount}개사)
