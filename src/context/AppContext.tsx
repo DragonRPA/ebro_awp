@@ -1934,22 +1934,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCustomRole = async (roleId: string) => {
     try {
-      const list = db.customRoles.filter(r => r.id !== roleId);
-      db.customRoles = list;
-      setCustomRoles([...list]);
+      // 1. 해당 역할의 세부 메뉴 권한(role_permissions) DB 및 로컬 삭제
+      const targetPerms = db.rolePermissions.filter(p => p.roleId === roleId);
+      for (const perm of targetPerms) {
+        db.deleteRow('rolePermissions', perm.id);
+      }
 
-      // 해당 역할의 세부 메뉴 권한 삭제
-      const remainingPerms = db.rolePermissions.filter(p => p.roleId !== roleId);
-      db.rolePermissions = remainingPerms;
-      setRolePermissions([...remainingPerms]);
+      // 2. 해당 역할을 상속받은 사용자들의 customRoleId 해제
+      const affectedUsers = db.users.filter(u => u.customRoleId === roleId);
+      for (const u of affectedUsers) {
+        db.updateRow('users', u.id, { ...u, customRoleId: undefined } as any);
+      }
 
-      // 해당 역할을 상속받은 사용자들의 customRoleId 해제
-      const updatedUsers = db.users.map(u => u.customRoleId === roleId ? { ...u, customRoleId: undefined } : u);
-      db.users = updatedUsers;
-      setUsers([...updatedUsers]);
-
-      await db.deleteRow('customRoles', roleId);
+      // 3. custom_roles 본체 DB 및 로컬 삭제 (db.customRoles 사전 필터링으로 인해 deleteRow가 스킵되지 않도록 정식 호출)
+      db.deleteRow('customRoles', roleId);
       await db.awaitPendingWrites();
+
+      setCustomRoles([...db.customRoles]);
+      setRolePermissions([...db.rolePermissions]);
+      setUsers([...db.users]);
       refreshAllData();
     } catch (err: any) {
       console.error('deleteCustomRole error:', err);

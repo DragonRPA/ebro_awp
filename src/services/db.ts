@@ -7249,8 +7249,9 @@ class LocalDB {
     const originalItem = list.find(item => item && item.id === id);
     
     const filtered = list.filter(item => item && item.id !== id);
-    if (filtered.length === list.length) return false;
-    this.set(tableKey, filtered);
+    if (filtered.length !== list.length) {
+      this.set(tableKey, filtered);
+    }
 
     const tableName = this.mapToSupabaseTable(tableKey as string);
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
