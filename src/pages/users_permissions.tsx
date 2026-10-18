@@ -246,7 +246,7 @@ export const UsersPermissions: React.FC = () => {
       setSelectedRoleId(newId);
       showToast(`신규 권한 [${name}] 등록이 완료되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`권한 등록 실패: ${err?.message || err}`);
+      console.error('handleCreateRole error:', err);
     }
   };
 
@@ -270,7 +270,7 @@ export const UsersPermissions: React.FC = () => {
       }
       showToast(`[${role.name}] 권한이 삭제되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`권한 삭제 실패: ${err?.message || err}`);
+      console.error('handleDeleteRole error:', err);
     }
   };
 
@@ -391,7 +391,7 @@ export const UsersPermissions: React.FC = () => {
       const inheritedCount = roleUserCountMap[selectedRoleId] || 0;
       showToast(`[${selectedRole?.name || '권한'}] 설정 저장 완료 (상속 직원 ${inheritedCount}명 적용)`);
     } catch (err: any) {
-      showErrorModal(`권한 저장 실패: ${err?.message || err}`);
+      console.error('handleSaveRolePermissions error:', err);
     }
   };
 
@@ -411,7 +411,7 @@ export const UsersPermissions: React.FC = () => {
       const roleName = customRoles.find(r => r.id === roleId)?.name || '권한 미지정';
       showToast(`${targetUser.name} 님에게 [${roleName}] 권한이 상속 배정되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`권한 상속 배정 실패: ${err?.message || err}`);
+      console.error('handleAssignUserRole error:', err);
     }
   };
 

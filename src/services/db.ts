@@ -1823,6 +1823,7 @@ export const VEHICLE_TYPE_OPTIONS: string[] = [
 export interface Delivery {
   id: string;
   contractId?: string;
+  siteMasterId?: string; // 🏛️ 헌장 1.5 Strict N:M 물리 현장 단일 진실 원천 ID
   assetIds?: string; // 대상 장비 ID 목록 (콤마 구분)
   type: 'OUTBOUND' | 'INBOUND' | 'EXCHANGE' | 'MOVEMENT' | 'RETURN'; // OUTBOUND: 출고, INBOUND: 회수, EXCHANGE: 단일 교환(왕복) 배차
   dispatchCategory?: '출고' | '입고' | '반납' | '정비' | '이동' | '교환'; // 배차 세부 유형
@@ -6532,6 +6533,12 @@ class LocalDB {
         let normalizedData = this.normalizePayloadKeys(data, tableName);
         if (key === 'customRoles' && (!normalizedData || normalizedData.length === 0)) {
           normalizedData = SEED_CUSTOM_ROLES;
+          targetClient.from('custom_roles').upsert(
+            SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
+            { onConflict: 'id' }
+          ).then(({ error }) => {
+            if (error) console.warn('Auto-seed custom_roles warning:', error.message);
+          });
         } else if (key === 'rolePermissions' && (!normalizedData || normalizedData.length === 0)) {
           normalizedData = SEED_ROLE_PERMISSIONS;
         }
@@ -6584,6 +6591,14 @@ class LocalDB {
         if (data !== null) {
           if (key === 'customRoles' && Array.isArray(data) && data.length === 0) {
             this.set(key as keyof LocalDB, SEED_CUSTOM_ROLES);
+            if (supabase) {
+              supabase.from('custom_roles').upsert(
+                SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
+                { onConflict: 'id' }
+              ).then(({ error }) => {
+                if (error) console.warn('Auto-seed custom_roles warning:', error.message);
+              });
+            }
           } else if (key === 'rolePermissions' && Array.isArray(data) && data.length === 0) {
             this.set(key as keyof LocalDB, SEED_ROLE_PERMISSIONS);
           } else {
@@ -7402,6 +7417,17 @@ class LocalDB {
               }
               console.warn(`[Supabase upsertRows graceful fallback] ${tableName} column mismatch:`, msg);
               return null;
+            }
+            if (error.code === '23503' && (tableName === 'role_permissions' || (tableName === 'users' && msg.includes('customRoleId')))) {
+              try {
+                const rolesToSync = (this.customRoles && this.customRoles.length > 0) ? [...this.customRoles] : [...SEED_CUSTOM_ROLES];
+                const sanitizedRoles = rolesToSync.map(r => this.sanitizeSupabasePayload(r, 'custom_roles'));
+                await targetClient.from('custom_roles').upsert(sanitizedRoles, { onConflict: 'id' });
+                const retry = await targetClient.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
+                if (!retry.error) return retry.data;
+              } catch (fkRetryErr) {
+                console.warn(`[${tableName} 23503 FK auto-recovery failed]:`, fkRetryErr);
+              }
             }
             throw new Error(`[Supabase DB 일괄 저장 실패] ${tableName}\n\n사유: ${msg}`);
           }

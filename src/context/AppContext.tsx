@@ -62,6 +62,7 @@ export interface SmartDispatchData {
   applyToAllSites?: boolean;
   closingDay?: string;
   paymentDay?: string;
+  siteMasterId?: string; // 🌟 물리 현장(SiteMaster) ID (헌장 1.5 Strict N:M)
   note: string;
   rawText?: string;
 }
@@ -1958,6 +1959,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveRolePermissions = async (roleId: string, perms: { menuId: string; canView: boolean; canSave: boolean }[]) => {
     try {
       const now = new Date().toISOString();
+
+      // 🛡️ [FK 무결성 보장] role_permissions 저장 전 부모 테이블(custom_roles)에 해당 roleId가 반드시 존재하도록 선행 동기화
+      const existingRoles = db.customRoles && db.customRoles.length > 0 ? [...db.customRoles] : [];
+      if (!existingRoles.some(r => r.id === roleId)) {
+        existingRoles.push({
+          id: roleId,
+          name: roleId,
+          isSystem: roleId.startsWith('role_'),
+          createdAt: now,
+          updatedAt: now
+        });
+        db.customRoles = existingRoles;
+        setCustomRoles([...existingRoles]);
+      }
+      await db.upsertRows('customRoles', existingRoles);
+      await db.awaitPendingWrites();
+
       const otherPerms = db.rolePermissions.filter(p => p.roleId !== roleId);
       const newPerms: RolePermission[] = perms.map(p => ({
         id: `roleperm-${roleId}-${normalizeMenuId(p.menuId)}`,
@@ -2016,6 +2034,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const list = [...db.users];
       const idx = list.findIndex(u => u.id === userId);
       if (idx > -1) {
+        if (customRoleId && db.customRoles && db.customRoles.length > 0) {
+          await db.upsertRows('customRoles', db.customRoles);
+          await db.awaitPendingWrites();
+        }
         const updatedUser = { 
           ...list[idx], 
           customRoleId: customRoleId || undefined, 
@@ -2315,46 +2337,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
-    // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
+    // 1. SiteMaster (독립 현장 마스터) 참조 검증 (헌장 1.5 strict N:M - SiteMaster는 현장별옵션관리에서 선행 등록되어야 함)
     let masterId = site.siteMasterId;
-    const masterExists = masterId ? db.siteMasters.some(m => m.id === masterId) : false;
+    let existingMaster = masterId ? db.siteMasters.find(m => m.id === masterId) : null;
 
-    if (!masterExists) {
-      const rawName = site.name.trim();
+    if (!existingMaster) {
+      const rawName = (site.name || '').trim();
       const normalizedName = rawName.replace(/\s+/g, '');
-      
-      let existingMaster = db.siteMasters.find(m => m.name.replace(/\s+/g, '') === normalizedName);
-      
+      existingMaster = db.siteMasters.find(m => m.name && m.name.replace(/\s+/g, '') === normalizedName) || null;
       if (existingMaster) {
         masterId = existingMaster.id;
-        let shouldUpdateMaster = false;
-        let updatedMaster = { ...existingMaster };
-        
-        if (site.address && site.address !== existingMaster.address) {
-          updatedMaster.address = site.address;
-          shouldUpdateMaster = true;
-        }
-        if (shouldUpdateMaster) {
-          updatedMaster.updatedAt = new Date().toISOString();
-          db.updateRow('siteMasters', masterId, updatedMaster);
-        }
-      } else {
-        // 신규 마스터 생성
-        const newMaster = db.insertRow<SiteMaster>('siteMasters', {
-          name: rawName,
-          address: site.address || '',
-          paidOptions: site.paidOptions,
-          protection: site.protection,
-          checkedSpecs: site.checkedSpecs,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        });
-        masterId = newMaster.id;
       }
     }
 
-    // 🚀 [Critical Fix] SiteMaster가 원격 DB에 먼저 저장되어야만 CustomerSite 삽입 시 FK 제약조건을 통과함
-    await db.awaitPendingWrites();
+    if (!existingMaster) {
+      throw new Error(`물리 현장(SiteMaster)이 등록되어 있지 않습니다. [현장별 옵션관리] 메뉴의 [신규 현장 등록]에서 먼저 현장을 등록한 후 고객사에 연결해 주십시오. (현장명: ${site.name})`);
+    }
 
     // 2. CustomerSiteLink (고객-현장 조인 테이블) 저장/업데이트
     const linkPayload = {
@@ -2850,28 +2848,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalCustomer = customer;
 
-    // 현장(Site) 처리: 기존 현장 업데이트 또는 신규 현장 등록
+    // 현장(Site) 처리: 기존 현장 매핑 또는 등록된 SiteMaster 기반 고객현장 연결
     let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
     if (!site) {
-      await notify(`📍 [2/5 신규 현장] 신규 현장 '${data.siteName}' 자동 등록 중...`, 40);
-      let master = db.siteMasters.find(m => m.name && data.siteName && m.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, ''));
+      await notify(`📍 [2/5 현장 매핑] 현장 '${data.siteName}' 물리 마스터 확인 중...`, 40);
+      let master = data.siteMasterId
+        ? db.siteMasters.find(m => m.id === data.siteMasterId)
+        : db.siteMasters.find(m => m.name && data.siteName && m.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, ''));
+      
       if (!master) {
-        master = db.insertRow<SiteMaster>('siteMasters', {
-          name: data.siteName,
-          address: data.siteAddress || '미상',
-          paidOptions: data.paidOptions || undefined,
-          protection: data.protection || undefined,
-          checkedSpecs: data.checkedSpecs || undefined,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+        throw new Error(`물리 현장(SiteMaster)이 등록되어 있지 않습니다. [현장별 옵션관리] 메뉴에서 신규 현장을 먼저 등록한 후 출고의뢰를 진행해 주십시오. (현장명: ${data.siteName})`);
       }
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
         siteMasterId: master.id,
         name: data.siteName,
-        address: data.siteAddress || '미상',
+        address: data.siteAddress || master.address || '미상',
         contactName: data.siteContactName || '미상',
         contact: data.siteContactPhone || '미상',
         email: data.siteContactEmail || '미상',
@@ -2883,6 +2875,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       // 기존 현장 정보가 '미상'이거나 변경된 경우 최신값으로 업데이트!
       const siteUpdates: Partial<CustomerSite> = {};
+      if (!site.siteMasterId) {
+        const currentSiteName = site.name;
+        const foundMaster = data.siteMasterId
+          ? db.siteMasters.find(m => m.id === data.siteMasterId)
+          : db.siteMasters.find(m => m.name && currentSiteName && m.name.replace(/\s/g, '') === currentSiteName.replace(/\s/g, ''));
+        if (foundMaster) {
+          siteUpdates.siteMasterId = foundMaster.id;
+        }
+      }
       if (data.siteAddress && data.siteAddress !== '미상' && data.siteAddress !== site.address) {
         siteUpdates.address = data.siteAddress;
       }
@@ -2916,18 +2917,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (Object.keys(masterUpdates).length > 0) {
             db.updateRow<SiteMaster>('siteMasters', master.id, { ...masterUpdates, updatedAt: new Date().toISOString() } as any);
           }
-        } else if (data.paidOptions || data.protection || (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
-          const newMaster = db.insertRow<SiteMaster>('siteMasters', {
-            name: currentSite.name,
-            address: currentSite.address || data.siteAddress || '',
-            paidOptions: data.paidOptions,
-            protection: data.protection,
-            checkedSpecs: data.checkedSpecs,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
-          siteUpdates.siteMasterId = newMaster.id;
+        } else if (master) {
+          // 마스터에 옵션 반영
         }
       }
       if (Object.keys(siteUpdates).length > 0) {
@@ -3166,8 +3157,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
     const defaultYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '당사 보관소';
 
+    const resolvedSiteMasterId = finalSite?.siteMasterId || data.siteMasterId || (
+      finalSite?.name ? db.siteMasters.find(m => m.name && m.name.replace(/\s/g, '') === finalSite.name.replace(/\s/g, ''))?.id : undefined
+    );
+
     const createdDelivery = db.insertRow<Delivery>('deliveries', {
       contractId: contract.id,
+      siteMasterId: resolvedSiteMasterId,
       type: isExchangeDelivery ? 'EXCHANGE' : 'OUTBOUND',
       dispatchCategory: isExchangeDelivery ? '교환' : '출고',
       status: 'REQUESTED',
