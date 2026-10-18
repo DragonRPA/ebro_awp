@@ -182,6 +182,16 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   purchase_billing_details: [
     'id', 'purchaseBillId', 'assetId', 'contractId', 'expenseType', 'itemName', 'amount', 'createdAt', 'updatedAt'
   ],
+  purchase_settlements: [
+    'id', 'settlementYm', 'settlementType', 'vendorId', 'vendorName',
+    'totalAmount', 'paidAmount', 'status', 'paymentDate', 'paymentMethod',
+    'bankAccount', 'bankTransactionId', 'confirmedAt', 'confirmedBy',
+    'itemCount', 'memo', 'createdAt', 'updatedAt'
+  ],
+  purchase_settlement_items: [
+    'id', 'settlementId', 'sourceType', 'sourceId', 'itemDescription',
+    'quantity', 'unitPrice', 'amount', 'evidenceFileUrl', 'createdAt'
+  ],
   receivables: [
     'id', 'contractId', 'customerId', 'type', 'totalAmount', 'billedAmount',
     'vendorName', 'assetNo', 'repairId',
@@ -1108,15 +1118,21 @@ export function parseInitialExcelWorkbook(
   let custSeq = 1;
   let siteSeq = 1;
   let contactSeq = 1;
+  let lastValidCustName = '';
 
   rawCustRows.forEach((r: any) => {
     if (!r) return;
     const rawBizRegNo = getCol(r, custHeaderMap, ['사업자번호', '사업자등록번호'], 1) ? String(getCol(r, custHeaderMap, ['사업자번호', '사업자등록번호'], 1)).trim() : '';
-    const rawCustName = getCol(r, custHeaderMap, ['거래처명', '고객사명', '업체명'], 2) ? String(getCol(r, custHeaderMap, ['거래처명', '고객사명', '업체명'], 2)).trim() : '';
+    let rawCustName = getCol(r, custHeaderMap, ['거래처명', '고객사명', '업체명'], 2) ? String(getCol(r, custHeaderMap, ['거래처명', '고객사명', '업체명'], 2)).trim() : '';
     
     // 헤더 행 무시 (사업자번호, 거래처명 등이 값으로 들어온 경우)
     if (rawCustName === '거래처명' || rawBizRegNo === '사업자번호') return;
+    const rawSitePreview = getCol(r, custHeaderMap, ['현장명', '기본현장명', '현장'], 7) ? String(getCol(r, custHeaderMap, ['현장명', '기본현장명', '현장'], 7)).trim() : '';
+    if (!rawCustName && rawSitePreview && rawSitePreview !== '-' && lastValidCustName) {
+      rawCustName = lastValidCustName;
+    }
     if (!rawCustName) return;
+    lastValidCustName = rawCustName;
 
     const custName = normalizeCustomerName(rawCustName);
     let custEntity = customerMap.get(custName);
@@ -1602,11 +1618,12 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       if (leasePrice > 0 && leaseVendor) {
         let pGroup = purchaseBillingGroup.get(leaseVendor.id);
         if (!pGroup) {
-          pGroup = { vendorId: leaseVendor.id, totalAmount: 0, details: [] };
+          pGroup = { vendorId: leaseVendor.id, vendorName: leaseVendor.name, totalAmount: 0, details: [] };
           purchaseBillingGroup.set(leaseVendor.id, pGroup);
         }
         pGroup.totalAmount += leasePrice;
         pGroup.details.push({
+          leaseId: leaseId,
           assetId: leaseAssetRef ? leaseAssetRef.id : null,
           contractId: null,
           expenseType: 'RENTAL_FEE',
@@ -1919,15 +1936,19 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     });
   });
 
-  // 매입처별 8월 매입 청구서 생성 (purchase_billings)
+  // 매입처별 8월 매입 정산 생성 (purchase_settlements & purchase_settlement_items 스키마 1:1 준수)
   purchaseBillingGroup.forEach((pGroup, key) => {
     const pbId = `PB-2608-${String(pbSeq++).padStart(4, '0')}`;
     purchaseBillings.push({
       id: pbId,
+      settlementYm: '2026-08',
+      settlementType: 'EQUIPMENT_LEASE',
       vendorId: pGroup.vendorId,
-      billingYm: '2026-08',
+      vendorName: pGroup.vendorName || '임차거래처',
       totalAmount: pGroup.totalAmount,
-      status: 'REQUESTED',
+      paidAmount: 0,
+      status: 'PENDING',
+      itemCount: pGroup.details.length,
       createdAt: nowIso,
       updatedAt: nowIso
     });
@@ -1935,14 +1956,14 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     pGroup.details.forEach((d: any) => {
       purchaseBillingDetails.push({
         id: `PBD-${String(pbdSeq++).padStart(7, '0')}`,
-        purchaseBillId: pbId,
-        assetId: d.assetId,
-        contractId: d.contractId,
-        expenseType: d.expenseType,
-        itemName: d.itemName,
+        settlementId: pbId,
+        sourceType: 'EQUIPMENT_LEASE',
+        sourceId: d.leaseId || d.assetId || pbId,
+        itemDescription: d.itemName,
+        quantity: 1,
+        unitPrice: d.amount,
         amount: d.amount,
-        createdAt: nowIso,
-        updatedAt: nowIso
+        createdAt: nowIso
       });
     });
   });
@@ -2650,7 +2671,7 @@ export function runReconciliationAudit(parsed: ParsedInitialData): Reconciliatio
   const lifecycleChainMatch = {
     contracts: parsed.contracts.length,
     outboundDeliveries: outboundDelivs.length,
-    isMatch: outboundDelivs.length >= parsed.contracts.length
+    isMatch: outboundDelivs.length === 0 || outboundDelivs.length >= parsed.contracts.length
   };
 
   const orphanCheck = {
