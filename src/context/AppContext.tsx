@@ -205,10 +205,11 @@ interface AppContextType {
   updatePermissions: (updated: MenuPermission[]) => void;
   saveUser: (user: Omit<User, 'id' | 'createdAt'> & { id?: string }) => void;
   saveCustomer: (cust: Omit<Customer, 'id' | 'createdAt'> & { id?: string }) => Promise<Customer>;
+  deleteCustomer: (id: string) => Promise<boolean>;
   saveContact: (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }) => Promise<CustomerContact>;
   deleteContact: (id: string) => Promise<void>;
   saveSite: (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => Promise<CustomerSite>;
-  deleteSite: (id: string) => Promise<void>;
+  deleteSite: (id: string) => Promise<boolean>;
   saveProduct: (prod: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => void;
   saveAsset: (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => void;
   updateGoogleConfig: (config: GoogleConfig) => Promise<void>;
@@ -2142,6 +2143,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return res;
   };
 
+  const deleteCustomer = async (id: string): Promise<boolean> => {
+    const targetCust = db.customers.find(c => c.id === id);
+    const custName = targetCust?.name || id;
+
+    // 1. 고객사에 속한 모든 현장(customer_sites) 및 연결된 물리 현장(siteMasterId) 식별
+    const custSites = db.sites.filter(s => s.customerId === id);
+    const custSiteIds = new Set(custSites.map(s => s.id));
+    for (const s of custSites) {
+      if (s.siteMasterId) custSiteIds.add(s.siteMasterId);
+    }
+
+    // 2. 고객사 직접 계약 또는 고객사 연결 현장에 체결된 계약 전수 검사
+    const custContracts = db.contracts.filter(c => c.customerId === id || (c.siteId && custSiteIds.has(c.siteId)));
+    const activeContracts = custContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED');
+
+    // 3. 계약이 연결되어 삭제 불가능한 고객 현장(N:M) 식별
+    const lockedSites = custSites.filter(s =>
+      db.contracts.some(c => c.siteId === s.id || (s.siteMasterId && c.siteId === s.siteMasterId)) ||
+      db.assets.some(a => a.currentSiteId === s.id || (s.siteMasterId && a.currentSiteId === s.siteMasterId))
+    );
+
+    // 4. 현재 고객사 또는 고객사 현장에 배정/투입된 장비 검사
+    const custAssets = db.assets.filter(a => a.currentCustomerId === id || (a.currentSiteId && custSiteIds.has(a.currentSiteId)));
+
+    // 5. 청구서 및 수납/미수금 이력 검사
+    const custBillings = db.billings.filter(b => b.customerId === id);
+    const custReceivables = (db.receivables || []).filter((r: any) => r.customerId === id);
+
+    // ⚠️ 계약, 보호 대상 현장, 투입 장비, 청구 이력 중 하나라도 존재하면 고객(N) 삭제 원천 차단 및 안내 모달 출력
+    if (custContracts.length > 0 || lockedSites.length > 0 || custAssets.length > 0 || custBillings.length > 0 || custReceivables.length > 0) {
+      const sampleContract = activeContracts[0] || custContracts[0];
+      const lockedSiteNames = lockedSites.slice(0, 3).map(s => {
+        const master = s.siteMasterId ? db.siteMasters.find(m => m.id === s.siteMasterId) : null;
+        return master?.name || s.name;
+      });
+
+      let detailLines = `⚠️ [${custName}] 고객사를 삭제할 수 없습니다.\n\n`;
+      detailLines += `■ 삭제 불가 사유 (연결 데이터 보호):\n`;
+      if (custContracts.length > 0) {
+        detailLines += `• 연결된 계약 이력: 총 ${custContracts.length}건 (유지/진행중 ${activeContracts.length}건 / 종료 ${custContracts.length - activeContracts.length}건)\n`;
+        if (sampleContract) {
+          detailLines += `  - 대표 계약번호: ${sampleContract.contractNo || sampleContract.id}\n`;
+        }
+      }
+      if (lockedSites.length > 0) {
+        detailLines += `• 계약/장비가 유지 중인 고객 현장(N:M): ${lockedSites.length}곳 (${lockedSiteNames.join(', ')}${lockedSites.length > 3 ? ' 외' : ''})\n`;
+      }
+      if (custAssets.length > 0) {
+        detailLines += `• 현재 배정/투입 중인 렌탈 장비: ${custAssets.length}대\n`;
+      }
+      if (custBillings.length > 0 || custReceivables.length > 0) {
+        detailLines += `• 청구 및 정산 원장 이력: 청구 ${custBillings.length}건 / 채권 ${custReceivables.length}건\n`;
+      }
+      detailLines += `\n■ 조치 안내:\n`;
+      detailLines += `• 유지 중인 계약이 있는 고객 현장(N:M)이 보호되는 상태에서 상위 고객사(N)를 삭제하면 현장 및 계약·청구 원장이 연쇄 유실되거나 고아 레코드가 발생하므로 삭제가 엄격히 제한됩니다.\n`;
+      detailLines += `• 거래가 종료된 고객사는 영구 삭제 대신 거래 상태(신규제한/거래중지) 변경 기능을 이용해 주십시오.`;
+
+      showErrorModal(detailLines, '고객사 삭제 불가 (유지 계약 및 현장 보호)');
+      return false;
+    }
+
+    // 6. 계약/청구 이력이 전혀 없는 순수 오등록 고객사인 경우 하위 빈 현장 및 담당자 정리 후 삭제
+    for (const s of custSites) {
+      db.deleteRow('sites', s.id);
+    }
+    const custContacts = db.contacts.filter(c => c.customerId === id);
+    for (const cc of custContacts) {
+      db.deleteRow('contacts', cc.id);
+    }
+
+    db.deleteRow('customers', id);
+    await db.awaitPendingWrites();
+    refreshAllData();
+    return true;
+  };
+
   const saveContact = async (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }): Promise<CustomerContact> => {
     let savedObj: CustomerContact;
     const existingContact = contact.id ? db.contacts.find(c => c.id === contact.id) : null;
@@ -2203,8 +2280,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await db.awaitPendingWrites(); refreshAllData(); };
 
   const deleteSiteMaster = async (id: string) => {
-    // 1. 연결된 고객 현장(CustomerSite) 조회 및 삭제
+    const targetMaster = db.siteMasters.find(m => m.id === id);
     const linkedSites = db.sites.filter(s => s.siteMasterId === id);
+    const allSiteIds = new Set([id, ...linkedSites.map(s => s.id)]);
+
+    // ✅ 고아 레코드 방지: 물리 현장 또는 연결된 고객 현장(N:M)에 계약이나 장비가 있으면 삭제 차단
+    const linkedContracts = db.contracts.filter(c => c.siteId && allSiteIds.has(c.siteId));
+    const linkedAssets = db.assets.filter(a => a.currentSiteId && allSiteIds.has(a.currentSiteId));
+    if (linkedContracts.length > 0 || linkedAssets.length > 0) {
+      const activeCnt = linkedContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
+      showErrorModal(
+        `⚠️ [${targetMaster?.name || id}] 현장을 삭제할 수 없습니다.\n\n` +
+        (linkedContracts.length > 0 ? `■ 연결된 계약: 총 ${linkedContracts.length}건 (유지중 ${activeCnt}건)\n` : '') +
+        (linkedAssets.length > 0 ? `■ 투입 중인 장비: ${linkedAssets.length}대\n` : '') +
+        `\n유지 중인 계약이나 계약 이력이 존재하는 현장은 삭제 대신 [현장 완공(종료) 처리]를 이용해 주십시오.`,
+        '현장 삭제 불가 (계약/장비 보호)'
+      );
+      return;
+    }
+
+    // 1. 연결된 고객 현장(CustomerSite) 조회 및 삭제
     for (const ls of linkedSites) {
       db.deleteRow('sites', ls.id);
     }
@@ -2300,30 +2395,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return resultSite;
   };
 
-  const deleteSite = async (id: string) => {
-    // ✅ 고아 레코드 방지: 연결된 계약 또는 투입 중인 장비가 있으면 삭제 차단
-    const linkedContracts = db.contracts.filter(c => c.siteId === id);
-    const linkedAssets = db.assets.filter(a => a.currentSiteId === id);
+  const deleteSite = async (id: string): Promise<boolean> => {
+    const targetSite = db.sites.find(s => s.id === id);
+    const checkIds = new Set([id]);
+    if (targetSite?.siteMasterId) checkIds.add(targetSite.siteMasterId);
+
+    // ✅ 고아 레코드 방지: 해당 고객의 해당 현장(customer_sites)과 연결된 계약 또는 투입 장비가 있으면 삭제 차단
+    const linkedContracts = db.contracts.filter(c =>
+      c.siteId === id ||
+      (targetSite && c.customerId === targetSite.customerId && c.siteId && checkIds.has(c.siteId))
+    );
+    const linkedAssets = db.assets.filter(a =>
+      a.currentSiteId === id ||
+      (targetSite && a.currentCustomerId === targetSite.customerId && a.currentSiteId && checkIds.has(a.currentSiteId))
+    );
     if (linkedContracts.length > 0 || linkedAssets.length > 0) {
+      const activeCnt = linkedContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
+      const siteDisplayName = (targetSite?.siteMasterId ? db.siteMasters.find(m => m.id === targetSite.siteMasterId)?.name : null) || targetSite?.name || id;
       showErrorModal(
-        `⚠️ 해당 현장을 삭제할 수 없습니다.\n\n` +
-        (linkedContracts.length > 0 ? `■ 연결된 계약: ${linkedContracts.length}건\n` : '') +
+        `⚠️ [${siteDisplayName}] 고객 현장을 삭제할 수 없습니다.\n\n` +
+        (linkedContracts.length > 0 ? `■ 연결된 계약: 총 ${linkedContracts.length}건 (유지중 ${activeCnt}건)\n` : '') +
         (linkedAssets.length > 0 ? `■ 투입 중인 장비: ${linkedAssets.length}대\n` : '') +
-        `\n계약 또는 장비에서 현장 연결을 먼저 해제하십시오.`,
-        '현장 삭제 불가'
+        `\n유지 중인 계약이나 장비가 배정된 고객 현장(N:M)은 삭제가 제한됩니다. 계약 또는 장비 연결을 먼저 해제하십시오.`,
+        '고객 현장 삭제 불가'
       );
-      return;
+      return false;
     }
     db.deleteRow('sites', id);
-    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
-      try {
-        await db.pendingWrites[db.pendingWrites.length - 1];
-      } catch (err) {
-        console.error("Supabase write await error:", err);
-        throw err;
-      }
-    }
+    await db.awaitPendingWrites();
     refreshAllData();
+    return true;
   };
 
   const saveProduct = async (prod: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => {
@@ -11341,7 +11442,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       customRoles, rolePermissions, saveCustomRole, deleteCustomRole, saveRolePermissions, assignUserRole,
       annualLeaveQuotas, leaveUsages, overtimeRecords, payrollClosings, prepaidTransactions, delinquencyActionLogs, legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
       corporateVehicles, vehicleOperationLogs, vehicleFuelLogs, registerCorporateVehicle, updateCorporateVehicle, deleteCorporateVehicle, registerVehicleOperationLog, updateVehicleOperationLog, deleteVehicleOperationLog, registerVehicleFuelLog, deleteVehicleFuelLog,
-      refreshAllData, fullRefreshFromServer, executeMonthlyDepreciation, loadTablesForMenu, updatePermissions, saveUser, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, saveProduct, saveAsset, updateGoogleConfig,
+      refreshAllData, fullRefreshFromServer, executeMonthlyDepreciation, loadTablesForMenu, updatePermissions, saveUser, saveCustomer, deleteCustomer, saveContact, deleteContact, saveSite, deleteSite, saveProduct, saveAsset, updateGoogleConfig,
       saveCashFlowSnapshot, deleteCashFlowSnapshot, saveVendor, deleteVendor, recalculateAllVendorMetrics, saveBankInitialBalance, saveInspectionChecklistItem, deleteInspectionChecklistItem,
       updateAnnualLeaveQuota, addLeaveUsage, deleteLeaveUsage, addOvertimeRecord, deleteOvertimeRecord, setPayrollClosingStatus,
       acquireAsset, batchAcquireAssets, disposeAsset, executeAssetSale, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable, changeAssetStatus, registerInboundAsset, cancelInboundAsset,

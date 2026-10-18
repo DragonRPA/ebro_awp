@@ -183,7 +183,7 @@ const CustomerListItem = React.memo<CustomerListItemProps>(({
 export const Customers: React.FC = () => {
   
   const {
-    users, customers, contacts, sites, siteMasters, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
+    users, customers, contacts, sites, siteMasters, contracts, contractAssets, assets, billings, receivables, saveCustomer, deleteCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
     standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal
   } = useApp();
@@ -811,6 +811,29 @@ export const Customers: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (custId: string, custName: string) => {
+    // 1. 사전 무결성 검사: 유지중인 계약이나 보호 대상 고객 현장(N:M)이 존재하면 입력 프롬프트 전에 즉시 차단 및 안내 모달 출력
+    const custSites = (sites || []).filter(s => s.customerId === custId);
+    const custSiteIds = new Set(custSites.map(s => s.id));
+    for (const s of custSites) {
+      if (s.siteMasterId) custSiteIds.add(s.siteMasterId);
+    }
+
+    const custContracts = (contracts || []).filter(c => c.customerId === custId || (c.siteId && custSiteIds.has(c.siteId)));
+    const lockedSites = custSites.filter(s =>
+      (contracts || []).some(c => c.siteId === s.id || (s.siteMasterId && c.siteId === s.siteMasterId)) ||
+      (assets || []).some((a: any) => a.currentSiteId === s.id || (s.siteMasterId && a.currentSiteId === s.siteMasterId))
+    );
+    const custAssets = (assets || []).filter((a: any) => a.currentCustomerId === custId || (a.currentSiteId && custSiteIds.has(a.currentSiteId)));
+    const custBillings = (billings || []).filter((b: any) => b.customerId === custId);
+    const custReceivables = (receivables || []).filter((r: any) => r.customerId === custId);
+
+    if (custContracts.length > 0 || lockedSites.length > 0 || custAssets.length > 0 || custBillings.length > 0 || custReceivables.length > 0) {
+      // deleteCustomer 내부의 표준 안내 모달 즉시 호출
+      await deleteCustomer(custId);
+      return;
+    }
+
+    // 2. 연결된 계약/청구/장비가 전혀 없는 경우에만 삭제 확인 프롬프트 진행
     const input = window.prompt(`고객사를 삭제하시려면 아래에 정확히 입력해주세요:\n"${custName} 삭제"`);
     if (input !== `${custName} 삭제`) {
       if (input !== null) {
@@ -820,22 +843,21 @@ export const Customers: React.FC = () => {
     }
 
     try {
-      db.deleteRow('customers', custId);
-      await db.awaitPendingWrites();
-      
+      const deleted = await deleteCustomer(custId);
+      if (!deleted) return;
+
       showToast(`고객사 [${custName}] 데이터가 삭제되었습니다.`);
       setShowCustModal(false);
-      
-      // if selected customer is deleted, clear it
+
       if (selectedCustomerId === custId) {
         setSelectedCustomerId(null);
       }
       await refreshAllData();
     } catch (err: any) {
       if (err?.code === '23503') {
-        showToast('이 고객사와 연결된 하위 데이터(현장, 계약 등)가 존재하여 삭제할 수 없습니다.', 'error');
+        showErrorModal('이 고객사와 연결된 하위 데이터(현장, 계약, 청구 등)가 존재하여 삭제할 수 없습니다.', '고객사 삭제 불가');
       } else {
-        showToast(`삭제 실패: ${err?.message || err}`, 'error');
+        showErrorModal(`고객사 삭제 실패: ${err?.message || err}`, '고객사 삭제 오류');
       }
     }
   };
@@ -1156,21 +1178,36 @@ export const Customers: React.FC = () => {
   };
 
   const handleDeleteSite = async (siteId: string, siteName: string) => {
-    const linkedContracts = (contracts || []).filter(c => c.siteId === siteId);
-    let confirmMsg = `정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`;
-    if (linkedContracts.length > 0) {
-      confirmMsg = `해당 현장에 연결된 계약 ${linkedContracts.length}건이 존재합니다.\n정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`;
+    const targetSite = (sites || []).find(s => s.id === siteId);
+    const checkIds = new Set([siteId]);
+    if (targetSite?.siteMasterId) checkIds.add(targetSite.siteMasterId);
+
+    const linkedContracts = (contracts || []).filter(c =>
+      c.siteId === siteId ||
+      (targetSite && c.customerId === targetSite.customerId && c.siteId && checkIds.has(c.siteId))
+    );
+    const linkedAssets = (assets || []).filter((a: any) =>
+      a.currentSiteId === siteId ||
+      (targetSite && a.currentCustomerId === targetSite.customerId && a.currentSiteId && checkIds.has(a.currentSiteId))
+    );
+
+    // 연결된 계약이나 장비가 있으면 확인창 없이 즉시 차단 안내 모달 표시
+    if (linkedContracts.length > 0 || linkedAssets.length > 0) {
+      await deleteSite(siteId);
+      return;
     }
-    if (!window.confirm(confirmMsg)) return;
+
+    if (!window.confirm(`정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`)) return;
 
     try {
-      await deleteSite(siteId);
+      const deleted = await deleteSite(siteId);
+      if (!deleted) return;
       showToast(`현장 [${siteName}] 정보가 삭제되었습니다.`);
       setShowSiteModal(false);
       setEditingSite(null);
       await refreshAllData();
     } catch (err: any) {
-      showToast(`현장 삭제 실패: ${err?.message || err}`, 'error');
+      showErrorModal(`현장 삭제 실패: ${err?.message || err}`, '현장 삭제 오류');
     }
   };
 
