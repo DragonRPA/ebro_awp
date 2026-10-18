@@ -6747,10 +6747,56 @@ class LocalDB {
       if (resolvedTable === 'repairs' && (key === 'siteAddress')) {
         continue;
       }
-      if (resolvedTable === 'purchase_settlement_items' && key === 'updatedAt') {
+      const TABLES_WITHOUT_UPDATED_AT = new Set([
+        'payment_deposit_links', 'purchase_settlement_items', 'settlement_payment_logs',
+        'prepaid_transactions', 'delinquency_action_logs', 'stocktaking_audit_items', 'collected_parts',
+        'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
+        'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
+        'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+      ]);
+      const TABLES_WITHOUT_CREATED_AT = new Set([
+        'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
+        'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
+        'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+      ]);
+      if (key === 'updatedAt' && TABLES_WITHOUT_UPDATED_AT.has(resolvedTable || '')) {
+        continue;
+      }
+      if (key === 'createdAt' && TABLES_WITHOUT_CREATED_AT.has(resolvedTable || '')) {
         continue;
       }
       if (resolvedTable === 'assets' && key === 'antiEntrapmentOwnership') {
+        continue;
+      }
+      if (resolvedTable === 'customers') {
+        if (key === 'billingDay') {
+          if (obj.defaultBillingDay === undefined) sanitized['defaultBillingDay'] = val;
+          continue;
+        }
+        if (key === 'payment_term_days') {
+          if (obj.paymentTermDays === undefined) sanitized['paymentTermDays'] = val;
+          continue;
+        }
+      }
+      if (resolvedTable === 'customer_contacts' && key === 'contactType') {
+        continue;
+      }
+      if (resolvedTable === 'inspection_checklist_items') {
+        if (key === 'maintenanceScore') {
+          if (obj.score === undefined) sanitized['score'] = val;
+          continue;
+        }
+        if (key === 'manHours') {
+          if (obj.standardManHours === undefined) sanitized['standardManHours'] = val;
+          continue;
+        }
+        if (key === 'recommendedConsumables') {
+          if (obj.recommendedConsumableIds === undefined) sanitized['recommendedConsumableIds'] = val;
+          continue;
+        }
+      }
+      if (resolvedTable === 'external_leases' && key === 'contract_id') {
+        if (obj.contractId === undefined) sanitized['contractId'] = val;
         continue;
       }
       if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
@@ -6766,19 +6812,25 @@ class LocalDB {
         continue;
       }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
-      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(resolvedTable || '')) {
+      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs', 'repairs', 'consumables', 'stocktaking_audit_items', 'collected_parts'].includes(resolvedTable || '')) {
         continue;
       }
       // supplier 컬럼이 존재하지 않는 테이블로의 supplier 누출 원천 방지
-      if (key === 'supplier' && !['assets', 'vendors'].includes(resolvedTable || '')) {
+      if (key === 'supplier' && !['assets', 'vendors', 'consumables'].includes(resolvedTable || '')) {
         continue;
       }
-      // departments 테이블 전용 허용 컬럼 방어벽
-      if (resolvedTable === 'departments' && !['id', 'name', 'parentDepartmentId', 'managerId', 'functionalTags', 'functional_tags', 'tenantId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
-        continue;
+      // departments 테이블 전용 허용 컬럼 방어벽 (functionalTags -> functional_tags 자동 변환)
+      if (resolvedTable === 'departments') {
+        if (key === 'functionalTags') {
+          sanitized['functional_tags'] = val;
+          continue;
+        }
+        if (!['id', 'name', 'parentDepartmentId', 'managerId', 'functional_tags', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
+          continue;
+        }
       }
-      // users 테이블 전용 허용 컬럼 방어벽 (DB users 테이블에 존재하지 않는 department 컬럼 누출 차단)
-      if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'createdAt', 'updatedAt'].includes(key)) {
+      // users 테이블 전용 허용 컬럼 방어벽 (유령 스키마 paidOptions, protection, checkedSpecs 원천 차단)
+      if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'department', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
 
@@ -6928,14 +6980,32 @@ class LocalDB {
     }
 
     // 🕒 [타임스탬프 NOT NULL 보장]: PostgreSQL 테이블(products, customers, customer_sites, deliveries 등)의 createdAt/updatedAt 필수 보존
+    const NO_CREATED_AT = new Set([
+      'tenants', 'system_settings',
+      'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
+      'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
+      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+    ]);
+    const NO_UPDATED_AT = new Set([
+      'tenants', 'system_settings',
+      'payment_deposit_links', 'purchase_settlement_items', 'settlement_payment_logs',
+      'prepaid_transactions', 'delinquency_action_logs', 'stocktaking_audit_items', 'collected_parts',
+      'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps', 'delegation_records',
+      'approval_tier_configs', 'user_work_status', 'manual_annotations', 'apk_releases', 'system_manuals',
+      'call_uploads', 'call_pipeline_logs', 'draft_dispatch_orders'
+    ]);
     const nowIso = new Date().toISOString();
-    if (!sanitized.createdAt && obj.createdAt) {
-      sanitized.createdAt = obj.createdAt;
-    } else if (!sanitized.createdAt && resolvedTable !== 'tenants' && resolvedTable !== 'system_settings') {
-      sanitized.createdAt = nowIso;
+    if (!NO_CREATED_AT.has(resolvedTable || '')) {
+      if (!sanitized.createdAt && obj.createdAt) {
+        sanitized.createdAt = obj.createdAt;
+      } else if (!sanitized.createdAt) {
+        sanitized.createdAt = nowIso;
+      }
     }
-    if (!sanitized.updatedAt && resolvedTable !== 'tenants' && resolvedTable !== 'system_settings' && resolvedTable !== 'purchase_settlement_items') {
-      sanitized.updatedAt = obj.updatedAt || nowIso;
+    if (!NO_UPDATED_AT.has(resolvedTable || '')) {
+      if (!sanitized.updatedAt) {
+        sanitized.updatedAt = obj.updatedAt || nowIso;
+      }
     }
 
     return sanitized;

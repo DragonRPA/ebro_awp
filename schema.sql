@@ -88,11 +88,10 @@ CREATE TABLE departments (
     name                  TEXT NOT NULL UNIQUE,
     "parentDepartmentId"  TEXT REFERENCES departments(id) ON DELETE SET NULL,
     "managerId"           TEXT, -- 부서장 users.id
+    "functional_tags"     JSONB DEFAULT '[]'::jsonb,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift',
-    "domainUrls"          TEXT,
-    "defaultPaymentMethod" TEXT
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-2. 사용자 및 임직원 마스터 (users)
@@ -110,10 +109,8 @@ CREATE TABLE users (
     department            TEXT, -- 부서명 (레거시/표시용)
     "baseSalary"          DOUBLE PRECISION NOT NULL DEFAULT 0, -- 기본급 (급여 정산 권한자 전용)
     phone                 TEXT,
+    email                 TEXT,
     address               TEXT,
-  "paidOptions"         TEXT,
-  "protection"          TEXT,
-  "checkedSpecs"        JSONB,
     "birthDate"           TEXT,
     "joinDate"            TEXT,
     "retireDate"          TEXT,
@@ -643,7 +640,6 @@ CREATE TABLE external_leases (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    contract_id           TEXT,
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
@@ -808,11 +804,14 @@ CREATE TABLE inspection_checklist_items (
     category              TEXT NOT NULL,
     score                 INTEGER NOT NULL DEFAULT 5,
     "standardManHours"    DOUBLE PRECISION DEFAULT 0.5,
+    "isDefectSymptom"     BOOLEAN DEFAULT FALSE,
     "recommendedConsumableIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "relatedManualIds"    TEXT[] DEFAULT ARRAY[]::TEXT[],
     "actionGuide"         TEXT,
     description           TEXT,
     "createdAt"           TEXT NOT NULL,
-    "updatedAt"           TEXT
+    "updatedAt"           TEXT,
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_inspection_checklist_items_code ON inspection_checklist_items(code);
@@ -1993,72 +1992,93 @@ ALTER TABLE approval_tier_configs ENABLE ROW LEVEL SECURITY;
 
 
 -- ------------------------------------------------------------------------------
+-- ------------------------------------------------------------------------------
 -- 📊 월간 결산 손익계산서 엔티티 (monthly_income_statements)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS monthly_income_statements (
     id TEXT PRIMARY KEY,
     "targetYm" TEXT,
-    target_ym TEXT,
     status TEXT,
     "issuedAt" TEXT,
-    issued_at TEXT,
     "issuedBy" TEXT,
-    issued_by TEXT,
     "issuedByName" TEXT,
-    issued_by_name TEXT,
     "rentalRevenue" NUMERIC DEFAULT 0,
-    rental_revenue NUMERIC DEFAULT 0,
     "distributionRevenue" NUMERIC DEFAULT 0,
-    distribution_revenue NUMERIC DEFAULT 0,
     "otherRevenue" JSONB,
-    other_revenue JSONB,
     "totalRevenue" NUMERIC DEFAULT 0,
-    total_revenue NUMERIC DEFAULT 0,
     "rentalCost" JSONB,
-    rental_cost JSONB,
     "pureRentalProfit" NUMERIC DEFAULT 0,
-    pure_rental_profit NUMERIC DEFAULT 0,
     "rentalMarginRate" NUMERIC DEFAULT 0,
-    rental_margin_rate NUMERIC DEFAULT 0,
     "distributionCost" NUMERIC DEFAULT 0,
-    distribution_cost NUMERIC DEFAULT 0,
     "pureDistributionProfit" NUMERIC DEFAULT 0,
-    pure_distribution_profit NUMERIC DEFAULT 0,
     "distributionMarginRate" NUMERIC DEFAULT 0,
-    distribution_margin_rate NUMERIC DEFAULT 0,
     "otherCost" JSONB,
-    other_cost JSONB,
     "otherNetProfit" NUMERIC DEFAULT 0,
-    other_net_profit NUMERIC DEFAULT 0,
     "totalCostOfSales" NUMERIC DEFAULT 0,
-    total_cost_of_sales NUMERIC DEFAULT 0,
     "grossProfit" NUMERIC DEFAULT 0,
-    gross_profit NUMERIC DEFAULT 0,
     "grossMarginRate" NUMERIC DEFAULT 0,
-    gross_margin_rate NUMERIC DEFAULT 0,
     "sgaExpenses" JSONB,
-    sga_expenses JSONB,
     "operatingProfit" NUMERIC DEFAULT 0,
-    operating_profit NUMERIC DEFAULT 0,
     "operatingMarginRate" NUMERIC DEFAULT 0,
-    operating_margin_rate NUMERIC DEFAULT 0,
     "estimatedTax" NUMERIC DEFAULT 0,
-    estimated_tax NUMERIC DEFAULT 0,
     "projectedNetProfit" NUMERIC DEFAULT 0,
-    projected_net_profit NUMERIC DEFAULT 0,
     "netMarginRate" NUMERIC DEFAULT 0,
-    net_margin_rate NUMERIC DEFAULT 0,
     "settlementClosingStatus" JSONB,
-    settlement_closing_status JSONB,
+    memo TEXT,
     "createdAt" TEXT,
-    created_at TEXT,
     "updatedAt" TEXT,
-    updated_at TEXT,
     tenant_id TEXT DEFAULT 'giyeonlift'
 );
 
 ALTER TABLE monthly_income_statements DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON monthly_income_statements TO anon, authenticated, service_role;
+
+-- 임직원 출퇴근 상태 (user_work_status)
+CREATE TABLE IF NOT EXISTS user_work_status (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL UNIQUE,
+    is_working BOOLEAN NOT NULL DEFAULT FALSE,
+    work_started_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::TEXT
+);
+
+-- 매뉴얼 화면 주석 (manual_annotations)
+CREATE TABLE IF NOT EXISTS manual_annotations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id TEXT NOT NULL DEFAULT 'default',
+    page_id TEXT NOT NULL,
+    page_title TEXT,
+    version INT DEFAULT 1,
+    annotations JSONB DEFAULT '{}'::jsonb,
+    solution_type TEXT DEFAULT 'ALL',
+    updated_by TEXT,
+    updated_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP::TEXT
+);
+
+-- 모바일 앱 배포 원장 (apk_releases)
+CREATE TABLE IF NOT EXISTS apk_releases (
+    id TEXT PRIMARY KEY,
+    version TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    file_size BIGINT,
+    release_note TEXT,
+    is_latest BOOLEAN DEFAULT TRUE,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP::TEXT
+);
+
+-- 메뉴별 매뉴얼 매핑 (system_manuals)
+CREATE TABLE IF NOT EXISTS system_manuals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id TEXT NOT NULL DEFAULT 'giyeonlift',
+    menu_id TEXT NOT NULL,
+    solution_type TEXT DEFAULT 'ALL',
+    manual_url TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP::TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP::TEXT
+);
 
 -- 소모품 로트 재고 (consumable_lots)
 CREATE TABLE IF NOT EXISTS consumable_lots (

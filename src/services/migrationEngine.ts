@@ -75,163 +75,144 @@ export interface ParsedInitialData {
 // ──────────────────────────────────────────────
 export const TABLE_COLUMNS: Record<string, string[]> = {
   site_masters: [
-    'id', 'name', 'address', 'paidOptions', 'protection', 'checkedSpecs', 'isActive', 'createdAt', 'updatedAt'
+    'id', 'name', 'address', 'isActive', 'createdAt', 'updatedAt', 'tenant_id', 'paidOptions', 'protection', 'checkedSpecs'
   ],
   products: [
-    'id', 'modelName', 'feet', 'spec', 'manufacturer', 'powerSource',
-    'workingHeight', 'platformHeight', 'weight', 'capacityPreExt',
-    'capacityPostExtMain', 'capacityPostExtDeck', 'machineDimensions',
-    'platformDimensions', 'gradeability', 'speed', 'asContact',
-    'maxWindSpeed', 'maxHeightCapacity', 'safetyCertDate', 'safetyCertUrl',
-    'specSheetUrl', 'emergencyGuideUrl', 'isActive', 'createdAt', 'updatedAt'
+    'id', 'modelName', 'feet', 'spec', 'manufacturer', 'safetyCertUrl', 'specSheetUrl', 'emergencyGuideUrl', 'isActive', 'createdAt', 'updatedAt',
+    'powerSource', 'workingHeight', 'platformHeight', 'weight', 'capacityPreExt', 'machineDimensions', 'platformDimensions', 'gradeability', 'speed',
+    'asContact', 'capacityPostExtMain', 'capacityPostExtDeck', 'maxWindSpeed', 'maxHeightCapacity', 'safetyCertDate', 'tenant_id', 'shortName'
   ],
   vendors: [
-    'id', 'name', 'type', 'types', 'bizRegNo', 'representative', 'contactName', 'contact', 'email', 'address',
-    'bankAccount', 'memo', 'isActive', 'createdAt', 'updatedAt'
+    'id', 'name', 'type', 'bizRegNo', 'contactName', 'contact', 'bankAccount', 'memo', 'createdAt', 'updatedAt', 'types', 'representative',
+    'email', 'address', 'isActive', 'bankName', 'accountNumber', 'accountHolder', 'passbookFileUrl', 'passbookFileName', 'businessCertFileUrl',
+    'firstTradeDate', 'lastTradeDate', 'totalPurchaseAmount', 'taxType', 'businessStatus', 'closedDate', 'lastStatusCheckDate', 'tenant_id'
   ],
   customers: [
-    'id', 'name', 'bizRegNo', 'representative', 'repContact', 'repEmail',
-    'address', 'defaultBillingDay', 'defaultStatementClosingDay', 'billingDay', 'paymentDueDay', 'paymentTermDays', 'payment_term_days',
-    'bankAccounts', 'driveFolderId', 'prepaidBalance', 'isClosed', 'createdAt', 'updatedAt'
+    'id', 'name', 'bizRegNo', 'isClosed', 'address', 'representative', 'repContact', 'repEmail', 'driveFolderId', 'prepaidBalance',
+    'createdAt', 'updatedAt', 'defaultBillingDay', 'defaultStatementClosingDay', 'bankAccounts', 'paymentDueDay', 'paymentTermDays',
+    'defaultPaidOptions', 'defaultProtection', 'defaultCheckedSpecs', 'specialNotes', 'transactionStatus', 'bizType', 'bizItem',
+    'openingDate', 'taxOffice', 'headOfficeAddress', 'businessCertFileUrl', 'passbookFileUrl', 'passbookFileName', 'taxType', 'taxTypeCd',
+    'businessStatus', 'closedDate', 'lastStatusCheckDate', 'tenant_id', 'paymentDueMonthOffset'
   ],
   customer_sites: [
-    'id', 'siteMasterId', 'customerId', 'name', 'address', 'isActive', 'createdAt', 'updatedAt'
+    'id', 'customerId', 'name', 'address', 'contactName', 'contact', 'email', 'createdAt', 'updatedAt', 'paidOptions', 'protection',
+    'checkedSpecs', 'tenant_id', 'isActive', 'billingDay', 'statementClosingDay', 'paymentDueDay', 'paymentDueMonthOffset', 'contacts', 'siteMasterId'
   ],
   customer_contacts: [
-    'id', 'siteMasterId', 'customerId', 'name', 'contactType', 'position', 'contact', 'email', 'isPrimary', 'isActive', 'memo', 'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'customerId', 'name', 'position', 'contact', 'email', 'createdAt', 'updatedAt', 'isPrimary', 'tenant_id', 'isActive', 'memo', 'siteMasterId'
   ],
   assets: [
-    'id', 'modelName', 'assetNo', 'vendorAssetNo', 'serialNo', 'manufacturer', 'manufactureYear',
-    'ownerType', 'status', 'acquisitionDate', 'acquisitionPrice', 'depreciationMonths',
-    'residualValueRate', 'accumDepreciation', 'bookValue', 'vendorId', 'supplier',
-    'rentStart', 'rentEnd', 'monthlyRentFee', 'dailyRentFee', 'actualRentReturnDate',
-    'currentCustomerId', 'currentSiteId', 'contractStart', 'contractEnd',
-    'cumRentalFee', 'cumRepairCost', 'note', 'memo', 'createdAt', 'updatedAt'
+    'id', 'assetNo', 'vendorAssetNo', 'serialNo', 'modelName', 'manufacturer', 'manufactureYear', 'ownerType', 'vendorId', 'supplier',
+    'rentStart', 'rentEnd', 'actualRentReturnDate', 'monthlyRentFee', 'dailyRentFee', 'currentCustomerId', 'currentSiteId', 'contractStart', 'contractEnd',
+    'acquisitionDate', 'acquisitionPrice', 'depreciationMonths', 'residualValueRate', 'accumDepreciation', 'bookValue', 'cumRentalFee', 'cumRepairCost',
+    'status', 'memo', 'note', 'createdAt', 'updatedAt', 'tenant_id', 'maintenanceScore', 'billingDay', 'monthlyRentalFee', 'dailyRentalFee',
+    'renter', 'disposalDate', 'disposalPrice', 'buyer', 'memo1', 'memo2', 'safetyInspectionUrl', 'preDeliveryChecklistUrl', 'fullDefectSummary'
   ],
   contracts: [
-    'id', 'contractNo', 'customerId', 'salespersonId', 'contactId', 'siteId',
-    'billingDay', 'paymentDueDay', 'lateInterestRate', 'status', 'startDate', 'endDate',
-    'successorContractId', 'predecessorContractId', 'predecessorContractNo',
-    'predecessorCustomerId', 'predecessorCustomerName', 'lastBillingDate',
-    'lastBilledPeriodStart', 'lastBilledPeriodEnd', 'lastBilledYm', 'billingCount',
-    'driveFolderId', 'createdAt', 'updatedAt'
+    'id', 'contractNo', 'customerId', 'salespersonId', 'contactId', 'siteId', 'billingDay', 'status', 'driveFolderId', 'startDate', 'endDate',
+    'createdAt', 'updatedAt', 'successorContractId', 'predecessorContractId', 'predecessorContractNo', 'predecessorCustomerId', 'predecessorCustomerName',
+    'lateInterestRate', 'paymentDueDay', 'lastBillingDate', 'lastBilledPeriodStart', 'lastBilledPeriodEnd', 'lastBilledYm', 'billingCount',
+    'tenant_id', 'contractType', 'statementClosingDay', 'customerName', 'salespersonName', 'saleTerms', 'paymentDueMonthOffset'
   ],
   contract_history: [
-    'id', 'contractId', 'changeType', 'prevEndDate', 'newEndDate', 'description', 'changeDate', 'createdAt', 'updatedAt'
+    'id', 'contractId', 'changeType', 'changeDate', 'description', 'createdAt', 'updatedAt', 'prevEndDate', 'newEndDate', 'tenant_id'
   ],
   contract_assets: [
-    'id', 'contractId', 'assetId', 'expectedModel', 'monthlyRentalFee',
-    'dailyRentalFee', 'startDate', 'endDate', 'firstStartDate', 'status', 'actualReturnDate',
-    'createdAt', 'updatedAt'
+    'id', 'contractId', 'assetId', 'expectedModel', 'monthlyRentalFee', 'dailyRentalFee', 'startDate', 'endDate', 'createdAt', 'updatedAt',
+    'status', 'actualReturnDate', 'tenant_id', 'salePrice', 'contractStart', 'contractEnd', 'currentCustomerId', 'currentSiteId',
+    'firstStartDate', 'predecessorContractId', 'predecessorContractAssetId', 'inRegisteredAt'
   ],
   external_leases: [
-    'id', 'vendorId', 'contractId', 'contractAssetId', 'assetDescription',
-    'monthlyRentFee', 'dailyRentFee', 'leaseStartDate', 'leaseEndDate', 'status',
-    'statementFileUrl', 'memo', 'contract_id', 'createdAt', 'updatedAt'
+    'id', 'vendorId', 'contractId', 'contractAssetId', 'assetDescription', 'monthlyRentFee', 'dailyRentFee',
+    'leaseStartDate', 'leaseEndDate', 'status', 'statementFileUrl', 'memo', 'createdAt', 'updatedAt', 'tenant_id'
   ],
   deliveries: [
-    'id', 'contractId', 'assetIds', 'transportVendorId', 'type', 'status',
-    'vehicleType', 'driverName', 'driverContact', 'deliveryCost', 'purchaseBillId',
-    'memo', 'requestDate', 'loadingTime', 'unloadingTime', 'createdAt', 'updatedAt',
-    'isCostSettled', 'scheduledDate', 'originAddress', 'destinationAddress',
-    'transportCompany', 'vehicleNo', 'expectedCost', 'deliveryCostConfirmed',
-    'finalCost', 'reconciliationStatus', 'dispatchCategory', 'loadingDate', 'loadingTimeSlot',
-    'unloadingDate', 'unloadingTimeSlot', 'closingMemo', 'rawText',
-    'pickupType', 'pickupVendorName', 'dropoffType', 'viaDropoffName', 'viaDropoffAddress'
+    'id', 'contractId', 'assetIds', 'type', 'dispatchCategory', 'transportVendorId', 'transportCompany', 'driverName', 'driverContact',
+    'vehicleNo', 'vehicleType', 'assignedVehicles', 'pickupType', 'pickupVendorName', 'originAddress', 'loadingDate', 'loadingTimeSlot',
+    'loadingTime', 'dropoffType', 'viaDropoffName', 'viaDropoffAddress', 'destinationAddress', 'unloadingDate', 'unloadingTimeSlot',
+    'unloadingTime', 'expectedCost', 'deliveryCost', 'finalCost', 'deliveryCostConfirmed', 'purchaseBillId', 'isCostSettled', 'status',
+    'requestDate', 'rawText', 'memo', 'closingMemo', 'createdAt', 'updatedAt', 'reconciliationStatus', 'confirmedCost', 'scheduledDate',
+    'paymentRequestedAt', 'paymentCompletedAt', 'reconciledAt', 'statementFileUrl', 'billableToCustomer', 'tenant_id', 'costAdjustmentReason',
+    'billableCustomerId', 'billableAmount', 'billingId', 'isWaived', 'waivedAmount', 'waivedBy', 'waivedReason', 'waivedAt',
+    'vehicleRequirements', 'cargoItems', 'vehicles', 'siteId', 'siteMasterId', 'customerId', 'paidBy', 'orderNo', 'purpose'
   ],
   outbound_inspections: [
-    'id', 'contractId', 'assetId', 'status', 'inspectorId', 'createdAt', 'updatedAt'
+    'id', 'contractId', 'contractAssetId', 'assetId', 'status', 'specsJson', 'inspectorId', 'inspectedAt', 'note',
+    'createdAt', 'updatedAt', 'tenant_id', 'deliveryId', 'approvedAt', 'rejectReason', 'repairId'
   ],
   repairs: [
-    'id', 'ticketNo', 'workCategory', 'workLocation', 'stockSource', 'source',
-    'repairType', 'maintenanceType', 'priority', 'assetId', 'assetNo', 'modelName',
-    'contractId', 'targetContractStatus', 'customerId', 'customerName', 'siteId',
-    'siteName', 'locationDetail', 'reporterName', 'reporterContact', 'issueCategory',
-    'issueDescription', 'details', 'errorCode', 'mechanicId', 'assignedMechanicId',
-    'mechanicName', 'vendorId', 'preferredNavApp', 'requestDate', 'scheduleDate',
-    'visitDate', 'repairDate', 'completedDate', 'outboundDate', 'status',
-    'resolutionType', 'unresolvedReason', 'nextAction', 'actionTaken', 'partsUsed',
-    'collectedParts', 'timelineLogs', 'billableType', 'billableAmount', 'billableToCustomer',
-    'totalCost', 'costTotal', 'billingAmount', 'laborHours', 'isCustomerFault',
-    'faultImageUrl', 'evidenceImages', 'beforeImage', 'afterImage', 'estimateFileUrl',
-    'customerSignature', 'customerConfirmName', 'parentRepairId', 'parentTicketId',
-    'revisitRepairId', 'revisitTicketId', 'revisitDate', 'revisitReason',
-    'exchangeSuggested', 'inboundNo', 'defectsJson', 'billingId', 'purchaseBillId',
-    'memo', 'createdAt', 'updatedAt'
+    'id', 'ticketNo', 'workCategory', 'workLocation', 'stockSource', 'source', 'repairType', 'maintenanceType', 'priority',
+    'assetId', 'assetNo', 'modelName', 'contractId', 'targetContractStatus', 'customerId', 'customerName', 'siteId', 'siteName',
+    'locationDetail', 'reporterName', 'reporterContact', 'issueCategory', 'issueDescription', 'details', 'errorCode',
+    'mechanicId', 'assignedMechanicId', 'mechanicName', 'vendorId', 'preferredNavApp', 'requestDate', 'scheduleDate',
+    'visitDate', 'repairDate', 'completedDate', 'outboundDate', 'status', 'resolutionType', 'unresolvedReason', 'nextAction',
+    'actionTaken', 'partsUsed', 'collectedParts', 'timelineLogs', 'billableType', 'billableAmount', 'billableToCustomer',
+    'totalCost', 'costTotal', 'billingAmount', 'laborHours', 'isCustomerFault', 'faultImageUrl', 'evidenceImages',
+    'beforeImage', 'afterImage', 'estimateFileUrl', 'customerSignature', 'customerConfirmName', 'parentRepairId', 'parentTicketId',
+    'revisitRepairId', 'revisitTicketId', 'revisitDate', 'revisitReason', 'exchangeSuggested', 'inboundNo', 'defectsJson',
+    'billingId', 'purchaseBillId', 'memo', 'createdAt', 'updatedAt', 'inspectionItemId', 'inspectionItemCode', 'degradationScore',
+    'tenant_id', 'targetAssetStatus', 'siteAddress', 'consumables', 'timelineEvents', 'resolvedSiteAddress',
+    'isWaived', 'waivedAmount', 'waivedBy', 'waivedReason', 'waivedAt'
   ],
   asset_inout_logs: [
-    'id', 'assetId', 'assetNo', 'modelName', 'type', 'eventDate',
-    'customerId', 'customerName', 'siteId', 'siteName', 'deliveryId',
-    'repairId', 'inboundNo', 'maintenanceScore', 'defectsJson', 'memo',
-    'createdAt', 'updatedAt'
+    'id', 'assetId', 'assetNo', 'modelName', 'type', 'customerId', 'customerName', 'siteId', 'siteName', 'deliveryId', 'repairId',
+    'maintenanceScore', 'memo', 'eventDate', 'createdAt', 'updatedAt', 'inboundNo', 'defectsJson', 'tenant_id', 'note', 'date', 'inRegisteredAt'
   ],
   billings: [
-    'id', 'customerId', 'contractId', 'billingYm', 'invoiceId', 'totalAmount', 'paidAmount', 'status', 'billingDate', 'createdAt', 'updatedAt'
+    'id', 'customerId', 'billingYm', 'totalAmount', 'paidAmount', 'status', 'billingDate', 'createdAt', 'updatedAt',
+    'contractId', 'invoiceId', 'tenant_id', 'billingType', 'rejectReason', 'details', 'isPartial', 'approvalStatus',
+    'hasCustomStatement', 'customStatementReason', 'customStatementItems', 'customStatementOriginalSummary',
+    'customStatementCreatedBy', 'customStatementCreatedAt'
   ],
   billing_invoices: [
-    'id', 'customId', 'customerId', 'billingYm', 'siteId', 'totalAmount', 'vatAmount', 'grandTotal', 'status', 'dueDate', 'issuedAt', 'memo', 'createdAt', 'updatedAt'
+    'id', 'status', 'memo', 'customId', 'customerId', 'billingYm', 'siteId', 'totalAmount', 'vatAmount', 'grandTotal',
+    'dueDate', 'issuedAt', 'createdAt', 'updatedAt', 'tenant_id'
   ],
   billing_details: [
-    'id', 'billingId', 'contractAssetId', 'assetId', 'itemName', 'quantity',
-    'unitPrice', 'amount', 'description', 'internalDescription', 'displayName',
-    'createdAt', 'updatedAt'
-  ],
-  purchase_billings: [
-    'id', 'vendorId', 'billingYm', 'totalAmount', 'status', 'createdAt', 'updatedAt'
-  ],
-  purchase_billing_details: [
-    'id', 'purchaseBillId', 'assetId', 'contractId', 'expenseType', 'itemName', 'amount', 'createdAt', 'updatedAt'
+    'id', 'billingId', 'contractAssetId', 'assetId', 'itemName', 'quantity', 'unitPrice', 'amount', 'description',
+    'createdAt', 'updatedAt', 'receivableId', 'internalDescription', 'displayName', 'tenant_id'
   ],
   purchase_settlements: [
-    'id', 'settlementYm', 'settlementType', 'vendorId', 'vendorName',
-    'totalAmount', 'paidAmount', 'status', 'paymentDate', 'paymentMethod',
-    'bankAccount', 'bankTransactionId', 'confirmedAt', 'confirmedBy',
-    'itemCount', 'memo', 'createdAt', 'updatedAt'
+    'id', 'settlementYm', 'settlementType', 'vendorId', 'vendorName', 'totalAmount', 'paidAmount', 'status',
+    'paymentDate', 'paymentMethod', 'bankAccount', 'confirmedAt', 'confirmedBy', 'memo', 'createdAt', 'updatedAt',
+    'bankTransactionId', 'itemCount', 'tenant_id', 'taxInvoiceNo', 'taxInvoiceIssueDate', 'taxInvoiceSupplyAmount',
+    'taxInvoiceVatAmount', 'taxInvoiceTotalAmount', 'taxInvoiceMatchStatus', 'taxInvoiceMatchedAt',
+    'taxInvoiceRawSupplier', 'taxInvoiceBizNo'
   ],
   purchase_settlement_items: [
-    'id', 'settlementId', 'sourceType', 'sourceId', 'itemDescription',
-    'quantity', 'unitPrice', 'amount', 'evidenceFileUrl', 'createdAt'
+    'id', 'settlementId', 'sourceType', 'sourceId', 'itemDescription', 'quantity', 'unitPrice', 'amount',
+    'evidenceFileUrl', 'createdAt', 'tenant_id'
   ],
   receivables: [
-    'id', 'contractId', 'customerId', 'type', 'totalAmount', 'billedAmount',
-    'vendorName', 'assetNo', 'repairId',
-    'internalDescription', 'displayName', 'occurredDate', 'status', 'createdAt', 'updatedAt'
-  ],
-  reconciliation_reports: [
-    'id', 'migration_run_at',
-    'asset_count_excel', 'asset_count_db', 'asset_count_match',
-    'billing_total_excel', 'billing_total_db', 'billing_total_diff', 'billing_total_match',
-    'details_header_sum', 'details_detail_sum', 'details_sum_diff', 'details_sum_match',
-    'lease_total_excel', 'lease_total_db', 'lease_total_match',
-    'lifecycle_contracts', 'lifecycle_deliveries', 'lifecycle_match',
-    'orphan_contracts', 'orphan_assets', 'orphan_is_clean',
-    'all_passed', 'memo', 'created_at'
+    'id', 'contractId', 'customerId', 'vendorName', 'assetNo', 'type', 'occurredDate', 'internalDescription',
+    'displayName', 'totalAmount', 'billedAmount', 'status', 'repairId', 'createdAt', 'updatedAt', 'tenant_id'
   ],
   transport_companies: [
-    'id', 'name', 'businessNo', 'contact', 'bankName', 'bankAccount', 'bankHolder', 'memo', 'createdAt', 'updatedAt'
+    'id', 'name', 'businessNo', 'contact', 'memo', 'createdAt', 'updatedAt', 'bankName', 'bankAccount', 'bankHolder', 'tenant_id'
   ],
   inspection_checklist_items: [
-    'id', 'code', 'category', 'name', 'maintenanceScore', 'score',
-    'standardManHours', 'manHours', 'isDefectSymptom', 'actionGuide',
-    'description', 'relatedManualIds', 'recommendedConsumables',
-    'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'category', 'code', 'name', 'score', 'description', 'createdAt', 'updatedAt', 'actionGuide',
+    'standardManHours', 'recommendedConsumableIds', 'tenant_id', 'isDefectSymptom', 'relatedManualIds'
   ],
   departments: [
-    'id', 'name', 'parentDepartmentId', 'managerId', 'domainUrls', 'defaultPaymentMethod', 'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'name', 'parentDepartmentId', 'managerId', 'createdAt', 'updatedAt', 'tenant_id', 'functional_tags'
   ],
   users: [
-    'id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'managerId', 'role', 'status', 'department',
-    'baseSalary', 'phone', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'status', 'role',
+    'joinDate', 'retireDate', 'birthDate', 'address', 'phone', 'email', 'profileImageUrl', 'createdAt', 'updatedAt',
+    'baseSalary', 'department', 'tenant_id', 'customRoleId', 'duty'
   ],
   standard_options: [
-    'id', 'category', 'name', 'defaultPrice', 'unit', 'description', 'isActive', 'sortOrder', 'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'category', 'name', 'defaultPrice', 'unit', 'description', 'isActive', 'sortOrder', 'createdAt', 'updatedAt', 'tenant_id'
   ],
   consumables: [
-    'id', 'modelName', 'unit', 'unitPrice', 'stockQty', 'category', 'note', 'repairingQty', 'supplier', 'vendorId', 'tenant_id', 'createdAt', 'updatedAt'
+    'id', 'modelName', 'stockQty', 'unit', 'unitPrice', 'vendorId', 'createdAt', 'updatedAt', 'spec', 'safetyStock',
+    'tenant_id', 'supplier', 'category', 'note', 'repairingQty'
   ],
   consumable_purchases: [
     'id', 'consumableId', 'modelName', 'requestedQty', 'unitPrice', 'sellerName', 'status', 'requesterId', 'requesterName',
-    'accepterId', 'accepterName', 'inbounderName', 'receivedQty', 'statementFileUrl', 'requestDate', 'acceptedDate', 'completedDate', 'actualReturnDate', 'tenant_id', 'createdAt', 'updatedAt'
+    'accepterId', 'accepterName', 'inbounderName', 'receivedQty', 'statementFileUrl', 'requestDate', 'acceptedDate',
+    'completedDate', 'createdAt', 'updatedAt', 'actualReturnDate', 'completerName', 'settlementId', 'tenant_id'
   ],
   transport_drivers: [
     'id', 'companyId', 'driverName', 'driverContact', 'vehicleNo', 'vehicleType', 'vehicleColor', 'birthDate', 'idNo', 'address', 'tenant_id', 'createdAt', 'updatedAt'
@@ -2356,7 +2337,6 @@ export async function ingestExcelInitialData(
         'draft_dispatch_orders',
         'purchase_settlement_items',
         'purchase_settlements',
-        'reconciliation_reports',
         'asset_inout_logs',
         'outbound_inspections',
         'deliveries',
@@ -2554,47 +2534,11 @@ export async function ingestExcelInitialData(
       await batchUpsertChunked('receivables', parsed.receivables, 100);
     }
 
-    // Step 12: 대사 검증 및 결과 DB 저장 (C-03 fix)
-    onProgress?.(12, totalSteps, '12/13: 대사 검증(Reconciliation) 수행 및 DB 저장 중...');
+    // Step 12: 대사 검증 수행
+    onProgress?.(12, totalSteps, '12/13: 대사 검증(Reconciliation) 수행 중...');
     await db.awaitPendingWrites?.();
 
     const report = runReconciliationAudit(parsed);
-    const reportId = `REC-${Date.now()}`;
-    const reportRecord = {
-      id: reportId,
-      tenant_id: scopeId,
-      migration_run_at: new Date().toISOString(),
-      asset_count_excel:      report.assetCountMatch.excel,
-      asset_count_db:         report.assetCountMatch.db,
-      asset_count_match:      report.assetCountMatch.isMatch,
-      billing_total_excel:    report.currentBillingTotalMatch.excel,
-      billing_total_db:       report.currentBillingTotalMatch.db,
-      billing_total_diff:     report.currentBillingTotalMatch.diff,
-      billing_total_match:    report.currentBillingTotalMatch.isMatch,
-      details_header_sum:     report.currentDetailsTotalMatch.headerSum,
-      details_detail_sum:     report.currentDetailsTotalMatch.detailSum,
-      details_sum_diff:       report.currentDetailsTotalMatch.diff,
-      details_sum_match:      report.currentDetailsTotalMatch.isMatch,
-      lease_total_excel:      report.leaseTotalMatch.excel,
-      lease_total_db:         report.leaseTotalMatch.db,
-      lease_total_match:      report.leaseTotalMatch.isMatch,
-      lifecycle_contracts:    report.lifecycleChainMatch.contracts,
-      lifecycle_deliveries:   report.lifecycleChainMatch.outboundDeliveries,
-      lifecycle_match:        report.lifecycleChainMatch.isMatch,
-      orphan_contracts:       report.orphanCheck.orphanContracts,
-      orphan_assets:          report.orphanCheck.orphanAssets,
-      orphan_is_clean:        report.orphanCheck.isClean,
-      all_passed:             report.allPassed,
-      memo:                   report.allPassed ? '전 항목 통과' : '일부 항목 불일치 — 상세 확인 요망',
-      created_at:             new Date().toISOString()
-    };
-    try {
-      if ((db as any)['reconciliation_reports']) {
-        await batchUpsertChunked('reconciliation_reports', [reportRecord], 1);
-      }
-    } catch (e) {
-      // reconciliation_reports 테이블은 일회성 마이그레이션 리포트이므로 안전 격리
-    }
 
     // Step 13: Supabase → LocalStorage 동기화 (stale 캐시 차단)
     onProgress?.(13, totalSteps, '13/13: localStorage 동기화 완료 중...');
