@@ -109,10 +109,8 @@ export const UsersPermissions: React.FC = () => {
         map[norm] = { canView: Boolean(p.canView), canSave: Boolean(p.canSave) };
       });
 
-    // 기본 공통 메뉴는 상시 조회 허용
+    // 대시보드 기본 조회 허용
     map['dashboard'] = { canView: true, canSave: false };
-    map['leave_application'] = { canView: true, canSave: true };
-    map['vehicle_log'] = { canView: true, canSave: true };
 
     setWorkingRolePerms(map);
     setIsRoleDirty(false);
@@ -338,12 +336,6 @@ export const UsersPermissions: React.FC = () => {
     if (!canSave || !selectedRoleId) return;
     const norm = normalizeMenuId(menuId);
 
-    // 공통 연차신청은 필수
-    if (norm === 'leave_application') {
-      showToast('연차신청은 모든 임직원의 기본 공통 기능으로 항상 활성화됩니다.');
-      return;
-    }
-
     setWorkingRolePerms(prev => {
       const cur = prev[norm] || { canView: false, canSave: false };
       let nextView = cur.canView;
@@ -357,14 +349,7 @@ export const UsersPermissions: React.FC = () => {
         if (nextSave) nextView = true;  // 저장 켜면 조회도 자동 ON
       }
 
-      const updated = { ...prev, [norm]: { canView: nextView, canSave: nextSave } };
-
-      // 급여 정산(payroll) 토글 시 연차관리(leave_management) 자동 동기화
-      if (norm === 'payroll') {
-        updated['leave_management'] = { canView: nextView, canSave: nextSave };
-      }
-
-      return updated;
+      return { ...prev, [norm]: { canView: nextView, canSave: nextSave } };
     });
     setIsRoleDirty(true);
   };
@@ -385,10 +370,6 @@ export const UsersPermissions: React.FC = () => {
       const updated = { ...prev };
       grp.items.forEach(item => {
         const norm = normalizeMenuId(item.id);
-        if (norm === 'leave_application') {
-          updated[norm] = { canView: true, canSave: true };
-          return;
-        }
         const cur = prev[norm] || { canView: false, canSave: false };
         if (type === 'view') {
           const nextView = targetVal;
@@ -398,10 +379,6 @@ export const UsersPermissions: React.FC = () => {
           const nextSave = targetVal;
           const nextView = nextSave ? true : cur.canView;
           updated[norm] = { canView: nextView, canSave: nextSave };
-        }
-
-        if (norm === 'payroll') {
-          updated['leave_management'] = updated[norm];
         }
       });
       return updated;
@@ -418,10 +395,6 @@ export const UsersPermissions: React.FC = () => {
       const updated = { ...prev };
       allItems.forEach(item => {
         const norm = normalizeMenuId(item.id);
-        if (norm === 'leave_application') {
-          updated[norm] = { canView: true, canSave: true };
-          return;
-        }
         if (type === 'off') {
           updated[norm] = { canView: false, canSave: false };
         } else if (type === 'view') {
@@ -1187,7 +1160,6 @@ export const UsersPermissions: React.FC = () => {
                           {grp.items.map(item => {
                             const norm = normalizeMenuId(item.id);
                             const perm = workingRolePerms[norm] || { canView: false, canSave: false };
-                            const isLeaveApp = norm === 'leave_application';
 
                             return (
                               <tr
@@ -1199,18 +1171,15 @@ export const UsersPermissions: React.FC = () => {
                               >
                                 <td style={{ padding: '8px 18px 8px 36px', color: perm.canView ? 'var(--text-main, #0f172a)' : 'var(--text-muted, #94a3b8)', fontWeight: perm.canView ? 600 : 400 }}>
                                   {item.name}
-                                  {isLeaveApp && (
-                                    <span style={{ marginLeft: '6px', fontSize: '10.5px', color: '#10b981', fontWeight: 700 }}>(전원 기본)</span>
-                                  )}
                                 </td>
                                 <td style={{ padding: '8px 18px', width: '100px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: isLeaveApp ? 'not-allowed' : 'pointer' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                     <input
                                       type="checkbox"
                                       checked={perm.canView}
-                                      disabled={!canSave || isLeaveApp}
+                                      disabled={!canSave}
                                       onChange={() => handleRolePermToggle(item.id, 'view')}
-                                      style={{ cursor: isLeaveApp ? 'not-allowed' : 'pointer' }}
+                                      style={{ cursor: 'pointer' }}
                                     />
                                     <span style={{ color: perm.canView ? '#2563eb' : 'var(--text-muted, #94a3b8)', fontWeight: perm.canView ? 700 : 400 }}>
                                       조회
@@ -1218,13 +1187,13 @@ export const UsersPermissions: React.FC = () => {
                                   </label>
                                 </td>
                                 <td style={{ padding: '8px 18px', width: '100px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: isLeaveApp ? 'not-allowed' : 'pointer' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                     <input
                                       type="checkbox"
                                       checked={perm.canSave}
-                                      disabled={!canSave || isLeaveApp}
+                                      disabled={!canSave}
                                       onChange={() => handleRolePermToggle(item.id, 'save')}
-                                      style={{ cursor: isLeaveApp ? 'not-allowed' : 'pointer' }}
+                                      style={{ cursor: 'pointer' }}
                                     />
                                     <span style={{ color: perm.canSave ? '#16a34a' : 'var(--text-muted, #94a3b8)', fontWeight: perm.canSave ? 700 : 400 }}>
                                       저장/수정
@@ -1628,7 +1597,7 @@ export const UsersPermissions: React.FC = () => {
                   {visibleMenuCategories.map(grp => {
                     const permittedItems = grp.items.filter(item => {
                       const perm = rolePermissions.find(p => p.roleId === previewUser.customRoleId && normalizeMenuId(p.menuId) === normalizeMenuId(item.id));
-                      return perm?.canView || perm?.canSave || normalizeMenuId(item.id) === 'leave_application';
+                      return Boolean(perm?.canView || perm?.canSave);
                     });
 
                     if (permittedItems.length === 0) return null;
@@ -1642,8 +1611,8 @@ export const UsersPermissions: React.FC = () => {
                           <tbody>
                             {permittedItems.map(item => {
                               const perm = rolePermissions.find(p => p.roleId === previewUser.customRoleId && normalizeMenuId(p.menuId) === normalizeMenuId(item.id));
-                              const canView = perm?.canView || normalizeMenuId(item.id) === 'leave_application';
-                              const canSave = perm?.canSave || normalizeMenuId(item.id) === 'leave_application';
+                              const canView = Boolean(perm?.canView);
+                              const canSave = Boolean(perm?.canSave);
 
                               return (
                                 <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>

@@ -1769,29 +1769,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
     if (isSuperAdmin) return true;
 
-    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼, 전사 업무 매뉴얼 사전, 오류 신고, 대시보드 및 내 결재함은 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
-    if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'manual_dictionary' || normMenuId === 'dashboard' || normMenuId === 'error_report' || normMenuId === 'approvalInbox' || normMenuId === 'approval_inbox') {
+    // 2-1. 대시보드는 기본 진입 화면이므로 모든 임직원에게 조회 개방
+    if (normMenuId === 'dashboard') {
       return true;
     }
 
-    // 2-2. 연차관리 권한은 급여 권한자와 100% 동일하게 변경 (급여 권한 상속)
-    if (normMenuId === 'leave_management') {
-      return hasPermission('payroll', action);
-    }
-
-    // 2-3. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴 (admin.ebro.run 전용)
+    // 2-2. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴 (admin.ebro.run 전용)
     if (normMenuId === 'tenant_management') {
       return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
-    // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선)
+    // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선 - 매트릭스 설정과 100% 일치)
     if (currentUser.customRoleId) {
-      const rolePerm = rolePermissions.find(p => 
-        p.roleId === currentUser.customRoleId && 
-        normalizeMenuId(p.menuId) === normMenuId
-      );
-      if (rolePerm) {
-        return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
+      const userRolePerms = rolePermissions.filter(p => p.roleId === currentUser.customRoleId);
+      if (userRolePerms.length > 0) {
+        const rolePerm = userRolePerms.find(p => normalizeMenuId(p.menuId) === normMenuId);
+        if (rolePerm) {
+          return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
+        }
+        return false;
       }
     }
 
