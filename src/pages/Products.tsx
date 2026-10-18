@@ -1136,9 +1136,20 @@ export const Products: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} value={editForm.modelName || ''} onChange={ef('modelName')} /></div>
                     <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
-                    <div><label style={labelStyle}>피트 *</label><input type="number" style={inputStyle} value={editForm.feet ?? ''} onChange={ef('feet')} /></div>
+                    <div><label style={labelStyle}>피트 규격 *</label><input type="number" style={inputStyle} value={editForm.feet ?? ''} onChange={ef('feet')} /></div>
                     <div><label style={labelStyle}>제조사</label><input style={inputStyle} value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
                     <div><label style={labelStyle}>동력 방식</label><input style={inputStyle} value={editForm.powerSource || ''} onChange={ef('powerSource')} /></div>
+                    <div>
+                      <label style={labelStyle}>사용 상태</label>
+                      <select
+                        style={inputStyle}
+                        value={editForm.isActive !== false ? 'true' : 'false'}
+                        onChange={e => setEditForm(prev => ({ ...prev, isActive: e.target.value === 'true' }))}
+                      >
+                        <option value="true">사용</option>
+                        <option value="false">미사용</option>
+                      </select>
+                    </div>
                     <div><label style={labelStyle}>작업 높이</label><input style={inputStyle} value={editForm.workingHeight || ''} onChange={ef('workingHeight')} /></div>
                     <div><label style={labelStyle}>발판 높이</label><input style={inputStyle} value={editForm.platformHeight || ''} onChange={ef('platformHeight')} /></div>
                     <div><label style={labelStyle}>장비 중량</label><input style={inputStyle} value={editForm.weight || ''} onChange={ef('weight')} /></div>
@@ -1159,21 +1170,25 @@ export const Products: React.FC = () => {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
                     <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{selectedProduct.modelName}</strong></div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>축약 모델명:</span> {selectedProduct.shortName || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>피트 규격:</span> <strong>{selectedProduct.feet} ft</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {selectedProduct.manufacturer || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>동력 방식:</span> {selectedProduct.powerSource || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>사용 상태:</span> {selectedProduct.isActive !== false ? '사용' : '미사용'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>작업 높이:</span> {selectedProduct.workingHeight || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>발판 높이:</span> {selectedProduct.platformHeight || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>장비 중량:</span> {selectedProduct.weight || '-'}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>적재 중량:</span> {selectedProduct.capacityPreExt || '-'}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>확장 후 하중:</span> 본체 {selectedProduct.capacityPostExtMain || '-'} / 확장 {selectedProduct.capacityPostExtDeck || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>적재 중량 (확장 전):</span> {selectedProduct.capacityPreExt || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>확장 후 본체 하중:</span> {selectedProduct.capacityPostExtMain || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>확장 후 확장부 하중:</span> {selectedProduct.capacityPostExtDeck || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>장비 크기:</span> {selectedProduct.machineDimensions || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>플랫폼 크기:</span> {selectedProduct.platformDimensions || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>주행 속도:</span> {selectedProduct.speed || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>등판 능력:</span> {selectedProduct.gradeability || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>최대 풍속:</span> {selectedProduct.maxWindSpeed || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>A/S 접수처:</span> <strong>{selectedProduct.asContact || '031-334-5296'}</strong></div>
                     <div style={{ gridColumn: 'span 2' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>A/S 접수처:</span> <strong>{selectedProduct.asContact || '031-334-5296'}</strong>
+                      <span style={{ color: 'var(--text-secondary)' }}>기타 제원 메모:</span> {selectedProduct.spec || '-'}
                     </div>
                   </div>
                 )}
@@ -1209,35 +1224,36 @@ export const Products: React.FC = () => {
               <button type="button" onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
-                <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} placeholder="예: SJ3219" value={editForm.modelName || ''} onChange={ef('modelName')} required /></div>
-                <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
-                <div><label style={labelStyle}>피트 *</label><input type="number" style={inputStyle} placeholder="예: 19" value={editForm.feet ?? ''} onChange={ef('feet')} required /></div>
-                <div><label style={labelStyle}>제조사</label><input style={inputStyle} placeholder="예: Skyjack" value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div><label style={labelStyle}>동력 방식</label><input style={inputStyle} placeholder="예: 배터리" value={editForm.powerSource || ''} onChange={ef('powerSource')} /></div>
-                <div><label style={labelStyle}>A/S 접수처</label><input style={inputStyle} value={editForm.asContact || '031-334-5296'} onChange={ef('asContact')} /></div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div><label style={labelStyle}>작업 높이</label><input style={inputStyle} placeholder="예: 7.79 M" value={editForm.workingHeight || ''} onChange={ef('workingHeight')} /></div>
-                <div><label style={labelStyle}>발판 높이</label><input style={inputStyle} placeholder="예: 5.79 M" value={editForm.platformHeight || ''} onChange={ef('platformHeight')} /></div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div><label style={labelStyle}>장비 중량</label><input style={inputStyle} placeholder="예: 1,312 kg" value={editForm.weight || ''} onChange={ef('weight')} /></div>
-                <div><label style={labelStyle}>적재 중량</label><input style={inputStyle} placeholder="예: 227 kg" value={editForm.capacityPreExt || ''} onChange={ef('capacityPreExt')} /></div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div><label style={labelStyle}>장비 크기</label><input style={inputStyle} placeholder="예: 1.78 x 0.81 x 2.11 M" value={editForm.machineDimensions || ''} onChange={ef('machineDimensions')} /></div>
-                <div><label style={labelStyle}>주행 속도</label><input style={inputStyle} placeholder="예: 3.2 km/h" value={editForm.speed || ''} onChange={ef('speed')} /></div>
-              </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+              <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} placeholder="예: SJ3219" value={editForm.modelName || ''} onChange={ef('modelName')} required /></div>
+              <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
+              <div><label style={labelStyle}>피트 규격 *</label><input type="number" style={inputStyle} placeholder="예: 19" value={editForm.feet ?? ''} onChange={ef('feet')} required /></div>
+              <div><label style={labelStyle}>제조사</label><input style={inputStyle} placeholder="예: Skyjack" value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
+              <div><label style={labelStyle}>동력 방식</label><input style={inputStyle} placeholder="예: 배터리" value={editForm.powerSource || ''} onChange={ef('powerSource')} /></div>
               <div>
+                <label style={labelStyle}>사용 상태</label>
+                <select
+                  style={inputStyle}
+                  value={editForm.isActive !== false ? 'true' : 'false'}
+                  onChange={e => setEditForm(prev => ({ ...prev, isActive: e.target.value === 'true' }))}
+                >
+                  <option value="true">사용</option>
+                  <option value="false">미사용</option>
+                </select>
+              </div>
+              <div><label style={labelStyle}>작업 높이</label><input style={inputStyle} placeholder="예: 7.79 M" value={editForm.workingHeight || ''} onChange={ef('workingHeight')} /></div>
+              <div><label style={labelStyle}>발판 높이</label><input style={inputStyle} placeholder="예: 5.79 M" value={editForm.platformHeight || ''} onChange={ef('platformHeight')} /></div>
+              <div><label style={labelStyle}>장비 중량</label><input style={inputStyle} placeholder="예: 1,312 kg" value={editForm.weight || ''} onChange={ef('weight')} /></div>
+              <div><label style={labelStyle}>적재 중량 (확장 전)</label><input style={inputStyle} placeholder="예: 227 kg" value={editForm.capacityPreExt || ''} onChange={ef('capacityPreExt')} /></div>
+              <div><label style={labelStyle}>확장 후 본체 하중</label><input style={inputStyle} placeholder="예: 159 kg" value={editForm.capacityPostExtMain || ''} onChange={ef('capacityPostExtMain')} /></div>
+              <div><label style={labelStyle}>확장 후 확장부 하중</label><input style={inputStyle} placeholder="예: 113 kg" value={editForm.capacityPostExtDeck || ''} onChange={ef('capacityPostExtDeck')} /></div>
+              <div><label style={labelStyle}>장비 크기</label><input style={inputStyle} placeholder="예: 1.78 x 0.81 x 2.11 M" value={editForm.machineDimensions || ''} onChange={ef('machineDimensions')} /></div>
+              <div><label style={labelStyle}>플랫폼 크기</label><input style={inputStyle} placeholder="예: 1.63 x 0.66 M" value={editForm.platformDimensions || ''} onChange={ef('platformDimensions')} /></div>
+              <div><label style={labelStyle}>주행 속도</label><input style={inputStyle} placeholder="예: 3.2 km/h" value={editForm.speed || ''} onChange={ef('speed')} /></div>
+              <div><label style={labelStyle}>등판 능력</label><input style={inputStyle} placeholder="예: 25%" value={editForm.gradeability || ''} onChange={ef('gradeability')} /></div>
+              <div><label style={labelStyle}>최대 풍속</label><input style={inputStyle} placeholder="예: 12.5 m/s 이내" value={editForm.maxWindSpeed || ''} onChange={ef('maxWindSpeed')} /></div>
+              <div><label style={labelStyle}>A/S 접수처</label><input style={inputStyle} value={editForm.asContact || '031-334-5296'} onChange={ef('asContact')} /></div>
+              <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>기타 제원 메모</label>
                 <textarea style={{ ...inputStyle, minHeight: '44px' }} placeholder="특이사항 및 제원" value={editForm.spec || ''} onChange={ef('spec')} />
               </div>
