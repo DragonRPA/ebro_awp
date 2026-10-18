@@ -748,7 +748,7 @@ function parseMultiSheetWorkbook(
 
   raw2.forEach((row) => {
     const assetNo = String(row['관리번호(호기)*'] || row['관리번호'] || row['호기'] || '').trim();
-    const modelName = String(row['모델명*'] || row['모델명'] || '').trim();
+    const modelName = String(row['모델명*'] || row['모델명'] || '').trim().toUpperCase();
     if (!assetNo && !modelName) return;
 
     let prodId = modelName ? prodMap[modelName] : '';
@@ -1366,7 +1366,7 @@ function parseSingleFlatWorkbook(
     }
 
     // 3. 기종 및 장비 추출
-    const modelName = String(row['모델명'] || row['장비명'] || row['기종'] || 'GS-1930').trim();
+    const modelName = String(row['모델명'] || row['장비명'] || row['기종'] || 'GS-1930').trim().toUpperCase();
     let prodId = prodMap[modelName];
     if (!prodId) {
       prodId = makeDeterministicId('prod', modelName);

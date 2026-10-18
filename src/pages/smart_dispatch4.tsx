@@ -689,19 +689,24 @@ export const SmartDispatch4: React.FC = () => {
     const allProds = products && products.length > 0 ? products : db.products;
     const allAssets = assets && assets.length > 0 ? assets : db.assets;
 
-    // 0. 가용 자산(AVAILABLE) 모델별 수량 O(A) 1-Pass 사전 집계
+    // 0. 가용 자산(AVAILABLE) 모델별 수량 O(A) 1-Pass 사전 집계 (대소문자 무관 정규화 키)
     const availableCountByModel = new Map<string, number>();
     for (const a of allAssets) {
       if (a.modelName && a.status === 'AVAILABLE') {
-        availableCountByModel.set(a.modelName, (availableCountByModel.get(a.modelName) || 0) + 1);
+        const uKey = a.modelName.trim().toUpperCase();
+        availableCountByModel.set(uKey, (availableCountByModel.get(uKey) || 0) + 1);
       }
     }
 
-    // 1. 등록 제품 마스터 (53종) 100% 등록
+    const seenUpperModels = new Set<string>();
+
+    // 1. 등록 제품 마스터 (53종) 100% 등록 (소문자 m 등 원본 표기 보존)
     for (const p of allProds) {
       if (!p.modelName) continue;
+      const uKey = p.modelName.trim().toUpperCase();
+      seenUpperModels.add(uKey);
       const ftGroup = getFtGroup(p.feet, p.modelName);
-      const avail = availableCountByModel.get(p.modelName) || 0;
+      const avail = availableCountByModel.get(uKey) || 0;
       map.set(p.modelName, {
         modelName: p.modelName,
         ftGroup,
@@ -714,8 +719,10 @@ export const SmartDispatch4: React.FC = () => {
 
     // 2. 제원 매트릭스 (Skyjack 등)
     for (const s of EQUIPMENT_SPEC_MATRIX) {
-      if (!map.has(s.modelName)) {
-        const avail = availableCountByModel.get(s.modelName) || 0;
+      const uKey = s.modelName.trim().toUpperCase();
+      if (!seenUpperModels.has(uKey)) {
+        seenUpperModels.add(uKey);
+        const avail = availableCountByModel.get(uKey) || 0;
         map.set(s.modelName, {
           modelName: s.modelName,
           ftGroup: getFtGroup(undefined, s.modelName),
@@ -729,13 +736,17 @@ export const SmartDispatch4: React.FC = () => {
 
     // 3. 자산 대장 등록 모델
     for (const a of allAssets) {
-      if (a.modelName && !map.has(a.modelName)) {
-        const avail = availableCountByModel.get(a.modelName) || 0;
-        map.set(a.modelName, {
-          modelName: a.modelName,
-          ftGroup: getFtGroup(undefined, a.modelName),
-          availableCount: avail,
-        });
+      if (a.modelName) {
+        const uKey = a.modelName.trim().toUpperCase();
+        if (!seenUpperModels.has(uKey)) {
+          seenUpperModels.add(uKey);
+          const avail = availableCountByModel.get(uKey) || 0;
+          map.set(a.modelName, {
+            modelName: a.modelName,
+            ftGroup: getFtGroup(undefined, a.modelName),
+            availableCount: avail,
+          });
+        }
       }
     }
 

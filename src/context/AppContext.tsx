@@ -2433,11 +2433,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveProduct = async (prod: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => {
     let result;
+    const prevProduct = prod.id ? db.products.find(p => p.id === prod.id) : undefined;
+    const oldModelName = prevProduct?.modelName?.trim();
+    const newModelName = prod.modelName?.trim();
+    const normalizedProd = {
+      ...prod,
+      modelName: newModelName || prod.modelName
+    };
+
     if (prod.id) {
-      result = db.updateRow<Product>('products', prod.id, prod as Product);
+      result = db.updateRow<Product>('products', prod.id, normalizedProd as Product);
     } else {
       result = db.insertRow<Product>('products', {
-        ...prod,
+        ...normalizedProd,
         isActive: prod.isActive !== undefined ? prod.isActive : true,
         createdAt: new Date().toISOString()
       } as Omit<Product, 'id'>);
@@ -2445,6 +2453,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     try {
       await db.awaitPendingWrites();
+
+      // 자산은 제품의 모델명을 상속받으므로 제품 모델명이 변경(대소문자 변경 포함)되면 하위 자산 및 종속 테이블에 즉시 자동 상속/동기화
+      if (newModelName) {
+        const nowIso = new Date().toISOString();
+        const newUpper = newModelName.toUpperCase();
+        const shouldInheritModel = (m?: string) => {
+          if (!m) return false;
+          if (m === newModelName) return false;
+          if (oldModelName && m === oldModelName) return true;
+          if (m.trim().toUpperCase() === newUpper) return true;
+          return false;
+        };
+
+        const updatedAssetIds: string[] = [];
+        const nextAssets = db.assets.map(a => {
+          if (shouldInheritModel(a.modelName)) {
+            updatedAssetIds.push(a.id);
+            return { ...a, modelName: newModelName, updatedAt: nowIso };
+          }
+          return a;
+        });
+        if (updatedAssetIds.length > 0) db.assets = nextAssets;
+
+        const updatedCaIds: string[] = [];
+        const nextCas = db.contractAssets.map(ca => {
+          if (shouldInheritModel(ca.expectedModel)) {
+            updatedCaIds.push(ca.id);
+            return { ...ca, expectedModel: newModelName, updatedAt: nowIso };
+          }
+          return ca;
+        });
+        if (updatedCaIds.length > 0) db.contractAssets = nextCas;
+
+        const updatedRepairIds: string[] = [];
+        const nextRepairs = db.repairs.map(r => {
+          if (shouldInheritModel(r.modelName)) {
+            updatedRepairIds.push(r.id);
+            return { ...r, modelName: newModelName, updatedAt: nowIso };
+          }
+          return r;
+        });
+        if (updatedRepairIds.length > 0) db.repairs = nextRepairs;
+
+        const updatedLogIds: string[] = [];
+        const nextLogs = db.assetInOutLogs.map(l => {
+          if (shouldInheritModel(l.modelName)) {
+            updatedLogIds.push(l.id);
+            return { ...l, modelName: newModelName, updatedAt: nowIso } as AssetInOutLog;
+          }
+          return l;
+        });
+        if (updatedLogIds.length > 0) db.assetInOutLogs = nextLogs;
+
+        if (supabase) {
+          if (updatedAssetIds.length > 0) {
+            const { error: astErr } = await supabase
+              .from('assets')
+              .update({ modelName: newModelName, updatedAt: nowIso })
+              .in('id', updatedAssetIds);
+            if (astErr) throw astErr;
+          }
+          if (updatedCaIds.length > 0) {
+            const { error: caErr } = await supabase
+              .from('contract_assets')
+              .update({ expectedModel: newModelName, updatedAt: nowIso })
+              .in('id', updatedCaIds);
+            if (caErr) throw caErr;
+          }
+          if (updatedRepairIds.length > 0) {
+            const { error: repErr } = await supabase
+              .from('repairs')
+              .update({ modelName: newModelName, updatedAt: nowIso })
+              .in('id', updatedRepairIds);
+            if (repErr) throw repErr;
+          }
+          if (updatedLogIds.length > 0) {
+            const { error: logErr } = await supabase
+              .from('asset_inout_logs')
+              .update({ modelName: newModelName })
+              .in('id', updatedLogIds);
+            if (logErr) throw logErr;
+          }
+        }
+      }
     } catch (err: any) {
       console.error("Supabase write await error:", err);
       showErrorModal(`⚠️ 제품 카탈로그 저장 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, 'DB 동기화 오류');

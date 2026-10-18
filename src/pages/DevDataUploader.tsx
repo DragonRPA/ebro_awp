@@ -604,6 +604,7 @@ function convertRow(row: Record<string, string>, schema: TableDef, index: number
     }
     if (field.type === 'number') result[field.key] = Number(val.replace(/,/g, ''));
     else if (field.type === 'boolean') result[field.key] = val === 'true';
+    else if ((field.key === 'modelName' && ['products', 'assets', 'repairs', 'asset_inout_logs'].includes(schema.key)) || field.key === 'expectedModel') result[field.key] = val.trim().toUpperCase();
     else result[field.key] = val.trim();
   });
 

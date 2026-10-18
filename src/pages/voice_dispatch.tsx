@@ -659,11 +659,15 @@ export const VoiceDispatch: React.FC = () => {
     const allProds = products && products.length > 0 ? products : db.products;
     const allAssets = assets && assets.length > 0 ? assets : db.assets;
 
-    // 1. 등록 제품 마스터 (53종) 100% 등록
+    const seenUpperModels = new Set<string>();
+
+    // 1. 등록 제품 마스터 (53종) 100% 등록 (소문자 m 등 원본 표기 보존)
     for (const p of allProds) {
       if (!p.modelName) continue;
+      const uKey = p.modelName.trim().toUpperCase();
+      seenUpperModels.add(uKey);
       const ftGroup = getFtGroup(p.feet, p.modelName);
-      const avail = allAssets.filter(a => a.modelName === p.modelName && a.status === 'AVAILABLE').length;
+      const avail = allAssets.filter(a => a.modelName && a.modelName.trim().toUpperCase() === uKey && a.status === 'AVAILABLE').length;
       map.set(p.modelName, {
         modelName: p.modelName,
         ftGroup,
@@ -676,8 +680,10 @@ export const VoiceDispatch: React.FC = () => {
 
     // 2. 제원 매트릭스 (Skyjack 등)
     for (const s of EQUIPMENT_SPEC_MATRIX) {
-      if (!map.has(s.modelName)) {
-        const avail = allAssets.filter(a => a.modelName === s.modelName && a.status === 'AVAILABLE').length;
+      const uKey = s.modelName.trim().toUpperCase();
+      if (!seenUpperModels.has(uKey)) {
+        seenUpperModels.add(uKey);
+        const avail = allAssets.filter(a => a.modelName && a.modelName.trim().toUpperCase() === uKey && a.status === 'AVAILABLE').length;
         map.set(s.modelName, {
           modelName: s.modelName,
           ftGroup: getFtGroup(undefined, s.modelName),
@@ -691,13 +697,17 @@ export const VoiceDispatch: React.FC = () => {
 
     // 3. 자산 대장 등록 모델
     for (const a of allAssets) {
-      if (a.modelName && !map.has(a.modelName)) {
-        const avail = allAssets.filter(x => x.modelName === a.modelName && x.status === 'AVAILABLE').length;
-        map.set(a.modelName, {
-          modelName: a.modelName,
-          ftGroup: getFtGroup(undefined, a.modelName),
-          availableCount: avail,
-        });
+      if (a.modelName) {
+        const uKey = a.modelName.trim().toUpperCase();
+        if (!seenUpperModels.has(uKey)) {
+          seenUpperModels.add(uKey);
+          const avail = allAssets.filter(x => x.modelName && x.modelName.trim().toUpperCase() === uKey && x.status === 'AVAILABLE').length;
+          map.set(a.modelName, {
+            modelName: a.modelName,
+            ftGroup: getFtGroup(undefined, a.modelName),
+            availableCount: avail,
+          });
+        }
       }
     }
 
