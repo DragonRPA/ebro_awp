@@ -1,4 +1,4 @@
-﻿# agent/trayIcon.ps1
+# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
@@ -67,12 +67,12 @@ try {
 
 # 🌐 테넌트 정책에 따른 AI 기능 동적 분기
 $policyPath = "C:\eBroAgent\tenant_policy.json"
-$aiEnabled = $true
-if (Test-Path $policyPath) {
+$script:aiEnabled = $false
+if (Test-Path -LiteralPath $policyPath) {
     try {
-        $policyJson = Get-Content $policyPath -Raw | ConvertFrom-Json
+        $policyJson = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
         if ($null -ne $policyJson.agentAiEnabled) {
-            $aiEnabled = [bool]$policyJson.agentAiEnabled
+            $script:aiEnabled = [bool]$policyJson.agentAiEnabled
         }
     } catch {}
 }
@@ -86,7 +86,7 @@ $icoCandidates = @(
 )
 $loadedIco = $false
 foreach ($ic in $icoCandidates) {
-    if (Test-Path $ic) {
+    if (Test-Path -LiteralPath $ic) {
         try {
             $notify.Icon = New-Object System.Drawing.Icon($ic)
             $loadedIco = $true
@@ -98,7 +98,7 @@ if (-not $loadedIco) {
     $notify.Icon = [System.Drawing.SystemIcons]::Application
 }
 
-if ($aiEnabled) {
+if ($script:aiEnabled) {
     $notify.Text = "eBro AI Agent (Port: $Port)"
 } else {
     $notify.Text = "eBro Agent - 업무 지원 모드 (Port: $Port)"
@@ -132,32 +132,33 @@ function Open-Studio {
 
 function Open-Archive {
     $dir = "C:\eBroAgent\문서고"
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     Start-Process "explorer.exe" $dir
 }
 
-if ($aiEnabled) {
-    $notify.add_DoubleClick({ Open-Studio })
-} else {
-    $notify.add_DoubleClick({ Open-Archive })
-}
+$notify.add_DoubleClick({
+    if ($script:aiEnabled) {
+        Open-Studio
+    } else {
+        Open-Archive
+    }
+})
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 
-if ($aiEnabled) {
-    $mStudio = $menu.Items.Add("eBro AI Studio 열기")
-    $mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
-    $mStudio.add_Click({ Open-Studio })
-}
+$mStudio = $menu.Items.Add("eBro AI Studio 열기")
+$mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
+$mStudio.Visible = $script:aiEnabled
+$mStudio.add_Click({ Open-Studio })
 
 # 🌐 테넌트 전용 ERP 로그인 페이지 URL 산출
 function Get-TenantLoginUrl {
     $pPath = "C:\eBroAgent\tenant_policy.json"
     $tCode = "GIYEONLIFT"
     $subdomain = ""
-    if (Test-Path $pPath) {
+    if (Test-Path -LiteralPath $pPath) {
         try {
-            $pJson = Get-Content $pPath -Raw | ConvertFrom-Json
+            $pJson = Get-Content -LiteralPath $pPath -Raw | ConvertFrom-Json
             if ($pJson.subdomain) {
                 $subdomain = [string]$pJson.subdomain
             }
@@ -200,6 +201,7 @@ $appContext = New-Object System.Windows.Forms.ApplicationContext
 
 $script:userRequestedExit = $false
 $script:lastRestartTick = [DateTime]::MinValue
+$script:policyCheckTick = 0
 
 $mExit = $menu.Items.Add("종료 (Exit eBro Agent)")
 $mExit.add_Click({
@@ -212,18 +214,46 @@ $mExit.add_Click({
 
 $notify.ContextMenuStrip = $menu
 
-$notify.BalloonTipTitle = "eBro AI Agent"
-$notify.BalloonTipText = "에이전트가 백그라운드에서 실행 중입니다. 트레이 아이콘을 더블클릭하면 스튜디오가 열립니다."
+if ($script:aiEnabled) {
+    $notify.BalloonTipTitle = "eBro AI Agent"
+    $notify.BalloonTipText = "에이전트가 백그라운드에서 실행 중입니다. 트레이 아이콘을 더블클릭하면 스튜디오가 열립니다."
+} else {
+    $notify.BalloonTipTitle = "eBro Agent (업무 지원 모드)"
+    $notify.BalloonTipText = "에이전트가 백그라운드에서 실행 중입니다. 트레이 아이콘을 더블클릭하면 로컬 문서고가 열립니다."
+}
 $notify.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
 $notify.ShowBalloonTip(2500)
 
 $script:hasShownTip = $false
 
-# 350ms 주기 모니터링 타이머: 에이전트 무중단 Watchdog 자가 복구 & 스튜디오 창 최소화 시 트레이 수납
+# 350ms 주기 모니터링 타이머: 에이전트 무중단 Watchdog 자가 복구 & 정책 실시간 반영 & 스튜디오 창 최소화 시 트레이 수납
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 350
 $timer.add_Tick({
     if ($script:userRequestedExit) { return }
+
+    # 0. 테넌트 정책(agentAiEnabled) 변경 실시간 감지 (약 2초 주기)
+    $script:policyCheckTick++
+    if ($script:policyCheckTick -ge 6) {
+        $script:policyCheckTick = 0
+        if (Test-Path -LiteralPath $policyPath) {
+            try {
+                $pJson = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
+                if ($null -ne $pJson.agentAiEnabled) {
+                    $newAi = [bool]$pJson.agentAiEnabled
+                    if ($newAi -ne $script:aiEnabled) {
+                        $script:aiEnabled = $newAi
+                        $mStudio.Visible = $script:aiEnabled
+                        if ($script:aiEnabled) {
+                            $notify.Text = "eBro AI Agent (Port: $Port)"
+                        } else {
+                            $notify.Text = "eBro Agent - 업무 지원 모드 (Port: $Port)"
+                        }
+                    }
+                }
+            } catch {}
+        }
+    }
 
     # 1. 부모 Agent 프로세스 감시 및 무중단 Watchdog 자동 복구
     $runningAgents = Get-Process -Name eBroAgent -ErrorAction SilentlyContinue
@@ -232,7 +262,7 @@ $timer.add_Tick({
         if (($now - $script:lastRestartTick).TotalSeconds -ge 4) {
             $script:lastRestartTick = $now
             $exePath = "C:\eBroAgent\eBroAgent.exe"
-            if (Test-Path $exePath) {
+            if (Test-Path -LiteralPath $exePath) {
                 try {
                     Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList "`"$exePath`" --daemon" | Out-Null
                 } catch {

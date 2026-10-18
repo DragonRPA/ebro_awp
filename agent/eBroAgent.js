@@ -82,7 +82,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.11';
+const VERSION = 'v2.0.0.Build.12';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();

@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.11
+AppVersion=v2.0.0.Build.12
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run

@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const { spawn, execSync } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 
 const AGENT_HOME = 'C:\\eBroAgent';
 const QUEUE_FILE = path.join(AGENT_HOME, 'instruction_queue.json');
@@ -241,6 +241,7 @@ function handleWebSocketConnection(ws, req) {
           success: true,
           client: 'eBroAgent',
           port: 5175,
+          aiEnabled: isAiEnabled(),
           timestamp: new Date().toISOString()
         }));
         return;
@@ -248,7 +249,7 @@ function handleWebSocketConnection(ws, req) {
 
       // 3. PING 하트비트 응답
       if (payload.type === 'PING') {
-        ws.send(JSON.stringify({ type: 'PONG' }));
+        ws.send(JSON.stringify({ type: 'PONG', aiEnabled: isAiEnabled() }));
         return;
       }
 
@@ -266,14 +267,29 @@ function handleWebSocketConnection(ws, req) {
 
       // 5. 웹 에이전트 팝업에서 자연어 명령 전송 (NATURAL_COMMAND)
       if (payload.type === 'NATURAL_COMMAND') {
+        if (!isAiEnabled()) {
+          ws.send(JSON.stringify({
+            type: 'ERROR',
+            reason: 'SILENT_CORE',
+            message: '현재 테넌트는 AI 에이전트 기능이 비활성화(Silent Core 모드)되어 있습니다.'
+          }));
+          return;
+        }
         const prompt = payload.prompt;
         if (prompt && prompt.trim()) {
-          const task = await addTask(prompt.trim(), 'BROWSER');
-          ws.send(JSON.stringify({
-            type: 'COMMAND_ACCEPTED',
-            taskId: task.id,
-            prompt: prompt
-          }));
+          try {
+            const task = await addTask(prompt.trim(), 'BROWSER');
+            ws.send(JSON.stringify({
+              type: 'COMMAND_ACCEPTED',
+              taskId: task.id,
+              prompt: prompt
+            }));
+          } catch (taskErr) {
+            ws.send(JSON.stringify({
+              type: 'ERROR',
+              message: taskErr.message
+            }));
+          }
         }
         return;
       }
@@ -296,7 +312,7 @@ function handleWebSocketConnection(ws, req) {
 // 테넌트관리센터의 제어에 따라 AI 에이전트 기능 락/언락 (단일 컴파일 무결성 보장)
 const POLICY_FILE = path.join(AGENT_HOME, 'tenant_policy.json');
 let agentPolicy = {
-  agentAiEnabled: true,
+  agentAiEnabled: false,
   tenantCode: 'GIYEONLIFT',
   updatedAt: new Date().toISOString()
 };
@@ -336,6 +352,7 @@ function getAgentPolicy() {
 }
 
 function updateAgentPolicy(newPolicy) {
+  const prevAi = Boolean(agentPolicy.agentAiEnabled);
   if (typeof newPolicy === 'object' && newPolicy !== null) {
     agentPolicy = {
       ...agentPolicy,
@@ -345,19 +362,22 @@ function updateAgentPolicy(newPolicy) {
     savePolicy();
     broadcastStudioLog('POLICY', `테넌트 정책 동기화 완료: AI기능=${agentPolicy.agentAiEnabled ? '활성화(FULL_AI)' : '비활성화(SILENT_CORE)'}, 테넌트=${agentPolicy.tenantCode || '-'}`);
   }
-    if (!agentPolicy.agentAiEnabled) {
-      if (typeof stopTelegramBot === 'function') {
-        stopTelegramBot();
-        broadcastStudioLog('SYSTEM', 'Silent Core 모드 전환에 따라 텔레그램 수신을 일시정지합니다.');
-      }
-    } else {
-      if (typeof restartTelegramBot === 'function') {
-        restartTelegramBot(async (text, onComplete) => {
-          return await addTask(text, 'BROWSER', onComplete);
-        }).catch(() => {});
-        broadcastStudioLog('SYSTEM', 'Full AI Studio 모드 전환에 따라 텔레그램 수신을 재개합니다.');
-      }
+  if (!agentPolicy.agentAiEnabled) {
+    if (typeof stopTelegramBot === 'function') {
+      stopTelegramBot();
+      broadcastStudioLog('SYSTEM', 'Silent Core 모드 전환에 따라 텔레그램 수신을 일시정지합니다.');
     }
+  } else {
+    if (typeof restartTelegramBot === 'function' && (!prevAi || !isTelegramRunning())) {
+      restartTelegramBot(async (text, onComplete) => {
+        return await addTask(text, 'BROWSER', onComplete);
+      }).catch(() => {});
+      broadcastStudioLog('SYSTEM', 'Full AI Studio 모드 전환에 따라 텔레그램 수신을 재개합니다.');
+    }
+  }
+  if (prevAi !== Boolean(agentPolicy.agentAiEnabled)) {
+    broadcastEvent('POLICY_UPDATED', agentPolicy);
+  }
   return agentPolicy;
 }
 
@@ -1439,6 +1459,10 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
         } catch (err) {}
       });
 
+      evtSource.addEventListener('POLICY_UPDATED', () => {
+        try { location.reload(); } catch (err) {}
+      });
+
       evtSource.onerror = () => {
         try { evtSource.close(); } catch (e) {}
         setTimeout(initSSE, 2000);
@@ -1925,6 +1949,14 @@ function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCod
       </a>
     </div>
   </div>
+  <script>
+    (function() {
+      try {
+        var es = new EventSource('/api/queue/stream');
+        es.addEventListener('POLICY_UPDATED', function() { location.reload(); });
+      } catch (e) {}
+    })();
+  </script>
 </body>
 </html>`;
 }
@@ -2170,9 +2202,13 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
         const payload = JSON.parse(body);
         if (payload.telegram_bot_token !== undefined || payload.telegram_allowed_user_id !== undefined) {
           saveTelegramConfig(payload.telegram_bot_token, payload.telegram_allowed_user_id);
-          await restartTelegramBot(async (text, onComplete) => {
-            return await addTask(text, 'BROWSER', onComplete);
-          });
+          if (isAiEnabled()) {
+            await restartTelegramBot(async (text, onComplete) => {
+              return await addTask(text, 'BROWSER', onComplete);
+            });
+          } else {
+            stopTelegramBot();
+          }
         }
         if (payload.ai_model) {
           saveOllamaConfig(payload.ai_model);
@@ -2197,6 +2233,11 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
 
   // 9-2. 텔레그램 연동 테스트 메시지 발송 (/telegram/test)
   if (req.method === 'POST' && pathname === '/telegram/test') {
+    if (!isAiEnabled()) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: '현재 테넌트는 AI 에이전트 기능이 비활성화(Silent Core 모드)되어 있습니다.' }));
+      return true;
+    }
     const testResult = await sendTestTelegramMessage();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(testResult));

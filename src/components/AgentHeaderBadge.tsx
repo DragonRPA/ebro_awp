@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal, startGlobalAgentHealthMonitor, syncTenantPolicyToAgent } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, isAgentOnlineGlobal, startGlobalAgentHealthMonitor, syncTenantPolicyToAgent, triggerTenantAgentDownload } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -119,26 +119,11 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     }
   };
 
-  // 2단계: 에이전트 파일 다운로드 (eBroAgent.js + start-agent.bat)
+  // 정식 에이전트 설치 프로그램 다운로드 (eBroAgent_Setup_*.exe)
   const handleDownloadAgent = () => {
     setIsDownloading(true);
     try {
-      // eBroAgent.js 다운로드
-      const link1 = document.createElement('a');
-      link1.href = AGENT_DOWNLOAD_URL;
-      link1.download = 'eBroAgent.js';
-      document.body.appendChild(link1);
-      link1.click();
-      document.body.removeChild(link1);
-      // 배치 파일 다운로드
-      setTimeout(() => {
-        const link2 = document.createElement('a');
-        link2.href = AGENT_LAUNCHER_URL;
-        link2.download = 'start-agent.bat';
-        document.body.appendChild(link2);
-        link2.click();
-        document.body.removeChild(link2);
-      }, 300);
+      triggerTenantAgentDownload(currentTenant);
     } catch (e) {
       alert('에이전트 다운로드 실패');
     } finally {
@@ -271,8 +256,8 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
         </button>
       )}
 
-      {/* 🏢 에이전트 가동 시 데스크톱 스튜디오 원클릭 호출 버튼 */}
-      {agentStatus === 'ONLINE' && !isOutdated && (
+      {/* 🏢 에이전트 가동 & AI 활성 테넌트일 때만 데스크톱 스튜디오 원클릭 호출 버튼 노출 */}
+      {agentStatus === 'ONLINE' && !isOutdated && Boolean(currentTenant?.features?.agentAiEnabled) && (
         <button
           type="button"
           onClick={() => openAgentStudio()}
@@ -430,34 +415,63 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             )}
           </div>
 
-          {/* 🏢 eBro AI Agent 데스크톱 스튜디오 열기 */}
+          {/* 🏢 AI 활성 시 스튜디오 열기 / 비활성(Silent Core) 시 로컬 문서고 폴더 열기 */}
           {agentStatus === 'ONLINE' && (
-            <button
-              type="button"
-              onClick={() => {
-                openAgentStudio();
-                setIsOpenMenu(false);
-              }}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                fontSize: '12px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                background: '#1e3a8a',
-                border: '1px solid #3b82f6',
-                borderRadius: '7px',
-                color: '#93c5fd',
-                cursor: 'pointer',
-                marginBottom: '12px'
-              }}
-            >
-              <Bot size={14} color="#60a5fa" />
-              eBro AI Agent 데스크톱 스튜디오 열기
-            </button>
+            Boolean(currentTenant?.features?.agentAiEnabled) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  openAgentStudio();
+                  setIsOpenMenu(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: '#1e3a8a',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '7px',
+                  color: '#93c5fd',
+                  cursor: 'pointer',
+                  marginBottom: '12px'
+                }}
+              >
+                <Bot size={14} color="#60a5fa" />
+                eBro AI Agent 데스크톱 스튜디오 열기
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  fetchWithAgentFallback('/api/open-archive', { method: 'POST' }).catch(() => {});
+                  setIsOpenMenu(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  background: '#1e3a8a',
+                  border: '1px solid #3b82f6',
+                  borderRadius: '7px',
+                  color: '#93c5fd',
+                  cursor: 'pointer',
+                  marginBottom: '12px'
+                }}
+              >
+                <FolderCheck size={14} color="#60a5fa" />
+                로컬 문서고 폴더 열기 (C:\eBroAgent\문서고)
+              </button>
+            )
           )}
 
           {/* ⚠️ 에이전트 콘솔 창이 켜져 있는데 미연결로 뜰 때 브라우저 보안 안내 */}
@@ -608,13 +622,14 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                   </div>
                 )}
 
-                {/* 1단계: 에이전트 파일 다운로드 */}
-                <a
-                  href={AGENT_BRO_JS_URL}
-                  download="BroAgent.js"
+                {/* 정식 통합 에이전트 설치 프로그램 다운로드 */}
+                <button
+                  type="button"
+                  disabled={isDownloading}
+                  onClick={handleDownloadAgent}
                   style={{
                     width: '100%',
-                    padding: '8px 10px',
+                    padding: '9px 10px',
                     fontSize: '12px',
                     fontWeight: '700',
                     display: 'flex',
@@ -625,63 +640,13 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                     border: '1px solid var(--border-color)',
                     borderRadius: '7px',
                     color: 'var(--text-primary)',
-                    textDecoration: 'none',
+                    cursor: 'pointer',
                     boxSizing: 'border-box'
                   }}
                 >
                   <Download size={13} color="var(--primary)" />
-                  1단계: 에이전트 파일 다운로드 (BroAgent.js)
-                </a>
-
-                {/* 2단계: 브라우저 실행 등록 */}
-                <a
-                  href={AGENT_REG_BAT_URL}
-                  download="등록-실행.bat"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    background: 'var(--bg-app)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '7px',
-                    color: 'var(--text-primary)',
-                    textDecoration: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <Download size={13} color="#0284c7" />
-                  2단계: 브라우저 실행 등록 파일 (.bat)
-                </a>
-
-                {/* 3단계: Node.js 설치 링크 */}
-                <a
-                  href={NODEJS_INSTALL_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    background: 'transparent',
-                    border: '1px dashed var(--border-color)',
-                    borderRadius: '7px',
-                    color: 'var(--text-muted)',
-                    textDecoration: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  3단계: Node.js 설치 (미설치 PC 전용)
-                </a>
+                  <span>eBro 통합 에이전트 설치 (.exe) 다운로드</span>
+                </button>
               </>
             )}
 
