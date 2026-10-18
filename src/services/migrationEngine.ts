@@ -695,6 +695,7 @@ export async function resetAllDatabaseTables(
   // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates) 및
   // 테넌트 원장(tenants), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
   const DELETION_ORDER = [
+    'monthly_income_statements',
     'settlement_payment_logs',
     'purchase_settlement_items',
     'purchase_settlements',
@@ -718,6 +719,7 @@ export async function resetAllDatabaseTables(
     'stocktaking_audits',
     'collected_parts',
     'consumable_logs',
+    'consumable_lots',
     'mechanic_consumable_stocks',
     'consumable_purchases',
     'consumables',
@@ -750,10 +752,7 @@ export async function resetAllDatabaseTables(
     'overtime_records',
     'payroll_closings',
     'todos',
-    'google_configs',
-    'draft_dispatch_orders',
-    'call_pipeline_logs',
-    'call_uploads'
+    'google_configs'
   ];
 
   try {
@@ -776,81 +775,86 @@ export async function resetAllDatabaseTables(
     if (supabase) {
       for (const table of DELETION_ORDER) {
         // 🛡️ 멀티테넌트 안전 삭제: 타 테넌트 침범 없이 대상 테넌트(후보 ID 포함) 레코드 일괄 안전 삭제
-        try {
-          const { error } = await supabase.from(table).delete().in('tenant_id', tenantVariants);
-          if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
-            console.warn(`[Reset Table Warning] ${table}:`, error.message);
+        const { error } = await supabase.from(table).delete().in('tenant_id', tenantVariants);
+        if (error) {
+          const msg = error.message || '';
+          if (msg.includes('tenant_id') && table === 'google_configs') {
+            const { error: gErr } = await supabase.from(table).delete().in('tenantId', tenantVariants);
+            if (gErr && !gErr.message.includes('not found')) {
+              throw new Error(`[DB 초기화 삭제 실패] ${table}: ${gErr.message}`);
+            }
+          } else if (!msg.includes('not found') && !msg.includes('schema cache')) {
+            throw new Error(`[DB 초기화 삭제 실패] ${table}: ${msg}`);
           }
-          // 🛡️ inspection_checklist_items: 테넌트 미지정(NULL) 레거시 항목도 함께 안전 소탕
-          if (table === 'inspection_checklist_items') {
-            await supabase.from(table).delete().is('tenant_id', null);
-          }
-        } catch (err: any) {
-          console.warn(`[Reset Table Exception] ${table}:`, err?.message || err);
+        }
+        // 🛡️ 테넌트 미지정(NULL) 레거시 항목도 함께 안전 소탕
+        if (table === 'inspection_checklist_items' || table === 'site_masters' || table === 'customer_sites') {
+          await supabase.from(table).delete().is('tenant_id', null);
         }
       }
-    } else {
-      DELETION_ORDER.forEach(tbl => {
-        const TABLE_TO_CAMEL: Record<string, string> = {
-          inspection_checklist_items: 'inspectionChecklistItems',
-          site_masters: 'siteMasters',
-          customer_sites: 'sites',
-          customer_contacts: 'contacts',
-          contract_assets: 'contractAssets',
-          contract_history: 'contractHistory',
-          transport_companies: 'transportCompanies',
-          transport_drivers: 'transportDrivers',
-          billing_details: 'billingDetails',
-          billing_invoices: 'billingInvoices',
-          payment_deposit_links: 'paymentDepositLinks',
-          bank_matching_rules: 'bankMatchingRules',
-          bank_transactions: 'bankTransactions',
-          bank_initial_balances: 'bankInitialBalances',
-          cash_flow_snapshots: 'cashFlowSnapshots',
-          prepaid_transactions: 'prepaidTransactions',
-          delinquency_action_logs: 'delinquencyActionLogs',
-          legal_notice_logs: 'legalNoticeLogs',
-          legal_notice_templates: 'legalNoticeTemplates',
-          depreciation_logs: 'depreciationLogs',
-          repair_consumables: 'repairConsumables',
-          stocktaking_audit_items: 'stocktakingAuditItems',
-          stocktaking_audits: 'stocktakingAudits',
-          collected_parts: 'collectedParts',
-          consumable_logs: 'consumableLogs',
-          mechanic_consumable_stocks: 'mechanicConsumableStocks',
-          consumable_purchases: 'consumablePurchases',
-          consumable_lots: 'consumableLots',
-          outbound_inspections: 'outboundInspections',
-          asset_inout_logs: 'assetInOutLogs',
-          external_leases: 'externalLeases',
-          purchase_settlements: 'purchaseSettlements',
-          purchase_settlement_items: 'purchaseSettlementItems',
-          settlement_payment_logs: 'settlementPaymentLogs',
-          vehicle_fuel_logs: 'vehicleFuelLogs',
-          vehicle_operation_logs: 'vehicleOperationLogs',
-          corporate_vehicles: 'corporateVehicles',
-          print_queue: 'printQueue',
-          print_stations: 'printStations',
-          privacy_access_logs: 'privacyAccessLogs',
-          annual_leave_quotas: 'annualLeaveQuotas',
-          leave_usages: 'leaveUsages',
-          overtime_records: 'overtimeRecords',
-          payroll_closings: 'payrollClosings',
-          google_configs: 'googleConfigs',
-          standard_options: 'standardOptions',
-          custom_roles: 'customRoles',
-          role_permissions: 'rolePermissions',
-          monthly_income_statements: 'monthlyIncomeStatements',
-          developer_authorized_devices: 'developerAuthorizedDevices'
-        };
-        const camelKey = TABLE_TO_CAMEL[tbl] || tbl.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
-        if (Array.isArray((db as any)[camelKey])) {
-          (db as any)[camelKey] = (db as any)[camelKey].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
-        } else if (Array.isArray((db as any)[tbl])) {
-          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
-        }
-      });
     }
+
+    // 로컬 인메모리/localStorage 캐시도 전수 동기 초기화
+    const TABLE_TO_CAMEL: Record<string, string> = {
+      inspection_checklist_items: 'inspectionChecklistItems',
+      site_masters: 'siteMasters',
+      customer_sites: 'sites',
+      customer_contacts: 'contacts',
+      contract_assets: 'contractAssets',
+      contract_history: 'contractHistory',
+      transport_companies: 'transportCompanies',
+      transport_drivers: 'transportDrivers',
+      billing_details: 'billingDetails',
+      billing_invoices: 'billingInvoices',
+      payment_deposit_links: 'paymentDepositLinks',
+      bank_matching_rules: 'bankMatchingRules',
+      bank_transactions: 'bankTransactions',
+      bank_initial_balances: 'bankInitialBalances',
+      cash_flow_snapshots: 'cashFlowSnapshots',
+      prepaid_transactions: 'prepaidTransactions',
+      delinquency_action_logs: 'delinquencyActionLogs',
+      legal_notice_logs: 'legalNoticeLogs',
+      legal_notice_templates: 'legalNoticeTemplates',
+      depreciation_logs: 'depreciationLogs',
+      repair_consumables: 'repairConsumables',
+      stocktaking_audit_items: 'stocktakingAuditItems',
+      stocktaking_audits: 'stocktakingAudits',
+      collected_parts: 'collectedParts',
+      consumable_logs: 'consumableLogs',
+      mechanic_consumable_stocks: 'mechanicConsumableStocks',
+      consumable_purchases: 'consumablePurchases',
+      consumable_lots: 'consumableLots',
+      outbound_inspections: 'outboundInspections',
+      asset_inout_logs: 'assetInOutLogs',
+      external_leases: 'externalLeases',
+      purchase_settlements: 'purchaseSettlements',
+      purchase_settlement_items: 'purchaseSettlementItems',
+      settlement_payment_logs: 'settlementPaymentLogs',
+      vehicle_fuel_logs: 'vehicleFuelLogs',
+      vehicle_operation_logs: 'vehicleOperationLogs',
+      corporate_vehicles: 'corporateVehicles',
+      print_queue: 'printQueue',
+      print_stations: 'printStations',
+      privacy_access_logs: 'privacyAccessLogs',
+      annual_leave_quotas: 'annualLeaveQuotas',
+      leave_usages: 'leaveUsages',
+      overtime_records: 'overtimeRecords',
+      payroll_closings: 'payrollClosings',
+      google_configs: 'googleConfigs',
+      standard_options: 'standardOptions',
+      custom_roles: 'customRoles',
+      role_permissions: 'rolePermissions',
+      monthly_income_statements: 'monthlyIncomeStatements',
+      developer_authorized_devices: 'developerAuthorizedDevices'
+    };
+    DELETION_ORDER.forEach(tbl => {
+      const camelKey = TABLE_TO_CAMEL[tbl] || tbl.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+      if (Array.isArray((db as any)[camelKey])) {
+        (db as any)[camelKey] = (db as any)[camelKey].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
+      } else if (Array.isArray((db as any)[tbl])) {
+        (db as any)[tbl] = (db as any)[tbl].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
+      }
+    });
 
     return { success: true, message: `[${scopeId}] 테넌트 비즈니스 데이터 안전 초기화 완료` };
   } catch (error: any) {

@@ -82,7 +82,7 @@ import {
 import { OrphanDataCleanupStudio } from '../components/OrphanDataCleanupStudio';
 
 export const InitialDbUploader: React.FC = () => {
-  const { showSuccessToast, showErrorModal, fullRefreshFromServer, users, customers, contracts, contractAssets, sites, customerSites: appCustomerSites, assets, importBandAsHistory, currentUser, currentTenant } = useApp();
+  const { showSuccessToast, showErrorModal, fullRefreshFromServer, refreshAllData, users, customers, contracts, contractAssets, sites, customerSites: appCustomerSites, assets, importBandAsHistory, currentUser, currentTenant } = useApp();
   const customerSites = sites || appCustomerSites || db.sites || [];
 
   // 상태 관리
