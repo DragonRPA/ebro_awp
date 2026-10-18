@@ -60,8 +60,8 @@ class RealGmailService {
   }
 
   /**
-   * 구글 연동 설정(db.googleConfigs 또는 localStorage 'erp_googleConfigs')의
-   * 최신 계정 정보를 으로 읽어와서 로컬 에이전트(1순위) 또는 Vercel(/api/send-email)로 전송
+   * 공식메일설정(db.officialMailConfigs 또는 중앙 테넌트 features.officialMailConfig)의
+   * 최신 계정 정보를 읽어와서 로컬 에이전트(1순위) 또는 Vercel(/api/send-email)로 전송
    */
   async sendEmail(
     to: string,
@@ -72,7 +72,7 @@ class RealGmailService {
     fromName?: string
   ): Promise<SentEmail> {
 
-    // 1. 단일 진실의 원천(SSOT): 현재 접속 테넌트(db.currentTenant) 변수 기반으로 공식 메일 설정 조회
+    // 1. 단일 진실의 원천(SSOT): 현재 접속 테넌트(db.currentTenant) 변수 기반으로 공식메일설정 조회
     const activeTenant = db.currentTenant;
     const activeTenantId = (activeTenant?.id || '').toLowerCase();
     const activeTenantCode = (activeTenant?.tenantCode || '').toLowerCase();
@@ -91,14 +91,14 @@ class RealGmailService {
       );
     };
     
-    const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    const allDbConfigs = [...(db.officialMailConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const tenantConfigs = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
     // 현재 접속 테넌트에 저장된 유효 설정 (개발자 계정 초기 세팅 및 고객사 확정 계정 모두 동일하게 존중)
     let dbConfig = tenantConfigs.find(c => c.googleEmail && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'))
       || tenantConfigs[0]
       || (!activeTenantId ? allDbConfigs[0] : undefined);
     
-    const lsVal = localStorage.getItem('erp_googleConfigs');
+    const lsVal = localStorage.getItem('erp_officialMailConfigs');
     const rawLsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
     const lsConfigs: any[] = Array.isArray(rawLsConfigs)
       ? [...rawLsConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
@@ -108,7 +108,7 @@ class RealGmailService {
       || lsTenantConfigs[0]
       || (!activeTenantId ? lsConfigs[0] : undefined);
 
-    const tenantSmtpFallback: any = (activeTenant?.features as any)?.smtpConfig || (activeTenant as any)?.smtpConfig || {};
+    const tenantSmtpFallback: any = (activeTenant?.features as any)?.officialMailConfig || (activeTenant as any)?.officialMailConfig || (activeTenant?.features as any)?.smtpConfig || (activeTenant as any)?.smtpConfig || {};
 
     const googleEmail = (
       dbConfig?.googleEmail ||

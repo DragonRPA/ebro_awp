@@ -30,13 +30,13 @@ export async function uploadToGoogleDriveCloud(
   let targetUrl = appsScriptUrl;
   if (!targetUrl) {
     try {
-      const storedConfigs = localStorage.getItem('google_configs');
+      const storedConfigs = localStorage.getItem('erp_officialMailConfigs');
       if (storedConfigs) {
         const configs = JSON.parse(storedConfigs);
         targetUrl = configs[0]?.appsScriptUrl;
       }
     } catch (e) {
-      console.warn('Failed to parse google_configs from localStorage:', e);
+      console.warn('Failed to parse officialMailConfigs from localStorage:', e);
     }
   }
 

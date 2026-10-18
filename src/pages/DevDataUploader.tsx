@@ -147,7 +147,6 @@ const TABLE_LABEL_MAP: Record<string, string> = {
   legal_notice_templates: '내용증명 서식 템플릿',
   depreciation_logs: '감가상각 마감 이력',
   todos: 'ToDo 할일',
-  google_configs: '구글 드라이브 연동 정보',
   corporate_vehicles: '업무용 차량 마스터',
   vehicle_operation_logs: '차량 운행 일지',
   vehicle_fuel_logs: '차량 주유 및 연비 일지',

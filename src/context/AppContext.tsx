@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { db, supabase, isSystemDeveloperUser, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement } from '../services/db';
+import { db, supabase, isSystemDeveloperUser, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, OfficialMailConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement } from '../services/db';
 import { useApproval } from '../hooks/useApproval';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
@@ -165,7 +165,7 @@ interface AppContextType {
   saveBankInitialBalance: (bankName: string, initialBalance: number, accountNumber?: string) => Promise<void>;
   assetInOutLogs: AssetInOutLog[];
   vendors: Vendor[];
-  googleConfigs: GoogleConfig[];
+  officialMailConfigs: OfficialMailConfig[];
   cashFlowSnapshots: CashFlowSnapshot[];
   outboundInspections: OutboundInspection[];
   depreciationLogs: DepreciationLog[];
@@ -213,7 +213,7 @@ interface AppContextType {
   deleteSite: (id: string) => Promise<boolean>;
   saveProduct: (prod: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => void;
   saveAsset: (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => void;
-  updateGoogleConfig: (config: GoogleConfig) => Promise<void>;
+  updateOfficialMailConfig: (config: OfficialMailConfig) => Promise<void>;
   saveCashFlowSnapshot: (snap: Omit<CashFlowSnapshot, 'id' | 'createdAt'>) => void;
   deleteCashFlowSnapshot: (snapId: string) => void;
   saveVendor: (vendor: Vendor) => Promise<Vendor>;
@@ -730,7 +730,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [bankInitialBalances, setBankInitialBalances] = useState<BankAccountInitialBalance[]>([]);
   const [assetInOutLogs, setAssetInOutLogs] = useState<AssetInOutLog[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [googleConfigs, setGoogleConfigs] = useState<GoogleConfig[]>([]);
+  const [officialMailConfigs, setOfficialMailConfigs] = useState<OfficialMailConfig[]>([]);
   const [cashFlowSnapshots, setCashFlowSnapshots] = useState<CashFlowSnapshot[]>([]);
   const [outboundInspections, setOutboundInspections] = useState<OutboundInspection[]>([]);
   const [depreciationLogs, setDepreciationLogs] = useState<DepreciationLog[]>([]);
@@ -1036,7 +1036,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBankInitialBalances([...db.bankInitialBalances]);
     setAssetInOutLogs([...db.assetInOutLogs]);
     setVendors([...db.vendors]);
-    setGoogleConfigs([...db.googleConfigs]);
+    setOfficialMailConfigs([...db.officialMailConfigs]);
     setCashFlowSnapshots([...db.cashFlowSnapshots]);
     setOutboundInspections([...db.outboundInspections]);
     setDepreciationLogs([...db.depreciationLogs]);
@@ -1173,13 +1173,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'vendors':              ['vendors'],
     'organization':         ['users', 'departments'],
     'permission':           ['users', 'permissions', 'departments', 'customRoles', 'rolePermissions'],
-    'tenant_management':    ['tenants', 'users', 'googleConfigs'],
+    'tenant_management':    ['tenants', 'users'],
     'payroll':              ['users', 'departments'],
     'corporate_card':       ['vendors', 'billings'],
     'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
     'delinquency':          ['billings', 'customers', 'contracts'],
-    'official_mail':        ['googleConfigs', 'customers', 'contacts', 'sites', 'siteMasters', 'products'],
-    'google_config':        ['googleConfigs'],
+    'official_mail':        ['tenants', 'customers', 'contacts', 'sites', 'siteMasters', 'products'],
     'depreciation_execution': ['depreciationLogs', 'assets'],
     'leave_application':    ['users', 'annualLeaveQuotas', 'leaveUsages'],
     'leave_management':     ['users', 'annualLeaveQuotas', 'leaveUsages', 'overtimeRecords', 'departments'],
@@ -1226,55 +1225,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-
-    // 안전한 Google Config 마이그레이션 (기존 정보 보존 및 신규 컬럼 주입)
-    const existingConfigsStr = localStorage.getItem('erp_googleConfigs');
-    if (existingConfigsStr) {
-      try {
-        const configs = JSON.parse(existingConfigsStr);
-        if (Array.isArray(configs) && configs.length > 0) {
-          let updated = false;
-          const defaultTemplate: Record<string, any> = {
-            isDevMode: false,
-            quotationTemplateUrl: 'templates/렌탈견적서_양식.html',
-            contractTemplateUrl: 'templates/고소작업대_임대차계약서_양식.html',
-            safetyInspectionTemplateUrl: 'templates/고소작업대_안전점검결과서_양식.html',
-            preDeliveryChecklistTemplateUrl: 'templates/반입전_CHECK_LIST_양식.html',
-            bizRegCertUrl: '',
-            bankbookCopyUrl: '',
-            transactionStatementTemplateUrl: 'templates/거래명세서_양식.html',
-            r2AccountId: '35014a2514680107d74e1e68d96e6c32',
-            r2BucketName: 'giyeon-storage',
-            r2AccessKeyId: '03cdb7560d37242de608a5db2a976030',
-            r2SecretAccessKey: '', // 서버리스 백엔드(api/r2)에서 환경변수로 안전하게 처리
-            r2PublicDomain: 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'
-          };
-
-          const mergedConfigs = configs.map(cfg => {
-            const newCfg = { ...cfg };
-            for (const [key, value] of Object.entries(defaultTemplate)) {
-              if (newCfg[key] === undefined) {
-                newCfg[key] = value;
-                updated = true;
-              }
-            }
-            if (newCfg.r2BucketName === 'kiyeun-storage') {
-              newCfg.r2BucketName = 'giyeon-storage';
-              newCfg.r2PublicDomain = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
-              updated = true;
-            }
-            return newCfg;
-          });
-
-          if (updated) {
-            localStorage.setItem('erp_googleConfigs', JSON.stringify(mergedConfigs));
-          }
-        }
-      } catch (e) {
-        console.error('Failed to migrate google config safely', e);
-      }
-    }
-    localStorage.setItem('seed_v2_2_google_config_v2', 'true');
 
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
     if (savedTheme) {
@@ -1858,75 +1808,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateGoogleConfig = async (configData: GoogleConfig) => {
+  const updateOfficialMailConfig = async (configData: OfficialMailConfig) => {
     try {
       const nowIso = new Date().toISOString();
-      // 🛡️ API 키 및 비밀번호 필드 암호화 보존 (Zero Plaintext Security)
-      const payload: GoogleConfig = { 
+      const targetTenantId = configData.tenantId || currentTenant?.id || 'tenant-giyeonlift';
+      const payload: OfficialMailConfig = { 
         ...configData, 
+        id: configData.id || `cfg-${targetTenantId}`,
+        tenantId: targetTenantId,
         googlePassword: configData.googlePassword ? (configData.googlePassword.startsWith('__EBRO_ENC__v1__') ? configData.googlePassword : encryptSecret(configData.googlePassword)) : '',
         gmailAppPassword: configData.gmailAppPassword ? (configData.gmailAppPassword.startsWith('__EBRO_ENC__v1__') ? configData.gmailAppPassword : encryptSecret(configData.gmailAppPassword)) : '',
         r2SecretAccessKey: configData.r2SecretAccessKey ? (configData.r2SecretAccessKey.startsWith('__EBRO_ENC__v1__') ? configData.r2SecretAccessKey : encryptSecret(configData.r2SecretAccessKey)) : '',
         updatedAt: nowIso 
       };
 
-      // 1. 로컬 스토리지 즉시 반영 (동일 테넌트 중복 행 동기화 포함)
-      const currentList = [...db.googleConfigs];
-      const localIndex = currentList.findIndex(cfg => cfg.id === configData.id);
+      const currentList = [...db.officialMailConfigs];
+      const localIndex = currentList.findIndex(cfg => cfg.id === payload.id || cfg.tenantId === targetTenantId);
       if (localIndex >= 0) {
         currentList[localIndex] = payload;
       } else {
         currentList.push({ ...payload, createdAt: nowIso });
       }
-      const sameTenantIds: string[] = [];
-      if (payload.tenantId) {
-        for (let i = 0; i < currentList.length; i++) {
-          const item = currentList[i];
-          if (item.id !== payload.id && item.tenantId && item.tenantId === payload.tenantId) {
-            currentList[i] = { ...payload, id: item.id };
-            sameTenantIds.push(item.id);
-          }
-        }
-      }
-      db.googleConfigs = currentList;
-      localStorage.setItem('erp_googleConfigs', JSON.stringify(currentList));
+      db.officialMailConfigs = currentList;
+      localStorage.setItem('erp_officialMailConfigs', JSON.stringify(currentList));
 
-      // 2. Supabase UPSERT — 행 존재 여부와 관계없이 반드시 반영
-      if (supabase) {
-        const rowsToUpsert = [
-          { ...payload, createdAt: (payload as any).createdAt || nowIso },
-          ...sameTenantIds.map(dupId => ({ ...payload, id: dupId, createdAt: nowIso }))
-        ].map(r => db.sanitizeSupabasePayload(r, 'google_configs'));
-        let { error } = await supabase
-          .from('google_configs')
-          .upsert(rowsToUpsert, { onConflict: 'id' });
-        if (error) {
-          const msg = error.message || String(error);
-          if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-            console.warn('Supabase upsert google_configs column cache error, retrying without optional columns:', error);
-            const fallbackRows = rowsToUpsert.map(r => {
-              const fb: any = { ...r };
-              delete fb.smtpHost;
-              delete fb.smtpPort;
-              delete fb.smtpProvider;
-              delete fb.tenantId;
-              return fb;
-            });
-            const retryRes = await supabase.from('google_configs').upsert(fallbackRows, { onConflict: 'id' });
-            error = retryRes.error;
-          }
-        }
-        if (error) {
-          console.error('Supabase upsert failed for google_configs:', error);
-          throw error;
-        }
+      const targetTenant = db.tenants.find(t => t.id === targetTenantId);
+      if (targetTenant) {
+        const nextOfficialMailConfig = {
+          ...((targetTenant.features as any)?.officialMailConfig || (targetTenant as any).officialMailConfig || {}),
+          googleEmail: payload.googleEmail,
+          googlePassword: payload.googlePassword,
+          gmailAppPassword: payload.gmailAppPassword,
+          smtpProvider: payload.smtpProvider,
+          smtpHost: payload.smtpHost,
+          smtpPort: payload.smtpPort,
+          isDevMode: payload.isDevMode,
+          updatedAt: nowIso
+        };
+        const nextR2Config = {
+          ...((targetTenant.features as any)?.r2Config || (targetTenant as any).r2Config || {}),
+          r2AccountId: payload.r2AccountId ?? ((targetTenant.features as any)?.r2Config?.r2AccountId || ''),
+          r2BucketName: payload.r2BucketName ?? ((targetTenant.features as any)?.r2Config?.r2BucketName || ''),
+          r2AccessKeyId: payload.r2AccessKeyId ?? ((targetTenant.features as any)?.r2Config?.r2AccessKeyId || ''),
+          r2SecretAccessKey: payload.r2SecretAccessKey || ((targetTenant.features as any)?.r2Config?.r2SecretAccessKey || ''),
+          r2PublicDomain: payload.r2PublicDomain ?? ((targetTenant.features as any)?.r2Config?.r2PublicDomain || ''),
+        };
+        db.updateRow<Tenant>('tenants', targetTenantId, {
+          officialMailConfig: nextOfficialMailConfig,
+          r2Config: nextR2Config,
+          features: {
+            ...(targetTenant.features || {
+              telegramBot: true,
+              callRecordingStt: true,
+              kakaoContract: true,
+              autoTaxInvoice: true,
+              voiceAssistance: true
+            }),
+            officialMailConfig: nextOfficialMailConfig,
+            r2Config: nextR2Config
+          } as any
+        });
       }
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      console.error('updateGoogleConfig Error:', err);
-      showErrorModal(`⚠️ 구글 설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '원격 DB 저장 오류');
+      console.error('updateOfficialMailConfig Error:', err);
+      showErrorModal(`⚠️ 공식메일설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '원격 DB 저장 오류');
       throw err;
     }
   };
@@ -11557,14 +11505,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       errorReports, addErrorReport, receiveErrorReport, completeErrorReport, cancelErrorReport, reopenErrorReport, deleteErrorReport,
       users, departments, permissions, customers, contacts, sites, siteMasters, saveSiteMaster, deleteSiteMaster, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
       stocktakingAudits, stocktakingAuditItems, collectedParts,
-      bankTransactions, bankMatchingRules, bankInitialBalances, assetInOutLogs, vendors, googleConfigs, cashFlowSnapshots, outboundInspections, depreciationLogs,
+      bankTransactions, bankMatchingRules, bankInitialBalances, assetInOutLogs, vendors, officialMailConfigs, cashFlowSnapshots, outboundInspections, depreciationLogs,
       purchaseSettlements, purchaseSettlementItems, settlementPaymentLogs: db.settlementPaymentLogs, externalLeases, inspectionChecklistItems,
       equipmentManuals, saveEquipmentManual, deleteEquipmentManual,
       standardOptions, saveStandardOption, deleteStandardOption, monthlyIncomeStatements, saveMonthlyIncomeStatement,
       customRoles, rolePermissions, saveCustomRole, deleteCustomRole, saveRolePermissions, assignUserRole,
       annualLeaveQuotas, leaveUsages, overtimeRecords, payrollClosings, prepaidTransactions, delinquencyActionLogs, legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
       corporateVehicles, vehicleOperationLogs, vehicleFuelLogs, registerCorporateVehicle, updateCorporateVehicle, deleteCorporateVehicle, registerVehicleOperationLog, updateVehicleOperationLog, deleteVehicleOperationLog, registerVehicleFuelLog, deleteVehicleFuelLog,
-      refreshAllData, fullRefreshFromServer, executeMonthlyDepreciation, loadTablesForMenu, updatePermissions, saveUser, saveCustomer, deleteCustomer, saveContact, deleteContact, saveSite, deleteSite, saveProduct, saveAsset, updateGoogleConfig,
+      refreshAllData, fullRefreshFromServer, executeMonthlyDepreciation, loadTablesForMenu, updatePermissions, saveUser, saveCustomer, deleteCustomer, saveContact, deleteContact, saveSite, deleteSite, saveProduct, saveAsset, updateOfficialMailConfig,
       saveCashFlowSnapshot, deleteCashFlowSnapshot, saveVendor, deleteVendor, recalculateAllVendorMetrics, saveBankInitialBalance, saveInspectionChecklistItem, deleteInspectionChecklistItem,
       updateAnnualLeaveQuota, addLeaveUsage, deleteLeaveUsage, addOvertimeRecord, deleteOvertimeRecord, setPayrollClosingStatus,
       acquireAsset, batchAcquireAssets, disposeAsset, executeAssetSale, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable, changeAssetStatus, registerInboundAsset, cancelInboundAsset,

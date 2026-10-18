@@ -47,7 +47,7 @@ export const formatTenantBankAccountsForEmail = (tenant?: Tenant | null): string
 
 export const Billings: React.FC = () => {
   const {
-    billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, users, googleConfigs,
+    billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, users, officialMailConfigs,
     generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract, splitBillingAbsoluteAmount, syncContractBillingMilestones,
     receivePayment, cancelPayment, cancelAllPaymentsForBilling, hasPermission, currentUser, approveBilling, cancelBilling,
     refreshAllData, showErrorModal, bankTransactions, paymentDepositLinks, payments,
@@ -1324,8 +1324,8 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       return;
     }
 
-    const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-    const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+    const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+    const config = officialMailConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs[0];
     const isDev = config?.isDevMode !== false;
     if (isDev) {
       const confirmSend = true;

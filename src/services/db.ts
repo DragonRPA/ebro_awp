@@ -329,6 +329,10 @@ export interface Tenant {
   privacyOfficerDepartment?: string;
   privacyOfficerPhone?: string;
   privacyOfficerEmail?: string;
+
+  // 📧 공식메일설정 및 R2 스토리지 설정 (중앙 플랫폼 DB tenants.features 내부 통합 관리)
+  officialMailConfig?: Partial<OfficialMailConfig>;
+  r2Config?: Partial<OfficialMailConfig>;
 }
 
 /** 🛡️ 법정 개인정보 보호책임자 (CPO) 엔티티 */
@@ -350,13 +354,6 @@ export const TENANTS_DDL_STATEMENTS: string[] = [
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "specialFeatures" JSONB DEFAULT \'[]\'::jsonb;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "excelMappingRules" JSONB;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "privacyOfficer" JSONB;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "tenantId" TEXT;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpProvider" TEXT;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpHost" TEXT;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "appsScriptUrl" TEXT;',
-  'ALTER TABLE "google_configs" ADD COLUMN IF NOT EXISTS "oauthClientId" TEXT;',
   `NOTIFY pgrst, 'reload schema';`
 ];
 
@@ -2455,7 +2452,7 @@ export interface BankAccountInitialBalance {
   updatedAt: string;
 }
 
-export interface GoogleConfig {
+export interface OfficialMailConfig {
   id: string;
   tenantId?: string; // 테넌트 격리 ID
   googleEmail: string;
@@ -4761,7 +4758,7 @@ const SEED_BANK_TRANSACTIONS: BankTransaction[] = [];
 
 const SEED_BANK_MATCHING_RULES: BankMatchingRule[] = [];
 
-const SEED_GOOGLE_CONFIG: GoogleConfig[] = [
+const SEED_OFFICIAL_MAIL_CONFIG: OfficialMailConfig[] = [
   {
     id: 'default-config',
     googleEmail: '',
@@ -5409,7 +5406,7 @@ export const ALL_DB_KEYS = [
   'contracts', 'contractAssets', 'contractHistory', 'deliveries', 
   'transportCompanies', 'transportDrivers', 'vendors',
   'billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'repairs', 'repairConsumables', 'todos', 
-  'bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'googleConfigs', 'assetInOutLogs',
+  'bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'assetInOutLogs',
   'cashFlowSnapshots', 'outboundInspections', 'depreciationLogs',
   'purchaseSettlements', 'purchaseSettlementItems', 'settlementPaymentLogs', 'externalLeases',
   'annualLeaveQuotas', 'leaveUsages', 'overtimeRecords', 'payrollClosings', 'inspectionChecklistItems',
@@ -6148,8 +6145,47 @@ class LocalDB {
   get bankInitialBalances() { return this.get<BankAccountInitialBalance>('bankInitialBalances', []); }
   set bankInitialBalances(val: BankAccountInitialBalance[]) { this.set('bankInitialBalances', val); }
 
-  get googleConfigs() { return this.get<GoogleConfig>('googleConfigs', []); }
-  set googleConfigs(val: GoogleConfig[]) { this.set('googleConfigs', val); }
+  get officialMailConfigs(): OfficialMailConfig[] {
+    const cached = this.get<OfficialMailConfig>('officialMailConfigs', []);
+    const tenantsList = this.tenants || [];
+    const byId = new Map<string, OfficialMailConfig>();
+    for (const c of cached) {
+      if (c && c.id) byId.set(c.id, c);
+    }
+    for (const t of tenantsList) {
+      if (!t || !t.id) continue;
+      const mailCfg: any = (t as any).officialMailConfig || (t.features as any)?.officialMailConfig || (t.features as any)?.smtpConfig || (t as any).smtpConfig;
+      const r2Cfg: any = (t as any).r2Config || (t.features as any)?.r2Config;
+      if (mailCfg || r2Cfg) {
+        const cfgId = `cfg-${t.id}`;
+        const prev = byId.get(cfgId) || ({} as Partial<OfficialMailConfig>);
+        byId.set(cfgId, {
+          id: cfgId,
+          tenantId: t.id,
+          googleEmail: mailCfg?.googleEmail ?? prev.googleEmail ?? '',
+          googlePassword: mailCfg?.googlePassword ?? prev.googlePassword ?? '',
+          gmailAppPassword: mailCfg?.gmailAppPassword ?? prev.gmailAppPassword ?? '',
+          smtpProvider: mailCfg?.smtpProvider ?? prev.smtpProvider ?? 'NAVER',
+          smtpHost: mailCfg?.smtpHost ?? prev.smtpHost ?? 'smtp.naver.com',
+          smtpPort: mailCfg?.smtpPort ?? prev.smtpPort ?? 465,
+          contractFolder: mailCfg?.contractFolder ?? prev.contractFolder ?? '렌탈계약서_증빙',
+          consumableFolder: mailCfg?.consumableFolder ?? prev.consumableFolder ?? '소모품납품증빙',
+          deliveryFolder: mailCfg?.deliveryFolder ?? prev.deliveryFolder ?? '출고의뢰_증빙',
+          maintenanceFolder: mailCfg?.maintenanceFolder ?? prev.maintenanceFolder ?? '정비보고서_증빙',
+          isDevMode: mailCfg?.isDevMode ?? prev.isDevMode ?? true,
+          mirrorRecursive: mailCfg?.mirrorRecursive ?? prev.mirrorRecursive ?? true,
+          r2AccountId: r2Cfg?.r2AccountId ?? mailCfg?.r2AccountId ?? prev.r2AccountId ?? '',
+          r2BucketName: r2Cfg?.r2BucketName ?? mailCfg?.r2BucketName ?? prev.r2BucketName ?? '',
+          r2AccessKeyId: r2Cfg?.r2AccessKeyId ?? mailCfg?.r2AccessKeyId ?? prev.r2AccessKeyId ?? '',
+          r2SecretAccessKey: r2Cfg?.r2SecretAccessKey ?? mailCfg?.r2SecretAccessKey ?? prev.r2SecretAccessKey ?? '',
+          r2PublicDomain: r2Cfg?.r2PublicDomain ?? mailCfg?.r2PublicDomain ?? prev.r2PublicDomain ?? '',
+          updatedAt: mailCfg?.updatedAt || r2Cfg?.updatedAt || t.updatedAt || prev.updatedAt || new Date().toISOString()
+        });
+      }
+    }
+    return Array.from(byId.values());
+  }
+  set officialMailConfigs(val: OfficialMailConfig[]) { this.set('officialMailConfigs', val); }
 
   get assetInOutLogs() { return this.get<AssetInOutLog>('assetInOutLogs', []); }
   set assetInOutLogs(val: AssetInOutLog[]) { this.set('assetInOutLogs', val); }
@@ -6290,7 +6326,6 @@ class LocalDB {
       bankMatchingRules: 'bank_matching_rules',
       bankInitialBalances: 'bank_initial_balances',
       assetInOutLogs: 'asset_inout_logs',
-      googleConfigs: 'google_configs',
       vendors: 'vendors',
       cashFlowSnapshots: 'cash_flow_snapshots',
       outboundInspections: 'outbound_inspections',
@@ -6495,16 +6530,6 @@ class LocalDB {
       }
     }
 
-    // ☁️ [google_configs tenantId 정규화]
-    if (tableName === 'google_configs') {
-      if (!normalized.tenantId && normalized.tenant_id) {
-        normalized.tenantId = normalized.tenant_id;
-      }
-      if (!normalized.tenantId && typeof normalized.id === 'string' && normalized.id.startsWith('cfg-')) {
-        normalized.tenantId = normalized.id.slice(4);
-      }
-    }
-
     // 🏢 [tenants 직인 및 features JSONB 확장 속성 상호 복원]
     if (tableName === 'tenants' || normalized.stampBase64 !== undefined || normalized.stampImageUrl !== undefined) {
       const stampVal = normalized.stampBase64 || normalized.stampImageUrl;
@@ -6521,6 +6546,9 @@ class LocalDB {
         }
         if (!normalized.r2Config && normalized.features?.r2Config) {
           normalized.r2Config = normalized.features.r2Config;
+        }
+        if (!normalized.officialMailConfig && (normalized.features?.officialMailConfig || normalized.features?.smtpConfig)) {
+          normalized.officialMailConfig = normalized.features.officialMailConfig || normalized.features.smtpConfig;
         }
         if (normalized.features?.privacyOfficer) {
           const po = normalized.features.privacyOfficer;
@@ -6859,7 +6887,7 @@ class LocalDB {
         sanitized['media_type'] = val;
         continue;
       }
-      // tenant_id / tenantId 미보유 테이블 원천 격리 및 google_configs(tenantId) 보존
+      // tenant_id / tenantId 미보유 테이블 원천 격리
       const TABLES_WITHOUT_TENANT_ID = new Set([
         'tenants', 'equipment_manuals', 'system_manuals', 'manual_annotations',
         'legal_notice_templates', 'apk_releases', 'call_uploads', 'call_pipeline_logs',
@@ -6867,10 +6895,6 @@ class LocalDB {
         'developer_authorized_devices'
       ]);
       if ((key === 'tenantId' || key === 'tenant_id') && TABLES_WITHOUT_TENANT_ID.has(resolvedTable || '')) {
-        continue;
-      }
-      if (resolvedTable === 'google_configs' && (key === 'tenantId' || key === 'tenant_id')) {
-        sanitized['tenantId'] = val;
         continue;
       }
       // tenantId -> tenant_id 자동 표준화 (PostgreSQL snake_case 스키마 정합성 보장)
@@ -7026,44 +7050,6 @@ class LocalDB {
       delete sanitized.blockType;
     }
 
-    // ☁️ google_configs 테이블 전용 데이터 정제 및 컬럼 화이트리스트 (tenant_id 변환 방지 및 NOT NULL 기본값 보장)
-    if (resolvedTable === 'google_configs') {
-      if (obj.tenantId !== undefined) {
-        sanitized.tenantId = obj.tenantId;
-      } else if (obj.tenant_id !== undefined) {
-        sanitized.tenantId = obj.tenant_id;
-      }
-      delete sanitized.tenant_id;
-
-      if (sanitized.googleEmail === undefined || sanitized.googleEmail === null) sanitized.googleEmail = '';
-      if (sanitized.contractFolder === undefined || sanitized.contractFolder === null) sanitized.contractFolder = '';
-      if (sanitized.consumableFolder === undefined || sanitized.consumableFolder === null) sanitized.consumableFolder = '';
-      if (sanitized.deliveryFolder === undefined || sanitized.deliveryFolder === null) sanitized.deliveryFolder = '';
-      if (sanitized.maintenanceFolder === undefined || sanitized.maintenanceFolder === null) sanitized.maintenanceFolder = '';
-      if (sanitized.isDevMode === undefined || sanitized.isDevMode === null) sanitized.isDevMode = false;
-      if (sanitized.mirrorRecursive === undefined || sanitized.mirrorRecursive === null) sanitized.mirrorRecursive = true;
-
-      const GOOGLE_CONFIGS_COLS = new Set([
-        'id', 'tenantId', 'googleEmail', 'googlePassword', 'gmailAppPassword',
-        'smtpProvider', 'smtpHost', 'smtpPort',
-        'contractFolder', 'consumableFolder', 'deliveryFolder', 'maintenanceFolder',
-        'isDevMode', 'mirrorRecursive',
-        'quotationTemplateUrl', 'contractTemplateUrl', 'safetyInspectionTemplateUrl',
-        'preDeliveryChecklistTemplateUrl', 'bizRegCertUrl', 'bankbookCopyUrl',
-        'transactionStatementTemplateUrl', 'defaultRootFolderId',
-        'currentInsuranceStartDate', 'currentInsuranceEndDate',
-        'nextInsuranceCertUrl', 'nextInsuranceStartDate', 'nextInsuranceEndDate',
-        'appsScriptUrl', 'oauthClientId',
-        'r2AccountId', 'r2BucketName', 'r2AccessKeyId', 'r2SecretAccessKey', 'r2PublicDomain',
-        'createdAt', 'updatedAt'
-      ]);
-      for (const k of Object.keys(sanitized)) {
-        if (!GOOGLE_CONFIGS_COLS.has(k)) {
-          delete sanitized[k];
-        }
-      }
-    }
-
     // 🏢 tenants 테이블 전용 데이터 정제 및 컬럼 매핑 (centralSupabase.tenants 실제 컬럼 화이트리스트 및 JSONB 패킹)
     if (resolvedTable === 'tenants') {
       // 1. 프론트엔드 stampImageUrl ↔ DB stampBase64 완벽 호환 (직인 컬럼 불일치 해결)
@@ -7101,6 +7087,10 @@ class LocalDB {
       }
       if (obj.r2Config !== undefined) {
         mergedFeatures.r2Config = obj.r2Config;
+        featuresTouched = true;
+      }
+      if (obj.officialMailConfig !== undefined) {
+        mergedFeatures.officialMailConfig = obj.officialMailConfig;
         featuresTouched = true;
       }
       if (
@@ -7316,7 +7306,7 @@ class LocalDB {
             const msg = error.message || String(error);
             console.error(`Supabase upsert failed for ${tableName}:`, error);
 
-            if ((tableName === 'tenants' || tableName === 'google_configs') && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
+            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));
@@ -7369,11 +7359,11 @@ class LocalDB {
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
     if (targetClient) {
       // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 null 필드를 sanitize 이전에 반영하여 화이트리스트 우회 오염 원천 차단
-      const rawForSanitize: any = (tableName === 'tenants' || tableName === 'google_configs')
+      const rawForSanitize: any = (tableName === 'tenants')
         ? { ...updated, id }
         : { id, ...updatedPayload };
 
-      if (tableName !== 'tenants' && tableName !== 'google_configs') {
+      if (tableName !== 'tenants') {
         for (const updateKey in updates) {
           if (updates[updateKey] === undefined || updates[updateKey] === null) {
             if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(updateKey)) continue;
@@ -7397,7 +7387,7 @@ class LocalDB {
       }
       payloadForSupabase = encryptEntityPrivacyFields(tableName, payloadForSupabase);
 
-      const dbOp = (tableName === 'tenants' || tableName === 'google_configs')
+      const dbOp = (tableName === 'tenants')
         ? targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
         : targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
 
@@ -7407,11 +7397,11 @@ class LocalDB {
             const msg = error.message || String(error);
             console.error(`Supabase update failed for ${tableName}:`, error);
 
-            if ((tableName === 'tenants' || tableName === 'google_configs') && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
+            if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));
-                const retryRes = (tableName === 'tenants' || tableName === 'google_configs')
+                const retryRes = (tableName === 'tenants')
                   ? await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
                   : await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
                 if (!retryRes.error) {
@@ -7422,7 +7412,7 @@ class LocalDB {
 
             if (error.code === '23503' || msg.includes('foreign key constraint')) {
               await new Promise(r => setTimeout(r, 300));
-              const retryRes = (tableName === 'tenants' || tableName === 'google_configs')
+              const retryRes = (tableName === 'tenants')
                 ? await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' })
                 : await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
               if (!retryRes.error) {

@@ -13,7 +13,7 @@ interface MailAttachment {
 }
 
 export const OfficialMailPage: React.FC = () => {
-  const { customers, products, googleConfigs, currentUser, currentTenant } = useApp();
+  const { customers, products, officialMailConfigs, currentUser, currentTenant } = useApp();
   const customerContacts: CustomerContact[] = db.contacts;
   const customerSites: CustomerSite[] = db.sites;
 
@@ -59,9 +59,9 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   const officialConfig = useMemo(() => {
-    // 1. Context에 로드된 googleConfigs 탐색 (현재 테넌트 1:1 매핑, 최신 갱신순)
-    if (googleConfigs && googleConfigs.length > 0) {
-      const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    // 1. Context에 로드된 officialMailConfigs 탐색 (현재 테넌트 1:1 매핑, 최신 갱신순)
+    if (officialMailConfigs && officialMailConfigs.length > 0) {
+      const sorted = [...officialMailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
       const tenantMatched = sorted.filter(c => isTenantMatch(c.tenantId));
       const validTenantCfg = tenantMatched.find(c => c.googleEmail && c.googleEmail.trim());
       if (validTenantCfg) return validTenantCfg;
@@ -69,16 +69,16 @@ export const OfficialMailPage: React.FC = () => {
       if (!activeTenantId) return sorted[0];
     }
 
-    // 2. DB(db.googleConfigs) 탐색
-    const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    // 2. DB(db.officialMailConfigs) 탐색
+    const allDbConfigs = [...(db.officialMailConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const dbTenantMatched = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
     const dbValid = dbTenantMatched.find(c => c.googleEmail && c.googleEmail.trim());
     if (dbValid) return dbValid;
     if (dbTenantMatched.length > 0) return dbTenantMatched[0];
 
-    // 3. localStorage('erp_googleConfigs') 탐색
+    // 3. localStorage('erp_officialMailConfigs') 탐색
     try {
-      const lsVal = localStorage.getItem('erp_googleConfigs');
+      const lsVal = localStorage.getItem('erp_officialMailConfigs');
       if (lsVal) {
         const rawLsConfigs: any[] = JSON.parse(lsVal);
         if (Array.isArray(rawLsConfigs) && rawLsConfigs.length > 0) {
@@ -91,16 +91,16 @@ export const OfficialMailPage: React.FC = () => {
       }
     } catch {}
 
-    // 4. 중앙 테넌트 마스터(currentTenant.features.smtpConfig) 폴백
-    const tenantSmtpFallback = (currentTenant?.features as any)?.smtpConfig || (currentTenant as any)?.smtpConfig;
+    // 4. 중앙 테넌트 마스터(currentTenant.features.officialMailConfig) 폴백
+    const tenantSmtpFallback = (currentTenant?.features as any)?.officialMailConfig || (currentTenant as any)?.officialMailConfig || (currentTenant?.features as any)?.smtpConfig || (currentTenant as any)?.smtpConfig;
     if (tenantSmtpFallback?.googleEmail) {
       return tenantSmtpFallback;
     }
 
     return undefined;
-  }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain, currentTenant]);
+  }, [officialMailConfigs, activeTenantId, activeTenantCode, activeSubdomain, currentTenant]);
 
-  const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (테넌트 관리 > 공식 메일 설정 필요)';
+  const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (테넌트 관리 센터 > 공식메일설정 필요)';
   const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || 'e-Bro ERP';
 
   // 최근 발송 이력 로드

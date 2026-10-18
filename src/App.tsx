@@ -102,7 +102,6 @@ const DailyInOutStatus = React.lazy(() => import('./pages/DailyInOutStatus').the
 const SiteOptionManage = React.lazy(() => import('./pages/SiteOptionManage').then(module => ({ default: module.SiteOptionManage })));
 
 const RegularReportsPage = React.lazy(() => import('./pages/RegularReportsPage').then(module => ({ default: module.RegularReportsPage })));
-const GoogleConfig = React.lazy(() => import('./pages/GoogleConfig').then(module => ({ default: module.GoogleConfig })));
 const InitialDbUploader = React.lazy(() => import('./pages/InitialDbUploader').then(module => ({ default: module.InitialDbUploader })));
 
 import { AgentRequiredModal } from './components/AgentRequiredModal';

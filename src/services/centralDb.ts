@@ -48,6 +48,7 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
         specialFeatures,
         excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,
         r2Config: (decrypted as any).r2Config || decrypted.features?.r2Config,
+        officialMailConfig: (decrypted as any).officialMailConfig || decrypted.features?.officialMailConfig || decrypted.features?.smtpConfig,
         privacyOfficer: po,
         privacyOfficerName: decrypted.privacyOfficerName || po?.name || '',
         privacyOfficerPosition: decrypted.privacyOfficerPosition || po?.position || '',
@@ -91,6 +92,10 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
     }
     if (payload.r2Config !== undefined) {
       mergedFeatures.r2Config = payload.r2Config;
+      featuresTouched = true;
+    }
+    if (payload.officialMailConfig !== undefined) {
+      mergedFeatures.officialMailConfig = payload.officialMailConfig;
       featuresTouched = true;
     }
     if (

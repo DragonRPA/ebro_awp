@@ -28,7 +28,7 @@ export interface RecipientItem {
 export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, initialContractId }) => {
   const { 
     contracts, customers, contacts, sites, assets, 
-    contractAssets, deliveries, products, googleConfigs, currentUser,
+    contractAssets, deliveries, products, officialMailConfigs, currentUser,
     currentTenant, showErrorModal, hasPermission, users, outboundInspections
   } = useApp();
 
@@ -477,8 +477,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     const siteAddress = site?.address || customer?.address || '현장 주소';
 
     try {
-      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+      const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = officialMailConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs[0];
 
       const tenantCorp = currentTenant?.corporateName || currentTenant?.tradeName || currentTenant?.displayName || '(주)기연리프트';
 

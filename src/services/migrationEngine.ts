@@ -492,7 +492,6 @@ const ALL_TABLES = [
   'legal_notice_templates',
   'depreciation_logs',
   'todos',
-  'google_configs',
   'corporate_vehicles',
   'vehicle_operation_logs',
   'vehicle_fuel_logs',
@@ -627,7 +626,6 @@ export async function restoreFullDatabaseBackup(
     'legal_notice_templates',
     'depreciation_logs',
     'todos',
-    'google_configs',
     'corporate_vehicles',
     'vehicle_operation_logs',
     'vehicle_fuel_logs',
@@ -700,7 +698,7 @@ export async function resetAllDatabaseTables(
   targetTenantId?: string
 ): Promise<{ success: boolean; message: string }> {
   // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates),
-  // 테넌트 원장(tenants), 공식 메일·스토리지 설정(google_configs), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
+  // 중앙 테넌트 원장 및 공식메일설정(tenants.features.officialMailConfig), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
   const DELETION_ORDER = [
     'monthly_income_statements',
     'settlement_payment_logs',
@@ -841,7 +839,6 @@ export async function resetAllDatabaseTables(
       leave_usages: 'leaveUsages',
       overtime_records: 'overtimeRecords',
       payroll_closings: 'payrollClosings',
-      google_configs: 'googleConfigs',
       standard_options: 'standardOptions',
       custom_roles: 'customRoles',
       role_permissions: 'rolePermissions',

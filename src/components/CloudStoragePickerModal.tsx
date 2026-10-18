@@ -36,9 +36,9 @@ export const CloudStoragePickerModal: React.FC<CloudStoragePickerModalProps> = (
   title = '클라우드 스토리지 탐색기',
   initialValue = ''
 }) => {
-  const { googleConfigs } = useApp();
-  const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-  const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+  const { officialMailConfigs, currentTenant } = useApp();
+  const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const config = officialMailConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs[0];
 
   const [activeTab, setActiveTab] = useState<'r2' | 'url'>('r2');
   const [currentPrefix, setCurrentPrefix] = useState<string>('');

@@ -1,7 +1,7 @@
 // src/services/r2MirrorSync.ts
 // e-Bro ERP Cloudflare R2 ➔ 로컬 PC (C:\eBroAgent\drive_mirror\) 100% 무인 미러링 동기화 엔진
 
-import { GoogleConfig } from './db';
+import { OfficialMailConfig } from './db';
 import { subscribeMirrorProgress, MirrorProgressState, MirrorSyncResult } from './driveMirrorSync';
 import { fetchWithAgentFallback } from './agentService';
 
@@ -46,7 +46,7 @@ export function subscribeR2MirrorProgress(listener: MirrorProgressListener): () 
  * Cloudflare R2 버킷의 모든 하위 폴더와 파일들을 로컬 에이전트(C:\eBroAgent\drive_mirror\)로 일괄 무인 미러링
  */
 export async function executeR2MirrorSync(
-  config?: GoogleConfig,
+  config?: OfficialMailConfig,
   onProgress?: (msg: string, current: number, total: number) => void
 ): Promise<MirrorSyncResult> {
   const accountId = config?.r2AccountId?.trim();
@@ -246,7 +246,7 @@ export async function executeR2MirrorSync(
 /**
  * Cloudflare R2 버킷 연결 검증
  */
-export async function testR2Connection(config: GoogleConfig): Promise<{ success: boolean; message: string }> {
+export async function testR2Connection(config: OfficialMailConfig): Promise<{ success: boolean; message: string }> {
   try {
     const res = await fetch('/api/r2', {
       method: 'POST',

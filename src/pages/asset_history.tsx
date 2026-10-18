@@ -18,7 +18,7 @@ export const AssetHistory: React.FC = () => {
   const { 
     assetInOutLogs, assets, customers, sites, contractAssets, contracts, 
     navigationPayload, setNavigationPayload,
-    inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, googleConfigs, showErrorModal
+    inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, officialMailConfigs, showErrorModal, currentTenant
   } = useApp();
 
   // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
@@ -297,8 +297,8 @@ export const AssetHistory: React.FC = () => {
         : (inboundMemo.trim() || '입고 검수 이상 무');
 
       const uploadedPhotoUrls: Record<string, string> = {};
-      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+      const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = officialMailConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';

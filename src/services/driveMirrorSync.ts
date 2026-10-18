@@ -2,7 +2,7 @@
 // e-Bro ERP Cloudflare R2 ➔ 로컬 PC (C:\eBroAgent\drive_mirror\) 단방향 미러링 동기화 엔진
 // 원칙: CF R2가 유일한 마스터 원본(SSOT), 로컬 drive_mirror는 항상 CF R2를 따라가는 읽기 전용 사본
 
-import { GoogleConfig } from './db';
+import { OfficialMailConfig } from './db';
 import { fetchWithAgentFallback } from './agentService';
 
 export interface MirrorSyncResult {
@@ -61,7 +61,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 /**
  * CF R2 버킷 전체 파일 목록을 Vercel /api/r2 프록시를 통해 조회
  */
-async function listR2AllFiles(config?: GoogleConfig): Promise<Array<{ key: string; size: number }>> {
+async function listR2AllFiles(config?: OfficialMailConfig): Promise<Array<{ key: string; size: number }>> {
   const params = new URLSearchParams({ action: 'list' });
   if (config?.r2AccountId) params.set('accountId', config.r2AccountId);
   if (config?.r2BucketName) params.set('bucketName', config.r2BucketName);
@@ -118,7 +118,7 @@ const CF_MANIFEST_FILES: Array<{ key: string; size: number }> = [
  * - 구글 드라이브, Apps Script, 내장 HTML 템플릿 일체 사용 안 함
  */
 export async function executeDriveMirrorSync(
-  config?: GoogleConfig,
+  config?: OfficialMailConfig,
   onProgress?: (msg: string, current: number, total: number) => void
 ): Promise<MirrorSyncResult> {
   const publicDomain = config?.r2PublicDomain?.trim() || DEFAULT_CF_PUBLIC_DOMAIN;

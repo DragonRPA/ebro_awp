@@ -21,7 +21,7 @@ interface StagedAsset {
 export const AssetInboundStaging: React.FC = () => {
   const { 
     assets, contracts, contractAssets, customers, sites, siteMasters, deliveries,
-    inspectionChecklistItems, outboundInspections, registerInboundAsset, googleConfigs, showErrorModal
+    inspectionChecklistItems, outboundInspections, registerInboundAsset, officialMailConfigs, showErrorModal, currentTenant
   } = useApp();
 
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -211,8 +211,8 @@ export const AssetInboundStaging: React.FC = () => {
       setIsSubmitting(true);
       setProgressState({ active: true, current: 0, total: stagedAssets.length, message: '업로드 준비 중...' });
       
-      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+      const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = officialMailConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';

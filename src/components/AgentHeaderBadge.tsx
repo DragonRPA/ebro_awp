@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
-  const { googleConfigs, hasPermission, currentTenant } = useApp();
+  const { officialMailConfigs, hasPermission, currentTenant } = useApp();
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentVersion, setAgentVersion] = useState<string>('');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
@@ -530,16 +530,16 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                         if (mStatus.success) setMirrorFiles(mStatus.files || []);
                         setSyncMessage(data.message || '동기화 완료');
                       } else {
-                        const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-                        const activeConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
+                        const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+                        const activeConfig = officialMailConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs?.[0];
                         const res = await executeDriveMirrorSync(activeConfig, (msg) => setSyncMessage(msg));
                         const mStatus = await getLocalMirrorStatus();
                         if (mStatus.success) setMirrorFiles(mStatus.files || []);
                         setSyncMessage(res.message);
                       }
                     } catch (e: any) {
-                      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-                      const activeConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
+                      const activeTenantId = currentTenant?.id || import.meta.env.VITE_TENANT_ID || 'giyuen';
+                      const activeConfig = officialMailConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || officialMailConfigs?.[0];
                       const res = await executeDriveMirrorSync(activeConfig, (msg) => setSyncMessage(msg));
                       const mStatus = await getLocalMirrorStatus();
                       if (mStatus.success) setMirrorFiles(mStatus.files || []);

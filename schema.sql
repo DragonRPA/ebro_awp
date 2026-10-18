@@ -75,9 +75,6 @@ DROP TABLE IF EXISTS departments CASCADE;
 DROP TABLE IF EXISTS todos CASCADE;
 
 
-DROP TABLE IF EXISTS google_configs CASCADE;
-
-
 -- ==============================================================================
 -- 🏛️ [도메인 1] 조직, 계정 및 인사노무 (Org, Users & HR)
 -- ==============================================================================
@@ -1360,39 +1357,8 @@ CREATE TABLE todos (
 
 
 
--- 6-7. 클라우드 및 구글 연동 설정 (google_configs)
-CREATE TABLE google_configs (
-    id                    TEXT PRIMARY KEY,
-    "googleEmail"         TEXT NOT NULL,
-    "googlePassword"      TEXT,
-    "gmailAppPassword"    TEXT,
-    "contractFolder"      TEXT NOT NULL,
-    "consumableFolder"    TEXT NOT NULL,
-    "deliveryFolder"      TEXT NOT NULL,
-    "maintenanceFolder"   TEXT NOT NULL,
-    "isDevMode"           BOOLEAN NOT NULL DEFAULT TRUE,
-    "quotationTemplateUrl" TEXT,
-    "contractTemplateUrl" TEXT,
-    "safetyInspectionTemplateUrl" TEXT,
-    "preDeliveryChecklistTemplateUrl" TEXT,
-    "bizRegCertUrl"       TEXT,
-    "bankbookCopyUrl"     TEXT,
-    "transactionStatementTemplateUrl" TEXT,
-    "defaultRootFolderId" TEXT,
-    "currentInsuranceStartDate" TEXT,
-    "currentInsuranceEndDate"   TEXT,
-    "nextInsuranceCertUrl"     TEXT,
-    "nextInsuranceStartDate"   TEXT,
-    "nextInsuranceEndDate"     TEXT,
-    "mirrorRecursive"          BOOLEAN NOT NULL DEFAULT TRUE,
-    "r2AccountId"              TEXT,
-    "r2BucketName"        TEXT,
-    "r2AccessKeyId"       TEXT,
-    "r2SecretAccessKey"   TEXT,
-    "r2PublicDomain"      TEXT,
-    "createdAt"           TEXT NOT NULL,
-    "updatedAt"           TEXT NOT NULL
-);
+-- 6-7. 공식메일설정 (tenants.features.officialMailConfig 및 r2Config 중앙 통합 관리)
+
 
 
 -- ==============================================================================
@@ -1884,7 +1850,6 @@ ALTER TABLE legal_notice_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE legal_notice_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE depreciation_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE google_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE corporate_vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicle_operation_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicle_fuel_logs ENABLE ROW LEVEL SECURITY;
@@ -2319,17 +2284,10 @@ SELECT
 FROM hindsight_experiences;
 
 -- ------------------------------------------------------------------------------
--- 테넌트 및 구글/R2 클라우드 설정 컬럼 동기화 (Idempotent Schema Sync)
+-- 테넌트 설정 컬럼 동기화 (Idempotent Schema Sync)
 -- ------------------------------------------------------------------------------
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "excelMappingRules" JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseUrl" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseAnonKey" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantId" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "tenantId" TEXT DEFAULT 'tenant-giyeonlift';
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "tenant_id" TEXT DEFAULT 'tenant-giyeonlift';
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpProvider" TEXT;
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpHost" TEXT;
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER;
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "appsScriptUrl" TEXT;
-ALTER TABLE google_configs ADD COLUMN IF NOT EXISTS "oauthClientId" TEXT;
