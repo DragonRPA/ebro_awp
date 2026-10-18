@@ -1,6 +1,6 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.11';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.12';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
@@ -9,14 +9,14 @@ export const DEFAULT_CF_R2_BASE_URL = 'https://pub-55a68547bdf24600b80d27782912c
 export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`; // Inno Setup 16MB 초고속 정식 인스톨러
 export const AGENT_EXE_URL = AGENT_INSTALLER_BASE_URL; // 기본 초고속 인스톨러 다운로드 엔드포인트
 export const AGENT_SILENT_INSTALL_CMD = 'eBroAgent_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'; // 무음 설치 명령행
-export const AGENT_VERSION_CHECK_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/version.json`; // 스마트 업데이트 검증 메타데이터
+export const AGENT_VERSION_CHECK_URL = '/downloads/version.json'; // 스마트 업데이트 검증 메타데이터
 export const AGENT_DOWNLOAD_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
 export const AGENT_BRO_JS_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
 export const AGENT_EBRO_JS_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
 export const AGENT_REG_BAT_URL = '/downloads/등록-실행.bat';       // 브라우저 실행 프로토콜 등록기
 export const AGENT_LAUNCHER_URL = '/downloads/start-agent.bat';        // 실행 배치 파일
 export const AGENT_KILL_BAT_URL = '/downloads/kill-agent.bat';
-export const AGENT_CERT_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgent_Root.cer`; // 보안 인증서 (Cloudflare CDN)
+export const AGENT_CERT_URL = '/downloads/eBroAgent_Root.cer'; // 보안 인증서
 export const AGENT_INSTALL_BAT_URL = '/downloads/install-cert.bat';     // 인증서 등록 배치 파일
 export const NODEJS_INSTALL_URL = 'https://nodejs.org/en/download/';
 export const AGENT_PROTOCOL_URI = 'broagent://run';
@@ -66,8 +66,7 @@ export function getTenantAgentInstallerInfo(tenant?: {
   // currentTenant?.targetRepo가 존재하면 해당 레포지토리 동적 사용 (미지정 시 DragonRPA/ebro_awp 기본값)
   const targetRepo = (tenant?.targetRepo?.split(',')[0].trim()) || 'DragonRPA/ebro_awp';
   const downloadUrl = `https://github.com/${targetRepo}/releases/download/agent-v2.0.0/${fileName}`;
-  // Cloudflare R2 보조 엔드포인트 URL
-  const fallbackUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}`;
+  const fallbackUrl = `/downloads/${fileName}`;
 
   return {
     downloadUrl,
