@@ -42,9 +42,17 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
     return (data || []).map(row => {
       const decrypted = decryptEntityPrivacyFields('tenants', row);
       const specialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'] : undefined);
+      const po = decrypted.privacyOfficer || decrypted.features?.privacyOfficer;
       return {
         ...decrypted,
         specialFeatures,
+        excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,
+        privacyOfficer: po,
+        privacyOfficerName: decrypted.privacyOfficerName || po?.name || '',
+        privacyOfficerPosition: decrypted.privacyOfficerPosition || po?.position || '',
+        privacyOfficerDepartment: decrypted.privacyOfficerDepartment || po?.department || '',
+        privacyOfficerPhone: decrypted.privacyOfficerPhone || po?.phone || '',
+        privacyOfficerEmail: decrypted.privacyOfficerEmail || po?.email || '',
         stampImageUrl: decrypted.stampImageUrl || decrypted.stampBase64 || '',
         stampBase64: decrypted.stampBase64 || decrypted.stampImageUrl || ''
       };
@@ -68,16 +76,57 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
       payload.stampImageUrl = payload.stampBase64;
     }
 
-    // 🛡️ centralSupabase의 tenants 테이블에 top-level specialFeatures 컬럼이 없는 경우 대비:
-    // 기존 JSONB 컬럼인 features.specialFeatures 에도 안전하게 동시 저장
-    if (payload.specialFeatures) {
-      payload.features = {
-        ...(payload.features || {}),
-        specialFeatures: payload.specialFeatures
-      };
+    // 🛡️ centralSupabase의 tenants 테이블에 top-level 컬럼이 없는 확장 속성은 features JSONB에 안전 병합
+    const mergedFeatures: any = { ...(payload.features || {}) };
+    let featuresTouched = Boolean(payload.features);
+
+    if (payload.specialFeatures !== undefined) {
+      mergedFeatures.specialFeatures = payload.specialFeatures;
+      featuresTouched = true;
     }
-    // 중앙 DB에 top-level specialFeatures 컬럼이 없으므로 payload에서 제거하여 PostgreSQL 42703 에러 방어
-    delete payload.specialFeatures;
+    if (payload.excelMappingRules !== undefined) {
+      mergedFeatures.excelMappingRules = payload.excelMappingRules;
+      featuresTouched = true;
+    }
+    if (
+      payload.privacyOfficer !== undefined ||
+      payload.privacyOfficerName !== undefined ||
+      payload.privacyOfficerPosition !== undefined ||
+      payload.privacyOfficerDepartment !== undefined ||
+      payload.privacyOfficerPhone !== undefined ||
+      payload.privacyOfficerEmail !== undefined
+    ) {
+      mergedFeatures.privacyOfficer = payload.privacyOfficer || {
+        ...(mergedFeatures.privacyOfficer || {}),
+        name: payload.privacyOfficerName ?? mergedFeatures.privacyOfficer?.name ?? '',
+        position: payload.privacyOfficerPosition ?? mergedFeatures.privacyOfficer?.position ?? '',
+        department: payload.privacyOfficerDepartment ?? mergedFeatures.privacyOfficer?.department ?? '',
+        phone: payload.privacyOfficerPhone ?? mergedFeatures.privacyOfficer?.phone ?? '',
+        email: payload.privacyOfficerEmail ?? mergedFeatures.privacyOfficer?.email ?? ''
+      };
+      featuresTouched = true;
+    }
+    if (featuresTouched) {
+      payload.features = mergedFeatures;
+    }
+
+    const CENTRAL_TENANTS_COLS = new Set([
+      'id', 'tenantCode', 'subdomain', 'displayName', 'corporateName', 'tradeName',
+      'businessNumber', 'corporateRegistrationNumber', 'representativeName', 'openingDate',
+      'businessAddress', 'headOfficeAddress', 'businessCategory', 'businessItem',
+      'tel', 'fax', 'salesPhone', 'taxEmail', 'taxOffice', 'websiteUrl',
+      'ciUrl', 'logoUrl', 'stampImageUrl', 'stampBase64', 'status', 'isDefault',
+      'allowCustomBillingStatement', 'solutionType', 'targetRepo', 'subscription',
+      'features', 'bankAccounts', 'yards', 'workplaces', 'allowedPages', 'hiddenPages',
+      'tenantSupabaseUrl', 'tenantSupabaseAnonKey', 'created_at', 'updated_at',
+      'systemName', 'businessTypes', 'isUnitTaxation', 'certificateIssueDate',
+      'email', 'mainYardAddress', 'createdAt', 'updatedAt'
+    ]);
+    for (const k of Object.keys(payload)) {
+      if (!CENTRAL_TENANTS_COLS.has(k)) {
+        delete payload[k];
+      }
+    }
 
     payload = encryptEntityPrivacyFields('tenants', payload);
 

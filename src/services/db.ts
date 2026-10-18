@@ -6472,12 +6472,29 @@ class LocalDB {
       }
     }
 
-    // 🏢 [tenants 직인 상호 복원] DB의 stampBase64 ↔ 프론트엔드의 stampImageUrl 자동 복원
+    // 🏢 [tenants 직인 및 features JSONB 확장 속성 상호 복원]
     if (tableName === 'tenants' || normalized.stampBase64 !== undefined || normalized.stampImageUrl !== undefined) {
       const stampVal = normalized.stampBase64 || normalized.stampImageUrl;
       if (stampVal) {
         if (!normalized.stampImageUrl) normalized.stampImageUrl = stampVal;
         if (!normalized.stampBase64) normalized.stampBase64 = stampVal;
+      }
+      if (tableName === 'tenants') {
+        if (!normalized.specialFeatures && normalized.features?.specialFeatures) {
+          normalized.specialFeatures = normalized.features.specialFeatures;
+        }
+        if (!normalized.excelMappingRules && normalized.features?.excelMappingRules) {
+          normalized.excelMappingRules = normalized.features.excelMappingRules;
+        }
+        if (normalized.features?.privacyOfficer) {
+          const po = normalized.features.privacyOfficer;
+          if (!normalized.privacyOfficer) normalized.privacyOfficer = po;
+          if (!normalized.privacyOfficerName && po.name) normalized.privacyOfficerName = po.name;
+          if (!normalized.privacyOfficerPosition && po.position) normalized.privacyOfficerPosition = po.position;
+          if (!normalized.privacyOfficerDepartment && po.department) normalized.privacyOfficerDepartment = po.department;
+          if (!normalized.privacyOfficerPhone && po.phone) normalized.privacyOfficerPhone = po.phone;
+          if (!normalized.privacyOfficerEmail && po.email) normalized.privacyOfficerEmail = po.email;
+        }
       }
     }
 
@@ -6959,7 +6976,7 @@ class LocalDB {
       delete sanitized.blockType;
     }
 
-    // 🏢 tenants 테이블 전용 데이터 정제 및 컬럼 매핑 (targetRepo, solutionType, 직인 호환)
+    // 🏢 tenants 테이블 전용 데이터 정제 및 컬럼 매핑 (centralSupabase.tenants 실제 컬럼 화이트리스트 및 JSONB 패킹)
     if (tableName === 'tenants') {
       // 1. 프론트엔드 stampImageUrl ↔ DB stampBase64 완벽 호환 (직인 컬럼 불일치 해결)
       if (obj.stampImageUrl !== undefined && obj.stampImageUrl !== null) {
@@ -6976,6 +6993,62 @@ class LocalDB {
       }
       if (obj.solutionType !== undefined) {
         sanitized.solutionType = obj.solutionType || 'AWP';
+      }
+
+      // 3. centralSupabase(ebro-platform-core)의 tenants 테이블에 top-level 컬럼이 없는 확장 속성은 features JSONB 내부에 안전 병합
+      const existingTenant = obj.id ? (this.tenants || []).find(t => t && t.id === obj.id) : null;
+      const mergedFeatures: any = {
+        ...((existingTenant as any)?.features || {}),
+        ...(sanitized.features || {})
+      };
+      let featuresTouched = Boolean(sanitized.features);
+
+      if (obj.specialFeatures !== undefined) {
+        mergedFeatures.specialFeatures = obj.specialFeatures;
+        featuresTouched = true;
+      }
+      if (obj.excelMappingRules !== undefined) {
+        mergedFeatures.excelMappingRules = obj.excelMappingRules;
+        featuresTouched = true;
+      }
+      if (
+        obj.privacyOfficer !== undefined ||
+        obj.privacyOfficerName !== undefined ||
+        obj.privacyOfficerPosition !== undefined ||
+        obj.privacyOfficerDepartment !== undefined ||
+        obj.privacyOfficerPhone !== undefined ||
+        obj.privacyOfficerEmail !== undefined
+      ) {
+        mergedFeatures.privacyOfficer = obj.privacyOfficer || {
+          ...(mergedFeatures.privacyOfficer || {}),
+          name: obj.privacyOfficerName ?? mergedFeatures.privacyOfficer?.name ?? '',
+          position: obj.privacyOfficerPosition ?? mergedFeatures.privacyOfficer?.position ?? '',
+          department: obj.privacyOfficerDepartment ?? mergedFeatures.privacyOfficer?.department ?? '',
+          phone: obj.privacyOfficerPhone ?? mergedFeatures.privacyOfficer?.phone ?? '',
+          email: obj.privacyOfficerEmail ?? mergedFeatures.privacyOfficer?.email ?? ''
+        };
+        featuresTouched = true;
+      }
+      if (featuresTouched) {
+        sanitized.features = mergedFeatures;
+      }
+
+      const CENTRAL_TENANTS_COLS = new Set([
+        'id', 'tenantCode', 'subdomain', 'displayName', 'corporateName', 'tradeName',
+        'businessNumber', 'corporateRegistrationNumber', 'representativeName', 'openingDate',
+        'businessAddress', 'headOfficeAddress', 'businessCategory', 'businessItem',
+        'tel', 'fax', 'salesPhone', 'taxEmail', 'taxOffice', 'websiteUrl',
+        'ciUrl', 'logoUrl', 'stampImageUrl', 'stampBase64', 'status', 'isDefault',
+        'allowCustomBillingStatement', 'solutionType', 'targetRepo', 'subscription',
+        'features', 'bankAccounts', 'yards', 'workplaces', 'allowedPages', 'hiddenPages',
+        'tenantSupabaseUrl', 'tenantSupabaseAnonKey', 'created_at', 'updated_at',
+        'systemName', 'businessTypes', 'isUnitTaxation', 'certificateIssueDate',
+        'email', 'mainYardAddress', 'createdAt', 'updatedAt'
+      ]);
+      for (const k of Object.keys(sanitized)) {
+        if (!CENTRAL_TENANTS_COLS.has(k)) {
+          delete sanitized[k];
+        }
       }
     }
 
@@ -7167,13 +7240,14 @@ class LocalDB {
     const tableName = this.mapToSupabaseTable(tableKey as string);
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
     if (targetClient) {
-      let payloadForSupabase = this.sanitizeSupabasePayload(updatedPayload, tableName);
+      let payloadForSupabase = this.sanitizeSupabasePayload({ id, ...updatedPayload }, tableName);
 
       // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 undefined/null 필드를 Supabase null로 정확히 반영
       for (const updateKey in updates) {
         if (updates[updateKey] === undefined || updates[updateKey] === null) {
           if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(updateKey)) continue;
           if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(updateKey)) continue;
+          if (tableName === 'tenants' && ['specialFeatures', 'excelMappingRules', 'privacyOfficer', 'privacyOfficerName', 'privacyOfficerPosition', 'privacyOfficerDepartment', 'privacyOfficerPhone', 'privacyOfficerEmail'].includes(updateKey)) continue;
           payloadForSupabase[updateKey] = null;
         }
       }
