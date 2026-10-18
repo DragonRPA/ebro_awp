@@ -475,12 +475,11 @@ export const Customers: React.FC = () => {
     return statsMap;
   }, [contracts, contractAssets]);
 
-  // 🎯 현장별 옵션관리 등록 현장 중 옵션 참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
+  // 🎯 현장별 옵션관리 등록 현장 중 선택/참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
   const optionReferenceSites = useMemo(() => {
     const matcher = createHangulMatcher(siteOptionRefSearch);
     return (siteMasters || []).filter(s => {
-      if (editingSite?.siteMasterId && s.id === editingSite.siteMasterId) return false;
-      if (editingSiteOption?.siteMasterId && s.id === editingSiteOption.siteMasterId) return false;
+      if (showSiteOptionModal && editingSiteOption?.siteMasterId && s.id === editingSiteOption.siteMasterId) return false;
 
       if (siteOptionRefSearch.trim()) {
         const sName = s.name || '';
@@ -496,7 +495,7 @@ export const Customers: React.FC = () => {
       if (!aHasOpts && bHasOpts) return 1;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [siteMasters, editingSite?.siteMasterId, editingSiteOption?.siteMasterId, siteOptionRefSearch]);
+  }, [siteMasters, showSiteOptionModal, editingSiteOption?.siteMasterId, siteOptionRefSearch]);
 
   const selectedRefSite = useMemo(() => {
     if (!selectedRefSiteId) return null;
@@ -836,17 +835,23 @@ export const Customers: React.FC = () => {
   const handleDeleteCustomer = async (custId: string, custName: string) => {
     // 1. 사전 무결성 검사: 유지중인 계약이나 보호 대상 고객 현장(N:M)이 존재하면 입력 프롬프트 전에 즉시 차단 및 안내 모달 출력
     const custSites = (sites || []).filter(s => s.customerId === custId);
-    const custSiteIds = new Set(custSites.map(s => s.id));
-    for (const s of custSites) {
-      if (s.siteMasterId) custSiteIds.add(s.siteMasterId);
-    }
+    const custSiteLinkIds = new Set(custSites.map(s => s.id));
+    const custSiteMasterIds = new Set(custSites.map(s => s.siteMasterId).filter(Boolean) as string[]);
 
-    const custContracts = (contracts || []).filter(c => c.customerId === custId || (c.siteId && custSiteIds.has(c.siteId)));
-    const lockedSites = custSites.filter(s =>
-      (contracts || []).some(c => c.siteId === s.id || (s.siteMasterId && c.siteId === s.siteMasterId)) ||
-      (assets || []).some((a: any) => a.currentSiteId === s.id || (s.siteMasterId && a.currentSiteId === s.siteMasterId))
+    const custContracts = (contracts || []).filter(c =>
+      c.customerId === custId ||
+      (c.siteId && custSiteLinkIds.has(c.siteId)) ||
+      (c.customerId === custId && c.siteId && custSiteMasterIds.has(c.siteId))
     );
-    const custAssets = (assets || []).filter((a: any) => a.currentCustomerId === custId || (a.currentSiteId && custSiteIds.has(a.currentSiteId)));
+    const lockedSites = custSites.filter(s =>
+      (contracts || []).some(c => c.siteId === s.id || (c.customerId === custId && s.siteMasterId && c.siteId === s.siteMasterId)) ||
+      (assets || []).some((a: any) => a.currentSiteId === s.id || (a.currentCustomerId === custId && s.siteMasterId && a.currentSiteId === s.siteMasterId))
+    );
+    const custAssets = (assets || []).filter((a: any) =>
+      a.currentCustomerId === custId ||
+      (a.currentSiteId && custSiteLinkIds.has(a.currentSiteId)) ||
+      (a.currentCustomerId === custId && a.currentSiteId && custSiteMasterIds.has(a.currentSiteId))
+    );
     const custBillings = (billings || []).filter((b: any) => b.customerId === custId);
     const custReceivables = (receivables || []).filter((r: any) => r.customerId === custId);
 
@@ -1143,14 +1148,20 @@ export const Customers: React.FC = () => {
       return;
     }
 
+    // 🌟 헌장 1.5 Strict N:M 준수: 물리 현장(SiteMaster)은 여러 고객사(N)가 동시에 공유 사용할 수 있으므로,
+    // 타 고객사의 현장 연결은 절대 차단하지 않으며 오직 '동일 고객사 내 중복 연결'만 방지한다.
     const rawName = editingSite.name || '';
     const normalizedName = rawName.replace(/\s+/g, '');
-    const duplicate = (sites || []).find(s => 
+    const duplicateInSameCustomer = (sites || []).find(s => 
       s.id !== editingSite.id && 
-      (s.name || '').replace(/\s+/g, '') === normalizedName
+      s.customerId === editingSite.customerId &&
+      (
+        (editingSite.siteMasterId && s.siteMasterId === editingSite.siteMasterId) ||
+        (s.name || '').replace(/\s+/g, '') === normalizedName
+      )
     );
-    if (duplicate) {
-      showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n소속 고객사: [${customerMap.get(duplicate.customerId || '')?.name || '알 수 없음'}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 엄격히 금지됩니다. 기존에 등록된 현장을 활용해 주세요.`);
+    if (duplicateInSameCustomer) {
+      showErrorModal(`현재 고객사에 동일한 현장이 이미 연결되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicateInSameCustomer.name}]\n\n동일 고객사 내 중복 현장 연결은 제한됩니다.`);
       return;
     }
 

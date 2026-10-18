@@ -2171,25 +2171,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetCust = db.customers.find(c => c.id === id);
     const custName = targetCust?.name || id;
 
-    // 1. 고객사에 속한 모든 현장(customer_sites) 및 연결된 물리 현장(siteMasterId) 식별
+    // 1. 고객사에 속한 모든 현장 연결(customer_sites) 및 물리 현장(siteMasterId) 식별
     const custSites = db.sites.filter(s => s.customerId === id);
-    const custSiteIds = new Set(custSites.map(s => s.id));
-    for (const s of custSites) {
-      if (s.siteMasterId) custSiteIds.add(s.siteMasterId);
-    }
+    const custSiteLinkIds = new Set(custSites.map(s => s.id));
+    const custSiteMasterIds = new Set(custSites.map(s => s.siteMasterId).filter(Boolean) as string[]);
 
-    // 2. 고객사 직접 계약 또는 고객사 연결 현장에 체결된 계약 전수 검사
-    const custContracts = db.contracts.filter(c => c.customerId === id || (c.siteId && custSiteIds.has(c.siteId)));
+    // 2. 해당 고객사 직접 계약 또는 해당 고객사의 현장 연결에 체결된 계약 전수 검사 (타 고객사가 공유 물리현장에 맺은 계약은 제외)
+    const custContracts = db.contracts.filter(c =>
+      c.customerId === id ||
+      (c.siteId && custSiteLinkIds.has(c.siteId)) ||
+      (c.customerId === id && c.siteId && custSiteMasterIds.has(c.siteId))
+    );
     const activeContracts = custContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED');
 
-    // 3. 계약이 연결되어 삭제 불가능한 고객 현장(N:M) 식별
+    // 3. 해당 고객사 기준 계약/장비가 연결되어 삭제 불가능한 고객 현장(N:M) 식별
     const lockedSites = custSites.filter(s =>
-      db.contracts.some(c => c.siteId === s.id || (s.siteMasterId && c.siteId === s.siteMasterId)) ||
-      db.assets.some(a => a.currentSiteId === s.id || (s.siteMasterId && a.currentSiteId === s.siteMasterId))
+      db.contracts.some(c => c.siteId === s.id || (c.customerId === id && s.siteMasterId && c.siteId === s.siteMasterId)) ||
+      db.assets.some(a => a.currentSiteId === s.id || (a.currentCustomerId === id && s.siteMasterId && a.currentSiteId === s.siteMasterId))
     );
 
-    // 4. 현재 고객사 또는 고객사 현장에 배정/투입된 장비 검사
-    const custAssets = db.assets.filter(a => a.currentCustomerId === id || (a.currentSiteId && custSiteIds.has(a.currentSiteId)));
+    // 4. 현재 해당 고객사 또는 해당 고객사 현장에 배정/투입된 장비 검사
+    const custAssets = db.assets.filter(a =>
+      a.currentCustomerId === id ||
+      (a.currentSiteId && custSiteLinkIds.has(a.currentSiteId)) ||
+      (a.currentCustomerId === id && a.currentSiteId && custSiteMasterIds.has(a.currentSiteId))
+    );
 
     // 5. 청구서 및 수납/미수금 이력 검사
     const custBillings = db.billings.filter(b => b.customerId === id);
