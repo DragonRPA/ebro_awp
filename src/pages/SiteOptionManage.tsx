@@ -645,7 +645,7 @@ export const SiteOptionManage: React.FC = () => {
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Layers size={16} color="var(--primary)" />
-                신규 옵션 그룹 등록
+                신규 현장 등록
               </h3>
               <button type="button" onClick={() => setShowQuickSiteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
@@ -839,7 +839,7 @@ export const SiteOptionManage: React.FC = () => {
             }}
           >
             <Plus size={14} />
-            신규 옵션 그룹 등록
+            신규 현장 등록
           </button>
 
           <button
@@ -908,22 +908,6 @@ export const SiteOptionManage: React.FC = () => {
               {filteredSites.length === 0 ? (
                 <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
                   <span>등록된 옵션 그룹이 없습니다.</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickSiteModal(true)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--primary)',
-                      backgroundColor: 'var(--primary)',
-                      color: '#fff',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    + 신규 옵션 그룹 등록
-                  </button>
                 </div>
               ) : (
                 filteredSites.map(site => {
@@ -1014,23 +998,7 @@ export const SiteOptionManage: React.FC = () => {
           }}>
             {!activeSite ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                <span>좌측에서 옵션 그룹을 선택하거나 [신규 옵션 그룹 등록]으로 자주 사용하는 옵션 구성을 만들어주세요.</span>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickSiteModal(true)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--primary)',
-                    backgroundColor: 'var(--primary)',
-                    color: '#fff',
-                    fontSize: '12.5px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  + 신규 옵션 그룹 등록
-                </button>
+                <span>좌측에서 옵션 그룹을 선택하거나 [신규 현장 등록]으로 자주 사용하는 옵션 구성을 만들어주세요.</span>
               </div>
             ) : (
               <>
