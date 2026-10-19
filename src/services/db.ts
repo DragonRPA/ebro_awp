@@ -948,38 +948,9 @@ export interface StandardOption {
   updatedAt?: string;
 }
 
-// 🛡️ 전사 표준 옵션 마스터 기본 시드 데이터
-export const SEED_STANDARD_OPTIONS: StandardOption[] = [
-  // 1. 유상 옵션 (PAID)
-  { id: 'opt_paid_sensor', category: 'PAID', name: '협착방지봉 / 상부센서 (4EA)', defaultPrice: 50000, unit: '월', description: '상단 4개소 감지센서 및 비상정지 연동', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
-  { id: 'opt_paid_mesh', category: 'PAID', name: '4면 철망 설치', defaultPrice: 100000, unit: '월', description: '작업대 4면 낙하 방지 안전 철망', isActive: true, sortOrder: 2, createdAt: '2026-01-01' },
-  { id: 'opt_paid_tin', category: 'PAID', name: '함석 설치', defaultPrice: 150000, unit: '월', description: '하부 비산 및 낙하 방지 함석판 설치', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
-  { id: 'opt_paid_inverter', category: 'PAID', name: '인버터 설치', defaultPrice: 50000, unit: '월', description: '작업대 내 220V 전원 공급용 고용량 인버터', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
-  { id: 'opt_paid_lugtire', category: 'PAID', name: '러그타이어 장착', defaultPrice: 50000, unit: '월', description: '험지 및 진흙 현장 주행용 패턴 타이어', isActive: true, sortOrder: 5, createdAt: '2026-01-01' },
-  { id: 'opt_paid_whitetire', category: 'PAID', name: '백색(논마킹) 타이어', defaultPrice: 50000, unit: '월', description: '실내 바닥 오염 방지용 백색 논마킹 타이어', isActive: true, sortOrder: 6, createdAt: '2026-01-01' },
-  { id: 'opt_paid_airpipe', category: 'PAID', name: '에어배관 / 발전기 설치', defaultPrice: 50000, unit: '월', description: '에어공구 연결용 배관 및 발전기 거치', isActive: true, sortOrder: 7, createdAt: '2026-01-01' },
-  { id: 'opt_paid_extinguisher', category: 'PAID', name: '소화기함 / 분말소화기', defaultPrice: 20000, unit: '월', description: '법정 화재안전 소화기함 및 3.3kg 분말소화기', isActive: true, sortOrder: 8, createdAt: '2026-01-01' },
-  { id: 'opt_paid_joystick', category: 'PAID', name: '조이스틱 커버 연장', defaultPrice: 10000, unit: '월', description: '상부 조작기 보호용 투명 연장 커버', isActive: true, sortOrder: 9, createdAt: '2026-01-01' },
-  { id: 'opt_paid_tubefire', category: 'PAID', name: '튜브소화기 (자동확산)', defaultPrice: 30000, unit: '월', description: '배터리실 내부 화재감지 자동 소화튜브', isActive: true, sortOrder: 10, createdAt: '2026-01-01' },
+// 🛡️ 전사 표준 옵션 마스터 기본 시드 데이터 (목업/하드코딩 옵션 전면 제거 — DB 등록 마스터만 사용)
+export const SEED_STANDARD_OPTIONS: StandardOption[] = [];
 
-  // 2. 무상 옵션 (PROTECTION)
-  { id: 'opt_prot_none', category: 'PROTECTION', name: 'NONE (무상옵션 없음)', defaultPrice: 0, unit: '건', description: '별도 무상옵션 미요청', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
-  { id: 'opt_prot_mesh', category: 'PROTECTION', name: '4면 철망 보양', defaultPrice: 0, unit: '건', description: '난간 4면 보호 완충 보양재 시공', isActive: true, sortOrder: 2, createdAt: '2026-01-01' },
-  { id: 'opt_prot_tin', category: 'PROTECTION', name: '함석 보양', defaultPrice: 0, unit: '건', description: '장비 하부 및 데크 함석 보양', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
-  { id: 'opt_prot_ladder', category: 'PROTECTION', name: '탑승구 사다리 보양', defaultPrice: 0, unit: '건', description: '탑승 사다리 발판 및 난간 완충 보양', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
-  { id: 'opt_prot_corner', category: 'PROTECTION', name: '모서리 완충 보양', defaultPrice: 0, unit: '건', description: '작업대 4면 모서리 8개소 스펀지 완충 보양', isActive: true, sortOrder: 5, createdAt: '2026-01-01' },
-  { id: 'opt_prot_floor', category: 'PROTECTION', name: '바닥/발판 보양', defaultPrice: 0, unit: '건', description: '데크 바닥 합판 및 고무패드 보양', isActive: true, sortOrder: 6, createdAt: '2026-01-01' },
-
-  // 3. 부착물 (ATTACHMENT)
-  { id: 'opt_att_cert', category: 'ATTACHMENT', name: '인증서', defaultPrice: 0, unit: '건', description: '안전인증서 사본 부착', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
-  { id: 'opt_att_specsheet', category: 'ATTACHMENT', name: '제원표', defaultPrice: 0, unit: '건', description: '장비 표준 제원표 부착', isActive: true, sortOrder: 2, createdAt: '2026-01-01' },
-  { id: 'opt_att_insurance', category: 'ATTACHMENT', name: '보험증권', defaultPrice: 0, unit: '건', description: '영업배상책임보험 및 장비보험 증권 사본 부착', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
-  { id: 'opt_att_checklist', category: 'ATTACHMENT', name: '반입전 체크리스트', defaultPrice: 0, unit: '건', description: '현장 반입전 사전 안전점검 체크리스트 부착', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
-  { id: 'opt_att_emergency_guide', category: 'ATTACHMENT', name: '비상하강사용법', defaultPrice: 0, unit: '건', description: '비상하강장치 작동 매뉴얼 및 꼬리표 부착', isActive: true, sortOrder: 5, createdAt: '2026-01-01' },
-  { id: 'opt_att_safety_report', category: 'ATTACHMENT', name: '안전점검결과서', defaultPrice: 0, unit: '건', description: '출고 안전점검결과서 (점검자 직인 날인) 부착', isActive: true, sortOrder: 6, createdAt: '2026-01-01' },
-  { id: 'opt_att_pinch_sticker', category: 'ATTACHMENT', name: '협착위험 스티커', defaultPrice: 0, unit: '건', description: '시저구간 협착위험 접촉금지 스티커 부착', isActive: true, sortOrder: 7, createdAt: '2026-01-01' },
-  { id: 'opt_att_operation_sticker', category: 'ATTACHMENT', name: '작동설명 안내스티커', defaultPrice: 0, unit: '건', description: '상/하부 조작함 작동설명 안내스티커 부착', isActive: true, sortOrder: 8, createdAt: '2026-01-01' }
-];
 
 
 export type SiteContactType = 'EQUIPMENT' | 'CLOSING' | 'SAFETY'; // EQUIPMENT: 장비담당자(기존), CLOSING: 마감담당자(거래명세서 수신인), SAFETY: 안전담당자(신설)
@@ -6078,17 +6049,12 @@ class LocalDB {
   set inspectionChecklistItems(val: InspectionChecklistItem[]) { this.set('inspectionChecklistItems', val); }
 
   get standardOptions() {
-    const list = this.get<StandardOption>('standardOptions', SEED_STANDARD_OPTIONS);
-    const hasAttachment = list.some(o => o && o.category === 'ATTACHMENT');
-    if (!hasAttachment) {
-      const seedAttachments = SEED_STANDARD_OPTIONS.filter(o => o.category === 'ATTACHMENT' && !list.some(ex => ex && ex.id === o.id));
-      if (seedAttachments.length > 0) {
-        const merged = [...list, ...seedAttachments];
-        this.set('standardOptions', merged);
-        return merged;
-      }
+    const list = this.get<StandardOption>('standardOptions', []);
+    const filtered = list.filter(o => o && !/^opt_(paid|prot|att)_/.test(String(o.id || '')));
+    if (filtered.length !== list.length) {
+      this.set('standardOptions', filtered);
     }
-    return list;
+    return filtered;
   }
   set standardOptions(val: StandardOption[]) { this.set('standardOptions', val); }
 

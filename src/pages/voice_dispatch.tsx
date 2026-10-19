@@ -110,9 +110,7 @@ const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
 
 const FT_GROUPS = ['19ft', '26ft', '32ft', '40ft', '46ft', '특수/기타', '전체'];
 
-export const QUICK_OPTION_SUGGESTIONS = [
-  '협착방지', '상부센서', '경광등', '소화기', '논마킹', '비닐보양'
-];
+export const QUICK_OPTION_SUGGESTIONS: string[] = [];
 
 export const getFtGroup = (feet?: number, modelName: string = ''): string => {
   if (feet && feet > 0) {
@@ -849,19 +847,14 @@ export const VoiceDispatch: React.FC = () => {
   const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
   const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true);
 
-  // 🌟 전사 표준 옵션 마스터 및 자주 쓰는 키워드 통합 추천 칩
+  // 🌟 전사 표준 옵션 마스터 추천 칩 (목업/하드코딩 배제 — 등록된 옵션 마스터만 노출)
   const availableOptionSuggestions = useMemo(() => {
     const list: string[] = [];
     (standardOptions || [])
-      .filter(o => o.isActive && o.category !== 'SPEC' && o.name !== 'NONE' && !o.name.startsWith('NONE'))
+      .filter(o => o && o.isActive && o.name !== 'NONE' && !o.name.startsWith('NONE'))
       .forEach(o => {
         if (!list.includes(o.name)) list.push(o.name);
       });
-    QUICK_OPTION_SUGGESTIONS.forEach(q => {
-      if (!list.some(item => item.includes(q) || q.includes(item))) {
-        list.push(q);
-      }
-    });
     return list;
   }, [standardOptions]);
 
