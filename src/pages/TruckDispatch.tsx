@@ -1308,7 +1308,7 @@ export const TruckDispatch: React.FC = () => {
   const [manualClosingMemo, setManualClosingMemo] = useState('');
 
   const [manualVehicles, setManualVehicles] = useState<VehicleReq[]>([{ vehicleType: '3.5T', count: 1 }]);
-  const [manualCargos, setManualCargos] = useState<CargoItem[]>([{ modelName: products[0]?.modelName || 'Skyjack SJ3219', count: 1 }]);
+  const [manualCargos, setManualCargos] = useState<CargoItem[]>([]);
 
   // 📄 [월말 운송료 대사 탭 state & 1:1 Split Pair 파이프라인]
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3100,7 +3100,7 @@ export const TruckDispatch: React.FC = () => {
         deliveryCost: totalFinalCost || totalExpectedCost,
         vehicles: JSON.stringify(sanitizedVehicles),
         closingMemo: closingMemo,
-        memo: selectedDelivery.memo || closingMemo,
+        memo: closingMemo || selectedDelivery.memo || '',
         updatedAt: new Date().toISOString()
       };
 
@@ -3330,7 +3330,7 @@ export const TruckDispatch: React.FC = () => {
         memo: manualMemo || manualClosingMemo,
         closingMemo: manualClosingMemo || manualMemo,
         vehicleRequirements: JSON.stringify(manualVehicles),
-        cargoItems: JSON.stringify(manualCargos),
+        cargoItems: manualCargos.length > 0 ? JSON.stringify(manualCargos) : '[]',
         createdAt: nowIso,
         updatedAt: nowIso
       });
@@ -3341,10 +3341,10 @@ export const TruckDispatch: React.FC = () => {
       jobNotificationService.triggerJobAlert({
         type: manualCategory === '교환' ? 'EXCHANGE_REQUESTED' : (manualCategory === '반납' ? 'INBOUND_RETURN' : 'OUTBOUND_REQUESTED'),
         title: manualCategory === '교환' ? '교환 의뢰 발생' : (manualCategory === '반납' ? '입고·반납 장비 주기장 도착' : '신규 출고의뢰 접수 (출고요청서 발행)'),
-        customerName: targetCust?.name || '고객사',
+        customerName: targetCust?.name || manualDestination || '고객사',
         siteName: (targetContract as any)?.siteName || (targetContract?.siteId ? sites.find(s => s.id === targetContract.siteId)?.name : '') || manualDestination || '현장',
-        modelName: manualCargos[0]?.modelName || '고소작업대',
-        quantity: manualCargos.reduce((acc, c) => acc + (c.count || 1), 0),
+        modelName: manualCargos[0]?.modelName || (manualMemo || manualClosingMemo || '수동 배차'),
+        quantity: manualCargos.length > 0 ? manualCargos.reduce((acc, c) => acc + (c.count || 1), 0) : 1,
         deliveryDate: manualLoadingDate,
         memo: manualMemo || undefined,
         actionMenuId: 'outbound_inspection'
@@ -3473,7 +3473,18 @@ export const TruckDispatch: React.FC = () => {
                 <button
                   className="btn-save"
                   data-mid="btn-new-dispatch"
-                  onClick={() => setShowManualModal(true)}
+                  onClick={() => {
+                    const todayIso = new Date().toISOString().split('T')[0];
+                    setManualCategory('출고');
+                    setManualOrigin('당사 보관소');
+                    setManualDestination('');
+                    setManualLoadingDate(todayIso);
+                    setManualUnloadingDate(todayIso);
+                    setManualMemo('');
+                    setManualClosingMemo('');
+                    setManualCargos([]);
+                    setShowManualModal(true);
+                  }}
                 >
                   <Plus size={13} /> 수동 배차 등록
                 </button>
@@ -3783,7 +3794,7 @@ export const TruckDispatch: React.FC = () => {
                         </div>
 
                         <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{customer?.name || '고객사 미지정'}</span>
+                          <span>{customer?.name || (d.billableCustomerId ? getCustomer(d.billableCustomerId)?.name : '') || d.destinationAddress || '고객사 미지정'}</span>
                           {customer?.transactionStatus === 'RESTRICT_NEW' && (
                             <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
                               추가계약금지
@@ -3853,17 +3864,21 @@ export const TruckDispatch: React.FC = () => {
                         </div>
 
                         {/* 화물/자산 정보 표시 */}
-                        {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
+                        {(d.type === 'INBOUND' || d.type === 'RETURN' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
                           const returnAssetsList = getReturnAssets(d);
+                          const specialNoteText = (d.closingMemo || d.memo || '').trim();
+                          const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
                           return (
-                            // 회수 배차: 계약/회수 자산 목록 표시 (모델명 {관리번호})
+                            // 회수 배차: 계약/회수 자산 목록 표시 (수동 배차인 경우 특기사항 텍스트 표시)
                             <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
                                 <span>
                                   🔄 회수 대상:&nbsp;
                                   {returnAssetsList.length > 0
                                     ? returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
-                                    : (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인')}
+                                    : isManualDispatch
+                                      ? (specialNoteText || '특기사항 없음')
+                                      : (specialNoteText || (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인'))}
                                 </span>
                                 {returnAssetsList.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
                                   <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
@@ -3874,9 +3889,11 @@ export const TruckDispatch: React.FC = () => {
                             </div>
                           );
                         })() : (
-                          // 출고 배차: 화물 cargoItems 표시
+                          // 출고/이동/정비 배차: 계약 화물 cargoItems 또는 수동 배차 특기사항 표시
                           <div style={{ padding: '6px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                            📦 화물: {cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ')}
+                            📦 화물: {!d.contractId
+                              ? ((d.closingMemo || d.memo || '').trim() || '특기사항 없음')
+                              : cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ')}
                           </div>
                         )}
 
@@ -6146,27 +6163,55 @@ export const TruckDispatch: React.FC = () => {
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 16px 0' }}>수동 배차 신규 생성</h3>
             
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>배차 구분의 유형</label>
-              <select value={manualCategory} onChange={e => setManualCategory(e.target.value as any)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }}>
-                <option value="출고">출고</option>
-                <option value="입고">입고</option>
-                <option value="교환">교환</option>
-                <option value="반납">반납</option>
-                <option value="정비">정비</option>
-                <option value="이동">이동</option>
-              </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>배차 구분</label>
+                <select value={manualCategory} onChange={e => setManualCategory(e.target.value as any)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }}>
+                  <option value="출고">출고</option>
+                  <option value="입고">입고</option>
+                  <option value="교환">교환</option>
+                  <option value="반납">반납</option>
+                  <option value="정비">정비</option>
+                  <option value="이동">이동</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>운송(상차)일자</label>
+                <input
+                  type="date"
+                  value={manualLoadingDate}
+                  onChange={e => {
+                    setManualLoadingDate(e.target.value);
+                    setManualUnloadingDate(e.target.value);
+                  }}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
               <div>
-                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>출발지 (상차지)</label>
-                <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }} />
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>출발지 (상차지)</label>
+                <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>도착지 (하차지)</label>
-                <input type="text" value={manualDestination} onChange={e => setManualDestination(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }} />
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>도착지 (하차지)</label>
+                <input type="text" value={manualDestination} onChange={e => setManualDestination(e.target.value)} placeholder="고객사명 또는 하차지 입력" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
               </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>특기사항 (회수대상 / 배차 메모)</label>
+              <input
+                type="text"
+                value={manualMemo}
+                onChange={e => {
+                  setManualMemo(e.target.value);
+                  setManualClosingMemo(e.target.value);
+                }}
+                placeholder="회수대상 내역 또는 배차 특기사항 입력"
+                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+              />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
