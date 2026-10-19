@@ -5907,6 +5907,13 @@ class LocalDB {
         defProt = String(defProt).trim();
         changed = true;
       }
+      if (c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__protection === 'string') {
+        const storedProt = (c.defaultCheckedSpecs as any).__protection;
+        if (defProt !== storedProt) {
+          defProt = storedProt;
+          changed = true;
+        }
+      }
       let defAtt = c.defaultAttachments;
       if (Array.isArray(defAtt)) {
         defAtt = (defAtt as any[]).flat().map(s => String(s).trim()).filter(Boolean).join(', ');
@@ -5978,6 +5985,12 @@ class LocalDB {
       if (!s) return s;
       
       let changed = false;
+      let specs = s.checkedSpecs;
+      if (Array.isArray(specs)) {
+        specs = {};
+        changed = true;
+      }
+
       let paid = s.paidOptions;
       if (Array.isArray(paid)) {
         paid = (paid as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
@@ -5997,14 +6010,15 @@ class LocalDB {
         prot = String(prot);
         changed = true;
       }
+      if (specs && typeof (specs as any).__protection === 'string') {
+        const storedProt = (specs as any).__protection;
+        if (prot !== storedProt) {
+          prot = storedProt;
+          changed = true;
+        }
+      }
       const normProt = replaceLegacyCommas(prot);
       if (normProt !== prot) { prot = normProt; changed = true; }
-
-      let specs = s.checkedSpecs;
-      if (Array.isArray(specs)) {
-        specs = {};
-        changed = true;
-      }
 
       let att = s.attachments;
       if (Array.isArray(att)) {
@@ -6567,6 +6581,9 @@ class LocalDB {
         normalized.protection = String(normalized.protection).trim();
       }
     }
+    if (normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && typeof normalized.checkedSpecs.__protection === 'string') {
+      normalized.protection = normalized.checkedSpecs.__protection;
+    }
     if (normalized.attachments !== undefined && normalized.attachments !== null) {
       if (Array.isArray(normalized.attachments)) {
         normalized.attachments = normalized.attachments.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
@@ -6589,6 +6606,9 @@ class LocalDB {
       } else if (typeof normalized.defaultProtection !== 'string') {
         normalized.defaultProtection = String(normalized.defaultProtection).trim();
       }
+    }
+    if (normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && typeof normalized.defaultCheckedSpecs.__protection === 'string') {
+      normalized.defaultProtection = normalized.defaultCheckedSpecs.__protection;
     }
     if (normalized.defaultAttachments !== undefined && normalized.defaultAttachments !== null) {
       if (Array.isArray(normalized.defaultAttachments)) {
@@ -7094,31 +7114,63 @@ class LocalDB {
       sanitized[key] = val;
     }
 
-    // site_masters 및 customer_sites의 attachments 컬럼 및 checkedSpecs.__attachments 동기화
+    // site_masters 및 customer_sites의 attachments/protection 컬럼 및 checkedSpecs 동기화
     if (resolvedTable === 'site_masters' || resolvedTable === 'customer_sites') {
+      const baseSpecs = (sanitized.checkedSpecs && typeof sanitized.checkedSpecs === 'object' && !Array.isArray(sanitized.checkedSpecs))
+        ? { ...sanitized.checkedSpecs }
+        : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs) ? { ...obj.checkedSpecs } : {});
+      let specsModified = false;
+
       if (obj.attachments !== undefined) {
         sanitized.attachments = obj.attachments ? String(obj.attachments) : '';
-        const baseSpecs = (sanitized.checkedSpecs && typeof sanitized.checkedSpecs === 'object' && !Array.isArray(sanitized.checkedSpecs))
-          ? sanitized.checkedSpecs
-          : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs) ? obj.checkedSpecs : {});
-        sanitized.checkedSpecs = {
-          ...baseSpecs,
-          __attachments: sanitized.attachments
-        };
+        baseSpecs.__attachments = sanitized.attachments;
+        specsModified = true;
+      }
+
+      if (resolvedTable === 'customer_sites' && obj.protection !== undefined) {
+        const fullProt = obj.protection
+          ? (Array.isArray(obj.protection)
+              ? obj.protection.flat().map((v: any) => String(v).trim()).filter(Boolean).join(', ')
+              : String(obj.protection))
+          : '';
+        baseSpecs.__protection = fullProt;
+        specsModified = true;
+        // 원격 DB customer_sites.protection 컬럼이 legacy VARCHAR(20)인 환경을 방어 (20자 초과 시 'CUSTOM' 저장 후 checkedSpecs.__protection에서 100% 복원)
+        sanitized.protection = fullProt.length > 20 ? 'CUSTOM' : fullProt;
+      }
+
+      if (specsModified) {
+        sanitized.checkedSpecs = baseSpecs;
       }
     }
 
-    // customers의 defaultAttachments 컬럼 및 defaultCheckedSpecs.__attachments 동기화
+    // customers의 defaultAttachments/defaultProtection 컬럼 및 defaultCheckedSpecs 동기화
     if (resolvedTable === 'customers') {
+      const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
+        ? { ...sanitized.defaultCheckedSpecs }
+        : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs) ? { ...obj.defaultCheckedSpecs } : {});
+      let specsModified = false;
+
       if (obj.defaultAttachments !== undefined) {
         sanitized.defaultAttachments = obj.defaultAttachments ? String(obj.defaultAttachments) : '';
-        const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
-          ? sanitized.defaultCheckedSpecs
-          : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs) ? obj.defaultCheckedSpecs : {});
-        sanitized.defaultCheckedSpecs = {
-          ...baseSpecs,
-          __attachments: sanitized.defaultAttachments
-        };
+        baseSpecs.__attachments = sanitized.defaultAttachments;
+        specsModified = true;
+      }
+
+      if (obj.defaultProtection !== undefined) {
+        const fullProt = obj.defaultProtection
+          ? (Array.isArray(obj.defaultProtection)
+              ? obj.defaultProtection.flat().map((v: any) => String(v).trim()).filter(Boolean).join(', ')
+              : String(obj.defaultProtection))
+          : '';
+        baseSpecs.__protection = fullProt;
+        specsModified = true;
+        // 원격 DB customers.defaultProtection 컬럼이 legacy VARCHAR(20)인 환경을 방어 (20자 초과 시 'CUSTOM' 저장 후 defaultCheckedSpecs.__protection에서 100% 복원)
+        sanitized.defaultProtection = fullProt.length > 20 ? 'CUSTOM' : fullProt;
+      }
+
+      if (specsModified) {
+        sanitized.defaultCheckedSpecs = baseSpecs;
       }
     }
 
