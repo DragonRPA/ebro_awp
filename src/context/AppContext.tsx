@@ -56,6 +56,7 @@ export interface SmartDispatchData {
   unloadingTime: string;
   equipments: { modelName: string; qty: number; monthlyRate?: number; dailyRate?: number; monthlyRentalFee?: number; dailyRentalFee?: number }[];
   paidOptions?: string;
+  paidOptionPrices?: Record<string, number>; // 🌟 출고 요청 시 1회성 변경 유상옵션 단가 (현장 기본 단가는 마스터 기본 단가 유지)
   protection?: string;
   attachments?: string;
   checkedSpecs?: Record<string, boolean>;
@@ -3128,7 +3129,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const custContractIds = db.contracts.filter(c => c.customerId === finalCustomer.id).map(c => c.id);
     const dData = data as any;
     const effectivePaidOptionsForDelivery: string = dData.paidOptions !== undefined ? String(dData.paidOptions) : '';
-    const cargoItemsPayload: { modelName: string; count: number; contractAssetIds: string[]; paidOptions: string }[] = [];
+    const effectivePaidOptionPricesForDelivery: Record<string, number> | undefined =
+      dData.paidOptionPrices && typeof dData.paidOptionPrices === 'object' && Object.keys(dData.paidOptionPrices).length > 0
+        ? dData.paidOptionPrices
+        : undefined;
+    const cargoItemsPayload: { modelName: string; count: number; contractAssetIds: string[]; paidOptions: string; paidOptionPrices?: Record<string, number> }[] = [];
 
     data.equipments.forEach((eq) => {
       const eqData = eq as any;
@@ -3189,7 +3194,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         modelName: eq.modelName,
         count,
         contractAssetIds: eqCreatedCaIds,
-        paidOptions: effectivePaidOptionsForDelivery
+        paidOptions: effectivePaidOptionsForDelivery,
+        ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {})
       });
     });
 

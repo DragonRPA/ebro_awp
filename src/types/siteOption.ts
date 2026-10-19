@@ -455,6 +455,7 @@ export function calculatePaidOptionBillingItems(params: {
 
     const explicitCaIds: string[] = [];
     let explicitPaidOptions: string | undefined = undefined;
+    let explicitPaidOptionPrices: Record<string, number> = {};
     let cargoTotalCount = 0;
 
     parsedCargo.forEach(item => {
@@ -467,6 +468,15 @@ export function calculatePaidOptionBillingItems(params: {
       }
       if (typeof item?.paidOptions === 'string' && explicitPaidOptions === undefined) {
         explicitPaidOptions = item.paidOptions;
+      }
+      if (item?.paidOptionPrices && typeof item.paidOptionPrices === 'object') {
+        Object.entries(item.paidOptionPrices).forEach(([k, v]) => {
+          const numVal = Number(v);
+          if (!isNaN(numVal) && numVal >= 0) {
+            explicitPaidOptionPrices[k] = numVal;
+            explicitPaidOptionPrices[k.replace(/\s+/g, '')] = numVal;
+          }
+        });
       }
     });
 
@@ -527,13 +537,20 @@ export function calculatePaidOptionBillingItems(params: {
       continue;
     }
 
-    // 4) 매칭된 각 유상 옵션에 대해 단위('월', '건', '대')별 금액 산출
+    // 4) 매칭된 각 유상 옵션에 대해 단위('월', '건', '대')별 금액 산출 (출고 건별 1회성 변경 단가 우선 적용)
     for (const optName of parsedOptNames) {
       const cleanTarget = optName.replace(/\s+/g, '');
       const stdOpt = paidMasterOptions.find(o => o.name.replace(/\s+/g, '') === cleanTarget);
       if (!stdOpt) continue;
 
-      const unitPrice = Number(stdOpt.defaultPrice || 0);
+      const overridePrice =
+        explicitPaidOptionPrices[stdOpt.name] !== undefined
+          ? explicitPaidOptionPrices[stdOpt.name]
+          : explicitPaidOptionPrices[cleanTarget] !== undefined
+            ? explicitPaidOptionPrices[cleanTarget]
+            : explicitPaidOptionPrices[stdOpt.id];
+
+      const unitPrice = overridePrice !== undefined ? Number(overridePrice) : Number(stdOpt.defaultPrice || 0);
       if (unitPrice <= 0) continue;
 
       const rawUnit = (stdOpt.unit || '월').trim();

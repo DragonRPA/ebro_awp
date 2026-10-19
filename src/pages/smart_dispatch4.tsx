@@ -895,6 +895,34 @@ export const SmartDispatch4: React.FC = () => {
   const [selectedSafetyOptions, setSelectedSafetyOptions] = useState<Set<string>>(new Set());
   const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
   const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true);
+  // 🌟 이번 출고 건 전용 유상옵션 1회성 단가 변경 상태 (현장 기본 옵션은 마스터 기본 단가 유지)
+  const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
+
+  // 선택된 옵션 중 유상옵션(PAID) 마스터 매핑 및 기본단가 자동 초기화
+  const selectedPaidMasterOptions = useMemo(() => {
+    const paidList: StandardOption[] = [];
+    Array.from(selectedSafetyOptions).forEach(label => {
+      if (isProtectionOption(label) || isAttachmentOption(label)) return;
+      const clean = stripOptionPrice(label).replace(/\s+/g, '');
+      const matched = (standardOptions || []).find(
+        o => o && o.isActive !== false && o.category === 'PAID' && o.name.replace(/\s+/g, '') === clean
+      );
+      if (matched && !paidList.some(p => p.id === matched.id)) {
+        paidList.push(matched);
+      }
+    });
+    return paidList;
+  }, [selectedSafetyOptions, standardOptions, isProtectionOption, isAttachmentOption]);
+
+  useEffect(() => {
+    setPaidOptionPrices(prev => {
+      const next: Record<string, number> = {};
+      selectedPaidMasterOptions.forEach(opt => {
+        next[opt.name] = prev[opt.name] !== undefined ? prev[opt.name] : (opt.defaultPrice || 0);
+      });
+      return next;
+    });
+  }, [selectedPaidMasterOptions]);
 
   // 🌟 전사 표준 옵션 마스터 추천 칩 (목업/하드코딩 배제 — 등록된 옵션 마스터만 노출)
   const availableOptionSuggestions = useMemo(() => {
@@ -1400,6 +1428,7 @@ export const SmartDispatch4: React.FC = () => {
     setNewSiteName(''); setNewSiteAddress('');
     setRetrievalAssetIds([]); setPaidBy(null);
     setSelectedSafetyOptions(new Set()); setInitialSiteOptions(new Set());
+    setPaidOptionPrices({});
     setNewOptionInput('');
     setStaggeredMemo('');
     setSelectedContext('ADDITIONAL');
@@ -1711,6 +1740,7 @@ export const SmartDispatch4: React.FC = () => {
         type: isExchangeMode ? 'EXCHANGE' : 'OUTBOUND',
         retrievalAssetIds: retrievalAssetIds || [],
         paidOptions: effPaidOptStr,
+        paidOptionPrices,
         protection: effProtOptStr,
         attachments: effAttOptStr,
         siteMasterId: effectiveSmId || undefined,
@@ -4161,6 +4191,82 @@ export const SmartDispatch4: React.FC = () => {
                   ) : (
                     <div className="text-xs text-slate-500 p-2.5 bg-slate-950/40 rounded-lg border border-slate-850 text-center">
                       선택된 옵션이 없습니다. (아래 추가 가능한 옵션 버튼을 클릭하거나 [현장별 옵션관리 불러오기]로 선택)
+                    </div>
+                  )}
+
+                  {/* 🔒 유상옵션 출고 단가 설정 (영업/관리/경영진 전용, 이번 출고 1회성 적용 — 현장 기본단가는 마스터 기본단가 유지) */}
+                  {hasFinancialAccess && selectedPaidMasterOptions.length > 0 && (
+                    <div data-mid="dispatch4-paid-option-prices" className="flex flex-col gap-1.5 p-2.5 bg-slate-950/80 rounded-lg border border-amber-500/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-amber-300">
+                          유상옵션 청구 단가 (이번 출고 건 적용)
+                        </span>
+                        <span className="text-[10.5px] text-slate-400">
+                          출고 수량: {totalQty}대
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {selectedPaidMasterOptions.map(opt => {
+                          const defaultPrice = Number(opt.defaultPrice || 0);
+                          const currentPrice = paidOptionPrices[opt.name] !== undefined ? paidOptionPrices[opt.name] : defaultPrice;
+                          const isModified = currentPrice !== defaultPrice;
+                          const rawUnit = (opt.unit || '월').trim();
+                          const unitLabel = rawUnit === '건' ? '건 (1회)' : rawUnit === '대' ? `대 (1회×${totalQty}대)` : `월 (매월×${totalQty}대)`;
+                          const expectedSupply = rawUnit === '건' ? currentPrice : currentPrice * Math.max(1, totalQty);
+
+                          return (
+                            <div
+                              key={opt.id}
+                              className="grid grid-cols-12 gap-2 items-center bg-slate-900/90 px-2.5 py-1.5 rounded border border-slate-800 text-xs"
+                            >
+                              <div className="col-span-5 flex items-center gap-1.5 min-w-0">
+                                <span className="font-bold text-white truncate whitespace-nowrap">{opt.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700 whitespace-nowrap flex-shrink-0">
+                                  단위: {unitLabel}
+                                </span>
+                              </div>
+                              <div className="col-span-4 flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={currentPrice.toLocaleString()}
+                                  onChange={e => {
+                                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                                    setPaidOptionPrices(prev => ({
+                                      ...prev,
+                                      [opt.name]: isNaN(num) ? 0 : num,
+                                    }));
+                                  }}
+                                  className={`w-full bg-slate-950 border rounded px-2 py-1 text-right font-mono text-xs font-bold focus:outline-none ${
+                                    isModified
+                                      ? 'border-amber-500 text-amber-300'
+                                      : 'border-slate-700 text-white focus:border-blue-500'
+                                  }`}
+                                />
+                                <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">원</span>
+                                {isModified && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPaidOptionPrices(prev => ({
+                                        ...prev,
+                                        [opt.name]: defaultPrice,
+                                      }))
+                                    }
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 whitespace-nowrap flex-shrink-0"
+                                    title={`마스터 기본단가(${defaultPrice.toLocaleString()}원)로 복원`}
+                                  >
+                                    기본값
+                                  </button>
+                                )}
+                              </div>
+                              <div className="col-span-3 text-right font-mono text-[11px] text-slate-300 whitespace-nowrap">
+                                청구예상: <strong className="text-amber-300">{expectedSupply.toLocaleString()}원</strong>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
