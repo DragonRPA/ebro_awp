@@ -111,188 +111,80 @@ export const DailyInOutStatus: React.FC = () => {
     return map;
   }, [contracts]);
 
-  // ── 📋 통합 비즈니스 이벤트 추출 파이프라인 (실적 + 예정) ──
-  const allEvents = useMemo(() => {
-    const list: InOutEventItem[] = [];
+  // ── 🚚 배차 및 계약 정보 조회 맵 (입출고 실적에 운송기사/업체/계약번호 보강용) ──
+  const deliveryMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (deliveries || []).forEach(d => map.set(d.id, d));
+    return map;
+  }, [deliveries]);
 
-    // 1. assetInOutLogs 실적 추출
+  // ── 📋 입출고 완료 실적 추출 파이프라인 (입고등록 / 출고검수 완료 내역만 표시) ──
+  const allEvents = useMemo(() => {
+    const groupMap = new Map<string, InOutEventItem>();
+
+    // assetInOutLogs 실적만 추출 (배차의뢰/예정 제외)
     (assetInOutLogs || []).forEach(log => {
       if (!log.eventDate) return;
       if (log.type !== 'INBOUND' && log.type !== 'OUTBOUND') return;
 
+      const dateStr = log.eventDate.substring(0, 10);
+      const inOutType: 'INBOUND' | 'OUTBOUND' = log.type === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
       const assetInfo = log.assetId ? assetMap.get(log.assetId) : null;
       const modelName = log.modelName || assetInfo?.modelName || '기타 기종';
       const assetNo = log.assetNo || assetInfo?.assetNo || '';
 
-      list.push({
-        id: `log-${log.id}`,
-        sourceType: 'ACTUAL',
-        inOutType: log.type === 'INBOUND' ? 'INBOUND' : 'OUTBOUND',
-        date: log.eventDate.substring(0, 10),
-        time: log.createdAt ? log.createdAt.substring(11, 16) : undefined,
-        modelName,
-        quantity: 1,
-        assetNos: assetNo ? [assetNo] : [],
-        customerName: log.customerName || (log.customerId ? customerMap.get(log.customerId) : undefined),
-        siteName: log.siteName || (log.siteId ? siteMap.get(log.siteId) : undefined),
-        contractNo: undefined,
-        statusText: log.type === 'INBOUND' ? '입고 완료' : '출고 완료',
-        memo: log.memo
-      });
-    });
+      const relDelivery = log.deliveryId ? deliveryMap.get(log.deliveryId) : null;
+      const logContractId = (log as any).contractId;
+      const relContract = (logContractId ? contractMap.get(logContractId) : null) ||
+        (relDelivery?.contractId ? contractMap.get(relDelivery.contractId) : null);
 
-    // 2. deliveries 배차 예정 추출 (완료/취소 건 처리)
-    (deliveries || []).forEach(del => {
-      if (del.status === 'CANCELLED') return;
+      const customerName = log.customerName ||
+        (log.customerId ? customerMap.get(log.customerId) : undefined) ||
+        (relContract?.customerId ? customerMap.get(relContract.customerId) : undefined);
 
-      // 이미 실적으로 완료된 출고/입고는 중복 집계를 피하기 위해 
-      // 배차 상태가 DELIVERED이면서 해당 날짜에 완료된 건은 로그에 존재할 수 있음
-      // 하지만 실적+예정 전체를 투명하게 보되, 소스를 명확히 분리
-      const isActualDelivered = del.status === 'DELIVERED';
+      const siteName = log.siteName ||
+        (log.siteId ? siteMap.get(log.siteId) : undefined) ||
+        (relContract?.siteId ? siteMap.get(relContract.siteId) : undefined);
 
-      const relContract = del.contractId ? contractMap.get(del.contractId) : null;
-      const custName = relContract?.customerId ? customerMap.get(relContract.customerId) : undefined;
-      const sName = relContract?.siteId ? siteMap.get(relContract.siteId) : undefined;
+      const driverName = relDelivery?.driverName || undefined;
+      const transportCompany = relDelivery?.transportCompany || undefined;
+      const contractNo = relContract?.contractNo || undefined;
 
-      // 장비번호 및 모델명 파싱
-      const rawAssetIds = (del.assetIds || '').split(',').map(s => s.trim()).filter(Boolean);
-      const matchedAssets = rawAssetIds.map(id => assetMap.get(id)).filter(Boolean) as { assetNo: string; modelName: string }[];
+      // 동일 일자 + 입출고구분 + 기종 + 거래처 + 현장 + 배차건 단위로 묶어 수량 및 자산번호 집계
+      const groupKey = `${dateStr}|${inOutType}|${modelName}|${customerName || ''}|${siteName || ''}|${log.deliveryId || log.id}`;
+      const existing = groupMap.get(groupKey);
 
-      // cargoItems 파싱 [{ modelName, count }]
-      let parsedCargo: { modelName: string; count: number }[] = [];
-      if (del.cargoItems) {
-        try {
-          const parsed = JSON.parse(del.cargoItems);
-          if (Array.isArray(parsed)) {
-            parsedCargo = parsed.map((item: any) => ({
-              modelName: item.modelName || item.model || '기타 기종',
-              count: Number(item.count || item.qty || 1)
-            }));
-          }
-        } catch (e) {}
-      }
-
-      // 기종별 수량 리스트 구성
-      const modelQtyMap = new Map<string, { qty: number; nos: string[] }>();
-
-      if (matchedAssets.length > 0) {
-        matchedAssets.forEach(a => {
-          const m = a.modelName || '기타 기종';
-          const cur = modelQtyMap.get(m) || { qty: 0, nos: [] };
-          cur.qty += 1;
-          if (a.assetNo) cur.nos.push(a.assetNo);
-          modelQtyMap.set(m, cur);
-        });
-      } else if (parsedCargo.length > 0) {
-        parsedCargo.forEach(c => {
-          const cur = modelQtyMap.get(c.modelName) || { qty: 0, nos: [] };
-          cur.qty += c.count;
-          modelQtyMap.set(c.modelName, cur);
-        });
+      if (existing) {
+        existing.quantity += 1;
+        if (assetNo && !existing.assetNos.includes(assetNo)) {
+          existing.assetNos.push(assetNo);
+        }
+        if (!existing.memo && log.memo) {
+          existing.memo = log.memo;
+        }
       } else {
-        // 둘 다 없으면 기본 1대
-        modelQtyMap.set('기타 기종', { qty: 1, nos: rawAssetIds });
-      }
-
-      // ── 유형 분기: OUTBOUND / INBOUND / EXCHANGE ──
-      if (del.type === 'OUTBOUND') {
-        const outDate = del.loadingDate || del.scheduledDate || del.requestDate;
-        if (outDate) {
-          modelQtyMap.forEach((val, mName) => {
-            list.push({
-              id: `del-out-${del.id}-${mName}`,
-              sourceType: isActualDelivered ? 'ACTUAL' : 'SCHEDULED',
-              inOutType: 'OUTBOUND',
-              date: outDate.substring(0, 10),
-              time: del.loadingTimeSlot,
-              modelName: mName,
-              quantity: val.qty,
-              assetNos: val.nos,
-              customerName: custName,
-              siteName: sName,
-              contractNo: relContract?.contractNo,
-              driverName: del.driverName,
-              transportCompany: del.transportCompany,
-              statusText: isActualDelivered ? '배차 완료(운송완료)' : del.status === 'DISPATCHED' ? '배차 완료(운송중)' : '배차 대기',
-              memo: del.memo
-            });
-          });
-        }
-      } else if (del.type === 'INBOUND' || del.type === 'RETURN') {
-        const inDate = del.unloadingDate || del.scheduledDate || del.requestDate;
-        if (inDate) {
-          modelQtyMap.forEach((val, mName) => {
-            list.push({
-              id: `del-in-${del.id}-${mName}`,
-              sourceType: isActualDelivered ? 'ACTUAL' : 'SCHEDULED',
-              inOutType: 'INBOUND',
-              date: inDate.substring(0, 10),
-              time: del.unloadingTimeSlot,
-              modelName: mName,
-              quantity: val.qty,
-              assetNos: val.nos,
-              customerName: custName,
-              siteName: sName,
-              contractNo: relContract?.contractNo,
-              driverName: del.driverName,
-              transportCompany: del.transportCompany,
-              statusText: isActualDelivered ? '회수 완료(도착)' : del.status === 'DISPATCHED' ? '회수 진행(운송중)' : '회수 대기',
-              memo: del.memo
-            });
-          });
-        }
-      } else if (del.type === 'EXCHANGE') {
-        // 교환: 출고(상차) + 입고(하차) 1:1 동시 발행
-        const outDate = del.loadingDate || del.scheduledDate || del.requestDate;
-        const inDate = del.unloadingDate || del.scheduledDate || del.requestDate;
-
-        if (outDate) {
-          modelQtyMap.forEach((val, mName) => {
-            list.push({
-              id: `del-exc-out-${del.id}-${mName}`,
-              sourceType: isActualDelivered ? 'ACTUAL' : 'SCHEDULED',
-              inOutType: 'OUTBOUND',
-              date: outDate.substring(0, 10),
-              time: del.loadingTimeSlot,
-              modelName: mName,
-              quantity: val.qty,
-              assetNos: val.nos,
-              customerName: custName,
-              siteName: sName,
-              contractNo: relContract?.contractNo,
-              driverName: del.driverName,
-              transportCompany: del.transportCompany,
-              statusText: isActualDelivered ? '교환출고 완료' : '교환출고 진행',
-              memo: del.memo
-            });
-          });
-        }
-        if (inDate) {
-          modelQtyMap.forEach((val, mName) => {
-            list.push({
-              id: `del-exc-in-${del.id}-${mName}`,
-              sourceType: isActualDelivered ? 'ACTUAL' : 'SCHEDULED',
-              inOutType: 'INBOUND',
-              date: inDate.substring(0, 10),
-              time: del.unloadingTimeSlot,
-              modelName: mName,
-              quantity: val.qty,
-              assetNos: val.nos,
-              customerName: custName,
-              siteName: sName,
-              contractNo: relContract?.contractNo,
-              driverName: del.driverName,
-              transportCompany: del.transportCompany,
-              statusText: isActualDelivered ? '교환입고 완료' : '교환입고 진행',
-              memo: del.memo
-            });
-          });
-        }
+        groupMap.set(groupKey, {
+          id: `log-${log.id}`,
+          sourceType: 'ACTUAL',
+          inOutType,
+          date: dateStr,
+          time: log.createdAt ? log.createdAt.substring(11, 16) : undefined,
+          modelName,
+          quantity: 1,
+          assetNos: assetNo ? [assetNo] : [],
+          customerName,
+          siteName,
+          contractNo,
+          driverName,
+          transportCompany,
+          statusText: inOutType === 'INBOUND' ? '입고 완료' : '출고 완료',
+          memo: log.memo
+        });
       }
     });
 
-    return list;
-  }, [assetInOutLogs, deliveries, assetMap, customerMap, siteMap, contractMap]);
+    return Array.from(groupMap.values());
+  }, [assetInOutLogs, assetMap, customerMap, siteMap, contractMap, deliveryMap]);
 
   // ── 🔍 전체 모델명 목록 추출 (필터 드롭다운용) ──
   const uniqueModelList = useMemo(() => {
@@ -315,7 +207,7 @@ export const DailyInOutStatus: React.FC = () => {
       // 1. 유형 필터 (입고 / 출고)
       if (filterType !== 'ALL' && e.inOutType !== filterType) return false;
 
-      // 2. 소스 필터 (실적 / 예정)
+      // 2. 소스 필터 (실적 완료)
       if (sourceFilter !== 'ALL' && e.sourceType !== sourceFilter) return false;
 
       // 3. 모델 필터
@@ -443,7 +335,7 @@ export const DailyInOutStatus: React.FC = () => {
     const rows = sortedEvents.map(e => ({
       '일자': e.date,
       '구분': e.inOutType === 'INBOUND' ? '입고' : '출고',
-      '상태': e.sourceType === 'ACTUAL' ? '실적' : '예정',
+      '상태': '완료',
       '기종(모델명)': e.modelName,
       '수량': e.quantity,
       '표기': `${e.modelName} * ${e.quantity}대`,
@@ -451,7 +343,7 @@ export const DailyInOutStatus: React.FC = () => {
       '거래처명': e.customerName || '-',
       '현장명': e.siteName || '-',
       '계약번호': e.contractNo || '-',
-      '배차진행상태': e.statusText,
+      '처리상태': e.statusText,
       '운송기사': e.driverName || '-',
       '운송업체': e.transportCompany || '-',
       '비고': e.memo || '-'
@@ -483,7 +375,7 @@ export const DailyInOutStatus: React.FC = () => {
             일일 입출고 조회
           </h2>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            일자별 장비 입출고 실적 및 배차 예정 캘린더/대장 조회
+            일자별 장비 입출고 완료 실적 캘린더/대장 조회
           </span>
         </div>
         <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -611,36 +503,9 @@ export const DailyInOutStatus: React.FC = () => {
                 minWidth: '100px'
               }}
             >
-              <option value="ALL">전체 (입·출고)</option>
-              <option value="INBOUND">🔵 입고만</option>
-              <option value="OUTBOUND">출고만</option>
-            </select>
-          </div>
-
-          {/* 실적/예정 소스 필터 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              진행상태
-            </span>
-            <select
-              value={sourceFilter}
-              onChange={e => setSourceFilter(e.target.value as any)}
-              style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                outline: 'none',
-                minWidth: '115px'
-              }}
-            >
-              <option value="ALL">전체 (실적+예정)</option>
-              <option value="ACTUAL">실적 완료만</option>
-              <option value="SCHEDULED">배차 예정만</option>
+              <option value="ALL">전체 (입·출고 완료)</option>
+              <option value="INBOUND">🔵 입고 완료만</option>
+              <option value="OUTBOUND">🔴 출고 완료만</option>
             </select>
           </div>
 
@@ -1064,7 +929,7 @@ export const DailyInOutStatus: React.FC = () => {
 
             {selectedDateData.allList.length === 0 ? (
               <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                해당 일자에는 등록된 입출고 실적 및 배차 예정 내역이 없습니다.
+                해당 일자에는 등록된 입출고 완료 내역이 없습니다.
               </div>
             ) : (
               <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '420px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
@@ -1077,7 +942,7 @@ export const DailyInOutStatus: React.FC = () => {
                       <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
                       <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
                       <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px', backgroundColor: 'var(--bg-secondary)' }}>배차/진행상태</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px', backgroundColor: 'var(--bg-secondary)' }}>처리상태</th>
                       <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px', backgroundColor: 'var(--bg-secondary)' }}>운송기사/업체</th>
                     </tr>
                   </thead>
@@ -1112,9 +977,9 @@ export const DailyInOutStatus: React.FC = () => {
                             <span style={{
                               fontSize: '11px',
                               fontWeight: 700,
-                              color: item.sourceType === 'ACTUAL' ? '#10b981' : '#f59e0b'
+                              color: '#10b981'
                             }}>
-                              {item.sourceType === 'ACTUAL' ? '● 실적완료' : '○ 배차예정'}
+                              ● 실적완료
                             </span>
                           </td>
                           <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-primary)' }}>

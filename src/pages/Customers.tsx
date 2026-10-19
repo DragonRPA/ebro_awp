@@ -4298,164 +4298,351 @@ const handleDeleteAccount = async (accId: string) => {
                 )}
               </div>
 
-              {/* 1. 현장 전용 유상옵션 */}
+              {/* 1. 현장 전용 유상옵션 (PAID) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  현장 전용 유상옵션
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                  {standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(opt => {
-                    const isSelected = splitOptions(siteOptionForm.paidOptions).includes(opt.name);
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = toggleOptionInString(siteOptionForm.paidOptions, opt.name);
-                          setSiteOptionForm({ ...siteOptionForm, paidOptions: updated });
-                        }}
-                        style={{
-                          padding: '2px 7px',
-                          fontSize: '11.5px',
-                          borderRadius: '4px',
-                          border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-card)',
-                          color: isSelected ? '#1d4ed8' : 'var(--text-main)',
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {opt.name} {isSelected ? '✓' : ''}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#1d4ed8', margin: 0 }}>
+                    1. 유상옵션 (PAID)
+                  </label>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    적용: {splitOptions(siteOptionForm.paidOptions).length}건
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  style={inputStyle}
-                  value={siteOptionForm.paidOptions}
-                  onChange={e => setSiteOptionForm({ ...siteOptionForm, paidOptions: e.target.value })}
-                  placeholder="비어있으면 고객사 기본값 상속"
-                />
+                {(() => {
+                  const appliedList = splitOptions(siteOptionForm.paidOptions);
+                  const activeMasterOpts = standardOptions.filter(o => o.category === 'PAID' && o.isActive);
+                  const uninheritedOpts = activeMasterOpts.filter(o => !appliedList.includes(o.name));
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', minHeight: '24px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1d4ed8', marginRight: '2px' }}>적용됨:</span>
+                        {appliedList.length === 0 ? (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음 (비어있으면 고객사 기본값 적용)</span>
+                        ) : (
+                          appliedList.map(optName => (
+                            <button
+                              key={`modal-paid-app-${optName}`}
+                              type="button"
+                              onClick={() => {
+                                const updated = toggleOptionInString(siteOptionForm.paidOptions, optName);
+                                setSiteOptionForm({ ...siteOptionForm, paidOptions: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px solid #2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                                color: '#1d4ed8',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✓ {optName} <X size={11} />
+                            </button>
+                          ))
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '5px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '2px' }}>추가가능:</span>
+                        {uninheritedOpts.length === 0 ? (
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>모든 표준 유상옵션이 적용되었습니다.</span>
+                        ) : (
+                          uninheritedOpts.map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const updated = toggleOptionInString(siteOptionForm.paidOptions, opt.name);
+                                setSiteOptionForm({ ...siteOptionForm, paidOptions: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px dashed var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                            >
+                              <Plus size={10} color="#2563eb" /> {opt.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
-              {/* 2. 현장 전용 무상옵션 */}
+              {/* 2. 현장 전용 무상옵션 (PROTECTION) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  현장 전용 무상옵션
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                  {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
-                    const isSelected = splitOptions(siteOptionForm.protection).includes(opt.name);
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = toggleOptionInString(siteOptionForm.protection, opt.name);
-                          setSiteOptionForm({ ...siteOptionForm, protection: updated });
-                        }}
-                        style={{
-                          padding: '2px 7px',
-                          fontSize: '11.5px',
-                          borderRadius: '4px',
-                          border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-card)',
-                          color: isSelected ? '#047857' : 'var(--text-main)',
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {opt.name} {isSelected ? '✓' : ''}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#047857', margin: 0 }}>
+                    2. 무상옵션 (PROTECTION)
+                  </label>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    적용: {splitOptions(siteOptionForm.protection).filter(v => v !== 'NONE').length}건
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  style={inputStyle}
-                  value={siteOptionForm.protection}
-                  onChange={e => setSiteOptionForm({ ...siteOptionForm, protection: e.target.value })}
-                  placeholder="비어있으면 고객사 기본값 상속"
-                />
+                {(() => {
+                  const appliedList = splitOptions(siteOptionForm.protection).filter(v => v !== 'NONE');
+                  const activeMasterOpts = standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive);
+                  const uninheritedOpts = activeMasterOpts.filter(o => !appliedList.includes(o.name));
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', minHeight: '24px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#047857', marginRight: '2px' }}>적용됨:</span>
+                        {appliedList.length === 0 ? (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음 (비어있으면 고객사 기본값 적용)</span>
+                        ) : (
+                          appliedList.map(optName => (
+                            <button
+                              key={`modal-prot-app-${optName}`}
+                              type="button"
+                              onClick={() => {
+                                const updated = toggleOptionInString(siteOptionForm.protection, optName);
+                                setSiteOptionForm({ ...siteOptionForm, protection: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px solid #059669',
+                                backgroundColor: 'rgba(5, 150, 105, 0.15)',
+                                color: '#047857',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✓ {optName} <X size={11} />
+                            </button>
+                          ))
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '5px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '2px' }}>추가가능:</span>
+                        {uninheritedOpts.length === 0 ? (
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>모든 표준 무상옵션이 적용되었습니다.</span>
+                        ) : (
+                          uninheritedOpts.map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const baseStr = siteOptionForm.protection === 'NONE' ? '' : siteOptionForm.protection;
+                                const updated = toggleOptionInString(baseStr, opt.name);
+                                setSiteOptionForm({ ...siteOptionForm, protection: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px dashed var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                            >
+                              <Plus size={10} color="#059669" /> {opt.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 3. 현장 전용 부착물 (ATTACHMENT) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  현장 전용 부착물
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                  {standardOptions.filter(o => o.category === 'ATTACHMENT' && o.isActive).map(opt => {
-                    const isSelected = splitOptions(siteOptionForm.attachments).includes(opt.name);
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = toggleOptionInString(siteOptionForm.attachments, opt.name);
-                          setSiteOptionForm({ ...siteOptionForm, attachments: updated });
-                        }}
-                        style={{
-                          padding: '2px 7px',
-                          fontSize: '11.5px',
-                          borderRadius: '4px',
-                          border: isSelected ? '1px solid #7c3aed' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
-                          color: isSelected ? '#6d28d9' : 'var(--text-main)',
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {opt.name} {isSelected ? '✓' : ''}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#6d28d9', margin: 0 }}>
+                    3. 부착물 (ATTACHMENT)
+                  </label>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    적용: {splitOptions(siteOptionForm.attachments).length}건
+                  </span>
                 </div>
-                <input
-                  type="text"
-                  style={inputStyle}
-                  value={siteOptionForm.attachments}
-                  onChange={e => setSiteOptionForm({ ...siteOptionForm, attachments: e.target.value })}
-                  placeholder="예: 인증서, 제원표, 보험증권, 반입전 체크리스트"
-                />
+                {(() => {
+                  const appliedList = splitOptions(siteOptionForm.attachments);
+                  const activeMasterOpts = standardOptions.filter(o => o.category === 'ATTACHMENT' && o.isActive);
+                  const uninheritedOpts = activeMasterOpts.filter(o => !appliedList.includes(o.name));
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', minHeight: '24px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#6d28d9', marginRight: '2px' }}>적용됨:</span>
+                        {appliedList.length === 0 ? (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음</span>
+                        ) : (
+                          appliedList.map(optName => (
+                            <button
+                              key={`modal-att-app-${optName}`}
+                              type="button"
+                              onClick={() => {
+                                const updated = toggleOptionInString(siteOptionForm.attachments, optName);
+                                setSiteOptionForm({ ...siteOptionForm, attachments: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px solid #7c3aed',
+                                backgroundColor: 'rgba(124, 58, 237, 0.15)',
+                                color: '#6d28d9',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✓ {optName} <X size={11} />
+                            </button>
+                          ))
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '5px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '2px' }}>추가가능:</span>
+                        {uninheritedOpts.length === 0 ? (
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>모든 표준 부착물이 적용되었습니다.</span>
+                        ) : (
+                          uninheritedOpts.map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const updated = toggleOptionInString(siteOptionForm.attachments, opt.name);
+                                setSiteOptionForm({ ...siteOptionForm, attachments: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px dashed var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                            >
+                              <Plus size={10} color="#7c3aed" /> {opt.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 4. 현장 전용 요구사양 (SPEC) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  현장 전용 요구사양 (안전 규격 및 인증 사양)
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
-                    const isSelected = Boolean(siteOptionForm.checkedSpecs && siteOptionForm.checkedSpecs[opt.id]);
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          const updated = {
-                            ...(siteOptionForm.checkedSpecs || {}),
-                            [opt.id]: !isSelected
-                          };
-                          setSiteOptionForm({ ...siteOptionForm, checkedSpecs: updated });
-                        }}
-                        style={{
-                          padding: '2px 7px',
-                          fontSize: '11.5px',
-                          borderRadius: '4px',
-                          border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-card)',
-                          color: isSelected ? '#b45309' : 'var(--text-main)',
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {opt.name} {isSelected ? '✓' : ''}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#b45309', margin: 0 }}>
+                    4. 현장 요구사양 (SPEC)
+                  </label>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    적용: {standardOptions.filter(o => o.category === 'SPEC' && o.isActive && siteOptionForm.checkedSpecs?.[o.id]).length}건
+                  </span>
                 </div>
+                {(() => {
+                  const activeSpecOpts = standardOptions.filter(o => o.category === 'SPEC' && o.isActive);
+                  const appliedSpecs = activeSpecOpts.filter(o => Boolean(siteOptionForm.checkedSpecs && siteOptionForm.checkedSpecs[o.id]));
+                  const uninheritedSpecs = activeSpecOpts.filter(o => !Boolean(siteOptionForm.checkedSpecs && siteOptionForm.checkedSpecs[o.id]));
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', minHeight: '24px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#b45309', marginRight: '2px' }}>적용됨:</span>
+                        {appliedSpecs.length === 0 ? (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음</span>
+                        ) : (
+                          appliedSpecs.map(opt => (
+                            <button
+                              key={`modal-spec-app-${opt.id}`}
+                              type="button"
+                              onClick={() => {
+                                const updated = {
+                                  ...(siteOptionForm.checkedSpecs || {}),
+                                  [opt.id]: false
+                                };
+                                setSiteOptionForm({ ...siteOptionForm, checkedSpecs: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px solid #d97706',
+                                backgroundColor: 'rgba(217, 119, 6, 0.15)',
+                                color: '#b45309',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              ✓ {opt.name} <X size={11} />
+                            </button>
+                          ))
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '5px' }}>
+                        <span style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '2px' }}>추가가능:</span>
+                        {uninheritedSpecs.length === 0 ? (
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>모든 표준 요구사양이 적용되었습니다.</span>
+                        ) : (
+                          uninheritedSpecs.map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const updated = {
+                                  ...(siteOptionForm.checkedSpecs || {}),
+                                  [opt.id]: true
+                                };
+                                setSiteOptionForm({ ...siteOptionForm, checkedSpecs: updated });
+                              }}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                border: '1px dashed var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}
+                            >
+                              <Plus size={10} color="#d97706" /> {opt.name}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
