@@ -26,6 +26,7 @@ import {
   sanitizeSiteAddressInput,
   findMatchingSiteMaster
 } from '../utils/siteMatcher';
+import { splitMasterAwareOptions } from '../types/siteOption';
 
 // ⚡ 좌측 고객 목록 개별 아이템 메모이제이션 (선택 고객 변경 시 타 고객 불필요 재렌더링 방지)
 interface CustomerListItemProps {
@@ -1250,11 +1251,9 @@ export const Customers: React.FC = () => {
     return String(val).trim();
   };
 
-  // 🏷️ 옵션 유틸리티 함수 (금액 쉼표 30,000원 등 숫자 천단위 구분 쉼표 분리 방지)
+  // 🏷️ 옵션 유틸리티 함수 (옵션마스터 쉼표 포함 품목명 보존 및 비마스터/시드 항목 차단)
   const splitOptions = (str?: any): string[] => {
-    const clean = normalizeOptionString(str);
-    if (!clean) return [];
-    return clean.split(/(?:,(?!\d{3}(?:[^\d]|$))|[;\n]+)/).map(s => s.trim()).filter(Boolean);
+    return splitMasterAwareOptions(str, standardOptions, { onlyMasterOptions: true, stripPrice: true });
   };
 
   const toggleOptionInString = (currentStr: any, optName: string): string => {

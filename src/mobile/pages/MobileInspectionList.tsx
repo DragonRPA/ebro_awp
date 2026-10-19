@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { isModelMatch } from '../../utils/modelUtils';
 import { CameraUploader } from '../components/CameraUploader';
-import { db, OutboundInspection, Asset, AssetInOutLog, STANDARD_SPECS } from '../../services/db';
+import { db, OutboundInspection, Asset, AssetInOutLog } from '../../services/db';
+import { splitMasterAwareOptions } from '../../types/siteOption';
 import { 
   CheckSquare, 
   Check, 
@@ -53,6 +54,7 @@ function getInspectionCheckpoints(
     : masterList.find((sm: any) => sm.name && site?.name && sm.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
   const customer = contract?.customerId ? customers.find(c => c.id === contract.customerId) : undefined;
   const asset = assets.find(a => a.id === oin.assetId);
+  const masterOpts = db.standardOptions || [];
 
   const checkpoints: { id: string; label: string; type: 'MODEL' | 'SPEC' | 'OPTION' | 'NOTE' }[] = [];
 
@@ -65,24 +67,30 @@ function getInspectionCheckpoints(
     });
   }
 
-  // 2. 현장 또는 고객사의 요구 사양 중 true인 항목만 추가
+  // 2. 옵션 마스터(SPEC) 중 true인 항목만 추가
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
     ...(siteMaster?.checkedSpecs || site?.checkedSpecs || {})
   };
-  STANDARD_SPECS.forEach(spec => {
-    if (specMap[spec.id] === true) {
-      checkpoints.push({ id: spec.id, label: spec.label, type: 'SPEC' });
+  masterOpts.filter(o => o.category === 'SPEC' && o.isActive).forEach(spec => {
+    if (specMap[spec.id] === true || specMap[spec.name] === true) {
+      checkpoints.push({ id: spec.id, label: spec.name, type: 'SPEC' });
     }
   });
 
-  // 3. 유상 옵션 (텍스트 기반)
+  // 3. 유상 옵션 / 무상 옵션 / 부착물 (옵션 마스터 등록 항목만)
   const paidOpts = siteMaster?.paidOptions || site?.paidOptions || customer?.defaultPaidOptions || '';
-  if (typeof paidOpts === 'string' && paidOpts.trim()) {
-    paidOpts.split(/[,，、\n]/).map((o: string) => o.trim()).filter(Boolean).forEach((opt: string, i: number) => {
-      checkpoints.push({ id: `paid_${i}`, label: `[옵션] ${opt} 장착 확인`, type: 'OPTION' });
-    });
-  }
+  splitMasterAwareOptions(paidOpts, masterOpts, { onlyMasterOptions: true, stripPrice: true }).forEach((opt: string, i: number) => {
+    checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
+  });
+  const protOpts = siteMaster?.protection || site?.protection || customer?.defaultProtection || '';
+  splitMasterAwareOptions(protOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt: string, i: number) => {
+    checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
+  });
+  const attOpts = siteMaster?.attachments || site?.attachments || customer?.defaultAttachments || '';
+  splitMasterAwareOptions(attOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt: string, i: number) => {
+    checkpoints.push({ id: `att_${i}`, label: `[부착물] ${opt} 비치/부착 확인`, type: 'OPTION' });
+  });
 
   // 4. 특이사항 메모
   const specialNote = site?.memo || customer?.specialNotes || '';

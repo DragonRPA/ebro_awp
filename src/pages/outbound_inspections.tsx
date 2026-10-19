@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
-import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS, isCustomerRestricted } from '../services/db';
+import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, isCustomerRestricted } from '../services/db';
+import { splitMasterAwareOptions } from '../types/siteOption';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { isModelMatch } from '../utils/modelUtils';
 import { createHangulMatcher } from '../utils/hangulSearch';
@@ -55,6 +56,7 @@ function getGroupCheckpoints(
   assetMap: Map<string, Asset>
 ): { checkpoints: CheckPoint[]; specialNote: string } {
   const checkpoints: CheckPoint[] = [];
+  const masterOpts = db.standardOptions || [];
 
   // 1. 모델 일치 확인 — 항상 포함
   items.forEach(item => {
@@ -75,41 +77,35 @@ function getGroupCheckpoints(
     }
   });
 
-  // 2. STANDARD_SPECS 중 site.checkedSpecs (또는 연결된 옵션 그룹 / 고객사 기본값)에서 true인 항목만
+  // 2. 옵션 마스터(SPEC) 중 site.checkedSpecs (또는 연결된 옵션 그룹 / 고객사 기본값)에서 true인 항목만
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
     ...(siteMaster?.checkedSpecs || {}),
     ...(site?.checkedSpecs || {})
   };
-  STANDARD_SPECS.forEach(spec => {
-    if (specMap[spec.id] === true) {
-      checkpoints.push({ id: spec.id, label: spec.label, type: 'SPEC' });
+  masterOpts.filter(o => o.category === 'SPEC' && o.isActive).forEach(spec => {
+    if (specMap[spec.id] === true || specMap[spec.name] === true) {
+      checkpoints.push({ id: spec.id, label: spec.name, type: 'SPEC' });
     }
   });
 
-  // 3. 유상옵션 (site.paidOptions ➔ 옵션 그룹 ➔ customer.defaultPaidOptions, 단가 제외)
+  // 3. 유상옵션 (site.paidOptions ➔ 옵션 그룹 ➔ customer.defaultPaidOptions, 옵션마스터 등록 항목만)
   const paidOpts = site?.paidOptions || siteMaster?.paidOptions || customer?.defaultPaidOptions || '';
-  if (typeof paidOpts === 'string' && paidOpts.trim() && paidOpts.trim() !== 'NONE' && paidOpts.trim() !== '없음' && paidOpts.trim() !== '-') {
-    paidOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim().replace(/\s*\([+-]?[\d,]+(?:\s*원)?\)/g, '').trim()).filter(Boolean).forEach((opt, i) => {
-      checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
-    });
-  }
+  splitMasterAwareOptions(paidOpts, masterOpts, { onlyMasterOptions: true, stripPrice: true }).forEach((opt, i) => {
+    checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
+  });
 
-  // 4. 무상옵션 / 보양 (site.protection ➔ 옵션 그룹 ➔ customer.defaultProtection)
+  // 4. 무상옵션 / 보양 (site.protection ➔ 옵션 그룹 ➔ customer.defaultProtection, 옵션마스터 등록 항목만)
   const protOpts = site?.protection || siteMaster?.protection || customer?.defaultProtection || '';
-  if (typeof protOpts === 'string' && protOpts.trim() && protOpts.trim() !== 'NONE' && protOpts.trim() !== '없음' && protOpts.trim() !== '-') {
-    protOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
-      checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
-    });
-  }
+  splitMasterAwareOptions(protOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt, i) => {
+    checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
+  });
 
-  // 5. 부착물 (site.attachments ➔ 옵션 그룹 ➔ customer.defaultAttachments)
+  // 5. 부착물 (site.attachments ➔ 옵션 그룹 ➔ customer.defaultAttachments, 옵션마스터 등록 항목만)
   const attOpts = site?.attachments || siteMaster?.attachments || customer?.defaultAttachments || '';
-  if (typeof attOpts === 'string' && attOpts.trim() && attOpts.trim() !== 'NONE' && attOpts.trim() !== '없음' && attOpts.trim() !== '-') {
-    attOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
-      checkpoints.push({ id: `att_${i}`, label: `[부착물] ${opt} 비치/부착 확인`, type: 'OPTION' });
-    });
-  }
+  splitMasterAwareOptions(attOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt, i) => {
+    checkpoints.push({ id: `att_${i}`, label: `[부착물] ${opt} 비치/부착 확인`, type: 'OPTION' });
+  });
 
   const specialNote = (site as any)?.memo || customer?.specialNotes || '';
   return { checkpoints, specialNote };

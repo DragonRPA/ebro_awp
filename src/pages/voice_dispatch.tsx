@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { canViewFinancials } from '../utils/privacyMasking';
-import { extractCategorizedSiteOptions, stripOptionPrice } from '../types/siteOption';
+import { extractCategorizedSiteOptions, stripOptionPrice, splitMasterAwareOptions } from '../types/siteOption';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -455,36 +455,25 @@ export const VoiceDispatch: React.FC = () => {
   // ── 업무 유형 (기본값: 기존현장 출고) ──
   const [selectedContext, setSelectedContext] = useState<CallContext>('ADDITIONAL');
 
-  // 🏷️ 옵션 분할 헬퍼 (천단위 금액 쉼표 30,000원 및 옵션명 내부 슬래시 '협착방지봉 / 상부센서' 보존 & 배열/비문자열 원천 방어)
-  const parseOptionString = (str?: any): string[] => {
-    if (!str) return [];
-    const normalized = Array.isArray(str)
-      ? str.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ')
-      : (typeof str === 'string' ? str : String(str));
-    return normalized
-      .split(/(?:,(?!\d{3}(?:[^\d]|$))|[;\n]+)/)
-      .map(s => s.trim())
-      .filter(s => Boolean(s) && s !== '-' && s !== 'NONE' && s !== '없음');
-  };
+  // 🏷️ 옵션 분할 헬퍼 (표준 옵션 마스터의 쉼표 포함 품목명 보존 및 마스터 외 비등록/목업 데이터 원천 차단)
+  const parseOptionString = useCallback((str?: any): string[] => {
+    return splitMasterAwareOptions(str, standardOptions, { onlyMasterOptions: true, stripPrice: true });
+  }, [standardOptions]);
 
-  // 🛡️ 보양/부착물/유상옵션 정밀 분류 헬퍼
+  // 🛡️ 보양/부착물/유상옵션 정밀 분류 헬퍼 (하드코딩 배제 — 등록된 옵션 마스터 카테고리만 준수)
   const isProtectionOption = useCallback((label: string): boolean => {
     const clean = stripOptionPrice(label);
     const protDefs = (standardOptions || []).filter(o => o.category === 'PROTECTION').map(o => o.name);
-    if (protDefs.includes(clean)) return true;
-    if (/보양|비닐보양|바닥보양|완충/i.test(clean) && !/조이스틱|커버|센서|스위치/i.test(clean)) return true;
-    return false;
+    return protDefs.includes(clean);
   }, [standardOptions]);
 
   const isAttachmentOption = useCallback((label: string): boolean => {
     const clean = stripOptionPrice(label);
     const attDefs = (standardOptions || []).filter(o => o.category === 'ATTACHMENT').map(o => o.name);
-    if (attDefs.includes(clean)) return true;
-    if (/인증서|제원표|보험증권|체크리스트|비상하강|안전점검결과서|스티커/i.test(clean)) return true;
-    return false;
+    return attDefs.includes(clean);
   }, [standardOptions]);
 
-  // 🌟 [현장 마스터 + 고객사 기본상속 + 과거 배차 이력 종합 옵션 자동 로드]
+  // 🌟 [현장 마스터 + 연결된 옵션 그룹에서 등록된 옵션 마스터 항목만 자동 로드]
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
     const inherited = new Set<string>();
 
@@ -496,7 +485,7 @@ export const VoiceDispatch: React.FC = () => {
       const effAtt = site.attachments || sm?.attachments;
 
       if (effPaid) {
-        parseOptionString(effPaid).forEach(opt => inherited.add(stripOptionPrice(opt)));
+        parseOptionString(effPaid).forEach(opt => inherited.add(opt));
       }
       if (effProt && effProt !== 'NONE' && effProt !== '-') {
         parseOptionString(effProt).forEach(opt => inherited.add(opt));
@@ -509,7 +498,7 @@ export const VoiceDispatch: React.FC = () => {
     // ── 2순위: 고객사 기본 상속 옵션 (현장 옵션이 비어있거나 현장 미선택 시) ───
     if (inherited.size === 0 && cust) {
       if (cust.defaultPaidOptions) {
-        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(stripOptionPrice(opt)));
+        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(opt));
       }
       if (cust.defaultProtection && cust.defaultProtection !== 'NONE' && cust.defaultProtection !== '-') {
         parseOptionString(cust.defaultProtection).forEach(opt => inherited.add(opt));
@@ -519,30 +508,10 @@ export const VoiceDispatch: React.FC = () => {
       }
     }
 
-    // ── 3순위: 과거 배차 대장(deliveries) 이력 자동 탐색 ──────────────────────
-    if (inherited.size === 0 && (site || cust)) {
-      const siteAddrs = site?.address?.trim();
-      const custId = cust?.id;
-      const pastDelivery = (deliveries || []).find(d => 
-        (siteAddrs && d.destinationAddress && d.destinationAddress.includes(siteAddrs)) ||
-        (custId && d.billableCustomerId === custId) ||
-        (site?.name && d.cargoItems && d.cargoItems.includes(site.name))
-      );
-      if (pastDelivery) {
-        const text = `${pastDelivery.cargoItems || ''} ${pastDelivery.closingMemo || ''} ${pastDelivery.memo || ''}`;
-        const match = text.match(/\[(?:옵션|안전옵션)\]\s*([^|\]]+)/);
-        if (match && match[1]) {
-          parseOptionString(match[1]).forEach(item => {
-            inherited.add(stripOptionPrice(item));
-          });
-        }
-      }
-    }
-
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
     return inherited;
-  }, [deliveries, siteMasters]);
+  }, [siteMasters, parseOptionString]);
 
   const inheritPastSafetyOptions = loadSiteSafetyOptions;
 
@@ -1188,17 +1157,14 @@ export const VoiceDispatch: React.FC = () => {
     }
     if (ppaidby) setPaidBy(ppaidby);
 
-    // 안전옵션 & 보양 자동 감지
+    // 안전옵션 & 보양 자동 감지 (오직 옵션마스터에 등록된 항목만 매칭)
     const detectedSafety = new Set<string>();
-    if (/과부하/i.test(textLower)) detectedSafety.add('과부하방지장치');
-    if (/협착|감지봉|상부센서/i.test(textLower)) detectedSafety.add('협착방지대');
-    if (/경광등/i.test(textLower)) detectedSafety.add('경광등');
-    if (/소화기/i.test(textLower)) detectedSafety.add('소화기');
-    if (/러버패드|바닥보양|패드/i.test(textLower)) detectedSafety.add('러버패드');
-    if (/타이어커버|바퀴커버/i.test(textLower)) detectedSafety.add('타이어커버');
-    if (/도색|도장/i.test(textLower)) detectedSafety.add('도색');
-    if (/함석|철망/i.test(textLower)) detectedSafety.add('함석/철망');
-    if (/발판|보조발판/i.test(textLower)) detectedSafety.add('보조발판');
+    (standardOptions || []).filter(o => o.isActive !== false && o.name).forEach(opt => {
+      const cleanOptName = opt.name.toLowerCase().replace(/\s+/g, '');
+      if (cleanOptName && textLower.includes(cleanOptName)) {
+        detectedSafety.add(opt.name);
+      }
+    });
     if (detectedSafety.size > 0) {
       setSelectedSafetyOptions(prev => new Set([...prev, ...detectedSafety]));
     }
@@ -1814,19 +1780,18 @@ export const VoiceDispatch: React.FC = () => {
     setStaggeredMemo(draft.staggeredMemo || '');
     setVehicleType(draft.vehicleType || '5T');
 
-    // 7. 메모 및 안전옵션 파싱
+    // 7. 메모 및 안전옵션 파싱 (오직 옵션마스터에 등록된 항목만 허용)
     const noteText = draft.note || '';
     setNote(noteText);
+    const masterOptSet = new Set((standardOptions || []).filter(o => o.isActive !== false && o.name).map(o => o.name.trim()));
     if (draft.safetyOptions && draft.safetyOptions.length > 0) {
-      setSelectedSafetyOptions(new Set(draft.safetyOptions));
-    } else {
+      const validDraftOpts = draft.safetyOptions.filter(o => masterOptSet.has(o.trim()));
+      setSelectedSafetyOptions(new Set(validDraftOpts));
+    } else if (noteText) {
       const parsedOpts = new Set<string>();
-      if (noteText.includes('협착방지봉') || noteText.includes('상부센서')) parsedOpts.add('협착방지봉 / 상부센서');
-      if (noteText.includes('소화기')) parsedOpts.add('소화기함 / 분말소화기');
-      if (noteText.includes('철망')) parsedOpts.add('4면 철망 (안전 낙하방지망)');
-      if (noteText.includes('인버터')) parsedOpts.add('인버터 설치');
-      if (noteText.includes('논마킹') || noteText.includes('백색타이어')) parsedOpts.add('백색 논마킹 타이어');
-      if (noteText.includes('보양')) parsedOpts.add('4면 철망 보양');
+      (standardOptions || []).filter(o => o.isActive !== false && o.name).forEach(opt => {
+        if (noteText.includes(opt.name)) parsedOpts.add(opt.name);
+      });
       if (parsedOpts.size > 0) {
         setSelectedSafetyOptions(parsedOpts);
       }
@@ -3876,52 +3841,26 @@ export const VoiceDispatch: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 추천 키워드 칩 (타이핑 단축) */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] text-slate-400 font-semibold">자주 쓰는 요청:</span>
-                    {availableOptionSuggestions.map(tag => {
-                      const isAdded = selectedSafetyOptions.has(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleOptionTag(tag)}
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition ${
-                            isAdded
-                              ? 'bg-amber-900/60 border-amber-500 text-amber-200'
-                              : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750 hover:text-white'
-                          }`}
-                        >
-                          {isAdded ? `✓ ${tag}` : `+ ${tag}`}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* 영업사원 고객 요구사항 있는 그대로 직접 입력 */}
-                  <div className="flex items-center gap-1.5 pt-0.5">
-                    <input
-                      type="text"
-                      value={newOptionInput}
-                      onChange={e => setNewOptionInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddOption();
-                        }
-                      }}
-                      placeholder="고객 요구사항 있는 그대로 입력 (예: 협착봉, 비닐보양, 무분진, 충전선 연장 등)..."
-                      className="flex-1 bg-slate-800 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddOption()}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-slate-950 transition flex-shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>추가</span>
-                    </button>
-                  </div>
+                  {/* 추가 가능한 옵션 (미선택 마스터 옵션만 표시) */}
+                  {(() => {
+                    const unselectedSuggestions = availableOptionSuggestions.filter(tag => !selectedSafetyOptions.has(tag));
+                    if (unselectedSuggestions.length === 0) return null;
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[11px] text-slate-400 font-semibold mr-1">추가 가능한 옵션 ({unselectedSuggestions.length}개):</span>
+                        {unselectedSuggestions.map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleOptionTag(tag)}
+                            className="px-2 py-0.5 rounded text-[11px] font-semibold border transition bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750 hover:text-white"
+                          >
+                            + {tag}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
