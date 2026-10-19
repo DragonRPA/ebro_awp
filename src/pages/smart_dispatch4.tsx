@@ -31,7 +31,7 @@ import {
   ClipboardPaste, ArrowRight, Info, Merge,
   UploadCloud, ShieldCheck, ShieldAlert,
   AlertTriangle, Check, AlertCircle, RotateCcw,
-  Truck, Wrench, Shield, RefreshCw, Save, X, Search,
+  Truck, Wrench, Shield, RefreshCw, Save, X, Search, Layers,
   FolderOpen, Zap, Phone, Terminal, Activity, Printer
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
@@ -962,23 +962,72 @@ export const SmartDispatch4: React.FC = () => {
     });
   };
 
+  const [showSiteMasterPickerInSection5, setShowSiteMasterPickerInSection5] = useState(false);
+
+  const handleApplySiteMasterOptionsInSection5 = async (smId: string, autoSaveToSite = false) => {
+    setSelectedSiteMasterId(smId);
+    if (!smId) return;
+    const sm = (siteMasters || []).find(s => s.id === smId);
+    if (!sm) return;
+
+    const opts = new Set<string>(selectedSafetyOptions);
+    if (sm.paidOptions) parseOptionString(sm.paidOptions).forEach(o => opts.add(stripOptionPrice(o)));
+    if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection).forEach(o => opts.add(o));
+    if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments).forEach(o => opts.add(o));
+    setSelectedSafetyOptions(opts);
+
+    if (autoSaveToSite && selectedSite) {
+      const optionLabels = Array.from(opts);
+      const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+      const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
+      const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
+      try {
+        db.updateRow<CustomerSite>('sites', selectedSite.id, {
+          siteMasterId: smId,
+          paidOptions: paidOpts,
+          protection: protOpts,
+          attachments: attOpts,
+          address: selectedSiteAddress || selectedSite.address,
+          updatedAt: new Date().toISOString(),
+        });
+        await db.awaitPendingWrites();
+        setSelectedSite(prev => prev ? {
+          ...prev,
+          siteMasterId: smId,
+          paidOptions: paidOpts,
+          protection: protOpts,
+          attachments: attOpts,
+        } : prev);
+        setInitialSiteOptions(new Set(opts));
+        refreshAllData();
+        showToast(`[${sm.name}] 옵션 그룹을 불러와 현재 현장(${selectedSite.name}) 옵션에 즉시 업데이트했습니다.`, 'success');
+      } catch (e: any) {
+        showToast(`현장 옵션 업데이트 실패: ${e?.message}`, 'error');
+      }
+    } else {
+      showToast(`[${sm.name}] 옵션 그룹 값을 불러왔습니다. [현장옵션 저장]을 누르면 현재 현장에 반영됩니다.`, 'success');
+    }
+  };
+
   const handleReloadSiteOptions = () => {
     if (selectedSite) {
       const loaded = loadSiteSafetyOptions(selectedSite, selectedCustomer);
       if (loaded.size > 0) {
         showToast(`현장 '${selectedSite.name}'의 옵션 (${loaded.size}건)을 불러왔습니다.`, 'success');
       } else {
-        showToast(`현장 '${selectedSite.name}'에 등록된 옵션이 없습니다.`, 'info');
+        setShowSiteMasterPickerInSection5(true);
+        showToast(`현장 '${selectedSite.name}'에 등록된 옵션이 없습니다. 아래 [현장별 옵션관리] 목록에서 옵션을 선택해 불러오세요.`, 'info');
       }
     } else if (selectedCustomer) {
       const loaded = loadSiteSafetyOptions(null, selectedCustomer);
       if (loaded.size > 0) {
         showToast(`고객사 '${selectedCustomer.name}'의 기본 옵션 (${loaded.size}건)을 불러왔습니다.`, 'success');
       } else {
-        showToast(`고객사 '${selectedCustomer.name}'에 등록된 기본 옵션이 없습니다.`, 'info');
+        setShowSiteMasterPickerInSection5(true);
+        showToast(`고객사 '${selectedCustomer.name}'에 등록된 기본 옵션이 없습니다. 아래 [현장별 옵션관리]에서 불러오세요.`, 'info');
       }
     } else {
-      showToast('선택된 고객사 또는 현장이 없습니다.', 'error');
+      setShowSiteMasterPickerInSection5(true);
     }
   };
 
@@ -994,6 +1043,7 @@ export const SmartDispatch4: React.FC = () => {
 
     try {
       db.updateRow<CustomerSite>('sites', selectedSite.id, {
+        siteMasterId: selectedSiteMasterId || selectedSite.siteMasterId,
         paidOptions: paidOpts,
         protection: protOpts,
         attachments: attOpts,
@@ -1001,8 +1051,16 @@ export const SmartDispatch4: React.FC = () => {
         updatedAt: new Date().toISOString(),
       });
       await db.awaitPendingWrites();
+      setSelectedSite(prev => prev ? {
+        ...prev,
+        siteMasterId: selectedSiteMasterId || prev.siteMasterId,
+        paidOptions: paidOpts,
+        protection: protOpts,
+        attachments: attOpts,
+      } : prev);
       setInitialSiteOptions(new Set(selectedSafetyOptions));
-      showToast(`[${selectedSite.name}] 현장 옵션 및 주소가 성공적으로 저장되었습니다.`, 'success');
+      refreshAllData();
+      showToast(`[${selectedSite.name}] 현재 현장의 옵션(${optionLabels.length}건)이 업데이트 저장되었습니다.`, 'success');
     } catch (e: any) {
       showToast(`현장 옵션 저장 실패: ${e?.message}`, 'error');
     }
@@ -4036,10 +4094,19 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
+                        onClick={() => setShowSiteMasterPickerInSection5(prev => !prev)}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-bold bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 hover:text-white border border-purple-700/60 transition"
+                        title="현장별 옵션관리에 저장된 옵션 그룹을 조회하여 불러오기"
+                      >
+                        <Layers className="w-3 h-3 text-purple-400" />
+                        <span>현장별 옵션관리 불러오기</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={handleReloadSiteOptions}
                         disabled={!selectedSite && !selectedCustomer}
                         className="flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                        title={selectedSite ? "현장 마스터 및 고객사 기본값에서 옵션 불러오기" : selectedCustomer ? "고객사 기본 옵션 불러오기" : "고객사 또는 현장을 먼저 선택하십시오"}
+                        title={selectedSite ? "현재 현장에 저장된 옵션 다시 불러오기" : selectedCustomer ? "고객사 기본 옵션 불러오기" : "고객사 또는 현장을 먼저 선택하십시오"}
                       >
                         <RefreshCw className="w-3 h-3 text-cyan-400" />
                         <span>현장옵션 불러오기</span>
@@ -4049,13 +4116,82 @@ export const SmartDispatch4: React.FC = () => {
                         onClick={handleSaveOptionsToCurrentSite}
                         disabled={!selectedSite}
                         className="flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-bold bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 hover:text-white border border-emerald-700/60 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                        title="현재 등록된 옵션을 이 현장의 기본 옵션으로 저장"
+                        title="현재 등록된 옵션을 선택된 고객현장의 옵션으로 업데이트 저장"
                       >
                         <Save className="w-3 h-3 text-emerald-400" />
-                        <span>현장옵션 저장</span>
+                        <span>현재 현장에 옵션 저장</span>
                       </button>
                     </div>
                   </div>
+
+                  {/* 🌟 [현장별 옵션관리] 옵션 그룹 조회·불러오기 및 현재 현장 즉시 업데이트 패널 */}
+                  {(showSiteMasterPickerInSection5 || !selectedSite || (!selectedSite.paidOptions && (!selectedSite.protection || selectedSite.protection === 'NONE') && !selectedSite.attachments)) && (
+                    <div className="p-2.5 bg-purple-950/25 border border-purple-500/40 rounded-lg flex flex-col gap-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-purple-400" />
+                          <span>현장별 옵션관리 저장값 불러오기 {selectedSite ? `(선택 시 '${selectedSite.name}' 현장 옵션에도 동시 반영 가능)` : ''}</span>
+                        </span>
+                        {showSiteMasterPickerInSection5 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowSiteMasterPickerInSection5(false)}
+                            className="text-[10.5px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700"
+                          >
+                            접기
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                        <div className="relative md:col-span-4">
+                          <input
+                            type="text"
+                            className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-7 pr-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                            placeholder="현장별 옵션 그룹명/옵션 검색..."
+                            value={siteMasterSearchQuery}
+                            onChange={e => setSiteMasterSearchQuery(e.target.value)}
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" />
+                        </div>
+                        <div className="md:col-span-5">
+                          <select
+                            className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500"
+                            value={selectedSiteMasterId}
+                            onChange={e => {
+                              const smId = e.target.value;
+                              if (smId) {
+                                handleApplySiteMasterOptionsInSection5(smId, false);
+                              } else {
+                                setSelectedSiteMasterId('');
+                              }
+                            }}
+                          >
+                            <option value="">-- 현장별 옵션관리 그룹 선택 ({filteredSiteMasters.length}개) --</option>
+                            {filteredSiteMasters.map(sm => {
+                              const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
+                              return (
+                                <option key={sm.id} value={sm.id}>
+                                  {sm.name} {optSummary ? `(${optSummary})` : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                        <div className="md:col-span-3 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={!selectedSiteMasterId || !selectedSite}
+                            onClick={() => handleApplySiteMasterOptionsInSection5(selectedSiteMasterId, true)}
+                            className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition whitespace-nowrap"
+                            title={selectedSite ? `선택한 옵션 그룹을 불러오고 '${selectedSite.name}' 현장의 옵션에도 즉시 업데이트합니다` : '고객현장을 먼저 선택하십시오'}
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>불러오기 + 현장 업데이트</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 등록된 옵션 태그 목록 */}
                   {selectedSafetyOptions.size > 0 ? (
