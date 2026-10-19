@@ -274,23 +274,23 @@ export const TradePurchasesPage: React.FC = () => {
     }
   };
 
-  // Cancel Purchase
-  const handleCancelPurchase = async (p: TradePurchase) => {
-    if (!window.confirm(`발주번호 [${p.id}] 건을 취소하시겠습니까?\n(입고된 재고가 있을 경우 미사용 로트가 회수됩니다.)`)) return;
+  // Cancel Purchase Item (Row-level)
+  const handleCancelPurchase = async (p: TradePurchase, pi: TradePurchaseItem, prodName: string) => {
+    if (!window.confirm(`발주번호 [${p.id}]의 품목 [${prodName}] 건을 취소하시겠습니까?\n(입고된 재고가 있을 경우 미사용 로트가 회수됩니다.)`)) return;
     try {
-      await cancelPurchase(p.id, '담당자 발주 취소');
-      showToast(`발주번호 [${p.id}] 건이 취소 처리되었습니다.`);
+      await cancelPurchase(p.id, '담당자 발주 취소', pi.id);
+      showToast(`발주번호 [${p.id}] 품목 [${prodName}] 건이 취소 처리되었습니다.`);
     } catch (err: any) {
       showErrorModal(err.message || '발주 취소 실패');
     }
   };
 
-  // Delete Purchase
-  const handleDeletePurchase = async (p: TradePurchase) => {
-    if (!window.confirm(`발주번호 [${p.id}] 내역을 영구 삭제하시겠습니까?`)) return;
+  // Delete Purchase Item (Row-level)
+  const handleDeletePurchase = async (p: TradePurchase, pi: TradePurchaseItem, prodName: string) => {
+    if (!window.confirm(`발주번호 [${p.id}]의 품목 [${prodName}] 내역을 영구 삭제하시겠습니까?`)) return;
     try {
-      await deletePurchase(p.id);
-      showToast(`발주번호 [${p.id}] 내역이 삭제되었습니다.`);
+      await deletePurchase(p.id, pi.id);
+      showToast(`발주번호 [${p.id}] 품목 [${prodName}] 내역이 삭제되었습니다.`);
     } catch (err: any) {
       showErrorModal(err.message || '발주 삭제 실패');
     }
@@ -744,22 +744,22 @@ export const TradePurchasesPage: React.FC = () => {
                           </button>
                         )}
 
-                        {p.status !== 'CANCELLED' && (
+                        {p.status !== 'CANCELLED' && !(pi.receivedQty === 0 && (pi.memo || '').includes('[품목취소')) && (
                           <button
                             type="button"
-                            onClick={() => handleCancelPurchase(p)}
+                            onClick={() => handleCancelPurchase(p, pi, productName)}
                             style={{ padding: '4px 7px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: '1px solid #fecaca', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer' }}
                           >
                             취소
                           </button>
                         )}
 
-                        {(p.status === 'CANCELLED' || p.status === 'REQUESTED' || p.status === 'ORDERED') && (
+                        {(p.status === 'CANCELLED' || p.status === 'REQUESTED' || p.status === 'ORDERED' || pi.receivedQty === 0) && (
                           <button
                             type="button"
-                            onClick={() => handleDeletePurchase(p)}
+                            onClick={() => handleDeletePurchase(p, pi, productName)}
                             style={{ padding: '4px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', cursor: 'pointer' }}
-                            title="발주 삭제"
+                            title="발주 품목 삭제"
                           >
                             <Trash2 size={11} />
                           </button>

@@ -51,10 +51,30 @@ export const TradeContractsPage: React.FC = () => {
   }, [customers]);
 
   // Quick Order Bar state (UIA SSOT compatibility)
+  const [quickCustomerSearch, setQuickCustomerSearch] = useState<string>('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(customerOptions[0]?.id || 'CUST-001');
   const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || 'p1');
   const [orderQty, setOrderQty] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 가용 재고가 남아있는 판매 가능 제품 목록 (availableQty > 0)
+  const inStockProducts = useMemo(() => {
+    return products.filter(p => p.status === 'ACTIVE' && getProductStock(p.id).availableQty > 0);
+  }, [products, getProductStock]);
+
+  // 빠른 수주 바 고객사 검색 필터링
+  const filteredQuickCustomerOptions = useMemo(() => {
+    const q = quickCustomerSearch.trim();
+    if (!q) return customerOptions;
+    const matcher = createHangulMatcher(q);
+    return customerOptions.filter(
+      c =>
+        matcher(c.name || '') ||
+        matcher((c as any).businessNumber || '') ||
+        matcher((c as any).representative || '') ||
+        matcher((c as any).repContact || '')
+    );
+  }, [customerOptions, quickCustomerSearch]);
 
   // Filter states (기간, 고객, 품명, 거래상태, 계약서상태)
   const [startDate, setStartDate] = useState('');
@@ -71,6 +91,7 @@ export const TradeContractsPage: React.FC = () => {
   // Order Create / Edit Modal state
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<TradeSalesOrder | null>(null);
+  const [modalCustomerSearch, setModalCustomerSearch] = useState<string>('');
   const [formCustomerId, setFormCustomerId] = useState<string>(customerOptions[0]?.id || 'CUST-001');
   const [formOrderDate, setFormOrderDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [formDeliveryDate, setFormDeliveryDate] = useState<string>(new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
@@ -82,14 +103,32 @@ export const TradeContractsPage: React.FC = () => {
   const [formMemo, setFormMemo] = useState<string>('');
   const [formLines, setFormLines] = useState<DraftOrderLine[]>([]);
 
+  // 모달 내 고객사 검색 필터링
+  const filteredModalCustomerOptions = useMemo(() => {
+    const q = modalCustomerSearch.trim();
+    if (!q) return customerOptions;
+    const matcher = createHangulMatcher(q);
+    const matched = customerOptions.filter(
+      c =>
+        matcher(c.name || '') ||
+        matcher((c as any).businessNumber || '') ||
+        matcher((c as any).representative || '') ||
+        matcher((c as any).repContact || '')
+    );
+    return matched;
+  }, [customerOptions, modalCustomerSearch]);
+
   // Quick Order Handler
   const handleCreateOrder = async () => {
-    if (products.length === 0) {
-      showErrorModal('등록된 상품이 없습니다.');
+    if (inStockProducts.length === 0) {
+      showErrorModal('현재 가용 재고가 남아있는 판매 가능 상품이 없습니다.');
       return;
     }
-    const product = products.find(p => p.id === selectedProductId) || products[0];
-    const customerId = selectedCustomerId || customerOptions[0]?.id || 'CUST-001';
+    const product = inStockProducts.find(p => p.id === selectedProductId) || inStockProducts[0];
+    const customerId =
+      filteredQuickCustomerOptions.some(c => c.id === selectedCustomerId)
+        ? selectedCustomerId
+        : filteredQuickCustomerOptions[0]?.id || selectedCustomerId || customerOptions[0]?.id || 'CUST-001';
 
     setIsSubmitting(true);
     try {
@@ -110,13 +149,14 @@ export const TradeContractsPage: React.FC = () => {
 
   // Open Detailed Create Order Modal
   const openCreateModal = () => {
-    const activeProd = products.find(p => p.status === 'ACTIVE') || products[0];
+    const activeProd = inStockProducts[0];
     if (!activeProd) {
-      showErrorModal('등록된 상품이 없습니다.');
+      showErrorModal('현재 가용 재고가 남아있는 판매 가능 상품이 없습니다.');
       return;
     }
     const firstCust = customerOptions[0];
     setEditingOrder(null);
+    setModalCustomerSearch('');
     setFormCustomerId(firstCust?.id || 'CUST-001');
     const today = new Date().toISOString().split('T')[0];
     setFormOrderDate(today);
@@ -144,6 +184,7 @@ export const TradeContractsPage: React.FC = () => {
     const lines = salesOrderLines.filter(l => l.orderId === order.id);
     const cust = getCustomerById(order.customerId);
     setEditingOrder(order);
+    setModalCustomerSearch('');
     setFormCustomerId(order.customerId);
     setFormOrderDate(order.orderDate);
     setFormDeliveryDate(order.deliveryDate || order.orderDate);
@@ -177,8 +218,11 @@ export const TradeContractsPage: React.FC = () => {
   };
 
   const handleAddDraftLine = () => {
-    const activeProd = products.find(p => p.status === 'ACTIVE') || products[0];
-    if (!activeProd) return;
+    const activeProd = inStockProducts[0];
+    if (!activeProd) {
+      showErrorModal('가용 재고가 남아있는 상품이 없습니다.');
+      return;
+    }
     setFormLines(prev => [
       ...prev,
       {
@@ -476,27 +520,70 @@ export const TradeContractsPage: React.FC = () => {
         </div>
 
         {/* 신규 수주 파이프라인 + 상세 모달 + 엑셀 다운로드 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
-            data-mid="trade_contracts-customer-select"
-            value={selectedCustomerId}
-            onChange={e => setSelectedCustomerId(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
-          >
-            {customerOptions.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <input
+              type="text"
+              value={quickCustomerSearch}
+              onChange={e => {
+                const val = e.target.value;
+                setQuickCustomerSearch(val);
+                if (val.trim()) {
+                  const matcher = createHangulMatcher(val.trim());
+                  const firstMatch = customerOptions.find(
+                    c =>
+                      matcher(c.name || '') ||
+                      matcher((c as any).businessNumber || '') ||
+                      matcher((c as any).representative || '')
+                  );
+                  if (firstMatch) setSelectedCustomerId(firstMatch.id);
+                }
+              }}
+              placeholder="고객사 검색..."
+              style={{ width: '115px', padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+            />
+            <select
+              data-mid="trade_contracts-customer-select"
+              value={
+                filteredQuickCustomerOptions.some(c => c.id === selectedCustomerId)
+                  ? selectedCustomerId
+                  : filteredQuickCustomerOptions[0]?.id || ''
+              }
+              onChange={e => setSelectedCustomerId(e.target.value)}
+              style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', minWidth: '140px' }}
+            >
+              {filteredQuickCustomerOptions.length === 0 ? (
+                <option value="">검색된 고객사 없음</option>
+              ) : (
+                filteredQuickCustomerOptions.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))
+              )}
+            </select>
+          </div>
 
           <select
             data-mid="trade_contracts-product-select"
-            value={selectedProductId}
+            value={
+              inStockProducts.some(p => p.id === selectedProductId)
+                ? selectedProductId
+                : inStockProducts[0]?.id || ''
+            }
             onChange={e => setSelectedProductId(e.target.value)}
             style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
           >
-            {(products.length > 0 ? products : [{ id: 'p1', name: '산업용 장갑', standardPrice: 1500 }]).map(p => (
-              <option key={p.id} value={p.id}>{p.name} (₩{p.standardPrice.toLocaleString()})</option>
-            ))}
+            {inStockProducts.length === 0 ? (
+              <option value="">가용 재고 상품 없음</option>
+            ) : (
+              inStockProducts.map(p => {
+                const st = getProductStock(p.id);
+                return (
+                  <option key={p.id} value={p.id}>
+                    {p.name} (재고: {st.availableQty}{p.unit || 'EA'} / ₩{p.standardPrice.toLocaleString()})
+                  </option>
+                );
+              })
+            )}
           </select>
 
           <input
@@ -512,7 +599,7 @@ export const TradeContractsPage: React.FC = () => {
             type="button"
             data-mid="trade_contracts-create-btn"
             onClick={handleCreateOrder}
-            disabled={isSubmitting}
+            disabled={isSubmitting || inStockProducts.length === 0}
             className="btn-save"
             style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', cursor: 'pointer' }}
           >
@@ -964,16 +1051,46 @@ export const TradeContractsPage: React.FC = () => {
             <form onSubmit={handleSaveOrderModal} style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>고객사 (매수인) *</label>
-                  <select
-                    value={formCustomerId}
-                    onChange={e => handleCustomerChangeInModal(e.target.value)}
-                    style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 600 }}
-                  >
-                    {customerOptions.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>고객사 조회 및 선택 (매수인) *</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      value={modalCustomerSearch}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setModalCustomerSearch(val);
+                        if (val.trim()) {
+                          const matcher = createHangulMatcher(val.trim());
+                          const firstMatch = customerOptions.find(
+                            c =>
+                              matcher(c.name || '') ||
+                              matcher((c as any).businessNumber || '') ||
+                              matcher((c as any).representative || '')
+                          );
+                          if (firstMatch) handleCustomerChangeInModal(firstMatch.id);
+                        }
+                      }}
+                      placeholder="고객사명/초성 검색..."
+                      style={{ width: '44%', padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                    />
+                    <select
+                      value={
+                        filteredModalCustomerOptions.some(c => c.id === formCustomerId)
+                          ? formCustomerId
+                          : filteredModalCustomerOptions[0]?.id || ''
+                      }
+                      onChange={e => handleCustomerChangeInModal(e.target.value)}
+                      style={{ flex: 1, padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 600 }}
+                    >
+                      {filteredModalCustomerOptions.length === 0 ? (
+                        <option value="">검색된 고객사 없음</option>
+                      ) : (
+                        filteredModalCustomerOptions.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>주문일자 *</label>
@@ -1048,7 +1165,7 @@ export const TradeContractsPage: React.FC = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left' }}>품목 선택 (가용재고) *</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left' }}>품목 선택 (가용재고 보유 품목) *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '90px' }}>수량 *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '120px' }}>계약단가(원) *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '120px' }}>공급가액</th>
@@ -1057,24 +1174,30 @@ export const TradeContractsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {formLines.map(line => (
-                      <tr key={line.key} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '8px 10px' }}>
-                          <select
-                            value={line.productId}
-                            onChange={e => handleLineProductChange(line.key, e.target.value)}
-                            style={{ width: '100%', padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 600 }}
-                          >
-                            {products.map(p => {
-                              const st = getProductStock(p.id);
-                              return (
-                                <option key={p.id} value={p.id}>
-                                  [{p.skuCode}] {p.name} (재고: {st.availableQty}{p.unit || 'EA'})
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </td>
+                    {formLines.map(line => {
+                      const selectableProducts = products.filter(
+                        p =>
+                          (p.status === 'ACTIVE' && getProductStock(p.id).availableQty > 0) ||
+                          p.id === line.productId
+                      );
+                      return (
+                        <tr key={line.key} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '8px 10px' }}>
+                            <select
+                              value={line.productId}
+                              onChange={e => handleLineProductChange(line.key, e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 600 }}
+                            >
+                              {selectableProducts.map(p => {
+                                const st = getProductStock(p.id);
+                                return (
+                                  <option key={p.id} value={p.id}>
+                                    [{p.skuCode}] {p.name} (재고: {st.availableQty}{p.unit || 'EA'})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </td>
                         <td style={{ padding: '8px 10px' }}>
                           <input
                             type="number"
@@ -1125,9 +1248,10 @@ export const TradeContractsPage: React.FC = () => {
                           >
                             <Trash2 size={14} />
                           </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
 

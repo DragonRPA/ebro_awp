@@ -58,8 +58,8 @@ export interface TradeContextType {
     received: { productId: string; qty: number; unitCost?: number }[],
     receivedDate?: string
   ) => Promise<void>;
-  cancelPurchase: (purchaseId: string, reason?: string) => Promise<void>;
-  deletePurchase: (purchaseId: string) => Promise<void>;
+  cancelPurchase: (purchaseId: string, reason?: string, itemId?: string) => Promise<void>;
+  deletePurchase: (purchaseId: string, itemId?: string) => Promise<void>;
 
   // Sales Orders (유통 계약 관리) CRUD & Workflow
   createSalesOrder: (
@@ -368,12 +368,14 @@ const DEFAULT_PURCHASE_ITEMS: TradePurchaseItem[] = [
   { id: 'PI-004', purchaseId: 'PO-202610-002', productId: 'p4', orderQty: 40, receivedQty: 40, unitCost: 185000, memo: '시리얼 검수 완료' }
 ];
 
-function loadFromStorage<T>(key: string, fallback: T): T {
+function loadFromStorage<T>(key: string, fallback: T, allowEmpty = false): T {
   try {
     const raw = localStorage.getItem(key);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
+      if (Array.isArray(parsed)) {
+        if (allowEmpty || parsed.length > 0) return parsed as unknown as T;
+      }
     }
   } catch (e) {}
   return fallback;
@@ -400,11 +402,11 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [purchases, setPurchases] = useState<TradePurchase[]>(() =>
-    loadFromStorage<TradePurchase[]>('ebro_trade_purchases', DEFAULT_PURCHASES)
+    loadFromStorage<TradePurchase[]>('ebro_trade_purchases', DEFAULT_PURCHASES, true)
   );
 
   const [purchaseItems, setPurchaseItems] = useState<TradePurchaseItem[]>(() =>
-    loadFromStorage<TradePurchaseItem[]>('ebro_trade_purchase_items', DEFAULT_PURCHASE_ITEMS)
+    loadFromStorage<TradePurchaseItem[]>('ebro_trade_purchase_items', DEFAULT_PURCHASE_ITEMS, true)
   );
 
   const [inventoryLots, setInventoryLots] = useState<TradeInventoryLot[]>(() => {
@@ -816,11 +818,69 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await db.awaitPendingWrites();
   };
 
-  const cancelPurchase = async (purchaseId: string, reason?: string) => {
+  const cancelPurchase = async (purchaseId: string, reason?: string, itemId?: string) => {
     const purchase = purchases.find(p => p.id === purchaseId);
     if (!purchase) throw new Error('발주 내역을 찾을 수 없습니다.');
 
-    // If lots were created from this purchase, check if any were already consumed
+    const poItems = purchaseItems.filter(pi => pi.purchaseId === purchaseId);
+    const targetItem = itemId ? poItems.find(pi => pi.id === itemId) : undefined;
+
+    // When a specific row (itemId) is cancelled and the PO has multiple items:
+    // only cancel/revert that specific row's inbound quantity, or if only 1 item / full PO cancel, cancel the whole PO
+    if (targetItem && poItems.length > 1) {
+      const itemLots = inventoryLots.filter(
+        l => l.purchaseId === purchaseId && l.productId === targetItem.productId
+      );
+      const consumed = itemLots.some(l => l.remainingQty < l.initialQty);
+      if (consumed) {
+        throw new Error('이미 출고에 사용된 입고 로트가 포함되어 있어 해당 품목을 취소할 수 없습니다.');
+      }
+
+      const now = new Date().toISOString();
+      if (itemLots.length > 0) {
+        setInventoryLots(prev =>
+          prev.filter(l => !(l.purchaseId === purchaseId && l.productId === targetItem.productId))
+        );
+      }
+
+      const nextItems = purchaseItems.map(pi =>
+        pi.id === targetItem.id
+          ? {
+              ...pi,
+              receivedQty: 0,
+              memo: reason ? `${pi.memo ? pi.memo + ' | ' : ''}[품목취소: ${reason}]` : pi.memo
+            }
+          : pi
+      );
+      setPurchaseItems(nextItems);
+
+      const remainingPOItems = nextItems.filter(pi => pi.purchaseId === purchaseId);
+      const someReceived = remainingPOItems.some(pi => pi.receivedQty > 0);
+      const allCancelledOrZero = remainingPOItems.every(
+        pi => pi.receivedQty === 0 && (pi.memo || '').includes('[품목취소')
+      );
+      const nextStatus = allCancelledOrZero
+        ? 'CANCELLED'
+        : someReceived
+        ? 'PARTIAL_RECEIVED'
+        : 'ORDERED';
+
+      setPurchases(prev =>
+        prev.map(p =>
+          p.id === purchaseId
+            ? {
+                ...p,
+                status: nextStatus,
+                updatedAt: now
+              }
+            : p
+        )
+      );
+      await db.awaitPendingWrites();
+      return;
+    }
+
+    // Full purchase order cancellation (or single-item PO)
     const poLots = inventoryLots.filter(l => l.purchaseId === purchaseId);
     const consumed = poLots.some(l => l.remainingQty < l.initialQty);
     if (consumed) {
@@ -849,12 +909,70 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await db.awaitPendingWrites();
   };
 
-  const deletePurchase = async (purchaseId: string) => {
+  const deletePurchase = async (purchaseId: string, itemId?: string) => {
     const purchase = purchases.find(p => p.id === purchaseId);
     if (!purchase) return;
-    if (purchase.status === 'RECEIVED' || purchase.status === 'PARTIAL_RECEIVED') {
-      throw new Error('입고 완료된 발주 건은 먼저 [발주 취소]로 재고를 회수한 뒤 삭제해 주세요.');
+
+    const poItems = purchaseItems.filter(pi => pi.purchaseId === purchaseId);
+    const targetItem = itemId ? poItems.find(pi => pi.id === itemId) : undefined;
+
+    // Row-level deletion when itemId is provided
+    if (targetItem) {
+      if (targetItem.receivedQty > 0 && purchase.status !== 'CANCELLED') {
+        // Also check if unconsumed lot can be reclaimed on direct row delete or require cancel first
+        const itemLots = inventoryLots.filter(
+          l => l.purchaseId === purchaseId && l.productId === targetItem.productId
+        );
+        const consumed = itemLots.some(l => l.remainingQty < l.initialQty);
+        if (consumed) {
+          throw new Error('이미 출고에 사용된 입고 로트가 포함되어 있어 삭제할 수 없습니다.');
+        }
+        if (itemLots.length > 0) {
+          setInventoryLots(prev =>
+            prev.filter(l => !(l.purchaseId === purchaseId && l.productId === targetItem.productId))
+          );
+        }
+      }
+
+      if (poItems.length > 1) {
+        const remainingForPO = poItems.filter(pi => pi.id !== targetItem.id);
+        const nextTotalAmount = remainingForPO.reduce((sum, i) => sum + i.orderQty * i.unitCost, 0);
+        const nextVatAmount = Math.round(nextTotalAmount * 0.1);
+        const allReceived = remainingForPO.every(pi => pi.receivedQty >= pi.orderQty);
+        const someReceived = remainingForPO.some(pi => pi.receivedQty > 0);
+        const nextStatus =
+          purchase.status === 'CANCELLED'
+            ? 'CANCELLED'
+            : allReceived
+            ? 'RECEIVED'
+            : someReceived
+            ? 'PARTIAL_RECEIVED'
+            : 'ORDERED';
+
+        const now = new Date().toISOString();
+        setPurchaseItems(prev => prev.filter(pi => pi.id !== targetItem.id));
+        setPurchases(prev =>
+          prev.map(p =>
+            p.id === purchaseId
+              ? {
+                  ...p,
+                  totalAmount: nextTotalAmount,
+                  vatAmount: nextVatAmount,
+                  status: nextStatus,
+                  updatedAt: now
+                }
+              : p
+          )
+        );
+        await db.awaitPendingWrites();
+        return;
+      }
+    } else {
+      if (purchase.status === 'RECEIVED' || purchase.status === 'PARTIAL_RECEIVED') {
+        throw new Error('입고 완료된 발주 건은 먼저 [발주 취소]로 재고를 회수한 뒤 삭제해 주세요.');
+      }
     }
+
     setPurchases(prev => prev.filter(p => p.id !== purchaseId));
     setPurchaseItems(prev => prev.filter(pi => pi.purchaseId !== purchaseId));
     await db.awaitPendingWrites();
