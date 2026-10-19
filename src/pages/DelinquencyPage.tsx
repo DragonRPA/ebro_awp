@@ -55,7 +55,7 @@ export const DelinquencyPage: React.FC = () => {
     legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
     currentTenant, setActiveTab, setNavigationPayload
   } = useApp();
-  const canSave = hasPermission('billing', 'save');
+  const canSave = hasPermission('delinquency', 'save') || hasPermission('billing', 'save');
 
   // ─── [거래처 제재 차단 2종 모달 상태] ───
   const [showBlockModal, setShowBlockModal] = useState(false);

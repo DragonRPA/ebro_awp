@@ -305,7 +305,7 @@ export const Receivables: React.FC = () => {
     setModalSearchTerm('');
   };
 
-  const canWrite = hasPermission('BILLING', 'save');
+  const canWrite = hasPermission('receivable', 'save') || hasPermission('billing', 'save');
 
   const handleApplyFilter = () => {
     setSearchTerm(tempSearchTerm);

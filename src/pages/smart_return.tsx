@@ -18,7 +18,7 @@ const RETURN_CHECK_SPECS = [
 
 export const SmartReturn: React.FC = () => {
   const { hasPermission, saveSmartReturn, contracts, customers, sites, siteMasters, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
-  const canSave = hasPermission('delivery', 'save');
+  const canSave = hasPermission('smart_return', 'save') || hasPermission('delivery', 'save');
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -106,9 +106,17 @@ export const SmartReturn: React.FC = () => {
     if (!contractId) return [];
     const outboundDel = deliveryLookupByContract.outboundMap.get(contractId);
     const contract = contractMap.get(contractId);
+    const cust = contract?.customerId ? customerMap.get(contract.customerId) : undefined;
     const site = contract?.siteId ? siteMap.get(contract.siteId) : undefined;
     const siteMaster = site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : undefined;
-    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${siteMaster?.paidOptions || ''} ${siteMaster?.protection || ''} ${siteMaster?.checkedSpecs ? JSON.stringify(siteMaster.checkedSpecs) : ''}`.toLowerCase();
+    const paidStr = site?.paidOptions || siteMaster?.paidOptions || cust?.defaultPaidOptions || '';
+    const protStr = site?.protection || siteMaster?.protection || cust?.defaultProtection || '';
+    const specObj = {
+      ...(cust?.defaultCheckedSpecs || {}),
+      ...(siteMaster?.checkedSpecs || {}),
+      ...(site?.checkedSpecs || {})
+    };
+    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${paidStr} ${protStr} ${JSON.stringify(specObj)}`.toLowerCase();
     
     return RETURN_CHECK_SPECS.filter(s => s.keywords.some(kw => text.includes(kw.toLowerCase())));
   };
@@ -1022,8 +1030,8 @@ export const SmartReturn: React.FC = () => {
                     const optMatch = outboundDel?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
                     const protMatch = outboundDel?.closingMemo?.match(/보양:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
 
-                    const displayOpt = siteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '') || '없음';
-                    const displayProt = siteMaster?.protection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
+                    const displayOpt = site?.paidOptions || siteMaster?.paidOptions || cust?.defaultPaidOptions || (optMatch ? optMatch[1].trim() : '') || '없음';
+                    const displayProt = site?.protection || siteMaster?.protection || cust?.defaultProtection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
 
                     return (
                       <>
