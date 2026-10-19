@@ -56,6 +56,7 @@ export interface SmartDispatchData {
   equipments: { modelName: string, qty: number }[];
   paidOptions?: string;
   protection?: string;
+  attachments?: string;
   checkedSpecs?: Record<string, boolean>;
   saveOptionsToSite?: boolean; // 🌟 옵션 변경 시 현장 마스터 저장 여부 (false: 이번 출고만 1회성 적용, true: 현장 마스터 갱신)
   isSetAsCustomerDefault?: boolean;
@@ -136,7 +137,7 @@ interface AppContextType {
   contacts: CustomerContact[];
   sites: CustomerSite[];
   siteMasters: SiteMaster[];
-  saveSiteMaster: (s: Partial<SiteMaster>) => Promise<void>;
+  saveSiteMaster: (s: Partial<SiteMaster>, options?: { propagateToLinkedSites?: boolean }) => Promise<SiteMaster>;
   deleteSiteMaster: (id: string) => Promise<void>;
   products: Product[];
   assets: Asset[];
@@ -2148,43 +2149,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetCust = db.customers.find(c => c.id === id);
     const custName = targetCust?.name || id;
 
-    // 1. 고객사에 속한 모든 현장 연결(customer_sites) 및 물리 현장(siteMasterId) 식별
+    // 1. 고객사에 속한 모든 고객 현장(customer_sites) 식별
     const custSites = db.sites.filter(s => s.customerId === id);
-    const custSiteLinkIds = new Set(custSites.map(s => s.id));
-    const custSiteMasterIds = new Set(custSites.map(s => s.siteMasterId).filter(Boolean) as string[]);
+    const custSiteIds = new Set(custSites.map(s => s.id));
 
-    // 2. 해당 고객사 직접 계약 또는 해당 고객사의 현장 연결에 체결된 계약 전수 검사 (타 고객사가 공유 물리현장에 맺은 계약은 제외)
+    // 2. 해당 고객사 직접 계약 또는 해당 고객사 현장에 체결된 계약 전수 검사
     const custContracts = db.contracts.filter(c =>
       c.customerId === id ||
-      (c.siteId && custSiteLinkIds.has(c.siteId)) ||
-      (c.customerId === id && c.siteId && custSiteMasterIds.has(c.siteId))
+      (c.siteId && custSiteIds.has(c.siteId))
     );
     const activeContracts = custContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED');
 
-    // 3. 해당 고객사 기준 계약/장비가 연결되어 삭제 불가능한 고객 현장(N:M) 식별
+    // 3. 계약/장비가 연결되어 삭제 불가능한 고객 현장 식별
     const lockedSites = custSites.filter(s =>
-      db.contracts.some(c => c.siteId === s.id || (c.customerId === id && s.siteMasterId && c.siteId === s.siteMasterId)) ||
-      db.assets.some(a => a.currentSiteId === s.id || (a.currentCustomerId === id && s.siteMasterId && a.currentSiteId === s.siteMasterId))
+      db.contracts.some(c => c.siteId === s.id) ||
+      db.assets.some(a => a.currentSiteId === s.id)
     );
 
     // 4. 현재 해당 고객사 또는 해당 고객사 현장에 배정/투입된 장비 검사
     const custAssets = db.assets.filter(a =>
       a.currentCustomerId === id ||
-      (a.currentSiteId && custSiteLinkIds.has(a.currentSiteId)) ||
-      (a.currentCustomerId === id && a.currentSiteId && custSiteMasterIds.has(a.currentSiteId))
+      (a.currentSiteId && custSiteIds.has(a.currentSiteId))
     );
 
     // 5. 청구서 및 수납/미수금 이력 검사
     const custBillings = db.billings.filter(b => b.customerId === id);
     const custReceivables = (db.receivables || []).filter((r: any) => r.customerId === id);
 
-    // ⚠️ 계약, 보호 대상 현장, 투입 장비, 청구 이력 중 하나라도 존재하면 고객(N) 삭제 원천 차단 및 안내 모달 출력
+    // ⚠️ 계약, 보호 대상 현장, 투입 장비, 청구 이력 중 하나라도 존재하면 고객 삭제 원천 차단 및 안내 모달 출력
     if (custContracts.length > 0 || lockedSites.length > 0 || custAssets.length > 0 || custBillings.length > 0 || custReceivables.length > 0) {
       const sampleContract = activeContracts[0] || custContracts[0];
-      const lockedSiteNames = lockedSites.slice(0, 3).map(s => {
-        const master = s.siteMasterId ? db.siteMasters.find(m => m.id === s.siteMasterId) : null;
-        return master?.name || s.name;
-      });
+      const lockedSiteNames = lockedSites.slice(0, 3).map(s => s.name);
 
       let detailLines = `⚠️ [${custName}] 고객사를 삭제할 수 없습니다.\n\n`;
       detailLines += `■ 삭제 불가 사유 (연결 데이터 보호):\n`;
@@ -2195,7 +2190,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
       if (lockedSites.length > 0) {
-        detailLines += `• 계약/장비가 유지 중인 고객 현장(N:M): ${lockedSites.length}곳 (${lockedSiteNames.join(', ')}${lockedSites.length > 3 ? ' 외' : ''})\n`;
+        detailLines += `• 계약/장비가 유지 중인 고객 현장: ${lockedSites.length}곳 (${lockedSiteNames.join(', ')}${lockedSites.length > 3 ? ' 외' : ''})\n`;
       }
       if (custAssets.length > 0) {
         detailLines += `• 현재 배정/투입 중인 렌탈 장비: ${custAssets.length}대\n`;
@@ -2204,7 +2199,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         detailLines += `• 청구 및 정산 원장 이력: 청구 ${custBillings.length}건 / 채권 ${custReceivables.length}건\n`;
       }
       detailLines += `\n■ 조치 안내:\n`;
-      detailLines += `• 유지 중인 계약이 있는 고객 현장(N:M)이 보호되는 상태에서 상위 고객사(N)를 삭제하면 현장 및 계약·청구 원장이 연쇄 유실되거나 고아 레코드가 발생하므로 삭제가 엄격히 제한됩니다.\n`;
+      detailLines += `• 유지 중인 계약이 있는 고객 현장이 보호되는 상태에서 상위 고객사를 삭제하면 현장 및 계약·청구 원장이 연쇄 유실되거나 고아 레코드가 발생하므로 삭제가 엄격히 제한됩니다.\n`;
       detailLines += `• 거래가 종료된 고객사는 영구 삭제 대신 거래 상태(신규제한/거래중지) 변경 기능을 이용해 주십시오.`;
 
       showErrorModal(detailLines, '고객사 삭제 불가 (유지 계약 및 현장 보호)');
@@ -2275,89 +2270,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   
-  const saveSiteMaster = async (s: Partial<SiteMaster>) => {
+  const saveSiteMaster = async (s: Partial<SiteMaster>, options?: { propagateToLinkedSites?: boolean }): Promise<SiteMaster> => {
+    // [헌장 1.5] 옵션 그룹(SiteMaster)에는 address를 일절 저장하지 않고 현장명(그룹명)과 옵션 정보만 저장
+    const cleanPayload: Partial<SiteMaster> = {
+      ...s,
+      isActive: true,
+      updatedAt: new Date().toISOString(),
+    };
+    delete (cleanPayload as any).address;
+
+    let savedMaster: SiteMaster;
     const existingMaster = s.id ? db.siteMasters.find(m => m.id === s.id) : null;
     if (existingMaster) {
-      db.updateRow('siteMasters', existingMaster.id, { ...s, updatedAt: new Date().toISOString() } as any);
+      savedMaster = db.updateRow<SiteMaster>('siteMasters', existingMaster.id, cleanPayload as any) as SiteMaster;
     } else {
-      db.insertRow('siteMasters', { ...s, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any);
+      savedMaster = db.insertRow<SiteMaster>('siteMasters', {
+        ...cleanPayload,
+        createdAt: new Date().toISOString(),
+      } as any);
     }
-    await db.awaitPendingWrites(); refreshAllData(); };
+
+    // 옵션 그룹을 상속받은 연결된 고객현장(CustomerSite)에 옵션만 일괄 전파 (현장명/주소는 절대 덮어쓰지 않음)
+    if (options?.propagateToLinkedSites && savedMaster?.id) {
+      const linkedSites = db.sites.filter(site => site.siteMasterId === savedMaster.id);
+      for (const ls of linkedSites) {
+        db.updateRow<CustomerSite>('sites', ls.id, {
+          paidOptions: savedMaster.paidOptions ?? ls.paidOptions ?? '',
+          protection: savedMaster.protection ?? ls.protection ?? 'NONE',
+          checkedSpecs: savedMaster.checkedSpecs ? { ...savedMaster.checkedSpecs } : (ls.checkedSpecs || {}),
+          updatedAt: new Date().toISOString(),
+        } as any);
+      }
+    }
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+    return savedMaster;
+  };
 
   const deleteSiteMaster = async (id: string) => {
-    const targetMaster = db.siteMasters.find(m => m.id === id);
+    // 옵션 그룹(SiteMaster) 삭제 시 고객 현장(CustomerSite) 자체는 절대 삭제하지 않고, 참조(siteMasterId)만 해제함
     const linkedSites = db.sites.filter(s => s.siteMasterId === id);
-    const allSiteIds = new Set([id, ...linkedSites.map(s => s.id)]);
-
-    // ✅ 고아 레코드 방지: 물리 현장 또는 연결된 고객 현장(N:M)에 계약이나 장비가 있으면 삭제 차단
-    const linkedContracts = db.contracts.filter(c => c.siteId && allSiteIds.has(c.siteId));
-    const linkedAssets = db.assets.filter(a => a.currentSiteId && allSiteIds.has(a.currentSiteId));
-    if (linkedContracts.length > 0 || linkedAssets.length > 0) {
-      const activeCnt = linkedContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
-      showErrorModal(
-        `⚠️ [${targetMaster?.name || id}] 현장을 삭제할 수 없습니다.\n\n` +
-        (linkedContracts.length > 0 ? `■ 연결된 계약: 총 ${linkedContracts.length}건 (유지중 ${activeCnt}건)\n` : '') +
-        (linkedAssets.length > 0 ? `■ 투입 중인 장비: ${linkedAssets.length}대\n` : '') +
-        `\n유지 중인 계약이나 계약 이력이 존재하는 현장은 삭제 대신 [현장 완공(종료) 처리]를 이용해 주십시오.`,
-        '현장 삭제 불가 (계약/장비 보호)'
-      );
-      return;
-    }
-
-    // 1. 연결된 고객 현장(CustomerSite) 조회 및 삭제
     for (const ls of linkedSites) {
-      db.deleteRow('sites', ls.id);
+      db.updateRow('sites', ls.id, { ...ls, siteMasterId: null } as any);
     }
-    // 2. 연결된 담당자(CustomerContact)의 siteMasterId 참조 해제
     const linkedContacts = db.contacts.filter((c: any) => c.siteMasterId === id);
     for (const lc of linkedContacts) {
       db.updateRow('contacts', lc.id, { ...lc, siteMasterId: undefined } as any);
     }
-    // 3. SiteMaster 본체 삭제
     db.deleteRow('siteMasters', id);
     await db.awaitPendingWrites();
     refreshAllData();
   };
 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
-    // 1. SiteMaster (독립 현장 마스터) 참조 검증 (헌장 1.5 strict N:M - SiteMaster는 현장별옵션관리에서 선행 등록되어야 함)
-    let masterId = site.siteMasterId;
-    let existingMaster = masterId ? db.siteMasters.find(m => m.id === masterId) : null;
+    // [헌장 1.5] 고객 현장(CustomerSite) 직접 귀속 및 옵션 그룹 상속
+    const master = site.siteMasterId ? db.siteMasters.find(m => m.id === site.siteMasterId) : null;
 
-    if (!existingMaster) {
-      const rawName = (site.name || '').trim();
-      const normalizedName = rawName.replace(/\s+/g, '');
-      existingMaster = db.siteMasters.find(m => m.name && m.name.replace(/\s+/g, '') === normalizedName) || null;
-      if (existingMaster) {
-        masterId = existingMaster.id;
-      }
-    }
-
-    if (!existingMaster) {
-      throw new Error(`물리 현장(SiteMaster)이 등록되어 있지 않습니다. [현장별 옵션관리] 메뉴의 [신규 현장 등록]에서 먼저 현장을 등록한 후 고객사에 연결해 주십시오. (현장명: ${site.name})`);
-    }
-
-    // 2. CustomerSiteLink (고객-현장 조인 테이블) 저장/업데이트
-    const linkPayload = {
+    const sitePayload: Partial<CustomerSite> = {
       ...site,
-      siteMasterId: masterId,
+      name: (site.name || '').trim(),
+      address: (site.address || '').trim(),
+      isActive: site.isActive !== undefined ? site.isActive : true,
+      siteMasterId: site.siteMasterId || null,
+      paidOptions: site.paidOptions !== undefined ? site.paidOptions : (master?.paidOptions || ''),
+      protection: site.protection !== undefined ? site.protection : (master?.protection || 'NONE'),
+      checkedSpecs: site.checkedSpecs !== undefined ? site.checkedSpecs : (master?.checkedSpecs ? { ...master.checkedSpecs } : {}),
+      updatedAt: new Date().toISOString(),
     };
-    
-    // 강제 격리 (NM 역정규화 방지): 현장 고유 속성은 링크 테이블에 저장하지 않는다.
-    delete (linkPayload as any).paidOptions;
-    delete (linkPayload as any).protection;
-    delete (linkPayload as any).checkedSpecs;
-    delete (linkPayload as any).contactName;
-    delete (linkPayload as any).contact;
-    delete (linkPayload as any).email;
 
     let resultSite: CustomerSite;
     const existingSite = site.id ? db.sites.find(s => s.id === site.id) : null;
     if (existingSite) {
-      resultSite = db.updateRow<CustomerSite>('sites', existingSite.id, linkPayload as CustomerSite) as CustomerSite;
+      resultSite = db.updateRow<CustomerSite>('sites', existingSite.id, sitePayload as CustomerSite) as CustomerSite;
     } else {
       resultSite = db.insertRow<CustomerSite>('sites', {
-        ...linkPayload,
+        ...sitePayload,
         createdAt: new Date().toISOString()
       } as Omit<CustomerSite, 'id'>);
     }
@@ -2378,26 +2366,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteSite = async (id: string): Promise<boolean> => {
     const targetSite = db.sites.find(s => s.id === id);
-    const checkIds = new Set([id]);
-    if (targetSite?.siteMasterId) checkIds.add(targetSite.siteMasterId);
 
-    // ✅ 고아 레코드 방지: 해당 고객의 해당 현장(customer_sites)과 연결된 계약 또는 투입 장비가 있으면 삭제 차단
-    const linkedContracts = db.contracts.filter(c =>
-      c.siteId === id ||
-      (targetSite && c.customerId === targetSite.customerId && c.siteId && checkIds.has(c.siteId))
-    );
-    const linkedAssets = db.assets.filter(a =>
-      a.currentSiteId === id ||
-      (targetSite && a.currentCustomerId === targetSite.customerId && a.currentSiteId && checkIds.has(a.currentSiteId))
-    );
+    // ✅ 고아 레코드 방지: 해당 고객 현장(customer_sites)과 연결된 계약 또는 투입 장비가 있으면 삭제 차단
+    const linkedContracts = db.contracts.filter(c => c.siteId === id);
+    const linkedAssets = db.assets.filter(a => a.currentSiteId === id);
     if (linkedContracts.length > 0 || linkedAssets.length > 0) {
       const activeCnt = linkedContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
-      const siteDisplayName = (targetSite?.siteMasterId ? db.siteMasters.find(m => m.id === targetSite.siteMasterId)?.name : null) || targetSite?.name || id;
+      const siteDisplayName = targetSite?.name || id;
       showErrorModal(
         `⚠️ [${siteDisplayName}] 고객 현장을 삭제할 수 없습니다.\n\n` +
         (linkedContracts.length > 0 ? `■ 연결된 계약: 총 ${linkedContracts.length}건 (유지중 ${activeCnt}건)\n` : '') +
         (linkedAssets.length > 0 ? `■ 투입 중인 장비: ${linkedAssets.length}대\n` : '') +
-        `\n유지 중인 계약이나 장비가 배정된 고객 현장(N:M)은 삭제가 제한됩니다. 계약 또는 장비 연결을 먼저 해제하십시오.`,
+        `\n계약 이력이나 장비가 배정된 고객 현장은 삭제 대신 [완공/종료] 상태 변경을 이용해 주십시오.`,
         '고객 현장 삭제 불가'
       );
       return false;
@@ -2923,41 +2903,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalCustomer = customer;
 
-    // 현장(Site) 처리: 기존 현장 매핑 또는 등록된 SiteMaster 기반 고객현장 연결
+    // 현장(CustomerSite) 처리: 고객 산하 현장 매핑 또는 신규 고객현장 자동 등록 (옵션은 CustomerSite에 직접 저장)
     let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
+    const selectedOptionGroup = data.siteMasterId ? db.siteMasters.find(m => m.id === data.siteMasterId) : undefined;
+
     if (!site) {
-      await notify(`📍 [2/5 현장 매핑] 현장 '${data.siteName}' 물리 마스터 확인 중...`, 40);
-      let master = data.siteMasterId
-        ? db.siteMasters.find(m => m.id === data.siteMasterId)
-        : db.siteMasters.find(m => m.name && data.siteName && m.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, ''));
-      
-      if (!master) {
-        throw new Error(`물리 현장(SiteMaster)이 등록되어 있지 않습니다. [현장별 옵션관리] 메뉴에서 신규 현장을 먼저 등록한 후 출고의뢰를 진행해 주십시오. (현장명: ${data.siteName})`);
-      }
+      await notify(`📍 [2/5 현장 등록] 고객 현장 '${data.siteName}' 등록 중...`, 40);
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
-        siteMasterId: master.id,
+        siteMasterId: selectedOptionGroup?.id || null,
         name: data.siteName,
-        address: data.siteAddress || master.address || '미상',
+        address: data.siteAddress || '미상',
+        isActive: true,
         contactName: data.siteContactName || '미상',
         contact: data.siteContactPhone || '미상',
         email: data.siteContactEmail || '미상',
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
         paymentDueDay: contractPaymentDueDay,
+        paidOptions: data.paidOptions !== undefined ? data.paidOptions : (selectedOptionGroup?.paidOptions || finalCustomer.defaultPaidOptions || ''),
+        protection: data.protection !== undefined ? data.protection : (selectedOptionGroup?.protection || finalCustomer.defaultProtection || 'NONE'),
+        checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+          ? data.checkedSpecs
+          : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {}),
         createdAt: new Date().toISOString()
       });
     } else {
-      // 기존 현장 정보가 '미상'이거나 변경된 경우 최신값으로 업데이트!
+      // 기존 고객 현장 정보 최신화 (주소, 담당자, 마감조건, 현장 옵션/보양/사양)
       const siteUpdates: Partial<CustomerSite> = {};
-      if (!site.siteMasterId) {
-        const currentSiteName = site.name;
-        const foundMaster = data.siteMasterId
-          ? db.siteMasters.find(m => m.id === data.siteMasterId)
-          : db.siteMasters.find(m => m.name && currentSiteName && m.name.replace(/\s/g, '') === currentSiteName.replace(/\s/g, ''));
-        if (foundMaster) {
-          siteUpdates.siteMasterId = foundMaster.id;
-        }
+      if (selectedOptionGroup && selectedOptionGroup.id !== site.siteMasterId) {
+        siteUpdates.siteMasterId = selectedOptionGroup.id;
       }
       if (data.siteAddress && data.siteAddress !== '미상' && data.siteAddress !== site.address) {
         siteUpdates.address = data.siteAddress;
@@ -2980,27 +2955,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
-      // 🌟 [헌장 1.5 N:M 엄격 준수] 물리적 옵션/보양은 CustomerSite에 저장하지 않고 오직 SiteMaster에만 보관
+      // 🌟 [헌장 1.5] 옵션/보양/표준사양은 고객 현장(CustomerSite)에 직접 저장
       if (data.saveOptionsToSite !== false) {
-        const currentSite = site!;
-        let master = currentSite.siteMasterId ? db.siteMasters.find(m => m.id === currentSite.siteMasterId) : db.siteMasters.find(m => m.name && currentSite.name && m.name.replace(/\s/g, '') === currentSite.name.replace(/\s/g, ''));
-        if (master) {
-          const masterUpdates: Partial<SiteMaster> = {};
-          if (data.paidOptions !== undefined && data.paidOptions !== master.paidOptions) masterUpdates.paidOptions = data.paidOptions;
-          if (data.protection !== undefined && data.protection !== master.protection) masterUpdates.protection = data.protection;
-          if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) masterUpdates.checkedSpecs = data.checkedSpecs;
-          if (Object.keys(masterUpdates).length > 0) {
-            db.updateRow<SiteMaster>('siteMasters', master.id, { ...masterUpdates, updatedAt: new Date().toISOString() } as any);
-          }
-        } else if (master) {
-          // 마스터에 옵션 반영
+        if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
+          siteUpdates.paidOptions = data.paidOptions;
+        }
+        if (data.protection !== undefined && data.protection !== site.protection) {
+          siteUpdates.protection = data.protection;
+        }
+        if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) {
+          siteUpdates.checkedSpecs = data.checkedSpecs;
         }
       }
       if (Object.keys(siteUpdates).length > 0) {
         site = db.updateRow<CustomerSite>('sites', site.id, { ...siteUpdates, updatedAt: new Date().toISOString() }) as CustomerSite;
-        await notify(`📍 [현장 정보 최신화] 현장 '${site.name}'의 정보(주소/옵션/보양)가 고객 마스터에 업데이트되었습니다.`, 45);
+        await notify(`📍 [현장 정보 최신화] 고객 현장 '${site.name}'의 정보(주소/옵션/보양)가 업데이트되었습니다.`, 45);
       } else {
-        await notify(`📍 [2/5 현장 매핑] 기존 현장 '${site.name}' 매핑 완료`, 45);
+        await notify(`📍 [2/5 현장 매핑] 기존 고객 현장 '${site.name}' 매핑 완료`, 45);
       }
     }
 
@@ -3023,19 +2994,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (data.applyToAllSites) {
       const allSites = db.sites.filter(s => s.customerId === finalCustomer.id);
       for (const s of allSites) {
-        if (s.siteMasterId) {
-          const m = db.siteMasters.find(sm => sm.id === s.siteMasterId);
-          if (m) {
-            db.updateRow<SiteMaster>('siteMasters', m.id, {
-              paidOptions: data.paidOptions || m.paidOptions,
-              protection: data.protection || m.protection,
-              checkedSpecs: data.checkedSpecs || m.checkedSpecs,
-              updatedAt: new Date().toISOString()
-            });
-          }
-        }
+        db.updateRow<CustomerSite>('sites', s.id, {
+          paidOptions: data.paidOptions !== undefined ? data.paidOptions : s.paidOptions,
+          protection: data.protection !== undefined ? data.protection : s.protection,
+          checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) ? data.checkedSpecs : s.checkedSpecs,
+          updatedAt: new Date().toISOString()
+        });
       }
-      await notify(`🌐 [전체 현장 전파] '${finalCustomer.name}' 산하 ${allSites.length}개 모든 현장의 SiteMaster에 옵션/보양이 일괄 적용되었습니다.`, 50);
+      await notify(`🌐 [전체 현장 전파] '${finalCustomer.name}' 산하 ${allSites.length}개 모든 고객 현장에 옵션/보양이 일괄 적용되었습니다.`, 50);
     }
 
     if (autoRegister && currentUser) {
@@ -3362,10 +3328,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? `[고객담당자: ${data.contactName || '-'} (${data.contactPhone || '-'})] `
           : '';
         const cust = db.customers.find(c => c.id === contract.customerId);
-        const site = db.sites.find(s => s.id === contract.siteId);
-        const siteMaster = site?.siteMasterId
-          ? db.siteMasters.find(sm => sm.id === site.siteMasterId)
-          : db.siteMasters.find(sm => sm.name && site?.name && sm.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
+        let site = db.sites.find(s => s.id === contract.siteId);
+        if (site && (data.contactName || data.contactPhone)) {
+          const cleanName = (data.contactName || '').trim();
+          const cleanPhone = (data.contactPhone || '').trim();
+          const siteUpdates: Partial<CustomerSite> = {};
+          if (cleanName && cleanName !== '미상') siteUpdates.contactName = cleanName;
+          if (cleanPhone && cleanPhone !== '미상') siteUpdates.contact = cleanPhone;
+          if (cleanName && cleanName !== '미상') {
+            const existingSiteContacts = Array.isArray(site.contacts) ? [...site.contacts] : [];
+            const idx = existingSiteContacts.findIndex(c => (c.name || '').replace(/\s/g, '') === cleanName.replace(/\s/g, ''));
+            if (idx >= 0) {
+              existingSiteContacts[idx] = {
+                ...existingSiteContacts[idx],
+                contact: cleanPhone || existingSiteContacts[idx].contact,
+                isActive: true
+              };
+            } else {
+              existingSiteContacts.unshift({
+                id: `SC-${Date.now()}`,
+                name: cleanName,
+                contact: cleanPhone || '',
+                position: '현장담당',
+                isActive: true
+              });
+            }
+            siteUpdates.contacts = existingSiteContacts;
+          }
+          if (Object.keys(siteUpdates).length > 0) {
+            site = db.updateRow<CustomerSite>('sites', site.id, {
+              ...siteUpdates,
+              updatedAt: new Date().toISOString()
+            }) || site;
+          }
+        }
+        const siteMaster = site?.siteMasterId ? db.siteMasters.find(sm => sm.id === site.siteMasterId) : undefined;
         const returnAssets = db.assets.filter(a => data.assetIds.includes(a.id));
         const modelCountsMap: Record<string, number> = {};
         returnAssets.forEach(a => {
@@ -3378,7 +3375,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         let rawPaidOptions = (data as any).paidOptions;
         if (rawPaidOptions === undefined) {
-          rawPaidOptions = siteMaster?.paidOptions || site?.paidOptions;
+          rawPaidOptions = site?.paidOptions || siteMaster?.paidOptions || cust?.defaultPaidOptions;
           if (!rawPaidOptions && outboundDelivery?.closingMemo) {
             const m = outboundDelivery.closingMemo.match(/유상옵션:\s*([^\|]+)/);
             if (m && m[1]?.trim() && m[1].trim() !== '없음') rawPaidOptions = m[1].trim();
@@ -3388,8 +3385,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         let rawProtection = (data as any).protection;
         if (rawProtection === undefined) {
-          rawProtection = siteMaster?.protection || site?.protection;
-          if (!rawProtection && outboundDelivery?.closingMemo) {
+          rawProtection = (site?.protection && site.protection !== 'NONE')
+            ? site.protection
+            : ((siteMaster?.protection && siteMaster.protection !== 'NONE') ? siteMaster.protection : cust?.defaultProtection);
+          if ((!rawProtection || rawProtection === 'NONE') && outboundDelivery?.closingMemo) {
             const m = outboundDelivery.closingMemo.match(/보양:\s*([^\|]+)/);
             if (m && m[1]?.trim() && m[1].trim() !== '없음' && m[1].trim() !== 'NONE') rawProtection = m[1].trim();
           }

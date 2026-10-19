@@ -111,7 +111,7 @@ export const parseCargoItems = (d?: Delivery | null): CargoItem[] => {
 export const TruckDispatch: React.FC = () => {
   const { 
     currentUser,
-    deliveries, contracts, customers, products, sites, siteMasters, users,
+    deliveries, contracts, customers, contacts, products, sites, siteMasters, users,
     contractAssets, assets,
     transportCompanies, transportDrivers, transportNegotiations, outboundInspections, hasPermission, 
     refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
@@ -392,14 +392,27 @@ export const TruckDispatch: React.FC = () => {
     const salesRep = contract?.salespersonId ? users?.find(u => u.id === contract.salespersonId) : null;
     const salesRepDisplay = salesRep ? `${salesRep.name} ${salesRep.phone ? `(${salesRep.phone})` : ''}` : `${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}`;
 
-    // 현장담당자 추출 (site 마스터 우선, 없으면 delivery.memo 파싱)
-    let siteContactName = site?.contactName || '';
-    let siteContactPhone = site?.contact || '';
-    if (!siteContactName && delivery.memo) {
-      const match = delivery.memo.match(/현장담당:\s*([^\(\s\|]+)(?:\s*\(([^\)]+)\))?/);
-      if (match) {
-        siteContactName = match[1] || '';
-        siteContactPhone = match[2] || '';
+    // 현장담당자 추출 (1순위: 배차 의뢰 메모에 지정된 담당자, 2순위: site.contacts 활성 담당자, 3순위: site.contactName)
+    let siteContactName = '';
+    let siteContactPhone = '';
+    const memoSource = `${delivery.memo || ''} ${(delivery as any).rawText || ''}`;
+    const memoContactMatch =
+      memoSource.match(/\[고객담당자:\s*([^\(\]\|\n]+?)(?:\s*\(([^\)\]]+)\))?\]/) ||
+      memoSource.match(/(?:현장담당자?|방문지\s*담당자?):\s*([^\(\s\|,]+)(?:\s*\(([^\)]+)\))?/);
+    if (memoContactMatch) {
+      const parsedName = (memoContactMatch[1] || '').trim();
+      const parsedPhone = (memoContactMatch[2] || '').trim();
+      if (parsedName && parsedName !== '-' && parsedName !== '미상') siteContactName = parsedName;
+      if (parsedPhone && parsedPhone !== '-' && parsedPhone !== '미상') siteContactPhone = parsedPhone;
+    }
+    if (!siteContactName) {
+      const actContacts = (site?.contacts || []).filter((c: any) => c.isActive !== false && c.name && c.name !== '미상');
+      if (actContacts.length > 0) {
+        siteContactName = actContacts[0].name;
+        siteContactPhone = siteContactPhone || actContacts[0].contact || '';
+      } else {
+        siteContactName = (site?.contactName && site.contactName !== '미상') ? site.contactName : '';
+        siteContactPhone = siteContactPhone || ((site?.contact && site.contact !== '미상') ? site.contact : '');
       }
     }
 
@@ -517,10 +530,10 @@ export const TruckDispatch: React.FC = () => {
       }
     };
 
-    const siteMaster = site?.siteMasterId ? siteMasters?.find(m => m.id === site.siteMasterId) : siteMasters?.find(m => m.name && site?.name && m.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
-    const effPaidOptions = siteMaster?.paidOptions || site?.paidOptions;
-    const effProtection = siteMaster?.protection || site?.protection;
-    const effCheckedSpecs = siteMaster?.checkedSpecs || site?.checkedSpecs;
+    const siteMaster = site?.siteMasterId ? siteMasters?.find(m => m.id === site.siteMasterId) : undefined;
+    const effPaidOptions = site?.paidOptions || siteMaster?.paidOptions;
+    const effProtection = site?.protection || siteMaster?.protection;
+    const effCheckedSpecs = site?.checkedSpecs || siteMaster?.checkedSpecs;
 
     if (effPaidOptions) {
       effPaidOptions.split(',').forEach(s => addOption(s));
@@ -2860,24 +2873,63 @@ export const TruckDispatch: React.FC = () => {
     const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '배차/출고팀';
     const companyName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트';
 
+    // 배차 의뢰건의 지정 현장 담당자 추출 헬퍼 (1순위: 배차 메모 지정 담당자, 2순위: 현장 contacts/contactName, 3순위: 계약 담당자)
+    const resolveDeliverySiteContact = (deliv: any, siteObj: any, contractObj: any) => {
+      const memoText = `${deliv?.memo || ''} ${deliv?.rawText || ''}`;
+      const m =
+        memoText.match(/\[고객담당자:\s*([^\(\]\|\n]+?)(?:\s*\(([^\)\]]+)\))?\]/) ||
+        memoText.match(/(?:현장담당자?|방문지\s*담당자?):\s*([^\(\s\|,]+)(?:\s*\(([^\)]+)\))?/);
+      if (m) {
+        const pName = (m[1] || '').trim();
+        const pPhone = (m[2] || '').trim();
+        if (pName && pName !== '-' && pName !== '미상') {
+          return {
+            name: pName,
+            phone: (pPhone && pPhone !== '-' && pPhone !== '미상') ? pPhone : undefined,
+            position: undefined
+          };
+        }
+      }
+
+      const actContacts = (siteObj?.contacts || []).filter((c: any) => c.isActive !== false && c.name && c.name !== '미상');
+      if (actContacts.length > 0) {
+        return {
+          name: actContacts[0].name,
+          phone: (actContacts[0].contact && actContacts[0].contact !== '미상') ? actContacts[0].contact : undefined,
+          position: actContacts[0].position
+        };
+      }
+
+      if (siteObj?.contactName && siteObj.contactName !== '미상') {
+        return {
+          name: siteObj.contactName,
+          phone: (siteObj.contact && siteObj.contact !== '미상') ? siteObj.contact : undefined,
+          position: undefined
+        };
+      }
+
+      if (contractObj?.contactId) {
+        const ct = contacts.find((c: any) => c.id === contractObj.contactId);
+        if (ct && ct.name && ct.name !== '미상') {
+          return {
+            name: ct.name,
+            phone: (ct.contact && ct.contact !== '미상') ? ct.contact : undefined,
+            position: ct.position
+          };
+        }
+      }
+
+      return { name: undefined, phone: undefined, position: undefined };
+    };
+
+    const resolvedSmsContact = resolveDeliverySiteContact(dObj, site, contract);
+
     const smsBody = buildDispatchSmsText({
       delivery: dObj,
       siteName: site?.name || targetDelivery.destinationAddress,
       siteAddress: targetDelivery.destinationAddress || site?.address,
-      siteContactName: (() => {
-        const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
-        if (actContacts.length > 1) {
-          return actContacts.map(c => c.position ? `${c.name}(${c.position})` : c.name).join(', ');
-        }
-        return site?.contactName;
-      })(),
-      siteContactPhone: (() => {
-        const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
-        if (actContacts.length > 1) {
-          return actContacts.map(c => `${c.name}: ${(c as any).contact}`).join(' / ');
-        }
-        return site?.contact;
-      })(),
+      siteContactName: resolvedSmsContact.name,
+      siteContactPhone: resolvedSmsContact.phone,
       customerName: customer?.name,
       companyName,
       hqYardAddress,
@@ -2943,11 +2995,37 @@ export const TruckDispatch: React.FC = () => {
     const hqYardContactPerson = defaultYard?.managerName || currentTenant?.representativeName || (currentTenant as any)?.representative || '주기장 담당자';
     const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '';
 
-    // 현장 담당자
-    const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
-    const siteContactName = actContacts.length > 0 ? actContacts[0].name : (site?.contactName || customer?.representative);
-    const siteContactPhone = actContacts.length > 0 ? actContacts[0].contact : (site?.contact || customer?.repContact);
-    const siteContactPosition = actContacts.length > 0 ? actContacts[0].position : undefined;
+    // 현장 담당자 (1순위: 배차 의뢰 시 지정된 담당자 [고객담당자: ...] / 현장담당:, 2순위: site.contacts 활성 담당자, 3순위: site.contactName, 4순위: 계약 담당자)
+    const memoSource = `${dObj.memo || ''} ${targetDelivery.memo || ''} ${(targetDelivery as any).rawText || ''}`;
+    const memoMatch =
+      memoSource.match(/\[고객담당자:\s*([^\(\]\|\n]+?)(?:\s*\(([^\)\]]+)\))?\]/) ||
+      memoSource.match(/(?:현장담당자?|방문지\s*담당자?):\s*([^\(\s\|,]+)(?:\s*\(([^\)]+)\))?/);
+
+    const actContacts = (site?.contacts || []).filter(c => c.isActive !== false && c.name && c.name !== '미상');
+    const contractContact = targetContract?.contactId ? contacts.find(c => c.id === targetContract.contactId) : undefined;
+
+    let siteContactName: string | undefined;
+    let siteContactPhone: string | undefined;
+    let siteContactPosition: string | undefined;
+
+    if (memoMatch && memoMatch[1]?.trim() && memoMatch[1].trim() !== '-' && memoMatch[1].trim() !== '미상') {
+      siteContactName = memoMatch[1].trim();
+      const mPhone = memoMatch[2]?.trim();
+      siteContactPhone = (mPhone && mPhone !== '-' && mPhone !== '미상')
+        ? mPhone
+        : (actContacts[0]?.contact || site?.contact || contractContact?.contact);
+    } else if (actContacts.length > 0) {
+      siteContactName = actContacts[0].name;
+      siteContactPhone = (actContacts[0].contact && actContacts[0].contact !== '미상') ? actContacts[0].contact : undefined;
+      siteContactPosition = actContacts[0].position;
+    } else if (site?.contactName && site.contactName !== '미상') {
+      siteContactName = site.contactName;
+      siteContactPhone = (site.contact && site.contact !== '미상') ? site.contact : undefined;
+    } else if (contractContact && contractContact.name && contractContact.name !== '미상') {
+      siteContactName = contractContact.name;
+      siteContactPhone = (contractContact.contact && contractContact.contact !== '미상') ? contractContact.contact : undefined;
+      siteContactPosition = contractContact.position;
+    }
 
     const generatedText = buildDispatchKakaoTalkText({
       delivery: dObj,
