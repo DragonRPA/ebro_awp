@@ -9388,6 +9388,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       vehiclesJson?: string;
     }
   ) => {
+    const existingDel = db.deliveries.find(d => d.id === deliveryId);
+    const keepCompleted = existingDel?.status === 'DELIVERED' || existingDel?.status === 'COMPLETED';
     db.updateRow<Delivery>('deliveries', deliveryId, {
       scheduledDate: dispatchData.scheduledDate,
       transportCompany: dispatchData.transportCompany,
@@ -9397,7 +9399,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       driverContact: dispatchData.driverContact,
       deliveryCost: dispatchData.deliveryCost,
       vehicles: dispatchData.vehiclesJson,
-      status: 'DISPATCHED',
+      status: keepCompleted ? existingDel.status : 'DISPATCHED',
       updatedAt: new Date().toISOString()
     });
     refreshAllData();

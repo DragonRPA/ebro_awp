@@ -3044,6 +3044,10 @@ export const TruckDispatch: React.FC = () => {
     const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
     const isRestoringFromCancelled = prevStatus === 'CANCELLED';
     const isModifyingDispatched = prevStatus === 'DISPATCHED';
+    const isModifyingDelivered = prevStatus === 'DELIVERED';
+    const nextStatus: Delivery['status'] = isModifyingDelivered
+      ? (selectedDelivery.status === 'COMPLETED' ? 'COMPLETED' : 'DELIVERED')
+      : 'DISPATCHED';
 
     // 🚨 출고 제한(BLOCKED / RESTRICT_NEW) 거래처 출고 배차 원천 차단
     const targetContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
@@ -3075,7 +3079,7 @@ export const TruckDispatch: React.FC = () => {
 
       const mainVeh = sanitizedVehicles[0] || {};
       const payload: Partial<Delivery> = {
-        status: 'DISPATCHED',
+        status: nextStatus,
         dispatchCategory: dispatchCategory,
         loadingDate: loadingDate,
         loadingTimeSlot: finalLoadingSlot,
@@ -3117,7 +3121,7 @@ export const TruckDispatch: React.FC = () => {
       const curSite = curContract ? sites.find(s => s.id === curContract.siteId)?.name : '';
 
       // [업무 인계 파이프라인] 출고 건인 경우 주기장 PDI 검수 ToDo 후속 발행 (단, 단순 정보 수정 시 중복 발행 방지)
-      if (selectedDelivery.type === 'OUTBOUND' && !isModifyingDispatched) {
+      if (selectedDelivery.type === 'OUTBOUND' && !isModifyingDispatched && !isModifyingDelivered) {
         await issueHandoverTask({
           category: 'OUTBOUND_PDI_INSPECTION',
           title: `[출고 PDI 검수 요망] ${curCust || '고객사'} (${mainVeh.driverName || '기사'} 배정)`,
@@ -3134,8 +3138,8 @@ export const TruckDispatch: React.FC = () => {
 
       broadcastWorkNotification({
         type: 'DISPATCH',
-        title: isRestoringFromCancelled ? '배차 재배정 완료' : isModifyingDispatched ? '배차 정보 수정' : '배차 완료 안내',
-        body: `${curCust || '현장'} (${curSite || '배차'}) ${mainVeh.driverName || '기사'} (${mainVeh.vehicleType || '차량'}) ${isRestoringFromCancelled ? '재배정 완료' : isModifyingDispatched ? '수정 완료' : '배정 완료'}`,
+        title: isRestoringFromCancelled ? '배차 재배정 완료' : (isModifyingDispatched || isModifyingDelivered) ? '배차 정보 수정' : '배차 완료 안내',
+        body: `${curCust || '현장'} (${curSite || '배차'}) ${mainVeh.driverName || '기사'} (${mainVeh.vehicleType || '차량'}) ${isRestoringFromCancelled ? '재배정 완료' : (isModifyingDispatched || isModifyingDelivered) ? '수정 완료' : '배정 완료'}`,
         url: '/admin/dispatch',
         targetDepts: ['SALES', 'YARD', 'ADMIN', 'EXECUTIVE']
       }).catch(console.warn);
@@ -3146,11 +3150,14 @@ export const TruckDispatch: React.FC = () => {
       const updatedDelivery: Delivery = {
         ...selectedDelivery,
         ...payload,
-        status: 'DISPATCHED'
+        status: nextStatus
       };
       setSelectedDelivery(updatedDelivery);
 
-      if (isRestoringFromCancelled) {
+      if (isModifyingDelivered) {
+        setIsEditUnlocked(false);
+        showToast('완료된 배차 정보가 수정 저장되었습니다. (완료 상태 유지)');
+      } else if (isRestoringFromCancelled) {
         showToast('배차 정보가 수정되어 배차 완료 상태로 재배정되었습니다.');
       } else if (isModifyingDispatched) {
         showToast('배차 정보가 수정 저장되었습니다.');
