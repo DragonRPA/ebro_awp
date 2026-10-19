@@ -716,7 +716,7 @@ const App: React.FC = () => {
       icon: <ArrowLeftRight size={17} />,
       items: [
         { id: 'daily_inout', name: '일일 입출고 조회', icon: <Calendar size={16} />, component: <DailyInOutStatus /> },
-        { id: 'asset_inout_history', name: '입출고 조회', icon: <Clock size={16} />, component: <AssetHistory /> },
+        { id: 'asset_inout_history', name: '입고등록/입출고조회', icon: <Clock size={16} />, component: <AssetHistory /> },
         { id: 'dispatch_assign', name: '장비 할당', icon: <Layers size={16} />, component: <AssetAssignment /> },
         { id: 'outbound_inspections', name: '출고 검수 관리', icon: <CheckSquare size={16} />, component: <OutboundInspections /> },
           { id: 'stocktaking', name: '재고 실사', icon: <ClipboardList size={16} />, component: <StocktakingPage /> },

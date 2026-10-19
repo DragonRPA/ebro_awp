@@ -3942,8 +3942,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "asset_inout_history",
-    "version": 16,
-    "menuName": "자산 입출고",
+    "version": 17,
+    "menuName": "입고등록/입출고조회",
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "주기장팀",
