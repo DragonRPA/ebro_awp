@@ -75,10 +75,11 @@ function getGroupCheckpoints(
     }
   });
 
-  // 2. STANDARD_SPECS 중 site.checkedSpecs 또는 customer.defaultCheckedSpecs에서 true인 항목만
+  // 2. STANDARD_SPECS 중 site.checkedSpecs (또는 연결된 옵션 그룹 / 고객사 기본값)에서 true인 항목만
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
-    ...(siteMaster?.checkedSpecs || {})
+    ...(siteMaster?.checkedSpecs || {}),
+    ...(site?.checkedSpecs || {})
   };
   STANDARD_SPECS.forEach(spec => {
     if (specMap[spec.id] === true) {
@@ -86,11 +87,19 @@ function getGroupCheckpoints(
     }
   });
 
-  // 3. 유상옵션 (site.paidOptions 또는 customer.defaultPaidOptions)
-  const paidOpts = siteMaster?.paidOptions || customer?.defaultPaidOptions || '';
-  if (typeof paidOpts === 'string' && paidOpts.trim()) {
-    paidOpts.split(/[,，、\\n]/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
-      checkpoints.push({ id: `paid_${i}`, label: `[옵션] ${opt} 장착 확인`, type: 'OPTION' });
+  // 3. 유상옵션 (site.paidOptions ➔ 옵션 그룹 ➔ customer.defaultPaidOptions)
+  const paidOpts = site?.paidOptions || siteMaster?.paidOptions || customer?.defaultPaidOptions || '';
+  if (typeof paidOpts === 'string' && paidOpts.trim() && paidOpts.trim() !== 'NONE' && paidOpts.trim() !== '없음' && paidOpts.trim() !== '-') {
+    paidOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
+      checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
+    });
+  }
+
+  // 4. 무상옵션 / 보양 (site.protection ➔ 옵션 그룹 ➔ customer.defaultProtection)
+  const protOpts = site?.protection || siteMaster?.protection || customer?.defaultProtection || '';
+  if (typeof protOpts === 'string' && protOpts.trim() && protOpts.trim() !== 'NONE' && protOpts.trim() !== '없음' && protOpts.trim() !== '-') {
+    protOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
+      checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
     });
   }
 

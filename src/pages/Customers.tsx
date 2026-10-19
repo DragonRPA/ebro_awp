@@ -285,33 +285,13 @@ export const Customers: React.FC = () => {
 
         if (customerId && row.siteName) {
           const rawSiteName = String(row.siteName).trim();
-          // 현장주소가 비어 있을 때 고객 본사주소(row.address)로 덮어쓰지 않고 공란("")으로 유지하여 누락 식별 가능하게 처리
           const siteAddress = sanitizeSiteAddressInput(row.siteAddress);
-
-          // 헌장 1.5 준수: 초기/일괄 엑셀 업로드 시 물리 현장(SiteMaster)을 정규화 명칭 + 상세주소 기준으로 조회하거나 생성한 뒤 고객 현장(CustomerSite)에 연결
-          let master = findMatchingSiteMaster(db.siteMasters, rawSiteName, siteAddress).matched;
-          if (master) {
-            if (isMissingSiteAddress(master.address) && !isMissingSiteAddress(siteAddress)) {
-              await saveSiteMaster({ id: master.id, address: siteAddress });
-              master = db.siteMasters.find(m => m.id === master!.id) || master;
-            }
-          } else {
-            await saveSiteMaster({
-              name: rawSiteName,
-              address: siteAddress,
-              isActive: true
-            });
-            master = findMatchingSiteMaster(db.siteMasters, rawSiteName, siteAddress).matched;
-          }
-          if (!master) {
-            throw new Error(`물리 현장(SiteMaster) 생성에 실패했습니다: ${rawSiteName}`);
-          }
 
           await saveSite({
             customerId,
-            siteMasterId: master.id,
-            name: master.name,
-            address: sanitizeSiteAddressInput(master.address || siteAddress),
+            name: rawSiteName,
+            address: siteAddress,
+            isActive: true,
             contactName: String(row.contactName || '').trim(),
             contact: String(row.contactMobile || '').trim(),
             email: ''
@@ -485,17 +465,14 @@ export const Customers: React.FC = () => {
     return statsMap;
   }, [contracts, contractAssets]);
 
-  // 🎯 현장별 옵션관리 등록 현장 중 선택/참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
+  // 🎯 현장별 옵션관리 등록 옵션 그룹 목록 (검색 필터 및 옵션 보유 그룹 상위 정렬)
   const optionReferenceSites = useMemo(() => {
     const matcher = createHangulMatcher(siteOptionRefSearch);
     return (siteMasters || []).filter(s => {
-      if (showSiteOptionModal && editingSiteOption?.siteMasterId && s.id === editingSiteOption.siteMasterId) return false;
-
       if (siteOptionRefSearch.trim()) {
         const sName = s.name || '';
-        const sAddr = s.address || '';
         const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '');
-        return matcher.testAny([sName, sAddr, sOpts]);
+        return matcher.testAny([sName, sOpts]);
       }
       return true;
     }).sort((a, b) => {
@@ -503,9 +480,9 @@ export const Customers: React.FC = () => {
       const bHasOpts = Boolean(b.paidOptions || (b.protection && b.protection !== 'NONE') || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
       if (aHasOpts && !bHasOpts) return -1;
       if (!aHasOpts && bHasOpts) return 1;
-      return (a.name || '').localeCompare(b.name || '');
+      return (a.name || '').localeCompare(b.name || '', 'ko');
     });
-  }, [siteMasters, showSiteOptionModal, editingSiteOption?.siteMasterId, siteOptionRefSearch]);
+  }, [siteMasters, siteOptionRefSearch]);
 
   const selectedRefSite = useMemo(() => {
     if (!selectedRefSiteId) return null;
@@ -541,14 +518,12 @@ export const Customers: React.FC = () => {
     return sites
       .filter(cs => cs.customerId === selectedCustomerId)
       .sort((a, b) => {
-        const aMaster = a.siteMasterId ? siteMasterMap.get(a.siteMasterId) : undefined;
-        const bMaster = b.siteMasterId ? siteMasterMap.get(b.siteMasterId) : undefined;
-        const aActive = aMaster?.isActive !== false;
-        const bActive = bMaster?.isActive !== false;
+        const aActive = a.isActive !== false;
+        const bActive = b.isActive !== false;
         if (aActive !== bActive) return aActive ? -1 : 1;
         return a.name.localeCompare(b.name, 'ko');
       });
-  }, [sites, siteMasterMap, selectedCustomerId]);
+  }, [sites, selectedCustomerId]);
 
   const { items: sortedCustomerContacts, requestSort: requestSortContacts, sortConfig: sortConfigContacts } = useSortableData(customerContacts);
   const { items: sortedCustomerSites, requestSort: requestSortSites, sortConfig: sortConfigSites } = useSortableData(customerSites);
@@ -604,7 +579,7 @@ export const Customers: React.FC = () => {
     }
   }, [selectedCustomerId, filteredCustomers]);
 
-  // KPI 집계 (단일 루프 및 O(1) 마스터 조회로 최적화)
+  // KPI 집계
   const kpiStats = useMemo(() => {
     let activeCust = 0;
     let blockedCust = 0;
@@ -621,8 +596,7 @@ export const Customers: React.FC = () => {
 
     let activeSites = 0;
     for (const s of sites) {
-      const sm = s.siteMasterId ? siteMasterMap.get(s.siteMasterId) : undefined;
-      if (sm?.isActive !== false) {
+      if (s.isActive !== false) {
         activeSites++;
       }
     }
@@ -636,7 +610,7 @@ export const Customers: React.FC = () => {
       activeSites,
       totalContacts: contacts.length
     };
-  }, [customers, sites, siteMasterMap, contacts.length]);
+  }, [customers, sites, contacts.length]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -730,7 +704,7 @@ export const Customers: React.FC = () => {
       })(),
       '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
       '무상옵션': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
-      '사용여부': siteMasters.find(sm => sm.id === cs.siteMasterId)?.isActive !== false ? '사용' : '종료',
+      '사용여부': cs.isActive !== false ? '가동중' : '완공/종료',
       '등록 일시': cs.createdAt?.substring(0, 10) || '-'
     }));
     exportToExcel(excelData, `현장목록_${activeCustomer.name}_${new Date().toISOString().split('T')[0]}`, '현장리스트');
@@ -843,24 +817,21 @@ export const Customers: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (custId: string, custName: string) => {
-    // 1. 사전 무결성 검사: 유지중인 계약이나 보호 대상 고객 현장(N:M)이 존재하면 입력 프롬프트 전에 즉시 차단 및 안내 모달 출력
+    // 1. 사전 무결성 검사: 유지중인 계약이나 보호 대상 고객 현장이 존재하면 입력 프롬프트 전에 즉시 차단 및 안내 모달 출력
     const custSites = (sites || []).filter(s => s.customerId === custId);
-    const custSiteLinkIds = new Set(custSites.map(s => s.id));
-    const custSiteMasterIds = new Set(custSites.map(s => s.siteMasterId).filter(Boolean) as string[]);
+    const custSiteIds = new Set(custSites.map(s => s.id));
 
     const custContracts = (contracts || []).filter(c =>
       c.customerId === custId ||
-      (c.siteId && custSiteLinkIds.has(c.siteId)) ||
-      (c.customerId === custId && c.siteId && custSiteMasterIds.has(c.siteId))
+      (c.siteId && custSiteIds.has(c.siteId))
     );
     const lockedSites = custSites.filter(s =>
-      (contracts || []).some(c => c.siteId === s.id || (c.customerId === custId && s.siteMasterId && c.siteId === s.siteMasterId)) ||
-      (assets || []).some((a: any) => a.currentSiteId === s.id || (a.currentCustomerId === custId && s.siteMasterId && a.currentSiteId === s.siteMasterId))
+      (contracts || []).some(c => c.siteId === s.id) ||
+      (assets || []).some((a: any) => a.currentSiteId === s.id)
     );
     const custAssets = (assets || []).filter((a: any) =>
       a.currentCustomerId === custId ||
-      (a.currentSiteId && custSiteLinkIds.has(a.currentSiteId)) ||
-      (a.currentCustomerId === custId && a.currentSiteId && custSiteMasterIds.has(a.currentSiteId))
+      (a.currentSiteId && custSiteIds.has(a.currentSiteId))
     );
     const custBillings = (billings || []).filter((b: any) => b.customerId === custId);
     const custReceivables = (receivables || []).filter((r: any) => r.customerId === custId);
@@ -959,6 +930,8 @@ export const Customers: React.FC = () => {
       customerId: selectedCustomerId,
       name: '',
       address: '',
+      isActive: true,
+      siteMasterId: null,
       contactName: '',
       contact: '',
       email: '',
@@ -977,8 +950,6 @@ export const Customers: React.FC = () => {
     setShowSiteModal(true);
   };
 
-  
-  
   const handleOpenEditSite = (cs: CustomerSite) => {
 
     let contactsList: SiteContactPerson[] = [];
@@ -1081,6 +1052,10 @@ export const Customers: React.FC = () => {
     const parentCust = customers.find(c => c.id === (cs.customerId || ''));
     setEditingSite({
       ...cs,
+      isActive: cs.isActive !== false,
+      paidOptions: normalizeOptionString(cs.paidOptions),
+      protection: normalizeOptionString(cs.protection),
+      checkedSpecs: cs.checkedSpecs ? { ...cs.checkedSpecs } : {},
       statementClosingDay: cs.statementClosingDay || parentCust?.defaultStatementClosingDay || 25,
       billingDay: cs.billingDay || parentCust?.defaultBillingDay || 30,
       paymentDueMonthOffset: cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : (parentCust?.paymentDueMonthOffset ?? 1),
@@ -1089,7 +1064,7 @@ export const Customers: React.FC = () => {
     });
     setShowSiteSpecs(false);
     setSiteOptionRefSearch('');
-    setSelectedRefSiteId('');
+    setSelectedRefSiteId(cs.siteMasterId || '');
     setShowSiteModal(true);
   };
 
@@ -1151,30 +1126,19 @@ export const Customers: React.FC = () => {
 
   const handleSaveSiteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingSite || !editingSite.name || !editingSite.customerId) return;
+    if (!editingSite || !editingSite.name?.trim() || !editingSite.customerId) return;
 
-    if (!editingSite.siteMasterId) {
-      showErrorModal('물리 현장(SiteMaster)이 선택되지 않았습니다.\n\n상단 [물리 현장(SiteMaster) 선택]에서 [현장별 옵션관리]에 등록된 현장을 선택해 주십시오.\n미등록 현장인 경우 먼저 [현장별 옵션관리] 메뉴의 [신규 현장 등록]에서 현장을 생성해야 합니다.');
-      return;
-    }
-
-    // 🌟 헌장 1.5 Strict N:M 준수: 물리 현장(SiteMaster)은 여러 고객사(N)가 동시에 공유 사용할 수 있으므로,
-    // 타 고객사의 현장 연결은 절대 차단하지 않으며 오직 '동일 고객사 내 중복 연결'만 방지한다.
-    const rawName = editingSite.name || '';
+    const rawName = editingSite.name.trim();
     const normalizedName = rawName.replace(/\s+/g, '');
     const duplicateInSameCustomer = (sites || []).find(s => 
       s.id !== editingSite.id && 
       s.customerId === editingSite.customerId &&
-      (
-        (editingSite.siteMasterId && s.siteMasterId === editingSite.siteMasterId) ||
-        (s.name || '').replace(/\s+/g, '') === normalizedName
-      )
+      (s.name || '').replace(/\s+/g, '') === normalizedName
     );
     if (duplicateInSameCustomer) {
-      showErrorModal(`현재 고객사에 동일한 현장이 이미 연결되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicateInSameCustomer.name}]\n\n동일 고객사 내 중복 현장 연결은 제한됩니다.`);
+      showErrorModal(`현재 고객사에 동일한 현장명이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicateInSameCustomer.name}]`);
       return;
     }
-
 
     try {
       // 👥 3대 담당자 (장비 / 마감 / 안전) 정규화 및 플랫 필드 동기화
@@ -1199,14 +1163,16 @@ export const Customers: React.FC = () => {
         || validContacts.find(c => c.contactType === 'SAFETY');
 
       const cleanAddr = sanitizeSiteAddressInput(editingSite.address);
-      const linkedMaster = (siteMasters || []).find(m => m.id === editingSite.siteMasterId);
-      if (linkedMaster && isMissingSiteAddress(linkedMaster.address) && !isMissingSiteAddress(cleanAddr)) {
-        await saveSiteMaster({ id: linkedMaster.id, address: cleanAddr });
-      }
 
       const siteToSave: CustomerSite = {
         ...editingSite,
-        address: cleanAddr || sanitizeSiteAddressInput(linkedMaster?.address),
+        name: rawName,
+        address: cleanAddr,
+        isActive: editingSite.isActive !== false,
+        siteMasterId: editingSite.siteMasterId || null,
+        paidOptions: normalizeOptionString(editingSite.paidOptions),
+        protection: normalizeOptionString(editingSite.protection),
+        checkedSpecs: editingSite.checkedSpecs || {},
         // 1. 장비담당자 (하위호환 플랫 필드)
         contactName: eqContact?.name || editingSite.contactName || '',
         contact: eqContact?.contact || editingSite.contact || '',
@@ -1224,7 +1190,7 @@ export const Customers: React.FC = () => {
       } as CustomerSite;
 
       await saveSite(siteToSave as Omit<CustomerSite, 'id' | 'createdAt'>);
-      showToast(`현장 [${editingSite.name}] 정보가 저장되었습니다.`);
+      showToast(`현장 [${rawName}] 정보가 저장되었습니다.`);
       setShowSiteModal(false);
       setEditingSite(null);
       await refreshAllData();
@@ -1233,19 +1199,23 @@ export const Customers: React.FC = () => {
     }
   };
 
-  const handleDeleteSite = async (siteId: string, siteName: string) => {
-    const targetSite = (sites || []).find(s => s.id === siteId);
-    const checkIds = new Set([siteId]);
-    if (targetSite?.siteMasterId) checkIds.add(targetSite.siteMasterId);
+  const handleToggleCustomerSiteStatus = async (cs: CustomerSite) => {
+    const nextActive = cs.isActive === false ? true : false;
+    try {
+      await saveSite({
+        ...cs,
+        isActive: nextActive
+      });
+      await refreshAllData();
+      showToast(`현장 [${cs.name}] 상태가 '${nextActive ? '가동중' : '완공/종료'}'(으)로 변경되었습니다.`);
+    } catch (err: any) {
+      showErrorModal(`현장 상태 변경 실패: ${err?.message || String(err)}`, '상태 변경 오류');
+    }
+  };
 
-    const linkedContracts = (contracts || []).filter(c =>
-      c.siteId === siteId ||
-      (targetSite && c.customerId === targetSite.customerId && c.siteId && checkIds.has(c.siteId))
-    );
-    const linkedAssets = (assets || []).filter((a: any) =>
-      a.currentSiteId === siteId ||
-      (targetSite && a.currentCustomerId === targetSite.customerId && a.currentSiteId && checkIds.has(a.currentSiteId))
-    );
+  const handleDeleteSite = async (siteId: string, siteName: string) => {
+    const linkedContracts = (contracts || []).filter(c => c.siteId === siteId);
+    const linkedAssets = (assets || []).filter((a: any) => a.currentSiteId === siteId);
 
     // 연결된 계약이나 장비가 있으면 확인창 없이 즉시 차단 안내 모달 표시
     if (linkedContracts.length > 0 || linkedAssets.length > 0) {
@@ -1315,20 +1285,18 @@ export const Customers: React.FC = () => {
       if (propagateToSites) {
         const targetSites = sites.filter(s => s.customerId === activeCustomer.id);
         for (const s of targetSites) {
-          if (s.siteMasterId) {
-            db.updateRow('siteMasters', s.siteMasterId, {
-              paidOptions: custOptionForm.defaultPaidOptions,
-              protection: custOptionForm.defaultProtection,
-              updatedAt: new Date().toISOString()
-            } as any);
-          }
+          db.updateRow<CustomerSite>('sites', s.id, {
+            paidOptions: custOptionForm.defaultPaidOptions,
+            protection: custOptionForm.defaultProtection,
+            updatedAt: new Date().toISOString()
+          });
         }
       }
 
       await db.awaitPendingWrites();
       await refreshAllData();
       showToast(propagateToSites 
-        ? `'${activeCustomer.name}' 기본 옵션 저장 및 ${sites.filter(s => s.customerId === activeCustomer.id).length}개 현장에 일괄 적용되었습니다.` 
+        ? `'${activeCustomer.name}' 기본 옵션 저장 및 ${sites.filter(s => s.customerId === activeCustomer.id).length}개 고객 현장에 일괄 적용되었습니다.` 
         : `'${activeCustomer.name}' 기본 옵션이 저장되었습니다.`);
       setShowCustOptionModal(false);
     } catch (err: any) {
@@ -1340,7 +1308,7 @@ export const Customers: React.FC = () => {
   const handleOpenSiteOptionModal = (cs: CustomerSite) => {
     setEditingSiteOption(cs);
     setSiteOptionRefSearch('');
-    setSelectedRefSiteId('');
+    setSelectedRefSiteId(cs.siteMasterId || '');
     setSiteOptionForm({
       paidOptions: normalizeOptionString(cs.paidOptions),
       protection: normalizeOptionString(cs.protection),
@@ -1352,16 +1320,13 @@ export const Customers: React.FC = () => {
   const handleSaveSiteOptions = async () => {
     if (!editingSiteOption?.id) return;
     try {
-      const masterId = editingSiteOption.siteMasterId || db.siteMasters.find(m => (m.name || '').replace(/\s+/g, '') === (editingSiteOption.name || '').replace(/\s+/g, ''))?.id;
-      if (!masterId) {
-        throw new Error(`해당 고객 현장(${editingSiteOption.name})에 연결된 물리 현장(SiteMaster)이 존재하지 않습니다.`);
-      }
-      db.updateRow('siteMasters', masterId, {
-        paidOptions: siteOptionForm.paidOptions,
-        protection: siteOptionForm.protection,
+      db.updateRow<CustomerSite>('sites', editingSiteOption.id, {
+        paidOptions: normalizeOptionString(siteOptionForm.paidOptions),
+        protection: normalizeOptionString(siteOptionForm.protection),
         checkedSpecs: siteOptionForm.checkedSpecs || {},
+        siteMasterId: selectedRefSiteId || editingSiteOption.siteMasterId || null,
         updatedAt: new Date().toISOString()
-      } as any);
+      });
       await db.awaitPendingWrites();
       await refreshAllData();
       showToast(`현장 [${editingSiteOption.name}] 옵션이 저장되었습니다.`);
@@ -1372,22 +1337,19 @@ export const Customers: React.FC = () => {
     }
   };
 
-  // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteModal)
-
-  // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteOptionModal)
+  // 📋 현장별 옵션관리 등록 옵션 그룹 속성 복사 (SiteOptionModal)
   const handleApplyRefSiteOptionsToOptionForm = () => {
     if (!selectedRefSite) {
-      showToast('옵션을 복사할 참조 현장을 먼저 선택하세요.', 'error');
+      showToast('상속받을 옵션 그룹을 먼저 선택하세요.', 'error');
       return;
     }
     setSiteOptionForm(prev => ({
       ...prev,
-      paidOptions: selectedRefSite.paidOptions || '',
-      protection: selectedRefSite.protection || '',
+      paidOptions: normalizeOptionString(selectedRefSite.paidOptions),
+      protection: normalizeOptionString(selectedRefSite.protection),
       checkedSpecs: selectedRefSite.checkedSpecs ? { ...selectedRefSite.checkedSpecs } : {}
     }));
-    const cName = selectedRefCustomer?.name || '고객사';
-    showToast(`[${cName} - ${selectedRefSite.name}] 현장의 옵션 속성을 적용했습니다.`);
+    showToast(`[${selectedRefSite.name}] 옵션 그룹 속성을 적용했습니다.`);
   };
 
   // 🏷️ 전사 표준 옵션 마스터 핸들러
@@ -2012,15 +1974,31 @@ const handleDeleteAccount = async (accId: string) => {
                           const activeContractsCount = siteStats.contractCount;
                           const activeAssetCount = siteStats.assetCount;
                           const hasActiveContracts = activeContractsCount > 0;
+                          const isSiteActive = cs.isActive !== false;
+                          const linkedOptionGroup = cs.siteMasterId ? (siteMasters || []).find(m => m.id === cs.siteMasterId) : undefined;
 
                           return (
-                            <tr key={cs.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <tr key={cs.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: isSiteActive ? 1 : 0.65 }}>
                               <td style={{ padding: '5px 6px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Circle size={10} fill={hasActiveContracts ? '#22c55e' : '#eab308'} strokeWidth={0} />
-                                
-                                {cs.name}
-                                
-
+                                <Circle size={10} fill={!isSiteActive ? '#94a3b8' : (hasActiveContracts ? '#22c55e' : '#eab308')} strokeWidth={0} />
+                                <span>{cs.name}</span>
+                                {linkedOptionGroup && (
+                                  <span
+                                    style={{
+                                      padding: '1px 5px',
+                                      fontSize: '9.5px',
+                                      borderRadius: '3px',
+                                      backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                                      color: '#4f46e5',
+                                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                                      fontWeight: 600,
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={`옵션 그룹 상속: ${linkedOptionGroup.name}`}
+                                  >
+                                    그룹: {linkedOptionGroup.name}
+                                  </span>
+                                )}
                                 <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400}}>
                                   (계약 {activeContractsCount}건 / {activeAssetCount}대)
                                 </span>
@@ -2106,7 +2084,24 @@ const handleDeleteAccount = async (accId: string) => {
                               </span>
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              
+                              <button
+                                type="button"
+                                onClick={() => canSave && handleToggleCustomerSiteStatus(cs)}
+                                style={{
+                                  padding: '1px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  borderRadius: '4px',
+                                  cursor: canSave ? 'pointer' : 'default',
+                                  border: isSiteActive ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(148, 163, 184, 0.4)',
+                                  backgroundColor: isSiteActive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.14)',
+                                  color: isSiteActive ? '#059669' : '#64748b',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title={canSave ? '클릭하여 가동중 / 완공·종료 상태 전환' : undefined}
+                              >
+                                {isSiteActive ? '가동중' : '완공/종료'}
+                              </button>
                             </td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
                               <div 
@@ -2897,12 +2892,12 @@ const handleDeleteAccount = async (accId: string) => {
               </h3>
               <button type="button" onClick={() => setShowSiteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
-                {/* 🔍 물리 현장(SiteMaster) 선택 및 연결 (헌장 1.5 Strict N:M) */}
+                {/* 🔍 옵션 그룹 상속 선택 (선택사항 - 헌장 1.5 준수: 옵션만 상속하고 현장명/주소는 덮어쓰지 않음) */}
                 <div 
                   data-mid="site-option-ref-search-box"
                   style={{
                     backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--primary)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: '6px',
                     padding: '10px 12px',
                     marginBottom: '12px',
@@ -2913,8 +2908,8 @@ const handleDeleteAccount = async (accId: string) => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Building2 size={13} color="var(--primary)" />
-                      물리 현장(SiteMaster) 선택 *
+                      <SlidersHorizontal size={13} color="var(--primary)" />
+                      옵션 그룹 상속 선택 (선택사항)
                     </label>
                     <button
                       type="button"
@@ -2936,7 +2931,7 @@ const handleDeleteAccount = async (accId: string) => {
                         gap: '4px'
                       }}
                     >
-                      <Plus size={11} /> 현장별 옵션관리에서 신규 현장 등록 ➔
+                      <Plus size={11} /> 현장별 옵션관리 이동 ➔
                     </button>
                   </div>
 
@@ -2945,7 +2940,7 @@ const handleDeleteAccount = async (accId: string) => {
                       <input
                         type="text"
                         style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '30px' }}
-                        placeholder="현장명/주소 검색 (초성 지원)"
+                        placeholder="옵션 그룹명/옵션 검색 (초성 지원)"
                         value={siteOptionRefSearch}
                         onChange={e => setSiteOptionRefSearch(e.target.value)}
                       />
@@ -2963,31 +2958,30 @@ const handleDeleteAccount = async (accId: string) => {
                             setEditingSite(prev => ({
                               ...prev,
                               siteMasterId: master.id,
-                              name: master.name,
-                              address: master.address || ''
+                              paidOptions: normalizeOptionString(master.paidOptions),
+                              protection: normalizeOptionString(master.protection),
+                              checkedSpecs: master.checkedSpecs ? { ...master.checkedSpecs } : {}
                             }));
                             setSelectedRefSiteId(val);
+                            showToast(`[${master.name}] 옵션 그룹 속성이 상속 적용되었습니다.`);
                           }
                         } else {
                           setEditingSite(prev => ({
                             ...prev,
-                            siteMasterId: undefined,
-                            name: '',
-                            address: ''
+                            siteMasterId: null
                           }));
                           setSelectedRefSiteId('');
                         }
                       }}
                     >
-                      <option value="">-- [필수] 등록된 물리 현장(SiteMaster) 선택 ({optionReferenceSites.length}개) --</option>
+                      <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({optionReferenceSites.length}개 그룹) --</option>
                       {optionReferenceSites.map(s => {
                         const paid = s.paidOptions ? s.paidOptions : '';
                         const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
                         const optSummary = [paid, prot].filter(Boolean).join(' | ');
-                        const addrFlag = isMissingSiteAddress(s.address) ? '[⚠️ 주소미등록] ' : '';
                         return (
                           <option key={s.id} value={s.id}>
-                            {addrFlag}{s.name} {optSummary ? `(${optSummary})` : ''}
+                            {s.name} {optSummary ? `(${optSummary})` : ''}
                           </option>
                         );
                       })}
@@ -3010,28 +3004,8 @@ const handleDeleteAccount = async (accId: string) => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
-                          선택된 물리 현장: {selectedRefSite.name}
+                          상속된 옵션 그룹: {selectedRefSite.name}
                         </span>
-                        {isMissingSiteAddress(selectedRefSite.address) ? (
-                          <span
-                            style={{
-                              padding: '1px 6px',
-                              fontSize: '10.5px',
-                              fontWeight: 800,
-                              borderRadius: '4px',
-                              backgroundColor: 'rgba(245, 158, 11, 0.16)',
-                              color: '#b45309',
-                              border: '1px solid rgba(245, 158, 11, 0.5)',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            ⚠️ 주소 미등록
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                            {selectedRefSite.address}
-                          </span>
-                        )}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>
                         <span>
@@ -3053,58 +3027,41 @@ const handleDeleteAccount = async (accId: string) => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
-              <div>
-                <label style={labelStyle}>현장명 (물리 현장 선택 시 자동 연동) *</label>
-                <input
-                  type="text"
-                  style={{ ...inputStyle, backgroundColor: editingSite.siteMasterId ? 'rgba(0,0,0,0.03)' : 'var(--bg-app)' }}
-                  value={editingSite.name || ''}
-                  onChange={e => setEditingSite({ ...editingSite, name: e.target.value })}
-                  placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"
-                  required
-                  readOnly={!!editingSite.siteMasterId}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '8px' }}>
+                <div>
+                  <label style={labelStyle}>현장명 *</label>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={editingSite.name || ''}
+                    onChange={e => setEditingSite({ ...editingSite, name: e.target.value })}
+                    placeholder="고객 현장명을 입력하세요 (예: 평택 P4 복합동 현장)"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>현장 가동 상태</label>
+                  <select
+                    style={inputStyle}
+                    value={editingSite.isActive !== false ? 'ACTIVE' : 'COMPLETED'}
+                    onChange={e => setEditingSite({ ...editingSite, isActive: e.target.value === 'ACTIVE' })}
+                  >
+                    <option value="ACTIVE">가동중</option>
+                    <option value="COMPLETED">완공/종료</option>
+                  </select>
+                </div>
               </div>
 
-              {(() => {
-                const linkedMaster = (siteMasters || []).find(m => m.id === editingSite.siteMasterId);
-                const masterHasValidAddress = Boolean(linkedMaster && !isMissingSiteAddress(linkedMaster.address));
-                return (
-                  <div>
-                    <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>현장 주소 {masterHasValidAddress ? '(물리 현장 선택 시 자동 연동)' : '*'}</span>
-                      {editingSite.siteMasterId && !masterHasValidAddress && (
-                        <span
-                          style={{
-                            padding: '1px 6px',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            borderRadius: '4px',
-                            backgroundColor: 'rgba(245, 158, 11, 0.16)',
-                            color: '#b45309',
-                            border: '1px solid rgba(245, 158, 11, 0.5)',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          ⚠️ 주소 미등록 (입력 시 물리 현장 마스터에 동시 반영)
-                        </span>
-                      )}
-                    </label>
-                    <input
-                      type="text"
-                      style={{
-                        ...inputStyle,
-                        backgroundColor: masterHasValidAddress ? 'rgba(0,0,0,0.03)' : 'var(--bg-app)',
-                        borderColor: editingSite.siteMasterId && !masterHasValidAddress && isMissingSiteAddress(editingSite.address) ? '#f59e0b' : undefined
-                      }}
-                      value={editingSite.address || ''}
-                      onChange={e => setEditingSite({ ...editingSite, address: e.target.value })}
-                      placeholder={masterHasValidAddress ? '도로명 주소' : '미등록된 현장 주소를 입력하십시오 (저장 시 물리 현장 마스터에 반영됩니다)'}
-                      readOnly={masterHasValidAddress}
-                    />
-                  </div>
-                );
-              })()}
+              <div>
+                <label style={labelStyle}>현장 주소 *</label>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={editingSite.address || ''}
+                  onChange={e => setEditingSite({ ...editingSite, address: e.target.value })}
+                  placeholder="현장 도로명 또는 지번 주소를 입력하세요"
+                />
+              </div>
 
               {/* 👥 현장 담당자 섹션 (3대 유형: 장비담당자, 마감담당자, 안전담당자) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', backgroundColor: 'var(--bg-app)' }}>
@@ -3443,7 +3400,127 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
+              {/* 🛠️ 현장 옵션 설정 (옵션 그룹 상속 후 개별 수정 가능) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <SlidersHorizontal size={14} className="text-primary" /> 현장 옵션 설정 (유상옵션 / 무상옵션 / 요구사양)
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    출고·입고 검수에 자동 연동
+                  </span>
+                </div>
 
+                {/* 유상옵션 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={labelStyle}>유상옵션</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '2px' }}>
+                    {standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(opt => {
+                      const isSelected = splitOptions(editingSite.paidOptions).includes(opt.name);
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            const updated = toggleOptionInString(editingSite.paidOptions, opt.name);
+                            setEditingSite({ ...editingSite, paidOptions: updated });
+                          }}
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '11px',
+                            borderRadius: '4px',
+                            border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-card)',
+                            color: isSelected ? '#1d4ed8' : 'var(--text-main)',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {opt.name} {isSelected ? '✓' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={editingSite.paidOptions || ''}
+                    onChange={e => setEditingSite({ ...editingSite, paidOptions: e.target.value })}
+                    placeholder="예: 상부센서(4EA), 4면 철망 설치 (비어있으면 고객사 기본값 상속)"
+                  />
+                </div>
+
+                {/* 무상옵션 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={labelStyle}>무상옵션 (보양)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '2px' }}>
+                    {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
+                      const isSelected = editingSite.protection === opt.name;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setEditingSite({ ...editingSite, protection: opt.name })}
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '11px',
+                            borderRadius: '4px',
+                            border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-card)',
+                            color: isSelected ? '#047857' : 'var(--text-main)',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {opt.name} {isSelected ? '✓' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={editingSite.protection || ''}
+                    onChange={e => setEditingSite({ ...editingSite, protection: e.target.value })}
+                    placeholder="예: 4면 보양, NONE (비어있으면 고객사 기본값 상속)"
+                  />
+                </div>
+
+                {/* 요구사양 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={labelStyle}>현장 요구사양 (안전 규격 및 인증 사양)</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
+                      const isSelected = Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[opt.id]);
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            const updated = {
+                              ...(editingSite.checkedSpecs || {}),
+                              [opt.id]: !isSelected
+                            };
+                            setEditingSite({ ...editingSite, checkedSpecs: updated });
+                          }}
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '11px',
+                            borderRadius: '4px',
+                            border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-card)',
+                            color: isSelected ? '#b45309' : 'var(--text-main)',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {opt.name} {isSelected ? '✓' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
               </div>
 
@@ -3769,7 +3846,7 @@ const handleDeleteAccount = async (accId: string) => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-              {/* 🔍 현장별 옵션관리 등록 현장 검색 및 옵션 속성 복사 (참조 동기화) */}
+              {/* 🔍 현장별 옵션관리 등록 옵션 그룹 검색 및 상속 적용 */}
               <div 
                 data-mid="site-option-ref-search-box-modal"
                 style={{
@@ -3785,10 +3862,10 @@ const handleDeleteAccount = async (accId: string) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ ...labelStyle, fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Search size={12} color="var(--primary)" />
-                    현장별 옵션관리 등록 현장 검색 (옵션 속성 복사)
+                    옵션 그룹 상속 선택 (현장별 옵션관리)
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    기등록 현장의 유상/보양/사양 속성 즉시 일치
+                    옵션 그룹의 유상/무상/요구사양 속성 복사
                   </span>
                 </div>
 
@@ -3797,7 +3874,7 @@ const handleDeleteAccount = async (accId: string) => {
                     <input
                       type="text"
                       style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '28px' }}
-                      placeholder="현장명/고객사 검색 (초성검색 지원)"
+                      placeholder="옵션 그룹명/옵션 검색 (초성 지원)"
                       value={siteOptionRefSearch}
                       onChange={e => setSiteOptionRefSearch(e.target.value)}
                     />
@@ -3809,16 +3886,16 @@ const handleDeleteAccount = async (accId: string) => {
                     value={selectedRefSiteId}
                     onChange={e => setSelectedRefSiteId(e.target.value)}
                   >
-                    <option value="">-- [선택] 기존 현장 담당자/옵션 정보 복사해오기 ({optionReferenceSites.length}개) --</option>
+                    <option value="">-- [선택] 상속할 옵션 그룹 선택 ({optionReferenceSites.length}개) --</option>
                     {optionReferenceSites.map(s => {
                       const paid = s.paidOptions ? s.paidOptions : '';
-                        const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
-                        const optSummary = [paid, prot].filter(Boolean).join(' | ');
-                        return (
-                          <option key={s.id} value={s.id}>
-                            {s.name} {optSummary ? `(${optSummary})` : ''}
-                          </option>
-                        );
+                      const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
+                      const optSummary = [paid, prot].filter(Boolean).join(' | ');
+                      return (
+                        <option key={s.id} value={s.id}>
+                          {s.name} {optSummary ? `(${optSummary})` : ''}
+                        </option>
+                      );
                     })}
                   </select>
 
@@ -3841,10 +3918,10 @@ const handleDeleteAccount = async (accId: string) => {
                       gap: '4px',
                       whiteSpace: 'nowrap'
                     }}
-                    title="선택한 등록 현장의 옵션 속성을 현재 현장에 복사 적용"
+                    title="선택한 옵션 그룹의 속성을 현재 현장에 상속 적용"
                   >
                     <Copy size={12} />
-                    옵션 속성 복사
+                    옵션 상속 적용
                   </button>
                 </div>
 
@@ -3864,10 +3941,7 @@ const handleDeleteAccount = async (accId: string) => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
-                        참조 대상: [{selectedRefCustomer?.name || '고객사'}] {selectedRefSite.name}
-                      </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                        {selectedRefSite.address || '주소 없음'}
+                        선택된 옵션 그룹: {selectedRefSite.name}
                       </span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>

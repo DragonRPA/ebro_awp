@@ -811,34 +811,30 @@ function parseMultiSheetWorkbook(
     }
   });
 
-  // 3. 현장 & 옵션
+  // 3. 옵션 그룹 & 표준 옵션
   const siteMasters: any[] = [];
   const standardOptions: any[] = [];
   const siteMap: Record<string, string> = {};
   const optMap: Record<string, string> = {};
 
   raw3.forEach((row, idx) => {
-    const siteName = String(row['물리현장명*'] || row['현장명'] || '').trim();
+    const siteName = String(row['옵션그룹명*'] || row['물리현장명*'] || row['현장명'] || '').trim();
     const optName = String(row['옵션명칭*'] || row['옵션명'] || '').trim();
-    const cleanAddr = sanitizeSiteAddressInput(row['현장주소*'] || row['현장주소']);
 
     if (siteName) {
-      let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanAddr);
+      let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, '');
       if (!existingSm) {
         const normKey = normalizeSiteNameKey(siteName) || siteName;
         const smId = makeDeterministicId('sm', normKey);
         existingSm = {
           id: smId,
           name: siteName,
-          address: cleanAddr || '',
           isActive: true,
           tenant_id: tenantId,
           createdAt: now,
           updatedAt: now
         };
         siteMasters.push(existingSm);
-      } else if (isMissingSiteAddress(existingSm.address) && cleanAddr) {
-        existingSm.address = cleanAddr;
       }
       siteMap[siteName] = existingSm.id;
     }
@@ -898,44 +894,27 @@ function parseMultiSheetWorkbook(
     const siteName = String(row['현장명*'] || row['현장명'] || '').trim();
     if (siteName && siteName !== '-') {
       const cleanSiteAddr = sanitizeSiteAddressInput(row['현장주소']);
-      let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanSiteAddr);
-      if (!existingSm) {
-        const normKey = normalizeSiteNameKey(siteName) || siteName;
-        const smId = makeDeterministicId('sm', normKey);
-        existingSm = {
-          id: smId,
-          name: siteName,
-          address: cleanSiteAddr || '',
-          isActive: true,
-          tenant_id: tenantId,
-          createdAt: now,
-          updatedAt: now
-        };
-        siteMasters.push(existingSm);
-      } else if (isMissingSiteAddress(existingSm.address) && cleanSiteAddr) {
-        existingSm.address = cleanSiteAddr;
-        customerSites.forEach(cs => {
-          if (cs.siteMasterId === existingSm!.id && isMissingSiteAddress(cs.address)) {
-            cs.address = cleanSiteAddr;
-          }
-        });
-      }
-      siteMap[siteName] = existingSm.id;
-
-      const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
-      if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
+      const { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, '');
+      const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
+      const existingCs = customerSites.find(cs => cs.id === csId || (cs.customerId === custId && cs.name === siteName));
+      if (!existingCs) {
         customerSites.push({
           id: csId,
           customerId: custId,
           customerName: custName,
-          siteMasterId: existingSm.id,
-          name: existingSm.name || siteName,
-          address: existingSm.address || cleanSiteAddr || '',
+          siteMasterId: existingSm ? existingSm.id : null,
+          name: siteName,
+          address: cleanSiteAddr || '',
+          paidOptions: existingSm?.paidOptions || '',
+          protection: existingSm?.protection || '',
+          checkedSpecs: existingSm?.checkedSpecs ? { ...existingSm.checkedSpecs } : {},
           isActive: true,
           tenant_id: tenantId,
           createdAt: now,
           updatedAt: now
         });
+      } else if (isMissingSiteAddress(existingCs.address) && cleanSiteAddr) {
+        existingCs.address = cleanSiteAddr;
       }
     }
 
@@ -1143,38 +1122,27 @@ function parseMultiSheetWorkbook(
 
     const custId = custMap[custName] || makeDeterministicId('cust', custName);
 
-    let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanContractSiteAddr);
-    if (!existingSm) {
-      const normKey = normalizeSiteNameKey(siteName) || siteName;
-      const smId = makeDeterministicId('sm', normKey);
-      existingSm = {
-        id: smId,
-        name: siteName,
-        address: cleanContractSiteAddr || '',
-        isActive: true,
-        tenant_id: tenantId,
-        createdAt: now,
-        updatedAt: now
-      };
-      siteMasters.push(existingSm);
-    } else if (isMissingSiteAddress(existingSm.address) && cleanContractSiteAddr) {
-      existingSm.address = cleanContractSiteAddr;
-    }
-
-    const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
-    if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
+    const { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, '');
+    const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
+    const existingCs = customerSites.find(cs => cs.id === csId || (cs.customerId === custId && cs.name === siteName));
+    if (!existingCs) {
       customerSites.push({
         id: csId,
         customerId: custId,
         customerName: custName,
-        siteMasterId: existingSm.id,
-        name: existingSm.name || siteName,
-        address: existingSm.address || cleanContractSiteAddr || '',
+        siteMasterId: existingSm ? existingSm.id : null,
+        name: siteName,
+        address: cleanContractSiteAddr || '',
+        paidOptions: existingSm?.paidOptions || '',
+        protection: existingSm?.protection || '',
+        checkedSpecs: existingSm?.checkedSpecs ? { ...existingSm.checkedSpecs } : {},
         isActive: true,
         tenant_id: tenantId,
         createdAt: now,
         updatedAt: now
       });
+    } else if (isMissingSiteAddress(existingCs.address) && cleanContractSiteAddr) {
+      existingCs.address = cleanContractSiteAddr;
     }
 
     let ctId = ctMap[contractNo];
@@ -1186,8 +1154,8 @@ function parseMultiSheetWorkbook(
         contractNo,
         customerId: custId,
         customerName: custName,
-        siteId: csId,
-        siteName: existingSm.name || siteName,
+        siteId: existingCs ? existingCs.id : csId,
+        siteName: siteName,
         startDate: sanitizeExcelDate(row['대여시작일*'] || row['대여시작일']) || '2026-08-01',
         endDate: sanitizeExcelDate(row['대여종료일']) || '2026-12-31',
         billingDay: sanitizeNumber(row['청구마감일(일)']) || 30,
@@ -1273,7 +1241,6 @@ function parseSingleFlatWorkbook(
   const contractAssets: any[] = [];
 
   const custMap: Record<string, string> = {};
-  const siteMap: Record<string, string> = {};
   const prodMap: Record<string, string> = {};
   const ctMap: Record<string, string> = {};
 
@@ -1301,47 +1268,26 @@ function parseSingleFlatWorkbook(
       });
     }
 
-    // 2. 현장 추출 (현장주소만 사용하고 고객 본사 주소로 덮어쓰지 않음)
+    // 2. 현장 추출 (현장주소만 사용하고 고객 본사 주소로 덮어쓰지 않음, 고객 현장 직접 귀속)
     const siteName = String(row['현장명'] || row['현장'] || '기본현장').trim();
     const cleanFlatSiteAddr = sanitizeSiteAddressInput(row['현장주소'] || row['현장소재지']);
-    let { matched: existingSm } = findMatchingSiteMaster(siteMasters, siteName, cleanFlatSiteAddr);
-    if (!existingSm) {
-      const normKey = normalizeSiteNameKey(siteName) || siteName;
-      const smId = makeDeterministicId('sm', normKey);
-      existingSm = {
-        id: smId,
+    const csId = makeDeterministicId('cs', `${custName}-${siteName}`);
+    const existingCs = customerSites.find(cs => cs.id === csId || (cs.customerId === custId && cs.name === siteName));
+    if (!existingCs) {
+      customerSites.push({
+        id: csId,
+        customerId: custId,
+        customerName: custName,
+        siteMasterId: null,
         name: siteName,
         address: cleanFlatSiteAddr || '',
         isActive: true,
         tenant_id: tenantId,
         createdAt: now,
         updatedAt: now
-      };
-      siteMasters.push(existingSm);
-    } else if (isMissingSiteAddress(existingSm.address) && cleanFlatSiteAddr) {
-      existingSm.address = cleanFlatSiteAddr;
-      customerSites.forEach(cs => {
-        if (cs.siteMasterId === existingSm!.id && isMissingSiteAddress(cs.address)) {
-          cs.address = cleanFlatSiteAddr;
-        }
       });
-    }
-    siteMap[siteName] = existingSm.id;
-
-    const csId = makeDeterministicId('cs', `${custName}-${existingSm.id}`);
-    if (!customerSites.some(cs => cs.id === csId || (cs.customerId === custId && cs.siteMasterId === existingSm!.id))) {
-      customerSites.push({
-        id: csId,
-        customerId: custId,
-        customerName: custName,
-        siteMasterId: existingSm.id,
-        name: existingSm.name || siteName,
-        address: existingSm.address || cleanFlatSiteAddr || '',
-        isActive: true,
-        tenant_id: tenantId,
-        createdAt: now,
-        updatedAt: now
-      });
+    } else if (isMissingSiteAddress(existingCs.address) && cleanFlatSiteAddr) {
+      existingCs.address = cleanFlatSiteAddr;
     }
 
     const contactName = String(row['담당자'] || row['현장담당자'] || '').trim();
@@ -1539,9 +1485,9 @@ export function validateIntegratedEntities(entities: IntegratedDomainEntities): 
     warnings: !r.serialNo ? ['시리얼번호가 누락되었습니다.'] : []
   }));
 
-  addValidation('siteMasters', '물리현장', 'site_masters', entities.siteMasters, r => ({
+  addValidation('siteMasters', '옵션그룹', 'site_masters', entities.siteMasters, r => ({
     errors: !r.name ? ['현장명이 비어있습니다.'] : [],
-    warnings: !r.address ? ['현장 주소가 누락되었습니다.'] : []
+    warnings: []
   }));
 
   addValidation('standardOptions', '표준옵션', 'standard_options', entities.standardOptions, r => ({
@@ -1554,7 +1500,7 @@ export function validateIntegratedEntities(entities: IntegratedDomainEntities): 
     warnings: !r.bizRegNo ? ['사업자등록번호가 누락되었습니다.'] : []
   }));
 
-  addValidation('customerSites', '고객현장연결', 'customer_sites', entities.customerSites, r => ({
+  addValidation('customerSites', '고객현장', 'customer_sites', entities.customerSites, r => ({
     errors: !r.customerId ? ['고객사 ID가 누락되었습니다.'] : !r.name ? ['현장명이 누락되었습니다.'] : [],
     warnings: []
   }));
@@ -1703,31 +1649,13 @@ export async function ingestIntegratedEntitiesToDatabase(
   const tableResults: Array<{ table: string; count: number; success: boolean; error?: string }> = [];
   let totalInserted = 0;
 
-  // 🛡️ 헌장 1.5 준수: customerSites 적재 전 모든 현장이 siteMasters에 선행 등록되고 siteMasterId로 연결되도록 보장
-  const nowIso = new Date().toISOString();
+  // 🛡️ 헌장 1.5 준수: customerSites는 고객사 소속 현장으로 직접 적재되며, siteMasters(옵션 그룹)에 물리 현장을 자동 생성하지 않음
   const siteMasterList = [...(entities.siteMasters || [])];
   const customerSiteList = (entities.customerSites || []).map(cs => {
-    const cleanName = String(cs.name || '기본현장').trim();
-    const normName = cleanName.replace(/\s+/g, '');
-    let matchedSm = cs.siteMasterId
-      ? siteMasterList.find(sm => sm.id === cs.siteMasterId)
-      : siteMasterList.find(sm => String(sm.name || '').replace(/\s+/g, '') === normName);
-    if (!matchedSm) {
-      const smId = cs.siteMasterId || makeDeterministicId('sm', cleanName);
-      matchedSm = {
-        id: smId,
-        name: cleanName,
-        address: cs.address || null,
-        isActive: cs.isActive !== false,
-        tenant_id: cs.tenant_id || tenantId,
-        createdAt: cs.createdAt || nowIso,
-        updatedAt: cs.updatedAt || nowIso
-      };
-      siteMasterList.push(matchedSm);
-    }
+    const matchedSm = cs.siteMasterId ? siteMasterList.find(sm => sm.id === cs.siteMasterId) : null;
     return {
       ...cs,
-      siteMasterId: matchedSm.id
+      siteMasterId: matchedSm ? matchedSm.id : null
     };
   });
 

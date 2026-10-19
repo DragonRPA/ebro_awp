@@ -1,11 +1,11 @@
 // src/types/siteOption.ts
-import { StandardOption } from '../services/db';
+import { StandardOption, STANDARD_SPECS } from '../services/db';
 
 export interface SiteOptionItem {
   id: string;               // 고유 식별자 (SO-YYYYMMDD-XXXX)
-  siteId: string;           // 고객 현장 ID (CustomerSite.id)
+  siteId: string;           // 고객 현장 ID (CustomerSite.id) 또는 옵션그룹 ID (SiteMaster.id)
   optionId: string;         // 옵션품목마스터 ID (StandardOption.id)
-  category: 'PAID' | 'PROTECTION' | 'SPEC'; // 마스터 상속
+  category: 'PAID' | 'PROTECTION' | 'ATTACHMENT' | 'SPEC'; // 마스터 상속
   name: string;             // 옵션품목명 (마스터 상속)
   defaultPrice: number;     // 마스터 기준 기본 단가
   appliedPrice: number;     // 현장 특약 단가 (마스터 defaultPrice에서 상속 후 오버라이드 가능)
@@ -17,20 +17,44 @@ export interface SiteOptionItem {
 }
 
 /**
- * 옵션품목마스터(StandardOption) 풀을 기반으로 특정 현장의 기본 SiteOptionItem[] 생성 (100% 상속)
+ * 유상옵션 문자열에서 단가(예: '(50,000원)', '50,000원/월', '₩50,000') 표기를 제거하고 순수 품목명만 반환
+ */
+export function stripOptionPrice(raw?: string | null): string {
+  if (!raw) return '';
+  return raw
+    .split(',')
+    .map(part => {
+      return part
+        .replace(/\(\s*[₩\\]?\s*\d[\d,]*\s*원?(?:\s*\/\s*[월건대일식])?\s*\)/g, '')
+        .replace(/[₩\\]\s*\d[\d,]*(?:\s*원)?(?:\s*\/\s*[월건대일식])?/g, '')
+        .replace(/\b\d[\d,]*\s*원(?:\s*\/\s*[월건대일식])?/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+/**
+ * 옵션품목마스터(StandardOption) 풀을 기반으로 특정 현장/옵션그룹의 기본 SiteOptionItem[] 생성 (100% 상속)
  */
 export function inheritOptionsFromMaster(
   siteId: string, 
   masterOptions: StandardOption[], 
   currentPaidString?: string, 
   currentProtString?: string,
-  currentSpecs?: Record<string, boolean>
+  currentSpecs?: Record<string, any>,
+  currentAttachmentsString?: string
 ): SiteOptionItem[] {
-  const paidList = (currentPaidString || '').split(',').map(s => s.trim()).filter(Boolean);
+  const paidList = (currentPaidString || '').split(',').map(s => stripOptionPrice(s).trim()).filter(Boolean);
   const protList = (currentProtString || '').split(',').map(s => s.trim()).filter(Boolean);
+  const rawAttStr = currentAttachmentsString !== undefined
+    ? currentAttachmentsString
+    : (currentSpecs && typeof currentSpecs.__attachments === 'string' ? currentSpecs.__attachments : '');
+  const attList = (rawAttStr || '').split(',').map(s => s.trim()).filter(Boolean);
   const isNoneOrEmpty = protList.length === 0 || protList.some(p => p.toUpperCase() === 'NONE' || p.includes('무상옵션 없음') || p.includes('무상옵션없음') || p.includes('보양 없음') || p.includes('보양없음'));
 
-  return (masterOptions || []).map((opt, idx) => {
+  return (masterOptions || []).map((opt) => {
     let isEnabled = false;
     if (opt.category === 'PAID') {
       const cleanOptName = opt.name.replace(/\s+/g, '');
@@ -53,6 +77,13 @@ export function inheritOptionsFromMaster(
           });
         }
       }
+    } else if (opt.category === 'ATTACHMENT') {
+      const cleanOptName = opt.name.replace(/\s+/g, '');
+      const matchedInAttList = attList.some(a => {
+        const cleanA = a.replace(/\s+/g, '');
+        return cleanA === cleanOptName || (cleanA.length >= 2 && cleanOptName.length >= 2 && (cleanOptName.includes(cleanA) || cleanA.includes(cleanOptName)));
+      });
+      isEnabled = Boolean((currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name])) || matchedInAttList);
     } else if (opt.category === 'SPEC') {
       isEnabled = Boolean(currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name]));
     }
@@ -65,10 +96,140 @@ export function inheritOptionsFromMaster(
       name: opt.name,
       defaultPrice: opt.defaultPrice || 0,
       appliedPrice: opt.defaultPrice || 0,
-      unit: opt.unit || '월',
+      unit: opt.unit || (opt.category === 'PAID' ? '월' : '건'),
       isEnabled,
       isRequired: false,
       note: ''
     };
   });
 }
+
+/**
+ * 출고요청서 / 회수요청서 출력 및 화면 표시를 위한 4대 구분(유상옵션, 무상옵션, 부착물, 현장요구스펙) 정밀 추출 헬퍼
+ * - 유상옵션은 단가를 절대 표시하지 않음
+ */
+export function extractCategorizedSiteOptions(params: {
+  site?: any;
+  siteMaster?: any;
+  customer?: any;
+  standardOptions?: StandardOption[];
+  deliveryMemo?: string;
+}): {
+  paidOptionsText: string;
+  protectionText: string;
+  attachmentsText: string;
+  specsText: string;
+  paidList: string[];
+  protectionList: string[];
+  attachmentList: string[];
+  specList: string[];
+} {
+  const { site, siteMaster, customer, standardOptions = [], deliveryMemo = '' } = params;
+
+  // 1. 유상옵션 (단가 제거)
+  let rawPaid = site?.paidOptions ?? siteMaster?.paidOptions ?? customer?.defaultPaidOptions ?? '';
+  if (!rawPaid && deliveryMemo) {
+    const m = deliveryMemo.match(/\[유상옵션:\s*([^\]]+)\]/);
+    if (m) rawPaid = m[1];
+  }
+  const cleanPaid = stripOptionPrice(rawPaid);
+  const paidList = cleanPaid
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s && s !== '없음' && s.toUpperCase() !== 'NONE');
+
+  // 2. 무상옵션
+  let rawProt = site?.protection ?? siteMaster?.protection ?? customer?.defaultProtection ?? '';
+  if (!rawProt && deliveryMemo) {
+    const m = deliveryMemo.match(/\[(?:무상옵션|보양(?:작업)?):\s*([^\]]+)\]/);
+    if (m) rawProt = m[1];
+  }
+  const protectionList = String(rawProt || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s && s !== '없음' && !s.toUpperCase().includes('NONE') && !s.includes('무상옵션 없음') && !s.includes('보양 없음'));
+
+  // 3. 부착물 & 4. 현장요구스펙
+  const effectiveSpecs: Record<string, any> =
+    (site?.checkedSpecs && Object.keys(site.checkedSpecs).length > 0)
+      ? site.checkedSpecs
+      : (siteMaster?.checkedSpecs && Object.keys(siteMaster.checkedSpecs).length > 0)
+        ? siteMaster.checkedSpecs
+        : (customer?.defaultCheckedSpecs || {});
+
+  const attachmentOptionIds = new Set(
+    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.id)
+  );
+  const attachmentOptionNames = new Set(
+    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.name)
+  );
+
+  let rawAtt = site?.attachments ?? effectiveSpecs?.__attachments ?? siteMaster?.attachments ?? siteMaster?.checkedSpecs?.__attachments ?? customer?.defaultAttachments ?? customer?.defaultCheckedSpecs?.__attachments ?? '';
+  if (!rawAtt && deliveryMemo) {
+    const m = deliveryMemo.match(/\[부착물:\s*([^\]]+)\]/);
+    if (m) rawAtt = m[1];
+  }
+
+  const attSet = new Set<string>();
+  if (rawAtt && typeof rawAtt === 'string') {
+    rawAtt
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s && s !== '없음' && s.toUpperCase() !== 'NONE')
+      .forEach(s => attSet.add(s));
+  }
+  // checkedSpecs 내 활성화된 ATTACHMENT 옵션 ID 반영
+  Object.entries(effectiveSpecs || {}).forEach(([k, v]) => {
+    if (!v || k.startsWith('__')) return;
+    if (attachmentOptionIds.has(k)) {
+      const opt = standardOptions.find(o => o.id === k);
+      if (opt) attSet.add(opt.name);
+    } else if (attachmentOptionNames.has(k)) {
+      attSet.add(k);
+    }
+  });
+  const attachmentList = Array.from(attSet);
+
+  // 4. 현장요구스펙 (ATTACHMENT 및 내부 메타키 제외)
+  const specSet = new Set<string>();
+  Object.entries(effectiveSpecs || {}).forEach(([k, v]) => {
+    if (!v || k.startsWith('__')) return;
+    if (attachmentOptionIds.has(k) || attachmentOptionNames.has(k)) return;
+    const stdOpt = standardOptions.find(o => o.id === k && o.category === 'SPEC');
+    if (stdOpt) {
+      specSet.add(stdOpt.name);
+      return;
+    }
+    const legacySpec = STANDARD_SPECS.find(sp => sp.id === k);
+    if (legacySpec) {
+      specSet.add(legacySpec.label);
+      return;
+    }
+    if (!k.startsWith('opt_att_')) {
+      specSet.add(k);
+    }
+  });
+  if (specSet.size === 0 && deliveryMemo) {
+    const m = deliveryMemo.match(/\[(?:현장요구스펙|현장요구사양|요구사양):\s*([^\]]+)\]/);
+    if (m) {
+      m[1]
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s && s !== '없음')
+        .forEach(s => specSet.add(s));
+    }
+  }
+  const specList = Array.from(specSet);
+
+  return {
+    paidOptionsText: paidList.length > 0 ? paidList.join(', ') : '없음',
+    protectionText: protectionList.length > 0 ? protectionList.join(', ') : '없음',
+    attachmentsText: attachmentList.length > 0 ? attachmentList.join(', ') : '없음',
+    specsText: specList.length > 0 ? specList.join(', ') : '없음',
+    paidList,
+    protectionList,
+    attachmentList,
+    specList,
+  };
+}
+

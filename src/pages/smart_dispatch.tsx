@@ -271,12 +271,12 @@ export const SmartDispatch: React.FC = () => {
       );
 
       if (matchedSite) {
-        const matchedSiteMaster = (siteMasters || []).find(
-          m => m.id === matchedSite.siteMasterId || (m.name && matchedSite.name && m.name.replace(/\s/g, '') === matchedSite.name.replace(/\s/g, ''))
-        );
-        const effPaidOptions = matchedSiteMaster?.paidOptions || matchedSite.paidOptions;
-        const effProtection = matchedSiteMaster?.protection || matchedSite.protection;
-        const effCheckedSpecs = matchedSiteMaster?.checkedSpecs || matchedSite.checkedSpecs;
+        const matchedSiteMaster = matchedSite.siteMasterId
+          ? (siteMasters || []).find(m => m.id === matchedSite.siteMasterId)
+          : undefined;
+        const effPaidOptions = matchedSite.paidOptions || matchedSiteMaster?.paidOptions;
+        const effProtection = matchedSite.protection || matchedSiteMaster?.protection;
+        const effCheckedSpecs = matchedSite.checkedSpecs || matchedSiteMaster?.checkedSpecs;
 
         if (!nextAddress && matchedSite.address && matchedSite.address !== '미상') {
           nextAddress = matchedSite.address;

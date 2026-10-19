@@ -934,10 +934,10 @@ export const STANDARD_SPECS: SpecItem[] = [
   { id: 'spec21', label: '부착물 세트 (인증서, 제원표, 보험증권, 반입전 체크리스트)', keywords: ['부착물', '제원표', '비상하강사용법', '보험증권', '인증서', '반입전', '체크리스트', '출고서류', '안전점검결과서', '직인날인', '점검자 직인'] }
 ];
 
-// 🏷️ 전사 표준 옵션 마스터 인터페이스 (유상옵션 / 무상옵션 / 요구사양)
+// 🏷️ 전사 표준 옵션 마스터 인터페이스 (유상옵션 / 무상옵션 / 부착물 / 요구사양)
 export interface StandardOption {
   id: string;
-  category: 'PAID' | 'PROTECTION' | 'SPEC';
+  category: 'PAID' | 'PROTECTION' | 'ATTACHMENT' | 'SPEC';
   name: string;
   defaultPrice?: number;
   unit?: string; // 예: '월', '건', '대'
@@ -968,7 +968,17 @@ export const SEED_STANDARD_OPTIONS: StandardOption[] = [
   { id: 'opt_prot_tin', category: 'PROTECTION', name: '함석 보양', defaultPrice: 0, unit: '건', description: '장비 하부 및 데크 함석 보양', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
   { id: 'opt_prot_ladder', category: 'PROTECTION', name: '탑승구 사다리 보양', defaultPrice: 0, unit: '건', description: '탑승 사다리 발판 및 난간 완충 보양', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
   { id: 'opt_prot_corner', category: 'PROTECTION', name: '모서리 완충 보양', defaultPrice: 0, unit: '건', description: '작업대 4면 모서리 8개소 스펀지 완충 보양', isActive: true, sortOrder: 5, createdAt: '2026-01-01' },
-  { id: 'opt_prot_floor', category: 'PROTECTION', name: '바닥/발판 보양', defaultPrice: 0, unit: '건', description: '데크 바닥 합판 및 고무패드 보양', isActive: true, sortOrder: 6, createdAt: '2026-01-01' }
+  { id: 'opt_prot_floor', category: 'PROTECTION', name: '바닥/발판 보양', defaultPrice: 0, unit: '건', description: '데크 바닥 합판 및 고무패드 보양', isActive: true, sortOrder: 6, createdAt: '2026-01-01' },
+
+  // 3. 부착물 (ATTACHMENT)
+  { id: 'opt_att_cert', category: 'ATTACHMENT', name: '인증서', defaultPrice: 0, unit: '건', description: '안전인증서 사본 부착', isActive: true, sortOrder: 1, createdAt: '2026-01-01' },
+  { id: 'opt_att_specsheet', category: 'ATTACHMENT', name: '제원표', defaultPrice: 0, unit: '건', description: '장비 표준 제원표 부착', isActive: true, sortOrder: 2, createdAt: '2026-01-01' },
+  { id: 'opt_att_insurance', category: 'ATTACHMENT', name: '보험증권', defaultPrice: 0, unit: '건', description: '영업배상책임보험 및 장비보험 증권 사본 부착', isActive: true, sortOrder: 3, createdAt: '2026-01-01' },
+  { id: 'opt_att_checklist', category: 'ATTACHMENT', name: '반입전 체크리스트', defaultPrice: 0, unit: '건', description: '현장 반입전 사전 안전점검 체크리스트 부착', isActive: true, sortOrder: 4, createdAt: '2026-01-01' },
+  { id: 'opt_att_emergency_guide', category: 'ATTACHMENT', name: '비상하강사용법', defaultPrice: 0, unit: '건', description: '비상하강장치 작동 매뉴얼 및 꼬리표 부착', isActive: true, sortOrder: 5, createdAt: '2026-01-01' },
+  { id: 'opt_att_safety_report', category: 'ATTACHMENT', name: '안전점검결과서', defaultPrice: 0, unit: '건', description: '출고 안전점검결과서 (점검자 직인 날인) 부착', isActive: true, sortOrder: 6, createdAt: '2026-01-01' },
+  { id: 'opt_att_pinch_sticker', category: 'ATTACHMENT', name: '협착위험 스티커', defaultPrice: 0, unit: '건', description: '시저구간 협착위험 접촉금지 스티커 부착', isActive: true, sortOrder: 7, createdAt: '2026-01-01' },
+  { id: 'opt_att_operation_sticker', category: 'ATTACHMENT', name: '작동설명 안내스티커', defaultPrice: 0, unit: '건', description: '상/하부 조작함 작동설명 안내스티커 부착', isActive: true, sortOrder: 8, createdAt: '2026-01-01' }
 ];
 
 
@@ -1103,10 +1113,11 @@ export interface Customer {
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
   bankAccounts?: CustomerBankAccount[]; // 고객사 다중 계좌 목록
   
-  // 🌟 [신규] 고객사 기본 옵션/보양/요구사양 자동 재사용 마스터 (수량 제외 순수 품목명)
+  // 🌟 [신규] 고객사 기본 옵션/보양/부착물/요구사양 자동 재사용 마스터 (수량 제외 순수 품목명)
   defaultPaidOptions?: string;       // 기본 유상옵션 품목 (예: '협착난간대, 상부덮개, 소화기함' - 장비 대수 비례 수량 표기 제외)
   defaultProtection?: string;        // 기본 무상옵션 (예: '4면 철망 보양, 탑승구 사다리')
-  defaultCheckedSpecs?: Record<string, boolean>; // 기본 요구 사양 체크 상태
+  defaultAttachments?: string;       // 기본 부착물 (예: '인증서, 제원표, 보험증권')
+  defaultCheckedSpecs?: Record<string, any>; // 기본 요구 사양 체크 상태
   specialNotes?: string;             // 고객사 특이사항 메모 (예: '재임대 출고건으로 운반비 및 배차 한솔렌탈 부담')
 
   // 📄 사업자등록증 및 💳 통장사본 증빙 스토리지
@@ -1143,10 +1154,11 @@ export interface CustomerContact {
 
 export interface SiteMaster {
   id: string;
-  name: string;
-  address: string;
+  name: string; // 옵션 그룹 명칭 (현장명)
+  address?: string; // 미사용 (옵션 그룹 마스터에서는 주소 필드를 사용하지 않음)
   paidOptions?: string;
   protection?: string;
+  attachments?: string; // 부착물
   checkedSpecs?: Record<string, any>;
   isActive?: boolean;
   createdAt: string;
@@ -1173,10 +1185,11 @@ export interface DeveloperDeviceProfile {
 
 export interface CustomerSite {
   id: string;
-  siteMasterId?: string;
+  siteMasterId?: string | null;   // 상속받은 옵션 그룹 ID (선택적 참조)
   customerId?: string;
-  name: string;
-  address: string;
+  name: string;                   // 고객현장 고유 현장명
+  address: string;                // 고객현장 고유 주소
+  isActive?: boolean;             // 고객현장 가동 여부 (true: 가동중, false: 종료/완공)
   contactName: string;
   contact: string;
   email: string;
@@ -1189,10 +1202,11 @@ export interface CustomerSite {
   safetyContactEmail?: string;    // 안전담당자 이메일
   paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
   
-  // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속, 수량 제외 순수 품목명)
-  paidOptions?: string;              // 현장 전용 유상옵션 품목 (장비 대수 비례 수량 표기 제외)
+  // 🌟 고객현장 전용 옵션/보양/부착물/요구사양 (고객 현장관리에서 직접 설정 및 옵션그룹 상속 저장)
+  paidOptions?: string;              // 현장 전용 유상옵션 품목
   protection?: string;               // 현장 전용 무상옵션
-  checkedSpecs?: Record<string, boolean>; // 현장 전용 요구 사양 체크 상태
+  attachments?: string;              // 현장 전용 부착물
+  checkedSpecs?: Record<string, any>; // 현장 전용 요구 사양 체크 상태
   billingDay?: number;               // 청구서(세금계산서) 마감일
   statementClosingDay?: number;      // 거래명세서 마감일
   paymentDueDay?: number;            // 약정 결제일 (1~30, 31: 말일)
@@ -5434,6 +5448,7 @@ const FK_RULES_MAP: Record<string, { targetTable: string; targetProp: string | n
   'customer_contacts.siteMasterId': { targetTable: 'site_masters', targetProp: 'siteMasters', notNull: false },
   'customer_contacts.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
   'customer_sites.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'customer_sites.siteMasterId': { targetTable: 'site_masters', targetProp: 'siteMasters', notNull: false },
   'assets.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
   'assets.currentCustomerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
   'assets.currentSiteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
@@ -5943,13 +5958,24 @@ class LocalDB {
         defProt = String(defProt).trim();
         changed = true;
       }
+      let defAtt = c.defaultAttachments;
+      if (Array.isArray(defAtt)) {
+        defAtt = (defAtt as any[]).flat().map(s => String(s).trim()).filter(Boolean).join(', ');
+        changed = true;
+      } else if (defAtt !== undefined && defAtt !== null && typeof defAtt !== 'string') {
+        defAtt = String(defAtt).trim();
+        changed = true;
+      } else if ((defAtt === undefined || defAtt === null) && c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__attachments === 'string') {
+        defAtt = (c.defaultCheckedSpecs as any).__attachments;
+        changed = true;
+      }
       let dueMonthOffset = c.paymentDueMonthOffset !== undefined && c.paymentDueMonthOffset !== null ? c.paymentDueMonthOffset : 1;
       let dueDay = c.paymentDueDay || 25;
       if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
         changed = true;
       }
       if (changed) {
-        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
+        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
       }
       return c;
     }).sort((a, b) => compareCustomerNames(a?.name, b?.name));
@@ -5961,29 +5987,33 @@ class LocalDB {
   get customerContacts() { return this.contacts; }
   set customerContacts(val: CustomerContact[]) { this.contacts = val; }
 
-  get siteMasters() { return this.get<SiteMaster>('siteMasters', []); }
+  get siteMasters() {
+    const raw = this.get<SiteMaster>('siteMasters', []);
+    return raw.map(sm => {
+      if (!sm) return sm;
+      let att = sm.attachments;
+      if (Array.isArray(att)) {
+        att = (att as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
+      } else if (att !== undefined && att !== null && typeof att !== 'string') {
+        att = String(att);
+      } else if ((att === undefined || att === null) && sm.checkedSpecs && typeof (sm.checkedSpecs as any).__attachments === 'string') {
+        att = (sm.checkedSpecs as any).__attachments;
+      }
+      if (att !== sm.attachments) {
+        return { ...sm, attachments: att };
+      }
+      return sm;
+    });
+  }
   set siteMasters(val: SiteMaster[]) { this.set('siteMasters', val); }
 
-  
   get sites() {
     const raw = this.get<CustomerSite>('sites', SEED_SITES);
-    const masters = this.siteMasters;
     
     return raw.map(s => {
       if (!s) return s;
       
       let changed = false;
-      let masterName = s.name;
-      let masterAddress = s.address;
-      
-      if (s.siteMasterId) {
-        const master = masters.find(m => m.id === s.siteMasterId);
-        if (master) {
-          masterName = master.name;
-          masterAddress = master.address;
-        }
-      }
-      
       let paid = s.paidOptions;
       if (Array.isArray(paid)) {
         paid = (paid as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
@@ -5993,8 +6023,40 @@ class LocalDB {
         changed = true;
       }
 
-      if (changed || masterName !== s.name || masterAddress !== s.address) {
-        return { ...s, name: masterName, address: masterAddress, paidOptions: paid };
+      let prot = s.protection;
+      if (Array.isArray(prot)) {
+        prot = (prot as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
+        changed = true;
+      } else if (prot !== undefined && prot !== null && typeof prot !== 'string') {
+        prot = String(prot);
+        changed = true;
+      }
+
+      let specs = s.checkedSpecs;
+      if (Array.isArray(specs)) {
+        specs = {};
+        changed = true;
+      }
+
+      let att = s.attachments;
+      if (Array.isArray(att)) {
+        att = (att as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
+        changed = true;
+      } else if (att !== undefined && att !== null && typeof att !== 'string') {
+        att = String(att);
+        changed = true;
+      } else if ((att === undefined || att === null) && specs && typeof (specs as any).__attachments === 'string') {
+        att = (specs as any).__attachments;
+        changed = true;
+      }
+
+      const isActiveVal = s.isActive !== false;
+      if (s.isActive === undefined) {
+        changed = true;
+      }
+
+      if (changed) {
+        return { ...s, paidOptions: paid, protection: prot, attachments: att, checkedSpecs: specs, isActive: isActiveVal };
       }
       return s;
     });
@@ -6016,7 +6078,17 @@ class LocalDB {
   set inspectionChecklistItems(val: InspectionChecklistItem[]) { this.set('inspectionChecklistItems', val); }
 
   get standardOptions() {
-    return this.get<StandardOption>('standardOptions', SEED_STANDARD_OPTIONS);
+    const list = this.get<StandardOption>('standardOptions', SEED_STANDARD_OPTIONS);
+    const hasAttachment = list.some(o => o && o.category === 'ATTACHMENT');
+    if (!hasAttachment) {
+      const seedAttachments = SEED_STANDARD_OPTIONS.filter(o => o.category === 'ATTACHMENT' && !list.some(ex => ex && ex.id === o.id));
+      if (seedAttachments.length > 0) {
+        const merged = [...list, ...seedAttachments];
+        this.set('standardOptions', merged);
+        return merged;
+      }
+    }
+    return list;
   }
   set standardOptions(val: StandardOption[]) { this.set('standardOptions', val); }
 
@@ -6500,7 +6572,7 @@ class LocalDB {
       }
     }
 
-    // paidOptions, protection, defaultPaidOptions, defaultProtection 정규화 (배열/객체/비문자열 원천 방어)
+    // paidOptions, protection, attachments, defaultPaidOptions, defaultProtection, defaultAttachments 정규화
     if (normalized.paidOptions !== undefined && normalized.paidOptions !== null) {
       if (Array.isArray(normalized.paidOptions)) {
         normalized.paidOptions = normalized.paidOptions.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
@@ -6515,6 +6587,15 @@ class LocalDB {
         normalized.protection = String(normalized.protection).trim();
       }
     }
+    if (normalized.attachments !== undefined && normalized.attachments !== null) {
+      if (Array.isArray(normalized.attachments)) {
+        normalized.attachments = normalized.attachments.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
+      } else if (typeof normalized.attachments !== 'string') {
+        normalized.attachments = String(normalized.attachments).trim();
+      }
+    } else if (normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && typeof normalized.checkedSpecs.__attachments === 'string') {
+      normalized.attachments = normalized.checkedSpecs.__attachments;
+    }
     if (normalized.defaultPaidOptions !== undefined && normalized.defaultPaidOptions !== null) {
       if (Array.isArray(normalized.defaultPaidOptions)) {
         normalized.defaultPaidOptions = normalized.defaultPaidOptions.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
@@ -6527,6 +6608,23 @@ class LocalDB {
         normalized.defaultProtection = normalized.defaultProtection.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
       } else if (typeof normalized.defaultProtection !== 'string') {
         normalized.defaultProtection = String(normalized.defaultProtection).trim();
+      }
+    }
+    if (normalized.defaultAttachments !== undefined && normalized.defaultAttachments !== null) {
+      if (Array.isArray(normalized.defaultAttachments)) {
+        normalized.defaultAttachments = normalized.defaultAttachments.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
+      } else if (typeof normalized.defaultAttachments !== 'string') {
+        normalized.defaultAttachments = String(normalized.defaultAttachments).trim();
+      }
+    } else if (normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && typeof normalized.defaultCheckedSpecs.__attachments === 'string') {
+      normalized.defaultAttachments = normalized.defaultCheckedSpecs.__attachments;
+    }
+    if (tableName === 'standard_options' || (normalized.category && normalized.sortOrder !== undefined)) {
+      if (typeof normalized.unit === 'string' && normalized.unit.startsWith('ATT:')) {
+        normalized.category = 'ATTACHMENT';
+        normalized.unit = normalized.unit.slice(4) || '건';
+      } else if (typeof normalized.id === 'string' && normalized.id.startsWith('opt_att_')) {
+        normalized.category = 'ATTACHMENT';
       }
     }
 
@@ -6858,6 +6956,9 @@ class LocalDB {
           if (obj.paymentTermDays === undefined) sanitized['paymentTermDays'] = val;
           continue;
         }
+        if (key === 'defaultAttachments') {
+          continue;
+        }
       }
       if (resolvedTable === 'customer_contacts' && key === 'contactType') {
         continue;
@@ -6880,8 +6981,8 @@ class LocalDB {
         if (obj.contractId === undefined) sanitized['contractId'] = val;
         continue;
       }
-      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
-      if (resolvedTable === 'site_masters' && !['id', 'name', 'address', 'isActive', 'paidOptions', 'protection', 'checkedSpecs', 'createdAt', 'updatedAt', 'tenant_id', 'tenantId'].includes(key)) { continue; }
+      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail', 'attachments'].includes(key)) { continue; }
+      if (resolvedTable === 'site_masters' && !['id', 'name', 'isActive', 'paidOptions', 'protection', 'checkedSpecs', 'createdAt', 'updatedAt', 'tenant_id', 'tenantId'].includes(key)) { continue; }
       // equipment_manuals mediaType -> media_type 정제
       if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
         sanitized['media_type'] = val;
@@ -7012,6 +7113,42 @@ class LocalDB {
 
       sanitized[key] = val;
     }
+
+    // site_masters 및 customer_sites의 attachments를 checkedSpecs.__attachments에 안전 백업
+    if (resolvedTable === 'site_masters' || resolvedTable === 'customer_sites') {
+      if (obj.attachments !== undefined) {
+        const baseSpecs = (sanitized.checkedSpecs && typeof sanitized.checkedSpecs === 'object' && !Array.isArray(sanitized.checkedSpecs))
+          ? sanitized.checkedSpecs
+          : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs) ? obj.checkedSpecs : {});
+        sanitized.checkedSpecs = {
+          ...baseSpecs,
+          __attachments: obj.attachments ? String(obj.attachments) : ''
+        };
+      }
+      delete sanitized.attachments;
+    }
+
+    // customers의 defaultAttachments를 defaultCheckedSpecs.__attachments에 안전 백업
+    if (resolvedTable === 'customers') {
+      if (obj.defaultAttachments !== undefined) {
+        const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
+          ? sanitized.defaultCheckedSpecs
+          : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs) ? obj.defaultCheckedSpecs : {});
+        sanitized.defaultCheckedSpecs = {
+          ...baseSpecs,
+          __attachments: obj.defaultAttachments ? String(obj.defaultAttachments) : ''
+        };
+      }
+      delete sanitized.defaultAttachments;
+    }
+
+    // standard_options의 ATTACHMENT 카테고리를 원격 DB CHECK 제약조건('PAID','PROTECTION','SPEC')과 100% 호환되도록 인코딩
+    if (resolvedTable === 'standard_options' && sanitized.category === 'ATTACHMENT') {
+      sanitized.category = 'SPEC';
+      const cleanUnit = String(sanitized.unit || obj.unit || '건').replace(/^ATT:/, '');
+      sanitized.unit = `ATT:${cleanUnit}`;
+    }
+
     // consumables 테이블 호환 (name, spec)
     if (resolvedTable === 'consumables') {
       if (!sanitized.name && obj.modelName) {

@@ -319,15 +319,15 @@ CREATE TABLE customers (
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
--- 2-3. 물리 현장 마스터 (site_masters)
+-- 2-3. 현장별 옵션 그룹 마스터 (site_masters - 주소 필드 미사용, 자주 사용하는 옵션 그룹 저장)
 CREATE TABLE site_masters (
     id                    TEXT PRIMARY KEY,
     name                  TEXT NOT NULL,
-    address               TEXT,
+    address               TEXT, -- (레거시 호환 컬럼, 신규 미사용)
     "isActive"            BOOLEAN NOT NULL DEFAULT TRUE,
-    "paidOptions"         TEXT, -- 현장별 유상옵션 (SSOT)
-    "protection"          TEXT, -- 현장별 보양작업 (SSOT)
-    "checkedSpecs"        JSONB, -- 현장별 요구사양 체크 상태 (SSOT)
+    "paidOptions"         TEXT, -- 옵션 그룹 유상옵션
+    "protection"          TEXT, -- 옵션 그룹 무상옵션(보양)
+    "checkedSpecs"        JSONB, -- 옵션 그룹 요구사양 체크 상태
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
@@ -336,7 +336,7 @@ CREATE TABLE site_masters (
 -- 2-4. 고객사 담당자 (customer_contacts)
 CREATE TABLE customer_contacts (
     id                    TEXT PRIMARY KEY,
-    "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE CASCADE,
+    "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE SET NULL,
     "customerId"          TEXT REFERENCES customers(id) ON DELETE CASCADE,
     name                  TEXT NOT NULL,
     position              TEXT,
@@ -350,11 +350,11 @@ CREATE TABLE customer_contacts (
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
--- 2-5. 고객사-현장 N:M 연결 (customer_sites)
+-- 2-5. 고객사 현장 (customer_sites - 고객이 거래하는 모든 현장 및 현장별 옵션 직접 보관)
 CREATE TABLE customer_sites (
     id                    TEXT PRIMARY KEY,
     "customerId"          TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-    "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE SET NULL,
+    "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE SET NULL, -- 상속받은 옵션 그룹 ID (선택)
     name                  TEXT NOT NULL,
     address               TEXT,
     "contactName"         TEXT,
@@ -969,7 +969,7 @@ CREATE TABLE consumable_logs (
 -- 4-8. 전사 표준 옵션 마스터 (standard_options)
 CREATE TABLE IF NOT EXISTS standard_options (
     id                    TEXT PRIMARY KEY,
-    category              TEXT NOT NULL CHECK (category IN ('PAID', 'PROTECTION', 'SPEC')),
+    category              TEXT NOT NULL CHECK (category IN ('PAID', 'PROTECTION', 'ATTACHMENT', 'SPEC')),
     name                  TEXT NOT NULL,
     "defaultPrice"        DOUBLE PRECISION DEFAULT 0,
     unit                  TEXT DEFAULT '월',

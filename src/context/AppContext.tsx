@@ -2297,6 +2297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         db.updateRow<CustomerSite>('sites', ls.id, {
           paidOptions: savedMaster.paidOptions ?? ls.paidOptions ?? '',
           protection: savedMaster.protection ?? ls.protection ?? 'NONE',
+          attachments: savedMaster.attachments ?? ls.attachments ?? '',
           checkedSpecs: savedMaster.checkedSpecs ? { ...savedMaster.checkedSpecs } : (ls.checkedSpecs || {}),
           updatedAt: new Date().toISOString(),
         } as any);
@@ -2335,6 +2336,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       siteMasterId: site.siteMasterId || null,
       paidOptions: site.paidOptions !== undefined ? site.paidOptions : (master?.paidOptions || ''),
       protection: site.protection !== undefined ? site.protection : (master?.protection || 'NONE'),
+      attachments: site.attachments !== undefined ? site.attachments : (master?.attachments || ''),
       checkedSpecs: site.checkedSpecs !== undefined ? site.checkedSpecs : (master?.checkedSpecs ? { ...master.checkedSpecs } : {}),
       updatedAt: new Date().toISOString(),
     };
@@ -2923,6 +2925,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paymentDueDay: contractPaymentDueDay,
         paidOptions: data.paidOptions !== undefined ? data.paidOptions : (selectedOptionGroup?.paidOptions || finalCustomer.defaultPaidOptions || ''),
         protection: data.protection !== undefined ? data.protection : (selectedOptionGroup?.protection || finalCustomer.defaultProtection || 'NONE'),
+        attachments: data.attachments !== undefined ? data.attachments : (selectedOptionGroup?.attachments || finalCustomer.defaultAttachments || ''),
         checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
           ? data.checkedSpecs
           : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {}),
@@ -2955,13 +2958,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
-      // 🌟 [헌장 1.5] 옵션/보양/표준사양은 고객 현장(CustomerSite)에 직접 저장
+      // 🌟 [헌장 1.5] 옵션/보양/부착물/표준사양은 고객 현장(CustomerSite)에 직접 저장
       if (data.saveOptionsToSite !== false) {
         if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
           siteUpdates.paidOptions = data.paidOptions;
         }
         if (data.protection !== undefined && data.protection !== site.protection) {
           siteUpdates.protection = data.protection;
+        }
+        if (data.attachments !== undefined && data.attachments !== site.attachments) {
+          siteUpdates.attachments = data.attachments;
         }
         if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) {
           siteUpdates.checkedSpecs = data.checkedSpecs;
@@ -2983,6 +2989,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (data.isSetAsCustomerDefault || (!finalCustomer.defaultProtection && data.protection)) {
       if (data.protection) custOptionUpdates.defaultProtection = data.protection;
     }
+    if (data.isSetAsCustomerDefault || (!finalCustomer.defaultAttachments && data.attachments)) {
+      if (data.attachments) custOptionUpdates.defaultAttachments = data.attachments;
+    }
     if (data.isSetAsCustomerDefault || (!finalCustomer.defaultCheckedSpecs && data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
       if (data.checkedSpecs) custOptionUpdates.defaultCheckedSpecs = data.checkedSpecs;
     }
@@ -2997,6 +3006,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         db.updateRow<CustomerSite>('sites', s.id, {
           paidOptions: data.paidOptions !== undefined ? data.paidOptions : s.paidOptions,
           protection: data.protection !== undefined ? data.protection : s.protection,
+          attachments: data.attachments !== undefined ? data.attachments : s.attachments,
           checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) ? data.checkedSpecs : s.checkedSpecs,
           updatedAt: new Date().toISOString()
         });

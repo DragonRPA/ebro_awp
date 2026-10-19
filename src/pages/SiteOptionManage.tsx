@@ -1,339 +1,47 @@
 // src/pages/SiteOptionManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { supabase, db, SiteMaster } from '../services/db';
+import { SiteMaster, StandardOption, CustomerSite, Customer } from '../services/db';
 import { SortableTh } from '../components/SortableTh';
-
-// 🛠️ 개발자 전용 현장 마스터 병합 모달
-const DeveloperSiteMergeModal: React.FC<{
-  onClose: () => void;
-}> = ({ onClose }) => {
-  const { showErrorModal, refreshAllData } = useApp();
-  const [sourceId, setSourceId] = useState('');
-  const [targetId, setTargetId] = useState('');
-  const [survivor, setSurvivor] = useState<'A'|'B'>('A');
-
-  const masters = db.siteMasters || [];
-
-  const [showConfirmStep, setShowConfirmStep] = useState(false);
-
-  const handleMerge = async () => {
-    if (!sourceId || !targetId) return showErrorModal('병합할 두 현장을 선택하세요.');
-    if (sourceId === targetId) return showErrorModal('서로 다른 현장을 선택하세요.');
-
-    const masterA = masters.find((m: SiteMaster) => m.id === sourceId);
-    const masterB = masters.find((m: SiteMaster) => m.id === targetId);
-    if (!masterA || !masterB) return;
-
-    const survivingId = survivor === 'A' ? masterA.id : masterB.id;
-    const discardedId = survivor === 'A' ? masterB.id : masterA.id;
-    const survivingName = survivor === 'A' ? masterA.name : masterB.name;
-    const discardedName = survivor === 'A' ? masterB.name : masterA.name;
-
-    try {
-      // 1. Update all CustomerSiteLinks
-      let updatedCount = 0;
-      const allSites = db.sites;
-      for (const link of allSites) {
-        if (link.siteMasterId === discardedId) {
-          db.updateRow('sites', link.id, { ...link, siteMasterId: survivingId, updatedAt: new Date().toISOString() });
-          updatedCount++;
-        }
-      }
-
-      // 2. Delete discarded Master
-      db.deleteRow('siteMasters', discardedId);
-      await db.awaitPendingWrites();
-
-      refreshAllData();
-      showErrorModal(`병합 완료! ${updatedCount}개의 계약/링크가 [${survivingName}] 현장으로 옮겨졌습니다.`, '병합 성공');
-      onClose();
-    } catch (err: any) {
-      showErrorModal(`현장 병합 실패: ${err?.message || String(err)}`);
-    }
-  };
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--bg-app)', padding: '24px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>개발자 전용 현장 마스터 강제 병합</h3>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 A 선택</label>
-          <select className="select-primary" value={sourceId} onChange={e => setSourceId(e.target.value)}>
-            <option value="">-- 현장 A 선택 --</option>
-            {[...masters].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
-          </select>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 B 선택</label>
-          <select className="select-primary" value={targetId} onChange={e => setTargetId(e.target.value)}>
-            <option value="">-- 현장 B 선택 --</option>
-            {[...masters].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
-          </select>
-        </div>
-
-        <div style={{ background: 'var(--bg-panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600 }}>어느 현장명으로 병합하여 살리시겠습니까?</div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-            <input type="radio" name="survivor" checked={survivor === 'A'} onChange={() => setSurvivor('A')} />
-            A 살리기 (B 폐기 후 A로 이동)
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-            <input type="radio" name="survivor" checked={survivor === 'B'} onChange={() => setSurvivor('B')} />
-            B 살리기 (A 폐기 후 B로 이동)
-          </label>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
-          <button type="button" className="btn-secondary" onClick={onClose}>취소</button>
-          {!showConfirmStep ? (
-            <button
-              type="button"
-              className="btn-danger"
-              onClick={() => {
-                if (!sourceId || !targetId) return showErrorModal('병합할 두 현장을 선택하세요.');
-                if (sourceId === targetId) return showErrorModal('서로 다른 현장을 선택하세요.');
-                setShowConfirmStep(true);
-              }}
-              style={{ background: '#ef4444', color: '#fff', border: 'none' }}
-            >
-              강제 병합 검토
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-danger"
-              onClick={handleMerge}
-              style={{ background: '#b91c1c', color: '#fff', border: 'none', fontWeight: 800 }}
-            >
-              확인: 폐기 및 최종 병합 실행
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 import { 
-  Shield, Check, Plus, Trash2, Edit3, Search, RefreshCw, 
-  ArrowRight, Copy, CheckSquare, Layers, Download, Building2, 
-  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders, X, PowerOff, Power
+  Shield, Check, Plus, Trash2, Edit3, Search, 
+  CheckSquare, Download, Building2, 
+  CheckCircle2, ChevronRight, Sliders, X, Layers
 } from 'lucide-react';
-import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
-import {
-  isMissingSiteAddress,
-  sanitizeSiteAddressInput,
-  findMatchingSiteMaster
-} from '../utils/siteMatcher';
 
 export const SiteOptionManage: React.FC = () => {
-  const { currentUser } = useApp();
-  const isDeveloper = currentUser?.id === 'sys-admin' || currentUser?.id === 'u-1' || currentUser?.loginId === 'admin' || currentUser?.position === 'D.RPA' || currentUser?.department?.includes('개발');
-  const [showDevMergeModal, setShowDevMergeModal] = React.useState(false);
   const { 
     customers, siteMasters, standardOptions, saveStandardOption, deleteStandardOption, 
-    saveSiteMaster, deleteSiteMaster, showErrorModal, showNoticeModal, fullRefreshFromServer,
+    saveSiteMaster, deleteSiteMaster, showErrorModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload,
-    sites, contracts, assets
+    sites
   } = useApp();
 
-  // 1. 활성 탭: 'SITE_OPTIONS' (현장별 옵션 관리) vs 'MASTER_OPTIONS' (옵션 품목 마스터)
+  // 1. 활성 탭: 'SITE_OPTIONS' (현장별 옵션 관리 - 옵션 그룹) vs 'MASTER_OPTIONS' (옵션 품목 마스터)
   const [activeTab, setActiveTab] = useState<'SITE_OPTIONS' | 'MASTER_OPTIONS'>('SITE_OPTIONS');
 
-  // 2. 검색 및 필터 상태
+  // 2. 검색 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
-  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'MISSING_ADDRESS' | 'COMPLETED' | 'READY_TO_CLOSE' | 'ALL'>('ACTIVE');
 
+  // 3. 옵션 그룹 등록/수정 모달 상태 (현장명만 사용, 주소 필드 완전 배제)
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
+  const [quickSiteForm, setQuickSiteForm] = useState({ name: '' });
+
   const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
-  const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '', address: '' });
+  const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '' });
 
-  const handleToggleSiteStatus = async (site: any, targetStatus: boolean) => {
-    if (targetStatus === false) {
-      const linkedCustomerSites = (sites || []).filter((s: any) => s.siteMasterId === site.id);
-      const matchingSiteIds = new Set([site.id, ...linkedCustomerSites.map((s: any) => s.id)]);
-
-      const activeContracts = (contracts || []).filter((c: any) => 
-        matchingSiteIds.has(c.siteId) && 
-        (c.status === 'ACTIVE' || c.status === 'EXTENDED')
-      );
-      if (activeContracts.length > 0) {
-        showNoticeModal(
-          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo || activeContracts[0].id})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`,
-          '현장 완공 처리 불가'
-        );
-        return;
-      }
-    }
-    setConfirmModal({
-      isOpen: true,
-      title: '현장 가동 상태 변경 확인',
-      message: `[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`,
-      confirmText: '확인',
-      isDanger: false,
-      onConfirm: async () => {
-        try {
-          await saveSiteMaster({ id: site.id, isActive: targetStatus });
-          showToast(`[${site.name}] 현장이 ${targetStatus ? '가동중' : '완공/종료'} 상태로 변경되었습니다.`);
-        } catch (err: any) {
-          showErrorModal('상태 변경 실패: ' + err.message);
-        }
-      }
-    });
-  };
-
-  const handleDeleteSite = (site: any) => {
-    const linkedCustomerSites = (sites || []).filter((s: any) => s.siteMasterId === site.id);
-    const matchingSiteIds = new Set([site.id, ...linkedCustomerSites.map((s: any) => s.id)]);
-
-    // 1. 계약 이력 전수 검사 (진행중 및 종료된 과거 계약 전체 포함)
-    const allSiteContracts = (contracts || []).filter((c: any) => matchingSiteIds.has(c.siteId));
-    const activeContracts = allSiteContracts.filter((c: any) => c.status === 'ACTIVE' || c.status === 'EXTENDED');
-
-    if (allSiteContracts.length > 0) {
-      const sampleContract = allSiteContracts[0];
-      const sampleCust = (customers || []).find((cu: any) => cu.id === sampleContract.customerId);
-      const canCloseNow = site.isActive !== false && activeContracts.length === 0;
-
-      setConfirmModal({
-        isOpen: true,
-        title: '현장 삭제 불가 (계약 이력 존재)',
-        message:
-          `[${site.name}] 현장은 계약 이력이 존재하여 삭제할 수 없습니다.\n\n` +
-          `■ 삭제 불가 사유:\n` +
-          `• 누적 계약 이력: 총 ${allSiteContracts.length}건 (진행중 ${activeContracts.length}건 / 종료 ${allSiteContracts.length - activeContracts.length}건)\n` +
-          `• 대표 계약: ${sampleContract.contractNo || sampleContract.id}${sampleCust ? ` (${sampleCust.name})` : ''}\n` +
-          `• 회계 정산 및 출고·배차·청구 이력 보존을 위해 계약이 한 번이라도 체결된 현장은 영구 삭제가 제한됩니다.\n\n` +
-          (canCloseNow
-            ? `현재 진행 중인 계약이 없으므로 삭제 대신 [현장 완공(종료) 처리]를 권장합니다.\n지금 바로 해당 현장을 완공(종료) 처리하시겠습니까?`
-            : activeContracts.length > 0
-              ? `진행 중인 계약(${activeContracts.length}건)이 모두 종료된 후 삭제 대신 [현장 완공(종료) 처리] 기능을 이용해 주십시오.`
-              : `해당 현장은 이미 완공(종료) 처리되어 보관 중입니다.`),
-        confirmText: canCloseNow ? '현장 완공(종료) 처리' : '확인',
-        hideCancel: !canCloseNow,
-        isDanger: false,
-        onConfirm: async () => {
-          if (canCloseNow) {
-            try {
-              await saveSiteMaster({ id: site.id, isActive: false });
-              showToast(`[${site.name}] 현장이 완공/종료 상태로 변경되었습니다.`);
-            } catch (err: any) {
-              showErrorModal('상태 변경 실패: ' + err.message);
-            }
-          }
-        }
-      });
-      return;
-    }
-
-    // 2. 투입 장비 검사
-    const linkedAssets = (assets || []).filter((a: any) => matchingSiteIds.has(a.currentSiteId));
-    if (linkedAssets.length > 0) {
-      showNoticeModal(
-        `[${site.name}] 현장에 현재 배정된 장비가 ${linkedAssets.length}대 존재하여 삭제할 수 없습니다.\n장비 배정을 먼저 해제하거나 [현장 완공(종료) 처리]를 이용해 주십시오.`,
-        '현장 삭제 불가'
-      );
-      return;
-    };
-
-    // 3. 계약 이력이 전혀 없는 현장 삭제 확인
-    setConfirmModal({
-      isOpen: true,
-      title: '현장 삭제 확인',
-      message: `[${site.name}] 현장을 영구 삭제하시겠습니까?\n\n• 연결된 계약 이력: 0건\n• 삭제 후에는 복구할 수 없습니다.${linkedCustomerSites.length > 0 ? `\n• 고객사 현장 연결(${linkedCustomerSites.length}건)도 함께 정리됩니다.` : ''}`,
-      confirmText: '현장 삭제',
-      hideCancel: false,
-      isDanger: true,
-      onConfirm: async () => {
-        try {
-          const remaining = filteredSites.filter((s: any) => s.id !== site.id);
-          await deleteSiteMaster(site.id);
-          setSelectedSiteId(remaining.length > 0 ? remaining[0].id : '');
-          showToast(`[${site.name}] 현장이 삭제되었습니다.`);
-        } catch (err: any) {
-          showErrorModal('현장 삭제 실패: ' + err.message);
-        }
-      }
-    });
-  };
-  const handleOpenEditMaster = (site: any) => {
-    setEditSiteMasterForm({ id: site.id, name: site.name || '', address: isMissingSiteAddress(site.address) ? '' : (site.address || '') });
-    setShowEditSiteMasterModal(true);
-  };
-  const handleSaveEditMaster = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanName = (editSiteMasterForm.name || '').trim();
-    const cleanAddr = sanitizeSiteAddressInput(editSiteMasterForm.address);
-    if (!cleanName) {
-      showErrorModal('현장명을 입력해주세요.');
-      return;
-    }
-    if (!cleanAddr) {
-      showErrorModal('현장 주소를 입력해주세요. (수동 등록/수정 시 현장 주소는 필수입니다)');
-      return;
-    }
-    try {
-      await saveSiteMaster({ id: editSiteMasterForm.id, name: cleanName, address: cleanAddr });
-      setShowEditSiteMasterModal(false);
-      showToast('현장 마스터 정보가 수정되었습니다.');
-    } catch (err: any) {
-      showErrorModal('저장 실패: ' + err.message);
-    }
-  };
-  const [quickSiteForm, setQuickSiteForm] = useState({ customerId: '', name: '', address: '' });
-
-  const handleSaveQuickSite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const rawName = (quickSiteForm.name || '').trim();
-    const rawAddr = sanitizeSiteAddressInput(quickSiteForm.address);
-    if (!rawName) {
-      showErrorModal('현장명을 입력해주세요.');
-      return;
-    }
-    if (!rawAddr) {
-      showErrorModal('현장 주소를 입력해주세요.\n신규 현장 등록 시 현장 주소는 공란으로 비워둘 수 없습니다.');
-      return;
-    }
-
-    const { matched: duplicate, matchReason } = findMatchingSiteMaster(siteMasters || [], rawName, rawAddr);
-    if (duplicate) {
-      showErrorModal(
-        matchReason === 'NAME'
-          ? `동일한 이름의 현장이 이미 등록되어 있습니다.\n\n• 입력 현장명: [${rawName}]\n• 기존 등록 현장: [${duplicate.name}] (${duplicate.address || '주소 미등록'})\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 제한됩니다. 기존 현장을 검색하여 활용해 주세요.`
-          : `동일한 상세 주소의 현장이 이미 등록되어 있습니다.\n\n• 입력 현장: [${rawName}] (${rawAddr})\n• 기존 등록 현장: [${duplicate.name}] (${duplicate.address})\n\n현장명 오타나 표기 차이로 인한 중복 현장 생성을 방지하기 위해 등록이 제한됩니다. 기존 현장을 검색하여 활용해 주세요.`
-      );
-      return;
-    }
-
-    try {
-      const newSite: Partial<SiteMaster> = {
-        name: rawName,
-        address: rawAddr,
-        isActive: true
-      };
-      await saveSiteMaster(newSite);
-      showToast(`[${newSite.name}] 현장이 등록되었습니다.`);
-      setShowQuickSiteModal(false);
-      setQuickSiteForm({ customerId: '', name: '', address: '' });
-      await fullRefreshFromServer();
-    } catch (err: any) {
-      showErrorModal(`현장 등록 오류: ${err?.message || err}`);
-    }
-  };
-
+  // 연결된 고객현장에 옵션 변경사항 일괄 전파 여부 (기본 true)
+  const [propagateToLinkedSites, setPropagateToLinkedSites] = useState(true);
 
   // --- Master Option Sort ---
   type SortKey = keyof StandardOption;
   const [masterSortConfig, setMasterSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' | null }>({ key: 'sortOrder', direction: null });
 
   const sortedStandardOptions = useMemo(() => {
-    let sorted = [...(standardOptions || [])];
+    const sorted = [...(standardOptions || [])];
     if (masterSortConfig.direction !== null) {
       sorted.sort((a: any, b: any) => {
         let valA: any = a[masterSortConfig.key];
@@ -359,7 +67,6 @@ export const SiteOptionManage: React.FC = () => {
     }
     setMasterSortConfig({ key, direction });
   };
-  // --------------------------
 
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
 
@@ -368,34 +75,30 @@ export const SiteOptionManage: React.FC = () => {
     if (navigationPayload) {
       if (navigationPayload.siteId) {
         setSelectedSiteId(navigationPayload.siteId);
-        const targetSite = (siteMasters || []).find((s: any) => s.id === navigationPayload.siteId);
-        if (targetSite) {
-        }
-      } else if (navigationPayload.customerId) {
       }
       if (navigationPayload.tab === 'MASTER_OPTIONS') {
         setActiveTab('MASTER_OPTIONS');
       }
       setNavigationPayload(null);
     }
-  }, [navigationPayload, siteMasters, setNavigationPayload]);
+  }, [navigationPayload, setNavigationPayload]);
 
-  // 3. 토스트 알림
+  // 토스트 알림
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // 4. 선택된 현장의 옵션 작업대 편집 상태 (SiteOptionItem[])
+  // 선택된 옵션 그룹의 작업대 편집 상태 (SiteOptionItem[])
   const [workingOptionItems, setWorkingOptionItems] = useState<SiteOptionItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 5. 옵션 품목 마스터 신규/수정 모달 상태
+  // 옵션 품목 마스터 신규/수정 모달 상태
   const [showMasterModal, setShowMasterModal] = useState(false);
   const [editingMasterOption, setEditingMasterOption] = useState<Partial<StandardOption> | null>(null);
 
-  // 6. 확인 대화상자 모달 상태 (헌장 5.2 window.confirm 전면 퇴출)
+  // 확인 대화상자 모달 상태
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -414,7 +117,7 @@ export const SiteOptionManage: React.FC = () => {
     onConfirm: () => {}
   });
 
-  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 ──
   const customerMap = useMemo(() => {
     const map = new Map<string, Customer>();
     (customers || []).forEach((c: Customer) => map.set(c.id, c));
@@ -438,126 +141,178 @@ export const SiteOptionManage: React.FC = () => {
     return map;
   }, [sites]);
 
-  const contractsBySiteMap = useMemo(() => {
-    const map = new Map<string, any[]>();
-    (contracts || []).forEach((c: any) => {
-      if (!c.siteId) return;
-      const list = map.get(c.siteId);
-      if (list) list.push(c);
-      else map.set(c.siteId, [c]);
-    });
-    return map;
-  }, [contracts]);
-
-  // ── 🏢 각 현장(SiteMaster)별 사용 중인 고객사 및 진행 계약 집계 ──
+  // ── 🏢 각 옵션 그룹(SiteMaster)별 상속받은 고객현장 집계 ──
   const siteCustomerStatsMap = useMemo(() => {
     const stats: Record<string, {
-      activeCustomerCount: number;
-      activeCustomerNames: string[];
-      activeContractCount: number;
-      totalLinkedCustomerCount: number;
+      linkedSiteCount: number;
+      linkedSiteLabels: string[];
       linkedCustomerNames: string[];
     }> = {};
 
-    (siteMasters || []).forEach((sm: any) => {
-      // 1. 해당 물리 현장과 연결된 CustomerSite 목록 (O(1) 조회)
+    (siteMasters || []).forEach((sm: SiteMaster) => {
       const linkedSites = sitesByMasterMap.get(sm.id) || [];
-      const siteIds = [sm.id, ...linkedSites.map((s: any) => s.id)];
-
-      // 2. 연결된 전체 고객사
-      const linkedCustIds = Array.from(new Set(linkedSites.map((s: any) => s.customerId).filter(Boolean)));
-      const linkedCustNames = linkedCustIds.map((cid: string) => customerMap.get(cid)?.name || cid);
-
-      // 3. 진행 중인(ACTIVE / EXTENDED) 계약 (O(1) 사이트별 인덱스 조회)
-      const relActiveContracts: any[] = [];
-      for (const sid of siteIds) {
-        const siteContracts = contractsBySiteMap.get(sid);
-        if (siteContracts) {
-          for (const c of siteContracts) {
-            if (c.status === 'ACTIVE' || c.status === 'EXTENDED') {
-              relActiveContracts.push(c);
-            }
-          }
-        }
-      }
-
-      // 4. 현재 실질적으로 투입/사용 중인 고객사
-      const activeCustIds = Array.from(new Set(relActiveContracts.map((c: any) => c.customerId).filter(Boolean)));
-      const activeCustNames = activeCustIds.map((cid: string) => customerMap.get(cid)?.name || cid);
+      const linkedCustIds = Array.from(new Set(linkedSites.map(s => s.customerId).filter((cid): cid is string => Boolean(cid))));
+      const linkedCustNames = linkedCustIds.map(cid => customerMap.get(cid)?.name || cid);
+      const linkedSiteLabels = linkedSites.map(s => {
+        const custName = s.customerId ? customerMap.get(s.customerId)?.name : undefined;
+        return custName ? `${custName}(${s.name || ''})` : (s.name || '');
+      });
 
       stats[sm.id] = {
-        activeCustomerCount: activeCustIds.length,
-        activeCustomerNames: activeCustNames,
-        activeContractCount: relActiveContracts.length,
-        totalLinkedCustomerCount: linkedCustIds.length,
+        linkedSiteCount: linkedSites.length,
+        linkedSiteLabels,
         linkedCustomerNames: linkedCustNames,
       };
     });
 
     return stats;
-  }, [siteMasters, sitesByMasterMap, contractsBySiteMap, customerMap]);
+  }, [siteMasters, sitesByMasterMap, customerMap]);
 
-  const missingAddressSiteCount = useMemo(() => {
-    return (siteMasters || []).filter((s: any) => isMissingSiteAddress(s.address)).length;
-  }, [siteMasters]);
-
-  // ── 🎯 필터링된 고객 현장 목록 ──
+  // ── 🎯 필터링된 옵션 그룹 목록 ──
   const filteredSites = useMemo(() => {
     const kw = searchSiteKeyword.trim();
     const matcher = kw ? createHangulMatcher(kw) : null;
 
-    return (siteMasters || []).filter((s: any) => {
-      const sActive = s.isActive !== false;
-      const stats = siteCustomerStatsMap[s.id];
-      const activeCustCount = stats?.activeCustomerCount || 0;
-
-      if (siteStatusFilter === 'ACTIVE' && !sActive) return false;
-      if (siteStatusFilter === 'MISSING_ADDRESS' && !isMissingSiteAddress(s.address)) return false;
-      if (siteStatusFilter === 'COMPLETED' && sActive) return false;
-      if (siteStatusFilter === 'READY_TO_CLOSE') {
-        if (!sActive || activeCustCount > 0) return false;
-      }
+    return (siteMasters || []).filter((s: SiteMaster) => {
       if (matcher) {
-        const matchNameOrAddr = matcher(s.name) || matcher(s.address);
-        const matchCust = matchNameOrAddr ||
-          (stats?.linkedCustomerNames || []).some(cn => matcher(cn)) ||
-          (stats?.activeCustomerNames || []).some(cn => matcher(cn));
-        if (!matchCust) return false;
+        const stats = siteCustomerStatsMap[s.id];
+        const matchName = matcher(s.name || '');
+        const matchOpt = matcher(s.paidOptions || '') || matcher(s.protection || '') || matcher(s.attachments || '');
+        const matchCust = (stats?.linkedCustomerNames || []).some(cn => matcher(cn)) ||
+          (stats?.linkedSiteLabels || []).some(sl => matcher(sl));
+        if (!matchName && !matchOpt && !matchCust) return false;
       }
       return true;
-    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [siteMasters, siteStatusFilter, searchSiteKeyword, siteCustomerStatsMap]);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+  }, [siteMasters, searchSiteKeyword, siteCustomerStatsMap]);
 
-  // 첫 번째 현장 자동 선택
+  // 첫 번째 옵션 그룹 자동 선택
   useEffect(() => {
     if (!selectedSiteId && filteredSites.length > 0) {
+      setSelectedSiteId(filteredSites[0].id);
+    } else if (selectedSiteId && filteredSites.length > 0 && !filteredSites.some(s => s.id === selectedSiteId)) {
       setSelectedSiteId(filteredSites[0].id);
     }
   }, [filteredSites, selectedSiteId]);
 
-  // 선택된 현장 객체
+  // 선택된 옵션 그룹 객체
   const activeSite = useMemo(() => {
     return siteMasterMap.get(selectedSiteId) || null;
   }, [siteMasterMap, selectedSiteId]);
 
-  // ── 🔄 현장 선택 시 옵션품목마스터에서 옵션값 상속 동기화 ──
+  // ── 🔄 옵션 그룹 선택 시 옵션품목마스터에서 옵션값 로드 ──
   useEffect(() => {
     if (!activeSite) {
       setWorkingOptionItems([]);
       return;
     }
 
-    // 마스터(StandardOption) 풀에서 항목들을 상속받고, 현장 저장값 매핑
     const inherited = inheritOptionsFromMaster(
       activeSite.id,
       standardOptions || [],
       activeSite.paidOptions,
       activeSite.protection,
-      activeSite.checkedSpecs
+      activeSite.checkedSpecs,
+      activeSite.attachments
     );
 
     setWorkingOptionItems(inherited);
   }, [activeSite, standardOptions]);
+
+  // ── 옵션 그룹 등록/수정/삭제 핸들러 ──
+  const handleSaveQuickSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const rawName = (quickSiteForm.name || '').trim();
+    if (!rawName) {
+      showErrorModal('현장명(옵션 그룹명)을 입력해주세요.');
+      return;
+    }
+
+    const normalizedInput = rawName.replace(/\s+/g, '').toLowerCase();
+    const duplicate = (siteMasters || []).find(
+      m => (m.name || '').replace(/\s+/g, '').toLowerCase() === normalizedInput
+    );
+    if (duplicate) {
+      showErrorModal(`동일한 이름의 옵션 그룹이 이미 등록되어 있습니다.\n\n• 기존 그룹명: [${duplicate.name}]`);
+      return;
+    }
+
+    try {
+      const created = await saveSiteMaster({
+        name: rawName,
+        isActive: true,
+        paidOptions: '',
+        protection: 'NONE',
+        attachments: '',
+        checkedSpecs: {}
+      });
+      if (created?.id) {
+        setSelectedSiteId(created.id);
+      }
+      showToast(`[${rawName}] 옵션 그룹이 등록되었습니다.`);
+      setShowQuickSiteModal(false);
+      setQuickSiteForm({ name: '' });
+      await fullRefreshFromServer();
+    } catch (err: any) {
+      showErrorModal(`옵션 그룹 등록 오류: ${err?.message || err}`);
+    }
+  };
+
+  const handleOpenEditMaster = (site: SiteMaster) => {
+    setEditSiteMasterForm({ id: site.id, name: site.name || '' });
+    setShowEditSiteMasterModal(true);
+  };
+
+  const handleSaveEditMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = (editSiteMasterForm.name || '').trim();
+    if (!cleanName) {
+      showErrorModal('현장명(옵션 그룹명)을 입력해주세요.');
+      return;
+    }
+    const normalizedInput = cleanName.replace(/\s+/g, '').toLowerCase();
+    const duplicate = (siteMasters || []).find(
+      m => m.id !== editSiteMasterForm.id && (m.name || '').replace(/\s+/g, '').toLowerCase() === normalizedInput
+    );
+    if (duplicate) {
+      showErrorModal(`동일한 이름의 옵션 그룹이 이미 존재합니다: [${duplicate.name}]`);
+      return;
+    }
+
+    try {
+      await saveSiteMaster({ id: editSiteMasterForm.id, name: cleanName });
+      setShowEditSiteMasterModal(false);
+      showToast('옵션 그룹명이 수정되었습니다.');
+    } catch (err: any) {
+      showErrorModal('저장 실패: ' + err.message);
+    }
+  };
+
+  const handleDeleteSite = (site: SiteMaster) => {
+    const linkedCustomerSites = sitesByMasterMap.get(site.id) || [];
+    setConfirmModal({
+      isOpen: true,
+      title: '옵션 그룹 삭제 확인',
+      message:
+        `[${site.name}] 옵션 그룹을 삭제하시겠습니까?\n\n` +
+        (linkedCustomerSites.length > 0
+          ? `• 현재 이 그룹을 상속 연결 중인 고객현장(${linkedCustomerSites.length}곳)의 그룹 연결이 해제되며, 고객현장에 이미 복사된 옵션과 현장 정보는 안전하게 그대로 유지됩니다.`
+          : `• 현재 연결된 고객현장: 0곳`),
+      confirmText: '옵션 그룹 삭제',
+      hideCancel: false,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          const remaining = filteredSites.filter(s => s.id !== site.id);
+          await deleteSiteMaster(site.id);
+          setSelectedSiteId(remaining.length > 0 ? remaining[0].id : '');
+          showToast(`[${site.name}] 옵션 그룹이 삭제되었습니다.`);
+        } catch (err: any) {
+          showErrorModal('옵션 그룹 삭제 실패: ' + err.message);
+        }
+      }
+    });
+  };
 
   // ── 💡 옵션 적용 여부 토글 핸들러 ──
   const handleToggleOption = (optionId: string) => {
@@ -578,7 +333,6 @@ export const SiteOptionManage: React.FC = () => {
       const isNoneBtn = targetItem.name.toUpperCase().includes('NONE') || targetItem.name.includes('보양 없음') || targetItem.name.includes('보양없음');
 
       if (isNoneBtn) {
-        // 'NONE (보양 없음)' 클릭 시: 다른 모든 보양을 끄고 NONE 활성화
         return prev.map(item => {
           if (item.category === 'PROTECTION') {
             const isThisNone = item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음');
@@ -588,9 +342,6 @@ export const SiteOptionManage: React.FC = () => {
         });
       }
 
-      // 일반 보양 항목 토글 시:
-      // 1. 해당 항목의 isEnabled를 반전
-      // 2. NONE 항목은 비활성화
       const updated = prev.map(item => {
         if (item.category === 'PROTECTION') {
           const isThisNone = item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음');
@@ -604,7 +355,6 @@ export const SiteOptionManage: React.FC = () => {
         return item;
       });
 
-      // 만약 선택된 일반 보양이 하나도 없다면 자동으로 NONE 활성화
       const anyActive = updated.some(item => 
         item.category === 'PROTECTION' && 
         !(item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음')) && 
@@ -625,7 +375,7 @@ export const SiteOptionManage: React.FC = () => {
     });
   };
 
-  // ── 💰 현장 특약 단가 변경 핸들러 ──
+  // ── 💰 특약 단가 변경 핸들러 ──
   const handlePriceChange = (optionId: string, newPrice: number) => {
     setWorkingOptionItems(prev => prev.map(item => {
       if (item.optionId === optionId) {
@@ -645,7 +395,7 @@ export const SiteOptionManage: React.FC = () => {
     }));
   };
 
-  // ── 📝 현장 메모 변경 핸들러 ──
+  // ── 📝 메모 변경 핸들러 ──
   const handleNoteChange = (optionId: string, note: string) => {
     setWorkingOptionItems(prev => prev.map(item => {
       if (item.optionId === optionId) {
@@ -661,6 +411,8 @@ export const SiteOptionManage: React.FC = () => {
     paidEnabledOptions,
     protectionOptions,
     protectionEnabledDisplay,
+    attachmentDisabledOptions,
+    attachmentEnabledOptions,
     specDisabledOptions,
     specEnabledOptions,
     monthlyPaidFeeTotal
@@ -669,6 +421,8 @@ export const SiteOptionManage: React.FC = () => {
     const paidEnabled: SiteOptionItem[] = [];
     const protection: SiteOptionItem[] = [];
     const protectionEnabledNames: string[] = [];
+    const attachmentDisabled: SiteOptionItem[] = [];
+    const attachmentEnabled: SiteOptionItem[] = [];
     const specDisabled: SiteOptionItem[] = [];
     const specEnabled: SiteOptionItem[] = [];
     let paidSum = 0;
@@ -686,6 +440,12 @@ export const SiteOptionManage: React.FC = () => {
         if (item.isEnabled) {
           protectionEnabledNames.push(item.name);
         }
+      } else if (item.category === 'ATTACHMENT') {
+        if (item.isEnabled) {
+          attachmentEnabled.push(item);
+        } else {
+          attachmentDisabled.push(item);
+        }
       } else if (item.category === 'SPEC') {
         if (item.isEnabled) {
           specEnabled.push(item);
@@ -700,13 +460,15 @@ export const SiteOptionManage: React.FC = () => {
       paidEnabledOptions: paidEnabled,
       protectionOptions: protection,
       protectionEnabledDisplay: protectionEnabledNames.join(', ') || 'NONE',
+      attachmentDisabledOptions: attachmentDisabled,
+      attachmentEnabledOptions: attachmentEnabled,
       specDisabledOptions: specDisabled,
       specEnabledOptions: specEnabled,
       monthlyPaidFeeTotal: paidSum
     };
   }, [workingOptionItems]);
 
-  // ── 💾 현장 옵션 설정 저장 ──
+  // ── 💾 옵션 그룹 설정 저장 ──
   const handleSaveSiteOptions = async () => {
     if (!activeSite) return;
     setIsSaving(true);
@@ -717,7 +479,7 @@ export const SiteOptionManage: React.FC = () => {
         .map(item => item.name)
         .join(', ');
 
-      // 2. 보양작업 문자열 요약 (복수 선택 지원)
+      // 2. 무상옵션(보양) 문자열 요약
       const protItems = workingOptionItems.filter(item => 
         item.category === 'PROTECTION' && 
         item.isEnabled && 
@@ -725,7 +487,13 @@ export const SiteOptionManage: React.FC = () => {
       );
       const protName = protItems.length > 0 ? protItems.map(item => item.name).join(', ') : 'NONE';
 
-      // 3. 요구사양 맵 요약
+      // 3. 부착물 문자열 요약
+      const attachmentNames = workingOptionItems
+        .filter(item => item.category === 'ATTACHMENT' && item.isEnabled)
+        .map(item => item.name)
+        .join(', ');
+
+      // 4. 현장요구사양 맵 요약
       const specsMap: Record<string, boolean> = {};
       workingOptionItems
         .filter(item => item.category === 'SPEC' && item.isEnabled)
@@ -733,19 +501,29 @@ export const SiteOptionManage: React.FC = () => {
           specsMap[item.optionId] = true;
         });
 
-      // CustomerSite 객체에 옵션값 100% 동기화 저장
-      await saveSiteMaster({
-        ...activeSite,
-        paidOptions: paidNames,
-        protection: protName,
-        checkedSpecs: specsMap,
-        updatedAt: new Date().toISOString()
-      });
+      const linkedCount = (sitesByMasterMap.get(activeSite.id) || []).length;
 
-      showToast(`현장 [${activeSite.name}] 옵션 설정이 저장되었습니다.`);
+      await saveSiteMaster(
+        {
+          id: activeSite.id,
+          name: activeSite.name,
+          paidOptions: paidNames,
+          protection: protName,
+          attachments: attachmentNames,
+          checkedSpecs: specsMap,
+          updatedAt: new Date().toISOString()
+        },
+        { propagateToLinkedSites }
+      );
+
+      showToast(
+        propagateToLinkedSites && linkedCount > 0
+          ? `[${activeSite.name}] 옵션 그룹 저장 및 연결된 고객현장 ${linkedCount}곳에 옵션이 일괄 반영되었습니다.`
+          : `[${activeSite.name}] 옵션 그룹 설정이 저장되었습니다.`
+      );
       await fullRefreshFromServer();
     } catch (err: any) {
-      showErrorModal(`현장 옵션 저장 실패: ${err?.message || err}`);
+      showErrorModal(`옵션 그룹 저장 실패: ${err?.message || err}`);
     } finally {
       setIsSaving(false);
     }
@@ -753,18 +531,18 @@ export const SiteOptionManage: React.FC = () => {
 
   // ── 📥 엑셀 내보내기 ──
   const handleExportExcel = () => {
-      const rows = filteredSites.map(s => {
-        return {
-          "현장명": s.name,
-          '현장주소': s.address || '-',
-          '유상옵션': s.paidOptions || '미지정',
-          '무상옵션': s.protection || 'NONE',
-          '사용고객수': `${siteCustomerStatsMap[s.id]?.activeCustomerCount || 0}개사`,
-          '진행계약수': `${siteCustomerStatsMap[s.id]?.activeContractCount || 0}건`,
-          '사용고객목록': siteCustomerStatsMap[s.id]?.activeCustomerNames?.join(', ') || '-',
-        };
+    const rows = filteredSites.map(s => {
+      const stats = siteCustomerStatsMap[s.id];
+      return {
+        '현장명(옵션그룹명)': s.name,
+        '유상옵션': s.paidOptions || '미지정',
+        '무상옵션': s.protection || 'NONE',
+        '부착물': s.attachments || '미지정',
+        '상속현장수': `${stats?.linkedSiteCount || 0}곳`,
+        '상속고객현장목록': stats?.linkedSiteLabels?.join(', ') || '-',
+      };
     });
-    exportToExcel(rows, `현장별옵션대장_${new Date().toISOString().split('T')[0]}`);
+    exportToExcel(rows, `현장별옵션그룹_${new Date().toISOString().split('T')[0]}`);
   };
 
   // ── 🏷️ 옵션 품목 마스터 저장 (신규/수정) ──
@@ -798,26 +576,27 @@ export const SiteOptionManage: React.FC = () => {
     }
   };
 
-  // --- Keyboard Shortcuts (Harden) ---
+  // --- Keyboard Shortcuts ---
   useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-  if (showMasterModal) setShowMasterModal(false);
-  }
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-  e.preventDefault();
-  if (showMasterModal) {
-  const mockEvent = { preventDefault: () => {} } as React.FormEvent;
-  handleSaveMasterOption(mockEvent);
-  } else {
-  handleSaveSiteOptions();
-  }
-  }
-  };
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
-  // -----------------------------------
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showMasterModal) setShowMasterModal(false);
+        if (showQuickSiteModal) setShowQuickSiteModal(false);
+        if (showEditSiteMasterModal) setShowEditSiteMasterModal(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (showMasterModal) {
+          const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+          handleSaveMasterOption(mockEvent);
+        } else {
+          handleSaveSiteOptions();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMasterModal, showQuickSiteModal, showEditSiteMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
 
   return (
     <div data-hs-observe="siteoptionmanage" 
@@ -825,15 +604,14 @@ export const SiteOptionManage: React.FC = () => {
       data-subview-title="현장별 옵션 관리"
       style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
-      
-      {/* 현장 기본정보 수정 모달 */}
+      {/* 옵션 그룹명 수정 모달 (주소 필드 없음) */}
       {showEditSiteMasterModal && (
         <div className="modal-overlay" onClick={() => setShowEditSiteMasterModal(false)} style={{ zIndex: 10000 }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Edit3 size={16} />
-                현장 기본정보(명칭/주소) 수정
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} color="var(--primary)" />
+                현장명(옵션 그룹명) 수정
               </h3>
               <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
@@ -841,94 +619,33 @@ export const SiteOptionManage: React.FC = () => {
             </div>
             
             <form onSubmit={handleSaveEditMaster} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ fontSize: '12px', color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', padding: '10px', borderRadius: '6px', fontWeight: 600 }}>
-                주의: 이 마스터 정보를 수정하면, 이 현장을 참조하는 모든 고객사 및 계약서의 주소록까지 전역 변경됩니다.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 (옵션 그룹명) *</label>
+                <input
+                  required
+                  type="text"
+                  value={editSiteMasterForm.name}
+                  onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, name: e.target.value })}
+                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
+                />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 *</label>
-                <input required type="text" value={editSiteMasterForm.name} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, name: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장 주소 *</label>
-                <input required type="text" placeholder="예: 경기 평택시 고덕면 여염리 123" value={editSiteMasterForm.address} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, address: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
-              </div>
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
-                <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: '#f59e0b', border: '1px solid #f59e0b', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', border: '1px solid var(--primary)', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
               </div>
             </form>
           </div>
         </div>
       )}
-      
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-            현장별 옵션 관리
-          </h2>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            총 <strong>{siteMasters?.length || 0}</strong>개소 (조회 <strong>{filteredSites.length}</strong>개소)
-          </span>
-          {missingAddressSiteCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setSiteStatusFilter(siteStatusFilter === 'MISSING_ADDRESS' ? 'ALL' : 'MISSING_ADDRESS')}
-              style={{
-                fontSize: '11.5px',
-                fontWeight: 800,
-                padding: '3px 9px',
-                borderRadius: '6px',
-                border: '1px solid rgba(245, 158, 11, 0.5)',
-                backgroundColor: siteStatusFilter === 'MISSING_ADDRESS' ? '#d97706' : 'rgba(245, 158, 11, 0.14)',
-                color: siteStatusFilter === 'MISSING_ADDRESS' ? '#ffffff' : '#b45309',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              title="클릭 시 주소 미등록 현장만 필터링합니다."
-            >
-              ⚠️ 주소 미등록 {missingAddressSiteCount}개소
-            </button>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {isDeveloper && (
-            <>
-              {selectedSiteId && (
-                 <button
-                   className="btn-secondary"
-                   onClick={() => handleOpenEditMaster((siteMasters || []).find((s: any) => s.id === selectedSiteId))}
-                   style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
-                 >
-                   🛠️ 선택 현장 마스터 수정
-                 </button>
-              )}
-              <button
-                className="btn-secondary"
-                onClick={() => setShowDevMergeModal(true)}
-                style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
-              >
-                🛠️ 중복 현장 병합
-              </button>
-            </>
-          )}
-          
-        </div>
-      </div>
 
-      {showDevMergeModal && (
-        <DeveloperSiteMergeModal onClose={() => setShowDevMergeModal(false)} />
-      )}
-
+      {/* 신규 옵션 그룹 등록 모달 (주소 필드 없음) */}
       {showQuickSiteModal && (
         <div className="modal-overlay" onClick={() => setShowQuickSiteModal(false)} style={{ zIndex: 10000 }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Building2 size={16} color="var(--primary)" />
-                신규 현장 빠른 등록
+                <Layers size={16} color="var(--primary)" />
+                신규 옵션 그룹 등록
               </h3>
               <button type="button" onClick={() => setShowQuickSiteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
@@ -936,33 +653,19 @@ export const SiteOptionManage: React.FC = () => {
             </div>
             
             <form onSubmit={handleSaveQuickSite} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 *</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 (옵션 그룹명) *</label>
                 <input
                   required
                   type="text"
-                  placeholder="예: 여의도 현대백화점 신축공사"
+                  placeholder="예: 삼성반도체 표준옵션 / 현대건설 기본그룹"
                   value={quickSiteForm.name}
-                  onChange={e => setQuickSiteForm({ ...quickSiteForm, name: e.target.value })}
+                  onChange={e => setQuickSiteForm({ name: e.target.value })}
                   style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장 주소 *</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="예: 서울시 영등포구 여의도동 22"
-                  value={quickSiteForm.address}
-                  onChange={e => setQuickSiteForm({ ...quickSiteForm, address: e.target.value })}
-                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button type="button" onClick={() => setShowQuickSiteModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
                 <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', border: '1px solid var(--primary)', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>등록 및 저장</button>
               </div>
@@ -994,6 +697,18 @@ export const SiteOptionManage: React.FC = () => {
         </div>
       )}
 
+      {/* 상단 타이틀 바 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            현장별 옵션 관리
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            옵션 그룹 <strong>{siteMasters?.length || 0}</strong>개 (조회 <strong>{filteredSites.length}</strong>개)
+          </span>
+        </div>
+      </div>
+
       {/* ──────────────────────────────────────────────────────── */}
       {/* 헌장 3.5 Gutenberg Z-패턴: ①좌상단 스코프 & ②우상단 파이프라인 */}
       {/* ──────────────────────────────────────────────────────── */}
@@ -1013,49 +728,17 @@ export const SiteOptionManage: React.FC = () => {
           flexShrink: 0
         }}
       >
-        {/* ① 좌상단 (Start / Scope): 고객사 필터 & 현장 검색 */}
+        {/* ① 좌상단 (Start / Scope): 옵션 그룹 검색 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
-
-          
-          {/* 현장 상태 필터 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              상태 필터
-            </span>
-            <select data-mid="site-status-filter"
-              value={siteStatusFilter}
-              onChange={e => setSiteStatusFilter(e.target.value as any)}
-              style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                outline: 'none',
-                minWidth: '130px'
-              }}
-            >
-              <option value="ACTIVE">진행중 현장</option>
-              <option value="MISSING_ADDRESS">⚠️ 주소 미등록 현장 ({missingAddressSiteCount})</option>
-              <option value="READY_TO_CLOSE">완공 대상 (사용 고객 0개사)</option>
-              <option value="COMPLETED">완공/종료 현장</option>
-              <option value="ALL">전체 현장</option>
-            </select>
-          </div>
-
-          {/* 현장 검색창 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              현장 검색
+              옵션 그룹 검색
             </span>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="현장명, 주소, 거래처"
+                placeholder="현장명(그룹명), 옵션명, 상속고객"
                 value={searchSiteKeyword}
                 onChange={e => setSearchSiteKeyword(e.target.value)}
                 style={{
@@ -1068,16 +751,15 @@ export const SiteOptionManage: React.FC = () => {
                   color: 'var(--text-primary)',
                   fontSize: '12.5px',
                   outline: 'none',
-                  width: '180px'
+                  width: '240px'
                 }}
               />
             </div>
           </div>
         </div>
 
-        {/* ② 우상단 (Input / Pipeline): 2대 탭 전환 & 액션 버튼군 */}
+        {/* ② 우상단 (Input / Pipeline): 탭 전환 & 액션 버튼군 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-          {/* 탭 전환 스위치 */}
           <div 
             data-mid="tab-toggle"
             style={{
@@ -1112,7 +794,6 @@ export const SiteOptionManage: React.FC = () => {
             </button>
           </div>
 
-          {/* 옵션 품목 마스터 버튼 (고객관리에서 이동배치) */}
           <button
             type="button"
             data-mid="btn-option-master-manage"
@@ -1133,38 +814,34 @@ export const SiteOptionManage: React.FC = () => {
               whiteSpace: 'nowrap',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
             }}
-            title="전사 유상옵션 및 무상옵션 표준 품목/단가 관리"
           >
             <Sliders size={13} color="#ffffff" />
             옵션 품목 마스터
           </button>
 
-          
-            {/* 퀵 현장 등록 버튼 */}
-            <button
-              type="button"
-              onClick={() => setShowQuickSiteModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: '34px',
-                padding: '0 12px',
-                borderRadius: '6px',
-                border: '1px solid var(--primary)',
-                backgroundColor: 'var(--primary)',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Plus size={14} />
-              신규 현장 등록
-            </button>
+          <button
+            type="button"
+            onClick={() => setShowQuickSiteModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid var(--primary)',
+              backgroundColor: 'var(--primary)',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Plus size={14} />
+            신규 옵션 그룹 등록
+          </button>
 
-            {/* 엑셀 내보내기 버튼 */}
           <button
             type="button"
             onClick={handleExportExcel}
@@ -1194,11 +871,11 @@ export const SiteOptionManage: React.FC = () => {
       {/* 헌장 3.5 Gutenberg Z-패턴: ③중앙 본문 Body / Inspection */}
       {/* ──────────────────────────────────────────────────────── */}
 
-      {/* ── [탭 1: 현장별 옵션 관리 마스터-디테일 스튜디오] ── */}
+      {/* ── [탭 1: 현장별 옵션 그룹 관리 마스터-디테일 스튜디오] ── */}
       {activeTab === 'SITE_OPTIONS' && (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
-          {/* 좌측: 고객 현장 목록 패널 (320px) */}
+          {/* 좌측: 옵션 그룹 목록 패널 (320px) */}
           <div 
             data-mid="panel-site-scope"
             style={{
@@ -1219,24 +896,42 @@ export const SiteOptionManage: React.FC = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                등록 현장 ({filteredSites.length}개소)
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                옵션 그룹 목록 ({filteredSites.length}개)
               </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 클릭 시 옵션 설정
               </span>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {filteredSites.length === 0 ? (
-                <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                  조회 조건에 부합하는 현장이 없습니다.
+                <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+                  <span>등록된 옵션 그룹이 없습니다.</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickSiteModal(true)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--primary)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + 신규 옵션 그룹 등록
+                  </button>
                 </div>
               ) : (
                 filteredSites.map(site => {
                   const isSelected = site.id === selectedSiteId;
-                  const paidCount = (site.paidOptions || '').split(',').filter(Boolean).length;
+                  const paidCount = (site.paidOptions || '').split(',').map(s => s.trim()).filter(Boolean).length;
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
+                  const specCount = site.checkedSpecs ? Object.values(site.checkedSpecs).filter(Boolean).length : 0;
+                  const linkedCount = siteCustomerStatsMap[site.id]?.linkedSiteCount || 0;
 
                   return (
                     <div
@@ -1268,30 +963,8 @@ export const SiteOptionManage: React.FC = () => {
                         <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
                       </div>
 
-                      {/* 옵션 뱃지 행 */}
+                      {/* 옵션 요약 뱃지 행 */}
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {site.isActive === false && (
-                          <span className="badge badge-secondary" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
-                            완공(종료)
-                          </span>
-                        )}
-
-                        {isMissingSiteAddress(site.address) && (
-                          <span
-                            className="badge"
-                            style={{
-                              fontSize: '10.5px',
-                              fontWeight: 800,
-                              backgroundColor: 'rgba(245, 158, 11, 0.16)',
-                              color: '#b45309',
-                              border: '1px solid rgba(245, 158, 11, 0.5)',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            ⚠️ 주소 미등록
-                          </span>
-                        )}
-
                         <span className={`badge ${paidCount > 0 ? 'badge-primary' : 'badge-secondary'}`} style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                           유상옵션 {paidCount}개
                         </span>
@@ -1299,6 +972,18 @@ export const SiteOptionManage: React.FC = () => {
                         {hasProt && (
                           <span className="badge badge-success" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                             {site.protection}
+                          </span>
+                        )}
+
+                        {specCount > 0 && (
+                          <span className="badge badge-warning" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
+                            요구사양 {specCount}개
+                          </span>
+                        )}
+
+                        {linkedCount > 0 && (
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            상속 {linkedCount}곳
                           </span>
                         )}
                       </div>
@@ -1309,7 +994,7 @@ export const SiteOptionManage: React.FC = () => {
             </div>
           </div>
 
-          {/* 우측: 선택된 현장의 옵션 상속 작업대 (70%) */}
+          {/* 우측: 선택된 옵션 그룹의 옵션 작업대 */}
           <div style={{
             backgroundColor: 'var(--bg-card)',
             borderRadius: '12px',
@@ -1319,12 +1004,28 @@ export const SiteOptionManage: React.FC = () => {
             boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
           }}>
             {!activeSite ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                좌측에서 옵션을 관리할 현장을 선택해주세요.
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <span>좌측에서 옵션 그룹을 선택하거나 [신규 옵션 그룹 등록]으로 자주 사용하는 옵션 구성을 만들어주세요.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickSiteModal(true)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--primary)',
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + 신규 옵션 그룹 등록
+                </button>
               </div>
             ) : (
               <>
-                {/* 상단 현장 정보 바 */}
+                {/* 상단 옵션 그룹 정보 바 */}
                 <div 
                   data-mid="panel-site-header"
                   style={{
@@ -1339,10 +1040,8 @@ export const SiteOptionManage: React.FC = () => {
                 }}>
                   {(() => {
                     const activeStats = siteCustomerStatsMap[activeSite.id] || {
-                      activeCustomerCount: 0,
-                      activeCustomerNames: [],
-                      activeContractCount: 0,
-                      totalLinkedCustomerCount: 0,
+                      linkedSiteCount: 0,
+                      linkedSiteLabels: [],
                       linkedCustomerNames: []
                     };
 
@@ -1350,100 +1049,53 @@ export const SiteOptionManage: React.FC = () => {
                       <>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <Building2 size={17} color="var(--primary)" />
-                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            <Layers size={17} color="var(--primary)" />
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                               {activeSite.name}
                             </h3>
-                            {activeSite.isActive !== false ? (
-                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>가동중</span>
-                            ) : (
-                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>⚫ 종료(완공)</span>
-                            )}
-
-                            {/* 사용 고객 수 표시 뱃지 */}
-                            {activeSite.isActive !== false && (
-                              activeStats.activeCustomerCount > 0 ? (
-                                <span style={{
-                                  fontSize: '11.5px',
-                                  fontWeight: 700,
-                                  color: '#047857',
-                                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}>
-                                  사용 고객 {activeStats.activeCustomerCount}개사 ({activeStats.activeCustomerNames.slice(0, 3).join(', ')}{activeStats.activeCustomerNames.length > 3 ? ` 외 ${activeStats.activeCustomerNames.length - 3}개사` : ''} · 진행 계약 {activeStats.activeContractCount}건)
-                                </span>
-                              ) : (
-                                <span style={{
-                                  fontSize: '11.5px',
-                                  fontWeight: 800,
-                                  color: '#dc2626',
-                                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}>
-                                  ⚠️ 사용 고객 0개사 (진행 계약 없음 · 완공/종료 가능)
-                                </span>
-                              )
-                            )}
+                            <span style={{
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              color: activeStats.linkedSiteCount > 0 ? '#047857' : 'var(--text-muted)',
+                              backgroundColor: activeStats.linkedSiteCount > 0 ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-app)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              상속 고객현장 {activeStats.linkedSiteCount}곳
+                            </span>
                           </div>
 
-                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            {isMissingSiteAddress(activeSite.address) ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <span
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 800,
-                                    color: '#b45309',
-                                    backgroundColor: 'rgba(245, 158, 11, 0.16)',
-                                    border: '1px solid rgba(245, 158, 11, 0.5)',
-                                    padding: '2px 7px',
-                                    borderRadius: '4px',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  ⚠️ 주소 미등록
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditMaster(activeSite)}
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    color: '#ffffff',
-                                    backgroundColor: '#d97706',
-                                    border: 'none',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  주소 입력
-                                </button>
-                              </span>
-                            ) : (
-                              <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {activeSite.address}</span>
-                            )}
-                            {activeStats.totalLinkedCustomerCount > 0 && (
-                              <span style={{ color: 'var(--text-secondary)' }}>
-                                • 등록 고객: {activeStats.linkedCustomerNames.join(', ')} ({activeStats.totalLinkedCustomerCount}개사)
-                              </span>
-                            )}
-                          </div>
+                          {activeStats.linkedSiteCount > 0 && (
+                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                              연결된 고객현장: {activeStats.linkedSiteLabels.slice(0, 5).join(', ')}{activeStats.linkedSiteLabels.length > 5 ? ` 외 ${activeStats.linkedSiteLabels.length - 5}곳` : ''}
+                            </div>
+                          )}
                         </div>
                         
-                        {/* 종결 및 삭제 버튼 영역 */}
+                        {/* 명칭 수정 및 삭제 버튼 영역 */}
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditMaster(activeSite)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <Edit3 size={13} /> 그룹명 수정
+                          </button>
                           <button
                             type="button"
                             data-mid="btn-delete-site"
@@ -1462,42 +1114,9 @@ export const SiteOptionManage: React.FC = () => {
                               gap: '5px',
                               whiteSpace: 'nowrap'
                             }}
-                            title="계약 이력이 없는 현장 삭제"
                           >
-                            <Trash2 size={13} /> 현장 삭제
+                            <Trash2 size={13} /> 그룹 삭제
                           </button>
-                          {activeSite.isActive !== false ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleSiteStatus(activeSite, false)}
-                              style={{
-                                padding: activeStats.activeCustomerCount === 0 ? '7px 14px' : '6px 12px',
-                                fontSize: activeStats.activeCustomerCount === 0 ? '12.5px' : '12px',
-                                fontWeight: 800,
-                                backgroundColor: activeStats.activeCustomerCount === 0 ? '#dc2626' : '#fef2f2',
-                                color: activeStats.activeCustomerCount === 0 ? '#ffffff' : '#dc2626',
-                                border: activeStats.activeCustomerCount === 0 ? 'none' : '1px solid #fecaca',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                whiteSpace: 'nowrap',
-                                boxShadow: activeStats.activeCustomerCount === 0 ? '0 2px 8px rgba(220, 38, 38, 0.3)' : 'none'
-                              }}
-                              title={activeStats.activeCustomerCount === 0 ? '현재 사용중인 고객이 없으므로 완공 처리할 수 있습니다.' : '진행 중인 계약이 있는 현장입니다.'}
-                            >
-                              <PowerOff size={14} /> 현장 완공(종료) 처리
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleSiteStatus(activeSite, true)}
-                              style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-                            >
-                              <Power size={14} /> 현장 가동(진행) 전환
-                            </button>
-                          )}
                         </div>
                       </>
                     );
@@ -1511,131 +1130,123 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="table-paid-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#2563eb" /> 1. 유상 옵션 - 옵션품목마스터 상속
-                      </span>
-                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 추가된 현장 특약 단가 오버라이드 가능
+                        <Shield size={15} color="#2563eb" /> 1. 유상 옵션
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {paidDisabledOptions.map(item => (
-                          <button
-                            key={item.optionId}
-                            type="button"
-                            onClick={() => handleToggleOption(item.optionId)}
-                            style={{
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border-color)',
-                              backgroundColor: 'var(--bg-app)',
-                              color: 'var(--text-primary)',
-                              cursor: 'pointer',
-                              fontWeight: 500,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}
-                          >
-                            + {item.name}
-                          </button>
-                        ))}
-                      </div>
+                      {paidDisabledOptions.map(item => (
+                        <button
+                          key={item.optionId}
+                          type="button"
+                          onClick={() => handleToggleOption(item.optionId)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-app)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          + {item.name}
+                        </button>
+                      ))}
+                    </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                       <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                         <thead>
                           <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                            <th style={{ padding: '8px 10px', width: '60px', textAlign: 'center' }}>적용 해제</th>
-                            <th style={{ padding: '8px 10px', width: '200px' }}>옵션 품목명</th>
-                            <th style={{ padding: '8px 10px', width: '90px' }}>기준단가</th>
-                            <th style={{ padding: '8px 10px', width: '130px' }}>현장 특약단가 (₩)</th>
-                            <th style={{ padding: '8px 10px', width: '70px', textAlign: 'center' }}>필수</th>
-                            <th style={{ padding: '8px 10px' }}>현장 규격 메모</th>
+                            <th style={{ padding: '8px 10px', width: '60px', textAlign: 'center', whiteSpace: 'nowrap' }}>적용 해제</th>
+                            <th style={{ padding: '8px 10px', width: '200px', whiteSpace: 'nowrap' }}>옵션 품목명</th>
+                            <th style={{ padding: '8px 10px', width: '90px', whiteSpace: 'nowrap' }}>기준단가</th>
+                            <th style={{ padding: '8px 10px', width: '130px', whiteSpace: 'nowrap' }}>특약단가 (₩)</th>
+                            <th style={{ padding: '8px 10px', width: '70px', textAlign: 'center', whiteSpace: 'nowrap' }}>필수</th>
+                            <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>규격 메모</th>
                           </tr>
                         </thead>
                         <tbody>
-{paidEnabledOptions.length === 0 ? (
-  <tr>
-    <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-        <div>
-          현장에 추가된 유상 옵션이 없습니다. 상단의 드롭다운에서 등록된 마스터 품목을 선택하여 추가해주세요.
-        </div>
-      </div>
-    </td>
-  </tr>
-) : (
-  paidEnabledOptions.map(item => {
-    return (
-      <tr 
-        key={item.id}
-        style={{
-          borderBottom: '1px solid var(--border-color)',
-          backgroundColor: 'rgba(37, 99, 235, 0.03)'
-        }}
-      >
-        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => handleToggleOption(item.optionId)}
-            style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid #fca5a5', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
-          >
-            제외
-          </button>
-        </td>
-        <td style={{ padding: '8px 10px', fontWeight: 700, color: '#1d4ed8' }}>
-          {item.name}
-        </td>
-        <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>
-          ₩{(item.defaultPrice || 0).toLocaleString()}
-        </td>
-        <td style={{ padding: '8px 10px' }}>
-          <input
-            type="number"
-            value={item.appliedPrice}
-            onChange={e => handlePriceChange(item.optionId, Number(e.target.value))}
-            style={{
-              width: '100px',
-              height: '28px',
-              padding: '0 8px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '11.5px'
-            }}
-          />
-        </td>
-        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-          <input
-            type="checkbox"
-            checked={item.isRequired}
-            onChange={() => handleToggleRequired(item.optionId)}
-            style={{ cursor: 'pointer', width: '15px', height: '15px' }}
-          />
-        </td>
-        <td style={{ padding: '8px 10px' }}>
-          <input
-            type="text"
-            placeholder="현장 특이사항"
-            value={item.note || ''}
-            onChange={e => handleNoteChange(item.optionId, e.target.value)}
-            style={{
-              width: '100%',
-              height: '28px',
-              padding: '0 8px',
-              borderRadius: '4px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '11.5px'
-            }}
-          />
-        </td>
-      </tr>
-    );
-  })
-)}
+                          {paidEnabledOptions.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                추가된 유상 옵션이 없습니다. 상단 항목을 클릭하여 추가해주세요.
+                              </td>
+                            </tr>
+                          ) : (
+                            paidEnabledOptions.map(item => (
+                              <tr 
+                                key={item.id}
+                                style={{
+                                  borderBottom: '1px solid var(--border-color)',
+                                  backgroundColor: 'rgba(37, 99, 235, 0.03)'
+                                }}
+                              >
+                                <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleOption(item.optionId)}
+                                    style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid #fca5a5', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
+                                  >
+                                    제외
+                                  </button>
+                                </td>
+                                <td style={{ padding: '8px 10px', fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                                  {item.name}
+                                </td>
+                                <td style={{ padding: '8px 10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                  ₩{(item.defaultPrice || 0).toLocaleString()}
+                                </td>
+                                <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                                  <input
+                                    type="number"
+                                    value={item.appliedPrice}
+                                    onChange={e => handlePriceChange(item.optionId, Number(e.target.value))}
+                                    style={{
+                                      width: '100px',
+                                      height: '28px',
+                                      padding: '0 8px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--border-color)',
+                                      backgroundColor: 'var(--bg-app)',
+                                      color: 'var(--text-primary)',
+                                      fontSize: '11.5px'
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={item.isRequired}
+                                    onChange={() => handleToggleRequired(item.optionId)}
+                                    style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '8px 10px' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="규격 메모"
+                                    value={item.note || ''}
+                                    onChange={e => handleNoteChange(item.optionId, e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      height: '28px',
+                                      padding: '0 8px',
+                                      borderRadius: '4px',
+                                      border: '1px solid var(--border-color)',
+                                      backgroundColor: 'var(--bg-app)',
+                                      color: 'var(--text-primary)',
+                                      fontSize: '11.5px'
+                                    }}
+                                  />
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1645,39 +1256,37 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#059669" /> 2. 무상 옵션
-                      </span>
-                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 복수 선택 가능 (NONE 선택 시 전체 해제)
+                        <Shield size={15} color="#059669" /> 2. 무상 옵션 (보양)
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {protectionOptions.map(item => (
-                          <button
-                            key={item.optionId}
-                            type="button"
-                            onClick={() => handleToggleProtection(item.optionId)}
-                            style={{
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              borderRadius: '6px',
-                              border: item.isEnabled ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-app)',
-                              color: item.isEnabled ? 'var(--primary)' : 'var(--text-primary)',
-                              cursor: 'pointer',
-                              fontWeight: item.isEnabled ? 700 : 500,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px'
-                            }}
-                          >
-                            {item.isEnabled && <Check size={13} strokeWidth={3} />}
-                            {item.name}
-                          </button>
-                        ))}
-                      </div>
+                      {protectionOptions.map(item => (
+                        <button
+                          key={item.optionId}
+                          type="button"
+                          onClick={() => handleToggleProtection(item.optionId)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: item.isEnabled ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                            backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-app)',
+                            color: item.isEnabled ? 'var(--primary)' : 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontWeight: item.isEnabled ? 700 : 500,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {item.isEnabled && <Check size={13} strokeWidth={3} />}
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* 3. 현장 요구 사양 섹션 */}
@@ -1686,68 +1295,62 @@ export const SiteOptionManage: React.FC = () => {
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양
                       </span>
-                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 안전인증, 경광등, 센서 연동 등 필수 사양 점검
-                      </span>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {specDisabledOptions.map(item => (
-                          <button
-                            key={item.optionId}
-                            type="button"
-                            onClick={() => handleToggleOption(item.optionId)}
-                            style={{
-                              padding: '6px 12px',
-                              fontSize: '12px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border-color)',
-                              backgroundColor: 'var(--bg-app)',
-                              color: 'var(--text-primary)',
-                              cursor: 'pointer',
-                              fontWeight: 500,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                            }}
-                          >
-                            + {item.name}
-                          </button>
-                        ))}
-                      </div>
+                      {specDisabledOptions.map(item => (
+                        <button
+                          key={item.optionId}
+                          type="button"
+                          onClick={() => handleToggleOption(item.optionId)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-app)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          + {item.name}
+                        </button>
+                      ))}
+                    </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-{specEnabledOptions.length === 0 ? (
-  <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <span>현장에 적용된 요구 사양이 없습니다. 상단의 드롭다운에서 등록된 마스터 품목을 선택하여 추가해주세요.</span>
-    </div>
-  </div>
-) : (
-  specEnabledOptions.map(item => {
-    return (
-      <div
-        key={item.id}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '6px 10px 6px 6px', borderRadius: '8px',
-          border: '1.5px solid #d97706',
-          backgroundColor: 'rgba(217, 119, 6, 0.08)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => handleToggleOption(item.optionId)}
-          style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
-          title="사양 제외"
-        >
-          <X size={14} strokeWidth={3} />
-        </button>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>
-          {item.name}
-        </span>
-      </div>
-    );
-  })
-)}
+                      {specEnabledOptions.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
+                          적용된 요구 사양이 없습니다. 상단 항목을 클릭하여 추가해주세요.
+                        </div>
+                      ) : (
+                        specEnabledOptions.map(item => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '6px 10px 6px 6px', borderRadius: '8px',
+                              border: '1.5px solid #d97706',
+                              backgroundColor: 'rgba(217, 119, 6, 0.08)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToggleOption(item.optionId)}
+                              style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                            >
+                              <X size={14} strokeWidth={3} />
+                            </button>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>
+                              {item.name}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -1769,41 +1372,56 @@ export const SiteOptionManage: React.FC = () => {
                     gap: '12px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       적용 유상옵션: <strong>{paidEnabledOptions.length}건</strong>
                     </span>
-                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       무상옵션: <strong>{protectionEnabledDisplay}</strong>
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8' }}>
-                      💰 월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                      월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}
                     </span>
                   </div>
 
-                  <button data-hs-trigger="Save"
-                    type="button"
-                    data-mid="btn-save-site-options"
-                    disabled={isSaving}
-                    onClick={handleSaveSiteOptions}
-                    style={{
-                      padding: '8px 24px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: 'var(--primary)',
-                      color: '#ffffff',
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      cursor: isSaving ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-                    }}
-                  >
-                    <CheckCircle2 size={15} />
-                    {isSaving ? '저장 중...' : '현장 옵션 설정 저장'}
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                    {(siteCustomerStatsMap[activeSite.id]?.linkedSiteCount || 0) > 0 && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <input
+                          type="checkbox"
+                          checked={propagateToLinkedSites}
+                          onChange={e => setPropagateToLinkedSites(e.target.checked)}
+                          style={{ width: '15px', height: '15px', cursor: 'pointer' }}
+                        />
+                        연결된 고객현장({siteCustomerStatsMap[activeSite.id]?.linkedSiteCount || 0}곳)에 옵션 일괄 반영
+                      </label>
+                    )}
+
+                    <button data-hs-trigger="Save"
+                      type="button"
+                      data-mid="btn-save-site-options"
+                      disabled={isSaving}
+                      onClick={handleSaveSiteOptions}
+                      style={{
+                        padding: '8px 24px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: 'var(--primary)',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        cursor: isSaving ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+                      }}
+                    >
+                      <CheckCircle2 size={15} />
+                      {isSaving ? '저장 중...' : '옵션 그룹 저장'}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -1829,11 +1447,8 @@ export const SiteOptionManage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                옵션 품목 마스터 (전사 기준 풀)
+                옵션 품목 마스터
               </h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                여기서 등록 및 관리되는 품목과 기준 단가는 모든 현장에 100% 자동으로 상속됩니다.
-              </p>
             </div>
 
             <button data-hs-trigger="Register"
@@ -1861,7 +1476,8 @@ export const SiteOptionManage: React.FC = () => {
                 color: '#ffffff',
                 fontSize: '12.5px',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
               <Plus size={14} />
@@ -1886,10 +1502,9 @@ export const SiteOptionManage: React.FC = () => {
               <tbody>
                 {sortedStandardOptions.map(opt => {
                   const isPaid = opt.category === 'PAID';
-
-  return (
+                  return (
                     <tr key={opt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '9px 12px' }}>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           padding: '2px 8px',
                           borderRadius: '4px',
@@ -1901,19 +1516,19 @@ export const SiteOptionManage: React.FC = () => {
                           {isPaid ? '유상옵션' : opt.category === 'PROTECTION' ? '무상옵션' : '요구사양'}
                         </span>
                       </td>
-                      <td style={{ padding: '9px 12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <td style={{ padding: '9px 12px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                         {opt.name}
                       </td>
-                      <td style={{ padding: '9px 12px', fontWeight: 700 }}>
+                      <td style={{ padding: '9px 12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                         ₩{(opt.defaultPrice || 0).toLocaleString()}
                       </td>
-                      <td style={{ padding: '9px 12px', color: 'var(--text-secondary)' }}>
+                      <td style={{ padding: '9px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         {opt.unit || '월'}
                       </td>
                       <td style={{ padding: '9px 12px', color: 'var(--text-secondary)' }}>
                         {opt.description || '-'}
                       </td>
-                      <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                      <td style={{ padding: '9px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span style={{
                           fontSize: '11px',
                           fontWeight: 700,
@@ -1922,7 +1537,7 @@ export const SiteOptionManage: React.FC = () => {
                           {opt.isActive ? '사용중' : '중단'}
                         </span>
                       </td>
-                      <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                      <td style={{ padding: '9px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => {
@@ -1982,7 +1597,6 @@ export const SiteOptionManage: React.FC = () => {
               {editingMasterOption.id ? '옵션 품목 마스터 수정' : '신규 옵션 품목 등록'}
             </h3>
 
-            {/* 분류 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
                 옵션 분류 *
@@ -2006,7 +1620,6 @@ export const SiteOptionManage: React.FC = () => {
               </select>
             </div>
 
-            {/* 품목명 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
                 옵션 품목명 *
@@ -2029,7 +1642,6 @@ export const SiteOptionManage: React.FC = () => {
               />
             </div>
 
-            {/* 기준 단가 및 단위 */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -2076,7 +1688,6 @@ export const SiteOptionManage: React.FC = () => {
               </div>
             </div>
 
-            {/* 설명 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
                 품목 설명
@@ -2098,7 +1709,6 @@ export const SiteOptionManage: React.FC = () => {
               />
             </div>
 
-            {/* 사용 여부 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="checkbox"
@@ -2108,81 +1718,83 @@ export const SiteOptionManage: React.FC = () => {
                 style={{ width: '16px', height: '16px' }}
               />
               <label htmlFor="optActive" style={{ fontSize: '12.5px', fontWeight: 700, cursor: 'pointer' }}>
-                전사 현장 상속 풀에 사용 활성화
+                전사 옵션 상속 풀에 사용 활성화
               </label>
             </div>
 
-            {/* 버튼군 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                <div>
-                  {editingMasterOption.id && (
-                    <button
-                      type="button"
-                      data-hs-trigger="Delete"
-                      onClick={() => {
-                        setConfirmModal({
-                          isOpen: true,
-                          title: '옵션 품목 마스터 삭제 확인',
-                          message: '이 옵션 품목 마스터를 삭제하시겠습니까?',
-                          onConfirm: async () => {
-                            try {
-                              await deleteStandardOption(editingMasterOption.id!);
-                              setShowMasterModal(false);
-                              setEditingMasterOption(null);
-                              await fullRefreshFromServer();
-                            } catch (err: any) {
-                              showErrorModal(`삭제 실패: ${err.message}`);
-                            }
+              <div>
+                {editingMasterOption.id && (
+                  <button
+                    type="button"
+                    data-hs-trigger="Delete"
+                    onClick={() => {
+                      setConfirmModal({
+                        isOpen: true,
+                        title: '옵션 품목 마스터 삭제 확인',
+                        message: '이 옵션 품목 마스터를 삭제하시겠습니까?',
+                        onConfirm: async () => {
+                          try {
+                            await deleteStandardOption(editingMasterOption.id!);
+                            setShowMasterModal(false);
+                            setEditingMasterOption(null);
+                            await fullRefreshFromServer();
+                          } catch (err: any) {
+                            showErrorModal(`삭제 실패: ${err.message}`);
                           }
-                        });
-                      }}
-                      style={{
-                        padding: '7px 14px', borderRadius: '6px', border: '1px solid #ef4444', 
-                        color: '#ef4444', backgroundColor: 'transparent', fontSize: '12.5px', cursor: 'pointer'
-                      }}
-                    >
-                      삭제
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                        }
+                      });
+                    }}
+                    style={{
+                      padding: '7px 14px', borderRadius: '6px', border: '1px solid #ef4444', 
+                      color: '#ef4444', backgroundColor: 'transparent', fontSize: '12.5px', cursor: 'pointer'
+                    }}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => {
                     setShowMasterModal(false);
                     setEditingMasterOption(null);
                   }}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '12.5px',
-                  cursor: 'pointer'
-                }}
-              >
-                취소
-              </button>
-              <button data-hs-trigger="Save"
-                type="submit"
-                style={{
-                  padding: '7px 18px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: 'var(--primary)',
-                  color: '#ffffff',
-                  fontSize: '12.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                저장
-              </button></div></div></form>
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12.5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button data-hs-trigger="Save"
+                  type="submit"
+                  style={{
+                    padding: '7px 18px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary)',
+                    color: '#ffffff',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* ── 전사 표준 확인 모달 (헌장 5.2 window.confirm 전면 퇴출) ── */}
+      {/* ── 전사 표준 확인 모달 ── */}
       {confirmModal.isOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

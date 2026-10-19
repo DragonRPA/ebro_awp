@@ -441,6 +441,7 @@ export const AssetInboundStaging: React.FC = () => {
                 const optItems = outboundOptionsData?.checkpoints?.filter((cp: any) => cp.type === 'OPTION' || cp.type === 'SPEC' || cp.id?.startsWith('opt_') || cp.label?.includes('[옵션]') || cp.label?.includes('보양')) || [];
                 
                 const activeContract = contracts.find(c => c.id === activeInspectionItem.contractId);
+                const activeCustomer = customers?.find(c => c.id === activeContract?.customerId);
                 const activeSite = sites.find(s => s.id === activeContract?.siteId);
                 const activeSiteMaster = siteMasters?.find(sm => sm.id === activeSite?.siteMasterId);
                 const activeDelivery = deliveries?.find(d => d.contractId === activeInspectionItem.contractId && d.type === 'OUTBOUND');
@@ -448,11 +449,11 @@ export const AssetInboundStaging: React.FC = () => {
                 const optMatch = activeDelivery?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
                 const protMatch = activeDelivery?.closingMemo?.match(/보양:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
 
-                const paidOpt = activeSiteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '');
-                const prot = activeSiteMaster?.protection || (protMatch ? protMatch[1].trim() : '');
+                const paidOpt = activeSite?.paidOptions || activeSiteMaster?.paidOptions || activeCustomer?.defaultPaidOptions || (optMatch ? optMatch[1].trim() : '');
+                const prot = activeSite?.protection || activeSiteMaster?.protection || activeCustomer?.defaultProtection || (protMatch ? protMatch[1].trim() : '');
 
-                const hasPaidOpt = paidOpt && paidOpt !== '없음' && paidOpt !== 'NONE';
-                const hasProt = prot && prot !== '없음' && prot !== 'NONE';
+                const hasPaidOpt = paidOpt && paidOpt !== '없음' && paidOpt !== 'NONE' && paidOpt !== '-';
+                const hasProt = prot && prot !== '없음' && prot !== 'NONE' && prot !== '-';
 
                 if (optItems.length === 0 && !hasPaidOpt && !hasProt) return null;
 
