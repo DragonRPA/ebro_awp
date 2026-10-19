@@ -53,7 +53,7 @@ export interface SmartDispatchData {
   taxBillEmail: string;
   loadingTime: string;
   unloadingTime: string;
-  equipments: { modelName: string, qty: number }[];
+  equipments: { modelName: string; qty: number; monthlyRate?: number; dailyRate?: number; monthlyRentalFee?: number; dailyRentalFee?: number }[];
   paidOptions?: string;
   protection?: string;
   attachments?: string;
@@ -3130,9 +3130,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const eqData = eq as any;
       const count = Math.max(1, Math.floor(Number(eq.qty) || 1));
 
-      // 1. 명시된 단가 확인 (모바일 발주 등)
-      let determinedMonthly = Number(eqData.monthlyRent || eqData.monthlyRentalFee) || 0;
-      let determinedDaily = Number(eqData.dailyRent || eqData.dailyRentalFee) || 0;
+      // 1. 명시된 단가 확인 (출고 요청 화면 monthlyRate/dailyRate 및 모바일 발주 monthlyRent/monthlyRentalFee 등)
+      let determinedMonthly = Number(eqData.monthlyRate || eqData.monthlyRent || eqData.monthlyRentalFee) || 0;
+      let determinedDaily = Number(eqData.dailyRate || eqData.dailyRent || eqData.dailyRentalFee) || (determinedMonthly > 0 ? Math.round(determinedMonthly / 30) : 0);
 
       // 2. 미입력 시 고객사의 동일 모델 최근 계약 단가 자동 상속 (헌장 2.2)
       if (!determinedMonthly && finalCustomer?.id) {

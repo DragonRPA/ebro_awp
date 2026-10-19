@@ -1697,7 +1697,11 @@ export const SmartDispatch4: React.FC = () => {
         unloadingTime: fullUnloadingTime,
         equipments: equipments.map(eq => ({
           modelName: eq.modelName,
-          qty: Math.max(1, Math.floor(Number(eq.qty) || 1))
+          qty: Math.max(1, Math.floor(Number(eq.qty) || 1)),
+          monthlyRate: eq.monthlyRate,
+          dailyRate: eq.dailyRate,
+          monthlyRentalFee: eq.monthlyRate,
+          dailyRentalFee: eq.dailyRate,
         })),
         note: fullNote,
         rawText: `[출고 요청 통합 발행] ${selectedContext || 'OUTBOUND'}`,
