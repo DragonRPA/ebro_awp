@@ -4,6 +4,7 @@ import { Zap, Clipboard, FileText, Check, Search, ArrowUpDown, Shield, AlertTria
 import { SmartReturnData } from '../context/AppContext';
 import { fetchMyDrafts, DraftDispatchOrder, discardDraft } from '../services/callUploadService';
 import { createHangulMatcher, compareCustomerNames } from '../utils/hangulSearch';
+import { extractCategorizedSiteOptions } from '../types/siteOption';
 
 // 출고 시 장착 옵션 회수 상속 검수 마스터
 const RETURN_CHECK_SPECS = [
@@ -17,7 +18,7 @@ const RETURN_CHECK_SPECS = [
 ];
 
 export const SmartReturn: React.FC = () => {
-  const { hasPermission, saveSmartReturn, contracts, customers, sites, siteMasters, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
+  const { hasPermission, saveSmartReturn, contracts, customers, sites, siteMasters, standardOptions, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
   const canSave = hasPermission('smart_return', 'save') || hasPermission('delivery', 'save');
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
@@ -111,12 +112,13 @@ export const SmartReturn: React.FC = () => {
     const siteMaster = site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : undefined;
     const paidStr = site?.paidOptions || siteMaster?.paidOptions || cust?.defaultPaidOptions || '';
     const protStr = site?.protection || siteMaster?.protection || cust?.defaultProtection || '';
+    const attStr = site?.attachments || siteMaster?.attachments || cust?.defaultAttachments || '';
     const specObj = {
       ...(cust?.defaultCheckedSpecs || {}),
       ...(siteMaster?.checkedSpecs || {}),
       ...(site?.checkedSpecs || {})
     };
-    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${paidStr} ${protStr} ${JSON.stringify(specObj)}`.toLowerCase();
+    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${paidStr} ${protStr} ${attStr} ${JSON.stringify(specObj)}`.toLowerCase();
     
     return RETURN_CHECK_SPECS.filter(s => s.keywords.some(kw => text.includes(kw.toLowerCase())));
   };
@@ -417,106 +419,185 @@ export const SmartReturn: React.FC = () => {
     }
   };
 
-  // 🖨️ 현장 분산 인쇄 큐 전송 메소드 (입고장 프린터2 무인 자동 출력)
+  // 🖨️ 현장 분산 인쇄 큐 전송 메소드 (입고장 프린터2 무인 자동 출력 / 4줄 구분 옵션 표기)
   const handleRemoteQueuePrint = async () => {
-    const printContent = document.getElementById('return-sheet-print');
-    if (!printContent) {
-      showToast('인쇄할 입고의뢰서 콘텐츠를 찾을 수 없습니다.', 'error');
+    const selContract = contractMap.get(selectedContractId);
+    if (!selContract) {
+      showToast('회수할 대상 계약을 먼저 선택해 주세요.', 'error');
       return;
     }
+    const selCust = selContract.customerId ? customerMap.get(selContract.customerId) : undefined;
+    const selSite = selContract.siteId ? siteMap.get(selContract.siteId) : undefined;
+    const selSiteMaster = selSite?.siteMasterId ? siteMasterMap.get(selSite.siteMasterId) : undefined;
+    const outboundDel = deliveryLookupByContract.outboundMap.get(selContract.id);
 
-    const selContract = contractMap.get(selectedContractId);
-    const selCust = selContract?.customerId ? customerMap.get(selContract.customerId) : undefined;
-    const selSite = selContract?.siteId ? siteMap.get(selContract.siteId) : undefined;
+    const categorizedOpts = extractCategorizedSiteOptions({
+      site: selSite,
+      siteMaster: selSiteMaster,
+      customer: selCust,
+      closingMemo: outboundDel?.closingMemo,
+      deliveryMemo: outboundDel?.memo,
+      standardOptions,
+    });
 
-    const htmlDoc = `
-      <!DOCTYPE html>
-      <html lang="ko">
-        <head>
-          <meta charset="utf-8">
-          <title>입고요청서_${selCust?.name || '고객사'}_${selSite?.name || '현장'}</title>
-          <style>
-            :root {
-              --bg-card: #ffffff;
-              --bg-app: #ffffff;
-              --bg-body: #ffffff;
-              --text-main: #000000;
-              --text-primary: #000000;
-              --text-secondary: #333333;
-              --text-muted: #555555;
-              --border-color: #000000;
-            }
-            @page {
-              size: A4 portrait;
-              margin: 7mm 10mm 7mm 10mm;
-            }
-            @media print {
-              @page { size: A4 portrait; margin: 7mm 10mm; }
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              body {
-                color: #000000 !important;
-                background-color: #f5f2eb !important;
-              }
-              .no-print { display: none !important; }
-            }
-            * {
-              box-sizing: border-box;
-              margin: 0;
-              padding: 0;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif;
-              padding: 0;
-              margin: 0 auto;
-              color: #000000;
-              background-color: #f5f2eb;
-              width: 100%;
-              max-width: 210mm;
-              font-size: 8.5pt;
-              line-height: 1.15;
-            }
-            p, div, span, table, tr, td, th {
-              margin: 0;
-              padding: 0;
-              line-height: 1.15;
-              color: #000000;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 2px;
-              margin-bottom: 3px;
-              table-layout: fixed;
-            }
-            th, td {
-              border: 1px solid #000000;
-              padding: 2.5px 5px !important;
-              font-size: 8pt;
-              vertical-align: middle;
-              white-space: nowrap;
-              overflow: hidden;
-              color: #000000;
-            }
-            th {
-              background-color: #f0f0f0 !important;
-              font-weight: 700;
-              color: #000000;
-              text-align: left;
-            }
-          </style>
-        </head>
-        <body>
-          <div style="padding: 2px 0;">
-            ${printContent.innerHTML}
-          </div>
-        </body>
-      </html>
-    `;
+    const targetAssetIds = selectedAssetIds.length > 0
+      ? selectedAssetIds
+      : activeContractAssets.map(ca => ca.assetId!).filter(Boolean);
+    const targetAssets = targetAssetIds.map(id => assetMap.get(id)).filter(Boolean);
+    const halfCount = Math.max(1, Math.ceil(targetAssets.length / 2));
+    let assetRowsHtml = '';
+    for (let i = 0; i < halfCount; i++) {
+      const left = targetAssets[i];
+      const right = targetAssets[i + halfCount];
+      assetRowsHtml += `
+        <tr>
+          <td style="text-align:center;">${left ? i + 1 : '&nbsp;'}</td>
+          <td style="font-weight:700; padding-left:5px;">${left ? left.modelName : '&nbsp;'}</td>
+          <td style="text-align:center; font-weight:600;">${left ? left.assetNo : '&nbsp;'}</td>
+          <td style="text-align:center; border-right:2px solid #000000; font-size:7.5pt;">${left ? '[ &nbsp; ]' : '&nbsp;'}</td>
+          <td style="text-align:center;">${right ? i + 1 + halfCount : '&nbsp;'}</td>
+          <td style="font-weight:700; padding-left:5px;">${right ? right.modelName : '&nbsp;'}</td>
+          <td style="text-align:center; font-weight:600;">${right ? right.assetNo : '&nbsp;'}</td>
+          <td style="text-align:center; font-size:7.5pt;">${right ? '[ &nbsp; ]' : '&nbsp;'}</td>
+        </tr>`;
+    }
+
+    const now = new Date();
+    const printTimeStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const docNo = selContract.contractNo || `RET-${Date.now().toString().slice(-6)}`;
+
+    const htmlDoc = `<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>회수요청서_${selCust?.name || '고객사'}_${selSite?.name || '현장'}</title>
+    <style>
+      @page { size: A4 portrait; margin: 7mm 10mm 7mm 10mm; }
+      @media print {
+        @page { size: A4 portrait; margin: 7mm 10mm; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { color: #000000 !important; background-color: #f5f2eb !important; }
+        .no-print { display: none !important; }
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; padding: 0; margin: 0 auto; color: #000000; background-color: #f5f2eb; width: 100%; max-width: 210mm; font-size: 8.5pt; line-height: 1.15; }
+      p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; color: #000000; }
+      table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 3px; table-layout: fixed; }
+      th, td { border: 1px solid #000000; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; color: #000000; }
+      th { background-color: #f0f0f0 !important; font-weight: 700; color: #000000; text-align: left; }
+      .nowrap { white-space: nowrap; }
+      .wrap-text { white-space: normal; word-break: break-word; overflow: visible; }
+      .sec-title { font-size: 9pt; font-weight: 800; margin-top: 4px; margin-bottom: 1px; padding-left: 5px; border-left: 3px solid #000000; line-height: 1.1; }
+    </style>
+  </head>
+  <body>
+    <div style="padding: 2px 0;">
+      <div style="border-bottom: 2px solid #000000; padding-bottom: 3px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <div style="font-size: 15pt; font-weight: 900; letter-spacing: 3px; line-height: 1.05;">회 수 요 청 서</div>
+          <div style="font-size: 7.5pt; margin-top: 2px; font-weight: 600;">문서번호: ${docNo} &nbsp;|&nbsp; 출력일시: ${printTimeStr}</div>
+        </div>
+        <div style="text-align: right; font-size: 8pt;">
+          <div style="font-weight: 800; font-size: 9pt;">${(currentTenant as any)?.companyName || (currentTenant as any)?.name || '렌탈시스템'}</div>
+          <div>의뢰자: ${currentUser?.name || '-'}</div>
+        </div>
+      </div>
+
+      <div class="sec-title">1. 계약 및 현장 기본 정보</div>
+      <table>
+        <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">계약번호</th>
+            <td style="font-weight: 700;">${selContract.contractNo || '-'}</td>
+            <th class="nowrap">회수예정일</th>
+            <td style="font-weight: 700;">${returnDate || '-'} (${loadingTime || '오전'})</td>
+          </tr>
+          <tr>
+            <th class="nowrap">고객사명</th>
+            <td style="font-weight: 800;">${selCust?.name || '-'}</td>
+            <th class="nowrap">현장담당자</th>
+            <td style="font-weight: 700;">${contactName || '-'} (${contactPhone || '-'})</td>
+          </tr>
+          <tr>
+            <th class="nowrap">현장명</th>
+            <td colspan="3" style="font-weight: 800;">${selSite?.name || '-'}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">현장주소</th>
+            <td colspan="3" class="wrap-text" style="font-weight: 700;">${selSite?.address || '-'}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec-title">2. 운송 배차 및 기사 배정 내역</div>
+      <table>
+        <colgroup><col style="width: 15%;"><col style="width: 35%;"><col style="width: 15%;"><col style="width: 35%;"></colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">상차희망일시</th>
+            <td style="font-weight: 700;">${returnDate || '-'} ${loadingTime || ''}</td>
+            <th class="nowrap">배차상태</th>
+            <td style="font-weight: 700;">회수 배차 요청</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec-title">3. 회수 대상 장비 목록 (총 ${targetAssets.length}대)</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+            <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+            <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+            <th style="width: 6%; text-align: center; border-right: 2px solid #000000;" class="nowrap">확인</th>
+            <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+            <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+            <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+            <th style="width: 6%; text-align: center;" class="nowrap">확인</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${assetRowsHtml || '<tr><td colspan="8" style="text-align:center; padding: 10px 0;">선택된 회수 장비가 없습니다.</td></tr>'}
+        </tbody>
+      </table>
+
+      <div class="sec-title">4. 회수 대상 장비 장착 옵션 및 보양 회수/탈거 항목</div>
+      <table>
+        <colgroup><col style="width: 14%;"><col style="width: 86%;"></colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">유상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.paidOptionsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">무상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.protectionText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">부착물</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">현장요구스펙</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>
+      <table>
+        <colgroup><col style="width: 14%;"><col style="width: 86%;"></colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">요청사항</th>
+            <td class="wrap-text" style="font-weight: 700;">${note || '특이사항 없음'}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>`;
 
     try {
       setIsAgentPrinting(true);
@@ -525,8 +606,7 @@ export const SmartReturn: React.FC = () => {
         printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2')) ||
         printStations[0];
 
-      const docNo = selContract?.contractNo || `RET-${Date.now().toString().slice(-6)}`;
-      const docTitle = `입고요청서_${selCust?.name || '미지정'}_${selSite?.name || '현장'}`;
+      const docTitle = `회수요청서_${selCust?.name || '미지정'}_${selSite?.name || '현장'}`;
       const stationName = st?.stationName || '입고장 프린터';
 
       await enqueuePrintJob({
@@ -1027,20 +1107,25 @@ export const SmartReturn: React.FC = () => {
                     const outboundDel = c?.id ? deliveryLookupByContract.outboundMap.get(c.id) : undefined;
 
                     const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
-                    const optMatch = outboundDel?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
-                    const protMatch = outboundDel?.closingMemo?.match(/보양:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
-
-                    const displayOpt = site?.paidOptions || siteMaster?.paidOptions || cust?.defaultPaidOptions || (optMatch ? optMatch[1].trim() : '') || '없음';
-                    const displayProt = site?.protection || siteMaster?.protection || cust?.defaultProtection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
+                    const categorizedOpts = extractCategorizedSiteOptions({
+                      site,
+                      siteMaster,
+                      customer: cust,
+                      closingMemo: outboundDel?.closingMemo,
+                      deliveryMemo: outboundDel?.memo,
+                      standardOptions,
+                    });
 
                     return (
                       <>
                         <div style={{ marginBottom: '4px' }}><strong>계약번호:</strong> {c?.contractNo}</div>
                         <div style={{ marginBottom: '4px' }}><strong>고객사:</strong> {cust?.name}</div>
                         <div><strong>현장명:</strong> {site?.name} ({site?.address || '-'})</div>
-                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)', fontSize: '12px' }}>
-                          <span style={{ fontWeight: 'bold', color: 'var(--primary-color, #2563eb)' }}>출고 장착 옵션/보양:</span>{' '}
-                          <span>유상옵션: {displayOpt} | 보양: {displayProt}</span>
+                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div><strong style={{ color: 'var(--primary-color, #2563eb)' }}>유상옵션:</strong> {categorizedOpts.paidOptionsText}</div>
+                          <div><strong style={{ color: '#0891b2' }}>무상옵션:</strong> {categorizedOpts.protectionText}</div>
+                          <div><strong style={{ color: '#9333ea' }}>부착물:</strong> {categorizedOpts.attachmentsText}</div>
+                          <div><strong style={{ color: '#059669' }}>현장요구스펙:</strong> {categorizedOpts.specsText}</div>
                           {inheritedSpecs.length > 0 && (
                             <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                               {inheritedSpecs.map(s => (
@@ -1229,15 +1314,26 @@ export const SmartReturn: React.FC = () => {
                   />
                 </div>
 
-                <button data-hs-trigger="Register"
-                  data-mid="smart_return-submit-btn"
-                  type="submit"
-                  className="btn-success"
-                  style={{ width: '100%', padding: '10px', fontSize: '14px', fontWeight: 'bold' }}
-                  disabled={!canSave || selectedAssetIds.length === 0}
-                >
-                  <Check size={16} /> 회수 의뢰 등록 확정
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handlePrintAction}
+                    disabled={!selectedContractId || isAgentPrinting}
+                    className="btn-secondary"
+                    style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                  >
+                    <Printer size={16} /> 회수요청서 인쇄
+                  </button>
+                  <button data-hs-trigger="Register"
+                    data-mid="smart_return-submit-btn"
+                    type="submit"
+                    className="btn-success"
+                    style={{ flex: 1, padding: '10px', fontSize: '14px', fontWeight: 'bold' }}
+                    disabled={!canSave || selectedAssetIds.length === 0}
+                  >
+                    <Check size={16} /> 회수 의뢰 등록 확정
+                  </button>
+                </div>
 
               </form>
             ) : (

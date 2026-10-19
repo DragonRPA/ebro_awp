@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { canViewFinancials } from '../utils/privacyMasking';
+import { extractCategorizedSiteOptions, stripOptionPrice } from '../types/siteOption';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -464,7 +465,7 @@ export const SmartDispatch4: React.FC = () => {
       .filter(s => Boolean(s) && s !== '-' && s !== 'NONE' && s !== '없음');
   };
 
-  // 🛡️ 보양/유상옵션 정밀 분류 헬퍼
+  // 🛡️ 보양/부착물/유상옵션 정밀 분류 헬퍼
   const protectionOptionNameSet = useMemo(() => {
     const set = new Set<string>();
     (standardOptions || []).forEach(o => {
@@ -473,33 +474,60 @@ export const SmartDispatch4: React.FC = () => {
     return set;
   }, [standardOptions]);
 
+  const attachmentOptionNameSet = useMemo(() => {
+    const set = new Set<string>();
+    (standardOptions || []).forEach(o => {
+      if (o.category === 'ATTACHMENT' && o.name) set.add(o.name);
+    });
+    return set;
+  }, [standardOptions]);
+
   const isProtectionOption = useCallback((label: string): boolean => {
-    if (protectionOptionNameSet.has(label)) return true;
-    if (/보양|비닐보양|바닥보양|완충/i.test(label) && !/조이스틱|커버|센서|스위치/i.test(label)) return true;
+    const clean = stripOptionPrice(label);
+    if (protectionOptionNameSet.has(clean)) return true;
+    if (/보양|비닐보양|바닥보양|완충/i.test(clean) && !/조이스틱|커버|센서|스위치/i.test(clean)) return true;
     return false;
   }, [protectionOptionNameSet]);
+
+  const isAttachmentOption = useCallback((label: string): boolean => {
+    const clean = stripOptionPrice(label);
+    if (attachmentOptionNameSet.has(clean)) return true;
+    if (/인증서|제원표|보험증권|체크리스트|비상하강|안전점검결과서|스티커/i.test(clean)) return true;
+    return false;
+  }, [attachmentOptionNameSet]);
 
   // 🌟 [현장 마스터 + 고객사 기본상속 + 과거 배차 이력 종합 옵션 자동 로드]
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
     const inherited = new Set<string>();
 
-    // ── 1순위: 선택된 현장 마스터 직접 등록 옵션 ──────────────────────────────
+    // ── 1순위: 선택된 현장 마스터 직접 등록 옵션 + 연결된 옵션 그룹 ────────────
     if (site) {
-      if (site.paidOptions) {
-        parseOptionString(site.paidOptions).forEach(opt => inherited.add(opt));
+      const sm = site.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
+      const effPaid = site.paidOptions || sm?.paidOptions;
+      const effProt = (site.protection && site.protection !== 'NONE' && site.protection !== '-') ? site.protection : sm?.protection;
+      const effAtt = site.attachments || sm?.attachments;
+
+      if (effPaid) {
+        parseOptionString(effPaid).forEach(opt => inherited.add(stripOptionPrice(opt)));
       }
-      if (site.protection && site.protection !== 'NONE' && site.protection !== '-') {
-        parseOptionString(site.protection).forEach(opt => inherited.add(opt));
+      if (effProt && effProt !== 'NONE' && effProt !== '-') {
+        parseOptionString(effProt).forEach(opt => inherited.add(opt));
+      }
+      if (effAtt && effAtt !== 'NONE' && effAtt !== '-') {
+        parseOptionString(effAtt).forEach(opt => inherited.add(opt));
       }
     }
 
     // ── 2순위: 고객사 기본 상속 옵션 (현장 옵션이 비어있거나 현장 미선택 시) ───
     if (inherited.size === 0 && cust) {
       if (cust.defaultPaidOptions) {
-        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(opt));
+        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(stripOptionPrice(opt)));
       }
       if (cust.defaultProtection && cust.defaultProtection !== 'NONE' && cust.defaultProtection !== '-') {
         parseOptionString(cust.defaultProtection).forEach(opt => inherited.add(opt));
+      }
+      if (cust.defaultAttachments && cust.defaultAttachments !== 'NONE' && cust.defaultAttachments !== '-') {
+        parseOptionString(cust.defaultAttachments).forEach(opt => inherited.add(opt));
       }
     }
 
@@ -517,7 +545,7 @@ export const SmartDispatch4: React.FC = () => {
         const match = text.match(/\[(?:옵션|안전옵션)\]\s*([^|\]]+)/);
         if (match && match[1]) {
           parseOptionString(match[1]).forEach(item => {
-            inherited.add(item);
+            inherited.add(stripOptionPrice(item));
           });
         }
       }
@@ -526,7 +554,7 @@ export const SmartDispatch4: React.FC = () => {
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
     return inherited;
-  }, [deliveries]);
+  }, [deliveries, siteMasters]);
 
   const inheritPastSafetyOptions = loadSiteSafetyOptions;
 
@@ -630,7 +658,7 @@ export const SmartDispatch4: React.FC = () => {
     const q = siteMasterSearchQuery.trim();
     if (!q) return list;
     const matcher = createHangulMatcher(q);
-    return list.filter(sm => matcher.test(sm.name) || matcher.test(sm.paidOptions || '') || matcher.test(sm.protection || ''));
+    return list.filter(sm => matcher.test(sm.name) || matcher.test(sm.paidOptions || '') || matcher.test(sm.protection || '') || matcher.test(sm.attachments || ''));
   }, [siteMasters, siteMasterSearchQuery]);
 
   // 중복 접수 감지 (큐 + 배차 대장 동시 검사)
@@ -962,13 +990,15 @@ export const SmartDispatch4: React.FC = () => {
       return;
     }
     const optionLabels = Array.from(selectedSafetyOptions);
-    const paidOpts = optionLabels.filter(label => !isProtectionOption(label)).join(', ');
+    const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
     const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
+    const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
 
     try {
       db.updateRow<CustomerSite>('sites', selectedSite.id, {
         paidOptions: paidOpts,
         protection: protOpts,
+        attachments: attOpts,
         address: selectedSiteAddress || selectedSite.address,
         updatedAt: new Date().toISOString(),
       });
@@ -1531,12 +1561,14 @@ export const SmartDispatch4: React.FC = () => {
       // 🌟 [첨삭 저장 확인] 현장 기본값으로 저장 선택 시 CustomerSite DB 업데이트
       if (saveToSite && selectedSite) {
         const optionLabels = Array.from(selectedSafetyOptions);
-        const paidOpts = optionLabels.filter(label => !isProtectionOption(label)).join(', ');
+        const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
         const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
+        const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
 
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           paidOptions: paidOpts,
           protection: protOpts,
+          attachments: attOpts,
           address: selectedSiteAddress || selectedSite.address,
           updatedAt: new Date().toISOString(),
         });
@@ -1621,6 +1653,11 @@ export const SmartDispatch4: React.FC = () => {
         `[정산일정] 청구:${closingDay}|명세서:${statementClosingDay}|결제:${paymentDueDay}`,
       ].filter(Boolean).join(' | ');
 
+      const allSelOpts = Array.from(selectedSafetyOptions);
+      const effPaidOptStr = allSelOpts.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+      const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
+      const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
+
       // 🚀 [실제 출고의뢰 풀 파이프라인 생성: 고객사·현장 신규생성, 계약체결, 배차대장 등록, 장비할당 가상매핑]
       const dispatchData = {
         customerName: effectiveCustomerName,
@@ -1646,7 +1683,9 @@ export const SmartDispatch4: React.FC = () => {
         billableToCustomer: false,
         type: isExchangeMode ? 'EXCHANGE' : 'OUTBOUND',
         retrievalAssetIds: retrievalAssetIds || [],
-        paidOptions: Array.from(selectedSafetyOptions).join(', '),
+        paidOptions: effPaidOptStr,
+        protection: effProtOptStr,
+        attachments: effAttOptStr,
         siteMasterId: effectiveSmId || undefined,
         closingDay,
         statementClosingDay,
@@ -2437,24 +2476,50 @@ export const SmartDispatch4: React.FC = () => {
         </tbody>
       </table>
 
-      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 -->
+      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙) -->
+      ${(() => {
+        const printCust = targetDraft
+          ? customers.find(c => c.name === customerName)
+          : (isNewCustomerMode ? null : selectedCustomer);
+        const printSite = targetDraft
+          ? sites.find(s => s.name === siteName && (!printCust || s.customerId === printCust.id))
+          : (isNewCustomerMode || isRegisteringNewSite ? null : selectedSite);
+        const effSmId = printSite?.siteMasterId || (!targetDraft ? selectedSiteMasterId : undefined);
+        const printSiteMaster = effSmId ? (siteMasters || []).find(sm => sm.id === effSmId) : null;
+        const categorizedOpts = extractCategorizedSiteOptions({
+          site: printSite,
+          siteMaster: printSiteMaster,
+          customer: printCust,
+          rawOptionsList: orderSafetyOptions,
+          standardOptions,
+        });
+        return `
       <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
-      <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #f5f2eb; box-sizing: border-box;">
-        ${orderSafetyOptions.length > 0 ? `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
-            ${orderSafetyOptions.map((opt, idx) => `
-              <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000; word-break: break-all;">
-                <span style="font-size: 8pt; flex-shrink: 0;">[v]</span>
-                <span>${idx + 1}. ${opt}</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : `
-          <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
-            • 별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)
-          </div>
-        `}
-      </div>
+      <table>
+        <colgroup>
+          <col style="width: 14%;" />
+          <col style="width: 86%;" />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">유상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.paidOptionsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">무상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.protectionText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">부착물</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">현장요구스펙</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
+          </tr>
+        </tbody>
+      </table>`;
+      })()}
 
       <!-- 5. 현장 특이사항 및 작업 요청 -->
       <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>
@@ -2912,10 +2977,11 @@ export const SmartDispatch4: React.FC = () => {
                             setSelectedSiteMasterId(smId);
                             if (smId) {
                               const sm = (siteMasters || []).find(s => s.id === smId);
-                              if (sm && (sm.paidOptions || sm.protection)) {
+                              if (sm && (sm.paidOptions || sm.protection || sm.attachments)) {
                                 const opts = new Set<string>();
-                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(o.trim()));
-                                if (sm.protection && sm.protection !== 'NONE') opts.add(sm.protection);
+                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(stripOptionPrice(o.trim())));
+                                if (sm.protection && sm.protection !== 'NONE') sm.protection.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                if (sm.attachments && sm.attachments !== 'NONE') sm.attachments.split(',').forEach(o => o.trim() && opts.add(o.trim()));
                                 setSelectedSafetyOptions(opts);
                               }
                             }
@@ -2923,7 +2989,7 @@ export const SmartDispatch4: React.FC = () => {
                         >
                           <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({filteredSiteMasters.length}개) --</option>
                           {filteredSiteMasters.map(sm => {
-                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : ''].filter(Boolean).join(' | ');
+                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
                             return (
                               <option key={sm.id} value={sm.id}>
                                 {sm.name} {optSummary ? `(${optSummary})` : ''}
@@ -3106,10 +3172,11 @@ export const SmartDispatch4: React.FC = () => {
                             setSelectedSiteMasterId(smId);
                             if (smId) {
                               const sm = (siteMasters || []).find(s => s.id === smId);
-                              if (sm && (sm.paidOptions || sm.protection)) {
+                              if (sm && (sm.paidOptions || sm.protection || sm.attachments)) {
                                 const opts = new Set<string>();
-                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(o.trim()));
-                                if (sm.protection && sm.protection !== 'NONE') opts.add(sm.protection);
+                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(stripOptionPrice(o.trim())));
+                                if (sm.protection && sm.protection !== 'NONE') sm.protection.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                if (sm.attachments && sm.attachments !== 'NONE') sm.attachments.split(',').forEach(o => o.trim() && opts.add(o.trim()));
                                 setSelectedSafetyOptions(opts);
                               }
                             }
@@ -3117,7 +3184,7 @@ export const SmartDispatch4: React.FC = () => {
                         >
                           <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({filteredSiteMasters.length}개) --</option>
                           {filteredSiteMasters.map(sm => {
-                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : ''].filter(Boolean).join(' | ');
+                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
                             return (
                               <option key={sm.id} value={sm.id}>
                                 {sm.name} {optSummary ? `(${optSummary})` : ''}
@@ -4388,35 +4455,65 @@ export const SmartDispatch4: React.FC = () => {
               </div>
             </div>
 
-            {/* 특이사항 및 옵션 */}
-            {(note || selectedSafetyOptions.size > 0 || (isExchangeMode && retrievalAssetIds.length > 0)) && (
-              <div className="bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 flex flex-col gap-1.5">
-                {selectedSafetyOptions.size > 0 && (
-                  <div>
-                    <span className="font-black text-amber-400">요청옵션: </span>
-                    <span className="text-white font-bold">
-                      {Array.from(selectedSafetyOptions).join(', ')}
-                    </span>
-                  </div>
-                )}
-                {isExchangeMode && retrievalAssetIds.length > 0 && (
-                  <div>
-                    <span className="font-black text-cyan-400">대차 회수장비: </span>
-                    <span className="text-white font-bold">
-                      {isUnknownRetrieval
-                        ? '모름 (기사 현장 확인 후 회수)'
-                        : `자산 #${retrievalAssetIds.join(', #')} (총 ${retrievalAssetIds.length}대, 회수)`}
-                    </span>
-                  </div>
-                )}
-                {note && (
-                  <div>
-                    <span className="font-black text-slate-300">배차 메모: </span>
-                    <span className="text-white font-medium">{note}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* 특이사항 및 옵션 (유상옵션 / 무상옵션 / 부착물 / 현장요구스펙 4줄 구분) */}
+            {(() => {
+              const effSmId = selectedSite?.siteMasterId || selectedSiteMasterId || undefined;
+              const previewSm = effSmId ? (siteMasters || []).find(sm => sm.id === effSmId) : null;
+              const categorizedPreview = extractCategorizedSiteOptions({
+                site: isNewCustomerMode || isRegisteringNewSite ? null : selectedSite,
+                siteMaster: previewSm,
+                customer: isNewCustomerMode ? null : selectedCustomer,
+                rawOptionsList: Array.from(selectedSafetyOptions),
+                standardOptions,
+              });
+              const hasAnyOption =
+                categorizedPreview.paidList.length > 0 ||
+                categorizedPreview.protectionList.length > 0 ||
+                categorizedPreview.attachmentList.length > 0 ||
+                categorizedPreview.specList.length > 0 ||
+                selectedSafetyOptions.size > 0;
+              if (!note && !hasAnyOption && !(isExchangeMode && retrievalAssetIds.length > 0)) return null;
+              return (
+                <div className="bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 flex flex-col gap-1.5">
+                  {hasAnyOption && (
+                    <div className="flex flex-col gap-1 border-b border-slate-800 pb-1.5">
+                      <div>
+                        <span className="font-black text-amber-400">유상옵션: </span>
+                        <span className="text-white font-bold">{categorizedPreview.paidOptionsText}</span>
+                      </div>
+                      <div>
+                        <span className="font-black text-cyan-400">무상옵션: </span>
+                        <span className="text-white font-bold">{categorizedPreview.protectionText}</span>
+                      </div>
+                      <div>
+                        <span className="font-black text-purple-400">부착물: </span>
+                        <span className="text-white font-bold">{categorizedPreview.attachmentsText}</span>
+                      </div>
+                      <div>
+                        <span className="font-black text-emerald-400">현장요구스펙: </span>
+                        <span className="text-white font-bold">{categorizedPreview.specsText}</span>
+                      </div>
+                    </div>
+                  )}
+                  {isExchangeMode && retrievalAssetIds.length > 0 && (
+                    <div>
+                      <span className="font-black text-cyan-400">대차 회수장비: </span>
+                      <span className="text-white font-bold">
+                        {isUnknownRetrieval
+                          ? '모름 (기사 현장 확인 후 회수)'
+                          : `자산 #${retrievalAssetIds.join(', #')} (총 ${retrievalAssetIds.length}대, 회수)`}
+                      </span>
+                    </div>
+                  )}
+                  {note && (
+                    <div>
+                      <span className="font-black text-slate-300">배차 메모: </span>
+                      <span className="text-white font-medium">{note}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

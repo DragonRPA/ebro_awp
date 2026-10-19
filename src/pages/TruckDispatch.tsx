@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
 import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess } from '../services/db';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
+import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
@@ -111,7 +112,7 @@ export const parseCargoItems = (d?: Delivery | null): CargoItem[] => {
 export const TruckDispatch: React.FC = () => {
   const { 
     currentUser,
-    deliveries, contracts, customers, contacts, products, sites, siteMasters, users,
+    deliveries, contracts, customers, contacts, products, sites, siteMasters, standardOptions, users,
     contractAssets, assets,
     transportCompanies, transportDrivers, transportNegotiations, outboundInspections, hasPermission, 
     refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
@@ -520,48 +521,16 @@ export const TruckDispatch: React.FC = () => {
       </tr>`;
     }
 
-    // 옵션 항목 추출 및 중복 제거 (Section 4)
-    const safetyOptions: string[] = [];
-    const addOption = (opt: string) => {
-      if (!opt) return;
-      const clean = opt.trim().replace(/^유상옵션:\s*/, '').replace(/^보양:\s*/, '');
-      if (clean && clean !== '없음' && clean !== 'NONE' && !safetyOptions.includes(clean)) {
-        safetyOptions.push(clean);
-      }
-    };
-
+    // 옵션 항목 4대 구분 추출 (유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙)
     const siteMaster = site?.siteMasterId ? siteMasters?.find(m => m.id === site.siteMasterId) : undefined;
-    const effPaidOptions = site?.paidOptions || siteMaster?.paidOptions;
-    const effProtection = site?.protection || siteMaster?.protection;
-    const effCheckedSpecs = site?.checkedSpecs || siteMaster?.checkedSpecs;
-
-    if (effPaidOptions) {
-      effPaidOptions.split(',').forEach(s => addOption(s));
-    }
-    if (effProtection && effProtection !== 'NONE' && effProtection !== '없음') {
-      addOption(`보양: ${effProtection}`);
-    }
-    if (effCheckedSpecs && typeof effCheckedSpecs === 'object') {
-      Object.entries(effCheckedSpecs).forEach(([key, val]) => {
-        if (val) addOption(key);
-      });
-    }
-    if (delivery.closingMemo) {
-      const optMatch = delivery.closingMemo.match(/유상옵션:\s*([^\|]+)/);
-      if (optMatch && optMatch[1]?.trim() && optMatch[1].trim() !== '없음') {
-        optMatch[1].split(',').forEach(s => addOption(s));
-      }
-      const protMatch = delivery.closingMemo.match(/보양:\s*([^\|]+)/);
-      if (protMatch && protMatch[1]?.trim() && protMatch[1].trim() !== '없음' && protMatch[1].trim() !== 'NONE') {
-        addOption(`보양: ${protMatch[1].trim()}`);
-      }
-    }
-    if (delivery.memo && (delivery.memo.includes('[옵션]') || delivery.memo.includes('[회수옵션]'))) {
-      const optMatch = delivery.memo.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
-      if (optMatch && optMatch[1]?.trim()) {
-        optMatch[1].split(',').forEach(s => addOption(s));
-      }
-    }
+    const categorizedOpts = extractCategorizedSiteOptions({
+      site,
+      siteMaster,
+      customer,
+      closingMemo: delivery.closingMemo,
+      deliveryMemo: delivery.memo,
+      standardOptions,
+    });
 
     // 특이사항 및 작업 요청 정제 (Section 5)
     let staggeredMemo = '';
@@ -736,22 +705,27 @@ export const TruckDispatch: React.FC = () => {
     </table>
 
     <div class="sec-title">4. ${isOutbound ? '장비 출하 스펙 요구사항 (현장 요청 검수 항목)' : '회수 대상 장비 장착 옵션 및 보양 회수/탈거 항목'}</div>
-    <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #f5f2eb; box-sizing: border-box;">
-      ${safetyOptions.length > 0 ? `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
-          ${safetyOptions.map((opt, idx) => `
-            <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000; word-break: break-all;">
-              <span style="font-size: 8pt; flex-shrink: 0;">[v]</span>
-              <span>${idx + 1}. ${opt}</span>
-            </div>
-          `).join('')}
-        </div>
-      ` : `
-        <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
-          • ${isOutbound ? '별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)' : '별도 회수 대상 특수 옵션 없음 (기본 회수 검수 적용)'}
-        </div>
-      `}
-    </div>
+    <table>
+      <colgroup><col style="width: 14%;"><col style="width: 86%;"></colgroup>
+      <tbody>
+        <tr>
+          <th class="nowrap">유상옵션</th>
+          <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.paidOptionsText}</td>
+        </tr>
+        <tr>
+          <th class="nowrap">무상옵션</th>
+          <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.protectionText}</td>
+        </tr>
+        <tr>
+          <th class="nowrap">부착물</th>
+          <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
+        </tr>
+        <tr>
+          <th class="nowrap">현장요구스펙</th>
+          <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
+        </tr>
+      </tbody>
+    </table>
 
     <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>
     <table>

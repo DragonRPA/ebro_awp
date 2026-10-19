@@ -349,15 +349,16 @@ export const Customers: React.FC = () => {
   // 🏷️ 전사 표준 옵션 마스터 모달 상태
   const [showOptionMasterModal, setShowOptionMasterModal] = useState(false);
   const [editingOption, setEditingOption] = useState<Partial<StandardOption> | null>(null);
-  const [optionCategoryFilter, setOptionCategoryFilter] = useState<'ALL' | 'PAID' | 'PROTECTION'>('ALL');
+  const [optionCategoryFilter, setOptionCategoryFilter] = useState<'ALL' | 'PAID' | 'PROTECTION' | 'ATTACHMENT' | 'SPEC'>('ALL');
 
   // 🛡️ 고객사 기본 옵션 관리 모달 상태
   const [showCustOptionModal, setShowCustOptionModal] = useState(false);
   const [custOptionForm, setCustOptionForm] = useState<{
     defaultPaidOptions: string;
     defaultProtection: string;
+    defaultAttachments: string;
     specialNotes: string;
-  }>({ defaultPaidOptions: '', defaultProtection: '', specialNotes: '' });
+  }>({ defaultPaidOptions: '', defaultProtection: '', defaultAttachments: '', specialNotes: '' });
 
   // 🏗️ 현장 전용 옵션 관리 모달 상태
   const [showSiteOptionModal, setShowSiteOptionModal] = useState(false);
@@ -365,8 +366,9 @@ export const Customers: React.FC = () => {
   const [siteOptionForm, setSiteOptionForm] = useState<{
     paidOptions: string;
     protection: string;
+    attachments: string;
     checkedSpecs?: Record<string, boolean>;
-  }>({ paidOptions: '', protection: '', checkedSpecs: {} });
+  }>({ paidOptions: '', protection: '', attachments: '', checkedSpecs: {} });
 
   // 🔍 현장별 옵션관리 기등록 현장 참조 검색 및 옵션 복사 상태
   const [siteOptionRefSearch, setSiteOptionRefSearch] = useState('');
@@ -471,13 +473,13 @@ export const Customers: React.FC = () => {
     return (siteMasters || []).filter(s => {
       if (siteOptionRefSearch.trim()) {
         const sName = s.name || '';
-        const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '');
+        const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '') + ' ' + (s.attachments || '');
         return matcher.testAny([sName, sOpts]);
       }
       return true;
     }).sort((a, b) => {
-      const aHasOpts = Boolean(a.paidOptions || (a.protection && a.protection !== 'NONE') || (a.checkedSpecs && Object.keys(a.checkedSpecs).length > 0));
-      const bHasOpts = Boolean(b.paidOptions || (b.protection && b.protection !== 'NONE') || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
+      const aHasOpts = Boolean(a.paidOptions || (a.protection && a.protection !== 'NONE') || a.attachments || (a.checkedSpecs && Object.keys(a.checkedSpecs).length > 0));
+      const bHasOpts = Boolean(b.paidOptions || (b.protection && b.protection !== 'NONE') || b.attachments || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
       if (aHasOpts && !bHasOpts) return -1;
       if (!aHasOpts && bHasOpts) return 1;
       return (a.name || '').localeCompare(b.name || '', 'ko');
@@ -942,6 +944,7 @@ export const Customers: React.FC = () => {
       paymentDueDay: parentCust?.paymentDueDay || 25,
       paidOptions: parentCust?.defaultPaidOptions || '',
       protection: parentCust?.defaultProtection || '',
+      attachments: parentCust?.defaultAttachments || '',
       checkedSpecs: parentCust?.defaultCheckedSpecs ? { ...parentCust.defaultCheckedSpecs } : {}
     });
     setShowSiteSpecs(false);
@@ -1055,6 +1058,7 @@ export const Customers: React.FC = () => {
       isActive: cs.isActive !== false,
       paidOptions: normalizeOptionString(cs.paidOptions),
       protection: normalizeOptionString(cs.protection),
+      attachments: normalizeOptionString(cs.attachments || (cs.checkedSpecs as any)?.__attachments),
       checkedSpecs: cs.checkedSpecs ? { ...cs.checkedSpecs } : {},
       statementClosingDay: cs.statementClosingDay || parentCust?.defaultStatementClosingDay || 25,
       billingDay: cs.billingDay || parentCust?.defaultBillingDay || 30,
@@ -1172,6 +1176,7 @@ export const Customers: React.FC = () => {
         siteMasterId: editingSite.siteMasterId || null,
         paidOptions: normalizeOptionString(editingSite.paidOptions),
         protection: normalizeOptionString(editingSite.protection),
+        attachments: normalizeOptionString(editingSite.attachments),
         checkedSpecs: editingSite.checkedSpecs || {},
         // 1. 장비담당자 (하위호환 플랫 필드)
         contactName: eqContact?.name || editingSite.contactName || '',
@@ -1267,6 +1272,7 @@ export const Customers: React.FC = () => {
     setCustOptionForm({
       defaultPaidOptions: normalizeOptionString(cust.defaultPaidOptions),
       defaultProtection: normalizeOptionString(cust.defaultProtection),
+      defaultAttachments: normalizeOptionString(cust.defaultAttachments || (cust.defaultCheckedSpecs as any)?.__attachments),
       specialNotes: cust.specialNotes || ''
     });
     setShowCustOptionModal(true);
@@ -1278,6 +1284,7 @@ export const Customers: React.FC = () => {
       db.updateRow<Customer>('customers', activeCustomer.id, {
         defaultPaidOptions: custOptionForm.defaultPaidOptions,
         defaultProtection: custOptionForm.defaultProtection,
+        defaultAttachments: custOptionForm.defaultAttachments,
         specialNotes: custOptionForm.specialNotes,
         updatedAt: new Date().toISOString()
       });
@@ -1288,6 +1295,7 @@ export const Customers: React.FC = () => {
           db.updateRow<CustomerSite>('sites', s.id, {
             paidOptions: custOptionForm.defaultPaidOptions,
             protection: custOptionForm.defaultProtection,
+            attachments: custOptionForm.defaultAttachments,
             updatedAt: new Date().toISOString()
           });
         }
@@ -1312,6 +1320,7 @@ export const Customers: React.FC = () => {
     setSiteOptionForm({
       paidOptions: normalizeOptionString(cs.paidOptions),
       protection: normalizeOptionString(cs.protection),
+      attachments: normalizeOptionString(cs.attachments || (cs.checkedSpecs as any)?.__attachments),
       checkedSpecs: cs.checkedSpecs ? { ...cs.checkedSpecs } : {}
     });
     setShowSiteOptionModal(true);
@@ -1323,6 +1332,7 @@ export const Customers: React.FC = () => {
       db.updateRow<CustomerSite>('sites', editingSiteOption.id, {
         paidOptions: normalizeOptionString(siteOptionForm.paidOptions),
         protection: normalizeOptionString(siteOptionForm.protection),
+        attachments: normalizeOptionString(siteOptionForm.attachments),
         checkedSpecs: siteOptionForm.checkedSpecs || {},
         siteMasterId: selectedRefSiteId || editingSiteOption.siteMasterId || null,
         updatedAt: new Date().toISOString()
@@ -1347,13 +1357,14 @@ export const Customers: React.FC = () => {
       ...prev,
       paidOptions: normalizeOptionString(selectedRefSite.paidOptions),
       protection: normalizeOptionString(selectedRefSite.protection),
+      attachments: normalizeOptionString(selectedRefSite.attachments || (selectedRefSite.checkedSpecs as any)?.__attachments),
       checkedSpecs: selectedRefSite.checkedSpecs ? { ...selectedRefSite.checkedSpecs } : {}
     }));
     showToast(`[${selectedRefSite.name}] 옵션 그룹 속성을 적용했습니다.`);
   };
 
   // 🏷️ 전사 표준 옵션 마스터 핸들러
-  const handleOpenAddOption = (category: 'PAID' | 'PROTECTION' = 'PAID') => {
+  const handleOpenAddOption = (category: 'PAID' | 'PROTECTION' | 'ATTACHMENT' | 'SPEC' = 'PAID') => {
     setEditingOption({
       category,
       name: '',
@@ -2112,9 +2123,11 @@ const handleDeleteAccount = async (accId: string) => {
                                 {(() => {
                                   const paidStr = normalizeOptionString(cs.paidOptions);
                                   const protStr = normalizeOptionString(cs.protection);
+                                  const attStr = normalizeOptionString(cs.attachments || (cs.checkedSpecs as any)?.__attachments);
                                   const hasPaid = Boolean(paidStr && paidStr !== '-' && paidStr !== 'NONE' && paidStr !== '없음');
                                   const hasProt = Boolean(protStr && protStr !== 'NONE' && protStr !== '-' && protStr !== '없음');
-                                  if (!hasPaid && !hasProt) {
+                                  const hasAtt = Boolean(attStr && attStr !== 'NONE' && attStr !== '-' && attStr !== '없음');
+                                  if (!hasPaid && !hasProt && !hasAtt) {
                                     return (
                                       <span style={{ padding: '1px 6px', fontSize: '11px', borderRadius: '3px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)' }}>
                                         (기본상속)
@@ -2131,6 +2144,11 @@ const handleDeleteAccount = async (accId: string) => {
                                       {hasProt && (
                                         <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
                                           {protStr}
+                                        </span>
+                                      )}
+                                      {hasAtt && (
+                                        <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed', border: '1px solid rgba(124, 58, 237, 0.3)', fontWeight: 600 }}>
+                                          {attStr}
                                         </span>
                                       )}
                                     </div>
@@ -2892,139 +2910,7 @@ const handleDeleteAccount = async (accId: string) => {
               </h3>
               <button type="button" onClick={() => setShowSiteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
-                {/* 🔍 옵션 그룹 상속 선택 (선택사항 - 헌장 1.5 준수: 옵션만 상속하고 현장명/주소는 덮어쓰지 않음) */}
-                <div 
-                  data-mid="site-option-ref-search-box"
-                  style={{
-                    backgroundColor: 'var(--bg-app)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <SlidersHorizontal size={13} color="var(--primary)" />
-                      옵션 그룹 상속 선택 (선택사항)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSiteModal(false);
-                        setActiveTab('site_options');
-                      }}
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '11px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--primary)',
-                        backgroundColor: 'transparent',
-                        color: 'var(--primary)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <Plus size={11} /> 현장별 옵션관리 이동 ➔
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '6px', alignItems: 'center' }}>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '30px' }}
-                        placeholder="옵션 그룹명/옵션 검색 (초성 지원)"
-                        value={siteOptionRefSearch}
-                        onChange={e => setSiteOptionRefSearch(e.target.value)}
-                      />
-                      <Search size={11} style={{ position: 'absolute', left: '7px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-                    </div>
-
-                    <select
-                      style={{ ...inputStyle, fontSize: '11px', height: '30px', fontWeight: editingSite.siteMasterId ? 700 : 400 }}
-                      value={editingSite.siteMasterId || ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val) {
-                          const master = (siteMasters || []).find(s => s.id === val);
-                          if (master) {
-                            setEditingSite(prev => ({
-                              ...prev,
-                              siteMasterId: master.id,
-                              paidOptions: normalizeOptionString(master.paidOptions),
-                              protection: normalizeOptionString(master.protection),
-                              checkedSpecs: master.checkedSpecs ? { ...master.checkedSpecs } : {}
-                            }));
-                            setSelectedRefSiteId(val);
-                            showToast(`[${master.name}] 옵션 그룹 속성이 상속 적용되었습니다.`);
-                          }
-                        } else {
-                          setEditingSite(prev => ({
-                            ...prev,
-                            siteMasterId: null
-                          }));
-                          setSelectedRefSiteId('');
-                        }
-                      }}
-                    >
-                      <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({optionReferenceSites.length}개 그룹) --</option>
-                      {optionReferenceSites.map(s => {
-                        const paid = s.paidOptions ? s.paidOptions : '';
-                        const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
-                        const optSummary = [paid, prot].filter(Boolean).join(' | ');
-                        return (
-                          <option key={s.id} value={s.id}>
-                            {s.name} {optSummary ? `(${optSummary})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  {selectedRefSite && (
-                    <div 
-                      style={{
-                        marginTop: '2px',
-                        padding: '6px 8px',
-                        backgroundColor: 'rgba(37, 99, 235, 0.05)',
-                        border: '1px dashed rgba(37, 99, 235, 0.3)',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px',
-                        fontSize: '11.5px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
-                          상속된 옵션 그룹: {selectedRefSite.name}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>
-                        <span>
-                          <strong>유상옵션:</strong> {selectedRefSite.paidOptions || '없음'}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          <strong>무상옵션:</strong> {selectedRefSite.protection || '없음'}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          <strong>요구사양:</strong> {refCheckedSpecsSummary || '없음'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '8px' }}>
@@ -3400,126 +3286,514 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 🛠️ 현장 옵션 설정 (옵션 그룹 상속 후 개별 수정 가능) */}
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* 🛠️ 현장 옵션 설정 (현장 조회 옵션 상속 + 미상속 4가지 유형별 옵션 추가 버튼) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <SlidersHorizontal size={14} className="text-primary" /> 현장 옵션 설정 (유상옵션 / 무상옵션 / 요구사양)
+                    <SlidersHorizontal size={14} className="text-primary" /> 현장 옵션 설정 (유상옵션 / 무상옵션 / 부착물 / 요구사양)
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    출고·입고 검수에 자동 연동
-                  </span>
-                </div>
-
-                {/* 유상옵션 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>유상옵션</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '2px' }}>
-                    {standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(opt => {
-                      const isSelected = splitOptions(editingSite.paidOptions).includes(opt.name);
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            const updated = toggleOptionInString(editingSite.paidOptions, opt.name);
-                            setEditingSite({ ...editingSite, paidOptions: updated });
-                          }}
-                          style={{
-                            padding: '2px 7px',
-                            fontSize: '11px',
-                            borderRadius: '4px',
-                            border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
-                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-card)',
-                            color: isSelected ? '#1d4ed8' : 'var(--text-main)',
-                            fontWeight: isSelected ? 700 : 500,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {opt.name} {isSelected ? '✓' : ''}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={editingSite.paidOptions || ''}
-                    onChange={e => setEditingSite({ ...editingSite, paidOptions: e.target.value })}
-                    placeholder="예: 상부센서(4EA), 4면 철망 설치 (비어있으면 고객사 기본값 상속)"
-                  />
-                </div>
-
-                {/* 무상옵션 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>무상옵션 (보양)</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '2px' }}>
-                    {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
-                      const isSelected = editingSite.protection === opt.name;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setEditingSite({ ...editingSite, protection: opt.name })}
-                          style={{
-                            padding: '2px 7px',
-                            fontSize: '11px',
-                            borderRadius: '4px',
-                            border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
-                            backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-card)',
-                            color: isSelected ? '#047857' : 'var(--text-main)',
-                            fontWeight: isSelected ? 700 : 500,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {opt.name} {isSelected ? '✓' : ''}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={editingSite.protection || ''}
-                    onChange={e => setEditingSite({ ...editingSite, protection: e.target.value })}
-                    placeholder="예: 4면 보양, NONE (비어있으면 고객사 기본값 상속)"
-                  />
-                </div>
-
-                {/* 요구사양 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>현장 요구사양 (안전 규격 및 인증 사양)</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
-                      const isSelected = Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[opt.id]);
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            const updated = {
-                              ...(editingSite.checkedSpecs || {}),
-                              [opt.id]: !isSelected
-                            };
-                            setEditingSite({ ...editingSite, checkedSpecs: updated });
-                          }}
-                          style={{
-                            padding: '2px 7px',
-                            fontSize: '11px',
-                            borderRadius: '4px',
-                            border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
-                            backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-card)',
-                            color: isSelected ? '#b45309' : 'var(--text-main)',
-                            fontWeight: isSelected ? 700 : 500,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {opt.name} {isSelected ? '✓' : ''}
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      출고·입고 검수에 자동 연동
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSiteModal(false);
+                        setActiveTab('site_options');
+                      }}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--primary)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Plus size={11} /> 현장별 옵션관리 이동 ➔
+                    </button>
                   </div>
                 </div>
+
+                {/* 🔍 옵션 그룹(현장) 조회 및 상속 선택 */}
+                <div 
+                  data-mid="site-option-ref-search-box"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ ...labelStyle, fontSize: '11.5px', fontWeight: 700, color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Search size={12} color="var(--primary)" />
+                      현장(옵션 그룹) 조회 및 옵션 상속 선택
+                    </label>
+                    {editingSite.siteMasterId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingSite(prev => ({
+                            ...prev,
+                            siteMasterId: null,
+                            paidOptions: '',
+                            protection: 'NONE',
+                            attachments: '',
+                            checkedSpecs: {}
+                          }));
+                          setSelectedRefSiteId('');
+                          showToast('상속된 옵션이 초기화되었습니다.');
+                        }}
+                        style={{
+                          padding: '1px 6px',
+                          fontSize: '10.5px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        상속 초기화
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '6px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '30px' }}
+                        placeholder="현장명(옵션 그룹명)/옵션 검색 (초성 지원)"
+                        value={siteOptionRefSearch}
+                        onChange={e => setSiteOptionRefSearch(e.target.value)}
+                      />
+                      <Search size={11} style={{ position: 'absolute', left: '7px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                    </div>
+
+                    <select
+                      style={{ ...inputStyle, fontSize: '11px', height: '30px', fontWeight: editingSite.siteMasterId ? 700 : 400 }}
+                      value={editingSite.siteMasterId || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val) {
+                          const master = (siteMasters || []).find(s => s.id === val);
+                          if (master) {
+                            setEditingSite(prev => ({
+                              ...prev,
+                              siteMasterId: master.id,
+                              paidOptions: normalizeOptionString(master.paidOptions),
+                              protection: normalizeOptionString(master.protection) || 'NONE',
+                              attachments: normalizeOptionString(master.attachments || (master.checkedSpecs as any)?.__attachments),
+                              checkedSpecs: master.checkedSpecs ? { ...master.checkedSpecs } : {}
+                            }));
+                            setSelectedRefSiteId(val);
+                            showToast(`[${master.name}] 옵션 속성이 상속 적용되었습니다.`);
+                          }
+                        } else {
+                          setEditingSite(prev => ({
+                            ...prev,
+                            siteMasterId: null
+                          }));
+                          setSelectedRefSiteId('');
+                        }
+                      }}
+                    >
+                      <option value="">-- [선택] 옵션 상속 안함 / 개별 설정 ({optionReferenceSites.length}개 현장그룹) --</option>
+                      {optionReferenceSites.map(s => {
+                        const paid = s.paidOptions ? s.paidOptions : '';
+                        const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
+                        const att = s.attachments || (s.checkedSpecs as any)?.__attachments || '';
+                        const optSummary = [paid, prot, att].filter(Boolean).join(' | ');
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.name} {optSummary ? `(${optSummary})` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {selectedRefSite && (
+                    <div 
+                      style={{
+                        marginTop: '2px',
+                        padding: '6px 8px',
+                        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                        border: '1px dashed rgba(37, 99, 235, 0.3)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                        fontSize: '11px'
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                        상속 기준 그룹: {selectedRefSite.name}
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)' }}>
+                        <span><strong>유상옵션:</strong> {selectedRefSite.paidOptions || '없음'}</span>
+                        <span>•</span>
+                        <span><strong>무상옵션:</strong> {selectedRefSite.protection || 'NONE'}</span>
+                        <span>•</span>
+                        <span><strong>부착물:</strong> {selectedRefSite.attachments || (selectedRefSite.checkedSpecs as any)?.__attachments || '없음'}</span>
+                        <span>•</span>
+                        <span><strong>요구사양:</strong> {refCheckedSpecsSummary || '없음'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4가지 유형별 옵션 (상속/적용된 옵션 + 미상속 추가 가능 옵션 버튼) */}
+                {(() => {
+                  const selectedPaidList = splitOptions(editingSite.paidOptions);
+                  const allPaidOpts = standardOptions.filter(o => o.category === 'PAID' && o.isActive);
+                  const uninheritedPaidOpts = allPaidOpts.filter(o => !selectedPaidList.includes(o.name));
+
+                  const rawProtList = splitOptions(editingSite.protection).filter(p => p.toUpperCase() !== 'NONE' && p !== '보양 없음' && p !== '보양없음');
+                  const allProtOpts = standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive && !o.name.toUpperCase().includes('NONE') && !o.name.includes('보양 없음') && !o.name.includes('보양없음'));
+                  const uninheritedProtOpts = allProtOpts.filter(o => !rawProtList.includes(o.name));
+
+                  const selectedAttList = splitOptions(editingSite.attachments);
+                  const allAttOpts = standardOptions.filter(o => o.category === 'ATTACHMENT' && o.isActive);
+                  const uninheritedAttOpts = allAttOpts.filter(o => !selectedAttList.includes(o.name));
+
+                  const allSpecOpts = standardOptions.filter(o => o.category === 'SPEC' && o.isActive);
+                  const selectedSpecOpts = allSpecOpts.filter(o => Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[o.id]));
+                  const uninheritedSpecOpts = allSpecOpts.filter(o => !Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[o.id]));
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {/* 1. 유상옵션 */}
+                      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label style={{ ...labelStyle, margin: 0, color: '#1d4ed8', fontWeight: 700 }}>1. 유상옵션 ({selectedPaidList.length}개 적용)</label>
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>미적용 버튼 클릭 시 추가 / 적용 버튼 클릭 시 제외</span>
+                        </div>
+
+                        {/* 상속/적용된 유상옵션 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '52px' }}>적용됨:</span>
+                          {selectedPaidList.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음</span>
+                          ) : (
+                            selectedPaidList.map(optName => (
+                              <button
+                                key={optName}
+                                type="button"
+                                onClick={() => {
+                                  const updated = toggleOptionInString(editingSite.paidOptions, optName);
+                                  setEditingSite({ ...editingSite, paidOptions: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #2563eb',
+                                  backgroundColor: 'rgba(37, 99, 235, 0.14)',
+                                  color: '#1d4ed8',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="클릭하여 제외"
+                              >
+                                ✓ {optName} <X size={10} />
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {/* 미상속(추가 가능) 유상옵션 버튼 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '52px' }}>추가가능:</span>
+                          {uninheritedPaidOpts.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>모두 적용됨</span>
+                          ) : (
+                            uninheritedPaidOpts.map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const updated = toggleOptionInString(editingSite.paidOptions, opt.name);
+                                  setEditingSite({ ...editingSite, paidOptions: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px dashed var(--border-color)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  color: 'var(--text-main)',
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                + {opt.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. 무상옵션 (보양) */}
+                      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label style={{ ...labelStyle, margin: 0, color: '#047857', fontWeight: 700 }}>2. 무상옵션 (보양) ({rawProtList.length}개 적용)</label>
+                          {rawProtList.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingSite({ ...editingSite, protection: 'NONE' })}
+                              style={{ fontSize: '10.5px', padding: '1px 6px', borderRadius: '3px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                            >
+                              보양 없음(NONE) 전환
+                            </button>
+                          )}
+                        </div>
+
+                        {/* 상속/적용된 무상옵션 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '52px' }}>적용됨:</span>
+                          {rawProtList.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>보양 없음 (NONE)</span>
+                          ) : (
+                            rawProtList.map(optName => (
+                              <button
+                                key={optName}
+                                type="button"
+                                onClick={() => {
+                                  const nextArr = rawProtList.filter(item => item !== optName);
+                                  setEditingSite({ ...editingSite, protection: nextArr.length > 0 ? nextArr.join(', ') : 'NONE' });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #059669',
+                                  backgroundColor: 'rgba(5, 150, 105, 0.14)',
+                                  color: '#047857',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="클릭하여 제외"
+                              >
+                                ✓ {optName} <X size={10} />
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {/* 미상속(추가 가능) 무상옵션 버튼 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '52px' }}>추가가능:</span>
+                          {uninheritedProtOpts.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>모두 적용됨</span>
+                          ) : (
+                            uninheritedProtOpts.map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const nextArr = [...rawProtList, opt.name];
+                                  setEditingSite({ ...editingSite, protection: nextArr.join(', ') });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px dashed var(--border-color)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  color: 'var(--text-main)',
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                + {opt.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 3. 부착물 */}
+                      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label style={{ ...labelStyle, margin: 0, color: '#6d28d9', fontWeight: 700 }}>3. 부착물 ({selectedAttList.length}개 적용)</label>
+                        </div>
+
+                        {/* 상속/적용된 부착물 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '52px' }}>적용됨:</span>
+                          {selectedAttList.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음</span>
+                          ) : (
+                            selectedAttList.map(optName => (
+                              <button
+                                key={optName}
+                                type="button"
+                                onClick={() => {
+                                  const updated = toggleOptionInString(editingSite.attachments, optName);
+                                  setEditingSite({ ...editingSite, attachments: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #7c3aed',
+                                  backgroundColor: 'rgba(124, 58, 237, 0.14)',
+                                  color: '#6d28d9',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="클릭하여 제외"
+                              >
+                                ✓ {optName} <X size={10} />
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {/* 미상속(추가 가능) 부착물 버튼 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '52px' }}>추가가능:</span>
+                          {uninheritedAttOpts.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>모두 적용됨</span>
+                          ) : (
+                            uninheritedAttOpts.map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const updated = toggleOptionInString(editingSite.attachments, opt.name);
+                                  setEditingSite({ ...editingSite, attachments: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px dashed var(--border-color)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  color: 'var(--text-main)',
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                + {opt.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 4. 현장 요구사양 */}
+                      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label style={{ ...labelStyle, margin: 0, color: '#b45309', fontWeight: 700 }}>4. 현장 요구사양 ({selectedSpecOpts.length}개 적용)</label>
+                        </div>
+
+                        {/* 상속/적용된 요구사양 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '52px' }}>적용됨:</span>
+                          {selectedSpecOpts.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>없음</span>
+                          ) : (
+                            selectedSpecOpts.map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const updated = {
+                                    ...(editingSite.checkedSpecs || {}),
+                                    [opt.id]: false
+                                  };
+                                  setEditingSite({ ...editingSite, checkedSpecs: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #d97706',
+                                  backgroundColor: 'rgba(217, 119, 6, 0.14)',
+                                  color: '#b45309',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="클릭하여 제외"
+                              >
+                                ✓ {opt.name} <X size={10} />
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {/* 미상속(추가 가능) 요구사양 버튼 */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '52px' }}>추가가능:</span>
+                          {uninheritedSpecOpts.length === 0 ? (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>모두 적용됨</span>
+                          ) : (
+                            uninheritedSpecOpts.map(opt => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const updated = {
+                                    ...(editingSite.checkedSpecs || {}),
+                                    [opt.id]: true
+                                  };
+                                  setEditingSite({ ...editingSite, checkedSpecs: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '11px',
+                                  borderRadius: '4px',
+                                  border: '1px dashed var(--border-color)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  color: 'var(--text-main)',
+                                  fontWeight: 500,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                + {opt.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               </div>
@@ -3723,12 +3997,15 @@ const handleDeleteAccount = async (accId: string) => {
                 {/* 표준 무상옵션 칩 목록 */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
                   {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
-                    const isSelected = custOptionForm.defaultProtection === opt.name;
+                    const isSelected = splitOptions(custOptionForm.defaultProtection).includes(opt.name);
                     return (
                       <button
                         key={opt.id}
                         type="button"
-                        onClick={() => setCustOptionForm({ ...custOptionForm, defaultProtection: opt.name })}
+                        onClick={() => {
+                          const updated = toggleOptionInString(custOptionForm.defaultProtection, opt.name);
+                          setCustOptionForm({ ...custOptionForm, defaultProtection: updated });
+                        }}
                         style={{
                           padding: '3px 8px',
                           fontSize: '11px',
@@ -3762,7 +4039,62 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 3. 고객사 특이사항 메모 */}
+              {/* 3. 기본 부착물 */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                    기본 부착물
+                  </label>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                    선택: {splitOptions(custOptionForm.defaultAttachments).length}개
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
+                  {standardOptions.filter(o => o.category === 'ATTACHMENT' && o.isActive).map(opt => {
+                    const isSelected = splitOptions(custOptionForm.defaultAttachments).includes(opt.name);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = toggleOptionInString(custOptionForm.defaultAttachments, opt.name);
+                          setCustOptionForm({ ...custOptionForm, defaultAttachments: updated });
+                        }}
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '11px',
+                          borderRadius: '4px',
+                          border: isSelected ? '1px solid #7c3aed' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
+                          color: isSelected ? '#6d28d9' : 'var(--text-main)',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span>{opt.name}</span>
+                        {isSelected && <Check size={12} />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={labelStyle}>부착물 설정값</label>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={custOptionForm.defaultAttachments}
+                    onChange={e => setCustOptionForm({ ...custOptionForm, defaultAttachments: e.target.value })}
+                    placeholder="예: 인증서, 제원표, 보험증권, 반입전 체크리스트"
+                  />
+                </div>
+              </div>
+
+              {/* 4. 고객사 특이사항 메모 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <label style={labelStyle}>고객사 옵션/출고 특약 메모</label>
                 <textarea
@@ -3865,7 +4197,7 @@ const handleDeleteAccount = async (accId: string) => {
                     옵션 그룹 상속 선택 (현장별 옵션관리)
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    옵션 그룹의 유상/무상/요구사양 속성 복사
+                    옵션 그룹의 유상/무상/부착물/요구사양 속성 복사
                   </span>
                 </div>
 
@@ -3890,7 +4222,8 @@ const handleDeleteAccount = async (accId: string) => {
                     {optionReferenceSites.map(s => {
                       const paid = s.paidOptions ? s.paidOptions : '';
                       const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
-                      const optSummary = [paid, prot].filter(Boolean).join(' | ');
+                      const att = s.attachments || (s.checkedSpecs as any)?.__attachments || '';
+                      const optSummary = [paid, prot, att].filter(Boolean).join(' | ');
                       return (
                         <option key={s.id} value={s.id}>
                           {s.name} {optSummary ? `(${optSummary})` : ''}
@@ -3954,6 +4287,10 @@ const handleDeleteAccount = async (accId: string) => {
                       </span>
                       <span>•</span>
                       <span>
+                        <strong>부착물:</strong> {selectedRefSite.attachments || (selectedRefSite.checkedSpecs as any)?.__attachments || '없음'}
+                      </span>
+                      <span>•</span>
+                      <span>
                         <strong>요구사양:</strong> {refCheckedSpecsSummary || '없음'}
                       </span>
                     </div>
@@ -4009,12 +4346,15 @@ const handleDeleteAccount = async (accId: string) => {
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                   {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
-                    const isSelected = siteOptionForm.protection === opt.name;
+                    const isSelected = splitOptions(siteOptionForm.protection).includes(opt.name);
                     return (
                       <button
                         key={opt.id}
                         type="button"
-                        onClick={() => setSiteOptionForm({ ...siteOptionForm, protection: opt.name })}
+                        onClick={() => {
+                          const updated = toggleOptionInString(siteOptionForm.protection, opt.name);
+                          setSiteOptionForm({ ...siteOptionForm, protection: updated });
+                        }}
                         style={{
                           padding: '2px 7px',
                           fontSize: '11.5px',
@@ -4040,7 +4380,48 @@ const handleDeleteAccount = async (accId: string) => {
                 />
               </div>
 
-              {/* 3. 현장 전용 요구사양 (SPEC) */}
+              {/* 3. 현장 전용 부착물 (ATTACHMENT) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
+                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  현장 전용 부착물
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                  {standardOptions.filter(o => o.category === 'ATTACHMENT' && o.isActive).map(opt => {
+                    const isSelected = splitOptions(siteOptionForm.attachments).includes(opt.name);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = toggleOptionInString(siteOptionForm.attachments, opt.name);
+                          setSiteOptionForm({ ...siteOptionForm, attachments: updated });
+                        }}
+                        style={{
+                          padding: '2px 7px',
+                          fontSize: '11.5px',
+                          borderRadius: '4px',
+                          border: isSelected ? '1px solid #7c3aed' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
+                          color: isSelected ? '#6d28d9' : 'var(--text-main)',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt.name} {isSelected ? '✓' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  style={inputStyle}
+                  value={siteOptionForm.attachments}
+                  onChange={e => setSiteOptionForm({ ...siteOptionForm, attachments: e.target.value })}
+                  placeholder="예: 인증서, 제원표, 보험증권, 반입전 체크리스트"
+                />
+              </div>
+
+              {/* 4. 현장 전용 요구사양 (SPEC) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
                   현장 전용 요구사양 (안전 규격 및 인증 사양)
@@ -4107,7 +4488,7 @@ const handleDeleteAccount = async (accId: string) => {
             {/* 필터 탭 & 신규 등록 버튼 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ display: 'flex', gap: '4px' }}>
-                {(['ALL', 'PAID', 'PROTECTION'] as const).map(cat => (
+                {(['ALL', 'PAID', 'PROTECTION', 'ATTACHMENT', 'SPEC'] as const).map(cat => (
                   <button
                     key={cat}
                     type="button"
@@ -4123,7 +4504,7 @@ const handleDeleteAccount = async (accId: string) => {
                       cursor: 'pointer'
                     }}
                   >
-                    {cat === 'ALL' ? '전체' : cat === 'PAID' ? '유상옵션' : '무상옵션'}
+                    {cat === 'ALL' ? '전체' : cat === 'PAID' ? '유상옵션' : cat === 'PROTECTION' ? '무상옵션' : cat === 'ATTACHMENT' ? '부착물' : '요구사양'}
                   </button>
                 ))}
               </div>
@@ -4145,6 +4526,14 @@ const handleDeleteAccount = async (accId: string) => {
                     style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #059669', color: 'var(--success)' }}
                   >
                     <Plus size={12} /> 무상옵션 등록
+                  </button>
+                  <button data-hs-trigger="Register"
+                    type="button"
+                    onClick={() => handleOpenAddOption('ATTACHMENT')}
+                    className="btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #7c3aed', color: '#7c3aed' }}
+                  >
+                    <Plus size={12} /> 부착물 등록
                   </button>
                 </div>
               )}
@@ -4170,6 +4559,8 @@ const handleDeleteAccount = async (accId: string) => {
                     >
                       <option value="PAID">유상옵션</option>
                       <option value="PROTECTION">무상옵션</option>
+                      <option value="ATTACHMENT">부착물</option>
+                      <option value="SPEC">요구사양</option>
                     </select>
                   </div>
                   <div>
@@ -4263,11 +4654,11 @@ const handleDeleteAccount = async (accId: string) => {
                             borderRadius: '3px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: opt.category === 'PAID' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                            color: opt.category === 'PAID' ? '#2563eb' : '#059669',
-                            border: opt.category === 'PAID' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)'
+                            backgroundColor: opt.category === 'PAID' ? 'rgba(59, 130, 246, 0.12)' : opt.category === 'PROTECTION' ? 'rgba(16, 185, 129, 0.12)' : opt.category === 'ATTACHMENT' ? 'rgba(124, 58, 237, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                            color: opt.category === 'PAID' ? '#2563eb' : opt.category === 'PROTECTION' ? '#059669' : opt.category === 'ATTACHMENT' ? '#7c3aed' : '#d97706',
+                            border: opt.category === 'PAID' ? '1px solid rgba(59, 130, 246, 0.3)' : opt.category === 'PROTECTION' ? '1px solid rgba(16, 185, 129, 0.3)' : opt.category === 'ATTACHMENT' ? '1px solid rgba(124, 58, 237, 0.3)' : '1px solid rgba(217, 119, 6, 0.3)'
                           }}>
-                            {opt.category === 'PAID' ? '유상옵션' : '무상옵션'}
+                            {opt.category === 'PAID' ? '유상옵션' : opt.category === 'PROTECTION' ? '무상옵션' : opt.category === 'ATTACHMENT' ? '부착물' : '요구사양'}
                           </span>
                         </td>
                         <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>

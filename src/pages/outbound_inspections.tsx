@@ -87,10 +87,10 @@ function getGroupCheckpoints(
     }
   });
 
-  // 3. 유상옵션 (site.paidOptions ➔ 옵션 그룹 ➔ customer.defaultPaidOptions)
+  // 3. 유상옵션 (site.paidOptions ➔ 옵션 그룹 ➔ customer.defaultPaidOptions, 단가 제외)
   const paidOpts = site?.paidOptions || siteMaster?.paidOptions || customer?.defaultPaidOptions || '';
   if (typeof paidOpts === 'string' && paidOpts.trim() && paidOpts.trim() !== 'NONE' && paidOpts.trim() !== '없음' && paidOpts.trim() !== '-') {
-    paidOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
+    paidOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim().replace(/\s*\([+-]?[\d,]+(?:\s*원)?\)/g, '').trim()).filter(Boolean).forEach((opt, i) => {
       checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
     });
   }
@@ -100,6 +100,14 @@ function getGroupCheckpoints(
   if (typeof protOpts === 'string' && protOpts.trim() && protOpts.trim() !== 'NONE' && protOpts.trim() !== '없음' && protOpts.trim() !== '-') {
     protOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
       checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
+    });
+  }
+
+  // 5. 부착물 (site.attachments ➔ 옵션 그룹 ➔ customer.defaultAttachments)
+  const attOpts = site?.attachments || siteMaster?.attachments || customer?.defaultAttachments || '';
+  if (typeof attOpts === 'string' && attOpts.trim() && attOpts.trim() !== 'NONE' && attOpts.trim() !== '없음' && attOpts.trim() !== '-') {
+    attOpts.split(/(?:,(?!\d{3}(?:[^\d]|$))|[，、\n;]+)/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
+      checkpoints.push({ id: `att_${i}`, label: `[부착물] ${opt} 비치/부착 확인`, type: 'OPTION' });
     });
   }
 

@@ -114,6 +114,8 @@ export function extractCategorizedSiteOptions(params: {
   customer?: any;
   standardOptions?: StandardOption[];
   deliveryMemo?: string;
+  closingMemo?: string;
+  rawOptionsList?: string[];
 }): {
   paidOptionsText: string;
   protectionText: string;
@@ -124,30 +126,72 @@ export function extractCategorizedSiteOptions(params: {
   attachmentList: string[];
   specList: string[];
 } {
-  const { site, siteMaster, customer, standardOptions = [], deliveryMemo = '' } = params;
+  const {
+    site,
+    siteMaster,
+    customer,
+    standardOptions = [],
+    deliveryMemo = '',
+    closingMemo = '',
+    rawOptionsList = [],
+  } = params;
+
+  const combinedMemo = `${closingMemo || ''} | ${deliveryMemo || ''}`;
+
+  const protectionOptionNames = new Set(
+    standardOptions.filter(o => o.category === 'PROTECTION').map(o => o.name)
+  );
+  const attachmentOptionIds = new Set(
+    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.id)
+  );
+  const attachmentOptionNames = new Set(
+    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.name)
+  );
+  const specOptionNames = new Set(
+    standardOptions.filter(o => o.category === 'SPEC').map(o => o.name)
+  );
+
+  const isProtName = (label: string) => {
+    const clean = stripOptionPrice(label);
+    if (protectionOptionNames.has(clean)) return true;
+    return /보양|비닐보양|바닥보양|완충/i.test(clean) && !/조이스틱|커버|센서|스위치/i.test(clean);
+  };
+  const isAttName = (label: string) => {
+    const clean = stripOptionPrice(label);
+    if (attachmentOptionNames.has(clean)) return true;
+    return /인증서|제원표|보험증권|체크리스트|비상하강|안전점검결과서|스티커/i.test(clean);
+  };
+  const isSpecName = (label: string) => {
+    const clean = stripOptionPrice(label);
+    if (specOptionNames.has(clean)) return true;
+    return STANDARD_SPECS.some(sp => sp.label === clean);
+  };
 
   // 1. 유상옵션 (단가 제거)
   let rawPaid = site?.paidOptions ?? siteMaster?.paidOptions ?? customer?.defaultPaidOptions ?? '';
-  if (!rawPaid && deliveryMemo) {
-    const m = deliveryMemo.match(/\[유상옵션:\s*([^\]]+)\]/);
-    if (m) rawPaid = m[1];
+  if (!rawPaid && combinedMemo) {
+    const m = combinedMemo.match(/(?:\[유상옵션:\s*([^\]]+)\]|유상옵션:\s*([^|]+))/);
+    if (m) rawPaid = m[1] || m[2] || '';
   }
-  const cleanPaid = stripOptionPrice(rawPaid);
-  const paidList = cleanPaid
+  const paidSet = new Set<string>();
+  stripOptionPrice(rawPaid)
     .split(',')
     .map(s => s.trim())
-    .filter(s => s && s !== '없음' && s.toUpperCase() !== 'NONE');
+    .filter(s => s && s !== '없음' && s.toUpperCase() !== 'NONE')
+    .forEach(s => paidSet.add(s));
 
   // 2. 무상옵션
   let rawProt = site?.protection ?? siteMaster?.protection ?? customer?.defaultProtection ?? '';
-  if (!rawProt && deliveryMemo) {
-    const m = deliveryMemo.match(/\[(?:무상옵션|보양(?:작업)?):\s*([^\]]+)\]/);
-    if (m) rawProt = m[1];
+  if (!rawProt && combinedMemo) {
+    const m = combinedMemo.match(/(?:\[(?:무상옵션|보양(?:작업)?):\s*([^\]]+)\]|(?:무상옵션|보양):\s*([^|]+))/);
+    if (m) rawProt = m[1] || m[2] || '';
   }
-  const protectionList = String(rawProt || '')
+  const protSet = new Set<string>();
+  String(rawProt || '')
     .split(',')
     .map(s => s.trim())
-    .filter(s => s && s !== '없음' && !s.toUpperCase().includes('NONE') && !s.includes('무상옵션 없음') && !s.includes('보양 없음'));
+    .filter(s => s && s !== '없음' && !s.toUpperCase().includes('NONE') && !s.includes('무상옵션 없음') && !s.includes('보양 없음'))
+    .forEach(s => protSet.add(s));
 
   // 3. 부착물 & 4. 현장요구스펙
   const effectiveSpecs: Record<string, any> =
@@ -157,17 +201,10 @@ export function extractCategorizedSiteOptions(params: {
         ? siteMaster.checkedSpecs
         : (customer?.defaultCheckedSpecs || {});
 
-  const attachmentOptionIds = new Set(
-    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.id)
-  );
-  const attachmentOptionNames = new Set(
-    standardOptions.filter(o => o.category === 'ATTACHMENT').map(o => o.name)
-  );
-
   let rawAtt = site?.attachments ?? effectiveSpecs?.__attachments ?? siteMaster?.attachments ?? siteMaster?.checkedSpecs?.__attachments ?? customer?.defaultAttachments ?? customer?.defaultCheckedSpecs?.__attachments ?? '';
-  if (!rawAtt && deliveryMemo) {
-    const m = deliveryMemo.match(/\[부착물:\s*([^\]]+)\]/);
-    if (m) rawAtt = m[1];
+  if (!rawAtt && combinedMemo) {
+    const m = combinedMemo.match(/(?:\[부착물:\s*([^\]]+)\]|부착물:\s*([^|]+))/);
+    if (m) rawAtt = m[1] || m[2] || '';
   }
 
   const attSet = new Set<string>();
@@ -188,7 +225,6 @@ export function extractCategorizedSiteOptions(params: {
       attSet.add(k);
     }
   });
-  const attachmentList = Array.from(attSet);
 
   // 4. 현장요구스펙 (ATTACHMENT 및 내부 메타키 제외)
   const specSet = new Set<string>();
@@ -209,16 +245,42 @@ export function extractCategorizedSiteOptions(params: {
       specSet.add(k);
     }
   });
-  if (specSet.size === 0 && deliveryMemo) {
-    const m = deliveryMemo.match(/\[(?:현장요구스펙|현장요구사양|요구사양):\s*([^\]]+)\]/);
+  if (specSet.size === 0 && combinedMemo) {
+    const m = combinedMemo.match(/(?:\[(?:현장요구스펙|현장요구사양|요구사양):\s*([^\]]+)\]|(?:현장요구스펙|현장요구사양):\s*([^|]+))/);
     if (m) {
-      m[1]
+      (m[1] || m[2] || '')
         .split(',')
         .map(s => s.trim())
         .filter(s => s && s !== '없음')
         .forEach(s => specSet.add(s));
     }
   }
+
+  // rawOptionsList 및 메모 내 [옵션] 통합 리스트 자동 분류
+  const extraOpts: string[] = [...rawOptionsList];
+  if (combinedMemo && (combinedMemo.includes('[옵션]') || combinedMemo.includes('[회수옵션]'))) {
+    const optMatch = combinedMemo.match(/\[(?:회수)?옵션\]\s*([^|]+)/);
+    if (optMatch && optMatch[1]?.trim()) {
+      optMatch[1].split(',').forEach(s => extraOpts.push(s.trim()));
+    }
+  }
+  extraOpts.forEach(item => {
+    const clean = stripOptionPrice(item).replace(/^(?:유상옵션|무상옵션|보양|부착물|현장요구스펙):\s*/, '').trim();
+    if (!clean || clean === '없음' || clean.toUpperCase() === 'NONE') return;
+    if (isAttName(clean)) {
+      attSet.add(clean);
+    } else if (isProtName(clean)) {
+      protSet.add(clean);
+    } else if (isSpecName(clean)) {
+      specSet.add(clean);
+    } else {
+      paidSet.add(clean);
+    }
+  });
+
+  const paidList = Array.from(paidSet);
+  const protectionList = Array.from(protSet);
+  const attachmentList = Array.from(attSet);
   const specList = Array.from(specSet);
 
   return {

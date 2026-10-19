@@ -930,7 +930,10 @@ export const SiteOptionManage: React.FC = () => {
                   const isSelected = site.id === selectedSiteId;
                   const paidCount = (site.paidOptions || '').split(',').map(s => s.trim()).filter(Boolean).length;
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
-                  const specCount = site.checkedSpecs ? Object.values(site.checkedSpecs).filter(Boolean).length : 0;
+                  const attachmentCount = (site.attachments || '').split(',').map(s => s.trim()).filter(Boolean).length;
+                  const specCount = site.checkedSpecs
+                    ? Object.entries(site.checkedSpecs).filter(([k, v]) => k !== '__attachments' && Boolean(v)).length
+                    : 0;
                   const linkedCount = siteCustomerStatsMap[site.id]?.linkedSiteCount || 0;
 
                   return (
@@ -972,6 +975,12 @@ export const SiteOptionManage: React.FC = () => {
                         {hasProt && (
                           <span className="badge badge-success" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
                             {site.protection}
+                          </span>
+                        )}
+
+                        {attachmentCount > 0 && (
+                          <span className="badge" style={{ fontSize: '10.5px', whiteSpace: 'nowrap', backgroundColor: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed', fontWeight: 700 }}>
+                            부착물 {attachmentCount}개
                           </span>
                         )}
 
@@ -1256,7 +1265,7 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#059669" /> 2. 무상 옵션 (보양)
+                        <Shield size={15} color="#059669" /> 2. 무상 옵션
                       </span>
                     </div>
 
@@ -1289,11 +1298,76 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 3. 현장 요구 사양 섹션 */}
+                  {/* 3. 부착물 (ATTACHMENT) 섹션 */}
+                  <div data-mid="card-attachment-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Layers size={15} color="#7c3aed" /> 3. 부착물
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                      {attachmentDisabledOptions.map(item => (
+                        <button
+                          key={item.optionId}
+                          type="button"
+                          onClick={() => handleToggleOption(item.optionId)}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-app)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          + {item.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {attachmentEnabledOptions.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
+                          적용된 부착물이 없습니다. 상단 항목을 클릭하여 추가해주세요.
+                        </div>
+                      ) : (
+                        attachmentEnabledOptions.map(item => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '6px 10px 6px 6px', borderRadius: '8px',
+                              border: '1.5px solid #7c3aed',
+                              backgroundColor: 'rgba(124, 58, 237, 0.08)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToggleOption(item.optionId)}
+                              style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                            >
+                              <X size={14} strokeWidth={3} />
+                            </button>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#6d28d9' }}>
+                              {item.name}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4. 현장 요구 사양 섹션 */}
                   <div data-mid="card-spec-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양
+                        <CheckSquare size={15} color="#d97706" /> 4. 현장 요구 사양
                       </span>
                     </div>
 
@@ -1374,10 +1448,16 @@ export const SiteOptionManage: React.FC = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      적용 유상옵션: <strong>{paidEnabledOptions.length}건</strong>
+                      유상옵션: <strong>{paidEnabledOptions.length}건</strong>
                     </span>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       무상옵션: <strong>{protectionEnabledDisplay}</strong>
+                    </span>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      부착물: <strong>{attachmentEnabledOptions.length}건</strong>
+                    </span>
+                    <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      현장요구사양: <strong>{specEnabledOptions.length}건</strong>
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                       월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}
@@ -1502,6 +1582,8 @@ export const SiteOptionManage: React.FC = () => {
               <tbody>
                 {sortedStandardOptions.map(opt => {
                   const isPaid = opt.category === 'PAID';
+                  const isAttachment = opt.category === 'ATTACHMENT';
+                  const isProtection = opt.category === 'PROTECTION';
                   return (
                     <tr key={opt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
@@ -1510,10 +1592,22 @@ export const SiteOptionManage: React.FC = () => {
                           borderRadius: '4px',
                           fontSize: '11px',
                           fontWeight: 700,
-                          backgroundColor: isPaid ? 'rgba(37, 99, 235, 0.12)' : 'rgba(5, 150, 105, 0.12)',
-                          color: isPaid ? '#1d4ed8' : '#059669'
+                          backgroundColor: isPaid
+                            ? 'rgba(37, 99, 235, 0.12)'
+                            : isProtection
+                            ? 'rgba(5, 150, 105, 0.12)'
+                            : isAttachment
+                            ? 'rgba(124, 58, 237, 0.12)'
+                            : 'rgba(217, 119, 6, 0.12)',
+                          color: isPaid
+                            ? '#1d4ed8'
+                            : isProtection
+                            ? '#059669'
+                            : isAttachment
+                            ? '#7c3aed'
+                            : '#b45309'
                         }}>
-                          {isPaid ? '유상옵션' : opt.category === 'PROTECTION' ? '무상옵션' : '요구사양'}
+                          {isPaid ? '유상옵션' : isProtection ? '무상옵션' : isAttachment ? '부착물' : '요구사양'}
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
@@ -1616,6 +1710,7 @@ export const SiteOptionManage: React.FC = () => {
               >
                 <option value="PAID">유상 옵션</option>
                 <option value="PROTECTION">무상 옵션</option>
+                <option value="ATTACHMENT">부착물</option>
                 <option value="SPEC">요구 사양</option>
               </select>
             </div>

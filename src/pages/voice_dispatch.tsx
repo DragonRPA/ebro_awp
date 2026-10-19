@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { canViewFinancials } from '../utils/privacyMasking';
+import { extractCategorizedSiteOptions, stripOptionPrice } from '../types/siteOption';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 // ─────────────────────────────────────────────────────────────────────────────
 export const VoiceDispatch: React.FC = () => {
   const {
-    hasPermission, customers, sites, contacts, currentUser, currentTenant,
+    hasPermission, customers, sites, siteMasters, contacts, currentUser, currentTenant,
     saveSmartDispatch, assets, deliveries, standardOptions,
     printStations, enqueuePrintJob, showPrintSuccessModal,
     products = [],
@@ -468,11 +469,20 @@ export const VoiceDispatch: React.FC = () => {
       .filter(s => Boolean(s) && s !== '-' && s !== 'NONE' && s !== '없음');
   };
 
-  // 🛡️ 보양/유상옵션 정밀 분류 헬퍼
+  // 🛡️ 보양/부착물/유상옵션 정밀 분류 헬퍼
   const isProtectionOption = useCallback((label: string): boolean => {
+    const clean = stripOptionPrice(label);
     const protDefs = (standardOptions || []).filter(o => o.category === 'PROTECTION').map(o => o.name);
-    if (protDefs.includes(label)) return true;
-    if (/보양|비닐보양|바닥보양|완충/i.test(label) && !/조이스틱|커버|센서|스위치/i.test(label)) return true;
+    if (protDefs.includes(clean)) return true;
+    if (/보양|비닐보양|바닥보양|완충/i.test(clean) && !/조이스틱|커버|센서|스위치/i.test(clean)) return true;
+    return false;
+  }, [standardOptions]);
+
+  const isAttachmentOption = useCallback((label: string): boolean => {
+    const clean = stripOptionPrice(label);
+    const attDefs = (standardOptions || []).filter(o => o.category === 'ATTACHMENT').map(o => o.name);
+    if (attDefs.includes(clean)) return true;
+    if (/인증서|제원표|보험증권|체크리스트|비상하강|안전점검결과서|스티커/i.test(clean)) return true;
     return false;
   }, [standardOptions]);
 
@@ -480,23 +490,34 @@ export const VoiceDispatch: React.FC = () => {
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
     const inherited = new Set<string>();
 
-    // ── 1순위: 선택된 현장 마스터 직접 등록 옵션 ──────────────────────────────
+    // ── 1순위: 선택된 현장 마스터 직접 등록 옵션 + 연결된 옵션 그룹 ────────────
     if (site) {
-      if (site.paidOptions) {
-        parseOptionString(site.paidOptions).forEach(opt => inherited.add(opt));
+      const sm = site.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
+      const effPaid = site.paidOptions || sm?.paidOptions;
+      const effProt = (site.protection && site.protection !== 'NONE' && site.protection !== '-') ? site.protection : sm?.protection;
+      const effAtt = site.attachments || sm?.attachments;
+
+      if (effPaid) {
+        parseOptionString(effPaid).forEach(opt => inherited.add(stripOptionPrice(opt)));
       }
-      if (site.protection && site.protection !== 'NONE' && site.protection !== '-') {
-        parseOptionString(site.protection).forEach(opt => inherited.add(opt));
+      if (effProt && effProt !== 'NONE' && effProt !== '-') {
+        parseOptionString(effProt).forEach(opt => inherited.add(opt));
+      }
+      if (effAtt && effAtt !== 'NONE' && effAtt !== '-') {
+        parseOptionString(effAtt).forEach(opt => inherited.add(opt));
       }
     }
 
     // ── 2순위: 고객사 기본 상속 옵션 (현장 옵션이 비어있거나 현장 미선택 시) ───
     if (inherited.size === 0 && cust) {
       if (cust.defaultPaidOptions) {
-        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(opt));
+        parseOptionString(cust.defaultPaidOptions).forEach(opt => inherited.add(stripOptionPrice(opt)));
       }
       if (cust.defaultProtection && cust.defaultProtection !== 'NONE' && cust.defaultProtection !== '-') {
         parseOptionString(cust.defaultProtection).forEach(opt => inherited.add(opt));
+      }
+      if (cust.defaultAttachments && cust.defaultAttachments !== 'NONE' && cust.defaultAttachments !== '-') {
+        parseOptionString(cust.defaultAttachments).forEach(opt => inherited.add(opt));
       }
     }
 
@@ -514,7 +535,7 @@ export const VoiceDispatch: React.FC = () => {
         const match = text.match(/\[(?:옵션|안전옵션)\]\s*([^|\]]+)/);
         if (match && match[1]) {
           parseOptionString(match[1]).forEach(item => {
-            inherited.add(item);
+            inherited.add(stripOptionPrice(item));
           });
         }
       }
@@ -523,7 +544,7 @@ export const VoiceDispatch: React.FC = () => {
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
     return inherited;
-  }, [deliveries]);
+  }, [deliveries, siteMasters]);
 
   const inheritPastSafetyOptions = loadSiteSafetyOptions;
 
@@ -894,13 +915,15 @@ export const VoiceDispatch: React.FC = () => {
       return;
     }
     const optionLabels = Array.from(selectedSafetyOptions);
-    const paidOpts = optionLabels.filter(label => !isProtectionOption(label)).join(', ');
+    const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
     const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
+    const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
 
     try {
       db.updateRow<CustomerSite>('sites', selectedSite.id, {
         paidOptions: paidOpts,
         protection: protOpts,
+        attachments: attOpts,
         address: selectedSiteAddress || selectedSite.address,
         updatedAt: new Date().toISOString(),
       });
@@ -1461,12 +1484,14 @@ export const VoiceDispatch: React.FC = () => {
       // 🌟 [첨삭 저장 확인] 현장 기본값으로 저장 선택 시 CustomerSite DB 업데이트
       if (saveToSite && selectedSite) {
         const optionLabels = Array.from(selectedSafetyOptions);
-        const paidOpts = optionLabels.filter(label => !isProtectionOption(label)).join(', ');
+        const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
         const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
+        const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
 
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           paidOptions: paidOpts,
           protection: protOpts,
+          attachments: attOpts,
           address: selectedSiteAddress || selectedSite.address,
           updatedAt: new Date().toISOString(),
         });
@@ -1547,6 +1572,11 @@ export const VoiceDispatch: React.FC = () => {
         `[정산일정] 청구:${closingDay}|명세서:${statementClosingDay}|결제:${paymentDueDay}`,
       ].filter(Boolean).join(' | ');
 
+      const allSelOpts = Array.from(selectedSafetyOptions);
+      const effPaidOptStr = allSelOpts.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+      const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
+      const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
+
       // 🚀 [실제 출고의뢰 풀 파이프라인 생성: 고객사·현장 신규생성, 계약체결, 배차대장 등록, 장비할당 가상매핑]
       const dispatchData = {
         customerName: effectiveCustomerName,
@@ -1572,7 +1602,9 @@ export const VoiceDispatch: React.FC = () => {
         billableToCustomer: false,
         type: isExchangeMode ? 'EXCHANGE' : 'OUTBOUND',
         retrievalAssetIds: retrievalAssetIds || [],
-        paidOptions: Array.from(selectedSafetyOptions).join(', '),
+        paidOptions: effPaidOptStr,
+        protection: effProtOptStr,
+        attachments: effAttOptStr,
         closingDay,
         statementClosingDay,
         paymentDay: paymentDueDay,
@@ -2361,24 +2393,50 @@ export const VoiceDispatch: React.FC = () => {
         </tbody>
       </table>
 
-      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 -->
+      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙) -->
+      ${(() => {
+        const printCust = targetDraft
+          ? customers.find(c => c.name === customerName)
+          : (isNewCustomerMode ? null : selectedCustomer);
+        const printSite = targetDraft
+          ? sites.find(s => s.name === siteName && (!printCust || s.customerId === printCust.id))
+          : (isNewCustomerMode || isRegisteringNewSite ? null : selectedSite);
+        const effSmId = printSite?.siteMasterId;
+        const printSiteMaster = effSmId ? (siteMasters || []).find(sm => sm.id === effSmId) : null;
+        const categorizedOpts = extractCategorizedSiteOptions({
+          site: printSite,
+          siteMaster: printSiteMaster,
+          customer: printCust,
+          rawOptionsList: orderSafetyOptions,
+          standardOptions,
+        });
+        return `
       <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
-      <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #f5f2eb; box-sizing: border-box;">
-        ${orderSafetyOptions.length > 0 ? `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
-            ${orderSafetyOptions.map((opt, idx) => `
-              <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000; word-break: break-all;">
-                <span style="font-size: 8pt; flex-shrink: 0;">[v]</span>
-                <span>${idx + 1}. ${opt}</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : `
-          <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
-            • 별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)
-          </div>
-        `}
-      </div>
+      <table>
+        <colgroup>
+          <col style="width: 14%;" />
+          <col style="width: 86%;" />
+        </colgroup>
+        <tbody>
+          <tr>
+            <th class="nowrap">유상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.paidOptionsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">무상옵션</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.protectionText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">부착물</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
+          </tr>
+          <tr>
+            <th class="nowrap">현장요구스펙</th>
+            <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
+          </tr>
+        </tbody>
+      </table>`;
+      })()}
 
       <!-- 5. 현장 특이사항 및 작업 요청 -->
       <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>

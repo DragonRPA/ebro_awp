@@ -54,7 +54,7 @@ export const Contracts: React.FC = () => {
   // --- 계약 조회 필터 상태 ---
   const [searchTerm, setSearchTerm] = useState('');
   const [contractTypeFilter, setContractTypeFilter] = useState<'ALL' | 'RENTAL' | 'SALE'>('RENTAL');
-  const [statusFilter, setStatusFilter] = useState('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [customerFilter, setCustomerFilter] = useState('ALL');
   const [customerInputText, setCustomerInputText] = useState('');
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
@@ -75,7 +75,11 @@ export const Contracts: React.FC = () => {
         setSelectedContractId(navigationPayload.contractId);
         setViewMode('DETAIL');
       } else if (navigationPayload.quickChipFilter) {
-        setQuickChipFilter(navigationPayload.quickChipFilter);
+        const nextChip = navigationPayload.quickChipFilter;
+        setQuickChipFilter(nextChip);
+        if (nextChip === 'ALL') setStatusFilter('ALL');
+        else if (nextChip === 'COMPLETED') setStatusFilter('COMPLETED');
+        else setStatusFilter('ACTIVE');
       }
       setNavigationPayload?.(null);
     }
@@ -537,13 +541,25 @@ export const Contracts: React.FC = () => {
     const q = searchTerm.trim();
     const qLower = q.toLowerCase();
     const matcher = q ? createHangulMatcher(q) : null;
+    const custText = customerInputText.trim();
+    const siteText = siteInputText.trim();
 
     return contracts.filter(c => {
       const matchesType = contractTypeFilter === 'ALL' || (c.contractType || 'RENTAL') === contractTypeFilter;
       if (!matchesType) return false;
 
-      if (customerFilter !== 'ALL' && c.customerId !== customerFilter) return false;
-      if (siteFilter !== 'ALL' && c.siteId !== siteFilter) return false;
+      if (customerFilter !== 'ALL') {
+        if (c.customerId !== customerFilter) return false;
+      } else if (custText) {
+        if (!matchHangul(getCustName(c.customerId), custText)) return false;
+      }
+
+      if (siteFilter !== 'ALL') {
+        if (c.siteId !== siteFilter) return false;
+      } else if (siteText) {
+        if (!matchHangul(getSiteName(c.siteId), siteText)) return false;
+      }
+
       if (startDateFilter && (!c.startDate || c.startDate < startDateFilter)) return false;
       if (endDateFilter && normalizeEndDate(c.endDate) > endDateFilter) return false;
 
@@ -588,7 +604,7 @@ export const Contracts: React.FC = () => {
 
       return true;
     });
-  }, [contracts, contractAssetsByContractMap, assetMap, customerMap, siteMap, contactNameMap, searchTerm, contractTypeFilter, statusFilter, customerFilter, siteFilter, startDateFilter, endDateFilter, quickChipFilter, deliveriesByContractMap, outboundInspectionsByContractMap, packageSentContractIds, currentUser, hasCurrentUserSalesContracts]);
+  }, [contracts, contractAssetsByContractMap, assetMap, customerMap, siteMap, contactNameMap, searchTerm, contractTypeFilter, statusFilter, customerFilter, customerInputText, siteFilter, siteInputText, startDateFilter, endDateFilter, quickChipFilter, deliveriesByContractMap, outboundInspectionsByContractMap, packageSentContractIds, currentUser, hasCurrentUserSalesContracts]);
 
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
@@ -1949,13 +1965,13 @@ export const Contracts: React.FC = () => {
               </div>
 
               {/* 필터 초기화 버튼 */}
-              {(statusFilter !== 'ACTIVE' || quickChipFilter !== 'ALL' || customerFilter !== 'ALL' || siteFilter !== 'ALL' || startDateFilter || endDateFilter || searchTerm) && (
+              {(statusFilter !== 'ALL' || quickChipFilter !== 'ALL' || customerFilter !== 'ALL' || customerInputText.trim() !== '' || siteFilter !== 'ALL' || siteInputText.trim() !== '' || startDateFilter || endDateFilter || searchTerm) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, visibility: 'hidden', whiteSpace: 'nowrap', userSelect: 'none' }}>초기화</label>
                   <button
                     type="button"
                     onClick={() => {
-                      setStatusFilter('ACTIVE');
+                      setStatusFilter('ALL');
                       setQuickChipFilter('ALL');
                       setCustomerFilter('ALL');
                       setCustomerInputText('');
