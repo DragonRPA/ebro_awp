@@ -4340,6 +4340,19 @@ export const SEED_TENANTS: Tenant[] = [
       autoTaxInvoice: true,
       voiceAssistance: true,
       agentAiEnabled: false,
+      officialMailConfig: {
+        googleEmail: '77.victor.lee@gmail.com',
+        gmailAppPassword: 'hqqgtwtsjimvqmeb',
+        smtpProvider: 'GMAIL',
+        smtpHost: 'smtp.gmail.com',
+        smtpPort: 465,
+        isDevMode: false,
+        contractFolder: '렌탈계약서_증빙',
+        consumableFolder: '소모품납품증빙',
+        deliveryFolder: '출고의뢰_증빙',
+        maintenanceFolder: '정비보고서_증빙',
+        updatedAt: new Date().toISOString()
+      }
     },
     subscription: {
       plan: 'ENTERPRISE',
@@ -4485,7 +4498,20 @@ export const SEED_TENANTS: Tenant[] = [
       kakaoContract: true,
       autoTaxInvoice: true,
       voiceAssistance: true,
-      agentAiEnabled: true
+      agentAiEnabled: true,
+      officialMailConfig: {
+        googleEmail: '77.victor.lee@gmail.com',
+        gmailAppPassword: 'hqqgtwtsjimvqmeb',
+        smtpProvider: 'GMAIL',
+        smtpHost: 'smtp.gmail.com',
+        smtpPort: 465,
+        isDevMode: false,
+        contractFolder: '렌탈계약서_증빙',
+        consumableFolder: '소모품납품증빙',
+        deliveryFolder: '출고의뢰_증빙',
+        maintenanceFolder: '정비보고서_증빙',
+        updatedAt: new Date().toISOString()
+      }
     },
     subscription: {
       plan: 'ENTERPRISE',
@@ -4724,9 +4750,13 @@ const SEED_BANK_MATCHING_RULES: BankMatchingRule[] = [];
 const SEED_OFFICIAL_MAIL_CONFIG: OfficialMailConfig[] = [
   {
     id: 'default-config',
-    googleEmail: '',
+    tenantId: 'tenant-giyeonlift',
+    googleEmail: '77.victor.lee@gmail.com',
     googlePassword: '',
-    gmailAppPassword: '',
+    gmailAppPassword: 'hqqgtwtsjimvqmeb',
+    smtpProvider: 'GMAIL',
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 465,
     contractFolder: '렌탈계약서_증빙',
     consumableFolder: '소모품납품증빙',
     deliveryFolder: '출고의뢰_증빙',
@@ -4737,7 +4767,6 @@ const SEED_OFFICIAL_MAIL_CONFIG: OfficialMailConfig[] = [
     nextInsuranceStartDate: '2027-03-05',
     nextInsuranceEndDate: '2028-03-05',
     updatedAt: new Date().toISOString()
-
   }
 ];
 
