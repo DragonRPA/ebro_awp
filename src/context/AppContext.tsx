@@ -9801,7 +9801,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: registeredAt
     });
 
-        // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
+    // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
+    const prevCaEndDate = ca?.endDate || contract?.endDate || data.returnDate;
+    const prevContractEndDate = contract?.endDate || data.returnDate;
     if (activeCAs.length > 0 || ca) {
       if (activeCAs.length > 0) {
         activeCAs.forEach(targetCa => {
@@ -9845,9 +9847,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             contractId: contract.id,
             changeType: 'TERMINATE',
             changeDate: data.returnDate,
-            prevEndDate: contract.endDate,
+            prevEndDate: prevContractEndDate,
             newEndDate: data.returnDate,
-            description: `[자동 마감] 마지막 자산 반납(입고일: ${data.returnDate})에 따른 마스터 계약 마감 및 종료일 동기화`,
+            description: `[자동 마감] 마지막 자산(${asset.assetNo}) 반납(입고일: ${data.returnDate})에 따른 마스터 계약 마감 및 종료일 동기화 (원래종료일: ${prevContractEndDate}, 원래슬롯종료일: ${prevCaEndDate})`,
             createdAt: registeredAt
           });
         } else if (data.returnDate > contract.endDate) {
@@ -9860,9 +9862,20 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             contractId: contract.id,
             changeType: 'EXTEND',
             changeDate: data.returnDate,
-            prevEndDate: contract.endDate,
+            prevEndDate: prevContractEndDate,
             newEndDate: data.returnDate,
-            description: `[자동 연장] 입고 처리(입고일: ${data.returnDate})에 따른 마스터 계약 강제 연장 동기화`,
+            description: `[자동 연장] 자산(${asset.assetNo}) 입고 처리(입고일: ${data.returnDate})에 따른 마스터 계약 강제 연장 동기화 (원래종료일: ${prevContractEndDate}, 원래슬롯종료일: ${prevCaEndDate})`,
+            createdAt: registeredAt
+          });
+        } else {
+          // 다수 장비 계약 중 일부 장비 조기/정상 반납 -> 슬롯 원래 종료일 스냅샷 보존
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: contract.id,
+            changeType: 'ASSET_PERIOD_CHANGE',
+            changeDate: data.returnDate,
+            prevEndDate: prevCaEndDate,
+            newEndDate: data.returnDate,
+            description: `[부분 입고] 자산(${asset.assetNo}) 반납 입고(입고일: ${data.returnDate}) 처리 (원래슬롯종료일: ${prevCaEndDate})`,
             createdAt: registeredAt
           });
         }
@@ -9984,7 +9997,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     await db.awaitPendingWrites(); refreshAllData(); };
 
-  // 💡 [사장님 지시] 입고 취소 롤백 (휴먼에러 복원 및 INBOUND_CANCEL 히스토리 무누락 저장)
+  // 💡 [사장님 지시] 입고 취소 롤백 (휴먼에러 원상복구 6단계 트랜잭션: 계약종료일·계약상태·체결자산·정비·배차·감사로그 100% 복원)
   const cancelInboundAsset = async (logId: string, cancelReason?: string) => {
     const log = db.assetInOutLogs.find(l => l.id === logId && l.type === 'INBOUND');
     if (!log) throw new Error('해당 입고 이력 로그를 찾을 수 없거나 이미 취소된 건입니다.');
@@ -9992,34 +10005,185 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const asset = db.assets.find(a => a.id === log.assetId);
     if (!asset) throw new Error('연관 자산을 찾을 수 없습니다.');
 
-    // 1. 자산 상태 RENTED(대여중)로 복원
-    db.updateRow<Asset>('assets', asset.id, {
-      status: 'RENTED',
-      currentCustomerId: log.customerId || asset.currentCustomerId,
-      currentSiteId: log.siteId || asset.currentSiteId,
-      updatedAt: new Date().toISOString()
-    });
+    // [Step 0] 사전 안전 검증 (Pre-Rollback Guardrails)
+    // 0-1. 입고 등록 이후 타 계약에 이미 재출고/배정되었는지 검사
+    const hasSubsequentOutbound = db.assetInOutLogs.some(l =>
+      l.assetId === asset.id &&
+      l.type === 'OUTBOUND' &&
+      l.createdAt && log.createdAt &&
+      l.createdAt > log.createdAt
+    );
+    const isAssignedToAnotherCustomer =
+      (asset.status === 'RENTED' || asset.status === 'ASSIGNED') &&
+      Boolean(asset.currentCustomerId) &&
+      Boolean(log.customerId) &&
+      asset.currentCustomerId !== log.customerId;
 
-    // 2. 계약 체결 자산 RENTED(대여중)로 복원
-    const ca = db.contractAssets.find(c => c.assetId === asset.id);
-    if (ca) {
-      db.updateRow<ContractAsset>('contractAssets', ca.id, {
-        status: 'RENTED',
-        actualReturnDate: undefined,
-        updatedAt: new Date().toISOString()
+    if (hasSubsequentOutbound || isAssignedToAnotherCustomer) {
+      throw new Error(`자산(${asset.assetNo})은 입고 등록 이후 이미 다른 계약에 배정 또는 재출고되어 입고를 취소할 수 없습니다.`);
+    }
+
+    // 0-2. 입고 결함으로 자동 생성된 정비 건이 이미 완료(COMPLETED) 마감되었는지 검사
+    const linkedRepair = log.repairId ? db.repairs.find(r => r.id === log.repairId) : undefined;
+    if (linkedRepair && linkedRepair.status === 'COMPLETED') {
+      throw new Error(`해당 입고 건으로 자동 접수된 정비(${linkedRepair.id})가 이미 완료 마감되어 부품/수리비가 반영되었습니다. 정비 내역을 먼저 취소 또는 확인해 주십시오.`);
+    }
+
+    const nowIso = new Date().toISOString();
+    const inboundDateStr = log.inDate || log.eventDate;
+
+    // [Step 1] 해당 입고 건과 매칭되는 정확한 체결 자산 슬롯(ContractAsset) 및 마스터 계약(Contract) 특정
+    const candidateCAs = db.contractAssets
+      .filter(c => c.assetId === asset.id)
+      .sort((a, b) => (b.inRegisteredAt || b.updatedAt || b.createdAt || '').localeCompare(a.inRegisteredAt || a.updatedAt || a.createdAt || ''));
+
+    const ca =
+      candidateCAs.find(c => c.status === 'RETURNED' && c.actualReturnDate === inboundDateStr) ||
+      candidateCAs.find(c => {
+        if (c.status !== 'RETURNED') return false;
+        const ct = db.contracts.find(con => con.id === c.contractId);
+        return ct && log.customerId && ct.customerId === log.customerId;
+      }) ||
+      candidateCAs.find(c => c.status === 'RETURNED') ||
+      candidateCAs[0];
+
+    const contract = ca ? db.contracts.find(ct => ct.id === ca.contractId) : undefined;
+
+    // [Step 2] 자동 단축/변경된 계약 종료일(prevEndDate) 및 슬롯 종료일 역추적 산출
+    let restoredContractEndDate = contract?.endDate || '';
+    let restoredCaEndDate = ca?.endDate || '';
+
+    if (contract) {
+      const contractHistories = db.contractHistory
+        .filter(h => h.contractId === contract.id)
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+      // 입고 등록 시 자동 기록된 TERMINATE / EXTEND / ASSET_PERIOD_CHANGE 이력 탐색
+      const matchedAutoHistory = contractHistories.find(h =>
+        (h.changeType === 'TERMINATE' || h.changeType === 'EXTEND' || h.changeType === 'ASSET_PERIOD_CHANGE') &&
+        (h.newEndDate === inboundDateStr || h.changeDate === inboundDateStr || (h.description && h.description.includes(asset.assetNo)))
+      );
+
+      if (matchedAutoHistory?.prevEndDate) {
+        if (matchedAutoHistory.changeType === 'TERMINATE' || matchedAutoHistory.changeType === 'EXTEND') {
+          restoredContractEndDate = matchedAutoHistory.prevEndDate;
+        }
+        restoredCaEndDate = matchedAutoHistory.prevEndDate;
+      }
+
+      // description 내 '원래슬롯종료일: YYYY-MM-DD' 또는 '원래종료일: YYYY-MM-DD' 파싱 보강
+      if (matchedAutoHistory?.description) {
+        const slotMatch = matchedAutoHistory.description.match(/원래슬롯종료일:\s*(\d{4}-\d{2}-\d{2})/);
+        const contractMatch = matchedAutoHistory.description.match(/원래종료일:\s*(\d{4}-\d{2}-\d{2})/);
+        if (slotMatch?.[1]) restoredCaEndDate = slotMatch[1];
+        if (contractMatch?.[1]) restoredContractEndDate = contractMatch[1];
+      }
+
+      // 만약 이전 이력에 prevEndDate가 없는 레거시 데이터라면 직전 계약 이력 또는 동일 계약 타 자산 종료일로 폴백 복원
+      if (!matchedAutoHistory?.prevEndDate && restoredContractEndDate === inboundDateStr) {
+        const priorHistory = contractHistories.find(h =>
+          h.id !== matchedAutoHistory?.id &&
+          (h.changeType === 'REGISTER' || h.changeType === 'EXTEND' || h.changeType === 'SHORTEN') &&
+          Boolean(h.newEndDate) &&
+          h.newEndDate !== inboundDateStr
+        );
+        const siblingMaxEndDate = db.contractAssets
+          .filter(c => c.contractId === contract.id && c.id !== ca?.id && c.endDate)
+          .reduce((max, c) => (c.endDate > max ? c.endDate : max), '');
+
+        if (priorHistory?.newEndDate) {
+          restoredContractEndDate = priorHistory.newEndDate;
+        } else if (siblingMaxEndDate && siblingMaxEndDate > restoredContractEndDate) {
+          restoredContractEndDate = siblingMaxEndDate;
+        }
+      }
+
+      if (!restoredCaEndDate || restoredCaEndDate === inboundDateStr) {
+        restoredCaEndDate = restoredContractEndDate || ca?.endDate || '';
+      }
+
+      // 마스터 계약 상태(ACTIVE) 및 계약 종료일(endDate) 원상복구
+      db.updateRow<Contract>('contracts', contract.id, {
+        status: 'ACTIVE',
+        endDate: restoredContractEndDate || contract.endDate,
+        updatedAt: nowIso
       });
     }
 
-    // 3. 기존 오등록 입고 로그 삭제 및 계약 이력에 롤백 로그 무누락 생성
+    // [Step 3] 계약 체결 자산 슬롯(ContractAsset) 대여중(RENTED) 및 원래 종료일 복원
+    if (ca) {
+      db.updateRow<ContractAsset>('contractAssets', ca.id, {
+        status: 'RENTED',
+        endDate: restoredCaEndDate || ca.endDate,
+        actualReturnDate: undefined,
+        inRegisteredAt: undefined,
+        updatedAt: nowIso
+      });
+    }
+
+    // [Step 4] 자산 마스터(Asset) 대여중(RENTED) 및 계약 귀속 속성 원상복구
+    db.updateRow<Asset>('assets', asset.id, {
+      status: 'RENTED',
+      currentCustomerId: contract?.customerId || log.customerId || asset.currentCustomerId || '',
+      currentSiteId: contract?.siteId || log.siteId || asset.currentSiteId || '',
+      contractStart: ca?.startDate || contract?.startDate || asset.contractStart || '',
+      contractEnd: restoredCaEndDate || restoredContractEndDate || asset.contractEnd || '',
+      monthlyRentalFee: ca?.monthlyRentalFee ?? asset.monthlyRentalFee,
+      dailyRentalFee: ca?.dailyRentalFee ?? asset.dailyRentalFee,
+      maintenanceScore: 0,
+      note: '입고 취소 롤백 (대여중 원복)',
+      updatedAt: nowIso
+    });
+
+    // [Step 5] 연동된 자동 생성 입고 정비(PENDING) 및 회수 배차(DELIVERED) 상태 원상복구
+    if (linkedRepair && linkedRepair.status === 'PENDING') {
+      db.deleteRow('repairs', linkedRepair.id);
+      await clearHandoverTasks({
+        entityId: linkedRepair.id,
+        completionAction: 'INBOUND_CANCELLED',
+        completedByUserId: currentUser?.id,
+        completedByName: currentUser?.name
+      });
+    }
+
+    if (log.deliveryId) {
+      const matchedDel = db.deliveries.find(d => d.id === log.deliveryId);
+      if (matchedDel && (matchedDel.type === 'INBOUND' || matchedDel.type === 'RETURN') && matchedDel.status === 'DELIVERED') {
+        db.updateRow<Delivery>('deliveries', matchedDel.id, {
+          status: 'DISPATCHED',
+          unloadingCompletedAt: undefined,
+          updatedAt: nowIso
+        });
+      }
+    }
+
+    // [Step 6] 오등록 입고 로그 제거 및 입고 취소(INBOUND_CANCEL) 감사 이력·계약 이력 무누락 기록
     db.deleteRow('assetInOutLogs', logId);
 
-    if (ca?.contractId) {
+    db.insertRow<AssetInOutLog>('assetInOutLogs', {
+      assetId: asset.id,
+      assetNo: asset.assetNo,
+      modelName: asset.modelName,
+      type: 'INBOUND_CANCEL',
+      inboundNo: log.inboundNo,
+      eventDate: nowIso.split('T')[0],
+      customerId: contract?.customerId || log.customerId || '',
+      customerName: log.customerName || '',
+      siteId: contract?.siteId || log.siteId || '',
+      siteName: log.siteName || '',
+      memo: `[입고 취소 롤백] 오등록 입고일(${inboundDateStr}) 취소 ➔ 대여중 복원 및 계약종료일(${restoredContractEndDate || '-'}) 원복 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
+      createdAt: nowIso
+    });
+
+    if (contract) {
       db.insertRow<ContractHistory>('contractHistory', {
-        contractId: ca.contractId,
-        changeType: 'TERMINATE',
-        changeDate: new Date().toISOString().split('T')[0],
-        description: `[입고 취소 롤백] 자산(${asset.assetNo}) 오등록 입고 취소 ➔ '대여중' 복원 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
-        createdAt: new Date().toISOString()
+        contractId: contract.id,
+        changeType: 'EXTEND',
+        changeDate: nowIso.split('T')[0],
+        prevEndDate: inboundDateStr,
+        newEndDate: restoredContractEndDate || contract.endDate,
+        description: `[입고 취소 원상복구] 자산(${asset.assetNo}) 휴먼에러 입고 취소 ➔ 계약상태(진행중) 및 계약종료일(${inboundDateStr} ➔ ${restoredContractEndDate || contract.endDate}) 원복 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
+        createdAt: nowIso
       });
     }
 

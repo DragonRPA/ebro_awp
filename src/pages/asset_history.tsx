@@ -16,7 +16,7 @@ import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const AssetHistory: React.FC = () => {
   const { 
-    assetInOutLogs, assets, customers, sites, contractAssets, contracts, 
+    assetInOutLogs, assets, customers, sites, contractAssets, contracts, contractHistory, repairs,
     navigationPayload, setNavigationPayload,
     inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, officialMailConfigs, showErrorModal, currentTenant
   } = useApp();
@@ -682,13 +682,14 @@ export const AssetHistory: React.FC = () => {
                         position: 'absolute', left: '-21px', top: '3px', width: '12px', height: '12px', borderRadius: '50%',
                         backgroundColor: 
                           log.type === 'OUTBOUND' ? 'var(--primary)' : 
-                          log.type === 'INBOUND' ? 'var(--success)' : 'var(--warning)',
+                          log.type === 'INBOUND' ? 'var(--success)' : 
+                          log.type === 'INBOUND_CANCEL' ? 'var(--danger)' : 'var(--warning)',
                         border: '2px solid var(--bg-card)'
                       }} />
                       <div style={{ padding: '10px', fontSize: '12.5px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <strong style={{ color: log.type === 'OUTBOUND' ? 'var(--primary)' : log.type === 'INBOUND' ? 'var(--success)' : 'var(--warning)' }}>
-                            {log.type === 'OUTBOUND' ? '📤 출고 (OUTBOUND)' : log.type === 'INBOUND' ? '📥 입고 (INBOUND)' : '정비 (REPAIR)'}
+                          <strong style={{ color: log.type === 'OUTBOUND' ? 'var(--primary)' : log.type === 'INBOUND' ? 'var(--success)' : log.type === 'INBOUND_CANCEL' ? 'var(--danger)' : 'var(--warning)' }}>
+                            {log.type === 'OUTBOUND' ? '📤 출고 (OUTBOUND)' : log.type === 'INBOUND' ? '📥 입고 (INBOUND)' : log.type === 'INBOUND_CANCEL' ? '🔄 입고취소 (INBOUND_CANCEL)' : '정비 (REPAIR)'}
                           </strong>
                           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{log.eventDate}</span>
                         </div>
@@ -862,38 +863,84 @@ export const AssetHistory: React.FC = () => {
       )}
 
       {/* 입고 취소 롤백 모달 */}
-      {cancelModal && cancelModal.isOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000
-        }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '10px', padding: '20px', maxWidth: '440px', width: '90%', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', color: 'var(--danger)' }}>입고 취소 롤백</h4>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              자산번호 <strong>{cancelModal.log.assetNo}</strong> 입고 건을 취소하고 자산 상태를 '대여중' 상태로 복원하시겠습니까?
-            </p>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>취소 사유</label>
-              <input
-                type="text"
-                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', fontSize: '12.5px' }}
-                value={cancelModal.reason}
-                onChange={e => setCancelModal({ ...cancelModal, reason: e.target.value })}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="btn-secondary" onClick={() => setCancelModal(null)}>닫기</button>
-              <button
-                className="btn-primary"
-                style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
-                onClick={handleConfirmCancelInbound}
-              >
-                입고 취소 롤백 실행
-              </button>
+      {cancelModal && cancelModal.isOpen && (() => {
+        const targetLog = cancelModal.log;
+        const inboundDateStr = targetLog.inDate || targetLog.eventDate;
+        const candidateCAs = (contractAssets || [])
+          .filter(c => c.assetId === targetLog.assetId)
+          .sort((a, b) => (b.inRegisteredAt || b.updatedAt || b.createdAt || '').localeCompare(a.inRegisteredAt || a.updatedAt || a.createdAt || ''));
+        const matchedCa =
+          candidateCAs.find(c => c.status === 'RETURNED' && c.actualReturnDate === inboundDateStr) ||
+          candidateCAs.find(c => c.status === 'RETURNED') ||
+          candidateCAs[0];
+        const matchedContract = matchedCa ? contractMap.get(matchedCa.contractId) : undefined;
+        const matchedAutoHistory = matchedContract
+          ? (contractHistory || [])
+              .filter(h => h.contractId === matchedContract.id)
+              .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+              .find(h =>
+                (h.changeType === 'TERMINATE' || h.changeType === 'EXTEND' || h.changeType === 'ASSET_PERIOD_CHANGE') &&
+                (h.newEndDate === inboundDateStr || h.changeDate === inboundDateStr || (h.description && h.description.includes(targetLog.assetNo)))
+              )
+          : undefined;
+        const previewPrevEndDate = matchedAutoHistory?.prevEndDate || matchedContract?.endDate || '-';
+        const linkedPendingRepair = targetLog.repairId
+          ? (repairs || []).find(r => r.id === targetLog.repairId && r.status === 'PENDING')
+          : undefined;
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000
+          }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '10px', padding: '20px', maxWidth: '480px', width: '92%', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', color: 'var(--danger)' }}>입고 취소 및 계약종료일 원상복구</h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                자산번호 <strong>{targetLog.assetNo}</strong> 입고 건을 취소하고 대여중 상태 및 단축 전 계약종료일로 원상복구합니다.
+              </p>
+              <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', fontSize: '12.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>대상 장비</span>
+                  <strong>{targetLog.assetNo} ({targetLog.modelName}) ➔ 대여중(RENTED)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>연관 계약</span>
+                  <strong>{matchedContract?.contractNo || '-'} ({targetLog.customerName || '-'} / {targetLog.siteName || '-'})</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>계약 종료일 복원</span>
+                  <strong style={{ color: 'var(--primary)' }}>{inboundDateStr} (단축됨) ➔ {previewPrevEndDate} (원복)</strong>
+                </div>
+                {linkedPendingRepair && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>연동 입고정비</span>
+                    <strong style={{ color: 'var(--warning)' }}>대기 정비({linkedPendingRepair.id}) 자동 취소</strong>
+                  </div>
+                )}
+              </div>
+              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>취소 사유</label>
+                <input
+                  type="text"
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', fontSize: '12.5px' }}
+                  value={cancelModal.reason}
+                  onChange={e => setCancelModal({ ...cancelModal, reason: e.target.value })}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button className="btn-secondary" onClick={() => setCancelModal(null)}>닫기</button>
+                <button
+                  className="btn-primary"
+                  style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
+                  onClick={handleConfirmCancelInbound}
+                >
+                  입고 취소 롤백 실행
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );
