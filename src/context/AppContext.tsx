@@ -2550,16 +2550,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 🏷️ 전사 표준 옵션 마스터 CUD
   const saveStandardOption = async (optionData: Omit<StandardOption, 'id' | 'createdAt'> & { id?: string }): Promise<StandardOption> => {
+    const sanitizedName = (optionData.name || '').replace(/\s*,\s*/g, '·').trim();
+    const cleanData = { ...optionData, name: sanitizedName };
     let result: StandardOption;
-    if (optionData.id) {
-      result = db.updateRow<StandardOption>('standardOptions', optionData.id, {
-        ...optionData,
+    if (cleanData.id) {
+      result = db.updateRow<StandardOption>('standardOptions', cleanData.id, {
+        ...cleanData,
         updatedAt: new Date().toISOString()
       }) as StandardOption;
     } else {
       const nextId = 'opt_' + Date.now();
       result = db.insertRow<StandardOption>('standardOptions', {
-        ...optionData,
+        ...cleanData,
         id: nextId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

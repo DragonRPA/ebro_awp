@@ -548,15 +548,24 @@ export const SiteOptionManage: React.FC = () => {
   // ── 🏷️ 옵션 품목 마스터 저장 (신규/수정) ──
   const handleSaveMasterOption = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMasterOption?.name?.trim()) {
+    if (!editingMasterOption || !editingMasterOption.name?.trim()) {
       showErrorModal('옵션 품목명을 입력해주세요.');
+      return;
+    }
+    const rawName = editingMasterOption.name.trim();
+    if (rawName.includes(',')) {
+      const suggestedName = rawName.replace(/\s*,\s*/g, '·');
+      setEditingMasterOption(prev => prev ? { ...prev, name: suggestedName } : prev);
+      showErrorModal(
+        `옵션 품목명에는 쉼표(,)를 사용할 수 없습니다.\n(다중 옵션 저장 시 구분자와 충돌하여 항목이 분리될 수 있습니다.)\n\n• 입력하신 쉼표(,)를 가운뎃점(·)으로 자동 변환했습니다:\n  [${suggestedName}]\n\n확인 후 다시 [저장] 버튼을 눌러주세요.`
+      );
       return;
     }
     try {
       const optionToSave: any = {
         ...(editingMasterOption.id ? { id: editingMasterOption.id } : {}),
         category: editingMasterOption.category || 'PAID',
-        name: editingMasterOption.name.trim(),
+        name: rawName,
         defaultPrice: Number(editingMasterOption.defaultPrice || 0),
         unit: editingMasterOption.unit || '월',
         description: editingMasterOption.description || '',
@@ -1690,19 +1699,33 @@ export const SiteOptionManage: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="예: 협착방지봉 / 상부센서"
+                placeholder="예: 상·하부 모서리 8개소 보양 (쉼표 대신 · 사용)"
                 value={editingMasterOption.name || ''}
                 onChange={e => setEditingMasterOption({ ...editingMasterOption, name: e.target.value })}
                 style={{
                   height: '34px',
                   padding: '0 10px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
+                  border: (editingMasterOption.name || '').includes(',') ? '1.5px solid #ef4444' : '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
                   fontSize: '12.5px'
                 }}
               />
+              {(editingMasterOption.name || '').includes(',') && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '2px', padding: '5px 8px', borderRadius: '6px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#ef4444' }}>
+                    품목명에 쉼표(,)는 사용할 수 없습니다. 가운뎃점(·)을 사용해 주세요.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingMasterOption({ ...editingMasterOption, name: (editingMasterOption.name || '').replace(/\s*,\s*/g, '·') })}
+                    style={{ padding: '2px 8px', borderRadius: '4px', border: '1px solid #ef4444', backgroundColor: '#ef4444', color: '#ffffff', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    · 로 변환
+                  </button>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>

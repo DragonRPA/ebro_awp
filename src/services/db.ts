@@ -5938,6 +5938,12 @@ class LocalDB {
 
   get siteMasters() {
     const raw = this.get<SiteMaster>('siteMasters', []);
+    const replaceLegacyCommas = (val?: string) => {
+      if (!val || typeof val !== 'string') return val;
+      return val
+        .split('상,하부 모서리 8개소 보양').join('상·하부 모서리 8개소 보양')
+        .split('점멸등,비상하강,비상정지 청결').join('점멸등·비상하강·비상정지 청결');
+    };
     return raw.map(sm => {
       if (!sm) return sm;
       let att = sm.attachments;
@@ -5948,8 +5954,11 @@ class LocalDB {
       } else if ((att === undefined || att === null) && sm.checkedSpecs && typeof (sm.checkedSpecs as any).__attachments === 'string') {
         att = (sm.checkedSpecs as any).__attachments;
       }
-      if (att !== sm.attachments) {
-        return { ...sm, attachments: att };
+      const nextPaid = replaceLegacyCommas(sm.paidOptions);
+      const nextProt = replaceLegacyCommas(sm.protection);
+      const nextAtt = replaceLegacyCommas(att);
+      if (nextPaid !== sm.paidOptions || nextProt !== sm.protection || nextAtt !== sm.attachments) {
+        return { ...sm, paidOptions: nextPaid, protection: nextProt, attachments: nextAtt };
       }
       return sm;
     });
@@ -5958,6 +5967,12 @@ class LocalDB {
 
   get sites() {
     const raw = this.get<CustomerSite>('sites', SEED_SITES);
+    const replaceLegacyCommas = (val?: string) => {
+      if (!val || typeof val !== 'string') return val;
+      return val
+        .split('상,하부 모서리 8개소 보양').join('상·하부 모서리 8개소 보양')
+        .split('점멸등,비상하강,비상정지 청결').join('점멸등·비상하강·비상정지 청결');
+    };
     
     return raw.map(s => {
       if (!s) return s;
@@ -5971,6 +5986,8 @@ class LocalDB {
         paid = String(paid);
         changed = true;
       }
+      const normPaid = replaceLegacyCommas(paid);
+      if (normPaid !== paid) { paid = normPaid; changed = true; }
 
       let prot = s.protection;
       if (Array.isArray(prot)) {
@@ -5980,6 +5997,8 @@ class LocalDB {
         prot = String(prot);
         changed = true;
       }
+      const normProt = replaceLegacyCommas(prot);
+      if (normProt !== prot) { prot = normProt; changed = true; }
 
       let specs = s.checkedSpecs;
       if (Array.isArray(specs)) {
@@ -5998,6 +6017,8 @@ class LocalDB {
         att = (specs as any).__attachments;
         changed = true;
       }
+      const normAtt = replaceLegacyCommas(att);
+      if (normAtt !== att) { att = normAtt; changed = true; }
 
       const isActiveVal = s.isActive !== false;
       if (s.isActive === undefined) {
@@ -6028,8 +6049,23 @@ class LocalDB {
 
   get standardOptions() {
     const list = this.get<StandardOption>('standardOptions', []);
-    const filtered = list.filter(o => o && !/^opt_(paid|prot|att)_/.test(String(o.id || '')));
-    if (filtered.length !== list.length) {
+    let changed = false;
+    const filtered = list
+      .filter(o => {
+        if (!o || /^opt_(paid|prot|att)_/.test(String(o.id || ''))) {
+          changed = true;
+          return false;
+        }
+        return true;
+      })
+      .map(o => {
+        if (o.name && o.name.includes(',')) {
+          changed = true;
+          return { ...o, name: o.name.replace(/\s*,\s*/g, '·') };
+        }
+        return o;
+      });
+    if (changed) {
       this.set('standardOptions', filtered);
     }
     return filtered;

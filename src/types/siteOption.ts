@@ -47,13 +47,27 @@ export function splitMasterAwareOptions(
     ? rawStr.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ')
     : (typeof rawStr === 'string' ? rawStr : String(rawStr));
 
-  let working = normalized.trim();
+  let working = normalized
+    .split('상,하부 모서리 8개소 보양').join('상·하부 모서리 8개소 보양')
+    .split('점멸등,비상하강,비상정지 청결').join('점멸등·비상하강·비상정지 청결')
+    .trim();
   if (!working || working === '-' || working.toUpperCase() === 'NONE' || working === '없음') {
     return [];
   }
 
   const activeMasters = (standardOptions || []).filter(o => o && o.isActive && o.name && o.name !== 'NONE' && !o.name.startsWith('NONE'));
-  const masterNameSet = new Set(activeMasters.map(o => o.name.trim()));
+  const masterNameSet = new Set(activeMasters.map(o => o.name.replace(/\s*,\s*/g, '·').trim()));
+
+  // 가운뎃점(·)으로 표준화된 마스터 옵션에 대해 과거 쉼표(,)로 저장된 텍스트도 자동 치환
+  activeMasters.forEach(o => {
+    const cleanName = o.name.replace(/\s*,\s*/g, '·').trim();
+    if (cleanName.includes('·')) {
+      const commaVariant = cleanName.replace(/·/g, ',');
+      if (working.includes(commaVariant)) {
+        working = working.split(commaVariant).join(cleanName);
+      }
+    }
+  });
 
   // 쉼표(,)가 이름 내부에 포함된 마스터 옵션을 길이 역순으로 먼저 플레이스홀더 치환하여 분할 파괴 방지
   const commaMasters = activeMasters
@@ -66,7 +80,7 @@ export function splitMasterAwareOptions(
     const token = `__MASTER_OPT_${idx}__`;
     if (working.includes(name)) {
       working = working.split(name).join(token);
-      placeholderMap.set(token, name);
+      placeholderMap.set(token, name.replace(/\s*,\s*/g, '·'));
     }
   });
 
