@@ -3250,7 +3250,9 @@ export const TruckDispatch: React.FC = () => {
           updatedAt: new Date().toISOString()
         });
       }
-      showToast(isOutboundLike ? '출고 상차가 완료되었습니다. (상차완료)' : '운송이 완료 마감되었습니다. (입고완료)');
+      const resolvedCat = getDeliveryCategoryLabel(targetDelivery);
+      const completedActionLabel = getDeliveryCompletionActionLabel(targetDelivery);
+      showToast(`운송이 완료 마감되었습니다. (${resolvedCat}완료 / ${completedActionLabel})`);
     } catch (err: any) {
       showErrorModal(`운송 완료 처리 실패:\n${err?.message || err}`);
     }
@@ -3359,21 +3361,75 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
+  // 배차 6대 운송 속성('출고' | '입고' | '교환' | '반납' | '정비' | '이동') 판정 헬퍼
+  const getDeliveryCategoryLabel = (d?: Delivery | null): '출고' | '입고' | '교환' | '반납' | '정비' | '이동' => {
+    if (!d) return '출고';
+    if (d.dispatchCategory && ['출고', '입고', '교환', '반납', '정비', '이동'].includes(d.dispatchCategory)) {
+      return d.dispatchCategory as '출고' | '입고' | '교환' | '반납' | '정비' | '이동';
+    }
+    if (d.type === 'RETURN') return '반납';
+    if (d.type === 'INBOUND') return '입고';
+    if (d.type === 'EXCHANGE') return '교환';
+    if (d.type === 'MOVEMENT') return '이동';
+    return '출고';
+  };
 
-  const getDeliveryStatusBadge = (status: string) => {
+  // 중간단계(배차완료 -> 운송완료 전환) 완료 처리 액션 버튼 명칭 헬퍼
+  const getDeliveryCompletionActionLabel = (d?: Delivery | null): string => {
+    const cat = getDeliveryCategoryLabel(d);
+    if (cat === '반납') return '반납완료';
+    if (cat === '입고') return '입고완료';
+    if (cat === '정비') return '정비운송완료';
+    if (cat === '이동') return '이동완료';
+    return '상차완료';
+  };
+
+  // 6대 운송 속성 배지 헬퍼 ("출고/입고/교환/반납/정비/이동")
+  const getDeliveryCategoryBadge = (d?: Delivery | null) => {
+    const cat = getDeliveryCategoryLabel(d);
+    const styles: Record<string, { bg: string; color: string; border: string }> = {
+      '출고': { bg: 'rgba(37,99,235,0.12)', color: '#2563eb', border: 'rgba(37,99,235,0.35)' },
+      '입고': { bg: 'rgba(217,119,6,0.12)', color: '#d97706', border: 'rgba(217,119,6,0.35)' },
+      '교환': { bg: 'rgba(16,185,129,0.12)', color: '#059669', border: 'rgba(16,185,129,0.35)' },
+      '반납': { bg: 'rgba(225,29,72,0.12)', color: '#e11d48', border: 'rgba(225,29,72,0.35)' },
+      '정비': { bg: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: 'rgba(124,58,237,0.35)' },
+      '이동': { bg: 'rgba(71,85,105,0.12)', color: '#475569', border: 'rgba(71,85,105,0.35)' }
+    };
+    const st = styles[cat] || styles['출고'];
+    return (
+      <span style={{
+        padding: '2px 8px',
+        borderRadius: '6px',
+        fontSize: '11.5px',
+        fontWeight: 800,
+        backgroundColor: st.bg,
+        color: st.color,
+        border: `1px solid ${st.border}`,
+        display: 'inline-flex',
+        alignItems: 'center',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
+      }}>
+        {cat}
+      </span>
+    );
+  };
+
+  const getDeliveryStatusBadge = (status: string, delivery?: Delivery | null) => {
+    const cat = getDeliveryCategoryLabel(delivery);
     switch (status) {
       case 'PENDING':
       case 'REQUESTED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 🟡 배차 전 (대기)</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Clock size={12} /> 🟡 배차 전 (대기)</span>;
       case 'DISPATCHED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Truck size={12} /> 🔵 배차 완료 (기사배정)</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Truck size={12} /> 🔵 배차 완료 (기사배정)</span>;
       case 'DELIVERED':
       case 'COMPLETED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> 🟢 운송 완료</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><CheckCircle size={12} /> 🟢 {cat} 완료</span>;
       case 'CANCELLED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> 🔴 배차 취소</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><XCircle size={12} /> 🔴 배차 취소</span>;
       default:
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)' }}>미지정</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>미지정</span>;
     }
   };
 
@@ -3776,20 +3832,21 @@ export const TruckDispatch: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
-                          <span style={{
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            color: (d.type === 'MOVEMENT' || d.dispatchCategory === '이동') ? 'var(--text-secondary)'
-                              : (d.type === 'EXCHANGE' || d.dispatchCategory === '교환') ? '#10b981'
-                              : (d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '#f59e0b'
-                              : 'var(--primary)'
-                          }}>
-                            [{d.dispatchCategory || (d.type === 'MOVEMENT' ? '이동' : d.type === 'EXCHANGE' ? '교환' : d.type === 'INBOUND' ? '회수' : '출고')}] {d.requestDate || d.loadingDate}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {getDeliveryCategoryBadge(d)}
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              color: 'var(--text-primary)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {d.requestDate || d.loadingDate}
+                            </span>
+                          </div>
                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {getOutboundInspectionBadge(d.contractId)}
                             {getPrintQueueBadge(d)}
-                            {getDeliveryStatusBadge(normStatus)}
+                            {getDeliveryStatusBadge(normStatus, d)}
                           </div>
                         </div>
 
@@ -3919,12 +3976,13 @@ export const TruckDispatch: React.FC = () => {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '4px',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                  whiteSpace: 'nowrap'
                                 }}
-                                title={(d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
+                                title={`${getDeliveryCompletionActionLabel(d)} 처리`}
                               >
                                 <CheckCircle size={11} />
-                                {(d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
+                                {getDeliveryCompletionActionLabel(d)}
                               </button>
                             )}
                           </div>
@@ -4485,11 +4543,11 @@ export const TruckDispatch: React.FC = () => {
                             <button data-hs-trigger="Process"
                               type="button"
                               onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
-                              style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                              title={(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
+                              style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
+                              title={`${getDeliveryCompletionActionLabel(selectedDelivery)} 처리`}
                             >
                               <CheckCircle size={14} />
-                              {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
+                              {getDeliveryCompletionActionLabel(selectedDelivery)}
                             </button>
 
                             <button data-hs-trigger="Save"
