@@ -6910,7 +6910,7 @@ class LocalDB {
       if (key === 'createdAt' && TABLES_WITHOUT_CREATED_AT.has(resolvedTable || '')) {
         continue;
       }
-      if (resolvedTable === 'assets' && key === 'antiEntrapmentOwnership') {
+      if (resolvedTable === 'assets' && (key === 'antiEntrapmentOwnership' || key === 'isReactivating')) {
         continue;
       }
       if (resolvedTable === 'customers') {

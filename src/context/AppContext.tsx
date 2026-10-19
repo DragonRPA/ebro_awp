@@ -4004,23 +4004,28 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   const registerRentedAsset = async (assetData: Partial<Asset>) => {
     let result;
-    const sanitizedMonthlyFee = Math.max(0, Number(assetData.monthlyRentFee) || 0);
-    const sanitizedDailyFee = assetData.dailyRentFee ? Math.max(0, Number(assetData.dailyRentFee)) : Math.floor(sanitizedMonthlyFee / 30);
+    const { isReactivating, ...cleanAssetData } = assetData as any;
+    const sanitizedMonthlyFee = Math.max(0, Number(cleanAssetData.monthlyRentFee) || 0);
+    const sanitizedDailyFee = cleanAssetData.dailyRentFee ? Math.max(0, Number(cleanAssetData.dailyRentFee)) : Math.floor(sanitizedMonthlyFee / 30);
 
-    const existing = db.assets.find(a => a.assetNo === assetData.assetNo || (assetData.id && a.id === assetData.id));
-    const resolvedOwnership = assetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
+    const existing = db.assets.find(a => a.assetNo === cleanAssetData.assetNo || (cleanAssetData.id && a.id === cleanAssetData.id));
+    const resolvedOwnership = cleanAssetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
     const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
 
     if (existing) {
+      const nextStatus =
+        isReactivating || existing.status === 'RENTED_RETURNED'
+          ? 'AVAILABLE'
+          : cleanAssetData.status || existing.status || 'AVAILABLE';
       result = db.updateRow<Asset>('assets', existing.id, {
-        ...assetData,
-        vendorAssetNo: assetData.vendorAssetNo || existing.vendorAssetNo || '',
+        ...cleanAssetData,
+        vendorAssetNo: cleanAssetData.vendorAssetNo || existing.vendorAssetNo || '',
         ownerType: 'RENTED',
         antiEntrapmentOwnership: resolvedOwnership,
-        status: 'AVAILABLE',
+        status: nextStatus,
         monthlyRentFee: sanitizedMonthlyFee,
         dailyRentFee: sanitizedDailyFee,
-        actualRentReturnDate: '', // 과거 실제 반납일 초기화 (재임차 활성화)
+        actualRentReturnDate: isReactivating ? '' : (cleanAssetData.actualRentReturnDate ?? existing.actualRentReturnDate ?? ''),
         updatedAt: new Date().toISOString()
       });
     } else {
