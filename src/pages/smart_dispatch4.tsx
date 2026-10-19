@@ -3044,14 +3044,11 @@ export const SmartDispatch4: React.FC = () => {
                           }}
                         >
                           <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({filteredSiteMasters.length}개) --</option>
-                          {filteredSiteMasters.map(sm => {
-                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
-                            return (
-                              <option key={sm.id} value={sm.id}>
-                                {sm.name} {optSummary ? `(${optSummary})` : ''}
-                              </option>
-                            );
-                          })}
+                          {filteredSiteMasters.map(sm => (
+                            <option key={sm.id} value={sm.id}>
+                              {sm.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -3239,14 +3236,11 @@ export const SmartDispatch4: React.FC = () => {
                           }}
                         >
                           <option value="">-- [선택] 옵션 그룹 상속 안함 / 개별 설정 ({filteredSiteMasters.length}개) --</option>
-                          {filteredSiteMasters.map(sm => {
-                            const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
-                            return (
-                              <option key={sm.id} value={sm.id}>
-                                {sm.name} {optSummary ? `(${optSummary})` : ''}
-                              </option>
-                            );
-                          })}
+                          {filteredSiteMasters.map(sm => (
+                            <option key={sm.id} value={sm.id}>
+                              {sm.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -4101,16 +4095,6 @@ export const SmartDispatch4: React.FC = () => {
                         <Layers className="w-3 h-3 text-purple-400" />
                         <span>현장별 옵션관리 불러오기</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={handleReloadSiteOptions}
-                        disabled={!selectedSite && !selectedCustomer}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                        title={selectedSite ? "현재 현장에 저장된 옵션 다시 불러오기" : selectedCustomer ? "고객사 기본 옵션 불러오기" : "고객사 또는 현장을 먼저 선택하십시오"}
-                      >
-                        <RefreshCw className="w-3 h-3 text-cyan-400" />
-                        <span>현장옵션 불러오기</span>
-                      </button>
                       <button data-hs-trigger="Save"
                         type="button"
                         onClick={handleSaveOptionsToCurrentSite}
@@ -4166,15 +4150,12 @@ export const SmartDispatch4: React.FC = () => {
                               }
                             }}
                           >
-                            <option value="">-- 현장별 옵션관리 그룹 선택 ({filteredSiteMasters.length}개) --</option>
-                            {filteredSiteMasters.map(sm => {
-                              const optSummary = [sm.paidOptions, (sm.protection && sm.protection !== 'NONE') ? sm.protection : '', sm.attachments].filter(Boolean).join(' | ');
-                              return (
-                                <option key={sm.id} value={sm.id}>
-                                  {sm.name} {optSummary ? `(${optSummary})` : ''}
-                                </option>
-                              );
-                            })}
+                            <option value="">-- 현장별 옵션관리 현장명 선택 ({filteredSiteMasters.length}개) --</option>
+                            {filteredSiteMasters.map(sm => (
+                              <option key={sm.id} value={sm.id}>
+                                {sm.name}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <div className="md:col-span-3 flex items-center gap-1.5">
