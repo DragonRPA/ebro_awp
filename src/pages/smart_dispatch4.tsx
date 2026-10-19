@@ -852,7 +852,12 @@ export const SmartDispatch4: React.FC = () => {
   const setModelRate = (index: number, field: 'monthlyRate' | 'dailyRate', val: number) => {
     setEquipments(prev => {
       const u = [...prev];
-      u[index] = { ...u[index], [field]: val };
+      if (field === 'monthlyRate') {
+        const autoDaily = val > 0 ? Math.round(val / 30) : 0;
+        u[index] = { ...u[index], monthlyRate: val, dailyRate: autoDaily };
+      } else {
+        u[index] = { ...u[index], dailyRate: val };
+      }
       return u;
     });
   };

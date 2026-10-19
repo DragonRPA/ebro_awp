@@ -3254,7 +3254,11 @@ export const Contracts: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               <div>
                 <label>월 렌탈료 (원) *</label>
-                <input type="number" value={editMonthlyFee} onChange={e => setEditMonthlyFee(Number(e.target.value))} required style={{ width: '100%', padding: '8px' }} />
+                <input type="number" value={editMonthlyFee} onChange={e => {
+                  const val = Number(e.target.value) || 0;
+                  setEditMonthlyFee(val);
+                  setEditDailyFee(val > 0 ? Math.round(val / 30) : 0);
+                }} required style={{ width: '100%', padding: '8px' }} />
               </div>
               <div>
                 <label>일할 계산 일단가 (원) *</label>
@@ -3933,7 +3937,11 @@ export const Contracts: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600 }}>월 렌탈료</label>
-                <input type="number" value={customMonthly} onChange={e => setCustomMonthly(Number(e.target.value))} style={{ width: '120px', padding: '6px' }} />
+                <input type="number" value={customMonthly} onChange={e => {
+                  const val = Number(e.target.value) || 0;
+                  setCustomMonthly(val);
+                  setCustomDaily(val > 0 ? Math.round(val / 30) : 0);
+                }} style={{ width: '120px', padding: '6px' }} />
               </div>
               
               <button type="button" data-uia="btn-add-contract-asset" className="btn-primary" onClick={handleAddToBasket} style={{ padding: '7px 14px', height: '36px' }}>+ 추가</button>
