@@ -31,9 +31,18 @@ export const TradeProductsPage: React.FC = () => {
     setTimeout(() => setToast(null), 3200);
   };
 
+  // 다음 SKU 코드 자동 채번 계산
+  const nextAutoSku = useMemo(() => {
+    const maxNum = products.reduce((max, p) => {
+      const m = /^SKU(\d+)$/i.exec((p.skuCode || '').trim());
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    return `SKU${String(maxNum + 1).padStart(3, '0')}`;
+  }, [products]);
+
   // Quick inline registration state (UIA SSOT compatibility)
-  const [skuCode, setSkuCode] = useState('');
   const [name, setName] = useState('');
+  const [cost, setCost] = useState<number>(0);
   const [price, setPrice] = useState<number>(0);
 
   // Filter states (기간, 카테고리, 품명/SKU, 재고상태, 거래상태)
@@ -69,18 +78,18 @@ export const TradeProductsPage: React.FC = () => {
 
   // Quick Add handler
   const handleQuickAdd = async () => {
-    if (!name.trim() || !skuCode.trim() || price <= 0) {
-      showErrorModal('SKU 코드, 상품명, 판매단가(0원 초과)를 모두 입력해 주세요.');
+    if (!name.trim() || cost <= 0 || price <= 0) {
+      showErrorModal('상품명, 기준 매입단가(0원 초과), 판매단가(0원 초과)를 모두 입력해 주세요.');
       return;
     }
     try {
-      await addProduct({
-        skuCode: skuCode.trim(),
+      const created = await addProduct({
+        skuCode: nextAutoSku,
         name: name.trim(),
         category: '소모품',
         spec: '표준규격',
         unit: 'EA',
-        standardCost: Math.round(price * 0.7),
+        standardCost: cost,
         standardPrice: price,
         safetyStock: 10,
         status: 'ACTIVE',
@@ -88,9 +97,9 @@ export const TradeProductsPage: React.FC = () => {
         memo: ''
       });
       setName('');
-      setSkuCode('');
+      setCost(0);
       setPrice(0);
-      showToast(`[${name.trim()}] 상품이 등록되었습니다.`);
+      showToast(`[${created.skuCode}] ${name.trim()} 상품이 등록되었습니다.`);
     } catch (err: any) {
       showErrorModal(err.message || '상품 등록 중 오류가 발생했습니다.');
     }
@@ -99,8 +108,7 @@ export const TradeProductsPage: React.FC = () => {
   // Open Modal for New or Edit
   const openCreateModal = () => {
     setEditingProduct(null);
-    const nextNum = String(products.length + 1).padStart(3, '0');
-    setFormSku(`SKU${nextNum}`);
+    setFormSku(nextAutoSku);
     setFormName('');
     setFormCategory('소모품');
     setFormSpec('');
@@ -122,7 +130,7 @@ export const TradeProductsPage: React.FC = () => {
     setFormCategory(p.category || '소모품');
     setFormSpec(p.spec || '');
     setFormUnit(p.unit || 'EA');
-    setFormStandardCost(p.standardCost ?? Math.round(p.standardPrice * 0.7));
+    setFormStandardCost(p.standardCost ?? 0);
     setFormStandardPrice(p.standardPrice);
     setFormSafetyStock(p.safetyStock ?? 10);
     setFormCogsMethod(p.cogsMethod || 'FIFO');
@@ -134,8 +142,12 @@ export const TradeProductsPage: React.FC = () => {
 
   const handleSaveProductModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formSku.trim() || !formName.trim()) {
-      showErrorModal('SKU 코드와 상품명은 필수 입력 항목입니다.');
+    if (!formName.trim()) {
+      showErrorModal('상품명은 필수 입력 항목입니다.');
+      return;
+    }
+    if (formStandardCost <= 0) {
+      showErrorModal('기준 매입단가는 0원보다 커야 합니다.');
       return;
     }
     if (formStandardPrice <= 0) {
@@ -146,7 +158,7 @@ export const TradeProductsPage: React.FC = () => {
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, {
-          skuCode: formSku.trim(),
+          skuCode: formSku.trim() || editingProduct.skuCode,
           name: formName.trim(),
           category: formCategory,
           spec: formSpec.trim() || '-',
@@ -161,7 +173,7 @@ export const TradeProductsPage: React.FC = () => {
         showToast(`[${formName.trim()}] 상품 정보가 수정되었습니다.`);
       } else {
         const created = await addProduct({
-          skuCode: formSku.trim(),
+          skuCode: formSku.trim() || nextAutoSku,
           name: formName.trim(),
           category: formCategory,
           spec: formSpec.trim() || '-',
@@ -177,11 +189,11 @@ export const TradeProductsPage: React.FC = () => {
           await adjustProductStock(
             created.id,
             formInitialStock,
-            formStandardCost > 0 ? formStandardCost : Math.round(formStandardPrice * 0.7),
+            formStandardCost,
             '신규 상품 등록 기초 재고 입고'
           );
         }
-        showToast(`[${formName.trim()}] 신규 상품이 등록되었습니다.`);
+        showToast(`[${created.skuCode}] ${formName.trim()} 신규 상품이 등록되었습니다.`);
       }
       setIsProductModalOpen(false);
     } catch (err: any) {
@@ -216,7 +228,7 @@ export const TradeProductsPage: React.FC = () => {
     setAdjustTarget(p);
     setAdjustType('ADD');
     setAdjustQty(10);
-    setAdjustUnitCost(st.avgUnitCost || p.standardCost || Math.round(p.standardPrice * 0.7));
+    setAdjustUnitCost(st.avgUnitCost || p.standardCost || 0);
     setAdjustReason('정기 재고실사 수량 보정');
   };
 
@@ -243,17 +255,17 @@ export const TradeProductsPage: React.FC = () => {
   const enrichedProducts = useMemo(() => {
     return products.map(p => {
       const st = getProductStock(p.id);
-      const cost = p.standardCost ?? st.avgUnitCost ?? Math.round(p.standardPrice * 0.7);
+      const costVal = p.standardCost ?? 0;
       const safety = p.safetyStock ?? 10;
-      const marginAmt = p.standardPrice - cost;
+      const marginAmt = p.standardPrice - costVal;
       const marginRate = p.standardPrice > 0 ? (marginAmt / p.standardPrice) * 100 : 0;
       const regDate = (p.createdAt || '').split('T')[0];
       return {
         ...p,
         availableQty: st.availableQty,
-        avgUnitCost: st.avgUnitCost || cost,
+        avgUnitCost: st.avgUnitCost || costVal,
         stockValue: st.stockValue,
-        standardCost: cost,
+        standardCost: costVal,
         safetyStock: safety,
         marginAmt,
         marginRate,
@@ -405,17 +417,19 @@ export const TradeProductsPage: React.FC = () => {
           <input
             type="text"
             data-mid="trade_products-sku-input"
-            placeholder="SKU코드 (예: SKU007)"
-            value={skuCode}
-            onChange={e => setSkuCode(e.target.value)}
+            readOnly
+            value={nextAutoSku}
+            title="자동 채번 SKU 코드"
             style={{
-              width: '125px',
+              width: '92px',
               padding: '6px 10px',
               fontSize: '12px',
+              fontWeight: 700,
+              fontFamily: 'monospace',
               border: '1px solid var(--border-color)',
               borderRadius: '4px',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-main)'
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--primary)'
             }}
           />
           <input
@@ -436,12 +450,28 @@ export const TradeProductsPage: React.FC = () => {
           />
           <input
             type="number"
+            data-mid="trade_products-cost-input"
+            placeholder="기준 매입단가"
+            value={cost || ''}
+            onChange={e => setCost(Number(e.target.value))}
+            style={{
+              width: '110px',
+              padding: '6px 10px',
+              fontSize: '12px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--bg-app)',
+              color: 'var(--text-main)'
+            }}
+          />
+          <input
+            type="number"
             data-mid="trade_products-price-input"
-            placeholder="판매단가"
+            placeholder="기준 판매단가"
             value={price || ''}
             onChange={e => setPrice(Number(e.target.value))}
             style={{
-              width: '100px',
+              width: '110px',
               padding: '6px 10px',
               fontSize: '12px',
               border: '1px solid var(--border-color)',
@@ -832,14 +862,12 @@ export const TradeProductsPage: React.FC = () => {
             <form onSubmit={handleSaveProductModal} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>SKU 코드 *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>SKU 코드 (자동 채번)</label>
                   <input
                     type="text"
-                    required
+                    readOnly
                     value={formSku}
-                    onChange={e => setFormSku(e.target.value)}
-                    placeholder="예: SKU007"
-                    style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                    style={{ padding: '8px 10px', fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--primary)' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -895,13 +923,15 @@ export const TradeProductsPage: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>기준 매입단가 (원)</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>기준 매입단가 (원) *</label>
                   <input
                     type="number"
-                    min={0}
-                    value={formStandardCost}
+                    required
+                    min={1}
+                    value={formStandardCost || ''}
                     onChange={e => setFormStandardCost(Number(e.target.value))}
-                    style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                    placeholder="기준 매입단가 입력"
+                    style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 700 }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -910,8 +940,9 @@ export const TradeProductsPage: React.FC = () => {
                     type="number"
                     required
                     min={1}
-                    value={formStandardPrice}
+                    value={formStandardPrice || ''}
                     onChange={e => setFormStandardPrice(Number(e.target.value))}
+                    placeholder="기준 판매단가 입력"
                     style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontWeight: 700 }}
                   />
                 </div>

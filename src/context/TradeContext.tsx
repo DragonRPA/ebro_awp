@@ -557,7 +557,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const avgUnitCost =
         availableQty > 0
           ? Math.round(stockValue / availableQty)
-          : prod?.standardCost || Math.round((prod?.standardPrice || 0) * 0.7);
+          : prod?.standardCost ?? 0;
       return { availableQty, avgUnitCost, stockValue };
     },
     [inventoryLots, products]
@@ -568,12 +568,19 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // ==========================================
   const addProduct = async (p: Omit<TradeProduct, 'id' | 'createdAt' | 'updatedAt'>): Promise<TradeProduct> => {
     const now = new Date().toISOString();
+    const maxSkuNum = products.reduce((max, item) => {
+      const m = /^SKU(\d+)$/i.exec((item.skuCode || '').trim());
+      return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 0);
+    const autoSku = `SKU${String(maxSkuNum + 1).padStart(3, '0')}`;
+
     const newP: TradeProduct = {
       ...p,
       id: `PRD-${uuidv4()}`,
+      skuCode: (p.skuCode || '').trim() || autoSku,
       unit: p.unit || 'EA',
       spec: p.spec || '-',
-      standardCost: p.standardCost ?? Math.round(p.standardPrice * 0.7),
+      standardCost: p.standardCost ?? 0,
       safetyStock: p.safetyStock ?? 10,
       createdAt: now,
       updatedAt: now
