@@ -82,7 +82,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.12';
+const VERSION = 'v2.0.0.Build.13';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -500,10 +500,10 @@ async function checkAndApplyUpdate(force = false) {
   }
 }
 
-// 백그라운드 자동 업데이트 점검 (기동 60초 후 1회, 이후 6시간 주기)
+// 백그라운드 자동 업데이트 점검 (기동 60초 후 1회, 이후 5분 주기)
 
 setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
-setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 12 * 3600 * 1000);
+setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 5 * 60 * 1000);
 
 // ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지 & 인위적 타임아웃 없음) ──
 function runCommandAsync(cmd, options = {}) {
@@ -809,25 +809,48 @@ function Get-SheetByKeyword($workbook, $keyword, $fallbackIndex) {
 
 if (Test-Path $checkIn) {
     try {
+        $excel.DisplayAlerts = $false
         $wbCheck = $excel.Workbooks.Open($checkIn, 0, $true)
         $oldCheck = Get-SheetByKeyword $wb "반입전|체크리스트" 2
+        try { $oldCheck.Name = "__OLD_CHECK__" } catch {}
         $wbCheck.Sheets.Item(1).Copy($oldCheck)
         $newCheck = $wb.Sheets.Item($oldCheck.Index - 1)
-        $oldCheck.Delete()
-        $newCheck.Name = "반입전체크리스트"
+        try { $newCheck.Name = "반입전체크리스트" } catch {}
+        $excel.DisplayAlerts = $false
+        try { $oldCheck.Delete() } catch {}
+        if ($oldCheck.Name -eq "__OLD_CHECK__") {
+            try { $oldCheck.Visible = 0 } catch {}
+        }
         $wbCheck.Close($false)
     } catch {}
 }
 
 if (Test-Path $safetyIn) {
     try {
+        $excel.DisplayAlerts = $false
         $wbSafety = $excel.Workbooks.Open($safetyIn, 0, $true)
         $oldSafety = Get-SheetByKeyword $wb "안전점검|결과서" 3
+        try { $oldSafety.Name = "__OLD_SAFETY__" } catch {}
         $wbSafety.Sheets.Item(1).Copy($oldSafety)
         $newSafety = $wb.Sheets.Item($oldSafety.Index - 1)
-        $oldSafety.Delete()
-        $newSafety.Name = "안전점검결과서"
+        try { $newSafety.Name = "안전점검결과서" } catch {}
+        $excel.DisplayAlerts = $false
+        try { $oldSafety.Delete() } catch {}
+        if ($oldSafety.Name -eq "__OLD_SAFETY__") {
+            try { $oldSafety.Visible = 0 } catch {}
+        }
         $wbSafety.Close($false)
+    } catch {}
+}
+
+# 불필요한 잔여 임시 시트(__OLD_*, Sheet*) 정리
+for ($sIdx = $wb.Sheets.Count; $sIdx -ge 1; $sIdx--) {
+    try {
+        $sItem = $wb.Sheets.Item($sIdx)
+        if ($sItem.Name -match "^(__OLD_|Sheet\d+)") {
+            $excel.DisplayAlerts = $false
+            $sItem.Delete()
+        }
     } catch {}
 }
 

@@ -1,6 +1,6 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.12';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.13';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
@@ -501,6 +501,24 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
 let globalHealthCheckTimer: any = null;
 let consecutiveFailures = 0;
 let isCheckingHealth = false;
+let lastAutoUpdateTriggerAt = 0;
+
+function isExpectedNewer(expectedVer: string, currentVer: string): boolean {
+  const parse = (v: string) => {
+    const cleaned = String(v || '').trim().replace(/^v/i, '');
+    const parts = cleaned.split('.Build.');
+    const semver = (parts[0] || '0').split('.').map(n => parseInt(n, 10) || 0);
+    const build = parts[1] ? (parseInt(parts[1], 10) || 0) : 0;
+    return [semver[0] || 0, semver[1] || 0, semver[2] || 0, build];
+  };
+  const e = parse(expectedVer);
+  const c = parse(currentVer);
+  for (let i = 0; i < 4; i++) {
+    if (e[i] > c[i]) return true;
+    if (e[i] < c[i]) return false;
+  }
+  return false;
+}
 
 /**
  * 2-Strike 확인 기반 가짜 오프라인(Flapping) 방지 헬스체크
@@ -536,6 +554,19 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
         timestamp: data.timestamp
       };
       setGlobalAgentStatus(true, info);
+
+      // 🚀 로컬 에이전트 버전이 배포 버전(EXPECTED_AGENT_VERSION)보다 낮으면 즉시 무소음 원격 업데이트 자동 트리거 (60초 쿨다운)
+      if (
+        data.version &&
+        isExpectedNewer(EXPECTED_AGENT_VERSION, data.version) &&
+        data.updateState?.status !== 'downloading' &&
+        data.updateState?.status !== 'installing' &&
+        Date.now() - lastAutoUpdateTriggerAt > 60000
+      ) {
+        lastAutoUpdateTriggerAt = Date.now();
+        triggerAgentSelfUpdate(true).catch(() => {});
+      }
+
       return info;
     }
   } catch (err) {

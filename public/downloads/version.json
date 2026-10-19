@@ -1,11 +1,11 @@
 {
-  "version": "v2.0.0.Build.12",
-  "buildTime": "2026-10-18T18:16:00.000Z",
+  "version": "v2.0.0.Build.13",
+  "buildTime": "2026-10-19T09:02:00.000Z",
   "coreUrl": "https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/engine.dat",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "certUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/downloads/eBroAgent_Root.cer",
-  "changelog": "2계층 분리 아키텍처 탑재: 호스트 런타임(eBroHost) + 암호화된 비즈니스 코어(engine.dat) 자동 숨김/정리 정책 적용",
+  "changelog": "계약서 패키지 엑셀 시트 교체 무결성 방어 로직 탑재 및 원격 자동 업데이트 주기 단축",
   "minCompatibleVersion": "v2.0.0.Build.1",
   "fileSize": "2.1MB (core) / 24MB (installer)"
 }
