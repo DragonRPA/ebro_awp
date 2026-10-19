@@ -7080,39 +7080,32 @@ class LocalDB {
       sanitized[key] = val;
     }
 
-    // site_masters 및 customer_sites의 attachments를 checkedSpecs.__attachments에 안전 백업
+    // site_masters 및 customer_sites의 attachments 컬럼 및 checkedSpecs.__attachments 동기화
     if (resolvedTable === 'site_masters' || resolvedTable === 'customer_sites') {
       if (obj.attachments !== undefined) {
+        sanitized.attachments = obj.attachments ? String(obj.attachments) : '';
         const baseSpecs = (sanitized.checkedSpecs && typeof sanitized.checkedSpecs === 'object' && !Array.isArray(sanitized.checkedSpecs))
           ? sanitized.checkedSpecs
           : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs) ? obj.checkedSpecs : {});
         sanitized.checkedSpecs = {
           ...baseSpecs,
-          __attachments: obj.attachments ? String(obj.attachments) : ''
+          __attachments: sanitized.attachments
         };
       }
-      delete sanitized.attachments;
     }
 
-    // customers의 defaultAttachments를 defaultCheckedSpecs.__attachments에 안전 백업
+    // customers의 defaultAttachments 컬럼 및 defaultCheckedSpecs.__attachments 동기화
     if (resolvedTable === 'customers') {
       if (obj.defaultAttachments !== undefined) {
+        sanitized.defaultAttachments = obj.defaultAttachments ? String(obj.defaultAttachments) : '';
         const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
           ? sanitized.defaultCheckedSpecs
           : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs) ? obj.defaultCheckedSpecs : {});
         sanitized.defaultCheckedSpecs = {
           ...baseSpecs,
-          __attachments: obj.defaultAttachments ? String(obj.defaultAttachments) : ''
+          __attachments: sanitized.defaultAttachments
         };
       }
-      delete sanitized.defaultAttachments;
-    }
-
-    // standard_options의 ATTACHMENT 카테고리를 원격 DB CHECK 제약조건('PAID','PROTECTION','SPEC')과 100% 호환되도록 인코딩
-    if (resolvedTable === 'standard_options' && sanitized.category === 'ATTACHMENT') {
-      sanitized.category = 'SPEC';
-      const cleanUnit = String(sanitized.unit || obj.unit || '건').replace(/^ATT:/, '');
-      sanitized.unit = `ATT:${cleanUnit}`;
     }
 
     // consumables 테이블 호환 (name, spec)
