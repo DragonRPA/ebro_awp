@@ -12,6 +12,7 @@ import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
 import { CustomStatementEditModal } from '../components/CustomStatementEditModal';
 import { matchHangul } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
+import { calculatePaidOptionBillingItems } from '../types/siteOption';
 
 // 🏦 테넌트 주거래 입금 계좌 조회 및 동적 포맷팅 헬퍼 (헌장 1.4: SSOT 표준화)
 export const getTenantPrimaryBankAccount = (tenant?: Tenant | null): TenantBankAccount | null => {
@@ -56,6 +57,7 @@ export const Billings: React.FC = () => {
     applyPrepaidBalanceForBilling,
     receivables, linkReceivableToBilling,
     currentTenant, tenants,
+    standardOptions,
     saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement
   } = useApp();
 
@@ -286,7 +288,8 @@ export const Billings: React.FC = () => {
   const [wizardStartDate, setWizardStartDate] = useState('');
   const [wizardEndDate, setWizardEndDate] = useState('');
   const [calcMethod, setCalcMethod] = useState<'MONTHLY' | 'PRORATED'>('MONTHLY');
-  const [extraCharges, setExtraCharges] = useState<{ id: string; category: string; customName: string; quantity: number; unitPrice: number }[]>([]);
+  const [extraCharges, setExtraCharges] = useState<{ id: string; category: string; customName: string; quantity: number; unitPrice: number; description?: string }[]>([]);
+  const [dismissedPaidOptionIdsForWizard, setDismissedPaidOptionIdsForWizard] = useState<string[]>([]);
 
   // 마법사 청구귀속월 & 청구발행일자 수동 지정 상태 (기본값: 생성 연월/오늘)
   const [wizardBillingYm, setWizardBillingYm] = useState(() => new Date().toISOString().slice(0, 7));
@@ -2096,6 +2099,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const handleSelectContractForWizard = (c: any) => {
     setSelectedContractIdForWizard(c.id);
     setExtraCharges([]);
+    setDismissedPaidOptionIdsForWizard([]);
     setSelectedRepairIdsForWizard([]);
     setSelectedDeliveryIdsForWizard([]);
     setWizardSelectedCaIds(new Set()); // 부분 청구 자산 선택 초기화 (전체 선택 상태)
@@ -2146,6 +2150,52 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     if (!selectedContractIdForWizard) return undefined;
     return contractMap.get(selectedContractIdForWizard);
   }, [selectedContractIdForWizard, contractMap]);
+
+  // 💡 출고 요청 유상 옵션 자동 산출 연동 ('월': 매월 가동 대수 × 단가, '건': 출고 건당 1회, '대': 해당 출고 대수 × 1회)
+  useEffect(() => {
+    if (!selectedContractForWizard || !wizardStartDate || !wizardEndDate || !wizardBillingYm) return;
+
+    const calculatedOptions = calculatePaidOptionBillingItems({
+      contract: selectedContractForWizard,
+      billingYm: wizardBillingYm,
+      periodStart: wizardStartDate,
+      periodEnd: wizardEndDate,
+      deliveries,
+      contractAssets,
+      standardOptions,
+      billings,
+      billingDetails,
+      selectedContractAssetIds: wizardSelectedCaIds,
+    }).filter(opt => !dismissedPaidOptionIdsForWizard.includes(opt.id));
+
+    setExtraCharges(prev => {
+      const nonOptCharges = prev.filter(ec => !ec.id.startsWith('EXTRA-OPT-'));
+      const optCharges = calculatedOptions.map(opt => {
+        const existingOpt = prev.find(p => p.id === opt.id);
+        return {
+          id: opt.id,
+          category: 'OTHER',
+          customName: existingOpt ? existingOpt.customName : opt.itemName,
+          quantity: opt.quantity,
+          unitPrice: existingOpt ? existingOpt.unitPrice : opt.unitPrice,
+          description: opt.description,
+        };
+      });
+      return [...optCharges, ...nonOptCharges];
+    });
+  }, [
+    selectedContractForWizard,
+    wizardStartDate,
+    wizardEndDate,
+    wizardBillingYm,
+    wizardSelectedCaIds,
+    deliveries,
+    contractAssets,
+    standardOptions,
+    billings,
+    billingDetails,
+    dismissedPaidOptionIdsForWizard,
+  ]);
 
   const wizardContractAssets = useMemo(() => {
     if (activeTab !== 'WIZARD' || !selectedContractIdForWizard) return [];
@@ -2289,7 +2339,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       }
     });
 
-    // 2. 순수 추가 청구 항목 정산 (수기 추가분 - 외상미수금은 linkReceivableToBilling이 전담)
+    // 2. 순수 추가 청구 항목 정산 (유상옵션 자동 산출분 및 수기 추가분 - 외상미수금은 linkReceivableToBilling이 전담)
     pureExtraCharges.forEach(ec => {
       let itemName = ec.customName || '';
       if (!itemName) {
@@ -2300,14 +2350,17 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       }
 
       const amount = ec.quantity * ec.unitPrice;
+      const itemDesc = ec.description || '추가 청구 항목 (수기 지정)';
 
       detailsList.push({
         contractAssetId: undefined,
         itemName: itemName,
+        displayName: itemName,
         quantity: ec.quantity,
         unitPrice: ec.unitPrice,
         amount: amount,
-        description: '추가 청구 항목 (수기 지정)'
+        description: itemDesc,
+        internalDescription: itemDesc
       });
     });
 
@@ -2400,6 +2453,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       refreshAllData();
       setSelectedContractIdForWizard(null);
       setExtraCharges([]);
+      setDismissedPaidOptionIdsForWizard([]);
       setSelectedRepairIdsForWizard([]);
       setSelectedDeliveryIdsForWizard([]);
       setSelectedReceivablesForWizard([]);
@@ -4844,6 +4898,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               } else if (ec.id.startsWith('EXTRA-DEL-')) {
                                 const dId = ec.id.replace('EXTRA-DEL-', '');
                                 setSelectedDeliveryIdsForWizard(selectedDeliveryIdsForWizard.filter(id => id !== dId));
+                              } else if (ec.id.startsWith('EXTRA-OPT-')) {
+                                setDismissedPaidOptionIdsForWizard(prev => [...prev, ec.id]);
                               }
                             }}
                             style={{

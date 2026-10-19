@@ -15,6 +15,7 @@ import { getDomainMode } from '../utils/domainRouter';
 import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
 import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, parseSessionUser, safeJsonParse, maskSalaryForRole } from '../utils/cryptoVault';
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
+import { calculatePaidOptionBillingItems } from '../types/siteOption';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -3125,6 +3126,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await notify('🏗️ [4/5 장비 매핑] 계약 투입 장비 모델 및 단가 자동 상속 중...', 80);
 
     const custContractIds = db.contracts.filter(c => c.customerId === finalCustomer.id).map(c => c.id);
+    const dData = data as any;
+    const effectivePaidOptionsForDelivery: string = dData.paidOptions !== undefined ? String(dData.paidOptions) : '';
+    const cargoItemsPayload: { modelName: string; count: number; contractAssetIds: string[]; paidOptions: string }[] = [];
 
     data.equipments.forEach((eq) => {
       const eqData = eq as any;
@@ -3166,8 +3170,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         determinedDaily = Math.round(determinedMonthly / 30);
       }
 
+      const eqCreatedCaIds: string[] = [];
       for(let i=0; i<count; i++) {
-        db.insertRow<ContractAsset>('contractAssets', {
+        const createdCa = db.insertRow<ContractAsset>('contractAssets', {
           contractId: contract.id,
           assetId: '',
           expectedModel: eq.modelName,
@@ -3177,14 +3182,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           endDate: '',
           createdAt: new Date().toISOString()
         });
+        if (createdCa?.id) eqCreatedCaIds.push(createdCa.id);
       }
+
+      cargoItemsPayload.push({
+        modelName: eq.modelName,
+        count,
+        contractAssetIds: eqCreatedCaIds,
+        paidOptions: effectivePaidOptionsForDelivery
+      });
     });
 
     await notify('🚚 [5/5 배차 생성] 배차/운송 관리 출고대기 지시건 생성 중...', 90);
 
-    // 신규 배차(Delivery) - 출고 대기 건 자동 생성
-    const cargoItems = JSON.stringify(data.equipments.map(e => ({ modelName: e.modelName, count: Number(e.qty) || 1 })));
-    const dData = data as any;
+    // 신규 배차(Delivery) - 출고 대기 건 자동 생성 (출고 장비 ContractAsset ID 및 유상옵션 1:1 매핑 보존)
+    const cargoItems = JSON.stringify(cargoItemsPayload);
     const loadingDateStr = extractDate(data.loadingTime) || contract.startDate;
     const getTimeSlot = (tStr: string | undefined) => {
       if (!tStr) return '오전';
@@ -8137,7 +8149,44 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     });
 
-    // 2. 수리비 자동 합산 제거 (H-1 원칙: 수리비는 외상미수금 대장으로 분리 관리)
+    // 2. 출고 요청 유상 옵션 자동 산출 ('월': 매월 가동 대수 × 단가, '건': 출고 건당 1회, '대': 해당 출고 대수 × 1회)
+    const { periodStart: contractPeriodStart, periodEnd: contractPeriodEnd } = calcBillingPeriod(
+      billingYm,
+      billingDay,
+      c.startDate,
+      c.endDate
+    );
+    const periodStartIso = contractPeriodStart.toISOString().split('T')[0];
+    const periodEndIso = contractPeriodEnd.toISOString().split('T')[0];
+
+    const paidOptionItems = calculatePaidOptionBillingItems({
+      contract: c,
+      billingYm,
+      periodStart: periodStartIso,
+      periodEnd: periodEndIso,
+      deliveries: db.deliveries,
+      contractAssets: db.contractAssets,
+      standardOptions: db.standardOptions,
+      billings: db.billings,
+      billingDetails: db.billingDetails,
+      selectedContractAssetIds,
+    });
+
+    paidOptionItems.forEach(optItem => {
+      detailsList.push({
+        contractAssetId: undefined,
+        itemName: optItem.itemName,
+        quantity: optItem.quantity,
+        unitPrice: optItem.unitPrice,
+        amount: optItem.amount,
+        description: optItem.description,
+        internalDescription: optItem.description,
+        displayName: optItem.itemName,
+      });
+      totalAmount += optItem.amount;
+    });
+
+    // 2-1. 수리비 자동 합산 제거 (H-1 원칙: 수리비는 외상미수금 대장으로 분리 관리)
     // → 담당자가 외상미수금 화면에서 수동으로 청구에 포함
 
     // 3. 선수금(예치금) 차감 반영 — 부분 청구가 아닌 경우에만 자동 차감 (I-1 원칙)

@@ -351,3 +351,283 @@ export function extractCategorizedSiteOptions(params: {
   };
 }
 
+export interface PaidOptionBillingItem {
+  id: string;                 // 고유 키 (예: EXTRA-OPT-월-2026-10-d1-opt1)
+  marker: string;             // 중복 방지 태그 (예: [OPT:월:2026-10:d1:opt1])
+  deliveryId: string;
+  optionId: string;
+  optionName: string;
+  unit: '월' | '건' | '대';
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  itemName: string;
+  description: string;
+}
+
+/**
+ * 출고 요청 시 추가된 유상 옵션(PAID)을 단위('월', '건', '대')에 맞춰 정밀 산출하는 SSOT 헬퍼
+ * - '월' (매월): 해당 유상옵션이 포함된 출고 건의 장비(ContractAsset) 중 정산 기간 내 가동 중인 대수 × 단가 (귀속월당 1회)
+ * - '건' (1회): 해당 유상옵션이 포함된 출고 의뢰(Delivery) 건당 1회 × 단가 (최초 청구 시 1회)
+ * - '대' (1회 × 출고수량): 해당 유상옵션이 포함된 출고 의뢰(Delivery)의 출고 대수 × 단가 (최초 청구 시 1회, 기존 계약 보유 대수와 무관하게 해당 출고 건의 수량만 청구)
+ */
+export function calculatePaidOptionBillingItems(params: {
+  contract: any;
+  billingYm: string;
+  periodStart: string;
+  periodEnd: string;
+  deliveries: any[];
+  contractAssets: any[];
+  standardOptions: StandardOption[];
+  billings: any[];
+  billingDetails: any[];
+  selectedContractAssetIds?: string[] | Set<string>;
+}): PaidOptionBillingItem[] {
+  const {
+    contract,
+    billingYm,
+    periodStart,
+    periodEnd,
+    deliveries = [],
+    contractAssets = [],
+    standardOptions = [],
+    billings = [],
+    billingDetails = [],
+    selectedContractAssetIds,
+  } = params;
+
+  if (!contract || !billingYm || !periodStart || !periodEnd) return [];
+
+  const paidMasterOptions = (standardOptions || []).filter(
+    o => o && o.isActive !== false && o.category === 'PAID' && (o.defaultPrice || 0) > 0
+  );
+  if (paidMasterOptions.length === 0) return [];
+
+  const selectedCaSet: Set<string> | null = selectedContractAssetIds
+    ? (selectedContractAssetIds instanceof Set
+        ? (selectedContractAssetIds.size > 0 ? selectedContractAssetIds : null)
+        : (Array.isArray(selectedContractAssetIds) && selectedContractAssetIds.length > 0 ? new Set(selectedContractAssetIds) : null))
+    : null;
+
+  // 해당 계약의 유효(미반려) 기존 청구 상세 내역 수집 (중복 청구 방지용)
+  const activeBillingIds = new Set(
+    (billings || [])
+      .filter(b => b && b.contractId === contract.id && b.status !== 'REJECTED')
+      .map(b => b.id)
+  );
+  const existingDetails = (billingDetails || []).filter(bd => bd && activeBillingIds.has(bd.billingId));
+  const isMarkerAlreadyBilled = (marker: string): boolean => {
+    return existingDetails.some(
+      bd =>
+        (typeof bd.description === 'string' && bd.description.includes(marker)) ||
+        (typeof bd.internalDescription === 'string' && bd.internalDescription.includes(marker)) ||
+        (typeof bd.itemName === 'string' && bd.itemName.includes(marker))
+    );
+  };
+
+  // 해당 계약의 전체 체결 자산
+  const allContractAssets = (contractAssets || []).filter(ca => ca && ca.contractId === contract.id);
+
+  // 해당 계약의 출고/교환 배차 목록 (취소/반납/입고 제외)
+  const outboundDeliveries = (deliveries || []).filter(d => {
+    if (!d || d.contractId !== contract.id) return false;
+    if (d.status === 'CANCELLED') return false;
+    if (d.type === 'INBOUND' || d.type === 'RETURN') return false;
+    const dDate = (d.loadingDate || d.scheduledDate || d.requestDate || (d.createdAt ? d.createdAt.slice(0, 10) : '')).slice(0, 10);
+    if (dDate && periodEnd && dDate > periodEnd) return false;
+    return true;
+  });
+
+  const results: PaidOptionBillingItem[] = [];
+  const usedCaIdsAcrossDeliveries = new Set<string>();
+
+  for (const d of outboundDeliveries) {
+    // 1) cargoItems 파싱하여 명시적 contractAssetIds, paidOptions, 총 출고 대수 추출
+    let parsedCargo: any[] = [];
+    if (d.cargoItems) {
+      try {
+        const parsed = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+        if (Array.isArray(parsed)) parsedCargo = parsed;
+      } catch {
+        parsedCargo = [];
+      }
+    }
+
+    const explicitCaIds: string[] = [];
+    let explicitPaidOptions: string | undefined = undefined;
+    let cargoTotalCount = 0;
+
+    parsedCargo.forEach(item => {
+      const cnt = Math.max(1, Number(item?.count || item?.qty || 1));
+      cargoTotalCount += cnt;
+      if (Array.isArray(item?.contractAssetIds)) {
+        item.contractAssetIds.forEach((id: string) => {
+          if (id && !explicitCaIds.includes(id)) explicitCaIds.push(id);
+        });
+      }
+      if (typeof item?.paidOptions === 'string' && explicitPaidOptions === undefined) {
+        explicitPaidOptions = item.paidOptions;
+      }
+    });
+
+    // 2) 유상옵션 문자열 추출 (cargoItems.paidOptions 우선 -> closingMemo -> memo)
+    let rawPaidStr: string | undefined = explicitPaidOptions;
+    if (rawPaidStr === undefined) {
+      const combinedMemo = `${d.closingMemo || ''} | ${d.memo || ''}`;
+      const closingMatch = (d.closingMemo || '').match(/유상옵션:\s*([^|]+)/);
+      if (closingMatch && closingMatch[1]) {
+        rawPaidStr = closingMatch[1].trim();
+      } else {
+        const optMatch = combinedMemo.match(/\[옵션\]\s*([^|/]+)/);
+        if (optMatch && optMatch[1]) {
+          rawPaidStr = optMatch[1].trim();
+        }
+      }
+    }
+
+    if (!rawPaidStr || rawPaidStr === '없음' || rawPaidStr.toUpperCase() === 'NONE') {
+      continue;
+    }
+
+    const parsedOptNames = splitMasterAwareOptions(rawPaidStr, standardOptions, {
+      onlyMasterOptions: true,
+      stripPrice: true,
+    });
+    if (parsedOptNames.length === 0) continue;
+
+    // 3) 이 출고 건(d)에 귀속된 ContractAsset 목록 결정
+    let linkedAssets: any[] = [];
+    if (explicitCaIds.length > 0) {
+      linkedAssets = allContractAssets.filter(ca => explicitCaIds.includes(ca.id));
+    } else {
+      // 레거시 폴백: 동일 모델 및 출고일(startDate) 일치 자산 매칭
+      const dDate = (d.loadingDate || d.scheduledDate || d.requestDate || '').slice(0, 10);
+      const candidateAssets = allContractAssets.filter(ca => !usedCaIdsAcrossDeliveries.has(ca.id));
+      for (const item of parsedCargo) {
+        const mName = String(item?.modelName || '').trim();
+        const needCount = Math.max(1, Number(item?.count || item?.qty || 1));
+        const matched = candidateAssets.filter(
+          ca =>
+            !linkedAssets.includes(ca) &&
+            (!mName || ca.expectedModel === mName) &&
+            (!dDate || !ca.startDate || ca.startDate === dDate)
+        );
+        matched.slice(0, needCount).forEach(ca => linkedAssets.push(ca));
+      }
+    }
+    linkedAssets.forEach(ca => usedCaIdsAcrossDeliveries.add(ca.id));
+
+    // 부분 청구 필터가 지정된 경우 선택된 자산만 대상으로 한정
+    const targetLinkedAssets = selectedCaSet
+      ? linkedAssets.filter(ca => selectedCaSet.has(ca.id))
+      : linkedAssets;
+
+    // 부분 청구 모드인데 이 출고 건의 자산이 하나도 선택되지 않았다면 스킵
+    if (selectedCaSet && linkedAssets.length > 0 && targetLinkedAssets.length === 0) {
+      continue;
+    }
+
+    // 4) 매칭된 각 유상 옵션에 대해 단위('월', '건', '대')별 금액 산출
+    for (const optName of parsedOptNames) {
+      const cleanTarget = optName.replace(/\s+/g, '');
+      const stdOpt = paidMasterOptions.find(o => o.name.replace(/\s+/g, '') === cleanTarget);
+      if (!stdOpt) continue;
+
+      const unitPrice = Number(stdOpt.defaultPrice || 0);
+      if (unitPrice <= 0) continue;
+
+      const rawUnit = (stdOpt.unit || '월').trim();
+      const unit: '월' | '건' | '대' = rawUnit === '건' ? '건' : rawUnit === '대' ? '대' : '월';
+
+      if (unit === '건') {
+        const marker = `[OPT:건:${d.id}:${stdOpt.id}]`;
+        if (isMarkerAlreadyBilled(marker)) continue;
+
+        const qty = 1;
+        const amount = unitPrice * qty;
+        results.push({
+          id: `EXTRA-OPT-건-${d.id}-${stdOpt.id}`,
+          marker,
+          deliveryId: d.id,
+          optionId: stdOpt.id,
+          optionName: stdOpt.name,
+          unit: '건',
+          quantity: qty,
+          unitPrice,
+          amount,
+          itemName: `[유상옵션] ${stdOpt.name} (1건)`,
+          description: `출고 유상옵션 1회 청구 (건당) ${marker}`,
+        });
+      } else if (unit === '대') {
+        const marker = `[OPT:대:${d.id}:${stdOpt.id}]`;
+        if (isMarkerAlreadyBilled(marker)) continue;
+
+        // 해당 출고 건에서 출고된 대수만 산정 (기존 계약 보유 대수 합산 절대 금지)
+        const qty = targetLinkedAssets.length > 0
+          ? targetLinkedAssets.length
+          : (cargoTotalCount > 0 ? cargoTotalCount : 1);
+        if (qty <= 0) continue;
+
+        const amount = unitPrice * qty;
+        results.push({
+          id: `EXTRA-OPT-대-${d.id}-${stdOpt.id}`,
+          marker,
+          deliveryId: d.id,
+          optionId: stdOpt.id,
+          optionName: stdOpt.name,
+          unit: '대',
+          quantity: qty,
+          unitPrice,
+          amount,
+          itemName: `[유상옵션] ${stdOpt.name} (${qty}대)`,
+          description: `출고 유상옵션 1회 청구 (대당 × ${qty}대) ${marker}`,
+        });
+      } else {
+        // unit === '월' (매월 가동 중인 해당 출고 자산 대수 × 월단가)
+        const marker = `[OPT:월:${billingYm}:${d.id}:${stdOpt.id}]`;
+        if (isMarkerAlreadyBilled(marker)) continue;
+
+        let activeCount = 0;
+        if (targetLinkedAssets.length > 0) {
+          activeCount = targetLinkedAssets.filter(ca => {
+            const caStart = (ca.startDate || contract.startDate || periodStart).slice(0, 10);
+            const caEnd = (ca.actualReturnDate && ca.actualReturnDate.trim() !== '' && ca.actualReturnDate !== '미정')
+              ? ca.actualReturnDate.slice(0, 10)
+              : (ca.endDate && ca.endDate !== '미정' && ca.endDate.trim() !== ''
+                  ? ca.endDate.slice(0, 10)
+                  : (contract.endDate && contract.endDate !== '미정' && contract.endDate.trim() !== '' ? contract.endDate.slice(0, 10) : '9999-12-31'));
+            return caStart <= periodEnd && caEnd >= periodStart;
+          }).length;
+        } else {
+          // 레거시 배차에 연결 자산 ID가 없을 경우 배차일 기준 활성 판단
+          const dDate = (d.loadingDate || d.scheduledDate || d.requestDate || contract.startDate || periodStart).slice(0, 10);
+          const cEnd = (contract.endDate && contract.endDate !== '미정' && contract.endDate.trim() !== '') ? contract.endDate.slice(0, 10) : '9999-12-31';
+          if (dDate <= periodEnd && cEnd >= periodStart) {
+            activeCount = cargoTotalCount > 0 ? cargoTotalCount : 1;
+          }
+        }
+
+        if (activeCount <= 0) continue;
+
+        const amount = unitPrice * activeCount;
+        results.push({
+          id: `EXTRA-OPT-월-${billingYm}-${d.id}-${stdOpt.id}`,
+          marker,
+          deliveryId: d.id,
+          optionId: stdOpt.id,
+          optionName: stdOpt.name,
+          unit: '월',
+          quantity: activeCount,
+          unitPrice,
+          amount,
+          itemName: `[유상옵션] ${stdOpt.name} (월 × ${activeCount}대)`,
+          description: `${billingYm} 정기 유상옵션 (월단가 × ${activeCount}대) ${marker}`,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+

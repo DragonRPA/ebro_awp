@@ -114,11 +114,13 @@ export function buildStatementItemFromDetail(
 
   let billingCategory = d?.billingCategory || '';
   if (!billingCategory) {
-    const checkText = `${d?.itemName || ''} ${d?.description || ''} ${billing?.billingType || ''}`;
+    const checkText = `${d?.itemName || ''} ${d?.description || ''} ${d?.internalDescription || ''} ${billing?.billingType || ''}`;
     if (billing?.billingType === 'TRANSPORT' || d?.itemCategory === 'TRANSPORT' || /운반|운송|배차|회수|상하차/.test(checkText)) {
       billingCategory = '운반비';
     } else if (billing?.billingType === 'REPAIR' || d?.itemCategory === 'REPAIR' || /수리|파손|정비|부품|AS/i.test(checkText)) {
       billingCategory = '수리비';
+    } else if (/\[유상옵션\]|\[OPT:/.test(checkText)) {
+      billingCategory = '유상옵션';
     } else if (billing?.billingType === 'ASSET_SALE' || contract?.contractType === 'SALE' || /매각|양도|판매/.test(checkText)) {
       billingCategory = '매각';
     } else if (isRental || billing?.billingType === 'RENTAL' || /렌탈|임대/.test(checkText)) {
