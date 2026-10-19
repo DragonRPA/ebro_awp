@@ -4174,53 +4174,66 @@ export const SmartDispatch4: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 등록된 옵션 태그 목록 */}
+                  {/* 등록된 옵션 목록 (클릭 시 해제 — 이미지2 dispatch4-model-chip selected 디자인 통일) */}
                   {selectedSafetyOptions.size > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 p-2 bg-slate-950/60 rounded-lg border border-slate-800">
-                      {Array.from(selectedSafetyOptions).map(opt => (
-                        <span
-                          key={opt}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-950/70 border border-amber-500/60 text-amber-200"
-                        >
-                          <span>{opt}</span>
-                          <button data-hs-trigger="Delete"
+                    <div className="flex flex-wrap gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                      {Array.from(selectedSafetyOptions).map(opt => {
+                        const isProt = isProtectionOption(opt);
+                        const isAtt = isAttachmentOption(opt);
+                        const catBadge = isProt ? '보양' : isAtt ? '부착물' : '옵션';
+                        return (
+                          <button
+                            key={opt}
                             type="button"
                             onClick={() => handleRemoveOption(opt)}
-                            className="text-amber-400/80 hover:text-red-400 transition"
-                            title="옵션 삭제"
+                            className="dispatch4-model-chip selected"
+                            title="클릭하여 선택 옵션에서 제외"
                           >
-                            <X className="w-3 h-3" />
+                            <span className="whitespace-nowrap font-normal">{opt}</span>
+                            <span className="dispatch4-qty-badge available">
+                              {catBadge} ✕
+                            </span>
                           </button>
-                        </span>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-xs text-slate-500 p-2.5 bg-slate-950/40 rounded-lg border border-slate-850 text-center">
-                      등록된 고객 요청 옵션이 없습니다. (아래 입력창에 직접 입력하거나 추천 칩 클릭)
+                      등록된 고객 요청 옵션이 없습니다. (아래 미선택 옵션 버튼을 클릭하거나 직접 입력하여 추가)
                     </div>
                   )}
 
-                  {/* 추천 키워드 칩 (타이핑 단축) */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] text-slate-400 font-semibold">자주 쓰는 요청:</span>
-                    {availableOptionSuggestions.map(tag => {
-                      const isAdded = selectedSafetyOptions.has(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleOptionTag(tag)}
-                          className={`px-2 py-0.5 rounded text-[11px] font-semibold border transition ${
-                            isAdded
-                              ? 'bg-amber-900/60 border-amber-500 text-amber-200'
-                              : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750 hover:text-white'
-                          }`}
-                        >
-                          {isAdded ? `✓ ${tag}` : `+ ${tag}`}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* 추가 가능한 미선택 옵션 목록 (이미 선택된 옵션은 제외하고 미선택 항목만 균일 디자인으로 표시) */}
+                  {(() => {
+                    const unselectedSuggestions = availableOptionSuggestions.filter(tag => !selectedSafetyOptions.has(tag));
+                    if (unselectedSuggestions.length === 0) return null;
+                    return (
+                      <div className="flex flex-col gap-1.5 pt-1">
+                        <span className="text-[11px] text-slate-400 font-semibold">추가 가능한 옵션 ({unselectedSuggestions.length}개):</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {unselectedSuggestions.map(tag => {
+                            const isProt = isProtectionOption(tag);
+                            const isAtt = isAttachmentOption(tag);
+                            const catBadge = isProt ? '보양' : isAtt ? '부착물' : '옵션';
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => toggleOptionTag(tag)}
+                                className="dispatch4-model-chip"
+                                title="클릭하여 옵션 추가"
+                              >
+                                <span className="whitespace-nowrap font-normal">+ {tag}</span>
+                                <span className="dispatch4-qty-badge available">
+                                  {catBadge}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 영업사원 고객 요구사항 있는 그대로 직접 입력 */}
                   <div className="flex items-center gap-1.5 pt-0.5">
