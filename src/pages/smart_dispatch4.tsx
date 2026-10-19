@@ -4366,11 +4366,12 @@ export const SmartDispatch4: React.FC = () => {
                   type="button"
                   onClick={() => handlePrintAction()}
                   disabled={isAgentPrinting}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition shadow-sm whitespace-nowrap cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold transition shadow-sm whitespace-nowrap cursor-pointer"
+                  style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}
                   title="선택된 프린터로 출고요청서 인쇄"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>인쇄</span>
+                  <Printer className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+                  <span style={{ color: '#ffffff' }}>인쇄</span>
                 </button>
                 <div className="text-right flex flex-col items-end gap-0.5">
                   <span className="text-[9.5px] text-slate-400 font-mono">
@@ -4580,23 +4581,12 @@ export const SmartDispatch4: React.FC = () => {
         {/* 🚀 [3] Gutenberg Z-Pattern Terminal Action — 최하단 고정 완결 바 */}
         <div className="dispatch4-terminal-bar">
           <div className="flex items-center gap-2">
-            <button
-              data-mid="dispatch4-btn-print-action"
-              type="button"
-              onClick={() => handlePrintAction()}
-              disabled={isAgentPrinting}
-              className="py-3 px-4 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-1.5 shadow-md flex-shrink-0 cursor-pointer"
-              title="선택된 프린터로 출고요청서 인쇄"
-            >
-              <Printer className="w-4 h-4" />
-              <span className="whitespace-nowrap">{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
-            </button>
             <button data-hs-trigger="Register"
               data-mid="dispatch4-btn-submit"
               type="button"
               onClick={handleSaveDraft}
               disabled={!canSave || isSubmittingDispatch}
-              className={`flex-1 py-3 px-4 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${
+              className={`w-full py-3 px-4 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${
                 isFormValid
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40 cursor-pointer active:scale-98'
                   : 'bg-slate-800 border-2 border-red-500/70 text-red-200 hover:bg-slate-750'
@@ -5258,10 +5248,11 @@ export const SmartDispatch4: React.FC = () => {
             type="button"
             onClick={() => handlePrintAction()}
             disabled={isAgentPrinting}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer border border-blue-500"
+            style={{ backgroundColor: 'var(--primary)', color: '#ffffff' }}
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
+            <Printer className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
+            <span style={{ color: '#ffffff' }}>{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
           </button>
 
           
