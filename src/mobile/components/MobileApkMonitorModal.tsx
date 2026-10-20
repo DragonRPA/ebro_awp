@@ -189,7 +189,7 @@ export const MobileApkMonitorModal: React.FC<MobileApkMonitorModalProps> = ({
               </span>
             </div>
             <p className="text-[10px] text-slate-400">
-              APK 앱을 설치하지 않았거나 아이폰 사용자의 경우, 기기에 저장된 통화 녹음 파일(.m4a, .mp3)을 웹에서 직접 등록할 수 있습니다.
+              APK 앱을 설치하지 않았거나 아이폰 사용자의 경우, 기기에 저장된 통화 녹음 파일을 웹에서 직접 등록할 수 있습니다.
             </p>
             <button
               type="button"

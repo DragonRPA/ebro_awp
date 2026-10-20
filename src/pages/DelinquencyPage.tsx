@@ -82,7 +82,7 @@ export const DelinquencyPage: React.FC = () => {
 3. 이에 당사는 본 통고서 도달일로부터 ${days}일 이내에 미납된 임대료 전액을 당사 지정 계좌로 완납하여 주실 것을 엄중히 최고(催告)합니다.
 
 4. 만일 위 기한 내에 대금 변제가 이루어지지 않을 경우, 당사는 부득이 다음과 같은 법적 조치를 즉각 단행할 것임을 통지합니다:
-   가. 민법 및 임대차 계약서 조항에 의거한 임대차 계약 즉시 해지 및 현장 투입 장비의 강제 회수/원격 가동 락(Lock) 조치
+   가. 민법 및 임대차 계약서 조항에 의거한 임대차 계약 즉시 해지 및 현장 투입 장비의 강제 회수/원격 가동 락 조치
    나. 관할 법원에 지급명령 신청 및 귀사의 공사대금 채권(원청사 기성금), 예금, 부동산 등에 대한 가압류 및 강제집행
    다. 상법 및 소송촉진등에관한특례법에 따른 법정 지연손해금(연 12%) 및 일체의 변호사/소송/회수 비용 청구
 
@@ -131,7 +131,7 @@ export const DelinquencyPage: React.FC = () => {
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const todayMs = useMemo(() => new Date(todayStr).getTime(), [todayStr]);
 
-  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 ──
   const customerMap = useMemo(() => {
     const map = new Map<string, Customer>();
     customers.forEach(c => map.set(c.id, c));
@@ -430,7 +430,7 @@ export const DelinquencyPage: React.FC = () => {
       const riskTierLabel = del.riskTier === 'HIGH' ? '고위험' : del.riskTier === 'MID' ? '중위험' : '일반/저위험';
       const statusLabel = del.transactionStatus === 'BLOCKED' ? '거래차단' : '정상거래';
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '위험등급': riskTierLabel,
         '고객사명': del.customerName,
         '사업자번호': del.bizRegNo || cust?.bizRegNo || '-',
@@ -795,7 +795,7 @@ export const DelinquencyPage: React.FC = () => {
         createdAt: new Date().toISOString()
       });
 
-      // 3. 전면 차단(BLOCKED_ALL)일 경우 담당 영업사원에게 긴급 장비회수 ToDo 자동 발행
+      // 3. 전면 차단일 경우 담당 영업사원에게 긴급 장비회수 ToDo 자동 발행
       if (selectedBlockType === 'BLOCKED_ALL' && blockTargetDel.responsibleEmployeeId) {
         db.insertRow<Todo>('todos', {
           type: 'GENERAL',
@@ -849,7 +849,7 @@ export const DelinquencyPage: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`[${del.customerName}] 거래처 제재가 해제되어 정상 거래(ALLOWED)로 복원되었습니다.`);
+      showToast(`[${del.customerName}] 거래처 제재가 해제되어 정상 거래로 복원되었습니다.`);
     } catch (err: any) {
       showErrorModal(`차단 해제 중 오류:\n${err?.message || err}`);
     }
@@ -877,9 +877,9 @@ export const DelinquencyPage: React.FC = () => {
       await db.awaitPendingWrites();
       refreshAllData();
       if (status === 'BROKEN') {
-        showToast('입금 약속 위반(BROKEN)으로 처리되었습니다.', 'error');
+        showToast('입금 약속 위반으로 처리되었습니다.', 'error');
       } else {
-        showToast('입금 약속 이행 완료(KEPT)로 기록되었습니다.');
+        showToast('입금 약속 이행 완료로 기록되었습니다.');
       }
     } catch (err: any) {
       showErrorModal(`약속 상태 업데이트 오류:\n${err?.message || err}`);
@@ -923,7 +923,7 @@ export const DelinquencyPage: React.FC = () => {
   return (
     <div data-hs-observe="delinquencypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
-      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      {/* ── 표준 헤더 바 ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',

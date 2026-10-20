@@ -58,7 +58,7 @@ export const CashFlowPage: React.FC = () => {
 
     // 1. 현금흐름 요약표 시트 데이터
     const statementRows = report.masterGrid.map((row, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '활동 구분': row.category,
       '세부 항목': row.subCategory,
       '유입액 (원)': row.inflow,
@@ -68,7 +68,7 @@ export const CashFlowPage: React.FC = () => {
 
     // 2. 계좌별 잔고 시트 데이터
     const accountRows = report.bankAccountBalances.map((acc, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '은행명': acc.bankName,
       '계좌번호': acc.accountNumber,
       '예금주': acc.accountHolder,
@@ -385,7 +385,7 @@ export const CashFlowPage: React.FC = () => {
         </button>
       </div>
 
-      {/* ─── 4. 중앙 본문 (High-Density Inspection Workspace) ─── */}
+      {/* ─── 4. 중앙 본문 ─── */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '14px', minHeight: 0 }}>
         {/* ═══ 탭 1: 종합 현금흐름표 및 통장 잔고 ═══ */}
         {activeTab === 'STATEMENT' && (
@@ -534,7 +534,7 @@ export const CashFlowPage: React.FC = () => {
           </div>
         )}
 
-        {/* ═══ 탭 2: 일별 자금 스케줄러 (Daily In/Out Timeline) ═══ */}
+        {/* ═══ 탭 2: 일별 자금 스케줄러 ═══ */}
         {activeTab === 'DAILY' && (
           <div className="card table-container" style={{ margin: 0, maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -704,7 +704,7 @@ export const CashFlowPage: React.FC = () => {
           </div>
         )}
 
-        {/* ═══ 탭 4: 자금 스냅샷 이력 (Cash Flow Snapshots History) ═══ */}
+        {/* ═══ 탭 4: 자금 스냅샷 이력 ═══ */}
         {activeTab === 'SNAPSHOTS' && (
           <div className="card table-container" style={{ margin: 0, maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

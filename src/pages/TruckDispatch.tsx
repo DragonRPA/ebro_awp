@@ -74,11 +74,11 @@ export const getEffectiveDeliveryCost = (d?: Delivery | null): number => {
   if (!d) return 0;
   // 1. 이미 정산/대사 완료되어 확정된 finalCost가 0보다 큰 경우 우선 반환
   if (d.finalCost !== undefined && d.finalCost !== null && d.finalCost > 0) return d.finalCost;
-  // 2. 대사/정산 완료 상태(isCostSettled)이면서 명시적으로 finalCost가 0인 경우 0원 확정
+  // 2. 대사/정산 완료 상태이면서 명시적으로 finalCost가 0인 경우 0원 확정
   if (d.isCostSettled && d.finalCost === 0) return 0;
-  // 3. 배차 원장의 등록/업로드 운송비(deliveryCost)가 존재하면 반환 (0원 포함)
+  // 3. 배차 원장의 등록/업로드 운송비가 존재하면 반환 (0원 포함)
   if (d.deliveryCost !== undefined && d.deliveryCost !== null) return d.deliveryCost;
-  // 4. 예상 운송비(expectedCost)가 존재하면 반환
+  // 4. 예상 운송비가 존재하면 반환
   if (d.expectedCost !== undefined && d.expectedCost !== null) return d.expectedCost;
   // 5. 배정 차량별 운송비 합산
   const vehicleCost = d.assignedVehicles?.reduce((acc: number, v: any) => acc + (v.deliveryCost || 0), 0);
@@ -178,7 +178,7 @@ export const TruckDispatch: React.FC = () => {
     let parsedCargo: any[] = [];
     try {
       if (delivery.cargoItems) {
-        const raw = JSON.parse(delivery.cargoItems);
+        const raw = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
         if (Array.isArray(raw)) parsedCargo = raw;
       }
     } catch {
@@ -240,12 +240,12 @@ export const TruckDispatch: React.FC = () => {
       if (matchedInsps.some(ins => ins.status === 'REJECTED')) hasRejected = true;
       if (matchedInsps.some(ins => ins.status === 'IN_PROGRESS')) hasInProgress = true;
 
-      const isInspCompleted = matchedInsps.some(
-        ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
-      );
-      const isAssetRented = asset?.status === 'RENTED' || ca.status === 'RENTED';
+      const isInspCompleted = matchedInsps.length > 0
+        ? matchedInsps.some(ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED')
+        : (asset?.status === 'RENTED' && ca.status === 'RENTED');
+      const isAssetRented = asset?.status === 'RENTED';
 
-      if (!isInspCompleted && !isAssetRented) {
+      if (!isInspCompleted || !isAssetRented) {
         const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
         uninspectedAssets.push(label);
       }
@@ -640,7 +640,7 @@ export const TruckDispatch: React.FC = () => {
       </tr>`;
     }
 
-    // 옵션 항목 4대 구분 추출 (유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙)
+    // 옵션 항목 4대 구분 추출 (유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구사양)
     const siteMaster = site?.siteMasterId ? siteMasters?.find(m => m.id === site.siteMasterId) : undefined;
     const categorizedOpts = extractCategorizedSiteOptions({
       site,
@@ -651,7 +651,7 @@ export const TruckDispatch: React.FC = () => {
       standardOptions,
     });
 
-    // 특이사항 및 작업 요청 정제 (Section 5)
+    // 특이사항 및 작업 요청 정제
     let staggeredMemo = '';
     if (delivery.memo && delivery.memo.includes('[시차출고]')) {
       const stMatch = delivery.memo.match(/\[시차출고\]\s*([^\|]+)/);
@@ -840,7 +840,7 @@ export const TruckDispatch: React.FC = () => {
           <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
         </tr>
         <tr>
-          <th class="nowrap">현장요구스펙</th>
+          <th class="nowrap">현장요구사양</th>
           <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
         </tr>
       </tbody>
@@ -1115,7 +1115,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // ── 운송사 배차 협의 (NEGOTIATION) 전용 상태 ──
+  // ── 운송사 배차 협의 전용 상태 ──
   const [selectedNegoDeliveryId, setSelectedNegoDeliveryId] = useState<string | null>(null);
   const [negoCompanyId, setNegoCompanyId] = useState<string>('');
   const [negoVehicleType, setNegoVehicleType] = useState<string>('5T');
@@ -1126,7 +1126,7 @@ export const TruckDispatch: React.FC = () => {
   const [negoFilterStatus, setNegoFilterStatus] = useState<'ALL' | 'PENDING' | 'IN_NEGOTIATION' | 'CONFIRMED'>('ALL');
   const [negoSearchQuery, setNegoSearchQuery] = useState<string>('');
 
-  // ── 통화 협의 큐 (Call Ingestion Queue) 상태 ──
+  // ── 통화 협의 큐 상태 ──
   const [callQueue, setCallQueue] = useState<TransportCallQueueItem[]>(() => getTransportCallQueue());
   const [selectedCallQueueId, setSelectedCallQueueId] = useState<string | null>(() => {
     const q = getTransportCallQueue();
@@ -1512,10 +1512,10 @@ export const TruckDispatch: React.FC = () => {
 
       db.updateRow('deliveries', editingDelivery.id, updateData);
 
-      // 💡 [사장님 지시] 원격 Supabase DB 쓰기가 100% 완료될 때까지 동기 대기 (Zero Silent Failures)
+      // 💡 [사장님 지시] 원격 Supabase DB 쓰기가 100% 완료될 때까지 동기 대기
       await db.awaitPendingWrites();
 
-      // 💡 [사장님 지시] 단순 대기만 하지 않고, 실제 DB를 다시 SELECT 읽기조회하여 목표 금액으로 100% 정상 수정되었는지 검증 (Read-Back Verification)
+      // 💡 [사장님 지시] 단순 대기만 하지 않고, 실제 DB를 다시 SELECT 읽기조회하여 목표 금액으로 100% 정상 수정되었는지 검증
       const verifiedDelivery = db.deliveries.find(d => d.id === editingDelivery.id);
       const verifiedCost = verifiedDelivery ? (verifiedDelivery.deliveryCost || (verifiedDelivery.assignedVehicles && verifiedDelivery.assignedVehicles[0]?.deliveryCost) || 0) : 0;
 
@@ -1686,7 +1686,7 @@ export const TruckDispatch: React.FC = () => {
     return stats;
   }, [deliveries, reconStartDate, reconEndDate]);
 
-  // 🚚 운송 완료(DELIVERED) 건들 대사 대상 필터링 (지급 상태 및 운송사별 연동)
+  // 🚚 운송 완료 건들 대사 대상 필터링 (지급 상태 및 운송사별 연동)
   const completedDeliveriesForRecon = useMemo(() => {
     const q = reconSearchQuery.trim();
     const qLower = q.toLowerCase();
@@ -1855,7 +1855,7 @@ export const TruckDispatch: React.FC = () => {
           }
         }
 
-        // 💡 [사장님 지시] "." 또는 따옴표/특수기호로 입력된 셀은 바로 윗행의 데이터와 동일(Ditto)한 것으로 처리
+        // 💡 [사장님 지시] "." 또는 따옴표/특수기호로 입력된 셀은 바로 윗행의 데이터와 동일한 것으로 처리
         const isDitto = (val: string) => {
           if (!val) return true;
           const v = String(val).trim();
@@ -2426,7 +2426,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 💡 [사장님 지시] 💳 대사 완료 1건의 통합 매입 지급요청 생성 (Payment Request Bundle)
+  // 💡 [사장님 지시] 💳 대사 완료 1건의 통합 매입 지급요청 생성
   const handleExecuteBundlePaymentRequest = async () => {
     const excelPairs = reconPairs.filter(p => p.excelRow);
 
@@ -2454,7 +2454,7 @@ export const TruckDispatch: React.FC = () => {
     const nowIso = new Date().toISOString();
 
     try {
-      // 1. 월말 매입 정산 마스터 레코드 (PurchaseSettlement) 생성
+      // 1. 월말 매입 정산 마스터 레코드 생성
       const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
       const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
         id: settlementId,
@@ -2472,7 +2472,7 @@ export const TruckDispatch: React.FC = () => {
         updatedAt: nowIso
       });
 
-      // 2. 1:1 매칭 상세 항목 (PurchaseSettlementItem) 생성 및 배차(Delivery) 레코드 갱신
+      // 2. 1:1 매칭 상세 항목 생성 및 배차 레코드 갱신
       for (const pair of reconciledPairs) {
         if (pair.systemDelivery) {
           db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
@@ -2818,13 +2818,13 @@ export const TruckDispatch: React.FC = () => {
     });
   }, [deliveries, activeDispatchStatusTab, startDate, endDate, searchQuery, contractMap, customerMap]);
 
-  // 💡 배차 완료 상태에서 수정을 위해 임시 잠금 해제(Unlock)하는 모드 state
+  // 💡 배차 완료 상태에서 수정을 위해 임시 잠금 해제하는 모드 state
   const [isEditUnlocked, setIsEditUnlocked] = useState<boolean>(false);
 
   const handleSelectDelivery = (d: Delivery) => {
     const todayStr = new Date().toISOString().split('T')[0];
     setSelectedDelivery(d);
-    setIsEditUnlocked(false); // 💡 새로 선택 시 기본 잠금(readOnly) 적용!
+    setIsEditUnlocked(false); // 💡 새로 선택 시 기본 잠금 적용!
 
     let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' = d.dispatchCategory || (d.type === 'EXCHANGE' ? '교환' : d.type === 'OUTBOUND' ? '출고' : d.type === 'RETURN' || d.type === 'INBOUND' ? '반납' : '출고');
     setDispatchCategory(defaultCat);
@@ -3174,7 +3174,7 @@ export const TruckDispatch: React.FC = () => {
       ? (selectedDelivery.status === 'COMPLETED' ? 'COMPLETED' : 'DELIVERED')
       : 'DISPATCHED';
 
-    // 🚨 출고 제한(BLOCKED / RESTRICT_NEW) 거래처 출고 배차 원천 차단
+    // 🚨 출고 제한 거래처 출고 배차 원천 차단
     const targetContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
     const targetCustomer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
     const isOutboundOrExchange = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
@@ -4318,8 +4318,8 @@ export const TruckDispatch: React.FC = () => {
                   {(() => {
                     const normStatus = getNormalizedDeliveryStatus(selectedDelivery);
                     // 💡 [사장님 지시: 배차 수정 기능 전면 지원]
-                    // 배차 대기(PENDING), 배차 완료(DISPATCHED), 배차 취소(CANCELLED) 모두 운송사, 기사, 차종, 단가, 일정 즉시 수정 가능!
-                    // 운송 완료 마감(DELIVERED) 건만 회계 정산 보호를 위해 기본 잠금(Unlock 필요)
+                    // 배차 대기, 배차 완료, 배차 취소 모두 운송사, 기사, 차종, 단가, 일정 즉시 수정 가능!
+                    // 운송 완료 마감 건만 회계 정산 보호를 위해 기본 잠금(Unlock 필요)
                     const isFormDisabled = !canSave || (normStatus === 'DELIVERED' && !isEditUnlocked);
 
                     return (
@@ -4941,7 +4941,7 @@ export const TruckDispatch: React.FC = () => {
       {activeTab === 'NEGOTIATION' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* ── [Step 1] 최상단: 통화 파일 업로드 및 협의 큐 (Call Queue Pipeline) ── */}
+          {/* ── [Step 1] 최상단: 통화 파일 업로드 및 협의 큐 ── */}
           <div style={{
             backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px',
             padding: '16px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '12px'
@@ -4961,7 +4961,7 @@ export const TruckDispatch: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  폰 또는 PC에서 녹음된 통화 파일(.m4a, .mp3, .wav)을 업로드하면 AI가 운송사, 차종, 운송비, 특약을 자동 추출합니다.
+                  폰 또는 PC에서 녹음된 통화 파일을 업로드하면 AI가 운송사, 차종, 운송비, 특약을 자동 추출합니다.
                 </div>
               </div>
 
@@ -5633,7 +5633,7 @@ export const TruckDispatch: React.FC = () => {
       {isAuditSettleGranted && activeTab === 'RECONCILIATION' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
-          {/* ────────────── ① 좌상단 (Start/Scope) & ② 우상단 (Input/Pipeline) Z-패턴 2단 레이아웃 ────────────── */}
+          {/* ────────────── ① 좌상단 & ② 우상단 Z-패턴 2단 레이아웃 ────────────── */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(520px, 1.4fr) minmax(360px, 1fr)',
@@ -5936,7 +5936,7 @@ export const TruckDispatch: React.FC = () => {
           </div>
 
 
-          {/* ────────────── ③ 중앙 본문 (Body / Inspection): 고밀도 1:1 대사 작업대 그리드 (화면의 85% 확보) ────────────── */}
+          {/* ────────────── ③ 중앙 본문: 고밀도 1:1 대사 작업대 그리드 (화면의 85% 확보) ────────────── */}
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             
             {/* 상태 필터 배지 바 + 일괄 승인 버튼 + 검색창 */}
@@ -6373,7 +6373,7 @@ export const TruckDispatch: React.FC = () => {
             </div>
           </div>
 
-          {/* ────────────── ④ 우하단 (Terminal Action): 대차대조 합계 검증 및 최종 완결 바 (화면 최하단 고정) ────────────── */}
+          {/* ────────────── ④ 우하단: 대차대조 합계 검증 및 최종 완결 바 (화면 최하단 고정) ────────────── */}
           <div style={{
             position: 'sticky',
             bottom: 0,
@@ -7305,7 +7305,7 @@ export const TruckDispatch: React.FC = () => {
                   }}
                 >
                   <CheckCircle size={15} color="#059669" />
-                  클립보드에 복사되었습니다. 카카오톡 창에 바로 붙여넣기(Ctrl + V) 하실 수 있습니다.
+                  클립보드에 복사되었습니다. 카카오톡 창에 바로 붙여넣기 하실 수 있습니다.
                 </div>
               )}
 

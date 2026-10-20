@@ -631,7 +631,7 @@ export const Customers: React.FC = () => {
   const handleExportAllCustomers = () => {
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const excelData = filteredCustomers.map((c, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '고객명': c.name,
       '대표자': isPrivileged ? c.representative : maskName(c.representative),
       '업태': c.bizType || '-',
@@ -661,7 +661,7 @@ export const Customers: React.FC = () => {
     if (!activeCustomer) return;
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const excelData = sortedCustomerContacts.map((cc, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '고객사명': activeCustomer.name,
       '담당자명': isPrivileged ? cc.name : maskName(cc.name),
       '직급': cc.position || '-',
@@ -684,7 +684,7 @@ export const Customers: React.FC = () => {
     if (!activeCustomer) return;
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const excelData = sortedCustomerSites.map((cs, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '고객사명': activeCustomer.name,
       '현장명': cs.name,
       '현장 주소': isPrivileged ? (cs.address || '-') : maskAddress(cs.address),
@@ -1346,7 +1346,7 @@ export const Customers: React.FC = () => {
     }
   };
 
-  // 📋 현장별 옵션관리 등록 옵션 그룹 속성 복사 (SiteOptionModal)
+  // 📋 현장별 옵션관리 등록 옵션 그룹 속성 복사
   const handleApplyRefSiteOptionsToOptionForm = () => {
     if (!selectedRefSite) {
       showToast('상속받을 옵션 그룹을 먼저 선택하세요.', 'error');
@@ -1599,7 +1599,7 @@ const handleDeleteAccount = async (accId: string) => {
         </div>
       </div>
 
-      {/* ② 고객 및 현장/담당자 KPI 바 (Scope) */}
+      {/* ② 고객 및 현장/담당자 KPI 바 */}
       <div data-mid="customer-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 고객사</span>
@@ -1755,7 +1755,7 @@ const handleDeleteAccount = async (accId: string) => {
         minHeight: 0
       }}>
 
-        {/* 좌측: 고객사 고밀도 목록 패널 (360px) */}
+        {/* 좌측: 고객사 고밀도 목록 패널 */}
         <div data-mid="customer-list-panel" style={{
           backgroundColor: 'var(--bg-card)',
           borderRadius: '6px',
@@ -1807,7 +1807,7 @@ const handleDeleteAccount = async (accId: string) => {
           </div>
         </div>
 
-        {/* 우측: 선택 고객사 360도 마스터-디테일 스튜디오 (flex 1) */}
+        {/* 우측: 선택 고객사 360도 마스터-디테일 스튜디오 */}
         <div data-mid="customer-detail-dossier" style={{
           backgroundColor: 'var(--bg-card)',
           borderRadius: '6px',
@@ -1931,7 +1931,7 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 2. 등록 현장(Sites) 고밀도 그리드 */}
+              {/* 2. 등록 현장 고밀도 그리드 */}
               <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2164,7 +2164,7 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 3. 등록 담당자(Contacts) 고밀도 그리드 */}
+              {/* 3. 등록 담당자 고밀도 그리드 */}
               <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -3561,7 +3561,7 @@ const handleDeleteAccount = async (accId: string) => {
                               onClick={() => setEditingSite({ ...editingSite, protection: 'NONE' })}
                               style={{ fontSize: '10.5px', padding: '1px 6px', borderRadius: '3px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', cursor: 'pointer' }}
                             >
-                              보양 없음(NONE) 전환
+                              무상옵션 없음 전환
                             </button>
                           )}
                         </div>
@@ -3570,7 +3570,7 @@ const handleDeleteAccount = async (accId: string) => {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
                           <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '52px' }}>적용됨:</span>
                           {rawProtList.length === 0 ? (
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>보양 없음 (NONE)</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>무상옵션 없음</span>
                           ) : (
                             rawProtList.map(optName => (
                               <button
@@ -3977,7 +3977,7 @@ const handleDeleteAccount = async (accId: string) => {
                     style={inputStyle}
                     value={custOptionForm.defaultPaidOptions}
                     onChange={e => setCustOptionForm({ ...custOptionForm, defaultPaidOptions: e.target.value })}
-                    placeholder="예: 협착방지봉 / 상부센서 (4EA), 4면 철망 설치"
+                    placeholder="예: 협착방지봉 / 상부센서, 4면 철망 설치"
                   />
                 </div>
               </div>
@@ -4297,11 +4297,11 @@ const handleDeleteAccount = async (accId: string) => {
                 )}
               </div>
 
-              {/* 1. 현장 전용 유상옵션 (PAID) */}
+              {/* 1. 현장 전용 유상옵션 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#1d4ed8', margin: 0 }}>
-                    1. 유상옵션 (PAID)
+                    1. 유상옵션
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     적용: {splitOptions(siteOptionForm.paidOptions).length}건
@@ -4382,11 +4382,11 @@ const handleDeleteAccount = async (accId: string) => {
                 })()}
               </div>
 
-              {/* 2. 현장 전용 무상옵션 (PROTECTION) */}
+              {/* 2. 현장 전용 무상옵션 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#047857', margin: 0 }}>
-                    2. 무상옵션 (PROTECTION)
+                    2. 무상옵션
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     적용: {splitOptions(siteOptionForm.protection).filter(v => v !== 'NONE').length}건
@@ -4468,11 +4468,11 @@ const handleDeleteAccount = async (accId: string) => {
                 })()}
               </div>
 
-              {/* 3. 현장 전용 부착물 (ATTACHMENT) */}
+              {/* 3. 현장 전용 부착물 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#6d28d9', margin: 0 }}>
-                    3. 부착물 (ATTACHMENT)
+                    3. 부착물
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     적용: {splitOptions(siteOptionForm.attachments).length}건
@@ -4553,11 +4553,11 @@ const handleDeleteAccount = async (accId: string) => {
                 })()}
               </div>
 
-              {/* 4. 현장 전용 요구사양 (SPEC) */}
+              {/* 4. 현장 전용 요구사양 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: '#b45309', margin: 0 }}>
-                    4. 현장 요구사양 (SPEC)
+                    4. 현장 요구사양
                   </label>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                     적용: {standardOptions.filter(o => o.category === 'SPEC' && o.isActive && siteOptionForm.checkedSpecs?.[o.id]).length}건
@@ -4756,7 +4756,7 @@ const handleDeleteAccount = async (accId: string) => {
                       style={inputStyle}
                       value={editingOption.name || ''}
                       onChange={e => setEditingOption({ ...editingOption, name: e.target.value })}
-                      placeholder="예: 협착방지봉 / 상부센서 (4EA)"
+                      placeholder="예: 협착방지봉 / 상부센서"
                       required
                     />
                   </div>

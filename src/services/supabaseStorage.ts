@@ -24,7 +24,7 @@ export interface StorageUploadResult {
 
 /**
  * Supabase Storage 버킷에 파일 업로드
- * 동일 경로에 파일이 이미 있으면 덮어씀 (upsert: true)
+ * 동일 경로에 파일이 이미 있으면 덮어씀
  */
 export async function uploadToSupabaseStorage(
   options: StorageUploadOptions

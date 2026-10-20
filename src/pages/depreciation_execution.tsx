@@ -33,7 +33,7 @@ export const DepreciationExecution: React.FC = () => {
     onConfirm: () => void;
   } | null>(null);
 
-  // ─── [Gutenberg Z-패턴 4단계 최하단 감가상각 자산가치 대차대조식 검증 (Single-Pass Memo)] ───
+  // ─── [Gutenberg Z-패턴 4단계 최하단 감가상각 자산가치 대차대조식 검증] ───
   const { ownedAssets, depreciationAuditSummary } = useMemo(() => {
     const owned: typeof assets = [];
     let totalAcquisition = 0;
@@ -209,10 +209,10 @@ export const DepreciationExecution: React.FC = () => {
       const bookVal = asset.bookValue ?? (cost - accum);
 
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '관리번호': asset.assetNo,
         '장비모델명': asset.modelName,
-        '시리얼번호': asset.serialNo || '-',
+        '제조번호': asset.serialNo || '-',
         '자산상태': asset.status,
         '취득일자': asset.acquisitionDate || '-',
         '취득원가(원)': cost,
@@ -238,7 +238,7 @@ export const DepreciationExecution: React.FC = () => {
       return;
     }
     const rows = sortedDepLogs.map((log, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '이력ID': log.id,
       '마감연월': log.depreciationYm,
       '마감실행일시': log.executedAt ? log.executedAt.substring(0, 19).replace('T', ' ') : '-',

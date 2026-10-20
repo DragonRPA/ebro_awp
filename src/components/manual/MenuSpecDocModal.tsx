@@ -1,5 +1,5 @@
 // src/components/manual/MenuSpecDocModal.tsx
-// 전사 메뉴 기능 정의서 (.md) 뷰어 & 편집기 모달
+// 전사 메뉴 기능 정의서 뷰어 & 편집기 모달
 // 마크다운 열람, 실시간 편집/저장, MD 파일 다운로드, MCP 에이전트 연동 지원
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
@@ -449,7 +449,7 @@ export const MenuSpecDocModal: React.FC<MenuSpecDocModalProps> = ({
                 <Terminal size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>MCP & AI Agent Grounding 명세: </strong>
-                  이 마크다운은 AI 에이전트가 본 메뉴를 조작할 때 업무 목적과 R&R 헌장을 준수하도록 주입되는 단일 진실 원천(SSOT) 명세입니다.
+                  이 마크다운은 AI 에이전트가 본 메뉴를 조작할 때 업무 목적과 R&R 헌장을 준수하도록 주입되는 단일 진실 원천 명세입니다.
                 </div>
               </div>
 

@@ -75,7 +75,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     targetItems: MismatchItem[];
   } | null>(null);
 
-  // ── 1. 불부합 데이터 스캔 (Audit Engine) ──
+  // ── 1. 불부합 데이터 스캔 ──
   const runScan = useCallback(() => {
     setIsScanning(true);
     try {

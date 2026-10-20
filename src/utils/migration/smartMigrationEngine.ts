@@ -489,16 +489,16 @@ export function getIntegratedSampleDataset(tenantId: string = 'giyeonlift'): Int
 
   // 6. 부품 및 소모품 (마스터 및 구매입고)
   const consumables = [
-    { id: 'con-hyd-oil', modelName: 'ISO-VG46 유압유(20L)', unit: '통', unitPrice: 55000, stockQty: 30, category: '오일류', supplier: 'GS칼텍스', note: '사계절용 프리미엄 내마모성 유압작동유', tenant_id: tenantId, createdAt: now, updatedAt: now },
-    { id: 'con-bat-trojan', modelName: '트로잔 T-105 딥사이클 배터리(6V)', unit: '개', unitPrice: 195000, stockQty: 24, category: '배터리', supplier: '트로잔코리아', note: '225Ah 고용량 납축전지', tenant_id: tenantId, createdAt: now, updatedAt: now },
-    { id: 'con-fuse-250', modelName: '메인 퓨즈(250A)', unit: '개', unitPrice: 12000, stockQty: 50, category: '전장부품', supplier: '대한전장', note: '시저리프트 주전원 보호용 고전류 퓨즈', tenant_id: tenantId, createdAt: now, updatedAt: now },
+    { id: 'con-hyd-oil', modelName: 'ISO-VG46 유압유(20리터)', unit: '통', unitPrice: 55000, stockQty: 30, category: '오일류', supplier: 'GS칼텍스', note: '사계절용 프리미엄 내마모성 유압작동유', tenant_id: tenantId, createdAt: now, updatedAt: now },
+    { id: 'con-bat-trojan', modelName: '트로잔 T-105 딥사이클 배터리(6볼트)', unit: '개', unitPrice: 195000, stockQty: 24, category: '배터리', supplier: '트로잔코리아', note: '225Ah 고용량 납축전지', tenant_id: tenantId, createdAt: now, updatedAt: now },
+    { id: 'con-fuse-250', modelName: '메인 퓨즈(250암페어)', unit: '개', unitPrice: 12000, stockQty: 50, category: '전장부품', supplier: '대한전장', note: '시저리프트 주전원 보호용 고전류 퓨즈', tenant_id: tenantId, createdAt: now, updatedAt: now },
     { id: 'con-limit-sw', modelName: '협착방지 리미트스위치(방수)', unit: '개', unitPrice: 35000, stockQty: 18, category: '안전부품', supplier: '안전솔루션', note: 'IP67 방수/방진 등급', tenant_id: tenantId, createdAt: now, updatedAt: now }
   ];
 
   const consumablePurchases = [
-    { id: 'cp-001', modelName: 'ISO-VG46 유압유(20L)', requestedQty: 20, receivedQty: 20, unitPrice: 55000, sellerName: 'GS칼텍스', requesterName: '박정비', requestDate: '2026-08-15', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now },
-    { id: 'cp-002', modelName: '트로잔 T-105 딥사이클 배터리(6V)', requestedQty: 12, receivedQty: 12, unitPrice: 195000, sellerName: '트로잔코리아', requesterName: '박정비', requestDate: '2026-08-20', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now },
-    { id: 'cp-003', modelName: '메인 퓨즈(250A)', requestedQty: 30, receivedQty: 30, unitPrice: 12000, sellerName: '대한전장', requesterName: '박정비', requestDate: '2026-09-01', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now }
+    { id: 'cp-001', modelName: 'ISO-VG46 유압유(20리터)', requestedQty: 20, receivedQty: 20, unitPrice: 55000, sellerName: 'GS칼텍스', requesterName: '박정비', requestDate: '2026-08-15', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now },
+    { id: 'cp-002', modelName: '트로잔 T-105 딥사이클 배터리(6볼트)', requestedQty: 12, receivedQty: 12, unitPrice: 195000, sellerName: '트로잔코리아', requesterName: '박정비', requestDate: '2026-08-20', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now },
+    { id: 'cp-003', modelName: '메인 퓨즈(250암페어)', requestedQty: 30, receivedQty: 30, unitPrice: 12000, sellerName: '대한전장', requesterName: '박정비', requestDate: '2026-09-01', status: 'COMPLETED', tenant_id: tenantId, createdAt: now, updatedAt: now }
   ];
 
   // 7. 매입거래처 및 운송사 (5대 매입유형 및 운송사 전속 기사)
@@ -555,7 +555,7 @@ export function generateIntegratedTemplateWorkbook(tenantName: string = '기연�
 
   // 1. 조직_사원 시트 (입사일, 생년월일, 주소 스키마 확장)
   const ws1Data = [
-    ['부서명*', '사원명*', '로그인ID*', '직급*', '직책', '역할(ADMIN/USER/MECHANIC)*', '입사일', '생년월일', '주소', '연락처', '기본급(원)'],
+    ['부서명*', '사원명*', '로그인ID*', '직급*', '직책', '역할*', '입사일', '생년월일', '주소', '연락처', '기본급(원)'],
     ['경영관리부', '홍길동', 'hong_admin', '부장', '본부장', 'ADMIN', '2020-01-02', '1980-05-15', '경기 수원시 영통구 광교중앙로 100', '010-1111-2222', 5500000],
     ['영업본부', '이영업', 'lee_sales', '과장', '팀장', 'USER', '2022-03-01', '1987-11-20', '경기 화성시 동탄대로 234', '010-3333-4444', 3800000],
     ['정비/기술팀', '박정비', 'park_tech', '대리', '반장', 'MECHANIC', '2023-05-15', '1992-03-10', '경기 평택시 고덕여염로 50', '010-5555-6666', 3500000],
@@ -566,7 +566,7 @@ export function generateIntegratedTemplateWorkbook(tenantName: string = '기연�
 
   // 2. 제품_장비 시트 (10대 상세제원 및 장비호기)
   const ws2Data = [
-    ['관리번호(호기)*', '모델명*', '제조사*', '작업높이(m)', '발판높이(m)', '장비규격(전장x폭x고)', '작업대규격', '자중(kg)', '동력원', '적재하중(kg)', '소유구분(자사/전대)*', '현재상태(가용/대여중/정비중)*', '시리얼번호', '연식', '취득가액', '월렌탈료', '일렌탈료', '비고'],
+    ['관리번호(호기)*', '모델명*', '제조사*', '작업높이(미터)', '발판높이(미터)', '장비규격(전장x폭x고)', '작업대규격', '자중(킬로그램)', '동력원', '적재하중(킬로그램)', '소유구분(자사/전대)*', '현재상태(가용/대여중/정비중)*', '제조번호', '연식', '취득가액', '월렌탈료', '일렌탈료', '비고'],
     ['KY-001', 'GS-1930', 'Genie', 7.8, 5.8, '1.87 x 0.76 x 1.98 m', '1.63 x 0.74 m', '1500', '배터리(전동)', '227', '자사', '대여중', 'GS1930-1001', '2023', 12000000, 350000, 25000, '본사 주기장'],
     ['KY-002', 'SJ-3219', 'SKYJACK', 7.8, 5.8, '1.78 x 0.81 x 2.00 m', '1.63 x 0.71 m', '1312', '배터리(전동)', '227', '자사', '대여중', 'SJ3219-5891', '2024', 12500000, 350000, 25000, '정기점검 완료'],
     ['KY-003', 'JCPT1008HD', 'Dingli', 10.0, 8.0, '2.40 x 0.81 x 2.10 m', '2.27 x 0.81 m', '2150', '배터리(전동)', '230', '자사', '가용', 'DL1008-8821', '2024', 14000000, 450000, 30000, '출고 대기'],
@@ -577,7 +577,7 @@ export function generateIntegratedTemplateWorkbook(tenantName: string = '기연�
 
   // 3. 현장_옵션 시트 (물리현장 + 전사 표준 옵션 마스터)
   const ws3Data = [
-    ['물리현장명*', '현장주소*', '옵션명칭*', '옵션구분(PAID/PROTECTION/SPEC)*', '옵션기본단가', '옵션단위(월/대/건)', '옵션설명'],
+    ['물리현장명*', '현장주소*', '옵션명칭*', '옵션구분(유상/무상/사양)*', '옵션기본단가', '옵션단위(월/대/건)', '옵션설명'],
     ['고덕 삼성 P4 신축현장', '경기 평택시 고덕면 첨단대로 100', '협착방지봉', 'PAID', 20000, '월', '상단 4면 협착방지 와이어 센서'],
     ['용인 원삼 반도체 클러스터', '경기 용인시 처인구 원삼면 죽능리 산 10', '백색 논마킹 타이어', 'PROTECTION', 30000, '대', '에폭시 바닥 손상 방지용 타이어'],
     ['송도 바이오 연구소 현장', '인천 연수구 송도동 테크노파크로 50', '발판 비닐/부직포 보양', 'PROTECTION', 10000, '대', '도색/분진 오염 방지 작업대 보양'],
@@ -600,7 +600,7 @@ export function generateIntegratedTemplateWorkbook(tenantName: string = '기연�
 
   // 5. 정비점검_수리이력 시트 (점검마스터 + 정비대장)
   const ws5Data = [
-    ['점검코드*', '카테고리*', '점검항목명*', '정비배점*', '표준공수(h)', '불량증상여부(Y/N)', '조치가이드', '점검설명', '수리호기', '수리구분(자가/외주)', '고장증상', '조치내용', '정비사', '수리완료일'],
+    ['점검코드*', '카테고리*', '점검항목명*', '정비배점*', '표준공수(시간)', '불량증상여부', '조치가이드', '점검설명', '수리호기', '수리구분(자가/외주)', '고장증상', '조치내용', '정비사', '수리완료일'],
     ['CHK-0000001', '전기/배터리', '비상정지/루프 전원 점검', 10, 0.8, 'Y', '비상정지 스위치 및 전환스위치 루프 측정', '기본 전원 계통 고장', 'KY-001', '자가', '플랫폼 상승 시 간헐적 멈춤', '솔레노이드 밸브 세척 및 재체결', '박정비', '2026-09-10'],
     ['CHK-0000002', '전기/배터리', '협착방지 센서 와이어 점검', 10, 0.5, 'Y', '센서 접점 통전 테스트 및 방수 결선', '상단 방지봉 단선', 'KY-002', '자가', '협착방지 센서 와이어 접촉 불량', '리미트스위치 단자 교체 및 방수 처리', '박정비', '2026-09-22'],
     ['CHK-0000004', '유압/동력', '상승 솔레노이드 밸브 점검', 15, 1.0, 'Y', '스풀 청소 및 릴리프 압력 게이지 측정', '상승 불량', 'KY-003', '자가', '신차 입고 출고 전 점검', '배터리 비중 측정 및 유압유 보충', '박정비', '2026-10-02'],
@@ -612,9 +612,9 @@ export function generateIntegratedTemplateWorkbook(tenantName: string = '기연�
   // 6. 부품_소모품 시트 (독립 도메인: 소모품마스터 + 구매입고)
   const ws6Data = [
     ['부품/소모품명*', '규격', '카테고리*', '단위*', '기준매입단가', '기초재고수량', '주공급처', '최근입고수량', '최근입고단가', '매입처'],
-    ['ISO-VG46 유압유(20L)', '20L 통', '오일류', '통', 55000, 30, 'GS칼텍스', 20, 55000, 'GS칼텍스'],
-    ['트로잔 T-105 딥사이클 배터리(6V)', '6V 225Ah', '배터리', '개', 195000, 24, '트로잔코리아', 12, 195000, '트로잔코리아'],
-    ['메인 퓨즈(250A)', '250A 볼트형', '전장부품', '개', 12000, 50, '대한전장', 30, 12000, '대한전장'],
+    ['ISO-VG46 유압유(20리터)', '20L 통', '오일류', '통', 55000, 30, 'GS칼텍스', 20, 55000, 'GS칼텍스'],
+    ['트로잔 T-105 딥사이클 배터리(6볼트)', '6V 225Ah', '배터리', '개', 195000, 24, '트로잔코리아', 12, 195000, '트로잔코리아'],
+    ['메인 퓨즈(250암페어)', '250A 볼트형', '전장부품', '개', 12000, 50, '대한전장', 30, 12000, '대한전장'],
     ['협착방지 리미트스위치(방수)', '스프링 와이어형', '안전부품', '개', 35000, 18, '안전솔루션', 10, 35000, '안전솔루션']
   ];
   const ws6 = XLSX.utils.aoa_to_sheet(ws6Data);
@@ -716,7 +716,7 @@ function parseMultiSheetWorkbook(
     }
 
     if (userName) {
-      const roleStr = String(row['역할(ADMIN/USER/MECHANIC)*'] || row['역할'] || 'USER').toUpperCase();
+      const roleStr = String(row['역할*'] || row['역할'] || 'USER').toUpperCase();
       const role = ['ADMIN', 'MANAGER', 'USER', 'MECHANIC'].includes(roleStr) ? roleStr : 'USER';
       users.push({
         id: makeDeterministicId('usr', loginId),
@@ -755,8 +755,8 @@ function parseMultiSheetWorkbook(
     if (modelName && !prodId) {
       prodId = makeDeterministicId('prod', modelName);
       prodMap[modelName] = prodId;
-      const height = sanitizeNumber(row['작업높이(m)'] || row['작업높이']);
-      const platformHeight = sanitizeNumber(row['발판높이(m)'] || row['발판높이']) || (height ? Math.max(0, height - 2) : 5.8);
+      const height = sanitizeNumber(row['작업높이(미터)'] || row['작업높이']);
+      const platformHeight = sanitizeNumber(row['발판높이(미터)'] || row['발판높이']) || (height ? Math.max(0, height - 2) : 5.8);
       products.push({
         id: prodId,
         modelName,
@@ -766,9 +766,9 @@ function parseMultiSheetWorkbook(
         platformHeight,
         machineDimensions: String(row['장비규격(전장x폭x고)'] || row['장비규격'] || '').trim() || null,
         platformDimensions: String(row['작업대규격'] || '').trim() || null,
-        weight: String(row['자중(kg)'] || row['자중'] || '').trim() || null,
+        weight: String(row['자중(킬로그램)'] || row['자중'] || '').trim() || null,
         powerSource: String(row['동력원'] || '배터리(전동)').trim(),
-        capacityPreExt: String(row['적재하중(kg)'] || row['적재하중'] || '227').trim(),
+        capacityPreExt: String(row['적재하중(킬로그램)'] || row['적재하중'] || '227').trim(),
         capacityPostExtMain: '113 kg',
         capacityPostExtDeck: '113 kg',
         speed: '3.5 km/h',
@@ -796,13 +796,15 @@ function parseMultiSheetWorkbook(
         assetNo,
         modelName: modelName || '미정모델',
         manufacturer: String(row['제조사*'] || row['제조사'] || 'GENIE').trim(),
-        serialNo: String(row['시리얼번호'] || row['차대번호'] || '').trim() || null,
+        serialNo: String(row['제조번호'] || row['제조번호'] || '').trim() || null,
         manufactureYear: String(row['연식'] || row['제조년도'] || '').trim() || null,
         ownerType,
         status,
         acquisitionPrice: sanitizeNumber(row['취득가액']),
-        monthlyRentFee: sanitizeNumber(row['월렌탈료'] || row['월임대료']),
-        dailyRentFee: sanitizeNumber(row['일렌탈료'] || row['일임대료']),
+        monthlyRentalFee: sanitizeNumber(row['월렌탈료'] || row['월임대료']),
+        dailyRentalFee: sanitizeNumber(row['일렌탈료'] || row['일임대료']),
+        monthlyRentFee: sanitizeNumber(row['월임차료'] || row['월전대료']),
+        dailyRentFee: sanitizeNumber(row['일임차료'] || row['일전대료']),
         note: String(row['비고'] || '').trim() || null,
         tenant_id: tenantId,
         createdAt: now,
@@ -842,7 +844,7 @@ function parseMultiSheetWorkbook(
     if (optName && !optMap[optName]) {
       const optId = makeDeterministicId('opt', optName);
       optMap[optName] = optId;
-      const catRaw = String(row['옵션구분(PAID/PROTECTION/SPEC)*'] || row['구분'] || 'PAID').toUpperCase();
+      const catRaw = String(row['옵션구분(유상/무상/사양)*'] || row['구분'] || 'PAID').toUpperCase();
       const category = ['PAID', 'PROTECTION', 'SPEC'].includes(catRaw) ? catRaw : 'PAID';
       standardOptions.push({
         id: optId,
@@ -962,8 +964,8 @@ function parseMultiSheetWorkbook(
         category: String(row['카테고리*'] || row['카테고리'] || '일반점검').trim(),
         name: chkName,
         maintenanceScore: sanitizeNumber(row['정비배점*'] || row['배점']) || 10,
-        standardManHours: parseFloat(String(row['표준공수(h)'] || 0.5)) || 0.5,
-        isDefectSymptom: String(row['불량증상여부(Y/N)'] || 'Y').toUpperCase().includes('Y') ? 'Y' : 'N',
+        standardManHours: parseFloat(String(row['표준공수(시간)'] || 0.5)) || 0.5,
+        isDefectSymptom: String(row['불량증상여부'] || 'Y').toUpperCase().includes('Y') ? 'Y' : 'N',
         actionGuide: String(row['조치가이드'] || '').trim() || null,
         description: String(row['점검설명'] || '').trim() || null,
         tenant_id: tenantId,
@@ -1342,8 +1344,10 @@ function parseSingleFlatWorkbook(
         manufacturer: inferMakerFromModel(modelName),
         ownerType: String(row['소유구분'] || '자사').includes('전대') ? 'RENTED' : 'OWNED',
         status: 'RENTED',
-        monthlyRentFee: sanitizeNumber(row['월렌탈료'] || row['월임대료']) || 350000,
-        dailyRentFee: sanitizeNumber(row['일렌탈료'] || row['일임대료']) || 25000,
+        monthlyRentalFee: sanitizeNumber(row['월렌탈료'] || row['월임대료']) || 350000,
+        dailyRentalFee: sanitizeNumber(row['일렌탈료'] || row['일임대료']) || 25000,
+        monthlyRentFee: sanitizeNumber(row['월임차료'] || row['월전대료']),
+        dailyRentFee: sanitizeNumber(row['일임차료'] || row['일전대료']),
         tenant_id: tenantId,
         createdAt: now,
         updatedAt: now
@@ -1482,7 +1486,7 @@ export function validateIntegratedEntities(entities: IntegratedDomainEntities): 
 
   addValidation('assets', '장비(자산)', 'assets', entities.assets, r => ({
     errors: !r.assetNo ? ['관리번호(호기)가 비어있습니다.'] : [],
-    warnings: !r.serialNo ? ['시리얼번호가 누락되었습니다.'] : []
+    warnings: !r.serialNo ? ['제조번호가 누락되었습니다.'] : []
   }));
 
   addValidation('siteMasters', '옵션그룹', 'site_masters', entities.siteMasters, r => ({
@@ -1601,7 +1605,7 @@ function calculateStats(entities: IntegratedDomainEntities, validationList: Doma
 }
 
 // ──────────────────────────────────────────────
-// 7. 중간 저장 (Staging Draft) 입출력 관리자
+// 7. 중간 저장 입출력 관리자
 // ──────────────────────────────────────────────
 export function saveDraftToStaging(draft: StagingDraft): boolean {
   try {

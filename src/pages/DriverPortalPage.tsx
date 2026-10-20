@@ -373,7 +373,7 @@ export const DriverPortalPage: React.FC = () => {
         let parsedCargo: any[] = [];
         try {
           if (delivery.cargoItems) {
-            const raw = JSON.parse(delivery.cargoItems);
+            const raw = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
             if (Array.isArray(raw)) parsedCargo = raw;
           }
         } catch {
@@ -404,8 +404,11 @@ export const DriverPortalPage: React.FC = () => {
           .eq('contractId', delivery.contractId);
         const insps = inspsData || [];
         const uninspected = targetCas.filter((ca: any) => {
-          if (ca.status === 'RENTED') return false;
-          return !insps.some((ins: any) => (ins.contractAssetId === ca.id || ins.assetId === ca.assetId) && (ins.status === 'COMPLETED' || ins.status === 'APPROVED'));
+          const matched = insps.filter((ins: any) => ins.contractAssetId === ca.id || ins.assetId === ca.assetId);
+          if (matched.length > 0) {
+            return !matched.some((ins: any) => ins.status === 'COMPLETED' || ins.status === 'APPROVED');
+          }
+          return ca.status !== 'RENTED';
         });
         if (uninspected.length > 0) {
           alert(`아직 출고 검수 승인이 완료되지 않은 장비(${uninspected.length}대)가 있어 운송 완료 처리할 수 없습니다. 주기장 출고 검수 완료 후 다시 시도해 주세요.`);

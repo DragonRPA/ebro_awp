@@ -1,10 +1,10 @@
 // src/utils/hardwareVault.ts
 /**
- * 개발자 권한 물리 단말기 보안 및 하드웨어 바인딩 볼트 (Developer Hardware Vault)
+ * 개발자 권한 물리 단말기 보안 및 하드웨어 바인딩 볼트
  * - 전사 표준 헌장 카테고리 I, II 준수 및 비인가 단말기 개발자 권한 로그인 원천 차단
  * - 물리적 PC MAC 주소 및 하드웨어 지문(CPU, GPU, 디바이스 메모리, 해상도, 플랫폼) 결합
  * - 중앙 DB(Supabase `developer_authorized_devices`) 영구 저장 및 자동 인식/통과
- * - 단말기 고장/도난/분실 비상 마스터 복구(Break-Glass Recovery) 및 원격 킬스위치 지원
+ * - 단말기 고장/도난/분실 비상 마스터 복구 및 원격 킬스위치 지원
  * - 복수 개발자 및 다수 기기(사무실/재택/랩탑) 통합 등록 관리부
  */
 
@@ -63,7 +63,7 @@ export const DEFAULT_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
 
 /**
  * 1. 브라우저 환경에서 물리적 하드웨어 특성(CPU 코어, GPU 렌더러, 메모리, 화면비)을 수집하여
- * 고유한 하드웨어 지문(Hardware Fingerprint)을 결정론적으로 생성
+ * 고유한 하드웨어 지문을 결정론적으로 생성
  */
 export async function getPhysicalHardwareFingerprint(): Promise<{
   fingerprint: string;
@@ -501,7 +501,7 @@ export function revokeDeveloperDevice(deviceId: string, reason?: string): boolea
 }
 
 /**
- * 9. 개발자 단말기 인가 재승인 (Re-activate)
+ * 9. 개발자 단말기 인가 재승인
  */
 export function reactivateDeveloperDevice(deviceId: string): boolean {
   try {
@@ -527,7 +527,7 @@ export function reactivateDeveloperDevice(deviceId: string): boolean {
 }
 
 /**
- * 10. 🚨 비상 마스터 복구 인증 실행 (Break-Glass Emergency Procedure)
+ * 10. 🚨 비상 마스터 복구 인증 실행
  * - PC 고장, 도난, 분실 시 긴급 복구키로 개발자 접근을 복원하고 감사 로그를 즉시 생성
  */
 export async function executeBreakGlassEmergencyLogin(params: {

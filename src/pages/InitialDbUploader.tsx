@@ -90,7 +90,7 @@ export const InitialDbUploader: React.FC = () => {
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupResult, setBackupResult] = useState<{ filename: string; count: number } | null>(null);
 
-  // 복구(Restore) 상태
+  // 복구 상태
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreData, setRestoreData] = useState<any | null>(null);
   const [restoreSummary, setRestoreSummary] = useState<{ totalTables: number; totalRows: number; tables: { name: string; count: number }[] } | null>(null);
@@ -488,7 +488,7 @@ export const InitialDbUploader: React.FC = () => {
     }
   };
 
-  // ── 1-2. DB 백업 파일 선택 및 구조 검증 (Restore Pre-flight) ──
+  // ── 1-2. DB 백업 파일 선택 및 구조 검증 ──
   const handleRestoreFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -536,18 +536,18 @@ export const InitialDbUploader: React.FC = () => {
     reader.readAsText(file);
   };
 
-  // ── 1-3. DB 백업 데이터 원상 복구 실행 (Restore Execute) ──
+  // ── 1-3. DB 백업 데이터 원상 복구 실행 ──
   const handleRestoreExecute = async () => {
     if (!restoreData || !restoreSummary) {
       showErrorModal?.('먼저 복구할 백업 JSON 파일을 선택하고 검증을 완료하세요.');
       return;
     }
 
-    const confirmMsg = `[재난 복구 (Disaster Recovery) 경고]\n\n` +
+    const confirmMsg = `[재난 복구 경고]\n\n` +
       `선택하신 백업 파일(${restoreFile?.name || '백업본'})\n` +
       `- 복원 대상: ${restoreSummary.totalTables}개 테이블, 총 ${restoreSummary.totalRows.toLocaleString()}건\n\n` +
-      `이 작업은 데이터베이스의 외래키(FK) 의존성 순서에 따라 데이터를 복원하며,\n` +
-      `중복 키 충돌 시 백업본 데이터로 최신 덮어쓰기(UPSERT)됩니다.\n\n` +
+      `이 작업은 데이터베이스의 외래키 의존성 순서에 따라 데이터를 복원하며,\n` +
+      `중복 키 충돌 시 백업본 데이터로 최신 덮어쓰기됩니다.\n\n` +
       `정말 데이터베이스 원상 복구를 실행하시겠습니까?`;
 
     if (!window.confirm(confirmMsg)) return;
@@ -815,7 +815,7 @@ export const InitialDbUploader: React.FC = () => {
       } else if (label.includes('업체')) {
         contractor = val;
       } else if (label.includes('위치') || label.includes('장비위치')) {
-        // 🛡️ 위치를 먼저 파싱하여 장비번호(assetNo) 오염 원천 방지
+        // 🛡️ 위치를 먼저 파싱하여 장비번호 오염 원천 방지
         location = val;
       } else if (label.includes('관리번호') || label.includes('자산번호') || label.includes('호기') || label === '장비') {
         assetNo = val;
@@ -963,7 +963,7 @@ export const InitialDbUploader: React.FC = () => {
     if (!bandAnalysisResult || bandAnalysisResult.totalCount === 0) return;
 
     setIsBandIngesting(true);
-    setBandProgressMsg('과거 AS 이력 정비 마스터(repairs) DB 적재 중...');
+    setBandProgressMsg('과거 AS 이력 정비 마스터 DB 적재 중...');
     try {
       const result = await ingestBandAsHistoryDirect(bandAnalysisResult, (curr, tot, msg) => {
         setBandProgressMsg(msg);
@@ -1329,7 +1329,7 @@ export const InitialDbUploader: React.FC = () => {
 
     const post = extractCurrentPost();
     if (!post) {
-      updateHud('대기 중', null, '게시글 본문(txtBody) 로딩 중...');
+      updateHud('대기 중', null, '게시글 본문 로딩 중...');
       await new Promise(r => setTimeout(r, 500));
       continue;
     }
@@ -1454,7 +1454,7 @@ export const InitialDbUploader: React.FC = () => {
       rentedAssets.forEach(asset => {
         const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
         if (!hasActiveCA) {
-          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약이 없음.`);
           if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
         }
       });
@@ -1617,7 +1617,7 @@ export const InitialDbUploader: React.FC = () => {
                 엑셀 파일 선택
               </label>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                5개 시트(보유자산현황, 보유장비 임대현황, 거래처정보현황, 업체별마감일자, 계약현황)가 포함된 초기 현황 엑셀 파일(.xlsx)
+                5개 시트(보유자산현황, 보유장비 임대현황, 거래처정보현황, 업체별마감일자, 계약현황)가 포함된 초기 현황 엑셀 파일
               </span>
             </div>
 
@@ -2002,7 +2002,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileText size={14} />
-                밴드 AS 파일 (.txt / .json / .html) 선택
+                밴드 AS 파일 선택
               </button>
 
               {bandFileName && (
@@ -2127,7 +2127,7 @@ export const InitialDbUploader: React.FC = () => {
       rentedAssets.forEach(asset => {
         const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
         if (!hasActiveCA) {
-          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약이 없음.`);
           if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
         }
       });
@@ -2154,7 +2154,7 @@ export const InitialDbUploader: React.FC = () => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
                           <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-secondary)', zIndex: 1 }}>
                             <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', textAlign: 'left' }}>
-                              <th style={{ padding: '8px 10px' }}>No</th>
+                              <th style={{ padding: '8px 10px' }}>순번</th>
                               <th style={{ padding: '8px 10px' }}>접수일자</th>
                               <th style={{ padding: '8px 10px' }}>작성자</th>
                               <th style={{ padding: '8px 10px' }}>고객사 / 현장</th>
@@ -2240,7 +2240,7 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 우하단 종결 버튼 (Gutenberg Z-Pattern) */}
+                {/* 우하단 종결 버튼 */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     💡 총 <strong>{bandAnalysisResult.totalCount.toLocaleString()}건</strong>의 과거 AS 이력을 정비 마스터(`repairs`) 및 자산/계약 타임라인에 무누락 저장합니다.
@@ -2300,7 +2300,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileText size={14} />
-                출고요청 파일 (.txt / .json) 선택
+                출고요청 파일 선택
               </button>
 
               <button
@@ -2397,7 +2397,7 @@ export const InitialDbUploader: React.FC = () => {
       rentedAssets.forEach(asset => {
         const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
         if (!hasActiveCA) {
-          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약이 없음.`);
           if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
         }
       });
@@ -2496,7 +2496,7 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 적재 완결 버튼 (Gutenberg Terminal Action) */}
+                {/* 적재 완결 버튼 */}
                 <button
                   onClick={handleCustomerDefaultsIngest}
                   disabled={isIngestingCustomerDefaults}
@@ -2559,7 +2559,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 {isConsumableParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                파일 선택 (.txt / .xlsx)
+                파일 선택
               </button>
 
               <span style={{ fontSize: '13px', color: consumableFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: consumableFileName ? 600 : 400 }}>
@@ -2583,7 +2583,7 @@ export const InitialDbUploader: React.FC = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                       <tr style={{ color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>순번</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>분류</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>공급처/브랜드</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>품목명 / 모델명</th>
@@ -2617,7 +2617,7 @@ export const InitialDbUploader: React.FC = () => {
       rentedAssets.forEach(asset => {
         const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
         if (!hasActiveCA) {
-          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약이 없음.`);
           if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
         }
       });
@@ -2744,7 +2744,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <Download size={13} />
-                표준 양식 다운로드 (.xlsx)
+                표준 양식 다운로드
               </button>
             </div>
 
@@ -2771,11 +2771,11 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 {isInspectionParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                파일 선택 (.xlsx)
+                파일 선택
               </button>
 
               <span style={{ fontSize: '13px', color: inspectionFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: inspectionFileName ? 600 : 400 }}>
-                {inspectionFileName || '선택된 파일 없음 (.xlsx / .xls)'}
+                {inspectionFileName || '선택된 파일 없음'}
               </span>
             </div>
 
@@ -2795,7 +2795,7 @@ export const InitialDbUploader: React.FC = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                       <tr style={{ color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>순번</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>카테고리</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>항목코드</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>정비 점검항목명</th>
@@ -2895,7 +2895,7 @@ export const InitialDbUploader: React.FC = () => {
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  조정 완료된 임직원별 메뉴 조회(canView) 및 저장(canSave) 권한을 파일에서 읽어와 정확하게 일괄 동기화합니다.
+                  조정 완료된 임직원별 메뉴 조회 및 저장 권한을 파일에서 읽어와 정확하게 일괄 동기화합니다.
                 </span>
               </div>
 
@@ -2933,7 +2933,7 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   <Download size={14} />
-                  현재 권한 백업 다운로드 (.json)
+                  현재 권한 백업 다운로드
                 </button>
               </div>
             </div>
@@ -2962,7 +2962,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 {isPermParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                권한 파일 선택 (.json)
+                권한 파일 선택
               </button>
 
               <span style={{ fontSize: '13px', color: permFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: permFileName ? 600 : 400, whiteSpace: 'nowrap' }}>
@@ -3016,7 +3016,7 @@ export const InitialDbUploader: React.FC = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                       <tr style={{ color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '40px' }}>순번</th>
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>부서</th>
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>성명</th>
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>로그인 ID</th>
@@ -3261,7 +3261,7 @@ export const InitialDbUploader: React.FC = () => {
             </div>
           )}
 
-          {/* 4. 4대 대차대조(Reconciliation) 검증 리포트 */}
+          {/* 4. 4대 대차대조 검증 리포트 */}
           {reconciliationReport && (
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
@@ -3392,7 +3392,7 @@ export const InitialDbUploader: React.FC = () => {
               }}
             >
               {isBackingUp ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
-              전체 DB 백업 파일 다운로드 (.json)
+              전체 DB 백업 파일 다운로드
             </button>
 
             {backupResult && (
@@ -3434,7 +3434,7 @@ export const InitialDbUploader: React.FC = () => {
         </div>
       )}
 
-      {/* ── TAB 3: DB 백업 원상 복구 (Disaster Recovery / Restore) ── */}
+      {/* ── TAB 3: DB 백업 원상 복구 ── */}
       {activeTab === 'RESTORE' && (
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
@@ -3477,7 +3477,7 @@ export const InitialDbUploader: React.FC = () => {
               }}
             >
               <Upload size={18} />
-              {restoreFile ? `선택된 파일: ${restoreFile.name}` : '복구용 백업 JSON 파일 선택 (.json)'}
+              {restoreFile ? `선택된 파일: ${restoreFile.name}` : '복구용 백업 JSON 파일 선택'}
             </button>
 
             {restoreSummary && (

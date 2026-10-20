@@ -455,7 +455,7 @@ export function calculateLeaveDaysInfo(
     };
   }
 
-  // 2. 일반 연차(ANNUAL) 처리
+  // 2. 일반 연차 처리
   if (workingDays === 0) {
     return {
       leaveType,

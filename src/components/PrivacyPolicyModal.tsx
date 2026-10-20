@@ -15,7 +15,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
   const { currentTenant, saveTenant, currentUser, hasPermission, showErrorModal } = useApp();
   const activeTenant = propTenant || currentTenant;
 
-  // 권한: 최고관리자(admin), ADMIN 역할 또는 인사/권한 설정 권한자
+  // 권한: 최고관리자, ADMIN 역할 또는 인사/권한 설정 권한자
   const canEdit = currentUser?.role === 'ADMIN' || 
                   currentUser?.loginId === 'admin' || 
                   hasPermission('organization', 'save') || 

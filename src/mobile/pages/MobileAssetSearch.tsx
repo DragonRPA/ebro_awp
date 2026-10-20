@@ -83,7 +83,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
   // 특정 규격 선택 시 바텀시트 세부 목록
   const [selectedSpec, setSelectedSpec] = useState<SpecPreset | null>(null);
 
-  // 1. 화면 활성화(Visibility/Focus) 시 0.3초 무조작 자동 최신화
+  // 1. 화면 활성화 시 0.3초 무조작 자동 최신화
   useEffect(() => {
     const handleSync = async () => {
       if (document.visibilityState === 'visible') {
@@ -159,7 +159,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     return returningMap;
   }, [contracts, contractAssets, sites]);
 
-  // 4. 규격(ft)별 가용 재고 집계
+  // 4. 규격별 가용 재고 집계
   const specStats = useMemo(() => {
     return SPEC_PRESETS.map(preset => {
       // 해당 규격에 매칭되는 자산들
@@ -168,10 +168,10 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         return preset.modelMatchRegex.test(m);
       });
 
-      // 가용(AVAILABLE) 대수
+      // 가용 대수
       const availableAssets = matchedAssets.filter(a => a.status === 'AVAILABLE');
 
-      // 대여중(RENTED) 대수
+      // 대여중 대수
       const rentedAssets = matchedAssets.filter(a => a.status === 'RENTED');
 
       // 반납 예정 대수

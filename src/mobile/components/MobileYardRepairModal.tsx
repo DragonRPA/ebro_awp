@@ -450,7 +450,7 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
 
             {selectedInspectionItemActionGuide && (
               <div className="p-2 rounded-lg bg-blue-950/40 border border-blue-800/60 text-blue-300 text-[11px]">
-                📘 <strong>SOP:</strong> {selectedInspectionItemActionGuide}
+                📘 <strong>표준조치:</strong> {selectedInspectionItemActionGuide}
               </div>
             )}
           </div>
@@ -492,7 +492,7 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
             </div>
           </div>
 
-          {/* 3. 정비 상세 조치 내용 (Textarea) */}
+          {/* 3. 정비 상세 조치 내용 */}
           <div className="flex flex-col gap-1.5">
             <span className="font-bold text-slate-300">정비 상세 조치 내용 *</span>
             <textarea

@@ -80,7 +80,7 @@ export async function executeR2MirrorSync(
   });
 
   try {
-    // 1. R2 버킷 내 모든 파일 및 하위 폴더 계층 목록 조회 (Vercel Serverless API)
+    // 1. R2 버킷 내 모든 파일 및 하위 폴더 계층 목록 조회
     const listRes = await fetch('/api/r2', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -515,7 +515,7 @@ export const TradeContractsPage: React.FC = () => {
             <span>유통 계약 관리</span>
           </h2>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px', whiteSpace: 'nowrap' }}>
-            유통 수주 등록, 물품매매계약서 표준 양식(.xlsx) 발행 및 거래처 이메일 발송
+            유통 수주 등록, 물품매매계약서 표준 양식 발행 및 거래처 이메일 발송
           </div>
         </div>
 
@@ -739,11 +739,11 @@ export const TradeContractsPage: React.FC = () => {
             style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}
           >
             <option value="ALL">전체 거래상태</option>
-            <option value="PENDING">수주접수 (PENDING)</option>
-            <option value="CONFIRMED">수주확정 (CONFIRMED)</option>
-            <option value="SHIPPED">배송중 (SHIPPED)</option>
-            <option value="DELIVERED">납품완료 (DELIVERED)</option>
-            <option value="CANCELLED">취소 (CANCELLED)</option>
+            <option value="PENDING">수주접수</option>
+            <option value="CONFIRMED">수주확정</option>
+            <option value="SHIPPED">배송중</option>
+            <option value="DELIVERED">납품완료</option>
+            <option value="CANCELLED">취소</option>
           </select>
         </div>
 
@@ -812,7 +812,7 @@ export const TradeContractsPage: React.FC = () => {
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>거래처명</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>품목 명세</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>공급가액</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>합계금액(VAT포함)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>합계금액(부가세 포함)</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>수주 상태</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>계약서 상태</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>인도장소 / 발송이력</th>

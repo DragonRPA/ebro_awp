@@ -12,7 +12,7 @@ import { initClientSecurityDefense } from './utils/clientSecurityDefense'
 initClientSecurityDefense();
 
 // [System Optimization] Global Unhandled Promise Rejection Handler
-// 비동기 프로세스(fire-and-forget DB 호출 등)가 실패 시 무음 처리(Silent Failure)되는 위험을 차단합니다.
+// 비동기 프로세스(fire-and-forget DB 호출 등)가 실패 시 무음 처리되는 위험을 차단합니다.
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled Promise Rejection:', event.reason);
   // 에러 메시지 추출
@@ -29,7 +29,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 initializeHindsightTracker();
 
-// 🧹 브라우저 주소창 임시 캐시무효화 파라미터(_v, _t) 자동 정리 (히스토리 오염 방지)
+// 🧹 브라우저 주소창 임시 캐시무효화 파라미터 자동 정리 (히스토리 오염 방지)
 try {
   if (typeof window !== 'undefined' && window.location.search) {
     const url = new URL(window.location.href);

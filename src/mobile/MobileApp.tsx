@@ -111,7 +111,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
 
   // 1. 🏛️ 부서 모드 결정:
   // - 일반 직원은 조직도상 본인 부서 모드로 100% 자동 고정
-  // - 개발자(ADMIN)는 전사 시뮬레이션을 위해 저장된 모드 또는 자유 전환 가능
+  // - 개발자는 전사 시뮬레이션을 위해 저장된 모드 또는 자유 전환 가능
   const userResolvedMode = useMemo(() => {
     return resolveUserMobileDeptMode(currentUser, departments || []);
   }, [currentUser, departments]);
@@ -417,7 +417,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
         />
       )}
 
-      {/* 📻 현장 무전기 (PTT) 모달 */}
+      {/* 📻 현장 무전기 모달 */}
       <ErrorBoundary fallbackTitle="무전기 오류 복구" isModal onClose={() => setIsWalkieModalOpen(false)}>
         <MobileWalkieTalkieModal
           isOpen={isWalkieModalOpen}

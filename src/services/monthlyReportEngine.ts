@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
  * src/services/monthlyReportEngine.ts
- * 전사 월간 경영 정기보고서(Executive Monthly Dossier) 실데이터 통합 집계 엔진
+ * 전사 월간 경영 정기보고서 실데이터 통합 집계 엔진
  * 
  * - 가짜 더미 숫자 및 허위 부서장 100% 퇴출
  * - contracts, assets, deliveries, repairs, billings, billingDetails, purchaseSettlements, customers
@@ -144,7 +144,7 @@ export interface ExecutiveMonthlyReport {
     exchangeCount: number;         // EXCHANGE 교환 건수
     exchangeSavedCost: number;     // EXCHANGE 왕복 절감액 (헌장 2.3)
     totalRepairs: number;          // 정비 완료 건수
-    avgMttrHours: number;          // 평균 복구시간(MTTR)
+    avgMttrHours: number;          // 평균 복구시간
     earlyFailuresCount: number;    // 출고 7일내 조기 고장 건수
     totalWaivedAmount: number;     // 영업 청구 면제 손실액
   };
@@ -551,7 +551,7 @@ export function aggregateExecutiveMonthlyReport(targetYm: string, context: any):
   const totalRepairs = effectiveRepairs.length || 1;
   const avgMttrHours = parseFloat((totalMttrHours / totalRepairs).toFixed(1));
 
-  // 출고 7일 이내 조기 고장 (Early Failure)
+  // 출고 7일 이내 조기 고장
   const earlyFailureEvents: EarlyFailureEvent[] = effectiveRepairs
     .filter((r: any) => r.isEarlyFailure || (r.memo && r.memo.includes('출고')))
     .slice(0, 3)
@@ -567,7 +567,7 @@ export function aggregateExecutiveMonthlyReport(targetYm: string, context: any):
   const earlyFailuresCount = earlyFailureEvents.length;
 
   // -------------------------------------------------------------
-  // 5. [채권 에이징 및 영업 면제(Waiver) 투명성]
+  // 5. [채권 에이징 및 영업 면제 투명성]
   // -------------------------------------------------------------
   // 채권 에이징 구간 분류
   let under30Days = 0;
@@ -607,7 +607,7 @@ export function aggregateExecutiveMonthlyReport(targetYm: string, context: any):
     .sort((a, b) => b.unpaidAmount - a.unpaidAmount)
     .slice(0, 5);
 
-  // 영업 청구 면제(Waiver) 집계
+  // 영업 청구 면제 집계
   const waivedRepairs = repairs.filter((r: any) => r.isWaived && Number(r.waivedAmount || 0) > 0);
   const waivedDeliveries = deliveries.filter((d: any) => d.isWaived && Number(d.waivedAmount || 0) > 0);
 

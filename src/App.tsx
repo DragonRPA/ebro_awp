@@ -153,7 +153,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
   const { mode, setMode, loadPage, page } = useManualContext();
   const { hasPermission } = useApp();
   
-  // 개발자 계정(admin, sys-admin)일 때만 매뉴얼 작성 기능 노출
+  // 개발자 계정일 때만 매뉴얼 작성 기능 노출
   const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
   const canAuthor = Boolean(isTrueDev(currentUser));
 
@@ -199,7 +199,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
           flexShrink: 0,
         }}
-        title="현재 화면 매뉴얼 오버레이 표시 (Ctrl+M)"
+        title="현재 화면 매뉴얼 오버레이 표시"
       >
         📖 {mode === 'viewing' ? '매뉴얼 닫기' : '매뉴얼 보기'}
         {page && page.items.length > 0 && mode !== 'viewing' && (
@@ -321,7 +321,7 @@ const ContextualManualButton: React.FC = () => {
               <h3 style={{ margin: 0, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16}/> 매뉴얼 열람</h3>
               <button onClick={() => setShowIframe(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-            <iframe src={manualUrl} style={{ flex: 1, width: '100%', border: 'none' }} title="Manual Iframe" />
+            <iframe src={manualUrl} style={{ flex: 1, width: '100%', border: 'none' }} title="업무 매뉴얼 화면" />
           </div>
         </div>
       )}
@@ -367,7 +367,7 @@ const App: React.FC = () => {
   const [showJobAlertModal, setShowJobAlertModal] = useState(false);
   const [jobNotifySettings, setJobNotifySettings] = useState(jobNotificationService.getSettings());
 
-  // 🧠 Hindsight 4대 메모리 지식 콘솔 모달 상태
+  // 🧠 전사 업무 지식 콘솔 모달 상태
   const [showHindsightModal, setShowHindsightModal] = useState(false);
 
   useEffect(() => {
@@ -382,7 +382,7 @@ const App: React.FC = () => {
   const menuSearchInputRef = useRef<HTMLInputElement>(null);
   const menuSearchBoxRef = useRef<HTMLDivElement>(null);
 
-  // 모바일 전용 뷰 모드 (PWA / Field App) — ebro.run/mobile 또는 /m 전용 주소 처리
+  // 모바일 전용 뷰 모드 — ebro.run/mobile 또는 /m 전용 주소 처리
   const [isMobileView, setIsMobileView] = useState<boolean>(() => {
     // 1. URL 경로 또는 쿼리 확인 (/mobile 또는 /m 또는 ?mode=mobile 또는 ?view=mobile)
     const pathname = window.location.pathname.toLowerCase();
@@ -417,7 +417,7 @@ const App: React.FC = () => {
     return false;
   });
 
-  // 📱 브라우저 URL 경로(/mobile, /m) 동적 감지
+  // 📱 브라우저 URL 경로 동적 감지
   useEffect(() => {
     const handleUrlCheck = () => {
       const pathname = window.location.pathname.toLowerCase();
@@ -513,7 +513,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('erp:navigate', handleErpNavigate);
   }, [manualMode]);
 
-  // 메뉴(activeTab) 전환 시 스크롤 최상단 리셋 + 해당 메뉴 관련 테이블만 Supabase pull + 켜진 매뉴얼 자동 끄기
+  // 메뉴 전환 시 스크롤 최상단 리셋 + 해당 메뉴 관련 테이블만 Supabase pull + 켜진 매뉴얼 자동 끄기
   useEffect(() => {
     if (manualMode !== 'off') {
       setManualMode('off');
@@ -823,7 +823,7 @@ const App: React.FC = () => {
         return;
       }
 
-      // 1-2. Ctrl+H 또는 Cmd+H -> Hindsight 4대 메모리 지식 콘솔 열기/닫기
+      // 1-2. Ctrl+H 또는 Cmd+H -> 전사 업무 지식 콘솔 열기/닫기
       const isHKey = e.code === 'KeyH' || (e.key && (e.key.toLowerCase() === 'h' || e.key === 'ㅗ'));
       if ((e.ctrlKey || e.metaKey) && isHKey) {
         e.preventDefault();
@@ -984,7 +984,7 @@ const App: React.FC = () => {
     }));
   };
 
-  // activeTab이 활성화될 때 속한 상위 그룹 자동 펼침 및 매뉴얼 기준 메뉴(baseMenu) 동기화
+  // activeTab이 활성화될 때 속한 상위 그룹 자동 펼침 및 매뉴얼 기준 메뉴 동기화
   useEffect(() => {
     menuGroups.forEach(grp => {
       if (grp.items.some(item => item.id === activeTab)) {
@@ -1072,7 +1072,7 @@ const App: React.FC = () => {
                   admin.ebro.run 관제탑
                 </span>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-                  플랫폼 최고관리자(admin, sys-admin) 전용 로그인
+                  플랫폼 최고관리자 전용 로그인
                 </p>
               </div>
             ) : (
@@ -1285,7 +1285,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* 시연 데모 모드 체험 버튼: 오직 데모 도메인(awp-demo.ebro.run)에서만 노출하며, 기연리프트 실운영 화면에서는 100% 숨김 */}
+          {/* 시연 데모 모드 체험 버튼: 오직 데모 도메인에서만 노출하며, 기연리프트 실운영 화면에서는 100% 숨김 */}
           {isDemoMode() && (
             <div style={{ marginTop: '12px' }}>
               <button
@@ -1373,7 +1373,7 @@ const App: React.FC = () => {
                 title="PC 백그라운드 에이전트 설치 패키지 다운로드"
               >
                 <Download size={15} color="#ffffff" style={{ flexShrink: 0 }} />
-                <span>eBro 통합 에이전트 설치 (.exe)</span>
+                <span>eBro 통합 에이전트 설치</span>
               </button>
             </div>
 
@@ -1497,7 +1497,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* 테스트 계정 안내 — 개발 환경(localhost)에서만 표시 */}
+          {/* 테스트 계정 안내 — 개발 환경에서만 표시 */}
           {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
             <div style={{ marginTop: '16px', padding: '12px', border: '1px dashed #f59e0b', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(251,191,36,0.07)', fontSize: '12px' }}>
               <div style={{ fontWeight: '700', marginBottom: '6px', color: 'var(--warning)' }}>⚠️ [개발 전용] 테스트 계정 — 운영 환경에서는 표시 안됨</div>
@@ -1670,7 +1670,7 @@ const App: React.FC = () => {
             <span style={{ backgroundColor: '#4f46e5', color: '#fff', padding: '1px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '800' }}>
               ADMIN
             </span>
-            <span>eBro 플랫폼 최고관리자 관제탑 (admin.ebro.run) - 멀티테넌트 통합 제어</span>
+            <span>eBro 플랫폼 최고관리자 관제탑 - 멀티테넌트 통합 제어</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <span style={{ color: '#a5b4fc', fontSize: '11px' }}>
@@ -1691,7 +1691,7 @@ const App: React.FC = () => {
                 backgroundColor: 'rgba(255, 255, 255, 0.08)'
               }}
             >
-              공식 솔루션 소개 (ebro.run) ➔
+              공식 솔루션 소개 ➔
             </a>
           </div>
         </div>
@@ -1895,7 +1895,7 @@ const App: React.FC = () => {
                 cursor: 'pointer',
                 transition: 'border-color 0.15s',
               }}
-              title="메뉴 검색 (Ctrl+K)"
+              title="메뉴 검색"
             >
               <Search size={14} style={{ flexShrink: 0 }} />
               <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2013,7 +2013,7 @@ const App: React.FC = () => {
             activeTabName={menuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab)}
           />
 
-          {/* 🧠 Hindsight 4대 메모리 지식 콘솔 버튼 (개발자 전용 노출) */}
+          {/* 🧠 전사 업무 지식 콘솔 버튼 (개발자 전용 노출) */}
           {isDeveloperUser(currentUser) && (
             <button
               onClick={() => setShowHindsightModal(true)}
@@ -2034,10 +2034,10 @@ const App: React.FC = () => {
                 flexShrink: 0,
                 transition: 'all 0.15s ease'
               }}
-              title="Hindsight 4대 메모리 지식 콘솔 (자연어 질의응답 및 전사 지식)"
+              title="전사 업무 지식 콘솔 (자연어 질의응답 및 전사 지식)"
             >
               <Brain size={14} color="#2563eb" />
-              <span>Hindsight 지식</span>
+              <span>업무 지식</span>
             </button>
           )}
 
@@ -2273,7 +2273,7 @@ const App: React.FC = () => {
               }}
             >
               <LayoutDashboard size={17} />
-              <span>ERP 대시보드</span>
+              <span>업무 대시보드</span>
             </button>
           )}
 
@@ -2283,14 +2283,14 @@ const App: React.FC = () => {
             const permittedItems = grp.items.filter(item => hasPermission(item.id, 'view'));
             if (permittedItems.length === 0) return null;
 
-            // 2. 개인화 순서(order)에 따라 정렬
+            // 2. 개인화 순서에 따라 정렬
             const sortedItems = [...permittedItems].sort((a, b) => {
               const orderA = menuPrefs[a.id]?.order ?? 999;
               const orderB = menuPrefs[b.id]?.order ?? 999;
               return orderA - orderB;
             });
 
-            // 3. 사용자가 숨김(visible: false) 처리한 메뉴 제외
+            // 3. 사용자가 숨김 처리한 메뉴 제외
             const visibleItems = sortedItems.filter(item => menuPrefs[item.id]?.visible !== false);
             if (visibleItems.length === 0) return null;
 
@@ -2559,7 +2559,7 @@ const App: React.FC = () => {
         onClose={() => setShowJobAlertModal(false)}
       />
 
-      {/* 🧠 Hindsight 4대 메모리 지식 콘솔 모달 */}
+      {/* 🧠 전사 업무 지식 콘솔 모달 */}
       <HindsightQueryModal
         isOpen={showHindsightModal}
         onClose={() => setShowHindsightModal(false)}
@@ -2572,7 +2572,7 @@ const App: React.FC = () => {
         actionName={agentRequiredModal.actionName}
       />
 
-      {/* 👆 admin 최고관리자 2단계 지문(WebAuthn) 생체인증 모달 */}
+      {/* 👆 admin 최고관리자 2단계 지문 생체인증 모달 */}
       <BiometricAuthModal
         isOpen={showBiometricModal}
         onClose={() => {

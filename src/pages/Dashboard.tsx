@@ -53,7 +53,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div data-hs-observe="dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       
-      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      {/* ── 표준 헤더 바 ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',

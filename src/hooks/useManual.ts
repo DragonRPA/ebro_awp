@@ -19,7 +19,7 @@ export function useManual() {
     setSaving(true);
     setError(null);
 
-    // seq 자동 재정렬 (Auto Re-indexing)
+    // seq 자동 재정렬
     const reindexed: ManualPage = {
       ...page,
       items: (page.items || []).map((item, i) => ({ ...item, seq: i + 1 })),
@@ -125,7 +125,7 @@ export function useManual() {
     return seed;
   }, [savePage]);
 
-  /** 전사 모든 메뉴 및 모달 팝업의 표준 매뉴얼(기능정의서 포함)을 DB에 일괄 주입(Batch Seed) */
+  /** 전사 모든 메뉴 및 모달 팝업의 표준 매뉴얼(기능정의서 포함)을 DB에 일괄 주입 */
   const seedAllManuals = useCallback(async (updatedBy?: string): Promise<{ success: number; failed: number }> => {
     if (!centralSupabase) return { success: 0, failed: 0 };
     setSaving(true);

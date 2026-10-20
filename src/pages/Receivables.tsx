@@ -53,7 +53,7 @@ export const Receivables: React.FC = () => {
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formOccurredDate, setFormOccurredDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 ──
   const customerMap = useMemo(() => {
     const map = new Map<string, typeof customers[0]>();
     customers.forEach(c => map.set(c.id, c));
@@ -450,7 +450,7 @@ export const Receivables: React.FC = () => {
 
       return {
         // ① 식별 및 분류
-        'No': idx + 1,
+        '순번': idx + 1,
         '구상/미수 구분': r.type === 'VENDOR_CLAIM' ? '타사구상금' :
                          r.type === 'TRANSPORT' ? '운송료' :
                          r.type === 'REPAIR' ? '수리비' :
@@ -562,7 +562,7 @@ export const Receivables: React.FC = () => {
   return (
     <div data-hs-observe="receivables" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
       
-      {/* ── 1. 상단 헤더 & 슬림 인라인 요약 바 (Gutenberg Z-Pattern) ── */}
+      {/* ── 1. 상단 헤더 & 슬림 인라인 요약 바 ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

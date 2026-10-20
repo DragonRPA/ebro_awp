@@ -140,7 +140,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
         </div>
 
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>헌장 2.3 EXCHANGE 단일화</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>헌장 2.3 교환 배차 단일화</div>
           <div data-mid="kpi-exchange-compliance" style={{ fontSize: '18px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>100% 준수</div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>왕복할인 ₩60,000 자동 차감</div>
         </div>
@@ -148,7 +148,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #10b981' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>헌장 1.3 자산상태 비조작</div>
           <div style={{ fontSize: '18px', fontWeight: '900', color: '#10b981', marginTop: '4px' }}>보존 완료</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>출고 승인 시 RENTED 전환 보장</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>출고 승인 시 대여중 전환 보장</div>
         </div>
       </div>
 

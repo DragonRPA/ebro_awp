@@ -29,7 +29,7 @@ export const FALLBACK_APK_RELEASE: ApkRelease = {
   version:     'v2.0.0',
   storagePath: '/downloads/CallTransfer.apk',
   fileSize:    25123,
-  releaseNote: '통화 감지 및 출퇴근 연동 모바일 패키지 (CallTransfer v2.0.0)',
+  releaseNote: '통화 감지 및 출퇴근 연동 모바일 패키지',
   isLatest:    true,
   createdAt:   '2026-09-06T00:00:00.000Z',
   downloadUrl: '/downloads/CallTransfer.apk',

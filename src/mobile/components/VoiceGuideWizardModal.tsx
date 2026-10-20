@@ -111,7 +111,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
   const [recognizedText, setRecognizedText] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
 
-  // 5. 음성-터치 하이브리드 인터리빙(Hybrid Interleaving) 상태
+  // 5. 음성-터치 하이브리드 인터리빙 상태
   const defaultTomorrowStr = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -313,7 +313,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
     }, 800);
   };
 
-  // 5) 일반 서식으로 안전 전환 (Safe Hand-off)
+  // 5) 일반 서식으로 안전 전환
   const handleHandOffToForm = () => {
     const finalSiteAddress = siteAddress || selectedSite?.address || selectedCustomer?.address || manualNewSiteAddr || '';
     const finalContactName = siteContactName || selectedSite?.contactName || manualContactInput || '';
@@ -965,7 +965,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {/* ✏️ 일반 화면에서 이어서 작성 (Safe Hand-off) */}
+            {/* ✏️ 일반 화면에서 이어서 작성 */}
             <button
               type="button"
               onClick={handleHandOffToForm}
@@ -1094,7 +1094,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
             {statusMessage || '질문을 준비 중입니다...'}
           </div>
 
-          {/* 들린 내용 & 인라인 터치 수정 에디터 (Tap-to-Edit Buffer) */}
+          {/* 들린 내용 & 인라인 터치 수정 에디터 */}
           {isEditingText ? (
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
               <input

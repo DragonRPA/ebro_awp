@@ -26,7 +26,7 @@ export function detectModalPurpose(
   const rawTitle = (title || '').trim();
   const combined = `${rawTitle}\n${rawMessage}`.toLowerCase();
 
-  // 2. 명백한 시스템 / JS 런타임 / DB / 네트워크 기술적 예외 (System Error)
+  // 2. 명백한 시스템 / JS 런타임 / DB / 네트워크 기술적 예외
   const isSystemError = 
     // JS/TS 런타임 에러
     combined.includes('stack') ||
@@ -93,7 +93,7 @@ export function detectModalPurpose(
 
   if (isBusinessGuidance) return 'business';
 
-  // 4. 기본값: 기술적 영문 에러/스택이 없는 한, 사용자를 놀라게 하지 않도록 '업무 처리 안내(business)'로 처리
+  // 4. 기본값: 기술적 영문 에러/스택이 없는 한, 사용자를 놀라게 하지 않도록 '업무 처리 안내'로 처리
   return 'business';
 }
 
@@ -207,7 +207,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   const [patchExecuted, setPatchExecuted] = useState(false);
   const [patchResultMsg, setPatchResultMsg] = useState('');
 
-  // 💡 모달 목적 자동 판별: 코드상 에러(system) vs 업무 안내/선결 처리 부재(business)
+  // 💡 모달 목적 자동 판별: 코드상 에러 vs 업무 안내/선결 처리 부재
   const effectivePurpose: ModalPurpose = useMemo(() => {
     return detectModalPurpose(message, title, type);
   }, [message, title, type]);
@@ -538,7 +538,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                 <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }} />
                 <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
                 <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#94a3b8', marginLeft: '6px', fontWeight: 600 }}>
-                  SYSTEM EXCEPTION LOG
+                  시스템 오류 상세 기록
                 </span>
               </div>
               <span style={{ fontSize: '10.5px', fontFamily: 'monospace', color: '#ef4444', fontWeight: 700 }}>

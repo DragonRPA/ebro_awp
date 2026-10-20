@@ -1,7 +1,7 @@
 // src/utils/domainRouter.ts
 // 🌐 멀티테넌트 도메인 라우팅 엔진 (전사 표준 헌장 1.1, 7.1)
-// 1. ebro.run (루트) ➔ 공식 홍보 및 마케팅 랜딩 페이지 (LANDING)
-// 2. admin.ebro.run ➔ 플랫폼 최고관리자 전용 테넌트 관리 센터 (ADMIN)
+// 1. ebro.run (루트) ➔ 공식 홍보 및 마케팅 랜딩 페이지
+// 2. admin.ebro.run ➔ 플랫폼 최고관리자 전용 테넌트 관리 센터
 // 3. *.ebro.run (서브도메인) ➔ 개별 렌탈사 전용 ERP (TENANT)
 
 export type DomainMode = 'LANDING' | 'ADMIN' | 'TENANT';
@@ -20,7 +20,7 @@ export function getDomainMode(): DomainMode {
   if (search.includes('mode=admin') || search.includes('view=admin')) return 'ADMIN';
   if (search.includes('mode=tenant') || search.includes('view=tenant')) return 'TENANT';
 
-  // 1. 공식 루트 홍보 도메인 (ebro.run, www.ebro.run)
+  // 1. 공식 루트 홍보 도메인
   if (hostname === 'ebro.run' || hostname === 'www.ebro.run') {
     return 'LANDING';
   }
@@ -43,7 +43,7 @@ export function getTenantUrl(subdomain: string): string {
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname.toLowerCase();
-    // 로컬 개발 환경 (localhost / 127.0.0.1) 지원
+    // 로컬 개발 환경 지원
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       const port = window.location.port ? `:${window.location.port}` : '';
       return `${window.location.protocol}//${cleanSub}.localhost${port}`;
@@ -94,7 +94,7 @@ export function getMultiSolutionTenantUrls(subdomain: string): { awpUrl: string;
 }
 
 /**
- * 현재 브라우저의 URL 쿼리 파라미터 및 호스트명을 기반으로 활성 솔루션(AWP / IT / ALL)을 판정합니다.
+ * 현재 브라우저의 URL 쿼리 파라미터 및 호스트명을 기반으로 활성 솔루션을 판정합니다.
  */
 export function detectActiveSolution(): 'AWP' | 'IT' | 'ALL' {
   if (typeof window === 'undefined') return 'AWP';

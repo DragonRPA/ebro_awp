@@ -206,7 +206,7 @@ export const TradeProductsPage: React.FC = () => {
     try {
       await updateProduct(p.id, { status: nextStatus });
       showToast(
-        `[${p.name}] 상태가 ${nextStatus === 'ACTIVE' ? '판매중(ACTIVE)' : '단종(DISCONTINUED)'}(으)로 변경되었습니다.`
+        `[${p.name}] 상태가 ${nextStatus === 'ACTIVE' ? '판매중' : '단종'}(으)로 변경되었습니다.`
       );
     } catch (err: any) {
       showErrorModal(err.message || '상태 변경 실패');
@@ -408,7 +408,7 @@ export const TradeProductsPage: React.FC = () => {
             <span>상품 등록 및 관리</span>
           </h2>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px', whiteSpace: 'nowrap' }}>
-            유통 품목 마스터(SKU), 기준 매입·판매단가, 안전재고 및 LOT 가용 재고 관리
+            유통 품목 마스터, 기준 매입·판매단가, 안전재고 및 LOT 가용 재고 관리
           </div>
         </div>
 
@@ -419,7 +419,7 @@ export const TradeProductsPage: React.FC = () => {
             data-mid="trade_products-sku-input"
             readOnly
             value={nextAutoSku}
-            title="자동 채번 SKU 코드"
+            title="자동 채번 품목코드"
             style={{
               width: '92px',
               padding: '6px 10px',
@@ -562,7 +562,7 @@ export const TradeProductsPage: React.FC = () => {
           </div>
         </div>
         <div className="card" style={{ padding: '12px 16px', margin: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 재고자산 금액 (FIFO 원가)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 재고자산 금액 (선입선출 원가)</div>
           <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             ₩{kpi.totalStockValue.toLocaleString()}
           </div>
@@ -617,12 +617,12 @@ export const TradeProductsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품명 / SKU 검색</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품명 / 품목코드 검색</label>
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: '9px', top: '8px', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="품명, SKU, 규격 검색"
+              placeholder="품명, 품목코드, 규격 검색"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ padding: '6px 10px 6px 28px', fontSize: '12px', width: '200px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
@@ -652,8 +652,8 @@ export const TradeProductsPage: React.FC = () => {
             style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}
           >
             <option value="ALL">전체 상태</option>
-            <option value="ACTIVE">판매중 (ACTIVE)</option>
-            <option value="DISCONTINUED">단종 (DISCONTINUED)</option>
+            <option value="ACTIVE">판매중</option>
+            <option value="DISCONTINUED">단종</option>
           </select>
         </div>
 
@@ -691,7 +691,7 @@ export const TradeProductsPage: React.FC = () => {
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 2 }}>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)', width: '210px' }}>관리 / 조치</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>SKU 코드</th>
+                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>품목코드</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>카테고리</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>상품명</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>규격 / 단위</th>
@@ -862,7 +862,7 @@ export const TradeProductsPage: React.FC = () => {
             <form onSubmit={handleSaveProductModal} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>SKU 코드 (자동 채번)</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>품목코드 (자동 채번)</label>
                   <input
                     type="text"
                     readOnly
@@ -891,7 +891,7 @@ export const TradeProductsPage: React.FC = () => {
                   required
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
-                  placeholder="예: 고소작업대 상부 안전 경광등 (DC 24V)"
+                  placeholder="예: 고소작업대 상부 안전 경광등(직류 24볼트)"
                   style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                 />
               </div>
@@ -966,8 +966,8 @@ export const TradeProductsPage: React.FC = () => {
                     onChange={e => setFormCogsMethod(e.target.value as any)}
                     style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
-                    <option value="FIFO">선입선출법 (FIFO)</option>
-                    <option value="MOVING_AVG">이동평균법 (MOVING_AVG)</option>
+                    <option value="FIFO">선입선출법</option>
+                    <option value="MOVING_AVG">이동평균법</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -977,8 +977,8 @@ export const TradeProductsPage: React.FC = () => {
                     onChange={e => setFormStatus(e.target.value as any)}
                     style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
-                    <option value="ACTIVE">판매중 (ACTIVE)</option>
-                    <option value="DISCONTINUED">단종 (DISCONTINUED)</option>
+                    <option value="ACTIVE">판매중</option>
+                    <option value="DISCONTINUED">단종</option>
                   </select>
                 </div>
                 {!editingProduct && (

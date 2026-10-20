@@ -310,7 +310,7 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
           </button>
         </div>
 
-        {/* 좌상단(Scope) & 우상단(Pipeline) 컨트롤 툴바 (3.5 Gutenberg Z-Pattern 1단계 & 2단계) */}
+        {/* 좌상단 & 우상단 컨트롤 툴바 (3.5 Gutenberg Z-Pattern 1단계 & 2단계) */}
         <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs">
           {/* 좌상단: 정산 대상 현황 */}
           <div className="flex items-center gap-2">
@@ -353,7 +353,7 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
           </div>
         </div>
 
-        {/* 중앙 본문 (Inspection): 대사 그리드 작업대 (세로 80~85%) */}
+        {/* 중앙 본문: 대사 그리드 작업대 (세로 80~85%) */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
           
           {/* 드롭존 (파싱 전 또는 추가 업로드 시) */}
@@ -373,7 +373,7 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
                 <Upload size={24} />
               </div>
               <p className="text-sm font-semibold text-white mb-1">
-                홈택스 전자세금계산서 매입목록 파일(XLSX, XLS, XML) 드래그 앤 드롭
+                홈택스 전자세금계산서 매입목록 파일 드래그 앤 드롭
               </p>
               <p className="text-xs text-slate-400 max-w-md mb-4">
                 국세청 홈택스 [조회/발급 &gt; 전자세금계산서 &gt; 목록조회 &gt; 매입 &gt; 엑셀 다운로드] 파일을 여기에 떨구면 자동 대사가 실행됩니다.

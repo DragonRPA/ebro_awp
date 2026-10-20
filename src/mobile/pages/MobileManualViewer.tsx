@@ -104,15 +104,15 @@ export const MobileManualViewer: React.FC<MobileManualViewerProps> = ({
       );
       if (matchErrorCode) return true;
 
-      // 3. AI 추출 증상(symptoms) 검사
+      // 3. AI 추출 증상 검사
       const matchSymptoms = (m.symptoms || []).some(s => s.toLowerCase().includes(term));
       if (matchSymptoms) return true;
 
-      // 4. AI 추출 주요 부품(majorParts) 검사
+      // 4. AI 추출 주요 부품 검사
       const matchParts = (m.majorParts || []).some(p => p.toLowerCase().includes(term));
       if (matchParts) return true;
 
-      // 5. AI 추출 키워드(keywords) 및 AI 요약문 검사
+      // 5. AI 추출 키워드 및 AI 요약문 검사
       const matchKeywords = (m.keywords || []).some(kw => kw.toLowerCase().includes(term));
       const matchSummary = m.aiSummary ? m.aiSummary.toLowerCase().includes(term) : false;
 

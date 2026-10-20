@@ -498,7 +498,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     }
   };
 
-  // 임대 가능(AVAILABLE) 자산 규격별 / 모델별 실시간 잔여 재고 집계
+  // 임대 가능 자산 규격별 / 모델별 실시간 잔여 재고 집계
   const availableInventory = useMemo(() => {
     const stats: Record<string, { total: number; models: { modelName: string; count: number }[] }> = {
       '19ft': { total: 0, models: [] },
@@ -649,7 +649,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
     setIsSubmitting(true);
     try {
-      // 🔄 CASE 1: 회수의뢰 (RETURN)
+      // 🔄 CASE 1: 회수의뢰
       if (dispatchMode === 'RETURN') {
         if (selectedReturnAssetIds.length === 0) {
           showToast('회수할 장비를 1대 이상 선택해주세요.', 'error');
@@ -681,7 +681,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         return;
       }
 
-      // 🔄 CASE 2: 대차/교체 의뢰 (EXCHANGE - 헌장 2.3 단일 EXCHANGE 왕복 배차 1건 발행)
+      // 🔄 CASE 2: 교환 의뢰 (EXCHANGE - 헌장 2.3 단일 EXCHANGE 왕복 배차 1건 발행)
       if (dispatchMode === 'EXCHANGE') {
         if (selectedReturnAssetIds.length === 0) {
           showToast('교체할 기존 대여 장비를 선택해주세요.', 'error');
@@ -712,7 +712,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           contractId: targetContractId,
           changeType: 'EXCHANGE',
           changeDate: deliveryDate,
-          description: `[모바일 대차/교체 의뢰 접수] 회수(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 투입요구(${totalEquipCount}대): ${newAssetsSummary} (기존 계약조건 자동 상속)`,
+          description: `[모바일 교환 의뢰 접수] 회수(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 투입요구(${totalEquipCount}대): ${newAssetsSummary} (기존 계약조건 자동 상속)`,
           createdAt: new Date().toISOString()
         });
 
@@ -739,7 +739,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           }
         });
 
-        // 1-2. 출고 부서를 위한 대차 출고 슬롯(ContractAsset) 자동 생성 (헌장 2.2 단가 100% 자동 상속)
+        // 1-2. 출고 부서를 위한 대차 출고 슬롯 자동 생성 (헌장 2.2 단가 100% 자동 상속)
         orders.forEach(o => {
           const safeCount = Math.max(1, Math.floor(o.count || 1));
           for (let i = 0; i < safeCount; i++) {
@@ -812,7 +812,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         return;
       }
 
-      // 🚀 CASE 2: 출고의뢰 (DISPATCH)
+      // 🚀 CASE 2: 출고의뢰
       const totalEquipCount = orders.reduce((sum, o) => sum + Math.max(0, Math.floor(o.count || 0)), 0);
       if (totalEquipCount <= 0) {
         showToast('출고 장비를 1대 이상 추가해주세요.', 'error');
@@ -1771,7 +1771,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
           {dispatchMode === 'EXCHANGE' && (
             <div className="flex flex-col gap-1.5 mt-1 mb-2">
-              <span className="text-[11px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
+              <span className="text-[11px] font-bold text-slate-400">교환 불량 증상 빠른 입력</span>
               <div className="flex flex-wrap gap-1.5">
                 {defectSymptoms.map((cat) => (
                   <button
@@ -1824,7 +1824,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           ) : dispatchMode === 'EXCHANGE' ? (
             <>
               <RotateCw className="w-4 h-4" />
-              <span>대차(교환) 의뢰 접수 (단일 왕복 배차)</span>
+              <span>교환 의뢰 접수 (단일 왕복 배차)</span>
             </>
           ) : dispatchMode === 'RETURN' ? (
             <>

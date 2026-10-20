@@ -47,7 +47,7 @@ export function isDemoMode(): boolean {
     return true;
   }
 
-  // 3. 로컬 개발 환경(localhost)에서 ?demo=true 쿼리 파라미터 감지
+  // 3. 로컬 개발 환경에서 ?demo=true 쿼리 파라미터 감지
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('demo') === 'true' || searchParams.get('mode') === 'demo') {
@@ -101,7 +101,7 @@ export function getDemoSupabaseClient() {
   return createClient(DEMO_SUPABASE_CONFIG.url, DEMO_SUPABASE_CONFIG.anonKey);
 }
 
-/** 데모 데이터 골든 데이터셋으로 초기화(Reset) */
+/** 데모 데이터 골든 데이터셋으로 초기화 */
 export async function resetDemoDataToGolden(onProgress?: (msg: string) => void): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = getDemoSupabaseClient();

@@ -1,5 +1,5 @@
 // src/utils/nativeLauncher.ts
-// 폰(Android / iOS) 앱 딥링크, 클립보드 복사 및 전화걸기 안전 실행 유틸리티
+// 폰 앱 딥링크, 클립보드 복사 및 전화걸기 안전 실행 유틸리티
 
 import { db } from '../services/db';
 
@@ -79,9 +79,9 @@ function showFloatingToast(message: string) {
  * 안전한 길안내 내비게이션 앱 실행기
  * 
  * 📌 [T맵 연동 실패 원인 및 구조적 해결]:
- * 1. 일상에서 공유하는 티맵 링크(surl.tmap.co.kr)는 티맵 서버에 이미 저장된 목적지의 위도/경도(GPS 좌표)를 품고 있습니다.
+ * 1. 일상에서 공유하는 티맵 링크는 티맵 서버에 이미 저장된 목적지의 위도/경도(GPS 좌표)를 품고 있습니다.
  *    반면 당사 ERP DB에는 사용자가 입력한 문자열 텍스트 주소('창업로 42')만 존재합니다.
- * 2. 티맵의 길안내 스킴(tmap://route)은 위경도 숫자 좌표(goalx, goaly)가 없으면 경로 계산을 시작하지 못하고 메인 홈 화면만 엽니다.
+ * 2. 티맵의 길안내 스킴은 위경도 숫자 좌표가 없으면 경로 계산을 시작하지 못하고 메인 홈 화면만 엽니다.
  *    좌표가 없는 텍스트 주소는 티맵의 '검색 스킴(tmap://search?name=...)'으로 호출해야 검색창에 주소가 전달됩니다.
  * 3. 현장 상세 주소에 동/호수나 특수문자가 섞여 티맵 POI 검색이 빗나가는 경우를 100% 방지하기 위해,
  *    내비 버튼 클릭 즉시 목적지 주소를 폰 클립보드에 자동 복사하여 필요 시 1-Click 붙여넣기를 보장합니다.
@@ -155,7 +155,7 @@ export async function launchNavigation(destination: string, app: NavAppType = 'T
 
 /**
  * 안전한 전화걸기 헬퍼
- * - window.location.href 직접 대입으로 인한 PWA 흰 화면(ERR_UNKNOWN_URL_SCHEME) 및 세션 리셋 방지
+ * - window.location.href 직접 대입으로 인한 PWA 흰 화면 및 세션 리셋 방지
  * - DOM <a> 태그 클릭 방식을 사용하여 폰 기본 전화 다이얼러를 안전하게 호출
  */
 export function safePhoneCall(phone: string | undefined | null) {
@@ -413,7 +413,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   let originContact = hqPhone;
   let destContact = [contactName, contactPhone].filter(Boolean).join(' ');
 
-  // 회수(INBOUND/RETURN)인 경우: 상차지가 현장, 하차지가 주기장
+  // 회수인 경우: 상차지가 현장, 하차지가 주기장
   if (type === 'RETURN' || type === 'INBOUND') {
     origin = siteAddress;
     originContact = [contactName, contactPhone].filter(Boolean).join(' ');
@@ -474,7 +474,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
 
 /**
  * 📲 폰 기본 문자메시지 앱 딥링크 호출 (sms:?body=...)
- * - 선제 클립보드 복사(copyToClipboard)를 수행하여 앱 미연동 환경에서도 1-Click 붙여넣기 지원
+ * - 선제 클립보드 복사를 수행하여 앱 미연동 환경에서도 1-Click 붙여넣기 지원
  */
 export async function launchDispatchSms(options: {
   driverContact: string;
@@ -704,7 +704,7 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
 
   } else if (isExchange) {
     // ═══════════════════════════════════════════════
-    // [유형 3: 교환 배차] (당사 출고 상차 -> 현장 맞교환 -> 당사 회수 입고)
+    // [유형 3: 교환 배차] (당사 출고 상차 -> 현장 교환 -> 당사 회수 입고)
     // ═══════════════════════════════════════════════
     lines.push(``);
     lines.push(`[교환배차]`);

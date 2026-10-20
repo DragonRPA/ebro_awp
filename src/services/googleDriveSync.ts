@@ -1,5 +1,5 @@
 /**
- * 구글 드라이브(Google Drive) 실물 API 자동 동기화 서비스
+ * 구글 드라이브 실물 API 자동 동기화 서비스
  */
 
 export interface GoogleDriveUploadOptions {

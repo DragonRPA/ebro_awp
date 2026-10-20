@@ -1059,7 +1059,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
         </div>
       </div>
 
-      {/* ── 7. 인앱 오버레이 안내 스텝 (Annotation Anchors) ── */}
+      {/* ── 7. 인앱 오버레이 안내 스텝 ── */}
       {item.annotations && item.annotations.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
           <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>

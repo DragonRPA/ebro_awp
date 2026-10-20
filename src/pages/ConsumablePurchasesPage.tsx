@@ -162,7 +162,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
     }).sort((a, b) => b.requestDate.localeCompare(a.requestDate));
   }, [consumablePurchases, searchTerm, statusFilter, startDate, endDate]);
 
-  // 필터링된 구매신청 하단 합계 (Single-pass)
+  // 필터링된 구매신청 하단 합계
   const filteredFooterTotals = useMemo(() => {
     let totalQty = 0;
     let totalAmount = 0;
@@ -283,7 +283,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
   // 엑셀 내보내기
   const handleExportExcel = () => {
     const excelData = sortedPurchases.map((p, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '신청번호': p.id,
       '신청일자': p.requestDate,
       '품목명': p.modelName,
@@ -359,7 +359,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. 핵심 지표 카드 (Gutenberg Scope) ── */}
+      {/* ── 2. 핵심 지표 카드 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
         <div className="card" style={{ padding: '14px', margin: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>당월 총 구매신청</div>
@@ -873,7 +873,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                           return newArr;
                         });
                       }}
-                      placeholder="온라인 구매 링크 (https://...)"
+                      placeholder="온라인 구매 링크"
                       style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
                     />
                   </div>

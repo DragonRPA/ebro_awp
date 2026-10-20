@@ -245,7 +245,7 @@ const CONTRACT_TEMPLATE = `<!DOCTYPE html>
             <tr>
                 <th style="width: 25%;">품목 (모델명)</th>
                 <th style="width: 8%;">수량</th>
-                <th style="width: 22%;">장비 번호 (S/N)</th>
+                <th style="width: 22%;">제조번호</th>
                 <th style="width: 15%;">임대료 (1대/1개월)</th>
                 <th style="width: 15%;">소계</th>
                 <th style="width: 15%;">비고</th>
@@ -331,7 +331,7 @@ const SAFETY_INSPECTION_TEMPLATE = `<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <div class="title">고소작업대(T/L) 안전점검 결과서</div>
+    <div class="title">고소작업대 안전점검 결과서</div>
     <table>
         <tr>
             <th style="width: 12%;">사업장명</th>
@@ -495,7 +495,7 @@ const CHECK_LIST_TEMPLATE = `<!DOCTYPE html>
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 8%;">NO</th>
+                        <th style="width: 8%;">순번</th>
                         <th style="width: 45%;">검사 항목</th>
                         <th style="width: 12%;">검사기준</th>
                         <th style="width: 10%;">양호</th>
@@ -551,7 +551,7 @@ const CHECK_LIST_TEMPLATE = `<!DOCTYPE html>
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 8%;">NO</th>
+                        <th style="width: 8%;">순번</th>
                         <th style="width: 45%;">검사 항목</th>
                         <th style="width: 12%;">검사기준</th>
                         <th style="width: 10%;">양호</th>
@@ -578,7 +578,7 @@ const CHECK_LIST_TEMPLATE = `<!DOCTYPE html>
                     <tr><td>49</td><td class="left">사다리 고정 상태 및 디딤판</td><td>육안</td><td>V</td><td></td><td>김관주</td></tr>
                     <tr><td>50</td><td class="left">바퀴 허브 베어링 상태</td><td>육안</td><td>V</td><td></td><td>김관주</td></tr>
                     <tr><td>51</td><td class="left">마스트 핀 및 부싱 유격 확인</td><td>육안</td><td>V</td><td></td><td>김관주</td></tr>
-                    <tr><td>52</td><td class="left">포트홀(Pothole) 가드 전개 상태</td><td>작동</td><td>V</td><td></td><td>김관주</td></tr>
+                    <tr><td>52</td><td class="left">포트홀 가드 전개 상태</td><td>작동</td><td>V</td><td></td><td>김관주</td></tr>
                     <tr><td>53</td><td class="left">포트홀 리미트 스위치 정상 작동</td><td>작동</td><td>V</td><td></td><td>김관주</td></tr>
                     <tr><td>54</td><td class="left">안전 받침대 설치 및 상태</td><td>육안</td><td>V</td><td></td><td>김관주</td></tr>
                     <tr><td>55</td><td class="left">아웃트리거(보조 다리) 체결 상태</td><td>육안</td><td>V</td><td></td><td>김관주</td></tr>
@@ -718,7 +718,7 @@ const TRANSACTION_STATEMENT_TEMPLATE = `<!DOCTYPE html>
         <table class="main-table">
             <thead>
                 <tr>
-                    <th style="width: 6%;">No</th>
+                    <th style="width: 6%;">순번</th>
                     <th style="width: 36%;">품명 및 적용 기준</th>
                     <th style="width: 8%;">수량</th>
                     <th style="width: 14%;">단가</th>
@@ -833,7 +833,7 @@ export const documentBuilder = {
       // 장비 미지정시 기본 견적 1대
       linesHtml += `
       <tr>
-          <td><strong>수직형 고소장비 (GTJZ0608ME)</strong></td>
+          <td><strong>수직형 고소장비</strong></td>
           <td class="left" style="font-size: 10px; line-height: 1.4;">동력: 배터리<br>작업높이: 7.8M, 발판높이: 5.8M<br>적재중량: 227kg, 장비중량: 1226kg<br>크기: 1.83 * 0.77 * 2.16 (감지봉 4개, 3면 함석)</td>
           <td>1</td>
           <td class="right">₩280,000</td>

@@ -302,7 +302,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
   // 7. 결과 엑셀 다운로드
   const handleExportExcel = () => {
     const excelData = targetItems.map((item, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '구분': targetType === 'CUSTOMER' ? '매출처(고객사)' : '매입처(협력사)',
       '거래처명': item.name,
       '사업자등록번호': formatBizNo(item.cleanNo),
@@ -350,7 +350,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         flexDirection: 'column',
         overflow: 'hidden'
       }}>
-        {/* ─── ① 헤더 (Scope & Title) ─── */}
+        {/* ─── ① 헤더 ─── */}
         <div style={{
           padding: '14px 20px',
           backgroundColor: 'var(--bg-header)',
@@ -401,7 +401,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           </button>
         </div>
 
-        {/* ─── ② 조작 및 파이프라인 제어 바 (Gutenberg Z-Pattern) ─── */}
+        {/* ─── ② 조작 및 파이프라인 제어 바 ─── */}
         <div style={{
           padding: '10px 20px',
           backgroundColor: 'var(--bg-card)',
@@ -806,7 +806,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
             }}>
               <tr style={{ height: '38px' }}>
-                <th style={{ padding: '6px 10px', textAlign: 'center', width: '48px', whiteSpace: 'nowrap', fontWeight: 700 }}>No.</th>
+                <th style={{ padding: '6px 10px', textAlign: 'center', width: '48px', whiteSpace: 'nowrap', fontWeight: 700 }}>순번</th>
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>거래처명</th>
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>사업자등록번호</th>
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>대표자</th>
@@ -814,7 +814,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>과세유형</th>
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>폐업일자</th>
                 <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>대여중 장비</th>
-                <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>ERP 상태</th>
+                <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>시스템 상태</th>
                 <th style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700 }}>조치</th>
               </tr>
             </thead>
@@ -1017,7 +1017,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           </table>
         </div>
 
-        {/* ─── ⑤ 우하단 마감 바 (Terminal Action) ─── */}
+        {/* ─── ⑤ 우하단 마감 바 ─── */}
         <div style={{
           padding: '12px 20px',
           backgroundColor: 'var(--bg-header)',
@@ -1143,7 +1143,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   type="text"
                   value={configKeyInput}
                   onChange={(e) => setConfigKeyInput(e.target.value)}
-                  placeholder="공공데이터포털(data.go.kr) 발급 인증키 입력"
+                  placeholder="공공데이터포털 발급 인증키 입력"
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -1157,7 +1157,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   }}
                 />
                 <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
-                  공공데이터포털(data.go.kr) &gt; '국세청_사업자등록정보 진위확인 및 상태조회 서비스' 발급 승인키
+                  공공데이터포털 &gt; '국세청_사업자등록정보 진위확인 및 상태조회 서비스' 발급 승인키
                 </span>
               </div>
 

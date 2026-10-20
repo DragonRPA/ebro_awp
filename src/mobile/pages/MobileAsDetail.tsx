@@ -470,7 +470,7 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
               />
             </div>
 
-            {/* 대차(EXCHANGE) 제안 토글 */}
+            {/* 교환 제안 토글 */}
             <label className="flex items-center gap-2 p-2 rounded-lg bg-purple-950/30 border border-purple-800/40 cursor-pointer">
               <input
                 type="checkbox"
@@ -479,7 +479,7 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
                 className="w-4 h-4 rounded text-purple-600"
               />
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-purple-300">동급 장비 대차(교환) 필요</span>
+                <span className="text-xs font-bold text-purple-300">동급 장비 교환 필요</span>
                 <span className="text-[10px] text-slate-400">체크 시 본사 배차실에 단일 교환 배차 연계</span>
               </div>
             </label>

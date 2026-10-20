@@ -141,7 +141,7 @@ export const ContactCardOcrModal: React.FC<ContactCardOcrModalProps> = ({
       let finalCustomerId = matchedCustomer?.id;
       let isNewCustomer = false;
 
-      // 1) 고객사가 없으면 신규 생성 (Dummy Customer)
+      // 1) 고객사가 없으면 신규 생성
       if (!finalCustomerId) {
         if (!newForm.companyName.trim()) {
           showErrorModal('소속 상호명(고객사명)을 입력해야 담당자를 등록할 수 있습니다.');

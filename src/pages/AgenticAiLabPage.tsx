@@ -132,7 +132,7 @@ export const AgenticAiLabPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. 시나리오 프리셋 및 자연어 입력창 (Gutenberg Z-Pattern Scope & Input) ── */}
+      {/* ── 2. 시나리오 프리셋 및 자연어 입력창 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '14px' }}>
         
         {/* 좌상단: 시나리오 프리셋 선택 */}
@@ -170,7 +170,7 @@ export const AgenticAiLabPage: React.FC = () => {
         {/* 우상단: 자연어 프롬프트 입력 */}
         <div className="card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>
-            자연어 프롬프트 지시 (Prompt Console)
+            자연어 프롬프트 지시
           </div>
           <textarea
             value={prompt}
@@ -369,7 +369,7 @@ export const AgenticAiLabPage: React.FC = () => {
             <span>AI 에이전트 도구 매니페스트 (MCP 규격)</span>
           </div>
           <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-            에이전트가 브라우저 DOM 대신 원자적(Atomic)으로 직접 호출할 수 있는 표준 API 목록입니다.
+            에이전트가 브라우저 DOM 대신 원자적으로 직접 호출할 수 있는 표준 API 목록입니다.
           </div>
 
           <div style={{ maxHeight: '480px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>

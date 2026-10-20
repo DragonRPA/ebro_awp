@@ -66,7 +66,7 @@ export interface SmartDispatchData {
   applyToAllSites?: boolean;
   closingDay?: string;
   paymentDay?: string;
-  siteMasterId?: string; // 🌟 물리 현장(SiteMaster) ID (헌장 1.5 Strict N:M)
+  siteMasterId?: string; // 🌟 물리 현장 ID (헌장 1.5 Strict N:M)
   note: string;
   rawText?: string;
 }
@@ -276,13 +276,13 @@ interface AppContextType {
   clearEvidenceFileUrls: (ids: string[]) => Promise<void>;  // Storage 삭제 후 DB URL 초기화
   updateEvidenceFileUrls: (updates: { id: string; url: string }[]) => Promise<void>; // Storage 삭제 후 Drive URL로 교체
   
-  // AS 기사 차량별 이동재고 (Van Stock)
+  // AS 기사 차량별 이동재고
   mechanicConsumableStocks: MechanicConsumableStock[];
   transferConsumableToMechanic: (mechanicId: string, consumableId: string, quantity: number, memo?: string) => Promise<void>;
   returnConsumableToHq: (mechanicId: string, consumableId: string, quantity: number, memo?: string, isDefective?: boolean, disposition?: 'REBUILD' | 'SCRAP' | 'VENDOR_WARRANTY') => Promise<void>;
   transferConsumableBetweenMechanics: (fromMechanicId: string, toMechanicId: string, consumableId: string, quantity: number, memo?: string) => Promise<void>;
 
-  // 재고실사(Stocktaking Audit) & 고품 관리
+  // 재고실사 & 고품 관리
   stocktakingAudits: StocktakingAudit[];
   stocktakingAuditItems: StocktakingAuditItem[];
   collectedParts: CollectedPart[];
@@ -530,7 +530,7 @@ interface AppContextType {
   historyStack: Array<{ tab: string; payload?: any }>;
   historyIndex: number;
 
-  // 🛡️ 전자결재 파이프라인 (Approval Engine)
+  // 🛡️ 전자결재 파이프라인
   fetchRuleForEvent: (eventCode: string) => Promise<{ rule: ApprovalRule | null; consensus: RuleConsensus[] }>;
   createApprovalRequest: (
     ruleId: string,
@@ -993,7 +993,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       db.awaitPendingWrites().catch(err => console.error("BillingDetails cleanup error:", err));
     }
 
-    // 💡 헌장 1.2 & 5.2 준수: 계약/배차가 존재하지 않는 고아 출고검수의뢰(outboundInspections) 자동 소탕 & DB 동기 삭제
+    // 💡 헌장 1.2 & 5.2 준수: 계약/배차가 존재하지 않는 고아 출고검수의뢰 자동 소탕 & DB 동기 삭제
     if (db.contracts.length > 0) {
       const validContractIds = new Set(db.contracts.map(c => c.id));
       const validDeliveryIds = new Set(db.deliveries.map(d => d.id));
@@ -1007,7 +1007,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 진짜 개발자(admin, sys-admin) 계정만 '개발자'로 정규화 (사장/부사장 등 최고관리자 성명 보존)
+    // 진짜 개발자 계정만 '개발자'로 정규화 (사장/부사장 등 최고관리자 성명 보존)
     db.users.forEach(u => {
       if (u.loginId === 'admin' || u.id === 'sys-admin') {
         u.name = '개발자';
@@ -1228,7 +1228,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
   useEffect(() => {
-    // Seed 계약 데이터 초기화는 개발 환경(localhost)에서만 실행
+    // Seed 계약 데이터 초기화는 개발 환경에서만 실행
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       if (!localStorage.getItem('seed_v1_8_dummy_contracts_v2')) {
         localStorage.removeItem('erp_contracts');
@@ -1244,7 +1244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.documentElement.setAttribute('data-theme', savedTheme);
     }
     
-    // 🛡️ [세션 위변조 방어 로드 (Tamper-Proof Session Hydration)]
+    // 🛡️ [세션 위변조 방어 로드]
     const normalizeDeveloperIdentity = (u: User): User => {
       if (isSystemDeveloperUser(u)) {
         return {
@@ -1390,7 +1390,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     }
 
-    // 🌐 플랫폼 최고관리자 도메인(admin.ebro.run) 접속 시 일반 계정 차단
+    // 🌐 플랫폼 최고관리자 도메인 접속 시 일반 계정 차단
     if (getDomainMode() === 'ADMIN') {
       return {
         success: false,
@@ -1398,7 +1398,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic) 또는 로컬/원격 DB 사용자 검색
+    // 2. 개발 전용 테스트 계정 보장 또는 로컬/원격 DB 사용자 검색
     let user: User | undefined;
 
     if (cleanId.toLowerCase() === 'manager' && cleanPw === 'mgr123') {
@@ -1436,7 +1436,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       user = db.users.find(matchUser);
 
-      // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회 (Zero Race Condition)
+      // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회
       if (!user && db.isSupabaseConnected() && supabase) {
         try {
           const { data: suUsers } = await supabase
@@ -1507,7 +1507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }
 
-      // 🛡️ 평문 비밀번호 자동 SHA-256 해시 업그레이드 (Zero Plaintext Security)
+      // 🛡️ 평문 비밀번호 자동 SHA-256 해시 업그레이드
       if (user.passwordHash && !/^[a-f0-9]{64}$/i.test(user.passwordHash)) {
         const upgradedHash = hashPassword(cleanPw);
         user.passwordHash = upgradedHash;
@@ -1522,8 +1522,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 7-1. 🏢 [테넌트 구독 만료 및 정지 가드 (Tenant Subscription / Suspension Guard)]
-    // 테넌트 상태가 SUSPENDED이거나 구독이 만료(EXPIRED)되고 유예기간(gracePeriodDays)이 지난 경우,
+    // 7-1. 🏢 [테넌트 구독 만료 및 정지 가드]
+    // 테넌트 상태가 SUSPENDED이거나 구독이 만료되고 유예기간이 지난 경우,
     // 일반 직원의 로그인을 차단하고 명확한 안내 에러 메시지 반환
     const targetTenant = (user as any).tenantId 
       ? (tenants.find(t => t.id === (user as any).tenantId) || currentTenant)
@@ -1690,21 +1690,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasPermission = (menuId: string, action: 'view' | 'save'): boolean => {
     if (!currentUser) return false;
 
-    // 0. 퇴사(RETIRED) 계정은 전사 모든 메뉴 권한 즉시 전면 차단 (Zero-Access Security)
+    // 0. 퇴사 계정은 전사 모든 메뉴 권한 즉시 전면 차단
     if (currentUser.status === 'RETIRED') return false;
 
-    // 0-1. 휴직(LEAVE_OF_ABSENCE) 계정은 변경/저장(save) 권한 원천 차단 (조회만 허용)
+    // 0-1. 휴직 계정은 변경/저장 권한 원천 차단 (조회만 허용)
     if (currentUser.status === 'LEAVE_OF_ABSENCE' && action === 'save') return false;
 
-    // 2. 단일 표준(SSOT) 단수형 메뉴 ID로 정규화
+    // 2. 단일 표준 단수형 메뉴 ID로 정규화
     const normMenuId = normalizeMenuId(menuId);
 
     // 최고관리자(플랫폼/시스템 최고관리자 및 ADMIN 역할) 여부 판정
     const isSuperAdmin = currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1';
 
-    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (Tenant-level Page Visibility)]
+    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리]
     // 관리자(currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.role === 'ADMIN')라 할지라도
-    // 테넌트 모드(개별 테넌트 화면)에서는 테넌트의 hiddenPages에 포함된 메뉴는 사이드바, 검색(Ctrl+K), 라우팅에서 100% 숨겨지고 차단된다.
+    // 테넌트 모드(개별 테넌트 화면)에서는 테넌트의 hiddenPages에 포함된 메뉴는 사이드바, 검색, 라우팅에서 100% 숨겨지고 차단된다.
     // 🛡️ [특급 보안] 테넌트가 사용하는 사이트(giyeon.ebro.run 등)에서는 테넌트 관리 메뉴 원천 차단 (오직 admin.ebro.run 전용)
     if (normMenuId === 'tenant_management') {
       return getDomainMode() === 'ADMIN' && isSuperAdmin;
@@ -1736,12 +1736,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     }
 
-    // 2-2. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴 (admin.ebro.run 전용)
+    // 2-2. 테넌트 관리는 최고 관리자 전용 보안 메뉴 (admin.ebro.run 전용)
     if (normMenuId === 'tenant_management') {
       return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
-    // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선 - 매트릭스 설정과 100% 일치)
+    // 3. 사용자 정의 권한 명칭 상속 판정 (역할 기반 자동 상속 최우선 - 매트릭스 설정과 100% 일치)
     if (currentUser.customRoleId) {
       const userRolePerms = rolePermissions.filter(p => p.roleId === currentUser.customRoleId);
       if (userRolePerms.length > 0) {
@@ -1762,14 +1762,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return action === 'view' ? Boolean(perm.canView) : Boolean(perm.canSave);
     }
 
-    // 5. 직무 템플릿(RBAC) 기반 자동 상속 판정
+    // 5. 직무 템플릿 기반 자동 상속 판정
     const dept = currentUser.departmentId || currentUser.department;
     const templateRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
     if (templateRule !== undefined) {
       return templateRule;
     }
 
-    // 6. 엄격한 거부 우선 (Deny-by-Default): 정의되지 않은 메뉴는 전면 차단
+    // 6. 엄격한 거부 우선: 정의되지 않은 메뉴는 전면 차단
     return false;
   };
 
@@ -1891,7 +1891,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // ── 사용자 정의 권한 명칭(CustomRole) 및 권한(RolePermission) 관리 뮤테이터 ──
+  // ── 사용자 정의 권한 명칭 및 권한 관리 뮤테이터 ──
   const saveCustomRole = async (role: CustomRole) => {
     try {
       const now = new Date().toISOString();
@@ -1920,7 +1920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCustomRole = async (roleId: string) => {
     try {
-      // 1. 해당 역할의 세부 메뉴 권한(role_permissions) DB 및 로컬 삭제
+      // 1. 해당 역할의 세부 메뉴 권한 DB 및 로컬 삭제
       const targetPerms = db.rolePermissions.filter(p => p.roleId === roleId);
       for (const perm of targetPerms) {
         db.deleteRow('rolePermissions', perm.id);
@@ -1951,7 +1951,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const now = new Date().toISOString();
 
-      // 🛡️ [FK 무결성 보장] role_permissions 저장 전 부모 테이블(custom_roles)에 해당 roleId가 반드시 존재하도록 선행 동기화
+      // 🛡️ [FK 무결성 보장] role_permissions 저장 전 부모 테이블에 해당 roleId가 반드시 존재하도록 선행 동기화
       const existingRoles = db.customRoles && db.customRoles.length > 0 ? [...db.customRoles] : [];
       if (!existingRoles.some(r => r.id === roleId)) {
         existingRoles.push({
@@ -2121,7 +2121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (existingCust) {
       res = db.updateRow<Customer>('customers', existingCust.id, cust) as Customer;
 
-      // 고객 정보 보완 완료 시 관련 할 일(Todo) 자동 상계 처리
+      // 고객 정보 보완 완료 시 관련 할 일 자동 상계 처리
       const relatedTodos = db.todos.filter(
         t => t.relatedEntityId === cust.id && t.type === 'MISSING_INFO' && !t.isCompleted
       );
@@ -2160,7 +2160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetCust = db.customers.find(c => c.id === id);
     const custName = targetCust?.name || id;
 
-    // 1. 고객사에 속한 모든 고객 현장(customer_sites) 식별
+    // 1. 고객사에 속한 모든 고객 현장 식별
     const custSites = db.sites.filter(s => s.customerId === id);
     const custSiteIds = new Set(custSites.map(s => s.id));
 
@@ -2282,7 +2282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   
   const saveSiteMaster = async (s: Partial<SiteMaster>, options?: { propagateToLinkedSites?: boolean }): Promise<SiteMaster> => {
-    // [헌장 1.5] 옵션 그룹(SiteMaster)에는 address를 일절 저장하지 않고 현장명(그룹명)과 옵션 정보만 저장
+    // [헌장 1.5] 옵션 그룹에는 address를 일절 저장하지 않고 현장명(그룹명)과 옵션 정보만 저장
     const cleanPayload: Partial<SiteMaster> = {
       ...s,
       isActive: true,
@@ -2301,7 +2301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } as any);
     }
 
-    // 옵션 그룹을 상속받은 연결된 고객현장(CustomerSite)에 옵션만 일괄 전파 (현장명/주소는 절대 덮어쓰지 않음)
+    // 옵션 그룹을 상속받은 연결된 고객현장에 옵션만 일괄 전파 (현장명/주소는 절대 덮어쓰지 않음)
     if (options?.propagateToLinkedSites && savedMaster?.id) {
       const linkedSites = db.sites.filter(site => site.siteMasterId === savedMaster.id);
       for (const ls of linkedSites) {
@@ -2321,7 +2321,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSiteMaster = async (id: string) => {
-    // 옵션 그룹(SiteMaster) 삭제 시 고객 현장(CustomerSite) 자체는 절대 삭제하지 않고, 참조(siteMasterId)만 해제함
+    // 옵션 그룹 삭제 시 고객 현장 자체는 절대 삭제하지 않고, 참조만 해제함
     const linkedSites = db.sites.filter(s => s.siteMasterId === id);
     for (const ls of linkedSites) {
       db.updateRow('sites', ls.id, { ...ls, siteMasterId: null } as any);
@@ -2336,7 +2336,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
-    // [헌장 1.5] 고객 현장(CustomerSite) 직접 귀속 및 옵션 그룹 상속
+    // [헌장 1.5] 고객 현장 직접 귀속 및 옵션 그룹 상속
     const master = site.siteMasterId ? db.siteMasters.find(m => m.id === site.siteMasterId) : null;
 
     const sitePayload: Partial<CustomerSite> = {
@@ -2380,7 +2380,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteSite = async (id: string): Promise<boolean> => {
     const targetSite = db.sites.find(s => s.id === id);
 
-    // ✅ 고아 레코드 방지: 해당 고객 현장(customer_sites)과 연결된 계약 또는 투입 장비가 있으면 삭제 차단
+    // ✅ 고아 레코드 방지: 해당 고객 현장과 연결된 계약 또는 투입 장비가 있으면 삭제 차단
     const linkedContracts = db.contracts.filter(c => c.siteId === id);
     const linkedAssets = db.assets.filter(a => a.currentSiteId === id);
     if (linkedContracts.length > 0 || linkedAssets.length > 0) {
@@ -2633,7 +2633,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (result) {
-      // 1. 신규 취득(ACQUISITION) 이력 자동 기록
+      // 1. 신규 취득 이력 자동 기록
       if (isNew) {
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: result.id,
@@ -2646,7 +2646,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // 2. 자산 매각(DISPOSAL) 이력 자동 기록
+      // 2. 자산 매각 이력 자동 기록
       if (result.status === 'SOLD' && (!existingAsset || existingAsset.status !== 'SOLD')) {
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: result.id,
@@ -2684,7 +2684,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       db.updateRow<Asset>('assets', assetId, updatedPayload);
 
-      // 자산 입출고/상태 변동 이력(assetInOutLogs) 자동 타임라인 기록
+      // 자산 입출고/상태 변동 이력 자동 타임라인 기록
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: assetId,
         assetNo: targetAsset.assetNo || '',
@@ -2918,7 +2918,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalCustomer = customer;
 
-    // 현장(CustomerSite) 처리: 고객 산하 현장 매핑 또는 신규 고객현장 자동 등록 (옵션은 CustomerSite에 직접 저장)
+    // 현장 처리: 고객 산하 현장 매핑 또는 신규 고객현장 자동 등록 (옵션은 CustomerSite에 직접 저장)
     let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
     const selectedOptionGroup = data.siteMasterId ? db.siteMasters.find(m => m.id === data.siteMasterId) : undefined;
 
@@ -2971,7 +2971,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
-      // 🌟 [헌장 1.5] 옵션/보양/부착물/표준사양은 고객 현장(CustomerSite)에 직접 저장
+      // 🌟 [헌장 1.5] 옵션/보양/부착물/표준사양은 고객 현장에 직접 저장
       if (data.saveOptionsToSite !== false) {
         if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
           siteUpdates.paidOptions = data.paidOptions;
@@ -3043,7 +3043,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalSite = site!;
 
-    // ⚠️ FK 제약 방지: 현장(CustomerSite) 레코드가 Supabase 원격 DB에 100% 저장·반영 완료된 후에만 contracts 생성이 가능하도록 동기 대기!
+    // ⚠️ FK 제약 방지: 현장 레코드가 Supabase 원격 DB에 100% 저장·반영 완료된 후에만 contracts 생성이 가능하도록 동기 대기!
     try {
       await db.awaitPendingWrites();
     } catch (err: any) {
@@ -3087,7 +3087,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString()
       });
     } else {
-      // 2) 기존 계약이 없을 경우: 최초 발생월(YYMM) 기준 채번하여 신규 계약 생성
+      // 2) 기존 계약이 없을 경우: 최초 발생월 기준 채번하여 신규 계약 생성
       const nextContractNo = generateNextContractNo(targetStartDate);
 
       await notify(`📄 [3/5 계약 생성] 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
@@ -3111,7 +3111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: new Date().toISOString()
       });
 
-      // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 부모 contract 레코드가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
+      // ⚠️ 외래키 제약조건 위반 방지: 부모 contract 레코드가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
       try {
         await db.awaitPendingWrites();
       } catch (err: any) {
@@ -3272,7 +3272,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     await notify('🚚 [5/5 배차 생성] 배차/운송 관리 출고대기 지시건 생성 중...', 90);
 
-    // 신규 배차(Delivery) - 출고 대기 건 자동 생성 (출고 장비 ContractAsset ID 및 유상옵션 1:1 매핑 보존)
+    // 신규 배차 - 출고 대기 건 자동 생성 (출고 장비 ContractAsset ID 및 유상옵션 1:1 매핑 보존)
     const cargoItems = JSON.stringify(cargoItemsPayload);
     const loadingDateStr = extractDate(data.loadingTime) || contract.startDate;
     const getTimeSlot = (tStr: string | undefined) => {
@@ -3443,7 +3443,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
     const targetCas = db.contractAssets.filter(ca => deliveryCaIds.includes(ca.id));
     const hasRentedAsset = targetCas.some(ca => {
-      // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 RENTED(대여중)인 경우만 검수 완료로 간주
+      // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 대여중인 경우만 검수 완료로 간주
       if (!ca.assetId) return false;
       const a = db.assets.find(as => as.id === ca.assetId);
       if (a?.status === 'RENTED') return true;
@@ -3477,7 +3477,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const actorName = currentUser?.name || '담당자';
       const cleanReason = (cancelReason || '').trim() || '출고 검수 전 요청 취소';
 
-      // 4. 할당된 장비가 있으면 AVAILABLE(임대가능)로 복원
+      // 4. 할당된 장비가 있으면 임대가능로 복원
       for (const ca of targetCas) {
         if (ca.assetId) {
           const origAsset = db.assets.find(a => a.id === ca.assetId);
@@ -3494,17 +3494,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 5. 대기 중인 출고 검수 레코드(outboundInspections) 삭제
+      // 5. 대기 중인 출고 검수 레코드 삭제
       for (const ins of matchedInsps) {
         db.deleteRow('outboundInspections', ins.id);
       }
 
-      // 6. 해당 출고 요청으로 생성된 계약 자산 슬롯(contractAssets) 삭제
+      // 6. 해당 출고 요청으로 생성된 계약 자산 슬롯 삭제
       for (const ca of targetCas) {
         db.deleteRow('contractAssets', ca.id);
       }
 
-      // 7. 부모 계약(contracts)에 남은 슬롯 확인 및 계약 이력(contractHistory) 기록
+      // 7. 부모 계약에 남은 슬롯 확인 및 계약 이력 기록
       if (parentContract) {
         const remainingCas = db.contractAssets.filter(
           ca => ca.contractId === parentContract.id && !deliveryCaIds.includes(ca.id)
@@ -3532,7 +3532,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 8. 배차(deliveries) 상태를 CANCELLED로 업데이트하고 취소 메타 보존
+      // 8. 배차 상태를 CANCELLED로 업데이트하고 취소 메타 보존
       const updatedCargo = parsedCargo.map((ci, idx) => {
         if (idx === 0) {
           return {
@@ -3843,7 +3843,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         const cleanProtection = (rawProtection && rawProtection !== '없음' && rawProtection !== 'NONE') ? String(rawProtection).trim() : 'NONE';
 
-        // 잡음(Cruft) 방지: 불필요한 옵션이 없으면 해당 태그 자체를 생성하지 않음
+        // 잡음 방지: 불필요한 옵션이 없으면 해당 태그 자체를 생성하지 않음
         const optionMemoParts: string[] = [];
         if (cleanPaidOptions) {
           optionMemoParts.push(`[회수옵션] ${cleanPaidOptions}`);
@@ -4169,7 +4169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return createdList;
   };
 
-  // 자산 매각 계약번호 전용 채번기 (SALE-YYYYMMDD-NNN)
+  // 자산 매각 계약번호 전용 채번기
   const generateNextSaleContractNo = (): string => {
     const todayYmd = new Date().toISOString().split('T')[0].replace(/-/g, '');
     let maxSeq = 0;
@@ -4220,7 +4220,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const billingYm = payload.disposalDate.slice(0, 7);
       const dayNum = parseInt(payload.disposalDate.slice(8, 10), 10) || 30;
 
-      // 3. 헌장 2.1 & 2.2: 매각 계약(Sale Contract) 생성 (5대 계약 조건 포함)
+      // 3. 헌장 2.1 & 2.2: 매각 계약 생성 (5대 계약 조건 포함)
       const contract = db.insertRow<Contract>('contracts', {
         contractNo,
         contractType: 'SALE',
@@ -4286,7 +4286,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: new Date().toISOString()
         });
 
-        // 4-3. 헌장 1.2 무누락 DB 저장: 자산 입출고 이력(DISPOSAL) 영구 기록
+        // 4-3. 헌장 1.2 무누락 DB 저장: 자산 입출고 이력 영구 기록
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: asset.id,
           assetNo: asset.assetNo,
@@ -4300,7 +4300,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // 5. 1회성 매각 청구서(billings) 및 상세(billingDetails) 발행 (과세 10% 분리, 총액 100% 일치)
+      // 5. 1회성 매각 청구서 및 상세 발행 (과세 10% 분리, 총액 100% 일치)
       const vat = Math.round(totalSalePrice * 0.1);
       const grandTotal = totalSalePrice + vat;
 
@@ -4332,7 +4332,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // 6. 계약 이력(contractHistory) 기록
+      // 6. 계약 이력 기록
       db.insertRow<ContractHistory>('contractHistory', {
         contractId: contract.id,
         changeType: 'ASSET_SOLD',
@@ -4373,7 +4373,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ? `분할 지급 (계약금: ₩${(payload.saleTerms.installmentDownAmount || 0).toLocaleString()}원 / 잔금: ₩${(payload.saleTerms.installmentBalanceAmount || 0).toLocaleString()}원, 잔금납기: ${payload.saleTerms.installmentBalanceDueDate || '-'})`
             : `일시불 완납 (${payload.saleTerms?.lumpSumDueTerm === 'DELIVERY' ? '장비 인도일 완납' : payload.saleTerms?.lumpSumDueTerm === '7_DAYS' ? '계약일로부터 7일 이내' : payload.saleTerms?.lumpSumDueTerm === '14_DAYS' ? '계약일로부터 14일 이내' : payload.saleTerms?.lumpSumDueTerm === 'MONTH_10' ? '익월 10일 완납' : '계약 체결 즉시 완납'})`;
 
-          const deliveryTermsText = `${payload.saleTerms?.deliveryLocationType === 'BUYER_SITE' ? '매수처 지정지 하차도' : '당사 주기장 상차도(FOB)'} (${payload.saleTerms?.freightBearer === 'SELLER' ? '당사 운송부담' : '매수자 운송부담'}) / 인도예정일: ${payload.saleTerms?.deliveryDate || payload.disposalDate}`;
+          const deliveryTermsText = `${payload.saleTerms?.deliveryLocationType === 'BUYER_SITE' ? '매수처 지정지 하차도' : '당사 주기장 상차도'} (${payload.saleTerms?.freightBearer === 'SELLER' ? '당사 운송부담' : '매수자 운송부담'}) / 인도예정일: ${payload.saleTerms?.deliveryDate || payload.disposalDate}`;
 
           const body = `
 안녕하세요, ${customer.name} 담당자님.
@@ -4392,7 +4392,7 @@ ${tenantCorp}입니다.
 - 입금 계좌: ${payload.saleTerms?.bankAccount ? payload.saleTerms.bankAccount : tenantAccount}
 - 결제 조건: ${paymentTermsText}
 - 인도 조건: ${deliveryTermsText}
-${payload.saleTerms?.useStandardAsIsClause ? '- 특약: 현상태 인수(As-Is) 및 소유권 유보(대금 완납 시 이전)\n' : ''}
+${payload.saleTerms?.useStandardAsIsClause ? '- 특약: 현상태 인수 및 소유권 유보(대금 완납 시 이전)\n' : ''}
 [매각 장비 상세 내역]
 ${soldAssetSummaries.map((s, idx) => `${idx + 1}. 관리번호: ${s.assetNo} / 모델명: ${s.modelName} / 매각단가: ₩${s.salePrice.toLocaleString()}원`).join('\n')}
 
@@ -4803,13 +4803,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         if (remainingQtyToDeduct <= 0) break;
         const deductQty = Math.min(lot.currentQty, remainingQtyToDeduct);
         
-        // 1. 본사 재고(Lot) 차감
+        // 1. 본사 재고 차감
         db.updateRow<ConsumableLot>('consumableLots', lot.id, {
           currentQty: lot.currentQty - deductQty,
           updatedAt: new Date().toISOString()
         });
 
-        // 2. 기사 차량 재고(Lot) 증가
+        // 2. 기사 차량 재고 증가
         const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.lotId === lot.id);
         if (existingStock) {
           db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
@@ -5459,7 +5459,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
   };
 
-  // ─── [전사 정비 & AS 단일 물리 통합 핵심 비즈니스 로직 (1-A, 2-B, 3-B, 4-A)] ─────────
+  // ─── [전사 정비 & AS 단일 물리 통합 핵심 비즈니스 로직] ─────────
   const createFieldAsTicket = async (data: Partial<Repair>): Promise<Repair> => {
     try {
       const now = new Date();
@@ -5505,7 +5505,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      // 💡 도로명 상세 주소(siteAddress) 자동 역추적 및 매핑 (T맵/내비 연동 단일 진실의 원천)
+      // 💡 도로명 상세 주소 자동 역추적 및 매핑 (T맵/내비 연동 단일 진실의 원천)
       let resolvedSiteAddress = data.siteAddress?.trim();
       if (!resolvedSiteAddress) {
         resolvedSiteAddress = resolveSiteDetailedAddress({
@@ -5917,7 +5917,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
-      // 4. 자산 이력(AssetInOutLog)에 정비 사건 무누락 DB 저장
+      // 4. 자산 이력에 정비 사건 무누락 DB 저장
       const targetAssetNo = ticket.assetNo;
       if (targetAssetNo && targetAssetNo !== '현장확인' && targetAssetNo !== '전체장비') {
         const matchedAsset = db.assets.find(a => a.assetNo === targetAssetNo);
@@ -5934,7 +5934,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
-      // 5. 계약 이력(ContractHistory)에 AS 발생 및 조치 사건 무누락 DB 저장 (양방향 완벽 추적성)
+      // 5. 계약 이력에 AS 발생 및 조치 사건 무누락 DB 저장 (양방향 완벽 추적성)
       if (ticket.contractId) {
         db.insertRow<ContractHistory>('contract_history', {
           id: `ch-as-${ticket.id}-${Date.now()}`,
@@ -6147,7 +6147,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         }
 
-        // 🌟 자산 마스터 기준 현장 및 고객사 역추적 (Back-tracking)
+        // 🌟 자산 마스터 기준 현장 및 고객사 역추적
         if (matchedAsset) {
           if ((!matchedSite || !site || site === '미지정현장' || site === '일반 현장') && matchedAsset.currentSiteId) {
             const foundSite = db.customerSites.find(s => s.id === matchedAsset.currentSiteId);
@@ -6216,7 +6216,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
         newRepairs.push(repairRow);
 
-        // 💡 자산 생애주기 이력 로그(AssetInOutLog) 동시 기록 (관리번호가 식별되는 장비)
+        // 💡 자산 생애주기 이력 로그 동시 기록 (관리번호가 식별되는 장비)
         if (finalAssetNo && finalAssetNo !== '현장확인' && finalAssetNo !== '전체장비') {
           newAssetLogs.push({
             id: `aiog-band-${idx + 1}`,
@@ -6354,7 +6354,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const effectiveQty = (req.receivedQty && req.receivedQty > 0) ? req.receivedQty : req.requestedQty;
     const totalAmount = effectiveQty * (req.unitPrice || 0);
 
-    // 1. 월말 매입 정산 마스터 레코드 (PurchaseSettlement) 생성
+    // 1. 월말 매입 정산 마스터 레코드 생성
     const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
     const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
       id: settlementId,
@@ -6372,7 +6372,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: nowIso
     });
 
-    // 2. 월말 매입 정산 1:1 상세 항목 (PurchaseSettlementItem) 생성
+    // 2. 월말 매입 정산 1:1 상세 항목 생성
     const settlementItemId = db.generateNextId('purchaseSettlementItems', db.purchaseSettlementItems);
     db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
       id: settlementItemId,
@@ -6528,7 +6528,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const contractNo = generateNextContractNo(contractData.startDate);
     ensureCustomerContactExists(contractData.customerId, contractData.contactId);
     
-    // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 선행 sites/contacts/customer 레코드가 Supabase 원격 DB에 먼저 100% 저장되도록 동기 대기!
+    // ⚠️ 외래키 제약조건 위반 방지: 선행 sites/contacts/customer 레코드가 Supabase 원격 DB에 먼저 100% 저장되도록 동기 대기!
     try {
       await db.awaitPendingWrites();
     } catch (err: any) {
@@ -6546,7 +6546,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: contract가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
+    // ⚠️ 외래키 제약조건 위반 방지: contract가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
     try {
       await db.awaitPendingWrites();
     } catch (err: any) {
@@ -6568,7 +6568,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       if (item.assetId) {
         db.updateRow<Asset>('assets', item.assetId, {
-          // 💡 헌장 1.3 준수: 계약 체결 시점에는 RENTED(대여중)로 변경하지 않고 ASSIGNED(출고대기) 유지, 출고 검수 승인 마감 시점에 RENTED로 전이됨!
+          // 💡 헌장 1.3 준수: 계약 체결 시점에는 대여중로 변경하지 않고 ASSIGNED(출고대기) 유지, 출고 검수 승인 마감 시점에 RENTED로 전이됨!
           status: 'ASSIGNED',
           currentCustomerId: contractData.customerId,
           currentSiteId: contractData.siteId,
@@ -6918,7 +6918,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     await db.awaitPendingWrites(); refreshAllData(); };
 
-  // Feature 6) 동일 고객 현장간 장비 이동 (Site Transfer / Relocation)
+  // Feature 6) 동일 고객 현장간 장비 이동
   const relocateContractAsset = async (params: {
     contractAssetId: string;
     targetSiteId: string;
@@ -7082,7 +7082,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: nowIso
     });
 
-    // 5. 자산 마스터 (assets): currentSiteId 2현장으로 동기화 & contractEnd 갱신
+    // 5. 자산 마스터: currentSiteId 2현장으로 동기화 & contractEnd 갱신
     if (sourceCA.assetId) {
       db.updateRow<Asset>('assets', sourceCA.assetId, {
         currentSiteId: targetSiteId,
@@ -7210,7 +7210,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: nowIso
     });
 
-    // 5. 계약 이력(contractHistory)에 [수리완료 재투입] 재출고 기록
+    // 5. 계약 이력에 [수리완료 재투입] 재출고 기록
     db.insertRow<ContractHistory>('contractHistory', {
       contractId: contract.id,
       changeType: 'REGISTER',
@@ -7220,7 +7220,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: nowIso
     });
 
-    // 6. 자산 마스터 (assets): 상태 RENTED 전환 및 고객/현장/기간 동기화
+    // 6. 자산 마스터: 상태 RENTED 전환 및 고객/현장/기간 동기화
     db.updateRow<Asset>('assets', asset.id, {
       status: 'RENTED',
       currentCustomerId: contract.customerId,
@@ -7340,7 +7340,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     let createdInspectionId: string | null = null;
 
     try {
-      if (!origCa) throw new Error('해당 계약 슬롯(contractAsset)을 찾을 수 없습니다.');
+      if (!origCa) throw new Error('해당 계약 슬롯을 찾을 수 없습니다.');
 
       let contract = db.contracts.find(c => c.id === origCa.contractId);
       if (!contract && db.isSupabaseConnected()) {
@@ -7370,11 +7370,39 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       db.updateRow<Asset>('assets', assetId, assetUpdatePayload);
 
-      // 3. 출고 검수/정비 작업 의뢰 생성
+      // 3. 출고 검수/정비 작업 의뢰 생성 (연결 배차 ID 자동 매칭 및 중복 방지)
+      const extractCaIdsFromDeliv = (d: Delivery): string[] => {
+        if (!d.cargoItems) return [];
+        try {
+          const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+          if (!Array.isArray(raw)) return [];
+          const ids: string[] = [];
+          raw.forEach((ci: any) => {
+            if (Array.isArray(ci?.contractAssetIds)) ids.push(...ci.contractAssetIds.filter(Boolean));
+          });
+          return ids;
+        } catch {
+          return [];
+        }
+      };
+      const matchedDelivery = db.deliveries.find(d =>
+        d.status !== 'CANCELLED' &&
+        (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        extractCaIdsFromDeliv(d).includes(origCa.id)
+      ) || db.deliveries.find(d =>
+        d.status !== 'CANCELLED' &&
+        (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        d.contractId === origCa.contractId &&
+        d.status !== 'DELIVERED'
+      );
+      db.outboundInspections
+        .filter(i => i.contractAssetId === origCa.id && i.status !== 'COMPLETED')
+        .forEach(i => db.deleteRow('outboundInspections', i.id));
       const createdInsp = db.insertRow<OutboundInspection>('outboundInspections', {
         contractId: origCa.contractId,
         contractAssetId: origCa.id,
         assetId: assetId,
+        deliveryId: matchedDelivery?.id,
         status: 'PENDING',
         createdAt: nowIso,
         updatedAt: nowIso
@@ -7387,7 +7415,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     } catch (err: any) {
       console.error('assignAssetToContract error & Rollback:', err);
 
-      // 💥 DB 저장 실패 시 로컬 DB 및 UI State를 100% 이전 상태로 자동 롤백 (Rollback Execution)!
+      // 💥 DB 저장 실패 시 로컬 DB 및 UI State를 100% 이전 상태로 자동 롤백!
       if (caSnapshot) {
         db.updateRow<ContractAsset>('contractAssets', contractAssetId, caSnapshot);
       }
@@ -7458,15 +7486,44 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
         db.updateRow<Asset>('assets', origAsset.id, assetUpdatePayload);
 
-        // 2-3. 출고 검수 의뢰 생성
+        // 2-3. 출고 검수 의뢰 생성 (연결 배차 ID 자동 매칭 및 중복 방지)
+      const extractCaIdsFromDeliv = (d: Delivery): string[] => {
+        if (!d.cargoItems) return [];
+        try {
+          const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+          if (!Array.isArray(raw)) return [];
+          const ids: string[] = [];
+          raw.forEach((ci: any) => {
+            if (Array.isArray(ci?.contractAssetIds)) ids.push(...ci.contractAssetIds.filter(Boolean));
+          });
+          return ids;
+        } catch {
+          return [];
+        }
+      };
+      const matchedDelivery = db.deliveries.find(d =>
+        d.status !== 'CANCELLED' &&
+        (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        extractCaIdsFromDeliv(d).includes(origCa.id)
+      ) || db.deliveries.find(d =>
+        d.status !== 'CANCELLED' &&
+        (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        d.contractId === origCa.contractId &&
+        d.status !== 'DELIVERED'
+      );
+      db.outboundInspections
+        .filter(i => i.contractAssetId === origCa.id && i.status !== 'COMPLETED')
+        .forEach(i => db.deleteRow('outboundInspections', i.id));
         const createdInsp = db.insertRow<OutboundInspection>('outboundInspections', {
           contractId: origCa.contractId,
           contractAssetId: origCa.id,
           assetId: origAsset.id,
+          deliveryId: matchedDelivery?.id,
           status: 'PENDING',
           createdAt: nowIso,
           updatedAt: nowIso
         });
+        createdInspectionIds.push(createdInsp.id);
         // 2-4. 🌟 [패키지 서류 무결성]: 기존 슬롯에 다른 장비가 배정되어 있었는데 교체된 경우 ToDo 발행
         if (origCa.assetId && origCa.assetId !== origAsset.id) {
           try {
@@ -7517,6 +7574,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const origAssetId = origCa.assetId;
     const origAsset = db.assets.find(a => a.id === origAssetId);
 
+    // 🔴 [절차적 무결성 가드]: 이미 출고검수가 완료(COMPLETED)되었거나 대여중(RENTED)인 장비는 할당 취소 차단
+    const completedInsp = db.outboundInspections.find(
+      i => (i.contractAssetId === contractAssetId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status === 'COMPLETED'
+    );
+    if (completedInsp || origCa.status === 'RENTED' || origAsset?.status === 'RENTED') {
+      const msg = '이미 출고검수가 완료되어 대여중으로 전환된 장비는 할당을 취소할 수 없습니다.\n장비를 변경하려면 먼저 [출고 검수] 메뉴에서 [출고 승인 취소 (검수 롤백)]을 수행해 주십시오.';
+      showErrorModal(msg, '장비 할당 취소 불가 (출고검수 완료 상태)');
+      throw new Error(msg);
+    }
+
     const caSnapshot = { ...origCa };
     const assetSnapshot = origAsset ? { ...origAsset } : null;
 
@@ -7528,7 +7595,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         assetId: null as any
       });
 
-      // 2. Asset 상태를 AVAILABLE (임대가능) 로 복원 및 계약 연결 명시적 NULL 해제
+      // 2. Asset 상태를 임대가능 로 복원 및 계약 연결 명시적 NULL 해제
       if (origAsset) {
         db.updateRow<Asset>('assets', origAssetId, {
           status: 'AVAILABLE',
@@ -7540,9 +7607,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
-      // 3. 아직 대기 중(PENDING)인 출고 검수 의뢰건 전체 삭제
+      // 3. 아직 완료되지 않은 출고 검수 의뢰건 전체 삭제
       const pendingInsps = db.outboundInspections.filter(
-        i => (i.contractAssetId === contractAssetId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status === 'PENDING'
+        i => (i.contractAssetId === contractAssetId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status !== 'COMPLETED'
       );
       pendingInsps.forEach(i => db.deleteRow('outboundInspections', i.id));
 
@@ -7592,13 +7659,21 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       for (const caId of contractAssetIds) {
         const origCa = db.contractAssets.find(c => c.id === caId);
         if (origCa && origCa.assetId) {
-          caSnapshots.push({ id: origCa.id, snapshot: { ...origCa } });
           const origAsset = db.assets.find(a => a.id === origCa.assetId);
+          const completedInsp = db.outboundInspections.find(
+            i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origCa.assetId)) && i.status === 'COMPLETED'
+          );
+          if (completedInsp || origCa.status === 'RENTED' || origAsset?.status === 'RENTED') {
+            const msg = `장비(${origAsset?.assetNo || origCa.expectedModel})는 이미 출고검수가 완료되어 대여중 상태이므로 할당을 취소할 수 없습니다.\n[출고 검수]에서 검수 롤백을 먼저 수행해 주십시오.`;
+            showErrorModal(msg, '일괄 할당 취소 불가 (출고검수 완료 포함)');
+            throw new Error(msg);
+          }
+          caSnapshots.push({ id: origCa.id, snapshot: { ...origCa } });
           if (origAsset) {
             assetSnapshots.push({ id: origAsset.id, snapshot: { ...origAsset } });
           }
           const pendingInsp = db.outboundInspections.find(
-            i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origCa.assetId)) && i.status === 'PENDING'
+            i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origCa.assetId)) && i.status !== 'COMPLETED'
           );
           if (pendingInsp) {
             deletedInspectionIds.push({ id: pendingInsp.id, row: { ...pendingInsp } });
@@ -7623,7 +7698,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             updatedAt: nowIso
           });
           const pendingInsps = db.outboundInspections.filter(
-            i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status === 'PENDING'
+            i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status !== 'COMPLETED'
           );
           pendingInsps.forEach(i => {
             deletedInspectionIds.push({ id: i.id, row: { ...i } });
@@ -7694,7 +7769,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const today = new Date().toISOString().split('T')[0];
       const nowIso = new Date().toISOString();
 
-      // 1. 기존 장비: 수리정비중(REPAIRING) 선택 시 REPAIRING 전환, 아니면 임대가능(AVAILABLE) 유지!
+      // 1. 기존 장비: 수리정비중 선택 시 REPAIRING 전환, 아니면 임대가능 유지!
       // 💡 [전사 정책]: 출고검수 탈락 교체 시 사유 유무와 무관하게 정비점수 가산 (지정 점수 또는 기본 5점)
       const targetStatus = markOldAsRepairing ? 'REPAIRING' : 'AVAILABLE';
       const penaltyToAdd = typeof customPenaltyScore === 'number' && !isNaN(customPenaltyScore) ? customPenaltyScore : 5;
@@ -7713,14 +7788,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         currentSiteId: undefined,
         contractStart: undefined,
         contractEnd: undefined,
-        note: appendedNote, // 🌟 자산 정비필요항목(note)에만 정확히 저장
+        note: appendedNote, // 🌟 자산 정비필요항목에만 정확히 저장
         // 🌟 memo(일반 자산 비고: 임차처/결제조건 등)는 절대 오염시키지 않고 원본 100% 보존!
         updatedAt: nowIso
       };
 
       db.updateRow<Asset>('assets', oldAssetId, oldPayload);
 
-      // 1-1. 🌟 [주기장 정비 연계]: 수리정비중 전환 시 주기장 정비 대장(repairs) 티켓 1:1 자동 발행 (헌장 1.2 무누락 저장)
+      // 1-1. 🌟 [주기장 정비 연계]: 수리정비중 전환 시 주기장 정비 대장 티켓 1:1 자동 발행 (헌장 1.2 무누락 저장)
       if (markOldAsRepairing) {
         createdRepairId = db.generateNextId('repairs', db.repairs);
         db.insertRow<Repair>('repairs', {
@@ -7770,7 +7845,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      // 2. 대체 장비: 배차지정(ASSIGNED)으로 전환 및 계약 정보 매핑
+      // 2. 대체 장비: 배차지정으로 전환 및 계약 정보 매핑
       db.updateRow<Asset>('assets', newAssetId, {
         status: 'ASSIGNED',
         currentCustomerId: oldAssetOrig.currentCustomerId,
@@ -7780,13 +7855,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         updatedAt: nowIso
       });
 
-      // 3. 계약 슬롯(contractAssets) assetId 교체
+      // 3. 계약 슬롯 assetId 교체
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: newAssetId,
         expectedModel: newAssetOrig.modelName
       });
 
-      // 4. 출고 검수 의뢰건(outboundInspections) assetId 교체 (없으면 신규 생성하여 검수 누락 방지)
+      // 4. 출고 검수 의뢰건 assetId 교체 (없으면 신규 생성하여 검수 누락 방지)
       if (inspOrig) {
         db.updateRow<OutboundInspection>('outboundInspections', inspOrig.id, {
           assetId: newAssetId,
@@ -7967,7 +8042,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       // 해당 월에 활성 상태인 계약 전체 탐색 (계약 단위 독립 생성 - E-1 원칙, 매각 계약 원천 배제)
       const activeContracts = db.contracts.filter(c => {
-        if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // 🚫 자산 매각 계약(SALE) 원천 배제
+        if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // 🚫 자산 매각 계약 원천 배제
         if (c.status === 'COMPLETED') return false;
         const contractStart = new Date(c.startDate);
         const contractEnd = c.endDate ? new Date(c.endDate) : null;
@@ -8403,22 +8478,22 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     // 청구 기간 끝: 당월 billingDay
     const periodEnd = new Date(Date.UTC(year, month - 1, effectiveBillingDay));
 
-    // 청구 기간 시작: 전월 (billingDay+1)일
+    // 청구 기간 시작: 전월일
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
     const lastDayOfPrev = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
     const prevEffectiveBillingDay = Math.min(billingDay, lastDayOfPrev);
     const periodStart = new Date(Date.UTC(prevYear, prevMonth - 1, prevEffectiveBillingDay + 1));
 
-    // 실제 자산 사용 기간: 계약 startDate 보정 (A-2)
+    // 실제 자산 사용 기간: 계약 startDate 보정
     const contractStart = new Date(contractStartDate.includes('T') ? contractStartDate : `${contractStartDate}T00:00:00Z`);
     const actualStart = contractStart > periodStart ? contractStart : periodStart;
 
-    // 실제 자산 사용 기간: 계약 endDate 보정 (A-3)
+    // 실제 자산 사용 기간: 계약 endDate 보정
     const contractEnd = contractEndDate ? new Date(contractEndDate.includes('T') ? contractEndDate : `${contractEndDate}T00:00:00Z`) : null;
     const actualEnd = contractEnd && contractEnd < periodEnd ? contractEnd : periodEnd;
 
-    // 첫 달 / 마지막 달 판단 → 일할 계산 여부 (B-2)
+    // 첫 달 / 마지막 달 판단 → 일할 계산 여부
     const isFirstMonth = contractStart > periodStart && contractStart <= periodEnd;
     const isLastMonth = contractEnd
       ? contractEnd >= periodStart && contractEnd <= periodEnd
@@ -8440,11 +8515,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   /**
    * 💡 계약별 직전 청구 마일스톤 메타데이터 동기화 (트리거 갱신 및 백필)
-   * - 최근 렌탈료 청구 발행일 (lastBillingDate)
-   * - 최근 청구 시작일 (lastBilledPeriodStart)
-   * - 최근 청구 종료일 (lastBilledPeriodEnd)
-   * - 최근 청구 귀속월 (lastBilledYm)
-   * - 누적 발행 청구 건수 (billingCount)
+   * - 최근 렌탈료 청구 발행일
+   * - 최근 청구 시작일
+   * - 최근 청구 종료일
+   * - 최근 청구 귀속월
+   * - 누적 발행 청구 건수
    */
   const syncContractBillingMilestones = (contractId?: string) => {
     const targetContracts = contractId 
@@ -8497,10 +8572,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (!c) return null;
 
     if ((c.contractType || 'RENTAL') !== 'RENTAL') {
-      throw new Error(`[계약 유형 오류] 계약 ${c.contractNo}는 자산 매각 계약(SALE)입니다. 월 정기 렌탈료 청구 대상이 아닙니다.`);
+      throw new Error(`[계약 유형 오류] 계약 ${c.contractNo}는 자산 매각 계약입니다. 월 정기 렌탈료 청구 대상이 아닙니다.`);
     }
 
-    // 중복 발행 감지 (J-3): 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구는 제외)
+    // 중복 발행 감지: 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구는 제외)
     const existingActive = db.billings.find(
       b => b.contractId === c.id && b.billingYm === billingYm && b.status !== 'REJECTED' && !b.isPartial
     );
@@ -8540,13 +8615,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       let calcDesc = '';
 
       if (isProRata) {
-        // 일할 계산: 30일 고정 (B-1), 역일 기준 (B-4)
+        // 일할 계산: 30일 고정, 역일 기준
         const diffMs = actualEnd.getTime() - actualStart.getTime();
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
         rentalCost = calcProRataAmount(ca.monthlyRentalFee, ca.dailyRentalFee, days);
         calcDesc = `${actualStart.toISOString().split('T')[0]} ~ ${actualEnd.toISOString().split('T')[0]} 일할 청구 (${days}일 × ${(ca.dailyRentalFee > 0 ? ca.dailyRentalFee : ca.monthlyRentalFee / 30).toLocaleString()}원)`;
       } else {
-        // 중간 달: 월 정액 (B-2)
+        // 중간 달: 월 정액
         rentalCost = ca.monthlyRentalFee;
         const startStr = actualStart.toISOString().split('T')[0];
         const endStr = actualEnd.toISOString().split('T')[0];
@@ -8693,7 +8768,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             customerId: item.customer.id,
             reason: '미청구 외상미수금 존재'
           });
-          continue; // 해당 계약은 청구 건너뜀 (SKIP)
+          continue; // 해당 계약은 청구 건너뜀
         }
 
         const targetMonthlyYm = item.targetYm || ym;
@@ -9153,7 +9228,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         updatedAt: new Date().toISOString()
       });
 
-      // 5. 계약 이력(ContractHistory) 무누락 기록
+      // 5. 계약 이력 무누락 기록
       if (billing.contractId) {
         db.insertRow<ContractHistory>('contractHistory', {
           contractId: billing.contractId,
@@ -9922,17 +9997,17 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       delivery.dispatchCategory === '출고' ||
       delivery.dispatchCategory === '교환';
 
-    // 🛡️ [절차적 무결성 가드레일]: 출고/교환 배차는 반드시 (1) 기사 배정(DISPATCHED) ➔ (2) 장비 할당 완료 ➔ (3) 출고 검수 승인(COMPLETED/RENTED)을 거쳐야만 운송 완료(DELIVERED) 처리 가능
+    // 🛡️ [절차적 무결성 가드레일]: 출고/교환 배차는 반드시 (1) 기사 배정 ➔ (2) 장비 할당 완료 ➔ (3) 출고 검수 승인을 거쳐야만 운송 완료 처리 가능
     if (isOutboundLike && delivery.contractId) {
       if (delivery.status === 'REQUESTED' || !delivery.driverName?.trim()) {
         throw new Error('배차 기사 배정(배차 완료)이 선행되지 않은 출고 건은 운송 완료 처리할 수 없습니다.');
       }
 
-      // 1. 해당 배차의 대상 계약자산 슬롯(contractAssetIds) 추출
+      // 1. 해당 배차의 대상 계약자산 슬롯 추출
       let parsedCargo: any[] = [];
       try {
         if (delivery.cargoItems) {
-          const raw = JSON.parse(delivery.cargoItems);
+          const raw = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
           if (Array.isArray(raw)) parsedCargo = raw;
         }
       } catch {
@@ -9988,12 +10063,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             (ins.deliveryId === delivery.id && ins.assetId === ca.assetId) ||
             (ins.contractId === delivery.contractId && ins.assetId === ca.assetId)
         );
-        const isInspCompleted = matchedInsps.some(
-          ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
-        );
-        const isAssetRented = asset?.status === 'RENTED' || ca.status === 'RENTED';
+        const isInspCompleted = matchedInsps.length > 0
+          ? matchedInsps.some(ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED')
+          : (asset?.status === 'RENTED' && ca.status === 'RENTED');
+        const isAssetRented = asset?.status === 'RENTED';
 
-        if (!isInspCompleted && !isAssetRented) {
+        if (!isInspCompleted || !isAssetRented) {
           const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
           uninspectedAssets.push(label);
         }
@@ -10010,8 +10085,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     const nowIso = new Date().toISOString();
-    // [헌장 1.3 준수] 배차 단계에서는 배차 상태만 마감(DELIVERED) 처리하며,
-    // 자산 상태(RENTED/AVAILABLE) 전환 및 입출고 실적 로그(assetInOutLogs) 기록은
+    // [헌장 1.3 준수] 배차 단계에서는 배차 상태만 마감 처리하며,
+    // 자산 상태 전환 및 입출고 실적 로그 기록은
     // 오직 [출고 검수 승인] 및 [입고 검수 등록] 시점에만 해당 대상 장비에 대해 1:1로 수행한다.
     db.updateRow<Delivery>('deliveries', deliveryId, {
       status: 'DELIVERED',
@@ -10107,7 +10182,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const registeredAt = new Date().toISOString();
 
       if (isExchange) {
-        // 교환(EXCHANGE) 배차: 계약은 계속 진행(ACTIVE)되므로 완료시키지 않음
+        // 교환 배차: 계약은 계속 진행되므로 완료시키지 않음
         // 회수 검수된 장비 슬롯만 RETURNED 처리 (대차로 투입된 장비는 계속 RENTED 유지)
         cAssets.forEach(ca => {
           if (ca.assetId && reviewedAssetIds.includes(ca.assetId)) {
@@ -10154,7 +10229,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           !(ca.assetId && reviewedAssetIds.includes(ca.assetId)) && ca.status !== 'RETURNED'
         );
 
-        // 💡 [단일 진실의 원천]: 모든 장비가 회수 완료되었을 때 마스터 계약을 COMPLETED로 종료하고 종료일(endDate)을 입고일로 덮어쓰기
+        // 💡 [단일 진실의 원천]: 모든 장비가 회수 완료되었을 때 마스터 계약을 COMPLETED로 종료하고 종료일을 입고일로 덮어쓰기
         if (remainingActiveAssets.length === 0) {
           const contract = db.contracts.find(c => c.id === delivery.contractId);
           if (contract) {
@@ -10222,7 +10297,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const score = data.maintenanceScore || 0;
     const hasDefect = score > 0 || (data.defects && data.defects.length > 0) || Boolean(data.otherDefectText);
-    // 자산 상태: 점수 0점이고 결함 없으면 AVAILABLE(임대가능), 이상 시 REPAIRING(정비중) 또는 전달된 targetAssetStatus
+    // 자산 상태: 점수 0점이고 결함 없으면 임대가능, 이상 시 정비중 또는 전달된 targetAssetStatus
     const nextAssetStatus: Asset['status'] = data.targetAssetStatus || (!hasDefect ? 'AVAILABLE' : 'REPAIRING');
 
     // 💡 [입고 번호 채번]
@@ -10461,7 +10536,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const asset = db.assets.find(a => a.id === log.assetId);
     if (!asset) throw new Error('연관 자산을 찾을 수 없습니다.');
 
-    // [Step 0] 사전 안전 검증 (Pre-Rollback Guardrails)
+    // [Step 0] 사전 안전 검증
     // 0-1. 입고 등록 이후 타 계약에 이미 재출고/배정되었는지 검사
     const hasSubsequentOutbound = db.assetInOutLogs.some(l =>
       l.assetId === asset.id &&
@@ -10479,7 +10554,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       throw new Error(`자산(${asset.assetNo})은 입고 등록 이후 이미 다른 계약에 배정 또는 재출고되어 입고를 취소할 수 없습니다.`);
     }
 
-    // 0-2. 입고 결함으로 자동 생성된 정비 건이 이미 완료(COMPLETED) 마감되었는지 검사
+    // 0-2. 입고 결함으로 자동 생성된 정비 건이 이미 완료 마감되었는지 검사
     const linkedRepair = log.repairId ? db.repairs.find(r => r.id === log.repairId) : undefined;
     if (linkedRepair && linkedRepair.status === 'COMPLETED') {
       throw new Error(`해당 입고 건으로 자동 접수된 정비(${linkedRepair.id})가 이미 완료 마감되어 부품/수리비가 반영되었습니다. 정비 내역을 먼저 취소 또는 확인해 주십시오.`);
@@ -10488,7 +10563,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const nowIso = new Date().toISOString();
     const inboundDateStr = log.inDate || log.eventDate;
 
-    // [Step 1] 해당 입고 건과 매칭되는 정확한 체결 자산 슬롯(ContractAsset) 및 마스터 계약(Contract) 특정
+    // [Step 1] 해당 입고 건과 매칭되는 정확한 체결 자산 슬롯 및 마스터 계약 특정
     const candidateCAs = db.contractAssets
       .filter(c => c.assetId === asset.id)
       .sort((a, b) => (b.inRegisteredAt || b.updatedAt || b.createdAt || '').localeCompare(a.inRegisteredAt || a.updatedAt || a.createdAt || ''));
@@ -10505,7 +10580,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const contract = ca ? db.contracts.find(ct => ct.id === ca.contractId) : undefined;
 
-    // [Step 2] 자동 단축/변경된 계약 종료일(prevEndDate) 및 슬롯 종료일 역추적 산출
+    // [Step 2] 자동 단축/변경된 계약 종료일 및 슬롯 종료일 역추적 산출
     let restoredContractEndDate = contract?.endDate || '';
     let restoredCaEndDate = ca?.endDate || '';
 
@@ -10558,7 +10633,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         restoredCaEndDate = restoredContractEndDate || ca?.endDate || '';
       }
 
-      // 마스터 계약 상태(ACTIVE) 및 계약 종료일(endDate) 원상복구
+      // 마스터 계약 상태 및 계약 종료일 원상복구
       db.updateRow<Contract>('contracts', contract.id, {
         status: 'ACTIVE',
         endDate: restoredContractEndDate || contract.endDate,
@@ -10566,7 +10641,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // [Step 3] 계약 체결 자산 슬롯(ContractAsset) 대여중(RENTED) 및 원래 종료일 복원
+    // [Step 3] 계약 체결 자산 슬롯 대여중 및 원래 종료일 복원
     if (ca) {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
         status: 'RENTED',
@@ -10577,7 +10652,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // [Step 4] 자산 마스터(Asset) 대여중(RENTED) 및 계약 귀속 속성 원상복구
+    // [Step 4] 자산 마스터 대여중 및 계약 귀속 속성 원상복구
     db.updateRow<Asset>('assets', asset.id, {
       status: 'RENTED',
       currentCustomerId: contract?.customerId || log.customerId || asset.currentCustomerId || '',
@@ -10591,7 +10666,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: nowIso
     });
 
-    // [Step 5] 연동된 자동 생성 입고 정비(PENDING) 및 회수 배차(DELIVERED) 상태 원상복구
+    // [Step 5] 연동된 자동 생성 입고 정비 및 회수 배차 상태 원상복구
     if (linkedRepair && linkedRepair.status === 'PENDING') {
       db.deleteRow('repairs', linkedRepair.id);
       await clearHandoverTasks({
@@ -10613,7 +10688,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    // [Step 6] 오등록 입고 로그 제거 및 입고 취소(INBOUND_CANCEL) 감사 이력·계약 이력 무누락 기록
+    // [Step 6] 오등록 입고 로그 제거 및 입고 취소 감사 이력·계약 이력 무누락 기록
     db.deleteRow('assetInOutLogs', logId);
 
     db.insertRow<AssetInOutLog>('assetInOutLogs', {
@@ -10721,7 +10796,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // 소모품 재고 차감: 주기장 정비(YARD)이거나 stockSource가 YARD_STOCK/CENTRAL_HQ인 경우 주기장 재고에서 우선 차감
+    // 소모품 재고 차감: 주기장 정비이거나 stockSource가 YARD_STOCK/CENTRAL_HQ인 경우 주기장 재고에서 우선 차감
     const isYardDepotRepair = repairData.workLocation === 'YARD' || repairData.stockSource === 'YARD_STOCK' || repairData.stockSource === 'CENTRAL_HQ' || maintenanceType === 'INHOUSE_REPAIR';
     const effectiveMechanicId = repairData.mechanicId || currentUser?.id;
     const mechanic = db.users.find(u => u.id === effectiveMechanicId);
@@ -11059,7 +11134,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const monthlyDepn = depreciableAmount / asset.depreciationMonths;
       if (monthlyDepn <= 0) continue;
 
-      // 3. 취득일(acqDate)부터 마감연월 말일(closingDate)까지의 경과 개월수 정밀 산출
+      // 3. 취득일부터 마감연월 말일까지의 경과 개월수 정밀 산출
       let yearsDiff = closingDate.getFullYear() - acqDate.getFullYear();
       let monthsDiff = closingDate.getMonth() - acqDate.getMonth();
       let totalElapsedMonths = yearsDiff * 12 + monthsDiff + 1; // 취득당월 포함
@@ -11317,7 +11392,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     );
     leaseCount = leaseSettlementsOfMonth.length;
 
-    // ④ [신규 추가] 외주 정비비 집계 — 정비수리(Repairs)에서 repairType === 'EXTERNAL'이고 status === 'COMPLETED'인 외주 정비 건 수집
+    // ④ [신규 추가] 외주 정비비 집계 — 정비수리에서 repairType === 'EXTERNAL'이고 status === 'COMPLETED'인 외주 정비 건 수집
     let repairCount = 0;
     const completedExternalRepairs = db.repairs.filter(r => {
       if (r.repairType !== 'EXTERNAL' || r.status !== 'COMPLETED' || !r.vendorId) return false;
@@ -11423,7 +11498,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       memo: data.memo
     });
 
-    // SettlementPaymentLog 지급 이력 레코드 1:N 보관 (Audit Trail)
+    // SettlementPaymentLog 지급 이력 레코드 1:N 보관
     const logId = `SPL-${Date.now()}`;
     const logs = db.settlementPaymentLogs;
     logs.push({
@@ -11790,7 +11865,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         prepaidBalance: nextBal
       });
 
-      // 2. 수납 (Payment) 레코드 생성
+      // 2. 수납 레코드 생성
       const paymentId = `pay-prepaid-${Date.now()}`;
       db.insertRow<Payment>('payments', {
         id: paymentId,

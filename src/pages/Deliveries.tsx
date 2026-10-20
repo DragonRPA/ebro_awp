@@ -236,7 +236,7 @@ export const Deliveries: React.FC = () => {
 
       return {
         // ① 식별 및 계약
-        'No': idx + 1,
+        '순번': idx + 1,
         '배차ID': d.id,
         '계약번호': getContractNo(d.contractId),
         '구분': d.dispatchCategory || (d.type === 'OUTBOUND' ? '출고' : d.type === 'MOVEMENT' ? '이동' : d.type === 'EXCHANGE' ? '교환' : '회수'),
@@ -374,7 +374,7 @@ export const Deliveries: React.FC = () => {
         }
       ];
     } else {
-      // 이미 확정 금액이 있다면 그대로 사용, 없으면 임시(estimated)금액을 기본값으로 바인딩
+      // 이미 확정 금액이 있다면 그대로 사용, 없으면 임시금액을 기본값으로 바인딩
       list = list.map(v => ({
         ...v,
         deliveryCostConfirmed: v.deliveryCostConfirmed ?? v.deliveryCost

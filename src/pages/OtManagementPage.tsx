@@ -127,7 +127,7 @@ export const OtManagementPage: React.FC = () => {
     return map;
   }, [departments]);
 
-  // 조직도 트리 깊이 우선 탐색(DFS) 순서 배열 (조직도 화면과 100% 동일 배치)
+  // 조직도 트리 깊이 우선 탐색 순서 배열 (조직도 화면과 100% 동일 배치)
   const orderedDeptIds = useMemo(() => {
     const ordered: string[] = [];
     const traverse = (parentId: string | null) => {
@@ -199,7 +199,7 @@ export const OtManagementPage: React.FC = () => {
          || users.find(u => u.loginId === cleanId || u.loginId?.toLowerCase() === cleanId.toLowerCase());
     if (found) return found;
 
-    // 3. 성명(name) 일치
+    // 3. 성명 일치
     found = sortedUsers.find(u => u.name === cleanId)
          || users.find(u => u.name === cleanId);
     if (found) return found;
@@ -230,7 +230,7 @@ export const OtManagementPage: React.FC = () => {
     return u.department || '미지정';
   };
 
-  // OT 관리는 권한관리에서 통제 (ot_management view/save)
+  // OT 관리는 권한관리에서 통제
   const canSave = hasPermission('ot_management', 'save');
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
@@ -382,7 +382,7 @@ export const OtManagementPage: React.FC = () => {
     setOtStartTime(`${nh}:${nm}`);
   };
 
-  // 3. 근로시간 30분(0.5h) 단위 가감 (-0.5h / +0.5h, 최소 1.0시간 강제)
+  // 3. 근로시간 30분 단위 가감 (-0.5h / +0.5h, 최소 1.0시간 강제)
   const handleHoursShift = (deltaHours: number) => {
     setOtHours(prev => {
       const next = Math.round((prev + deltaHours) * 10) / 10;
@@ -478,7 +478,7 @@ export const OtManagementPage: React.FC = () => {
         '성명': uName,
         '부서': uDept,
         '시작 일시': ot.startDateTime,
-        'OT 연장근무 시간 (h)': ot.hours,
+        'OT 연장근무 시간(시간)': ot.hours,
         '식사여부': (ot.mealYn === 'Y' || ot.hasMeal) ? 'Y' : 'N',
         '근무 상세 내용': ot.workDetail,
         '등록 일시': ot.createdAt?.substring(0, 10)
@@ -1010,7 +1010,7 @@ export const OtManagementPage: React.FC = () => {
                     backgroundColor: 'var(--bg-main)',
                     border: '1px solid var(--border-color)'
                   }}
-                  title="30분 더하기 (+30m)"
+                  title="30분 더하기"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1090,7 +1090,7 @@ export const OtManagementPage: React.FC = () => {
                     opacity: otHours >= 24 ? 0.35 : 1,
                     cursor: otHours >= 24 ? 'not-allowed' : 'pointer'
                   }}
-                  title="0.5시간 더하기 (+30m)"
+                  title="0.5시간 더하기"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1132,7 +1132,7 @@ export const OtManagementPage: React.FC = () => {
                     gap: '4px'
                   }}
                 >
-                  <RotateCcw size={12} /> 초기화 (1.0h)
+                  <RotateCcw size={12} /> 초기화
                 </button>
               </div>
             </div>
@@ -1182,7 +1182,7 @@ export const OtManagementPage: React.FC = () => {
                   6. 식사여부
                 </label>
                 <span style={{ fontSize: '11px', color: otMealYn === 'Y' ? '#10b981' : 'var(--text-muted)', fontWeight: 700 }}>
-                  {otMealYn === 'Y' ? '식사 제공 (Y)' : '식사 없음 (N)'}
+                  {otMealYn === 'Y' ? '식사 제공' : '식사 없음'}
                 </span>
               </div>
               <div style={{

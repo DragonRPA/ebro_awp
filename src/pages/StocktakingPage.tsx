@@ -157,7 +157,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
                // Focus back if possible, but for UX keep it simple
             }}
           />
-          <button type="submit" style={{ display: 'none' }}>Scan</button>
+          <button type="submit" style={{ display: 'none' }}>스캔</button>
         </form>
         <div className="status-group z-pattern-mid" style={{ fontWeight: 'bold', textAlign: 'right' }}>
           <span className="metric">진척 {progressPercent}%</span>

@@ -3,7 +3,7 @@
 // │ 출고의뢰3 — 근본 재설계 (2026-09-06)                            │
 // │                                                                 │
 // │ [설계 원칙]                                                     │
-// │  1. 4문 구조 (WHO / WHERE / WHAT / WHEN) — 자연 사고 순서      │
+// │  1. 4문 구조 — 자연 사고 순서      │
 // │  2. 고객사/현장 → DB 칩 선택 (자유 입력 아님, 오타 제거)        │
 // │  3. 날짜/시간 → 네이티브 피커 (키보드 없음)                     │
 // │  4. STT → 필드별 짧은 발화 (품질 문제 해결)                    │
@@ -675,7 +675,7 @@ export const SmartDispatch3: React.FC = () => {
                 autoFocus
                 type="text" value={customerQuery}
                 onChange={e => setCustomerQuery(e.target.value)}
-                placeholder="고객사명 검색 (초성 OK)"
+                placeholder="고객사명 검색 (초성 가능)"
                 style={{ flex: 1, padding: '9px 12px', borderRadius: '6px', border: '1.5px solid var(--primary)', fontSize: '14px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
               />
               <MicButton fieldId="customer" size="md" onResult={t => {
@@ -975,7 +975,7 @@ export const SmartDispatch3: React.FC = () => {
           블록 5: DETAILS — 자동 상속 세부정보 (기본 숨김)
       ════════════════════════════════════════════════════════════════════ */}
       <div className="card" style={{ overflow: 'hidden' }}>
-        <BlockHeader id="DETAILS" icon={<Settings size={14} />} label="세부 정보 (DB 자동 상속)"
+        <BlockHeader id="DETAILS" icon={<Settings size={14} />} label="세부 정보 (자동 상속)"
           complete={false}
           summary={inheritedFields.length > 0 ? `자동 상속: ${inheritedFields.join(' · ')}` : '담당자·청구·스펙 정보'}
         />
@@ -1070,11 +1070,11 @@ export const SmartDispatch3: React.FC = () => {
               <h5 style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--primary)', marginBottom: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>정산 정보 (자동 상속)</h5>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldWrap}>
-                  <label style={labelSt}>청구 마감일{inheritedFields.includes('마감일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
+                  <label style={labelSt}>청구 마감일{inheritedFields.includes('마감일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[자동]</span>}</label>
                   <input type="text" value={closingDay} onChange={e => setClosingDay(e.target.value)} placeholder="예: 말일" />
                 </div>
                 <div style={fieldWrap}>
-                  <label style={labelSt}>결제 예정일{inheritedFields.includes('결제일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
+                  <label style={labelSt}>결제 예정일{inheritedFields.includes('결제일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[자동]</span>}</label>
                   <input type="text" value={paymentDay} onChange={e => setPaymentDay(e.target.value)} placeholder="예: 익월 25일" />
                 </div>
               </div>

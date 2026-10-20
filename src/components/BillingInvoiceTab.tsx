@@ -130,7 +130,7 @@ export const BillingInvoiceTab: React.FC = () => {
   // ── 뷰 모드: STUDIO(2분할 워크벤치) vs HISTORY(발행 이력 대장) ──
   const [viewMode, setViewMode] = useState<'STUDIO' | 'HISTORY'>('STUDIO');
 
-  // ── 조회 조건 (Scope) ──
+  // ── 조회 조건 ──
   const initialYm = useMemo(() => new Date().toISOString().slice(0, 7), []);
   const [selectedYm, setSelectedYm] = useState<string>(initialYm);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -155,7 +155,7 @@ export const BillingInvoiceTab: React.FC = () => {
   // A4 거래명세서 캔버스 인쇄 참조
   const printableCanvasRef = useRef<HTMLDivElement>(null);
 
-  // ── 청구서통합 목록 로드 (DB/Supabase) ──
+  // ── 청구서통합 목록 로드 ──
   const loadInvoices = useCallback(async () => {
     setIsLoadingInvoices(true);
     try {
@@ -211,7 +211,7 @@ export const BillingInvoiceTab: React.FC = () => {
     setSelectedBillingIds([]);
   }, [selectedCustomerId, selectedYm, customers]);
 
-  // ── 미통합 청구서(unconsolidated billings) 집계 ──
+  // ── 미통합 청구서 집계 ──
   // invoiceId가 없거나 null/빈값인 청구서 중 현재 고객사 및 귀속월 일치 대상
   const unconsolidatedBillings = useMemo(() => {
     if (!billings) return [];
@@ -512,7 +512,7 @@ export const BillingInvoiceTab: React.FC = () => {
     }
   };
 
-  // ── 거래명세서 인쇄 (Window Print) ──
+  // ── 거래명세서 인쇄 ──
   const handlePrintStatement = () => {
     if (selectedBillingIds.length === 0) {
       showErrorModal?.('인쇄할 청구서를 선택해 주세요.');
@@ -685,7 +685,7 @@ export const BillingInvoiceTab: React.FC = () => {
 
       const attachments: { filename: string; content: string }[] = [];
 
-      // 1. 정품 거래명세서 엑셀 (.xlsx) 생성 및 첨부 (에이전트 서식 주입 엔진)
+      // 1. 정품 거래명세서 엑셀 생성 및 첨부 (에이전트 서식 주입 엔진)
       try {
         const excelBuffer = await generateTransactionStatementExcel(data);
         let excelBinary = '';
@@ -934,7 +934,7 @@ export const BillingInvoiceTab: React.FC = () => {
         }
       `}</style>
 
-      {/* ── 1. 상단 컨트롤 바 (Scope & Pipeline) ── */}
+      {/* ── 1. 상단 컨트롤 바 ── */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
         flexWrap: 'wrap', gap: '12px', padding: '14px 16px',
@@ -1481,7 +1481,7 @@ export const BillingInvoiceTab: React.FC = () => {
                   합계금액: <span style={{ color: 'var(--primary)', fontSize: '13px', fontWeight: 800 }}>일금 {numberToKoreanAmount(accountingSummary.grandTotal)} 원정</span>
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 800 }}>
-                  ₩{accountingSummary.grandTotal.toLocaleString()} (VAT포함)
+                  ₩{accountingSummary.grandTotal.toLocaleString()} (부가세 포함)
                 </div>
               </div>
 
@@ -1563,7 +1563,7 @@ export const BillingInvoiceTab: React.FC = () => {
               </div>
             </div>
 
-            {/* ── 우하단 터미널 액션 바 (Gutenberg Z-Pattern) ── */}
+            {/* ── 우하단 터미널 액션 바 ── */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -1696,7 +1696,7 @@ export const BillingInvoiceTab: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* ── [모드 B] 발행 이력 대장 (HISTORY) ── */
+        /* ── [모드 B] 발행 이력 대장 ── */
         <div style={{
           display: 'flex', flexDirection: 'column', gap: '12px',
           backgroundColor: 'var(--bg-card)', borderRadius: '8px',

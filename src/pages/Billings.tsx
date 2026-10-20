@@ -172,7 +172,7 @@ export const Billings: React.FC = () => {
   const [paymentFilter, setPaymentFilter] = useState<'ALL' | 'PAID' | 'UNPAID_ANY'>('ALL');
   const [mailSentFilter, setMailSentFilter] = useState<'ALL' | 'SENT' | 'UNSENT'>('ALL');
   const [invoiceFilter, setInvoiceFilter] = useState<'ALL' | 'STANDALONE' | 'INTEGRATED'>('ALL');
-  // --- 명시적 조회(Snapshot) 상태: [조회] 버튼을 누를 때만 목록 갱신 ---
+  // --- 명시적 조회 상태: [조회] 버튼을 누를 때만 목록 갱신 ---
   const [searchedBillingIds, setSearchedBillingIds] = useState<string[] | null>(null);
 
   // --- 청구 마법사 상태 ---
@@ -629,7 +629,7 @@ export const Billings: React.FC = () => {
   // 🌟 조회 버튼으로 고정된 스냅샷에 해당하는 청구서만 렌더링 (수납 처리 시 자동 재조회/행 삭제 없이 안정적으로 유지)
   const filteredBillings = useMemo(() => {
     // 최초 렌더링 시 searchedBillingIds가 null이더라도 전체 데이터를 노출하지 않고,
-    // 초기 필터(기본값: 당월 initialYm)를 즉시 적용하여 메뉴 전환 시 깜빡임(Flicker) 원천 차단
+    // 초기 필터(기본값: 당월 initialYm)를 즉시 적용하여 메뉴 전환 시 깜빡임 원천 차단
     const effectiveIds = searchedBillingIds ?? computeMatchedBillingIds(
       searchTerm,
       contractNoFilter,
@@ -702,7 +702,7 @@ export const Billings: React.FC = () => {
       const unpaid = isPaid ? 0 : Math.max(0, grand - actualPaid);
       return {
         // ① 식별 및 기준정보
-        'No': idx + 1,
+        '순번': idx + 1,
         '청구ID': b.id,
         '청구연월': b.billingYm,
         '고객사명': getCustName(b.customerId),
@@ -881,7 +881,7 @@ export const Billings: React.FC = () => {
     const billing = billings.find(b => b.id === id);
     const hasPaid = billing && billing.paidAmount > 0;
 
-    showToast('청구서를 취소(REJECTED) 마감합니다.');
+    showToast('청구서를 취소 마감합니다.');
 
     try {
       if (hasPaid) {
@@ -1444,7 +1444,7 @@ ${items.map((item, idx) => {
 - ${formatTenantBankAccountsForEmail(currentTenant)}
 
 [6. 첨부 파일 안내]
-- 본 이메일에는 공식 전자 거래명세서(.pdf) 파일이 자동 첨부되었습니다.
+- 본 이메일에는 공식 전자 거래명세서 파일이 자동 첨부되었습니다.
 
 감사합니다.
 ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올림
@@ -1647,7 +1647,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       return;
     }
 
-    // 2. 결재선 규칙(CUSTOM_BILLING_CREATE) 조회 및 결재 상태 판정
+    // 2. 결재선 규칙 조회 및 결재 상태 판정
     let ruleData: any = null;
     try {
       const res = await fetchRuleForEvent('CUSTOM_BILLING_CREATE');
@@ -1775,7 +1775,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const activeContractsForWizard = useMemo(() => {
     if (activeTab !== 'WIZARD') return [];
     return contracts.filter(c => {
-      // 1. 계약 유형: 정기 렌탈(RENTAL) 계약만 청구 대상 (자산 매각 SALE 등 제외)
+      // 1. 계약 유형: 정기 렌탈 계약만 청구 대상 (자산 매각 SALE 등 제외)
       if ((c.contractType || 'RENTAL') !== 'RENTAL') return false;
 
       // 2. 계약 유효 기간 검증: 검색 기간 내에 계약이 유효한 상태였는지 (기간 겹침)
@@ -1783,7 +1783,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       const isOverlapping = c.startDate <= (wizardSearchEndDate || todayStr) && normalEnd >= (wizardSearchStartDate || '2000-01-01');
       if (!isOverlapping) return false;
 
-      // 3. 해당 대상 귀속월(targetYm)에 유효한 청구서가 이미 존재하는지 검사 (취소 REJECTED 제외)
+      // 3. 해당 대상 귀속월에 유효한 청구서가 이미 존재하는지 검사 (취소 REJECTED 제외)
       const hasBillingForTargetMonth = billings.some(
         b => b.contractId === c.id && b.billingYm === targetYm && b.status !== 'REJECTED'
       );
@@ -1867,7 +1867,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const effectiveBillingDay = getEffectiveDay(rawBillingDay);
     const effectiveStatementDay = getEffectiveDay(rawStatementDay);
 
-    // 💡 계약 시작일(c.startDate)이 검색 종료월 마감일보다 뒤에 있는 경우 (예: 8/31 시작 > 8/30 마감)
+    // 💡 계약 시작일이 검색 종료월 마감일보다 뒤에 있는 경우 (예: 8/31 시작 > 8/30 마감)
     // 당월 마감 기준으로는 가동일이 0일이므로 당월 청구 대상에서 제외 (익월 청구로 이관)
     const targetClosingDay = effectiveBillingDay || effectiveStatementDay || 31;
     const yStr = endDateObj.getFullYear();
@@ -2218,11 +2218,11 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const diffDaysForWizard = getDiffDays();
 
   // 💡 헌장 4.1 & 사장님 지침: 계약 내 개별 자산의 대차/회수/입고 기간을 반영한 정밀 일할/월정액 계산
-  // 청구 계산은 전산 등록일시가 아닌 실제 입고일(actualReturnDate / inDate)을 기준으로 100% 연동
+  // 청구 계산은 전산 등록일시가 아닌 실제 입고일을 기준으로 100% 연동
   const calculateAssetFeeForWizard = (ca: any) => {
     if (!wizardStartDate || !wizardEndDate) return { amount: 0, days: 0, desc: '', active: false, isExchangeProRata: false };
 
-    // 계약 내 자산의 개별 유효 기간: 실제 입고일(actualReturnDate)이 있으면 우선 종료일로 엄격 채택
+    // 계약 내 자산의 개별 유효 기간: 실제 입고일이 있으면 우선 종료일로 엄격 채택
     const caStart = ca.startDate || wizardStartDate;
     const caEffectiveEnd = (ca.actualReturnDate && ca.actualReturnDate.trim() !== '' && ca.actualReturnDate !== '미정')
       ? ca.actualReturnDate
@@ -2415,7 +2415,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         updatedAt: new Date().toISOString()
       });
 
-      // 💡 부모 청구서(billings) 원격 DB 커밋을 먼저 완료하여 자식(billing_details) FK 제약조건(23503) 경합 방지
+      // 💡 부모 청구서 원격 DB 커밋을 먼저 완료하여 자식 FK 제약조건(23503) 경합 방지
       await db.awaitPendingWrites();
 
       // 2) 기본 세부내역 저장
@@ -2521,7 +2521,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 const targetTenantId = currentTenant?.id || 'giyeun';
                 const nextState = !currentTenant?.allowCustomBillingStatement;
                 await toggleTenantCustomBillingStatement(targetTenantId, nextState);
-                showToast(`[${currentTenant?.displayName || '테넌트'}] 특수 거래명세서 기능이 ${nextState ? '사용 (ON)' : '미사용 (OFF)'}으로 전환되었습니다.`);
+                showToast(`[${currentTenant?.displayName || '테넌트'}] 특수 거래명세서 기능이 ${nextState ? '사용' : '미사용'}으로 전환되었습니다.`);
               }}
               style={{ 
                 padding: '2px 8px', 
@@ -2532,7 +2532,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               }}
               title="테넌트별 특수 거래명세서 작성 기능 활성화/비활성화"
             >
-              {currentTenant?.allowCustomBillingStatement ? '사용 (ON)' : '미사용 (OFF)'}
+              {currentTenant?.allowCustomBillingStatement ? '사용' : '미사용'}
             </button>
           </div>
         )}
@@ -2547,7 +2547,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
       {activeTab === 'LIST' && (
         <div data-subview="billing" data-subview-title="청구 대장" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* ⚠️ K-1: 일괄 청구 보류(SKIP) 대시보드 (1행 1건 컴팩트 테이블 형태) */}
+          {/* ⚠️ K-1: 일괄 청구 보류 대시보드 (1행 1건 컴팩트 테이블 형태) */}
           {skippedContracts.length > 0 && (
             <div style={{
               padding: '14px 18px',
@@ -2561,7 +2561,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}></span>
                 <strong style={{ color: 'var(--warning)', fontSize: '14px' }}>
-                  일괄 청구 보류 (Action Required) - {skippedContracts.length}건
+                  일괄 청구 보류 - {skippedContracts.length}건
                 </strong>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   미수금 존재 등 수동 확인이 필요하여 일괄 생성에서 제외된 계약입니다.
@@ -2854,7 +2854,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       >
                         <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                           <div data-mid="billing-row-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            {/* 1. 수납 버튼: 미납 잔액이 있는 상태 (UNPAID, REQUESTED, PARTIAL) */}
+                            {/* 1. 수납 버튼: 미납 잔액이 있는 상태 */}
                             {canSave && !isPaid && unpaid > 0 && b.status !== 'REJECTED' && (
                               <button data-hs-trigger="Register" 
                                 type="button"
@@ -3369,7 +3369,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       <div style={{ fontSize: '14px', fontWeight: 800, color: '#0070C0' }}>₩{totalVat.toLocaleString()}</div>
                     </div>
                     <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>총 청구금액 (VAT포함)</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>총 청구금액 (부가세 포함)</div>
                       <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)' }}>₩{totalGrand.toLocaleString()}</div>
                     </div>
                     <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
@@ -3420,7 +3420,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           </div>
                         );
                       })()}
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>단위: 원 / VAT별도 기준 산출</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>단위: 원 / 부가세 별도 기준 산출</span>
                     </div>
 
                     {activeBilling.hasCustomStatement && activeBillingDetailTab === 'STATEMENT' ? (
@@ -3728,7 +3728,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           <table style={{ width: '100%', fontSize: '11.5px', whiteSpace: 'nowrap', borderCollapse: 'collapse' }}>
                             <thead style={{ backgroundColor: 'var(--bg-app)' }}>
                               <tr>
-                                <th style={{ padding: '6px 8px', textAlign: 'center', width: '32px' }}>No</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'center', width: '32px' }}>순번</th>
                                 <th style={{ padding: '6px 8px' }}>수납일자</th>
                                 <th style={{ padding: '6px 8px' }}>수납방식</th>
                                 <th style={{ padding: '6px 8px', textAlign: 'right' }}>수납금액</th>
@@ -4965,7 +4965,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         </div>
       )}
 
-      {/* 4. 청구 면제 대장 (WAIVER) 탭 */}
+      {/* 4. 청구 면제 대장 탭 */}
       {activeTab === 'WAIVER' && (() => {
         // 1) 면제된 모든 수리/정비 및 운송 건 수집
         const waivedRepairsList = repairs.filter(r => r.isWaived);
@@ -5121,7 +5121,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         // 엑셀 내보내기 핸들러
         const handleExportWaiverExcel = () => {
           const excelRows = filteredWaived.map((it, idx) => ({
-            'No': idx + 1,
+            '순번': idx + 1,
             '면제일자': it.waivedAt ? it.waivedAt.slice(0, 10) : '-',
             '구분': it.typeLabel,
             '고객사': it.customerName,
@@ -5436,7 +5436,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         const custId = payBilling?.customerId;
         const billingSupply = payBilling?.totalAmount || 0;
         const billingVat = Math.round(billingSupply * 0.1);
-        const billingGrandTotal = billingSupply + billingVat; // 당월 청구 총액 (VAT포함)
+        const billingGrandTotal = billingSupply + billingVat; // 당월 청구 총액 (부가세 포함)
         const unpaid = payBilling ? Math.max(0, billingGrandTotal - (payBilling.paidAmount || 0)) : 0; // 이번 청구서 미납액
         const billingNo = payBillingId;
 
@@ -5465,7 +5465,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           })
           .map(dep => ({ ...dep, balance: getDepositBalance(dep.id) }))
           .filter(dep => dep.balance > 0) // 0원이 된 입금 항목은 표시에서 제외
-          .sort((a, b) => a.transactionDate.localeCompare(b.transactionDate)); // 오래된 입금 우선 (FIFO)
+          .sort((a, b) => a.transactionDate.localeCompare(b.transactionDate)); // 오래된 입금 우선
 
         // 이번 수납 합계 계산
         let payAmount = 0;
@@ -5513,7 +5513,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           });
         };
 
-        // 오래된 순 선입선출(FIFO) 자동 완납 배분
+        // 오래된 순 선입선출 자동 완납 배분
         const autoDistributeFifo = () => {
           const next: Record<string, number> = {};
           let rem = unpaid;
@@ -5551,7 +5551,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     borderBottom: payMode === 'DEPOSIT' ? '3px solid var(--primary)' : '3px solid transparent',
                     color: payMode === 'DEPOSIT' ? 'var(--primary)' : 'var(--text-secondary)'
                   }}>
-                  통장입금액 수납 (Tab)
+                  통장입금액 수납
                 </button>
                 <button type="button" onClick={() => {
                   setPayMode('CARD');
@@ -5562,7 +5562,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     borderBottom: payMode === 'CARD' ? '3px solid var(--primary)' : '3px solid transparent',
                     color: payMode === 'CARD' ? 'var(--primary)' : 'var(--text-secondary)'
                   }}>
-                  카드결제 (Tab)
+                  카드결제
                 </button>
               </div>
 
@@ -5924,7 +5924,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
                 >
-                  <FileText size={14} /> 엑셀 다운로드 (.xlsx)
+                  <FileText size={14} /> 엑셀 다운로드
                 </button>
                 <button
                   type="button"
@@ -5943,7 +5943,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         );
       })()}
 
-      {/* 🔄 청구 수정 및 재생성 모달 (Regenerate Modal) */}
+      {/* 🔄 청구 수정 및 재생성 모달 */}
       {showRegenerateModal && (() => {
         const targetB = billings.find(b => b.id === regenBillingId);
         const targetCust = customers.find(c => c.id === targetB?.customerId);
@@ -6111,7 +6111,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <div style={{ padding: '14px 18px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>재생성 최종 청구 합계</span>
-                  <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>(VAT 별도 공급가액 기준)</span>
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>(부가세 별도 공급가액 기준)</span>
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)' }}>
                   {totalCalcAmount.toLocaleString()}원

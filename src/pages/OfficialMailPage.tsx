@@ -553,7 +553,7 @@ export const OfficialMailPage: React.FC = () => {
               />
             </div>
 
-            {/* 참조 (CC) */}
+            {/* 참조 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 참조 이메일

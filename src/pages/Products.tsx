@@ -643,7 +643,7 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* ② 모델 및 자산 매핑 KPI 바 (Scope) */}
+      {/* ② 모델 및 자산 매핑 KPI 바 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>등록 모델수</span>
@@ -1071,7 +1071,7 @@ export const Products: React.FC = () => {
                 </div>
               </div>
 
-              {/* 2. R2 클라우드 문서함 스튜디오 (drcf) */}
+              {/* 2. R2 클라우드 문서함 스튜디오 */}
               <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>

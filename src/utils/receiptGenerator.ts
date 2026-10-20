@@ -85,7 +85,7 @@ export function generateReceiptHtml(
   const totalCount = parsedCargos.reduce((acc, c) => acc + (Number(c.count) || 1), 0);
   const itemCount = parsedCargos.length;
 
-  // ── 다중 페이지(Multi-Page) 분할 알고리즘 ──
+  // ── 다중 페이지 분할 알고리즘 ──
   // 1페이지에 공급자/공급받는자/운송정보/서명부까지 완벽 수용 가능한 기준: 최대 12행
   // 13행 이상 시 다중 페이지로 자동 전환하며, 2페이지 이상일 때 모든 페이지에 배차번호/계약번호/발행일자/페이지번호 공통 출력
   function chunkCargosForPages(cargos: any[]): any[][] {
@@ -280,7 +280,7 @@ export function generateReceiptHtml(
           <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000; margin-bottom: 6px;">
             <thead>
               <tr style="background: #f0f0f0; height: 26px;">
-                <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">No.</th>
+                <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">순번</th>
                 <th style="border: 1px solid #000000; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">품목 (상품명 / 모델명)</th>
                 <th style="border: 1px solid #000000; width: 65px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">수량</th>
                 <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">단위</th>

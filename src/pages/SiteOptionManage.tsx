@@ -141,7 +141,7 @@ export const SiteOptionManage: React.FC = () => {
     return map;
   }, [sites]);
 
-  // ── 🏢 각 옵션 그룹(SiteMaster)별 상속받은 고객현장 집계 ──
+  // ── 🏢 각 옵션 그룹별 상속받은 고객현장 집계 ──
   const siteCustomerStatsMap = useMemo(() => {
     const stats: Record<string, {
       linkedSiteCount: number;
@@ -737,7 +737,7 @@ export const SiteOptionManage: React.FC = () => {
           flexShrink: 0
         }}
       >
-        {/* ① 좌상단 (Start / Scope): 옵션 그룹 검색 */}
+        {/* ① 좌상단: 옵션 그룹 검색 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -767,7 +767,7 @@ export const SiteOptionManage: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단 (Input / Pipeline): 탭 전환 & 액션 버튼군 */}
+        {/* ② 우상단: 탭 전환 & 액션 버튼군 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
           <div 
             data-mid="tab-toggle"
@@ -884,7 +884,7 @@ export const SiteOptionManage: React.FC = () => {
       {activeTab === 'SITE_OPTIONS' && (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
-          {/* 좌측: 옵션 그룹 목록 패널 (320px) */}
+          {/* 좌측: 옵션 그룹 목록 패널 */}
           <div 
             data-mid="panel-site-scope"
             style={{
@@ -1112,7 +1112,7 @@ export const SiteOptionManage: React.FC = () => {
                 {/* 중앙 옵션 카테고리별 리스트 */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   
-                  {/* 1. 유상 옵션 (PAID) 섹션 */}
+                  {/* 1. 유상 옵션 섹션 */}
                   <div data-mid="table-paid-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1238,7 +1238,7 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 2. 무상 옵션 (PROTECTION) 섹션 */}
+                  {/* 2. 무상 옵션 섹션 */}
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1275,7 +1275,7 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 3. 부착물 (ATTACHMENT) 섹션 */}
+                  {/* 3. 부착물 섹션 */}
                   <div data-mid="card-attachment-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1486,7 +1486,7 @@ export const SiteOptionManage: React.FC = () => {
         </div>
       )}
 
-      {/* ── [탭 2: 옵션 품목 마스터 (StandardOption) 관리] ── */}
+      {/* ── [탭 2: 옵션 품목 마스터 관리] ── */}
       {activeTab === 'MASTER_OPTIONS' && (
         <div style={{
           backgroundColor: 'var(--bg-card)',

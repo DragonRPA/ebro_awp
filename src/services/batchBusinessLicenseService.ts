@@ -31,7 +31,7 @@ export interface BatchItemResult {
   fileUrl?: string;
   ntsStatus?: string;      // '계속사업자' | '휴업자' | '폐업자' | '국세청 미등록'
   ntsTaxType?: string;     // '부가가치세 일반과세자' 등
-  ntsClosedDate?: string;  // 폐업일자 (YYYY-MM-DD)
+  ntsClosedDate?: string;  // 폐업일자(일자)
   details?: string;
   error?: string;
   elapsedMs?: number;

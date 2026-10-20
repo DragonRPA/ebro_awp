@@ -306,7 +306,7 @@ const DEFAULT_PRODUCTS: TradeProduct[] = [
   {
     id: 'p6',
     skuCode: 'SKU006',
-    name: '비마킹 솔리드 백색 타이어 (12x4.5)',
+    name: '비마킹 솔리드 백색 타이어',
     category: '타이어/휠',
     spec: '1930/2032 규격 휠 일체형 논마킹 타이어',
     unit: 'EA',
@@ -599,7 +599,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteProduct = async (id: string) => {
     const usedInOrders = salesOrderLines.some(l => l.productId === id);
     if (usedInOrders) {
-      throw new Error('이미 수주/출고 이력이 존재하는 상품은 삭제할 수 없습니다. 상태를 [단종(DISCONTINUED)]으로 변경해 주세요.');
+      throw new Error('이미 수주/출고 이력이 존재하는 상품은 삭제할 수 없습니다. 상태를 [단종]으로 변경해 주세요.');
     }
     setProducts(prev => prev.filter(p => p.id !== id));
     setInventoryLots(prev => prev.filter(l => l.productId !== id));

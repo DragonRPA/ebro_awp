@@ -105,7 +105,7 @@ export function resolveUserMobileDeptMode(
 ): MobileDeptMode {
   if (!user) return 'SALES';
 
-  // 1. 조직도 최상위 레벨(Level 1) 또는 대표/사장/임원은 EXECUTIVE(경영진 모드)
+  // 1. 조직도 최상위 레벨 또는 대표/사장/임원은 EXECUTIVE(경영진 모드)
   const hierarchyLevel = getUserHierarchyLevel(user, departments);
   if (hierarchyLevel === 1) {
     return 'EXECUTIVE';

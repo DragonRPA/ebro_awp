@@ -15,7 +15,7 @@ export interface ExcelImageInjection {
   imageBytes: ArrayBuffer;
   extension: 'png' | 'jpeg';
   range: {
-    tl: { col: number; row: number }; // Top-Left 좌표 (0-indexed)
+    tl: { col: number; row: number }; // Top-Left 좌표
     br?: { col: number; row: number }; // Bottom-Right 좌표 (선택)
     ext?: { width: number; height: number }; // 크기 (선택)
   };
@@ -35,7 +35,7 @@ export interface ExcelInjectionOptions {
 /**
  * 엑셀 템플릿 바이너리에 실제 비즈니스 데이터를 셀 단위로 주입하여 새로운 엑셀 바이너리를 생성합니다.
  * @param options 템플릿 바이너리 및 시트별 주입 데이터
- * @returns 데이터가 주입된 완성 엑셀 바이너리 (ArrayBuffer)
+ * @returns 데이터가 주입된 완성 엑셀 바이너리
  */
 export async function injectDataIntoExcelTemplate(
   options: ExcelInjectionOptions
@@ -115,7 +115,7 @@ export interface ContractExcelData {
   assets: Array<{
     modelName: string;         // 품목(모델명)
     quantity: number;          // 수량
-    serialNo: string;          // 장비 번호(S/N)
+    serialNo: string;          // 제조번호
     monthlyFee: number;        // 임대료 (월)
     subtotal: number;          // 소계
   }>;
@@ -127,15 +127,15 @@ export interface ContractExcelData {
 /**
  * 반입전 체크리스트 데이터 주입 맵퍼 규격
  * ⚠️ 실무 규칙:
- * - 점검자(김관주) 및 점검결과(양호), 충전기 작동값(20.7A)은 원본 템플릿에 고정 인쇄되어 있으므로 편집 불필요.
+ * - 점검자(김관주) 및 점검결과(양호), 충전기 작동값은 원본 템플릿에 고정 인쇄되어 있으므로 편집 불필요.
  * - 도장 날인하지 않음.
- * - 오직 상단의 [모델명]과 [관리번호(S/N)] 2개 항목만 동적 주입.
+ * - 오직 상단의 [모델명]과 [관리번호] 2개 항목만 동적 주입.
  */
 export interface PreDeliveryChecklistExcelData {
   modelName: string;           // 모델명 (예: 'Z-45/25J', 'GS-1930')
   serialNo: string;            // 관리번호 및 S/N (예: 'G19052 (GS30D-13533)')
-  inspectionDate?: string;     // 점검일시 (Row 3 D3)
-  inspectorName?: string;      // 점검자 (Row 3 J3)
+  inspectionDate?: string;     // 점검일시
+  inspectorName?: string;      // 점검자
 }
 
 /**
@@ -205,7 +205,7 @@ export async function generateContractPdf(data: ContractExcelData): Promise<Uint
   const page = pdfDoc.getPages()[0];
   const { width, height } = page.getSize();
 
-  // ── [1단계] 기존 템플릿에 들어있던 잔존 텍스트 영역 순백색(White-out) 마스킹 ──
+  // ── [1단계] 기존 템플릿에 들어있던 잔존 텍스트 영역 순백색 마스킹 ──
   // (pdf-lib 좌표계: 좌측 하단이 0, 0)
   const white = rgb(1, 1, 1);
 
@@ -315,7 +315,7 @@ export async function generateContractPdf(data: ContractExcelData): Promise<Uint
 
 /**
  * 2. 반입 전 CHECK LIST PDF 생성
- * - 상단 [모델명], [관리번호(S/N)] 셀 영역 화이트아웃 마스킹 후 정밀 주입
+ * - 상단 [모델명], [관리번호] 셀 영역 화이트아웃 마스킹 후 정밀 주입
  */
 export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData): Promise<Uint8Array> {
   const { PDFDocument, rgb } = await import('pdf-lib');
@@ -329,7 +329,7 @@ export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData):
   const { width, height } = page.getSize();
   const white = rgb(1, 1, 1);
 
-  // 상단 모델명 및 관리번호(S/N) 기존 텍스트 셀 화이트아웃 마스킹
+  // 상단 모델명 및 관리번호 기존 텍스트 셀 화이트아웃 마스킹
   page.drawRectangle({ x: 180, y: height - 46, width: 140, height: 16, color: white });
   page.drawRectangle({ x: 410, y: height - 46, width: 150, height: 16, color: white });
 
@@ -345,7 +345,7 @@ export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData):
     ctx.textAlign = 'left';
     ctx.fillText(data.modelName || '', canvasW * 0.32, canvasH * 0.045);
 
-    // 2. 상단 관리번호 (S/N)
+    // 2. 상단 관리번호
     ctx.fillText(data.serialNo || '', canvasW * 0.71, canvasH * 0.045);
   });
 
@@ -361,7 +361,7 @@ export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData):
 }
 
 /**
- * 3. 고소작업대(T/L) 안전점검 결과서 PDF 생성
+ * 3. 고소작업대 안전점검 결과서 PDF 생성
  * - 상단 헤더 5행의 기존 텍스트 셀 전체 화이트아웃 마스킹 후 ERP 마스터 제원 정밀 주입
  * - 점검자(김관주) 및 도장 날인은 원본 보존
  */
@@ -540,7 +540,7 @@ export function resolveStatementRowColumns(item: TransactionStatementItem, fallb
     }
   }
 
-  // 제품 마스터에서 작업높이(workingHeight) 자동 보완
+  // 제품 마스터에서 작업높이 자동 보완
   if (!height && model && db.products && db.products.length > 0) {
     const cleanModel = model.replace(/\s+/g, '').toUpperCase();
     const matchedProd = db.products.find(p =>
@@ -690,7 +690,7 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
     throw new Error(`에이전트 응답 오류 (HTTP ${agentResp.status})`);
   } catch (agentErr: any) {
     throw new Error(
-      `로컬 엑셀 COM 에이전트(eBroAgent) 연결 또는 변환 실패:\n\n` +
+      `로컬 엑셀 COM 에이전트 연결 또는 변환 실패:\n\n` +
       `거래명세서 PDF는 정품 MS Excel COM 엔진을 통해서만 생성됩니다.\n` +
       `C:\\eBroAgent\\eBroAgent.exe 가 실행 중인지 확인해 주세요.\n` +
       `(원인: ${agentErr?.message || agentErr})`
@@ -699,7 +699,7 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
 }
 
 /**
- * 5. 거래명세서 정품 엑셀 파일(.xlsx) 원본 생성 엔진
+ * 5. 거래명세서 정품 엑셀 파일 원본 생성 엔진
  * - 템플릿: /tenants/${tenantId}/templates/00.거래명세서양식.xlsx (또는 /거래명세서양식.xlsx)
  * - 39개 {} 플레이스홀더 및 13개 품목 행(Row 16 ~ Row 28) 정밀 매핑
  */
@@ -964,7 +964,7 @@ function numberToKoreanWon(amount: number): string {
 }
 
 /**
- * 표준 물품매매(유통)계약서 엑셀 바이너리 (.xlsx) 동적 생성 엔진
+ * 표준 물품매매(유통)계약서 엑셀 바이너리 동적 생성 엔진
  */
 export async function generateTradeContractExcel(data: TradeContractExcelData): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();

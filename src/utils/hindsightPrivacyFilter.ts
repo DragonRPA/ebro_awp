@@ -1,5 +1,5 @@
 // src/utils/hindsightPrivacyFilter.ts
-// 🛡️ 대한민국 개인정보보호법(PIPA) 준수 Hindsight 텔레메트리 4단계 사전 정제 필터
+// 🛡️ 대한민국 개인정보보호법 준수 Hindsight 텔레메트리 4단계 사전 정제 필터
 
 const RRN_REGEX = /\b\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[- ][1-8]\d{6}\b/g;
 const CARD_REGEX = /\b(?:\d{4}[- ]?){3}\d{4}\b/g;

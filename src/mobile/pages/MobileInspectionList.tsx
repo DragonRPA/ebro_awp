@@ -67,7 +67,7 @@ function getInspectionCheckpoints(
     });
   }
 
-  // 2. 옵션 마스터(SPEC) 중 true인 항목만 추가
+  // 2. 옵션 마스터 중 true인 항목만 추가
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
     ...(siteMaster?.checkedSpecs || site?.checkedSpecs || {})
@@ -161,7 +161,7 @@ export const MobileInspectionList: React.FC = () => {
     return d.toISOString().split('T')[0];
   }, []);
 
-  // ── 대차/교체 계약 ID 목록 ──
+  // ── 교환 계약 ID 목록 ──
   const exchangeContractIds = useMemo(() => {
     return new Set(
       (contractHistory || [])
@@ -244,7 +244,7 @@ export const MobileInspectionList: React.FC = () => {
 
       return true;
     }).sort(([aId, aList], [bId, bList]) => {
-      // 대차/교체 최우선 ➔ 날짜 오름차순
+      // 교환 최우선 ➔ 날짜 오름차순
       const firstA = aList[0];
       const firstB = bList[0];
       const exA = firstA.contractId && exchangeContractIds.has(firstA.contractId) ? 1 : 0;
@@ -729,7 +729,7 @@ export const MobileInspectionList: React.FC = () => {
                     : 'bg-slate-900/60 border-slate-800 text-slate-400'
                 }`}
               >
-                대차/교체만
+                교환만
               </button>
             </div>
           )}
@@ -782,7 +782,7 @@ export const MobileInspectionList: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isExchange && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0">
-                          대차/교체
+                          교환
                         </span>
                       )}
                       <span className="text-sm font-black text-white truncate">

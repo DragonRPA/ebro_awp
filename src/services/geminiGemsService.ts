@@ -73,7 +73,7 @@ export function setGeminiApiKey(key: string) {
 }
 
 /**
- * 시스템 프롬프트(System Instruction) 생성
+ * 시스템 프롬프트 생성
  */
 function buildSystemInstruction(context: GemsContextData): string {
   return `당신은 e-Bro 고소작업대 렌탈 ERP의 '렌탈 업무 의뢰 AI 비서 (e-Bro 젬스)'입니다.
@@ -82,15 +82,15 @@ function buildSystemInstruction(context: GemsContextData): string {
 ### 🏛️ 전사 시스템 표준 헌장 준수 사항:
 1. [헌장 1.1] 영업사원의 조작 노력을 최소화하고 건조하고 명확한 전문적인 어조(존댓말)로 응대합니다. 감성적이거나 불필요한 미사여구를 배제합니다.
 2. [헌장 2.1] 영업사원은 요구/의뢰(규격 및 수량)만 접수합니다. 개별 출고 자산번호는 시스템/출고부서의 권한이므로 영업사원에게 묻지 않습니다.
-3. [헌장 2.2] 대차/교체 발생 시 기존 계약의 단가/청구조건은 100% 자동 상속됩니다.
+3. [헌장 2.2] 교환 발생 시 기존 계약의 단가/청구조건은 100% 자동 상속됩니다.
 4. [헌장 2.3] 교환/대차 발생 시 반드시 단일 'EXCHANGE' 배차 1건으로 처리합니다.
 
 ### 📋 4대 지원 업무 서식:
-1. 출고의뢰 (submitDispatchOrder): 신규 장비 렌탈 투입 의뢰.
+1. 출고의뢰: 신규 장비 렌탈 투입 의뢰.
    - 필수 확인: 고객사명, 현장명, 납품 희망일시, 장비 규격 및 대수.
-2. 회수의뢰 (submitReturnOrder): 현장 가동 종료 장비 철수/반납 의뢰.
+2. 회수의뢰: 현장 가동 종료 장비 철수/반납 의뢰.
    - 필수 확인: 현장명, 회수 대상 자산번호, 반출 희망일시.
-3. 교환의뢰 (submitExchangeOrder): 고장 또는 규격변경으로 인한 맞교환(대차).
+3. 교환의뢰: 고장 또는 규격변경으로 인한 교환(대차).
    - 필수 확인: 현장명, 회수할 전자산 번호, 투입할 후장비 규격, 교환 일시, 교환 사유.
 4. 현장AS (submitFieldAsIntake): 긴급 수리 접수.
    - 필수 확인: 고장 장비 자산번호, 구체적 고장 증상.
@@ -118,7 +118,7 @@ const GEMS_TOOLS = [
             customerName: { type: 'STRING', description: '거래처/고객사 이름' },
             siteName: { type: 'STRING', description: '현장 이름' },
             siteAddress: { type: 'STRING', description: '현장 도로명/지번 주소 (모를 경우 생략)' },
-            deliveryDate: { type: 'STRING', description: '납품 희망 일자 (YYYY-MM-DD)' },
+            deliveryDate: { type: 'STRING', description: '납품 희망 일자(일자)' },
             deliveryTime: { type: 'STRING', description: '납품 희망 시간 (HH:mm, 기본 08:00)' },
             equipments: {
               type: 'ARRAY',
@@ -153,8 +153,8 @@ const GEMS_TOOLS = [
               items: { type: 'STRING' },
               description: '회수할 장비의 자산번호 목록 (예: ["1930-08", "3246-12"])'
             },
-            returnDate: { type: 'STRING', description: '반출 희망 일자 (YYYY-MM-DD)' },
-            returnTime: { type: 'STRING', description: '반출 희망 시간 (HH:mm)' },
+            returnDate: { type: 'STRING', description: '반출 희망 일자(일자)' },
+            returnTime: { type: 'STRING', description: '반출 희망 시간(시분)' },
             siteContactName: { type: 'STRING', description: '반출 담당자' },
             siteContactPhone: { type: 'STRING', description: '반출 담당자 연락처' },
             reason: { type: 'STRING', description: '회수 사유' }
@@ -164,7 +164,7 @@ const GEMS_TOOLS = [
       },
       {
         name: 'submitExchangeOrder',
-        description: '교환/대차의뢰(현장 장비 맞교환)를 단일 EXCHANGE 배차 1건으로 생성합니다. 회수할 전자산과 투입할 후장비 규격이 확인되었을 때 호출합니다.',
+        description: '교환/대차의뢰(현장 장비 교환)를 단일 EXCHANGE 배차 1건으로 생성합니다. 회수할 전자산과 투입할 후장비 규격이 확인되었을 때 호출합니다.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -173,8 +173,8 @@ const GEMS_TOOLS = [
             oldAssetNo: { type: 'STRING', description: '회수할 전자산 번호 (예: 2632-05)' },
             newEquipmentModel: { type: 'STRING', description: '신규 투입할 장비 모델명 (예: 2632, 3246)' },
             newEquipmentFt: { type: 'STRING', description: '신규 투입 장비 높이 (예: 26ft)' },
-            exchangeDate: { type: 'STRING', description: '교환 희망 일자 (YYYY-MM-DD)' },
-            exchangeTime: { type: 'STRING', description: '교환 희망 시간 (HH:mm)' },
+            exchangeDate: { type: 'STRING', description: '교환 희망 일자(일자)' },
+            exchangeTime: { type: 'STRING', description: '교환 희망 시간(시분)' },
             reason: { type: 'STRING', description: '교환 사유 (예: 고장 대차, 규격 상향 등)' },
             siteContactName: { type: 'STRING', description: '현장 담당자' },
             siteContactPhone: { type: 'STRING', description: '현장 담당자 연락처' },
@@ -214,7 +214,7 @@ export function parseGemsLocally(userText: string, context: GemsContextData): {
   const lower = text.toLowerCase();
 
   // 1. 교환/대차 감지
-  if (lower.includes('교환') || lower.includes('대차') || lower.includes('바꿔') || lower.includes('맞교환')) {
+  if (lower.includes('교환') || lower.includes('대차') || lower.includes('바꿔') || lower.includes('교환')) {
     const assetMatch = text.match(/([0-9]{4}[-_][0-9]{1,4}|[0-9]{4}호기)/i);
     let targetModel = '';
     let targetFt = '';
@@ -249,7 +249,7 @@ export function parseGemsLocally(userText: string, context: GemsContextData): {
           newEquipmentFt: targetFt || '26ft',
           exchangeDate: context.tomorrowYmd,
           exchangeTime: '08:00',
-          reason: '현장 요청 맞교환'
+          reason: '현장 요청 교환'
         }
       },
       isComplete: true

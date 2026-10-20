@@ -626,7 +626,7 @@ export const BankMatching: React.FC = () => {
       const isPartial = t.depositAmount > 0 && remBal > 0 && remBal < t.depositAmount;
 
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '은행명': t.bankName || '미지정',
         '거래일시': t.transactionDate,
         '적요': t.summary || '-',
@@ -703,11 +703,11 @@ export const BankMatching: React.FC = () => {
       if (minAmtNum !== null && txAmt < minAmtNum) return false;
       if (maxAmtNum !== null && txAmt > maxAmtNum) return false;
 
-      // 1) 입금액 / 출금액 구분 필터 (appliedTypeFilter)
+      // 1) 입금액 / 출금액 구분 필터
       if (appliedTypeFilter === 'DEPOSIT' && (t.withdrawAmount > 0 && t.depositAmount === 0)) return false;
       if (appliedTypeFilter === 'WITHDRAW' && (t.depositAmount > 0 && t.withdrawAmount === 0)) return false;
 
-      // 2) 지급 / 수납 매치 완료 여부 상태 필터 (appliedStatusFilter)
+      // 2) 지급 / 수납 매치 완료 여부 상태 필터
       const used = depositUsedAmountByTxIdMap.get(t.id) || 0;
       const remBal = Math.max(0, (t.depositAmount || 0) - used);
       const isCompletedDeposit = t.depositAmount > 0 && remBal <= 0;
@@ -1949,7 +1949,7 @@ export const BankMatching: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="고객사명 또는 청구년월(YYYY-MM) 검색"
+                  placeholder="고객사명 또는 청구년월(연월) 검색"
                   value={billingSearchTerm}
                   onChange={(e) => setBillingSearchTerm(e.target.value)}
                   className="form-control"
@@ -2041,7 +2041,7 @@ export const BankMatching: React.FC = () => {
                                   {custName} ({b.billingYm} 청구)
                                   {customerMap.get(b.customerId)?.transactionStatus === 'BLOCKED' && (
                                     <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontWeight: 'bold' }}>
-                                      🚫 거래제한(BLOCKED)
+                                      🚫 거래제한
                                     </span>
                                   )}
                                   {isSmartMatch && (
@@ -2241,7 +2241,7 @@ export const BankMatching: React.FC = () => {
                   입 금 표 (영수증)
                 </h2>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  RECEIPT OF PAYMENT • 공급받는자 보관용
+                  입금확인증 • 공급받는자 보관용
                 </div>
               </div>
               <button onClick={() => setReceiptTx(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -2279,7 +2279,7 @@ export const BankMatching: React.FC = () => {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>원화 표기 (VAT 포함)</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>원화 표기 (부가세 포함)</div>
                 <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--success)' }}>
                   ₩{receiptTx.depositAmount.toLocaleString()}
                 </div>
@@ -2339,7 +2339,7 @@ export const BankMatching: React.FC = () => {
                 style={{ padding: '6px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--primary)' }}
               >
                 <Printer size={14} />
-                입금표 인쇄 (Print)
+                입금표 인쇄
               </button>
             </div>
           </div>
@@ -2398,7 +2398,7 @@ export const BankMatching: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="매입처 상호명 또는 정산 연월 (YYYY-MM)"
+                  placeholder="매입처 상호명 또는 정산 연월(연월)"
                   value={settlementSearchTerm}
                   onChange={(e) => setSettlementSearchTerm(e.target.value)}
                   className="form-control"

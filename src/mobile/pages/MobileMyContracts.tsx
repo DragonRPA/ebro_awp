@@ -70,7 +70,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
           };
         });
 
-        // 만료 D-Day 계산
+        // 만료 잔여일 계산
         let dDayText = '';
         let isUrgent = false;
         if (c.endDate && !isIndefiniteEndDate(c.endDate)) {

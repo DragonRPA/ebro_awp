@@ -218,7 +218,7 @@ export const SmartAsRequest: React.FC = () => {
     }
   }, [navigationPayload, setNavigationPayload]);
 
-  // 통화 초안 클릭 시 폼에 100% 자동 주입 (Auto Injection)
+  // 통화 초안 클릭 시 폼에 100% 자동 주입
   const handleApplyDraft = (draft: DraftDispatchOrder) => {
     setSelectedDraftId(draft.id);
 
@@ -568,7 +568,7 @@ export const SmartAsRequest: React.FC = () => {
             )}
           </div>
 
-          {/* 우측 Detail: AS 접수 및 상세 검토 폼 (flex: 1) */}
+          {/* 우측 Detail: AS 접수 및 상세 검토 폼 */}
           <div style={{ flex: 1, minWidth: 0, height: '100%', minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
             {selectedDraftId && (
               <div style={{

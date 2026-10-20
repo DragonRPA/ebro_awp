@@ -409,7 +409,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                   사업자등록증 파일 선택 또는 드래그 앤 드롭
                 </p>
                 <p className="text-xs text-slate-400 max-w-sm mb-4">
-                  카카오톡/문자로 받은 사진(JPG, PNG), 전자발급 PDF, 스캔본을 모두 지원합니다.
+                  카카오톡/문자로 받은 사진, 전자발급 PDF, 스캔본을 모두 지원합니다.
                 </p>
 
                 <div className="flex items-center gap-2">
@@ -543,7 +543,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                 </div>
               )}
 
-              {/* 분기 1: 기존 고객 정보 보완 (1:1 Diff Table) */}
+              {/* 분기 1: 기존 고객 정보 보완 */}
               {matchedCustomer ? (
                 <div className="space-y-2">
                   <div className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-200 flex items-center justify-between">

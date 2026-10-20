@@ -207,7 +207,7 @@ export const ConsumableStockPage: React.FC = () => {
       );
       if (hasExplicitPerm) return true;
 
-      // 3. 직무 템플릿(RBAC) 기준 권한 확인
+      // 3. 직무 템플릿 기준 권한 확인
       const dept = u.departmentId || u.department;
       const canViewStock = getRoleTemplatePermission(u.role, dept, 'consumable_stock', 'view');
       const canSaveStock = getRoleTemplatePermission(u.role, dept, 'consumable_stock', 'save');
@@ -240,7 +240,7 @@ export const ConsumableStockPage: React.FC = () => {
     return map;
   }, [mechanics]);
 
-  // 재고 통계 요약 (Single-pass)
+  // 재고 통계 요약
   const stockSummary = useMemo(() => {
     let hqTotalQty = 0;
     let hqTotalValue = 0;
@@ -270,7 +270,7 @@ export const ConsumableStockPage: React.FC = () => {
     };
   }, [consumables, mechanicConsumableStocks, consumableMap]);
 
-  // 고품 관리 요약 및 배지 카운트 (Single-pass)
+  // 고품 관리 요약 및 배지 카운트
   const collectedPartsSummary = useMemo(() => {
     const totalCount = collectedParts.length;
     let uncompletedCount = 0;
@@ -367,7 +367,7 @@ export const ConsumableStockPage: React.FC = () => {
       const totalVehicleQty = vehicleQtyByConsumableMap.get(c.id) || 0;
 
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '소모품 품목명': c.modelName,
         '주기장 재고': c.stockQty,
         '차량 이동 재고': totalVehicleQty,
@@ -389,7 +389,7 @@ export const ConsumableStockPage: React.FC = () => {
       const item = consumableMap.get(ms.consumableId);
       const mechanic = userMap.get(ms.mechanicId);
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '담당 정비사': mechanic?.name || '정비사',
         '자재 품목명': item?.modelName || '-',
         '차량 적재 수량': ms.stockQty,
@@ -778,7 +778,7 @@ export const ConsumableStockPage: React.FC = () => {
               <table>
                 <thead>
                   <tr>
-                    <th>No</th>
+                    <th>순번</th>
                     <SortableTh label="품목명" sortKey="modelName" currentSort={sortConfigStock} onSort={requestSortStock} />
                     <SortableTh label="주기장 재고" sortKey="stockQty" currentSort={sortConfigStock} onSort={requestSortStock} align="center" />
                     <SortableTh label="차량 재고" sortKey="totalVehicleQty" currentSort={sortConfigStock} onSort={requestSortStock} align="center" />
@@ -1195,7 +1195,7 @@ export const ConsumableStockPage: React.FC = () => {
       )}
 
       {/* ──────────────────────────────────────────────────────────────────────── */}
-      {/* [TAB 4] 재고 실사 (Stocktaking Audit Studio) */}
+      {/* [TAB 4] 재고 실사 */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {activeTab === 'STOCKTAKING' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1349,7 +1349,7 @@ export const ConsumableStockPage: React.FC = () => {
                   <table>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'center' }}>No</th>
+                        <th style={{ textAlign: 'center' }}>순번</th>
                         <th>품목명</th>
                         <th>단위</th>
                         <th style={{ textAlign: 'right' }}>단가</th>

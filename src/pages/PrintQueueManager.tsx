@@ -301,7 +301,7 @@ export const PrintQueueManager: React.FC = () => {
         requestedByName: currentUser?.name
       });
 
-      // 2. 로컬 PC 연결 프린터인 경우 다이렉트 즉시 인쇄(/api/print-direct) 병행 전송
+      // 2. 로컬 PC 연결 프린터인 경우 다이렉트 즉시 인쇄 병행 전송
       if (agentStatus.online || (!station.machineName || station.machineName === agentStatus.machineName)) {
         await printDirectToLocalAgent({
           printerName: station.localPrinterName,
@@ -359,7 +359,7 @@ export const PrintQueueManager: React.FC = () => {
         item.status === 'FAILED' ? '출력오류' : '취소됨';
 
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '작업ID': item.id,
         '발행시각': item.createdAt ? item.createdAt.replace('T', ' ').substring(0, 19) : '',
         '문서구분': docTypeLabel,
@@ -385,7 +385,7 @@ export const PrintQueueManager: React.FC = () => {
     }
 
     const exportRows = printStations.map((st, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '스테이션명': st.stationName,
       '연결프린터드라이버': st.localPrinterName,
       '전담문서종류': st.docTypeDefault === 'DISPATCH_ORDER' ? '출고 전용' : st.docTypeDefault === 'RETURN_ORDER' ? '입고 전용' : '출고·입고 통합',
@@ -1568,7 +1568,7 @@ export const PrintQueueManager: React.FC = () => {
 
             <div style={{ flex: 1, padding: '16px', backgroundColor: 'var(--bg-secondary)', overflow: 'auto' }}>
               <iframe
-                title="Document Preview"
+                title="문서 미리보기"
                 srcDoc={previewItem.documentHtml}
                 style={{
                   width: '100%',

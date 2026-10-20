@@ -134,7 +134,7 @@ export const RegularReportsPage: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 5. [손익계산서 엑셀 내보내기 (XLSX)]
+  // 5. [손익계산서 엑셀 내보내기]
   // ─────────────────────────────────────────────────────────────
   const handleExportIncomeStatementExcel = () => {
     try {
@@ -160,7 +160,7 @@ export const RegularReportsPage: React.FC = () => {
 
       wsData.push([]);
       wsData.push(['[기타 청구 유형별 지급정산 1:1 대사 내역]']);
-      wsData.push(['유형', '당월 청구액 (A)', '당월 지급정산액 (B)', '정산 차액 (A-B)', '마진율 (%)', '정산 상태']);
+      wsData.push(['유형', '당월 청구액(가)', '당월 지급정산액(나)', '정산 차액(가-나)', '마진율 (%)', '정산 상태']);
       otherReconciliation.forEach(item => {
         wsData.push([
           item.label,
@@ -698,7 +698,7 @@ export const RegularReportsPage: React.FC = () => {
                     기타 청구 지급정산 1:1 대사
                   </h2>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-muted, #94a3b8)' }}>
-                    청구액(A) vs 지급액(B)
+                    청구액(가) vs 지급액(나)
                   </span>
                 </div>
 
@@ -711,8 +711,8 @@ export const RegularReportsPage: React.FC = () => {
                     <thead>
                       <tr style={{ backgroundColor: 'rgba(15, 23, 42, 0.7)', borderBottom: '2px solid var(--border-color, #334155)' }}>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>유형</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>청구액 (A)</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>지급정산 (B)</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>청구액(가)</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>지급정산(나)</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>정산 차액</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>상태</th>
                       </tr>
@@ -768,7 +768,7 @@ export const RegularReportsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 월별 손익계산서 발행 이력 (History) */}
+              {/* 월별 손익계산서 발행 이력 */}
               <div className="card" style={{ 
                 padding: '18px 20px', 
                 backgroundColor: 'var(--bg-card, #1e293b)', 
@@ -991,7 +991,7 @@ export const RegularReportsPage: React.FC = () => {
             </div>
 
             <div className="card" style={{ padding: '14px 16px', backgroundColor: 'var(--bg-card, #1e293b)', borderRadius: '8px', border: '1px solid var(--border-color, #334155)' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)' }}>총 배차 및 교환(EXCHANGE)</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)' }}>총 배차 및 교환</span>
               <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '4px' }}>
                 {executiveDossier.kpis.totalDispatches}건 (교환 {executiveDossier.kpis.exchangeCount}건)
               </div>

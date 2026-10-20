@@ -68,7 +68,7 @@ import { db } from './db';
 import { generateTransactionStatementExcel, TransactionStatementItem } from './excelTemplateEngine';
 
 /**
- * 청구 상세(detail) 1건을 00.거래명세서양식.xlsx 신규 27열(B..AA) 규격의 TransactionStatementItem 으로 변환
+ * 청구 상세 1건을 00.거래명세서양식.xlsx 신규 27열 규격의 TransactionStatementItem 으로 변환
  */
 export function buildStatementItemFromDetail(
   d: any,

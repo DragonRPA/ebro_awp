@@ -11,13 +11,13 @@ export const PwaInstallBanner: React.FC = () => {
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    // 1. 홈 화면 단독 앱(Standalone) 실행 여부 확인
+    // 1. 홈 화면 단독 앱 실행 여부 확인
     const isStandaloneMode = 
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as any).standalone === true;
     setIsStandalone(isStandaloneMode);
 
-    // 2. 기기 판별 (iOS/iPadOS vs Android)
+    // 2. 기기 판별
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIPadOS = /ipad/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroidDevice = /android/.test(userAgent);

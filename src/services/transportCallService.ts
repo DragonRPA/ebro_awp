@@ -167,7 +167,7 @@ export async function runGroqWhisperStt(
   }
 }
 
-// ─── 운송 협의 통화 텍스트 전문 파서 (Domain NLP) ────────────
+// ─── 운송 협의 통화 텍스트 전문 파서 ────────────
 export function parseTransportNegotiationText(
   transcript: string,
   companies: TransportCompany[],

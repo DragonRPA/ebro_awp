@@ -1,6 +1,6 @@
 /**
  * 공식 구글 드라이브 API v3 (Google Drive REST API v3) 직접 업로드 서비스
- * DB에는 대용량 Base64 데이터를 일절 저장하지 않고, 구글 드라이브 파일 링크(URL)만 저장
+ * DB에는 대용량 Base64 데이터를 일절 저장하지 않고, 구글 드라이브 파일 링크만 저장
  */
 
 export interface GoogleDriveDirectUploadOptions {

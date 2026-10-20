@@ -4,7 +4,7 @@ export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.15';
 export const EXPECTED_CORE_HASH: string = '1c5fd9d4f2ab';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
-// 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
+// 🌐 Cloudflare R2 보조 엔드포인트
 export const DEFAULT_CF_R2_BASE_URL = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
 export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`; // Inno Setup 16MB 초고속 정식 인스톨러
@@ -104,7 +104,7 @@ export function triggerTenantAgentDownload(tenant?: {
 }
 
 /**
- * 🚀 브라우저(사이트)에서 로컬 에이전트(BroAgent.js) 기동 트리거
+ * 🚀 브라우저(사이트)에서 로컬 에이전트 기동 트리거
  */
 export function launchLocalAgentFromBrowser(): void {
   try {
@@ -276,7 +276,7 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * 🌐 브라우저 확장 프로그램(ebro web agent) 존재 여부 감지
+ * 🌐 브라우저 확장 프로그램 존재 여부 감지
  */
 export function isExtensionBridgeAvailable(): boolean {
   if (typeof document === 'undefined') return false;
@@ -285,7 +285,7 @@ export function isExtensionBridgeAvailable(): boolean {
 }
 
 /**
- * 🌐 브라우저 확장 프로그램(ebro web agent) 프록시를 통한 에이전트 통신
+ * 🌐 브라우저 확장 프로그램 프록시를 통한 에이전트 통신
  * Chrome Private Network Access (PNA) 및 Mixed Content 제약을 우회하여 로컬 에이전트와 완벽 통신
  */
 export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestInit): Promise<Response> {
@@ -386,7 +386,7 @@ export interface AgentFetchOptions extends RequestInit {
 
 export async function fetchWithAgentFallback(path: string, init?: AgentFetchOptions): Promise<Response> {
   const isHealthCheck = path.startsWith('/health');
-  // 헬스체크(/health)만 빠른 응답 확인용 기본 타임아웃(2500ms)을 두고, 실제 본 작업은 타임아웃 제한을 두지 않음(0)
+  // 헬스체크만 빠른 응답 확인용 기본 타임아웃을 두고, 실제 본 작업은 타임아웃 제한을 두지 않음(0)
   const effectiveTimeout = isHealthCheck ? (init?.timeout || 2500) : (init?.timeout ?? 0);
   const requireAgent = Boolean(init?.requireAgent);
   const actionName = init?.actionName || '로컬 연동 작업';
@@ -469,7 +469,7 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
       if (requireAgent) {
         notifyAgentRequired(actionName);
       }
-      throw new Error(`로컬 에이전트(eBroAgent)가 실행되고 있지 않습니다. PC에서 eBroAgent를 실행한 후 다시 시도해 주십시오.`);
+      throw new Error(`로컬 에이전트가 실행되고 있지 않습니다. PC에서 eBroAgent를 실행한 후 다시 시도해 주십시오.`);
     }
   }
 
@@ -531,10 +531,10 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     notifyAgentRequired(actionName);
   }
 
-  throw lastErr || new Error('로컬 에이전트(eBroAgent)와 통신할 수 없습니다. 에이전트 실행 상태를 확인해 주십시오.');
+  throw lastErr || new Error('로컬 에이전트와 통신할 수 없습니다. 에이전트 실행 상태를 확인해 주십시오.');
 }
 
-// ── 🌐 단일 전역 에이전트 헬스체크 매니저 (Single Global Autonomous Poller) ──
+// ── 🌐 단일 전역 에이전트 헬스체크 매니저 ──
 let globalHealthCheckTimer: any = null;
 let consecutiveFailures = 0;
 let isCheckingHealth = false;
@@ -558,7 +558,7 @@ function isExpectedNewer(expectedVer: string, currentVer: string): boolean {
 }
 
 /**
- * 2-Strike 확인 기반 가짜 오프라인(Flapping) 방지 헬스체크
+ * 2-Strike 확인 기반 가짜 오프라인 방지 헬스체크
  */
 export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<AgentHealthInfo> {
   if (isCheckingHealth) {
@@ -593,7 +593,7 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       };
       setGlobalAgentStatus(true, info);
 
-      // 🚀 로컬 에이전트 버전이 배포 버전(EXPECTED_AGENT_VERSION)보다 낮거나 코어 해시(EXPECTED_CORE_HASH)가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (30초 쿨다운)
+      // 🚀 로컬 에이전트 버전이 배포 버전보다 낮거나 코어 해시가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (30초 쿨다운)
       const isVersionOutdated = Boolean(data.version && isExpectedNewer(EXPECTED_AGENT_VERSION, data.version));
       const isHashOutdated = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && data.coreHash !== EXPECTED_CORE_HASH);
       if (
@@ -609,7 +609,7 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       return info;
     }
   } catch (err) {
-    // 💡 1회 실패 시 즉각 OFFLINE으로 단정하지 않고 400ms 후 즉시 1회 재시도 (2-Strike Flapping Prevention)
+    // 💡 1회 실패 시 즉각 OFFLINE으로 단정하지 않고 400ms 후 즉시 1회 재시도
     consecutiveFailures++;
     if (consecutiveFailures === 1) {
       try {
@@ -652,7 +652,7 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
 /**
  * 단일 전역 에이전트 헬스체크 모니터 가동
  * - 3.5초 주기 단일 폴링으로 소켓 경합 원천 제거
- * - 탭 포커스 복귀(window.focus) 및 화면 복원(visibilitychange) 시 0.1초 즉시 헬스체크 트리거
+ * - 탭 포커스 복귀 및 화면 복원 시 0.1초 즉시 헬스체크 트리거
  */
 export function startGlobalAgentHealthMonitor(callsign: string = 'admin'): void {
   if (typeof window === 'undefined') return;

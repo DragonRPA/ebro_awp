@@ -351,7 +351,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
       '직급': emp.position,
       '성명': emp.name,
       '등록 건수': emp.recordCount,
-      '총 OT 인정시간 (h)': Number(emp.totalHours.toFixed(1)),
+      '총 OT 인정시간(시간)': Number(emp.totalHours.toFixed(1)),
       '식사 횟수': emp.mealCount
     }));
 
@@ -361,7 +361,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
       '직급': '-' as any,
       '성명': '-' as any,
       '등록 건수': totals.totalCount,
-      '총 OT 인정시간 (h)': Number(totals.totalHours.toFixed(1)),
+      '총 OT 인정시간(시간)': Number(totals.totalHours.toFixed(1)),
       '식사 횟수': totals.totalMeals
     });
 
@@ -375,7 +375,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         const dtStr = (r.startDateTime || (r as any).workDate || r.createdAt || '').substring(0, 10);
         const timeStr = (r.startDateTime || '').substring(11, 16) || '-';
         return {
-          'No': idx + 1,
+          '순번': idx + 1,
           '근무일자': dtStr,
           '요일': getDayOfWeekKr(dtStr),
           '성명': u?.name || r.userId,
@@ -984,7 +984,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: '32px' }}>No</th>
+                  <th style={{ width: '32px' }}>순번</th>
                   <th style={{ width: '75px' }}>근무일자</th>
                   <th style={{ width: '38px' }}>요일</th>
                   <th style={{ width: '75px' }}>성명</th>

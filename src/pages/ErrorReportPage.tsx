@@ -89,7 +89,7 @@ export const ErrorReportPage: React.FC = () => {
     return list;
   }, []);
 
-  // ─── 클립보드 붙여넣기(Ctrl+V) 이미지 자동 첨부 리스너 (헌장 1.1 극대화) ───
+  // ─── 클립보드 붙여넣기 이미지 자동 첨부 리스너 (헌장 1.1 극대화) ───
   useEffect(() => {
     if (!isRegisterModalOpen) return;
 
@@ -612,7 +612,7 @@ export const ErrorReportPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단: 데이터 유입 및 완결 액션 (Pipeline) */}
+        {/* ② 우상단: 데이터 유입 및 완결 액션 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
             data-uia="btn-export-excel"

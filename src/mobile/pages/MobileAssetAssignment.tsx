@@ -84,7 +84,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     return s?.name || '현장 미지정';
   };
 
-  // 4. 대차/교체 여부 판정
+  // 4. 교환 여부 판정
   const isExchangeContract = (contractId: string): boolean => {
     return (contractHistory || []).some(h => h.contractId === contractId && h.changeType === 'EXCHANGE');
   };
@@ -125,7 +125,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       list = list.filter(c => !isExchangeContract(c.id));
     }
 
-    // 정렬: 대차/교체 우선, 이후 출고일자(startDate) 오름차순
+    // 정렬: 교환 우선, 이후 출고일자 오름차순
     return list.sort((a, b) => {
       const aEx = isExchangeContract(a.id) ? 1 : 0;
       const bEx = isExchangeContract(b.id) ? 1 : 0;
@@ -547,7 +547,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  대차/교체 우선
+                  교환 우선
                 </button>
                 <button
                   type="button"
@@ -594,7 +594,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                         <div className="flex items-center gap-1.5 min-w-0">
                           {isEx && (
                             <span className="text-[11px] px-2 py-0.5 rounded font-bold whitespace-nowrap shrink-0 bg-rose-600 text-white shadow-sm">
-                              대차/교체
+                              교환
                             </span>
                           )}
                           <span className="text-xs font-bold text-slate-300 font-mono whitespace-nowrap shrink-0">
@@ -657,7 +657,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
           </>
         ) : (
           /* ========================================================================= */
-          /* 🛠️ 뷰 2: 선택된 계약의 장비 할당 스튜디오 (Assignment Studio)           */
+          /* 🛠️ 뷰 2: 선택된 계약의 장비 할당 스튜디오           */
           /* ========================================================================= */
           <>
             {/* 상단: 계약 컨텍스트 요약 카드 */}
@@ -667,7 +667,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                   <div className="flex items-center gap-2 min-w-0">
                     {isExchangeContract(activeContract.id) && (
                       <span className="text-[11px] px-2 py-0.5 rounded font-bold whitespace-nowrap shrink-0 bg-rose-600 text-white">
-                        대차/교체
+                        교환
                       </span>
                     )}
                     <span className="text-xs font-bold text-slate-400 font-mono whitespace-nowrap shrink-0">
@@ -959,7 +959,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
         )}
       </main>
 
-      {/* ── 5. 하단 고정 바 (Terminal Action Bar) ── */}
+      {/* ── 5. 하단 고정 바 ── */}
       {selectedContractId && activeUnassignedSlots.length > 0 && (
         <div 
           style={{

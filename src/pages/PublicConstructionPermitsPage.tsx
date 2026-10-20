@@ -1255,7 +1255,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 우측: AI 공정 역산 스튜디오 & 영업 파이프라인 패널 (Dossier) ── */}
+        {/* ── 우측: AI 공정 역산 스튜디오 & 영업 파이프라인 패널 ── */}
         <div data-mid="permits-dossier-panel" style={{
           width: '440px',
           backgroundColor: 'var(--bg-card)',

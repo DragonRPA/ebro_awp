@@ -543,7 +543,7 @@ export const TradePurchasesPage: React.FC = () => {
           </div>
         </div>
         <div className="card" style={{ padding: '12px 16px', margin: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>누적 매입 발주 총액 (VAT포함)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>누적 매입 발주 총액 (부가세 포함)</div>
           <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
             ₩{kpi.totalPurchaseAmt.toLocaleString()}
           </div>
@@ -678,12 +678,12 @@ export const TradePurchasesPage: React.FC = () => {
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>발주번호</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>발주일자</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>매입처 (공급사)</th>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>SKU / 상품명</th>
+                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>품목코드 / 상품명</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>발주수량</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>입고수량</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>매입단가</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>공급가액</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>합계금액(VAT포함)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--text-muted)' }}>합계금액(부가세 포함)</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-muted)' }}>상태</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-muted)' }}>담당자 / 비고</th>
               </tr>
@@ -977,7 +977,7 @@ export const TradePurchasesPage: React.FC = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left' }}>품목 선택 (SKU / 상품명) *</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left' }}>품목 선택 (품목코드 / 상품명) *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '95px' }}>발주수량 *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '120px' }}>매입단가(원) *</th>
                       <th style={{ padding: '8px 10px', textAlign: 'right', width: '120px' }}>공급가액</th>

@@ -44,7 +44,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
     order?.paymentTerms || '물품 납품 및 검수 완료 후 세금계산서 발행, 발행일로부터 30일 이내 현금 결제'
   );
   const [specialTerms, setSpecialTerms] = useState<string>(
-    order?.specialTerms || '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일\n3. 외관 및 성능 결함 시 3영업일 이내 무상 맞교환 납품\n4. 본 계약은 표준 전자서명 및 이메일 교부로 효력을 발휘함'
+    order?.specialTerms || '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일\n3. 외관 및 성능 결함 시 3영업일 이내 무상 교환 납품\n4. 본 계약은 표준 전자서명 및 이메일 교부로 효력을 발휘함'
   );
 
   // 이메일 발송 폼 상태
@@ -70,7 +70,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
     setDeliveryDate(order.deliveryDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
     setDeliveryLocation(order.deliveryLocation || customer?.address || '매수인 지정 본점 및 현장 주기장');
     setPaymentTerms(order.paymentTerms || '물품 납품 및 검수 완료 후 세금계산서 발행, 발행일로부터 30일 이내 현금 결제');
-    setSpecialTerms(order.specialTerms || '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일\n3. 외관 및 성능 결함 시 3영업일 이내 무상 맞교환 납품\n4. 본 계약은 표준 전자서명 및 이메일 교부로 효력을 발휘함');
+    setSpecialTerms(order.specialTerms || '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일\n3. 외관 및 성능 결함 시 3영업일 이내 무상 교환 납품\n4. 본 계약은 표준 전자서명 및 이메일 교부로 효력을 발휘함');
 
     const defaultEmail = (customer as any)?.billingEmail || (customer as any)?.email || 'contact@client.com';
     setRecipientEmail(defaultEmail);
@@ -80,7 +80,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
     const tenantName = currentTenant?.corporateName || currentTenant?.tradeName || '(주)기연리프트';
     setEmailSubject(`[물품매매계약서] ${custName} 귀하 - 주문번호 ${order.id}`);
     setEmailBody(
-      `안녕하십니까, ${custName} 귀중.\n\n귀사와 체결한 유통 물품매매계약서(.xlsx)를 송부하여 드립니다.\n첨부된 엑셀 계약서의 품목 명세와 인도 조건, 결제 조건을 확인해 주시기 바랍니다.\n\n• 주문번호: ${order.id}\n• 계약금액: ₩${order.totalSalesAmount.toLocaleString()}원 (VAT 포함)\n• 인도장소: ${order.deliveryLocation || customer?.address || '매수인 지정 장소'}\n\n감사합니다.\n${tenantName} 드림`
+      `안녕하십니까, ${custName} 귀중.\n\n귀사와 체결한 유통 물품매매계약서를 송부하여 드립니다.\n첨부된 엑셀 계약서의 품목 명세와 인도 조건, 결제 조건을 확인해 주시기 바랍니다.\n\n• 주문번호: ${order.id}\n• 계약금액: ₩${order.totalSalesAmount.toLocaleString()}원 (부가세 포함)\n• 인도장소: ${order.deliveryLocation || customer?.address || '매수인 지정 장소'}\n\n감사합니다.\n${tenantName} 드림`
     );
     setSendSuccessMsg(null);
   }, [isOpen, order, customer, currentTenant]);
@@ -469,7 +469,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
             {/* 엑셀 파일 생성 액션 */}
             <div style={{ padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <FileSpreadsheet size={16} color="#16a34a" /> 표준 물품매매계약서 (.xlsx)
+                <FileSpreadsheet size={16} color="#16a34a" /> 표준 물품매매계약서
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
                 ExcelJS 기반 표준 서식으로 품목 명세, 공급자/매수인 정보, 특약 조항이 포함된 정식 엑셀 계약서를 생성합니다.
@@ -546,7 +546,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>참조(CC) 이메일</label>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>참조 이메일</label>
                 <input 
                   type="text" 
                   data-mid="trade_contract_modal-cc_email"

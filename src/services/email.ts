@@ -1,5 +1,5 @@
 // d:\Kiyeun_Lift\src\services\email.ts
-// 실 구글 연동 계정 (googleEmail + gmailAppPassword) 기반 real Gmail SMTP 발송 서비스 (로컬 에이전트 1순위 + Vercel 폴백)
+// 실 구글 연동 계정 기반 real Gmail SMTP 발송 서비스 (로컬 에이전트 1순위 + Vercel 폴백)
 import { db } from './db';
 import { fetchWithAgentFallback } from './agentService';
 import { decryptSecret } from '../utils/cryptoVault';
@@ -72,7 +72,7 @@ class RealGmailService {
     fromName?: string
   ): Promise<SentEmail> {
 
-    // 1. 단일 진실의 원천(SSOT): 현재 접속 테넌트(db.currentTenant) 변수 기반으로 공식메일설정 조회
+    // 1. 단일 진실의 원천: 현재 접속 테넌트 변수 기반으로 공식메일설정 조회
     const activeTenant = db.currentTenant;
     const activeTenantId = (activeTenant?.id || '').toLowerCase();
     const activeTenantCode = (activeTenant?.tenantCode || '').toLowerCase();
@@ -175,7 +175,7 @@ class RealGmailService {
 
     const resolvedFromName = fromName || defaultBrandName;
 
-    // 2. 이메일 발송 실행: 모든 이메일 발송은 반드시 로컬 에이전트(eBroAgent)를 통해서만 수행 (클라우드 폴백 제거)
+    // 2. 이메일 발송 실행: 모든 이메일 발송은 반드시 로컬 에이전트를 통해서만 수행 (클라우드 폴백 제거)
     let sendSuccess = false;
     let lastError = '';
 
@@ -249,9 +249,9 @@ class RealGmailService {
       }
       if (!sendSuccess && (lastError.includes('535') || lastError.includes('Invalid login') || lastError.includes('Username and Password not accepted'))) {
         if (smtpHost.includes('naver.com')) {
-          lastError = `[네이버 메일(smtp.naver.com) 로그인 거부]\n${lastError}\n\n• 네이버 메일 웹 환경설정 > [POP3/SMTP 설정]에서 'POP3/SMTP 사용함'이 켜져 있는지 확인해 주세요.\n• 네이버 2단계 인증을 사용 중인 경우, 일반 로그인 비밀번호가 아닌 네이버 '애플리케이션 비밀번호'를 발급받아 [공식 메일 연동 설정]에 입력해야 합니다.`;
+          lastError = `[네이버 메일 로그인 거부]\n${lastError}\n\n• 네이버 메일 웹 환경설정 > [POP3/SMTP 설정]에서 'POP3/SMTP 사용함'이 켜져 있는지 확인해 주세요.\n• 네이버 2단계 인증을 사용 중인 경우, 일반 로그인 비밀번호가 아닌 네이버 '애플리케이션 비밀번호'를 발급받아 [공식 메일 연동 설정]에 입력해야 합니다.`;
         } else if (smtpHost.includes('daum.net')) {
-          lastError = `[다음/카카오 메일(smtp.daum.net) 로그인 거부]\n${lastError}\n\n• 다음 메일 환경설정 > [IMAP/POP3 설정]에서 '사용함' 설정 및 카카오 '앱 비밀번호' 입력 여부를 확인해 주세요.`;
+          lastError = `[다음/카카오 메일 로그인 거부]\n${lastError}\n\n• 다음 메일 환경설정 > [IMAP/POP3 설정]에서 '사용함' 설정 및 카카오 '앱 비밀번호' 입력 여부를 확인해 주세요.`;
         }
       }
     } catch (localErr: any) {

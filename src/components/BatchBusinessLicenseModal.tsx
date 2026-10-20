@@ -94,7 +94,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
     if (e.target.files && e.target.files.length > 0) {
       const valid = filterValidLicenseFiles(Array.from(e.target.files));
       if (valid.length === 0) {
-        showErrorModal('선택된 폴더/파일에 지원되는 사업자등록증(PDF, JPG, PNG, WEBP) 파일이 없습니다.');
+        showErrorModal('선택된 폴더/파일에 지원되는 사업자등록증 파일이 없습니다.');
         return;
       }
       setSelectedFiles(valid);
@@ -126,7 +126,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
       try {
         const valid = await extractFilesFromDataTransfer(e.dataTransfer.items);
         if (valid.length === 0) {
-          showErrorModal('드롭된 폴더/파일에 지원되는 사업자등록증(PDF, JPG, PNG, WEBP) 파일이 없습니다.');
+          showErrorModal('드롭된 폴더/파일에 지원되는 사업자등록증 파일이 없습니다.');
           return;
         }
         setSelectedFiles(valid);
@@ -371,7 +371,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           </button>
         </div>
 
-        {/* ─── ② 조작 및 파이프라인 제어 바 (Gutenberg Z-Pattern) ─── */}
+        {/* ─── ② 조작 및 파이프라인 제어 바 ─── */}
         <div style={{
           padding: '10px 20px',
           backgroundColor: 'var(--bg-card)',
@@ -680,7 +680,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 사업자등록증 폴더를 이곳으로 드래그하거나 클릭하여 선택하십시오
               </h4>
               <p style={{ margin: '8px 0 20px 0', fontSize: '12px', color: 'var(--text-muted, #64748b)', maxWidth: '460px', lineHeight: '1.5' }}>
-                PDF 및 이미지(PNG, JPG, WEBP)가 포함된 폴더를 통째로 지정하면 모든 파일을 순회하여 
+                PDF 및 이미지가 포함된 폴더를 통째로 지정하면 모든 파일을 순회하여 
                 {targetType === 'CUSTOMER' ? ' 매출처(고객사)' : ' 매입처(협력사)'}에 자동으로 등록하거나 보완합니다.
               </p>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -746,7 +746,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
               }}>
                 <tr style={{ height: '38px' }}>
-                  <th style={{ padding: '6px 10px', textAlign: 'center', width: '48px', whiteSpace: 'nowrap', fontWeight: 700 }}>No.</th>
+                  <th style={{ padding: '6px 10px', textAlign: 'center', width: '48px', whiteSpace: 'nowrap', fontWeight: 700 }}>순번</th>
                   <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>상태</th>
                   <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>파일명</th>
                   <th style={{ padding: '6px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>상호</th>

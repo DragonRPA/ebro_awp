@@ -1,6 +1,6 @@
 // src/utils/hindsightTracker.ts
 // 🧠 eBro Hindsight Stealth Telemetry Engine (Zero-Overhead & 0ms Main-Thread Blocking)
-// 🏛️ 대한민국 개인정보보호법(PIPA) 준수 및 전사 시스템 개발 표준 헌장 준수
+// 🏛️ 대한민국 개인정보보호법 준수 및 전사 시스템 개발 표준 헌장 준수
 
 import { centralSupabase } from '../services/centralDb';
 import { supabase } from '../services/db';
@@ -36,7 +36,7 @@ let outgoingQueriesBuffer: any[] = [];
 let debounceTimer: any = null;
 
 /**
- * 0ms 안전 지연 스케줄러: 브라우저 유휴 시간(Idle Callback) 활용
+ * 0ms 안전 지연 스케줄러: 브라우저 유휴 시간 활용
  */
 function scheduleOnIdle(callback: () => void, timeoutMs = 2000) {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
@@ -159,7 +159,7 @@ function recordInteraction(e: Event) {
       // 4단계 PII 사전 마스킹 적용
       const maskedVal = sanitizeSensitiveString(rawVal.length > 150 ? rawVal.substring(0, 150) + '...' : rawVal);
 
-      // 링 버퍼 관리 (FIFO)
+      // 링 버퍼 관리
       if (interactionHistory.length >= RING_BUFFER_LIMIT) {
         interactionHistory.shift();
       }
@@ -175,7 +175,7 @@ function recordInteraction(e: Event) {
       });
     });
   } catch (err) {
-    // 무음 격리 (Fail-Silent)
+    // 무음 격리
   }
 }
 
@@ -318,7 +318,7 @@ export function initializeHindsightTracker() {
 
       if (!triggerEl) {
         const btn = target.closest('button, [role="button"], a, input[type="submit"]') as HTMLElement;
-        // 사이드바(aside), 상단 헤더(header), 글로벌 네비게이션(nav), Hindsight 모달 자체 클릭은 암시적 키워드 트리거에서 제외 (단순 메뉴 이동 오염 방지)
+        // 사이드바, 상단 헤더, 글로벌 네비게이션, Hindsight 모달 자체 클릭은 암시적 키워드 트리거에서 제외 (단순 메뉴 이동 오염 방지)
         const isNavOrConsole = btn ? Boolean(btn.closest('aside, nav, header, [data-hs-console="true"]')) : false;
         if (btn && !isNavOrConsole && !isSensitiveDomElement(btn)) {
           const text = btn.textContent?.trim() || '';
@@ -401,7 +401,7 @@ async function sendToHindsightStealth(payload: HindsightMemoryBundle) {
     } catch {}
   }
 
-  // Supabase 비동기 적재 (Fail-Silent)
+  // Supabase 비동기 적재
   try {
     const tenantId = localStorage.getItem('erp_current_tenant_id') || 
       (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__?.currentTenant?.id) || 

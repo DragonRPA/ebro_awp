@@ -583,7 +583,7 @@ export const Vendors: React.FC = () => {
     return ['RENTAL'];
   };
 
-  // O(1) 매입처별 거래유형 맵 및 상단 KPI 요약 (Single-pass)
+  // O(1) 매입처별 거래유형 맵 및 상단 KPI 요약
   const { vendorTypesMap, vendorStats } = useMemo(() => {
     const tMap = new Map<string, VendorTypeOption[]>();
     let rentalCount = 0;
@@ -635,7 +635,7 @@ export const Vendors: React.FC = () => {
     });
   }, [vendors, searchTerm, typeFilter, vendorTypesMap]);
 
-  // 하단 대차대조식 요약 바 집계 (Single-pass)
+  // 하단 대차대조식 요약 바 집계
   const filteredStats = useMemo(() => {
     const totalVendors = filtered.length;
     let startedVendors = 0;

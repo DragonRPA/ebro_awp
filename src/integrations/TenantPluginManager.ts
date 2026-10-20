@@ -21,7 +21,7 @@ export const getTenantPlugin = (tenantCode: string): TenantPlugin => {
     return plugin;
   }
   
-  // 일치하는 플러그인이 없으면 기본적으로 기연리프트(GIYEONLIFT) 플러그인을 폴백으로 사용
-  console.warn(`[TenantPluginManager] 플러그인을 찾을 수 없습니다: ${tenantCode}. 기본 플러그인(GIYEONLIFT)으로 폴백합니다.`);
+  // 일치하는 플러그인이 없으면 기본적으로 기연리프트 플러그인을 폴백으로 사용
+  console.warn(`[TenantPluginManager] 플러그인을 찾을 수 없습니다: ${tenantCode}. 기본 플러그인으로 폴백합니다.`);
   return giyeonliftPlugin; 
 };

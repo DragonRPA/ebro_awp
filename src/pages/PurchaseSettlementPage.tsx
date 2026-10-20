@@ -228,7 +228,7 @@ export const PurchaseSettlementPage: React.FC = () => {
       const supplyAmt = Math.round((p.totalAmount || 0) / 1.1);
       const taxAmt = (p.totalAmount || 0) - supplyAmt;
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '정산ID': p.id,
         '정산연월': p.settlementYm,
         '매입유형': typeStr,

@@ -185,7 +185,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
   // 🚀 무음 스마트 백그라운드 자동 업데이트 실행
   const handleSelfUpdate = async () => {
     setIsUpdatingSelf(true);
-    setUpdateMsg('최신 버전(v2.0.0.Build.2) 백그라운드 다운로드 중...');
+    setUpdateMsg('최신 버전 백그라운드 다운로드 중...');
     try {
       const res = await triggerAgentSelfUpdate(true);
       if (res.success) {
@@ -415,7 +415,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             )}
           </div>
 
-          {/* 🏢 AI 활성 시 스튜디오 열기 / 비활성(Silent Core) 시 로컬 문서고 폴더 열기 */}
+          {/* 🏢 AI 활성 시 스튜디오 열기 / 비활성 시 로컬 문서고 폴더 열기 */}
           {agentStatus === 'ONLINE' && (
             Boolean(currentTenant?.features?.agentAiEnabled) ? (
               <button
@@ -645,7 +645,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                   }}
                 >
                   <Download size={13} color="var(--primary)" />
-                  <span>eBro 통합 에이전트 설치 (.exe) 다운로드</span>
+                  <span>eBro 통합 에이전트 설치 다운로드</span>
                 </button>
               </>
             )}

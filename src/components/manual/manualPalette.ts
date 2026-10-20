@@ -12,11 +12,11 @@
  * - 다크 배경(OLED Dark Navy #0B0F19): 선명한 채도와 절제된 섀도로 암순응 환경에서도 눈부심 없이 즉시 시선 집중
  */
 export const STEP_PALETTE: readonly string[] = [
-  '#1D4ED8', // 1단계: 코발트 블루 (Primary/Action) - 대상 선택 및 업무 착수
-  '#047857', // 2단계: 포레스트 에메랄드 (Success/Positive) - 승인 및 검증 완료
-  '#B45309', // 3단계: 딥 앰버 (Warning/Attention) - 조건 입력 및 제원 조정
-  '#0F172A', // 4단계: 딥 슬레이트 (Neutral/Info) - 명세 조회 및 상태 확인
-  '#DC2626', // 5단계: 크림슨 레드 (Danger/Terminal) - 최종 마감 및 저장 완결
+  '#1D4ED8', // 1단계: 코발트 블루 - 대상 선택 및 업무 착수
+  '#047857', // 2단계: 포레스트 에메랄드 - 승인 및 검증 완료
+  '#B45309', // 3단계: 딥 앰버 - 조건 입력 및 제원 조정
+  '#0F172A', // 4단계: 딥 슬레이트 - 명세 조회 및 상태 확인
+  '#DC2626', // 5단계: 크림슨 레드 - 최종 마감 및 저장 완결
 ] as const;
 
 // 전사 5색 표준 허용 색상 집합
@@ -27,8 +27,8 @@ const ALLOWED_BADGE_COLORS = new Set<string>([
 ]);
 
 /**
- * 단계 순번(seq)과 지정된 색상으로부터 밝은/어두운 화면 모두에서 100% 식별 가능한 고대비 색상을 보장 반환
- * @param seq 단계 순번 (1-indexed)
+ * 단계 순번과 지정된 색상으로부터 밝은/어두운 화면 모두에서 100% 식별 가능한 고대비 색상을 보장 반환
+ * @param seq 단계 순번
  * @param customColor 매뉴얼 데이터에 지정된 커스텀 색상 (미지정 또는 비표준 무지개색 시 5색 팔레트로 자동 매핑)
  */
 export function getStepBadgeColor(seq: number = 1, customColor?: string): string {
@@ -50,7 +50,7 @@ export function getStepBadgeColor(seq: number = 1, customColor?: string): string
 }
 
 /**
- * 화면 요소 위에 표시되는 실물 Stamp 번호 뱃지의 그림자 및 이중 링(Double-Ring) 스타일 생성
+ * 화면 요소 위에 표시되는 실물 Stamp 번호 뱃지의 그림자 및 이중 링 스타일 생성
  * 전사 표준 헌장 3.7조: 인위적 네온 글로우 배제, 절제된 엔터프라이즈 링 섀도 적용
  */
 export function getStampBadgeShadow(badgeColor: string, isExpanded: boolean): string {

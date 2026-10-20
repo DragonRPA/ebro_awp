@@ -220,7 +220,7 @@ export interface EquipmentManualItem {
 }
 
 /**
- * 솔루션 업종(AWP vs IT)에 맞는 공통 장비 매뉴얼 조회
+ * 솔루션 업종에 맞는 공통 장비 매뉴얼 조회
  */
 export async function fetchCentralEquipmentManuals(solutionType: 'AWP' | 'IT' = 'AWP'): Promise<EquipmentManualItem[]> {
   try {
@@ -266,7 +266,7 @@ export async function fetchCentralManualAnnotations(solutionType: 'AWP' | 'IT' =
 }
 
 // ──────────────────────────────────────────────
-// 4. 시스템 화면 메뉴별 공통 매뉴얼 (system_manuals)
+// 4. 시스템 화면 메뉴별 공통 매뉴얼
 // ──────────────────────────────────────────────
 
 export interface SystemManualItem {
@@ -328,7 +328,7 @@ export async function saveCentralSystemManual(manual: any): Promise<boolean> {
 }
 
 // ──────────────────────────────────────────────
-// 5. 법적 통고문 / 내용증명 표준 서식 (legal_notice_templates)
+// 5. 법적 통고문 / 내용증명 표준 서식
 // ──────────────────────────────────────────────
 
 export interface LegalNoticeTemplateItem {
@@ -405,11 +405,11 @@ export async function saveCentralLegalNoticeTemplate(template: any): Promise<boo
 }
 
 // ──────────────────────────────────────────────
-// 6. 모바일 앱(APK) 공식 배포 버전 원장 (apk_releases)
+// 6. 모바일 앱 공식 배포 버전 원장
 // ──────────────────────────────────────────────
 
 /**
- * 최신 공식 모바일 앱(APK) 배포 버전 조회
+ * 최신 공식 모바일 앱 배포 버전 조회
  */
 export async function fetchCentralLatestApk(): Promise<any> {
   try {
@@ -433,7 +433,7 @@ export async function fetchCentralLatestApk(): Promise<any> {
 }
 
 // ──────────────────────────────────────────────
-// 7. 개발자 권한 물리 단말기 인가 대장 (developer_authorized_devices)
+// 7. 개발자 권한 물리 단말기 인가 대장
 // 🌐 멀티 테넌트 독립 중앙 플랫폼 SSOT (테넌트 계약과 무관한 영구 보존 Control Plane)
 // ──────────────────────────────────────────────
 
@@ -454,7 +454,7 @@ export async function fetchCentralDeveloperDevices(): Promise<any[]> {
     }
   } catch {}
 
-  // 2순위: 중앙 테넌트 원장의 글로벌 메타(features.developerAuthorizedDevices) 조회
+  // 2순위: 중앙 테넌트 원장의 글로벌 메타 조회
   try {
     const { data: tenantRows } = await centralSupabase
       .from('tenants')
@@ -493,7 +493,7 @@ export async function saveCentralDeveloperDevice(device: any): Promise<boolean> 
     if (!error) saved = true;
   } catch {}
 
-  // 2. 중앙 테넌트 글로벌 메타(features.developerAuthorizedDevices) 영구 동기화
+  // 2. 중앙 테넌트 글로벌 메타 영구 동기화
   try {
     const { data: tenantRow } = await centralSupabase
       .from('tenants')

@@ -132,7 +132,7 @@ export const AssetHistory: React.FC = () => {
   // 💡 [입고 취소 롤백] 전용 모달 상태 (window.prompt 퇴출)
   const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; log: any; reason: string } | null>(null);
 
-  // 💡 모바일 카메라 촬영 앱 전환 후 복귀 시 자동 복원 (SessionStorage Auto Recovery)
+  // 💡 모바일 카메라 촬영 앱 전환 후 복귀 시 자동 복원
   useEffect(() => {
     try {
       const savedAssetNo = sessionStorage.getItem('inbound_draft_assetNo');
@@ -239,7 +239,7 @@ export const AssetHistory: React.FC = () => {
     return matchedAsset?.modelName || 'GS-1930';
   };
 
-  // 💡 입출고 탭용 로그 필터링 (INBOUND, OUTBOUND)
+  // 💡 입출고 탭용 로그 필터링
   const filteredTabLogs = useMemo(() => {
     if (activeTab === 'INBOUND_REGISTER') return [];
     const term = activeSearchParams.searchTerm.trim();
@@ -394,7 +394,7 @@ export const AssetHistory: React.FC = () => {
 
     try {
       await cancelInboundAsset(log.id, reason || '사용자 입력 오타로 인한 입고 취소 롤백');
-      showToast(`[입고 취소 롤백 성공] 자산 ${log.assetNo} 상태가 대여중(RENTED)으로 안전하게 원복 되었습니다.`);
+      showToast(`[입고 취소 롤백 성공] 자산 ${log.assetNo} 상태가 대여중으로 안전하게 원복 되었습니다.`);
     } catch (err: any) {
       showErrorModal(`입고 취소 롤백 실패: ${err?.message || err}`);
     }
@@ -413,7 +413,7 @@ export const AssetHistory: React.FC = () => {
   const handleExport = () => {
     const tabName = activeTab === 'OUTBOUND' ? '출고이력' : '입고이력';
     const excelData = sortedTabLogs.map((log, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '발생일자': log.eventDate,
       '관리번호': log.assetNo,
       '모델명': resolvePrecisionModelName(log.assetId, log.assetNo, log.modelName),
@@ -578,7 +578,7 @@ export const AssetHistory: React.FC = () => {
                   value={inputSearchTerm}
                   onChange={e => setInputSearchTerm(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-                  placeholder="모델명, 관리번호, 고객사명, 현장, 조치내용 (Enter)..."
+                  placeholder="모델명, 관리번호, 고객사명, 현장, 조치내용..."
                   style={{ width: '100%', padding: '7px 10px 7px 32px', fontSize: '12.5px' }}
                 />
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -691,7 +691,7 @@ export const AssetHistory: React.FC = () => {
                       <div style={{ padding: '10px', fontSize: '12.5px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <strong style={{ color: log.type === 'OUTBOUND' ? 'var(--primary)' : log.type === 'INBOUND' ? 'var(--success)' : log.type === 'INBOUND_CANCEL' ? 'var(--danger)' : 'var(--warning)' }}>
-                            {log.type === 'OUTBOUND' ? '📤 출고 (OUTBOUND)' : log.type === 'INBOUND' ? '📥 입고 (INBOUND)' : log.type === 'INBOUND_CANCEL' ? '🔄 입고취소 (INBOUND_CANCEL)' : '정비 (REPAIR)'}
+                            {log.type === 'OUTBOUND' ? '📤 출고' : log.type === 'INBOUND' ? '📥 입고' : log.type === 'INBOUND_CANCEL' ? '🔄 입고취소' : '정비'}
                           </strong>
                           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{log.eventDate}</span>
                         </div>
@@ -905,7 +905,7 @@ export const AssetHistory: React.FC = () => {
               <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginBottom: '14px', fontSize: '12.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>대상 장비</span>
-                  <strong>{targetLog.assetNo} ({targetLog.modelName}) ➔ 대여중(RENTED)</strong>
+                  <strong>{targetLog.assetNo} ({targetLog.modelName}) ➔ 대여중</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>연관 계약</span>

@@ -78,7 +78,7 @@ export const VehicleOperationLogPage: React.FC = () => {
   const fuelExcelColumns: ExcelColumnDef[] = [
     { key: 'vehicleNo', label: '차량번호', required: true, sample: '12가 3456' },
     { key: 'fuelDate', label: '주유일자', required: true, type: 'date', sample: '2026-09-10' },
-    { key: 'fuelVolume', label: '주유량(L)', required: true, type: 'number', sample: 55.4 },
+    { key: 'fuelVolume', label: '주유량(리터)', required: true, type: 'number', sample: 55.4 },
     { key: 'fuelUnitPrice', label: '리터당단가', type: 'number', sample: 1650 },
     { key: 'fuelAmount', label: '총주유금액', required: true, type: 'number', sample: 91410 },
     { key: 'gasStation', label: '주유소명', sample: 'GS칼텍스 직영점' },
@@ -323,7 +323,7 @@ export const VehicleOperationLogPage: React.FC = () => {
         '차량번호': f.vehicleNo,
         '운행/주유자': f.driverName,
         '유종': f.fuelType,
-        '주유량(L)': f.fuelVolume,
+        '주유량(리터)': f.fuelVolume,
         '주유금액(원)': f.fuelAmount,
         '단가(원/L)': f.fuelUnitPrice || (f.fuelVolume > 0 ? Math.round(f.fuelAmount / f.fuelVolume) : 0),
         '계기판 거리': f.currentMileage,
@@ -670,7 +670,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             flexWrap: 'wrap'
           }}
         >
-          {/* 정산 연월 (YYYY-MM) */}
+          {/* 정산 연월(연월) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>조회 연월</label>
             <input
@@ -798,7 +798,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             <table data-mid="vehicle_log-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>순번</th>
                   <SortableTh label="운행일자" sortKey="operationDate" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
                   <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
                   <SortableTh label="운행자" sortKey="driverName" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
@@ -1010,7 +1010,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>순번</th>
                   <SortableTh label="주유일시" sortKey="fuelDate" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
                   <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
                   <SortableTh label="주유자" sortKey="driverName" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
@@ -1225,7 +1225,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>순번</th>
                   <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
                   <SortableTh label="모델명" sortKey="modelName" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
                   <SortableTh label="차량구분" sortKey="vehicleType" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />

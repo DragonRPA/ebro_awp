@@ -631,7 +631,7 @@ export const CourierDispatchPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / SKU</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / 품목코드</label>
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}

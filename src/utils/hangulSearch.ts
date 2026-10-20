@@ -1,5 +1,5 @@
 /**
- * 한글 초성 검색 및 내비게이션식 자음 매칭 유틸리티 (hangulSearch.ts)
+ * 한글 초성 검색 및 내비게이션식 자음 매칭 유틸리티
  * 
  * 기능:
  * 1. 순수 초성 검색: 'ㅇㅈㅇ' -> '이정용', 'ㅅㅅ' -> '삼성물산', 'ㅍㅌ' -> '평택'
@@ -91,7 +91,7 @@ export function extractChosung(text: string): string {
 const regexCache = new Map<string, RegExp>();
 
 /**
- * 검색어를 기반으로 초성과 완성형을 모두 포용하는 정규표현식(RegExp)을 동적 생성 및 캐싱
+ * 검색어를 기반으로 초성과 완성형을 모두 포용하는 정규표현식을 동적 생성 및 캐싱
  */
 export function createHangulSearchRegex(query: string): RegExp {
   const cleanQuery = decomposeComplexConsonants(query.trim());
@@ -274,7 +274,7 @@ export function matchesChosungFilter(name?: string | null, selectedChosung?: str
 }
 
 /**
- * 고객명 정규화 가나다 오름차순 비교 함수 (SSOT)
+ * 고객명 정규화 가나다 오름차순 비교 함수
  * '(주)', '㈜', '주식회사' 등 법인 표기를 제외한 순수 상호명 기준으로 가나다 오름차순 정렬하고,
  * 순수 상호명이 동일한 경우 원래 명칭으로 2차 정렬합니다.
  */

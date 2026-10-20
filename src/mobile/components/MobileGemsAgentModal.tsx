@@ -37,7 +37,7 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
   const [inputText, setInputText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // 음성 인식 (STT) 상태
+  // 음성 인식 상태
   const [isListening, setIsListening] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [recordSeconds, setRecordSeconds] = useState(0);
@@ -255,7 +255,7 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
           deliveryTime: args.exchangeTime || '08:00',
           deliveryType: 'EXCHANGE',
           orders: [{ ft: args.newEquipmentFt || '26ft', modelName: args.newEquipmentModel || '2632', count: 1 }],
-          memo: `[GEMS 맞교환의뢰] 회수대상:${args.oldAssetNo} ➔ 투입:${args.newEquipmentModel} | 사유:${args.reason || '현장교체'}`,
+          memo: `[GEMS 교환의뢰] 회수대상:${args.oldAssetNo} ➔ 투입:${args.newEquipmentModel} | 사유:${args.reason || '현장교체'}`,
           requesterName: currentUser?.name || '영업담당'
         };
 

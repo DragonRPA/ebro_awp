@@ -37,7 +37,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 🚨 비상 마스터 복구 (Break-Glass) 필드
+  // 🚨 비상 마스터 복구 필드
   const [emergencyKey, setEmergencyKey] = useState<string>('');
   const [emergencyReason, setEmergencyReason] = useState<string>('메인 PC 고장으로 인한 비상 복구 접속');
   const [registerAsPermanent, setRegisterAsPermanent] = useState<boolean>(true);
@@ -118,7 +118,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
     }
   };
 
-  // 🚨 비상 마스터 복구 제출 (Break-Glass)
+  // 🚨 비상 마스터 복구 제출
   const handleBreakGlassSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -191,7 +191,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
-                {activeTab === 'BREAK_GLASS' ? '🚨 개발자 비상 마스터 복구 (Break-Glass)' : '개발자 물리 단말기 인가 절차'}
+                {activeTab === 'BREAK_GLASS' ? '🚨 개발자 비상 마스터 복구' : '개발자 물리 단말기 인가 절차'}
               </h3>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
                 대상 계정: [{targetLoginId}] • {activeTab === 'BREAK_GLASS' ? '단말기 고장/도난/분실 비상 절차' : '비인가 기기 감지'}
@@ -284,7 +284,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
             }}>
               <div style={{ flex: '1 1 200px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12.5px', marginBottom: '2px' }}>
-                  소형 단일실행 등록기 (eBroDevPCRegister.exe)
+                  소형 단일실행 등록기
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.4 }}>
                   PC 고장/교체나 신규 입사 시, 이 PC에서 프로그램을 실행하면 자동으로 하드웨어를 감지하여 DB에 공인 개발자 PC로 등록합니다.
@@ -431,7 +431,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
                 type="text"
                 value={machineName}
                 onChange={e => setMachineName(e.target.value)}
-                placeholder="예: 대표 개발자 워크스테이션 (Win32)"
+                placeholder="예: 대표 개발자 워크스테이션"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -448,7 +448,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #334155)', marginBottom: '4px' }}>
                 <Key size={14} color="#d97706" />
-                물리 마스터 보안키 (Master Hardware Passkey)
+                물리 마스터 보안키
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -546,7 +546,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
               color: '#991b1b',
               lineHeight: 1.5
             }}>
-              <strong>🚨 비상 복구(Break-Glass) 절차 안내:</strong><br />
+              <strong>🚨 비상 복구 절차 안내:</strong><br />
               개발자 PC의 고장, 도난, 침수, 분실 등 정상 단말기로 접근할 수 없는 비상 상황 시 긴급 로그인 절차입니다. 본 비상 접속은 시스템 전산 감사 로그에 전수 영구 기록됩니다.
             </div>
 
@@ -591,7 +591,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #334155)', marginBottom: '4px' }}>
                 <Lock size={14} color="#dc2626" />
-                비상 마스터 복구 보안키 (Emergency Break-Glass Passkey)
+                비상 마스터 복구 보안키
               </label>
               <input
                 type="password"
@@ -611,7 +611,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
               />
             </div>
 
-            {/* 도난/분실 기존 단말기 즉시 차단(Revoke) 선택 */}
+            {/* 도난/분실 기존 단말기 즉시 차단 선택 */}
             {activeDeviceList.length > 0 && (
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#b91c1c', marginBottom: '4px' }}>

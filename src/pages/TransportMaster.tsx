@@ -624,7 +624,7 @@ contact: e.target.value })} placeholder="010-0000-0000" />
         </div>
       )}
 
-      {/* 확인 모달 (Charter 5.2) */}
+      {/* 확인 모달 */}
       {confirmModal && confirmModal.isOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

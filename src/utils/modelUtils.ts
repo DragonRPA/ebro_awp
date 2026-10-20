@@ -1,5 +1,5 @@
 /**
- * modelUtils.ts — 모델명 정규화 및 매칭 공통 유틸 (SSOT)
+ * modelUtils.ts — 모델명 정규화 및 매칭 공통 유틸
  *
  * 전사 표준: isModelMatch / normalizeModelKey는 이 파일에만 정의한다.
  * 각 컴포넌트에서 로컬 중복 정의하지 말고 반드시 이 파일을 import하여 사용한다.
@@ -15,9 +15,9 @@ export function normalizeModelKey(name?: string): string {
 }
 
 /**
- * 전사 단일 표준(SSOT) 모델 정규화 키 생성
+ * 전사 단일 표준 모델 정규화 키 생성
  * - 공백, 하이픈, 언더스코어, 슬래시 제거 및 대문자 통일
- * - Genie E-Drive 축약형(GS-1930 E, GS-1930E, GS1930E 등)과 공식형(GS-1930 E-DRIVE)을 동일 키(GS1930EDRIVE)로 통합
+ * - Genie E-Drive 축약형(GS-1930 E, GS-1930E, GS1930E 등)과 공식형을 동일 키로 통합
  */
 export function getCanonicalModelKey(name?: string): string {
   if (!name) return '';
@@ -32,7 +32,7 @@ export function getCanonicalModelKey(name?: string): string {
 }
 
 /**
- * 공식 모델명(modelName) 및 축약명(shortName) 전사 표준 사전
+ * 공식 모델명 및 축약명 전사 표준 사전
  */
 export const CANONICAL_MODEL_META: Record<string, { modelName: string; shortName?: string; feet: number; manufacturer: string }> = {
   'ES1330L': { modelName: 'ES1330L', shortName: 'ES1330', feet: 13, manufacturer: 'JLG' },
@@ -60,7 +60,7 @@ export const CANONICAL_MODEL_META: Record<string, { modelName: string; shortName
 };
 
 /**
- * 입력된 모델명(축약형, 하이픈 누락, 공백 편차 등)을 전사 공식 모델명(modelName)으로 변환
+ * 입력된 모델명(축약형, 하이픈 누락, 공백 편차 등)을 전사 공식 모델명으로 변환
  */
 export function resolveCanonicalModelName(raw?: string): string {
   if (!raw) return '';
@@ -123,13 +123,13 @@ export function isModelMatch(
   // 2순위: 정규화 완전 일치 (공백/하이픈 제거 + E-DRIVE 정규화 상태에서 비교)
   if (assetNorm === expectedNorm) return true;
 
-  // 3순위: 3~4자리 숫자 패턴 기반 단독군 vs 충돌군(E-Drive) 정밀 매칭
+  // 3순위: 3~4자리 숫자 패턴 기반 단독군 vs 충돌군 정밀 매칭
   const numMatchE = expectedNorm.match(/\d{3,4}/);
   const numMatchA = assetNorm.match(/\d{3,4}/);
   
   if (numMatchE && numMatchA && numMatchE[0] === numMatchA[0]) {
     const num = numMatchE[0];
-    // E-Drive 파생 모델이 존재하는 충돌(Collision) 모델군
+    // E-Drive 파생 모델이 존재하는 충돌 모델군
     const collisionGroup = ['1930', '2632', '2646', '3246'];
 
     if (collisionGroup.includes(num)) {
@@ -137,7 +137,7 @@ export function isModelMatch(
       const hasEE = expectedNorm.includes('E');
       const hasEA = assetNorm.includes('E');
       if (hasEE === hasEA) return true;
-      // E 여부가 다르면 하위 부분일치(includes)로 넘어가지 못하도록 강제 차단
+      // E 여부가 다르면 하위 부분일치로 넘어가지 못하도록 강제 차단
       return false;
     } else {
       // 단독군: E-Drive 파생이 없으므로, 숫자(예: 4655, 1432, 0608)만 일치해도 즉시 매핑

@@ -32,9 +32,9 @@ export function isPrivilegedPrivacyUser(user?: User | null): boolean {
 
 /**
  * 🔒 단가/매출/이익/비용/계약금액 열람 권한자 판별 (단가 보안 정책 SSOT)
- * - 경영진 (Executive): admin, 대표, 경영진 소속 등
- * - 관리부 (Management / Billing / Accounting): 관리팀, 청구팀, 정산팀, 회계, 경리, manager, billing 등
- * - 영업부 (Sales): 영업팀, 영업사원, sales 등
+ * - 경영진: admin, 대표, 경영진 소속 등
+ * - 관리부: 관리팀, 청구팀, 정산팀, 회계, 경리, manager, billing 등
+ * - 영업부: 영업팀, 영업사원, sales 등
  * - 그 외(정비부, 출고팀, 주기장, 운송팀 등 현장/기술 부서)는 단가/매출/비용/이익 비노출
  */
 export function canViewFinancials(user?: User | null): boolean {

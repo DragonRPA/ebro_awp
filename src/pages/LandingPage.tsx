@@ -117,7 +117,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ── 4. 핵심 기능 상세 (Alternating blocks) ── */}
+      {/* ── 4. 핵심 기능 상세 ── */}
       <section id="features" className="py-32 bg-[#f5f2eb]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-40">
           
@@ -156,7 +156,7 @@ export const LandingPage: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-6">
                 <Smartphone className="w-6 h-6 text-[#FF5200]" />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-6">모바일 현장 검수 & RENTED 전환</h2>
+              <h2 className="text-3xl font-bold text-slate-900 mb-6">모바일 현장 검수 및 대여중 전환</h2>
               <p className="text-lg text-slate-500 leading-relaxed mb-8">
                 스마트폰 하나로 외관 4면을 촬영하고, 기사 서명을 받는 즉시 자산 상태가 '대여중'으로 자동 전환됩니다. 분실하기 쉬운 종이 인수증 대신 전자 계약서로 영구 보존하세요.
               </p>

@@ -111,7 +111,7 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
 }
 
 /**
- * 🟢 [2] 비즈니스 액션 완료 시 선행 ToDo 원자적 자동 상계(Clearance)
+ * 🟢 [2] 비즈니스 액션 완료 시 선행 ToDo 원자적 자동 상계
  */
 export async function clearHandoverTasks(params: ClearHandoverTasksParams): Promise<number> {
   const nowIso = new Date().toISOString();
@@ -153,7 +153,7 @@ export function findActiveTasksForUser(
   const rawIsExec = rawDept.includes('경영') || rawDept.includes('대표') || rawRole === 'ADMIN' || rawRole === 'MASTER' || rawRole === 'EXECUTIVE';
 
   // 🏛️ overrideDeptMode(모바일 부서 퀵체인저 등)가 지정된 경우 해당 부서 시뮬레이션 모드 강제 적용
-  // 사용자가 특정 부서 탭(SALES, AS, OUTBOUND, ADMIN)을 선택하여 보고 있을 때는 관리자/경영진이라도 해당 부서의 R&R 렌즈로 격리 필터링
+  // 사용자가 특정 부서 탭을 선택하여 보고 있을 때는 관리자/경영진이라도 해당 부서의 R&R 렌즈로 격리 필터링
   const activeMode = overrideDeptMode?.toUpperCase();
   const isSimulation = !!activeMode && activeMode !== 'EXECUTIVE';
   const isExec = !isSimulation && rawIsExec;
@@ -163,7 +163,7 @@ export function findActiveTasksForUser(
   const isYardDept = isSimulation ? (activeMode === 'OUTBOUND') : (rawDept.includes('YARD') || rawDept.includes('출고') || rawDept.includes('주기장'));
   const isAsDept = isSimulation ? (activeMode === 'AS') : (rawDept.includes('AS') || rawDept.includes('정비') || rawRole.includes('MECHANIC'));
   const isAdminDept = isSimulation ? (activeMode === 'ADMIN') : (rawDept.includes('관리') || rawDept.includes('총무') || rawDept.includes('회계') || rawRole.includes('ADMIN'));
-  // 🚚 [기연리프트 R&R] 배차(DISPATCH) 업무는 관리부(ADMIN) 소관
+  // 🚚 [기연리프트 R&R] 배차 업무는 관리부 소관
   const isDispatchDept = isSimulation ? (activeMode === 'ADMIN') : (isAdminDept || rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS'));
 
   const filtered = todos.filter(t => {
@@ -173,7 +173,7 @@ export function findActiveTasksForUser(
     // 일반 부서원 또는 부서 시뮬레이션 모드에서는 자신의 R&R과 무관한 타 부서 전용 업무가 노출되지 않도록 상위에서 강력 차단
     if (!isExec) {
       // 0-1. 영업부 모드/임직원:
-      // 배차(DISPATCH), 주기장(YARD), 정비(AS) 타겟 업무는 절대 영업부 대시보드에 노출되지 않음
+      // 배차, 주기장, 정비 타겟 업무는 절대 영업부 대시보드에 노출되지 않음
       if (isSalesDept) {
         const isSalesPermitted = 
           t.taskCategory === 'CONTRACT_PACKAGE_RESEND' ||
@@ -182,7 +182,7 @@ export function findActiveTasksForUser(
           (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id);
 
         if (!isSalesPermitted) {
-          // 배차 의뢰(DISPATCH_REQUEST), 상차 출발(OUTBOUND_SHIPMENT_START), PDI 검수, 수리 등은 배차/출고/AS팀 전용
+          // 배차 의뢰, 상차 출발, PDI 검수, 수리 등은 배차/출고/AS팀 전용
           if (t.targetDept === 'DISPATCH' || t.targetDept === 'YARD' || t.targetDept === 'AS' ||
               t.taskCategory?.includes('DISPATCH') || t.taskCategory?.includes('SHIPMENT') ||
               t.taskCategory?.includes('INSPECTION') || t.taskCategory?.includes('PDI') ||
@@ -193,7 +193,7 @@ export function findActiveTasksForUser(
       }
 
       // 0-2. AS팀 모드/임직원:
-      // 배차(DISPATCH), 주기장(YARD), 영업(SALES) 타겟 업무는 절대 AS팀 대시보드에 노출되지 않음
+      // 배차, 주기장, 영업 타겟 업무는 절대 AS팀 대시보드에 노출되지 않음
       if (isAsDept) {
         const isAsPermitted = 
           t.targetDept === 'AS' ||
@@ -208,7 +208,7 @@ export function findActiveTasksForUser(
       }
 
       // 0-3. 출고팀(주기장) 모드/임직원:
-      // 배차(DISPATCH), 정비(AS), 영업(SALES) 타겟 업무는 출고팀 대시보드에서 차단
+      // 배차, 정비, 영업 타겟 업무는 출고팀 대시보드에서 차단
       if (isYardDept && !isAdminDept) {
         if (t.targetDept === 'DISPATCH' || t.targetDept === 'AS' || t.targetDept === 'SALES' ||
             t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY' ||
@@ -270,7 +270,7 @@ export function findActiveTasksForUser(
       if (hasPermission && (hasPermission('contract', 'view') || hasPermission('agent_badge', 'view'))) return true;
     }
 
-    // 6. 업무 카테고리별 시스템 메뉴 권한(Permission) 매칭 (해당 부서 업무에 한함)
+    // 6. 업무 카테고리별 시스템 메뉴 권한 매칭 (해당 부서 업무에 한함)
     if (hasPermission) {
       if (isDispatchDept && (t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY') && hasPermission('delivery', 'view')) return true;
       if ((isYardDept || isAsDept) && (t.taskCategory?.includes('INSPECTION') || t.entityType === 'INSPECTION') && (hasPermission('outbound_inspections', 'view') || hasPermission('repair', 'view'))) return true;
@@ -313,7 +313,7 @@ export async function checkAndIssuePackageResendTask(params: {
   const contract = db.contracts.find(c => c.id === params.contractId);
   if (!contract) return null;
 
-  // 1. 해당 계약에 고객 발송 이력(DOCUMENT_SENT)이 존재하는지 확인
+  // 1. 해당 계약에 고객 발송 이력이 존재하는지 확인
   const sentHistories = db.contractHistory.filter(
     h => h.contractId === params.contractId && h.changeType === 'DOCUMENT_SENT'
   );
@@ -350,7 +350,7 @@ export async function checkAndIssuePackageResendTask(params: {
   }
 
   // 4. ToDo 신규 발행
-  // 대상: 계약 담당자(salespersonId) 및 계약서패키지 발송 권한자(SALES/LOGISTICS)
+  // 대상: 계약 담당자 및 계약서패키지 발송 권한자
   const todo = await issueHandoverTask({
     category: 'CONTRACT_PACKAGE_RESEND',
     title,

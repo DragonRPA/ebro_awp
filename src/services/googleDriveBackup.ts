@@ -68,7 +68,7 @@ export function getDriveReadToken(clientId: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2c. 구글 드라이브 파일 바이너리 다운로드 (file ID + access token)
+// 2c. 구글 드라이브 파일 바이너리 다운로드
 // ─────────────────────────────────────────────────────────────────────────────
 export async function downloadDriveFileAsArrayBuffer(fileId: string, token: string): Promise<ArrayBuffer> {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -82,7 +82,7 @@ export async function downloadDriveFileAsArrayBuffer(fileId: string, token: stri
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2c-2. 토큰/로그인 0회 공개 공유 파일 바이너리 다운로드 (Public Direct Download)
+// 2c-2. 토큰/로그인 0회 공개 공유 파일 바이너리 다운로드
 // ─────────────────────────────────────────────────────────────────────────────
 export async function downloadPublicDriveFile(fileId: string): Promise<ArrayBuffer> {
   const endpoints = [
@@ -124,7 +124,7 @@ export function extractDriveFolderId(url: string): string | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2d-3. 구글 드라이브 폴더 내 파일 목록 조회 (Google Drive API v3)
+// 2d-3. 구글 드라이브 폴더 내 파일 목록 조회
 // ─────────────────────────────────────────────────────────────────────────────
 export interface DriveFolderFileInfo {
   id: string;

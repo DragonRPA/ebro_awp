@@ -16,9 +16,9 @@ export type CallContext =
 export const CALL_CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',    label: '신규고객 출고',    color: '#7c3aed' },
   { id: 'ADDITIONAL',      label: '추가 출고',        color: 'var(--primary)' },
-  { id: 'EXCHANGE',        label: '교체(대차)',        color: '#0891b2' },
+  { id: 'EXCHANGE',        label: '교환',             color: '#0891b2' },
   { id: 'RETURN',          label: '회수 요청',        color: 'var(--danger)' },
-  { id: 'FIELD_AS',        label: '현장 AS',          color: 'var(--warning)' },
+  { id: 'FIELD_AS',        label: '현장 정비',        color: 'var(--warning)' },
   { id: 'TRANSPORT_NEGO',  label: '운송사 배차 협의',  color: 'var(--success)' },
   { id: 'SUBLEASE_NEGO',   label: '전대 임차 협의',   color: 'var(--text-muted)' },
 ];
@@ -701,7 +701,7 @@ export async function insertPipelineLog(
   return item;
 }
 
-// ─── 통화 업로드 구독 (INSERT, UPDATE, DELETE) ─────
+// ─── 통화 업로드 구독 ─────
 export function subscribeCallUploads(onUpdate: () => void) {
   if (!supabase) return () => {};
 
@@ -777,7 +777,7 @@ export function parseCallSummaryText(text: string, fileName?: string): ParsedSum
     return result;
   }
 
-  // ── [A. 라벨 및 대화록(Dialogue) 기반 구조화 파싱] ──
+  // ── [A. 라벨 및 대화록 기반 구조화 파싱] ──
   // 1. 고객명 라벨 및 KEYWORD/파일명 메타 추출
   const custLabelMatch = rawText.match(/(?:고객사명?|고객명|업체명?|상호명?|상호)\s*[:：]\s*([^\n\r]+)/i);
   if (custLabelMatch && custLabelMatch[1]) {
@@ -811,7 +811,7 @@ export function parseCallSummaryText(text: string, fileName?: string): ParsedSum
     }
   }
 
-  // 1-3. 대화록(Multi-speaker Dialogue) 화자 분석 (기연 측 vs 고객 측 분리)
+  // 1-3. 대화록 화자 분석 (기연 측 vs 고객 측 분리)
   if (/\[화자\d+\]|화자\d+\s*[:：]/.test(rawText)) {
     const speakerBlocks = rawText.split(/(?=\[화자\d+\]|화자\d+\s*[:：])/);
     for (const blk of speakerBlocks) {

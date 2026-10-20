@@ -88,7 +88,7 @@ export const InspectionChecklistManage: React.FC = () => {
   } | null>(null);
 
   // ═════════════════════════════════════════════════════════════════
-  // ─── [탭 1: 정비 항목 마스터 (MASTER)] 상태 및 로직 ───
+  // ─── [탭 1: 정비 항목 마스터] 상태 및 로직 ───
   // ═════════════════════════════════════════════════════════════════
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDefectSymptomOnly, setFilterDefectSymptomOnly] = useState<boolean>(false);
@@ -111,7 +111,7 @@ export const InspectionChecklistManage: React.FC = () => {
   const repairMappingStats = useMemo(() => {
     const stats: Record<string, { count: number; lastOccurred?: string }> = {};
     
-    // 1. 기존 명시적 매핑 (inspectionItemId/Code)
+    // 1. 기존 명시적 매핑
     (repairs || []).forEach(r => {
       const keys = [r.inspectionItemCode, r.inspectionItemId].filter(Boolean) as string[];
       keys.forEach(k => {
@@ -127,7 +127,7 @@ export const InspectionChecklistManage: React.FC = () => {
       });
     });
 
-    // 2. 불량 증상명 기반 텍스트 매칭 (repairs, deliveries)
+    // 2. 불량 증상명 기반 텍스트 매칭
     const defectSymptoms = (inspectionChecklistItems || []).filter(item => item.isDefectSymptom && item.name);
     
     defectSymptoms.forEach(symptom => {
@@ -330,12 +330,12 @@ export const InspectionChecklistManage: React.FC = () => {
         .join(', ');
       const stat = repairMappingStats[item.code] || { count: 0 };
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '카테고리': item.category,
         '항목코드': item.code,
         '항목명': item.name,
         '배점': item.score,
-        '표준공수(M/H)': item.standardManHours || 0.5,
+        '표준공수(시간)': item.standardManHours || 0.5,
         '추천부품': partsNames || '-',
         '누적발생건수': stat.count,
         '조치가이드': item.actionGuide || '-',
@@ -349,7 +349,7 @@ export const InspectionChecklistManage: React.FC = () => {
   };
 
   // ═════════════════════════════════════════════════════════════════
-  // ─── [탭 2: 조직역량 & 비용 분석 (ANALYTICS)] 상태 및 로직 ───
+  // ─── [탭 2: 조직역량 & 비용 분석] 상태 및 로직 ───
   // ═════════════════════════════════════════════════════════════════
   const getTodayStr = () => new Date().toISOString().slice(0, 10);
   const getFirstDayOfMonth = () => {
@@ -556,8 +556,8 @@ export const InspectionChecklistManage: React.FC = () => {
         '정비항목명': item.itemName,
         '카테고리': item.category,
         '발생건수': item.count,
-        '표준공수(M/H)': item.standardManHours,
-        '누적공수(M/H)': Number(item.totalManHours.toFixed(1)),
+        '표준공수(시간)': item.standardManHours,
+        '누적공수(시간)': Number(item.totalManHours.toFixed(1)),
         '자체부품비(원)': item.partCost,
         '외주정비비(원)': item.externalCost,
         '총소요비용(원)': item.totalCost,
@@ -572,7 +572,7 @@ export const InspectionChecklistManage: React.FC = () => {
   };
 
   // ═════════════════════════════════════════════════════════════════
-  // ─── [탭 3: 장비 매뉴얼 라이브러리 (MANUALS)] 상태 및 로직 ───
+  // ─── [탭 3: 장비 매뉴얼 라이브러리] 상태 및 로직 ───
   // ═════════════════════════════════════════════════════════════════
   const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [selectedManualModel, setSelectedManualModel] = useState<string>('전체');
@@ -677,7 +677,7 @@ export const InspectionChecklistManage: React.FC = () => {
       return;
     }
     const rows = filteredManuals.map((m, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '매뉴얼명': m.title,
       '카테고리': m.category,
       '제조사': m.manufacturer || '-',
@@ -1075,7 +1075,7 @@ export const InspectionChecklistManage: React.FC = () => {
       </div>
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* ─── [탭 1: 정비 항목 마스터 (MASTER)] ─── */}
+      {/* ─── [탭 1: 정비 항목 마스터] ─── */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {activeTab === 'MASTER' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1230,7 +1230,7 @@ export const InspectionChecklistManage: React.FC = () => {
               <table>
                 <thead>
                   <tr>
-                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>No</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>순번</th>
                     <SortableTh label="카테고리" sortKey="category" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '90px' }} />
                     <SortableTh label="항목 코드" sortKey="code" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '105px' }} />
                     <SortableTh label="정비 점검항목명" sortKey="name" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', minWidth: '160px' }} />
@@ -1367,7 +1367,7 @@ export const InspectionChecklistManage: React.FC = () => {
       )}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* ─── [탭 2: 조직역량 & 비용 분석 (ANALYTICS)] ─── */}
+      {/* ─── [탭 2: 조직역량 & 비용 분석] ─── */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {activeTab === 'ANALYTICS' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1586,13 +1586,13 @@ export const InspectionChecklistManage: React.FC = () => {
             </div>
           </div>
 
-          {/* 중앙 고밀도 항목별 역량 및 비용 대사 그리드 (Inspection) */}
+          {/* 중앙 고밀도 항목별 역량 및 비용 대사 그리드 */}
           <div className="card" style={{ padding: '14px' }}>
             <div className="table-container" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
               <table>
                 <thead>
                   <tr>
-                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>No</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>순번</th>
                     <SortableTh label="카테고리" sortKey="category" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '90px' }} />
                     <SortableTh label="항목 코드" sortKey="itemCode" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '105px' }} />
                     <SortableTh label="정비 항목명" sortKey="itemName" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', minWidth: '160px' }} />
@@ -1667,7 +1667,7 @@ export const InspectionChecklistManage: React.FC = () => {
       )}
 
       {/* ═════════════════════════════════════════════════════════════ */}
-      {/* ─── [탭 3: 장비 매뉴얼 라이브러리 (MANUALS)] ─── */}
+      {/* ─── [탭 3: 장비 매뉴얼 라이브러리] ─── */}
       {/* ═════════════════════════════════════════════════════════════ */}
       {activeTab === 'MANUALS' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -2775,7 +2775,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 표준 조치 절차 (SOP) */}
+              {/* 표준 조치 절차 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 조치 절차</label>
                 <textarea
@@ -2949,11 +2949,11 @@ export const InspectionChecklistManage: React.FC = () => {
                     onChange={e => setManualFormManufacturer(e.target.value)}
                     style={{ padding: '7px', fontSize: '12.5px' }}
                   >
-                    <option value="Skyjack">Skyjack (스카이잭)</option>
-                    <option value="Genie">Genie (지니)</option>
-                    <option value="Dingli">Dingli (딩리)</option>
+                    <option value="Skyjack">스카이잭</option>
+                    <option value="Genie">지니</option>
+                    <option value="Dingli">딩리</option>
                     <option value="JLG">JLG</option>
-                    <option value="Delta-Q">Delta-Q (델타큐)</option>
+                    <option value="Delta-Q">델타큐</option>
                     <option value="기타">기타 제조사</option>
                   </select>
                 </div>
@@ -2998,7 +2998,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       ? '예: [사내정비] SJ-3219 상승 솔레노이드 밸브 분해정비 및 에어빼기 실무'
                       : manualFormMediaType === 'WEB_LINK'
                       ? '예: [웹매뉴얼] Delta-Q 충전기 배터리 프로파일 온라인 세팅 가이드'
-                      : '예: Skyjack SJIII 3219 부품 매뉴얼 (Rev. 2024)'
+                      : '예: Skyjack SJIII 3219 부품 매뉴얼'
                   }
                   value={manualFormTitle}
                   onChange={e => setManualFormTitle(e.target.value)}

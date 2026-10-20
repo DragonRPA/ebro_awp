@@ -407,7 +407,7 @@ export const PrivacyAuditPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 🛡️ 테넌트별 개인정보 보호책임자(CPO) 지정 현황 바 */}
+      {/* 🛡️ 테넌트별 개인정보 보호책임자 지정 현황 바 */}
       {activeAuditTab === 'LOGS' && (
         <>
           {(() => {
@@ -515,7 +515,7 @@ export const PrivacyAuditPage: React.FC = () => {
           <div style={{ padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
-              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>평문 노출 제로 (Zero-Plaintext)</div>
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>평문 노출 제로</div>
               <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>볼트 체크섬 무결성 검증 (정상 가동)</div>
             </div>
           </div>
@@ -723,7 +723,7 @@ export const PrivacyAuditPage: React.FC = () => {
               fontWeight: 700,
               whiteSpace: 'nowrap'
             }}>
-              <th style={{ padding: '4px 8px', textAlign: 'center', width: '50px' }}>NO</th>
+              <th style={{ padding: '4px 8px', textAlign: 'center', width: '50px' }}>순번</th>
               <SortableTh label="일시" sortKey="createdAt" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
               <SortableTh label="접속자" sortKey="userName" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
               <SortableTh label="수행 업무" sortKey="actionType" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="center" />
@@ -877,7 +877,7 @@ export const PrivacyAuditPage: React.FC = () => {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          🛡️ 인가된 개발자 물리 단말기 (Hardware-Bound Machine Registry)
+          🛡️ 인가된 개발자 물리 단말기
           ───────────────────────────────────────────────────────────── */}
       {activeAuditTab === 'DEVICES' && (isSuperAdmin || isExecutive) && (
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -909,7 +909,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   개발자 물리 단말기 인가 목록 및 통제 대장
                 </h3>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)' }}>
-                  중앙 DB(Supabase developer_authorized_devices) 기반 하드웨어 접근 통제 및 비상 복구(Break-Glass) 체계
+                  중앙 DB(Supabase developer_authorized_devices) 기반 하드웨어 접근 통제 및 비상 복구 체계
                 </span>
               </div>
             </div>
@@ -1253,7 +1253,7 @@ export const PrivacyAuditPage: React.FC = () => {
                       outline: 'none'
                     }}
                   >
-                    <option value="sys-admin">대표 개발자 (sys-admin)</option>
+                    <option value="sys-admin">대표 개발자</option>
                     {users
                       .filter(u => u.id !== 'sys-admin')
                       .map(u => (
@@ -1487,7 +1487,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 <AlertOctagon size={20} color="#dc2626" />
                 <div>
                   <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#b91c1c' }}>
-                    비상 마스터 복구(Break-Glass) 및 재해 대비 표준 지침
+                    비상 마스터 복구 및 재해 대비 표준 지침
                   </h3>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                     개발자 PC 고장, 도난, 분실 시 긴급 접근권 복구 및 원격 보안 조치
@@ -1515,7 +1515,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 gap: '6px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 800, color: '#dc2626' }}>비상 마스터 복구 보안키 (Break-Glass Key)</span>
+                  <span style={{ fontWeight: 800, color: '#dc2626' }}>비상 마스터 복구 보안키</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1566,11 +1566,11 @@ export const PrivacyAuditPage: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                  2. 도난 / 분실 시 원격 킬스위치(Kill-Switch) 즉시 가동
+                  2. 도난 / 분실 시 원격 킬스위치 즉시 가동
                 </div>
                 <div style={{ color: 'var(--text-secondary)', paddingLeft: '8px', borderLeft: '2px solid #ef4444' }}>
                   기기를 분실하였거나 도난당한 경우, 비상 복구 팝업에서 분실 기기를 선택하여 차단하거나,
-                  본 관리 대장의 <strong>[도난/분실 차단]</strong> 버튼을 1클릭하여 즉시 단말기 상태를 <strong>차단됨(REVOKED)</strong>으로 무효화하십시오.
+                  본 관리 대장의 <strong>[도난/분실 차단]</strong> 버튼을 1클릭하여 즉시 단말기 상태를 <strong>차단됨</strong>으로 무효화하십시오.
                   차단 즉시 해당 단말기에서는 로컬 토큰이 파기되어 더 이상 로그인이 불가능합니다.
                 </div>
               </div>

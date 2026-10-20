@@ -13,7 +13,7 @@ import { fetchWithAgentFallback, launchLocalAgentFromBrowser, isAgentOnlineGloba
 import { getCanonicalModelKey } from '../utils/modelUtils';
 import { PRESET_PRODUCT_SPECS } from '../data/presetProductSpecs';
 
-// 안전인증서 파일명/URL에서 안전인증일(YYYY-MM-DD) 자동 추출 헬퍼
+// 안전인증서 파일명/URL에서 안전인증일(일자) 자동 추출 헬퍼
 const extractCertDateFromText = (raw?: string | null): string | null => {
   if (!raw) return null;
   let decoded = raw;
@@ -167,7 +167,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     return sites?.find(s => s.id === selectedContract.siteId);
   }, [sites, selectedContract]);
 
-  // 해당 계약의 출고 배차(OUTBOUND) 조회
+  // 해당 계약의 출고 배차 조회
   const outboundDelivery = useMemo(() => {
     if (!selectedContract) return null;
     return deliveries.find(d => d.contractId === selectedContract.id && d.type === 'OUTBOUND');
@@ -178,7 +178,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     return outboundDelivery?.scheduledDate || outboundDelivery?.loadingDate || outboundDelivery?.unloadingDate || selectedContract?.startDate || new Date().toISOString().split('T')[0];
   }, [outboundDelivery, selectedContract]);
 
-  // 배차일 기준 2일 전(D-2) 자동 계산
+  // 배차일 기준 2일 전 자동 계산
   const defaultInspectionDate = useMemo(() => {
     if (!baseDeliveryDate) return new Date().toISOString().split('T')[0];
     const cleanDate = baseDeliveryDate.replace(/[^0-9-]/g, '').slice(0, 10);
@@ -217,7 +217,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const upperModel = rawModel.trim().toUpperCase();
       const canonicalModel = getCanonicalModelKey(rawModel);
 
-      // 💡 1. 모델 마스터(Product) 조회 (정확 일치 -> 대소문자 무관 -> 축약명 -> 정규화 키 순)
+      // 💡 1. 모델 마스터 조회 (정확 일치 -> 대소문자 무관 -> 축약명 -> 정규화 키 순)
       const allProducts = products.length > 0 ? products : db.products;
       const prod =
         allProducts.find(p => p.modelName === rawModel) ||
@@ -232,7 +232,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
       const model = prod?.modelName || preset?.modelName || rawModel;
 
-      // 💡 2. 모델별 안전인증일(safetyCertDate): Product 마스터 -> 안전인증서 URL 파일명 -> Preset 순
+      // 💡 2. 모델별 안전인증일: Product 마스터 -> 안전인증서 URL 파일명 -> Preset 순
       const resolvedCertDate =
         prod?.safetyCertDate ||
         (prod as any)?.certDate ||
@@ -252,14 +252,14 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const unifiedInspectionDate = customInspectionDate || defaultInspectionDate;
 
       return {
-        // [자산별 정보 (Asset)]
+        // [자산별 정보]
         assetNo: a?.assetNo || '-',
         sn: a?.serialNo || '',
         manufactureYear: resolvedManufactureYear,
         rentalFee: ca.monthlyRentalFee || a?.monthlyRentalFee || 0,
         inspectionDate: unifiedInspectionDate,
         inspectorName: assetInspector,
-        // [자산별 제조사 최우선 -> 모델별 정보 (Product)]
+        // [자산별 제조사 최우선 -> 모델별 정보]
         modelName: model,
         manufacturer: a?.manufacturer || prod?.manufacturer || preset?.manufacturer || '-',
         powerSource: prod?.powerSource || preset?.powerSource || '배터리',
@@ -718,13 +718,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
     setIsSendingEmail(true);
     try {
-      // 1. PDF가 아직 없으면 논스톱 자동 조립 실행 (2-A)
+      // 1. PDF가 아직 없으면 논스톱 자동 조립 실행
       let pdf = generatedResult;
       if (!pdf || !pdf.filePath) {
         pdf = await buildBundlePdf();
       }
 
-      // 2. 단일 메일에 복수 수신인(TO: 1번째, CC: 나머지) 바인딩 (1-A)
+      // 2. 단일 메일에 복수 수신인(TO: 1번째, CC: 나머지) 바인딩
       const primaryRecipient = recipients[0].email;
       const ccRecipients = recipients.slice(1).map(r => r.email).join(', ');
 
@@ -747,7 +747,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         tenantCorp
       );
 
-      // 4. 계약 변경 이력(contract_history)에 감사 로그 DB 저장 (3-yes)
+      // 4. 계약 변경 이력에 감사 로그 DB 저장
       // 메일은 이미 발송되어 철회 불가. 이력 저장 실패 시 무음 처리하지 않고 오류 모달로 표출한다.
       let historySaved = true;
       try {
@@ -769,7 +769,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
           packageSentAt: new Date().toISOString()
         });
 
-        // 🌟 [ToDo 자동 상계]: 계약서패키지 재발송 ToDo가 존재했다면 원자적 자동 완료(Clearance)
+        // 🌟 [ToDo 자동 상계]: 계약서패키지 재발송 ToDo가 존재했다면 원자적 자동 완료
         await clearHandoverTasks({
           entityType: 'CONTRACT',
           entityId: selectedContract.id,
@@ -792,7 +792,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     } catch (err: any) {
       console.error('이메일 발송 실패:', err);
       const errMsg = String(err?.message || err || '');
-      // 로컬 에이전트 미실행/통신 불가의 경우에만 전용 안내 모달(AgentRequiredModal)이 뜨므로, 그 외(SMTP 인증 오류 등)는 상세 에러 모달을 즉시 표출
+      // 로컬 에이전트 미실행/통신 불가의 경우에만 전용 안내 모달이 뜨므로, 그 외(SMTP 인증 오류 등)는 상세 에러 모달을 즉시 표출
       if (!errMsg.includes('eBroAgent)가 실행되고 있지 않습니다') && !errMsg.includes('eBroAgent)와 통신할 수 없습니다')) {
         showErrorModal?.(`이메일 발송 실패:\n${errMsg}`);
       }

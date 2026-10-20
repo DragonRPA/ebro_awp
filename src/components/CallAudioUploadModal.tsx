@@ -373,7 +373,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
         </div>
 
         {/* ── 푸터 (항상 고정, 내비바 위로 표시) ── */}
-        {/* paddingBottom: 내비바 높이(64px) + safe-area */}
+        {/* paddingBottom: 내비바 높이 + safe-area */}
         <div style={{
           display: 'flex',
           alignItems: 'center',

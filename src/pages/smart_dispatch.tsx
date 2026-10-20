@@ -264,7 +264,7 @@ export const SmartDispatch: React.FC = () => {
         if (anySpecInherited) inherited.push('요구사양(고객기본)');
       }
 
-      // 2. 현장(Site) 정보 상속 (현장 전용 설정이 있다면 고객 기본값보다 우선 적용!)
+      // 2. 현장 정보 상속 (현장 전용 설정이 있다면 고객 기본값보다 우선 적용!)
       const matchedSite = sites.find(
         s => s.customerId === matchedCustomer.id &&
         (sName ? (s.name.replace(/\s/g, '') === sName.replace(/\s/g, '') || s.name.includes(sName) || sName.includes(s.name)) : true)
@@ -314,7 +314,7 @@ export const SmartDispatch: React.FC = () => {
         }
       }
 
-      // 3. 담당자(Contacts) 정보 상속
+      // 3. 담당자 정보 상속
       const custContacts = contacts.filter(ct => ct.customerId === matchedCustomer.id);
       if (custContacts.length > 0) {
         if (!nextSiteContactPhone) {
@@ -335,7 +335,7 @@ export const SmartDispatch: React.FC = () => {
         }
       }
 
-      // 4. 최근 계약(Contracts)의 영업담당자 상속
+      // 4. 최근 계약의 영업담당자 상속
       if (!nextSalespersonName) {
         const lastContract = contracts
           .filter(c => c.customerId === matchedCustomer.id && (c.contractType || 'RENTAL') === 'RENTAL')
@@ -1012,7 +1012,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     showToast('입력 폼이 초기화되었습니다.');
   };
 
-  // 🎙️ 대화형 의뢰작성 스튜디오 동기화 핸들러 (Live Sync)
+  // 🎙️ 대화형 의뢰작성 스튜디오 동기화 핸들러
   const handleStudioSync = (data: Partial<StudioSyncData>) => {
     if (data.customerName !== undefined) setCustomerName(data.customerName);
     if (data.siteName !== undefined) setSiteName(data.siteName);
@@ -1334,7 +1334,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>현장 상세 주소 <span style={{ color: 'var(--danger)' }}>*</span></span>
                   {inheritedFieldList.includes('현장 상세 주소') && (
-                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                   )}
                 </label>
                 <input
@@ -1367,7 +1367,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>현장담당자 이름</span>
                     {inheritedFieldList.includes('현장담당자 이름') && (
-                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={siteContactName} onChange={e => setSiteContactName(e.target.value)} placeholder="예: 김소장" />
@@ -1376,7 +1376,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>현장담당자 연락처 <span style={{ color: 'var(--danger)' }}>*</span></span>
                     {(inheritedFieldList.includes('현장담당자 연락처') || inheritedFieldList.includes('현장담당자(연락처)')) && (
-                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                     )}
                   </label>
                   <input
@@ -1393,7 +1393,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>청구담당자 이름</span>
                     {inheritedFieldList.includes('청구담당자') && (
-                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={billingContactName} onChange={e => setBillingContactName(e.target.value)} placeholder="예: 이대리" />
@@ -1402,7 +1402,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>청구담당자 연락처</span>
                     {inheritedFieldList.includes('청구담당자 연락처') && (
-                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={billingContactPhone} onChange={e => setBillingContactPhone(e.target.value)} placeholder="예: 010-9876-5432" />
@@ -1417,7 +1417,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>계산서 메일</span>
                     {inheritedFieldList.includes('계산서 메일') && (
-                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[자동 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={taxBillEmail} onChange={e => setTaxBillEmail(e.target.value)} placeholder="예: tax@company.co.kr" />
@@ -1475,7 +1475,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   </div>
                 ))}
                 
-                {/* 콤보박스 자동완성(Datalist) 데이터 */}
+                {/* 콤보박스 자동완성 데이터 */}
                 <datalist id="unique-models">
                   {uniqueModels.map(model => (
                     <option key={model} value={model} />

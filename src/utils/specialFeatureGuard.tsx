@@ -14,7 +14,7 @@ import { Tenant, db } from '../services/db';
  *    ➔ currentTenant.specialFeatures 목록에 포함되어 있을 때만 true (미인가 시 false ➔ 숨김)
  */
 export function isSpecialFeatureGranted(featureId: string, tenant?: Tenant | null): boolean {
-  // 1. 등록되지 않은 일반 탭/버튼은 항상 허용 (Safe Default Open)
+  // 1. 등록되지 않은 일반 탭/버튼은 항상 허용
   if (!isControlledSpecialFeature(featureId)) {
     return true;
   }
@@ -30,7 +30,7 @@ export function isSpecialFeatureGranted(featureId: string, tenant?: Tenant | nul
     ? targetTenant.specialFeatures
     : (Array.isArray(targetTenant.features?.specialFeatures) ? targetTenant.features.specialFeatures : undefined);
 
-  // 미설정(undefined) 상태인 경우: 기존 테넌트의 업무 연속성을 보장하기 위해 기본 전체 인가로 취급
+  // 미설정 상태인 경우: 기존 테넌트의 업무 연속성을 보장하기 위해 기본 전체 인가로 취급
   if (features === undefined) {
     return true;
   }

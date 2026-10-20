@@ -67,7 +67,7 @@ export async function fetchLocalStationConfigFromAgent(): Promise<LocalStationCo
 }
 
 /**
- * 로컬 에이전트(/api/print-direct)로 직접 즉시 인쇄 전송 (타임아웃 없이 완료까지 대기)
+ * 로컬 에이전트로 직접 즉시 인쇄 전송 (타임아웃 없이 완료까지 대기)
  */
 export async function printDirectToLocalAgent(params: {
   printerName: string;
@@ -224,7 +224,7 @@ export async function enqueuePrintJob(params: {
   const now = new Date().toISOString();
   const jobId = `PQ-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-  // DB 외래키(print_queue_requestedById_fkey) 무결성 보장:
+  // DB 외래키 무결성 보장:
   // db.users에 실제로 존재하는 유효한 사용자 ID인지 검증 (가상 관리자 id: 'sys-admin', 'usr-admin' 등은 FK 에러 방지를 위해 undefined로 설정)
   const isRealUser = params.requestedById && 
     !['sys-admin', 'usr-admin', 'sys-anon', 'system'].includes(params.requestedById) && 
@@ -270,7 +270,7 @@ export function getPrintQueue(filter?: { stationId?: string; status?: string }):
 }
 
 /**
- * 10. 실패 작업 재출력 요청 (Retry)
+ * 10. 실패 작업 재출력 요청
  */
 export async function retryPrintJob(id: string): Promise<void> {
   const item = db.printQueue.find(q => q.id === id);

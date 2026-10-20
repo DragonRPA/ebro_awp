@@ -222,7 +222,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   statementClosingDay: '명세서마감일(일)',
   contractAssetId: '계약장비 ID',
   deliveryDate: '운송일자',
-  deliveryType: '출고구분(DELIVERY/RETURN)',
+  deliveryType: '출고구분(출고/회수)',
   transportDriverId: '운송기사 ID',
   freightFee: '운임비(원)',
   billNo: '청구번호',
@@ -232,11 +232,11 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   billingId: '청구 ID',
   amount: '금액(원)',
   paymentDate: '수납/지급일자',
-  paymentType: '구분(RECEIPT/DISBURSEMENT)',
+  paymentType: '구분(입금/출금)',
   paymentMethod: '결제수단',
   bankTransactionId: '은행거래 ID',
   repairDate: '수리정비일자',
-  repairType: '구분(PREVENTIVE/BREAKDOWN)',
+  repairType: '구분(예방점검/고장수리)',
   description: '정비내용설명',
   cost: '정비비용(원)',
   repairedBy: '정비담당자명',
@@ -267,7 +267,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   keyword: '키워드',
   targetType: '대상구분',
   targetId: '대상코드 ID',
-  logType: '구분(IN/OUT)',
+  logType: '구분(입고/출고)',
   logDate: '입출고일자',
   driverName: '기사명',
   driverContact: '기사연락처',
@@ -750,7 +750,7 @@ export const DevDataUploader: React.FC = () => {
 
     const converted = parsedRows.map((row, idx) => convertRow(row, schema, idx));
 
-    // 🛡️ 헌장 1.5 준수: customer_sites 단일 테이블 업로드 시 물리 현장 마스터(site_masters) 선행 생성 및 siteMasterId 자동 매핑
+    // 🛡️ 헌장 1.5 준수: customer_sites 단일 테이블 업로드 시 물리 현장 마스터 선행 생성 및 siteMasterId 자동 매핑
     if (schema.supabaseTable === 'customer_sites') {
       const nowIso = new Date().toISOString();
       const newMastersToUpsert: any[] = [];
@@ -1163,8 +1163,8 @@ export const DevDataUploader: React.FC = () => {
   // ✅ 재설계된 DB 스키마 정합성 검증 도구
   // 본질 목적: 개발자가 schema.sql 변경 후 수동으로 SQL Editor에서 DDL 실행하는 수작업을 ZERO화
   // 핵심 개선:
-  //   1. 검증: PostgREST API(schema cache 오염) 대신 information_schema 직접 조회 (dev_get_columns RPC)
-  //   2. 실행: DDL 패치 SQL 보여주기만 → "패치 자동 적용" 버튼으로 DB에 즉시 자동 실행 (dev_exec_ddl RPC)
+  //   1. 검증: PostgREST API(schema cache 오염) 대신 information_schema 직접 조회
+  //   2. 실행: DDL 패치 SQL 보여주기만 → "패치 자동 적용" 버튼으로 DB에 즉시 자동 실행
   //   3. 캐시: dev_exec_ddl 내부에서 NOTIFY pgrst 자동 실행 → 수동 갱신 불필요
   //   4. 선택적 검증: 특정 테이블만 체크박스로 골라 빠르게 검증
   // ──────────────────────────────────────────────────────────────────────

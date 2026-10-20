@@ -649,7 +649,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
         ) : (
           /* B. 화면 기본 안내 모드 뷰 */
           <>
-            {/* 1. 업무 기능 목적 (Terminal Objective) */}
+            {/* 1. 업무 기능 목적 */}
             <div>
               <div style={{
                 fontSize: '11px',

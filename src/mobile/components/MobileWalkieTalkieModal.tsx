@@ -432,7 +432,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
       console.error('finishRecordingAndSend error:', err);
     } finally {
       setRecordDuration(0);
-      // 🛡️ 모바일 브라우저의 지연 합성 클릭(300ms) 및 손가락 잔여 터치가 완전히 소멸된 후 버튼 잠금 해제
+      // 🛡️ 모바일 브라우저의 지연 합성 클릭 및 손가락 잔여 터치가 완전히 소멸된 후 버튼 잠금 해제
       setTimeout(() => {
         isStoppingRef.current = false;
         setIsStopping(false);
@@ -1252,7 +1252,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                   <>
                     <MicOff size={18} color="#94a3b8" />
                     <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#94a3b8' }}>
-                      무전기 전원 OFF (상단 전원을 켜주세요)
+                      무전기 전원 꺼짐 (상단 전원을 켜주세요)
                     </span>
                   </>
                 )}

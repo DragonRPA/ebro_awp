@@ -157,7 +157,7 @@ export const SmartReturn: React.FC = () => {
   }, [contracts, contractAssets]);
 
   // ==========================================
-  // [1] 영업사원 모드 (SALES) 상태
+  // [1] 영업사원 모드 상태
   // ==========================================
   const [salesSearch, setSalesSearch] = useState('');
   const [returnStartDate, setReturnStartDate] = useState('');
@@ -275,7 +275,7 @@ export const SmartReturn: React.FC = () => {
 
 
   // ==========================================
-  // [2] 정비직원 모드 (MAINTENANCE) 상태
+  // [2] 정비직원 모드 상태
   // ==========================================
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [selectedRepairIds, setSelectedRepairIds] = useState<string[]>([]);
@@ -579,7 +579,7 @@ export const SmartReturn: React.FC = () => {
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
           </tr>
           <tr>
-            <th class="nowrap">현장요구스펙</th>
+            <th class="nowrap">현장요구사양</th>
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
           </tr>
         </tbody>
@@ -661,7 +661,7 @@ export const SmartReturn: React.FC = () => {
     return map;
   }, [ongoingRepairs]);
 
-  // 외주정비 중인 자산이 존재하는 정비 업체(Vendor)들만 추출
+  // 외주정비 중인 자산이 존재하는 정비 업체들만 추출
   const repairVendors = useMemo(
     () => vendors.filter(v => v.type === 'REPAIR' && ongoingRepairsByVendorMap.has(v.id)),
     [vendors, ongoingRepairsByVendorMap]
@@ -1125,7 +1125,7 @@ export const SmartReturn: React.FC = () => {
                           <div><strong style={{ color: 'var(--primary-color, #2563eb)' }}>유상옵션:</strong> {categorizedOpts.paidOptionsText}</div>
                           <div><strong style={{ color: '#0891b2' }}>무상옵션:</strong> {categorizedOpts.protectionText}</div>
                           <div><strong style={{ color: '#9333ea' }}>부착물:</strong> {categorizedOpts.attachmentsText}</div>
-                          <div><strong style={{ color: '#059669' }}>현장요구스펙:</strong> {categorizedOpts.specsText}</div>
+                          <div><strong style={{ color: '#059669' }}>현장요구사양:</strong> {categorizedOpts.specsText}</div>
                           {inheritedSpecs.length > 0 && (
                             <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                               {inheritedSpecs.map(s => (

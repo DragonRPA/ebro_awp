@@ -218,7 +218,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
         // 2. 고객사 현장 가동중: status === 'RENTED'
         const isDeployedToCustomer = a.status === 'RENTED' && !isReturnedToVendor;
 
-        // 3. 🚨 주기장 유휴 누수 위험: 임차처에 아직 안 돌려줬는데(미반납), 현장에도 안 나가있는 상태(AVAILABLE or ASSIGNED or REPAIRING)
+        // 3. 🚨 주기장 유휴 누수 위험: 임차처에 아직 안 돌려줬는데(미반납), 현장에도 안 나가있는 상태
         const isIdleLeakRisk = !isReturnedToVendor && !isDeployedToCustomer;
 
         // 유휴 누수 일수 계산 (당일 입고 시 0일 보정 - 과제 10)
@@ -576,7 +576,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
         </div>
       </div>
 
-      {/* ── 3. 전대 자산 목록 (Card Dossier) ── */}
+      {/* ── 3. 전대 자산 목록 ── */}
       <div className="flex flex-col gap-3">
         {filteredSubleaseList.length === 0 ? (
           <div className="p-8 text-center bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col items-center gap-2">

@@ -158,7 +158,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<!DOCTYPE html>
   <table>
     <thead>
       <tr>
-        <th style="width: 40px;">No</th>
+        <th style="width: 40px;">순번</th>
         <th>장비 모델명</th>
         <th>장비 번호</th>
         <th style="width: 80px;">작업높이</th>
@@ -262,14 +262,14 @@ const DEFAULT_STATEMENT_TEMPLATE = `<!DOCTYPE html>
   </table>
 
   <div class="total-box">
-    <span>청구 합계 금액 (VAT 포함):</span>
+    <span>청구 합계 금액 (부가세 포함):</span>
     <span style="color: #1d4ed8; font-size: 16px;">{{contract.totalAmount}}</span>
   </div>
 
   <table>
     <thead>
       <tr>
-        <th style="width: 40px;">No</th>
+        <th style="width: 40px;">순번</th>
         <th>품목 / 규격</th>
         <th>장비번호</th>
         <th style="width: 120px;">청구 기간</th>
@@ -340,14 +340,14 @@ const DEFAULT_QUOTATION_TEMPLATE = `<!DOCTYPE html>
   </table>
 
   <div class="quote-summary">
-    <strong>견적 총액 (VAT 포함): </strong>
+    <strong>견적 총액 (부가세 포함): </strong>
     <span style="font-size: 17px; font-weight: 900; color: #1d4ed8; margin-left: 8px;">{{contract.totalAmount}}</span>
   </div>
 
   <table>
     <thead>
       <tr>
-        <th style="width: 40px;">No</th>
+        <th style="width: 40px;">순번</th>
         <th>품목 및 사양</th>
         <th>작업높이</th>
         <th style="width: 100px;">월 렌탈 단가</th>
@@ -418,7 +418,7 @@ const DEFAULT_RECEIPT_TEMPLATE = `<!DOCTYPE html>
   <table>
     <thead>
       <tr>
-        <th style="width: 40px;">No</th>
+        <th style="width: 40px;">순번</th>
         <th>인도 장비 모델명</th>
         <th>장비 고유번호</th>
         <th style="width: 100px;">작업높이</th>

@@ -188,7 +188,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       return rest as UserNode;
     });
 
-    // 고아(Orphan) 직원 구출: 현재 존재하지 않는 부서 ID를 가진 직원은 '미배정(null)'으로 강제 이동
+    // 고아 직원 구출: 현재 존재하지 않는 부서 ID를 가진 직원은 '미배정'으로 강제 이동
     const validDeptIds = new Set(loadedDepts.map(d => d.id));
     loadedUsers = loadedUsers.map(u => 
       u.departmentId && !validDeptIds.has(u.departmentId) 
@@ -543,7 +543,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       const statusLabel = u.status === 'ACTIVE' ? '재직' : u.status === 'RETIRED' ? '퇴사' : '휴직';
       const eff = getUserEffectiveTier(u, dutyConfigs, positionConfigs);
       const row: any = {
-        'No': idx + 1,
+        '순번': idx + 1,
         '성명': isPrivileged ? (u.name || '-') : maskName(u.name),
         '아이디': u.loginId || '-',
         '소속부서': deptName,
@@ -909,7 +909,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             )}
           </div>
 
-          {/* 부서 보편 기능 속성 매핑 (Universal Functional Attributes) */}
+          {/* 부서 보편 기능 속성 매핑 */}
           {activeTab === 'DEPT' && selectedDeptId && (() => {
             const currentSelectedDept = departments.find(d => d.id === selectedDeptId);
             if (!currentSelectedDept) return null;
@@ -997,7 +997,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     borderTop: '1px dashed var(--border-color)'
                   }}>
                     <span>전사 미할당 기능: {unassignedCompanyAttributes.map(a => a.label).join(', ')}</span>
-                    <span style={{ color: 'var(--primary)' }}>(전사 공용 공유 ToDo 풀로 자동 개방됨)</span>
+                    <span style={{ color: 'var(--primary)' }}>(전사 공용 업무 대기열로 자동 개방됨)</span>
                   </div>
                 )}
               </div>

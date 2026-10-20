@@ -92,7 +92,7 @@ export const AssetInboundStaging: React.FC = () => {
         return;
       }
 
-      // 렌탈 중인 계약 찾기 (contract_assets + contracts)
+      // 렌탈 중인 계약 찾기
       let customerName = '-';
       let siteName = '-';
       let contractId = '';

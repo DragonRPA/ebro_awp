@@ -77,7 +77,7 @@ function getGroupCheckpoints(
     }
   });
 
-  // 2. 옵션 마스터(SPEC) 중 site.checkedSpecs (또는 연결된 옵션 그룹 / 고객사 기본값)에서 true인 항목만
+  // 2. 옵션 마스터 중 site.checkedSpecs (또는 연결된 옵션 그룹 / 고객사 기본값)에서 true인 항목만
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
     ...(siteMaster?.checkedSpecs || {}),
@@ -119,7 +119,7 @@ interface InspectionGroup {
   customerName: string;
   siteName: string;
   requestDate: string;
-  loadingDate: string; // 🚚 상차일자 (YYYY-MM-DD)
+  loadingDate: string; // 🚚 상차일자(일자)
   deliveryId?: string; // 연결된 출고 배차 ID
   status: OutboundInspectionStatus;
   items: OutboundInspection[];
@@ -128,6 +128,9 @@ interface InspectionGroup {
   checkpoints: CheckPoint[];
   specialNote: string;
   rawText?: string; // 출고시 입력된 자연어 원문 텍스트
+  totalSlotCount?: number; // 해당 출고 건의 전체 요청 장비 대수
+  unassignedSlotCount?: number; // 아직 장비 할당이 완료되지 않은 슬롯 대수
+  unassignedSlotSummary?: string; // 미할당 모델 요약
 }
 
 export const OutboundInspections: React.FC = () => {
@@ -324,18 +327,47 @@ export const OutboundInspections: React.FC = () => {
   }, [exchangeModalAsset, assets, targetNewAssetId, exchangeSearchQuery, products]);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 1. 개별 의뢰건들을 계약(contractId) 및 신청일자 기준 의뢰 1건 단위로 그룹핑
+  // 1. 개별 의뢰건들을 계약 및 신청일자 기준 의뢰 1건 단위로 그룹핑
   // ──────────────────────────────────────────────────────────────────────────
   const inspectionGroups = useMemo<InspectionGroup[]>(() => {
     const groupMap = new Map<string, OutboundInspection[]>();
     const hasContracts = contractMap.size > 0;
+
+    const extractDeliveryCaIds = (d?: (typeof deliveries)[number]): string[] => {
+      if (!d || !d.cargoItems) return [];
+      try {
+        const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+        if (!Array.isArray(raw)) return [];
+        const ids: string[] = [];
+        raw.forEach((ci: any) => {
+          if (Array.isArray(ci?.contractAssetIds)) {
+            ci.contractAssetIds.forEach((id: string) => {
+              if (id && !ids.includes(id)) ids.push(id);
+            });
+          }
+        });
+        return ids;
+      } catch {
+        return [];
+      }
+    };
 
     outboundInspections.forEach(item => {
       // 💡 고아 레코드 가드: 계약 대장이 로드된 상태에서 계약 연결이 없는 고아 검수의뢰는 대기열에서 제외
       if (hasContracts && (!item.contractId || !contractMap.has(item.contractId))) {
         return;
       }
-      const key = `${item.contractId || 'NOCONTR'}_${item.createdAt ? item.createdAt.substring(0, 10) : 'NODATE'}`;
+      // 개별 contractAssetId가 속한 출고/교환 배차를 우선 탐색하여 배차 단위로 정확히 그룹핑
+      const matchedDeliv = item.deliveryId
+        ? deliveries.find(d => d.id === item.deliveryId)
+        : deliveries.find(d =>
+            d.status !== 'CANCELLED' &&
+            (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+            !!item.contractAssetId &&
+            extractDeliveryCaIds(d).includes(item.contractAssetId!)
+          );
+      const groupKeySuffix = matchedDeliv?.id || (item.createdAt ? item.createdAt.substring(0, 10) : 'NODATE');
+      const key = `${item.contractId || 'NOCONTR'}_${groupKeySuffix}`;
       if (!groupMap.has(key)) {
         groupMap.set(key, []);
       }
@@ -367,7 +399,28 @@ export const OutboundInspections: React.FC = () => {
         .map(([m, c]) => `${m} ${c}대`)
         .join(', ') || '장비 매핑 대기 중';
 
-      const delivery = firstItem.contractId ? outboundDeliveryByContractMap.get(firstItem.contractId) : undefined;
+      const delivery = (firstItem.deliveryId ? deliveries.find(d => d.id === firstItem.deliveryId) : undefined)
+        || deliveries.find(d =>
+          d.status !== 'CANCELLED' &&
+          (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+          items.some(it => !!it.contractAssetId && extractDeliveryCaIds(d).includes(it.contractAssetId!))
+        )
+        || (firstItem.contractId ? outboundDeliveryByContractMap.get(firstItem.contractId) : undefined);
+
+      // 🔍 해당 출고 건(또는 계약)의 전체 슬롯 대비 미할당 슬롯 정밀 집계 (부분 할당 시 출고검수 승인 차단용)
+      const targetCaIds = extractDeliveryCaIds(delivery);
+      const targetCas = targetCaIds.length > 0
+        ? targetCaIds.map(id => contractAssetMap.get(id)).filter((ca): ca is ContractAsset => !!ca && ca.status !== 'RETURNED')
+        : contractAssets.filter(ca => ca.contractId === firstItem.contractId && ca.status !== 'RETURNED');
+
+      const unassignedCas = targetCas.filter(ca => !ca.assetId || !assetMap.has(ca.assetId));
+      const unassignedModelMap: Record<string, number> = {};
+      unassignedCas.forEach(ca => {
+        const m = ca.expectedModel || '모델미지정';
+        unassignedModelMap[m] = (unassignedModelMap[m] || 0) + 1;
+      });
+      const unassignedSlotSummary = Object.entries(unassignedModelMap).map(([m, c]) => `${m} ${c}대`).join(', ');
+
       const rawText = delivery?.rawText || delivery?.memo || (contract as any)?.memo || firstItem.note || '';
 
       const siteMaster = contract && site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : null;
@@ -399,12 +452,15 @@ export const OutboundInspections: React.FC = () => {
         equipmentsSummary: summaryText,
         checkpoints,
         specialNote,
-        rawText
+        rawText,
+        totalSlotCount: targetCas.length || items.length,
+        unassignedSlotCount: unassignedCas.length,
+        unassignedSlotSummary
       });
     });
 
     return groups.sort((a, b) => a.loadingDate.localeCompare(b.loadingDate));
-  }, [outboundInspections, contractMap, customerMap, siteMap, siteMasterMap, assetMap, contractAssetMap, outboundDeliveryByContractMap]);
+  }, [outboundInspections, deliveries, contractAssets, contractMap, customerMap, siteMap, siteMasterMap, assetMap, contractAssetMap, outboundDeliveryByContractMap]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // 2-A. 날짜+검색만 적용 (상태 필터 제외) → 탭 카운트용
@@ -543,7 +599,7 @@ export const OutboundInspections: React.FC = () => {
   const handleApproveGroup = async () => {
     if (!selectedGroup || !canEdit) return;
 
-    // 🔴 [출고제한 가드] 연체 및 거래차단(BLOCKED) 고객사 최종 출고 승인 원천 차단
+    // 🔴 [출고제한 가드] 연체 및 거래차단 고객사 최종 출고 승인 원천 차단
     const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
     const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
     if (customer && isCustomerRestricted(customer.transactionStatus)) {
@@ -551,10 +607,31 @@ export const OutboundInspections: React.FC = () => {
       return;
     }
 
-    // 🔴 [절차적 무결성 가드]: 모든 검수 품목에 실물 장비(assetId)가 할당되어 있어야 출고 승인 가능
-    const unassignedItems = selectedGroup.items.filter(item => !item.assetId);
+    // 🔴 [절차적 무결성 가드 1]: 해당 출고 요청(배차/계약)의 전체 요청 수량 중 미할당 슬롯이 1대라도 남아있으면 승인 원천 차단
+    if ((selectedGroup.unassignedSlotCount || 0) > 0) {
+      showErrorModal(
+        `해당 출고 건에 아직 장비가 할당되지 않은 미할당 슬롯이 ${selectedGroup.unassignedSlotCount}대(${selectedGroup.unassignedSlotSummary || '미할당'}) 존재합니다.\n\n` +
+        `■ [절차적 원칙]: 출고검수 완료는 전 수량 장비할당이 완료되어야만 가능합니다.\n` +
+        `■ [조치 방법]: [장비 할당] 메뉴에서 나머지 미할당 슬롯에 실물 장비를 모두 배정한 후 출고검수 승인을 진행해 주십시오.`,
+        '출고검수 완료 불가 (장비 할당 미완료)'
+      );
+      return;
+    }
+
+    // 🔴 [절차적 무결성 가드 2]: 모든 검수 품목에 실물 장비 및 계약 슬롯 매핑 무결성 검증
+    const unassignedItems = selectedGroup.items.filter(item => {
+      if (!item.assetId || !assetMap.has(item.assetId)) return true;
+      if (item.contractAssetId) {
+        const ca = contractAssetMap.get(item.contractAssetId);
+        if (!ca || !ca.assetId || ca.assetId !== item.assetId) return true;
+      }
+      return false;
+    });
     if (unassignedItems.length > 0) {
-      showErrorModal(`장비가 할당되지 않은 검수 항목이 ${unassignedItems.length}건 존재합니다.\n[장비 할당] 메뉴에서 실물 장비를 먼저 매핑해 주십시오.`, '출고 승인 불가 (장비 미할당)');
+      showErrorModal(
+        `장비 할당 정보가 누락되었거나 계약 슬롯과 일치하지 않는 검수 항목이 ${unassignedItems.length}건 존재합니다.\n[장비 할당] 메뉴에서 실물 장비를 먼저 정확히 매핑해 주십시오.`,
+        '출고검수 완료 불가 (장비 미할당)'
+      );
       return;
     }
 
@@ -835,7 +912,7 @@ export const OutboundInspections: React.FC = () => {
       const docNo = selectedGroup.contractNo || contract?.contractNo || contract?.id;
       const docTitle = `[납품증] ${selectedGroup.customerName} - ${selectedGroup.siteName}`;
 
-      // 2. 인쇄 큐(print_queue)에 등록 -> 스테이션 PC의 eBroAgent가 자동 수신하여 실물 프린터로 인쇄 집행
+      // 2. 인쇄 큐에 등록 -> 스테이션 PC의 eBroAgent가 자동 수신하여 실물 프린터로 인쇄 집행
       await enqueuePrintJob({
         stationId: targetStation?.id,
         docType: 'DISPATCH_ORDER',
@@ -969,7 +1046,7 @@ export const OutboundInspections: React.FC = () => {
         const site = contract ? db.sites.find(s => s.id === contract.siteId) : undefined;
         let createdRepairId: string | undefined = undefined;
 
-        // 🔴 1. 수리정비중(REPAIRING) 전환 시 긴급 수리 티켓(repairs) 1:1 자동 발행 (헌장 1.2 무누락 저장)
+        // 🔴 1. 수리정비중 전환 시 긴급 수리 티켓 1:1 자동 발행 (헌장 1.2 무누락 저장)
         if (item.assetId && rejectToRepairing) {
           const newRepair = db.insertRow<Repair>('repairs', {
             assetId: item.assetId,
@@ -1008,7 +1085,7 @@ export const OutboundInspections: React.FC = () => {
             createdAt: nowIso
           });
 
-          // 🔴 2. 계약자산(contractAssets)에서 결함 장비 안전 해제 (계약 결함장비 잔류 원천 방어)
+          // 🔴 2. 계약자산에서 결함 장비 안전 해제 (계약 결함장비 잔류 원천 방어)
           if (item.contractAssetId) {
             db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
               assetId: null as any
@@ -1032,7 +1109,7 @@ export const OutboundInspections: React.FC = () => {
           updatedAt: nowIso
         });
 
-        // 사용자 선택에 따라 수리정비중(REPAIRING) 또는 임대가능(AVAILABLE) 전환!
+        // 사용자 선택에 따라 수리정비중 또는 임대가능 전환!
         if (item.assetId) {
           const targetStatus = rejectToRepairing ? 'REPAIRING' : 'AVAILABLE';
           db.updateRow<Asset>('assets', item.assetId, {
@@ -1472,7 +1549,7 @@ export const OutboundInspections: React.FC = () => {
                 const isOverdue = diffDays < 0 && group.status === 'PENDING';
                 const getDdayBadge = () => {
                   if (diffDays < 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D+{Math.abs(diffDays)} 지연</span>;
-                  if (diffDays === 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D-DAY</span>;
+                  if (diffDays === 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>당일</span>;
                   if (diffDays <= 2) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.4)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
                   if (diffDays <= 7) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
                   return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 600, backgroundColor: 'rgba(59,130,246,0.08)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.2)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
@@ -1847,47 +1924,74 @@ export const OutboundInspections: React.FC = () => {
                       </button>
                     </>
                   ) : (
-                    <>
-                      <button
-                        data-uia="btn-approve-outbound"
-                        data-hs-trigger="Approve"
-                        onClick={handleApproveGroup}
-                        disabled={isProcessing}
-                        className="btn-primary"
-                        style={{
-                          flex: 1,
-                          padding: '12px 20px',
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                      {(selectedGroup.unassignedSlotCount || 0) > 0 && (
+                        <div style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                          border: '1.5px solid rgba(220, 38, 38, 0.35)',
+                          color: '#dc2626',
+                          fontSize: '12px',
                           fontWeight: 800,
-                          fontSize: '14px',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
+                          justifyContent: 'space-between',
                           gap: '8px'
-                        }}
-                      >
-                        <ShieldCheck size={18} /> [🟢 최종 출고 승인 마감] (할당 완료)
-                      </button>
+                        }}>
+                          <span>🚨 [절차 차단] 장비 미할당 슬롯 {selectedGroup.unassignedSlotCount}대 존재 ({selectedGroup.unassignedSlotSummary}) — 전 수량 장비 할당 완료 전까지 출고검수 승인이 불가합니다.</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          data-uia="btn-approve-outbound"
+                          data-hs-trigger="Approve"
+                          onClick={handleApproveGroup}
+                          disabled={isProcessing}
+                          className="btn-primary"
+                          style={{
+                            flex: 1,
+                            padding: '12px 20px',
+                            fontWeight: 800,
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            ...((selectedGroup.unassignedSlotCount || 0) > 0 ? {
+                              backgroundColor: '#94a3b8',
+                              borderColor: '#64748b',
+                              cursor: 'not-allowed'
+                            } : {})
+                          }}
+                        >
+                          <ShieldCheck size={18} />
+                          {(selectedGroup.unassignedSlotCount || 0) > 0
+                            ? `[🚫 장비 미할당 ${selectedGroup.unassignedSlotCount}대 · 출고 승인 불가]`
+                            : `[🟢 최종 출고 승인 마감] (할당 완료)`}
+                        </button>
 
-                      <button
-                        onClick={() => setShowRejectModal(true)}
-                        disabled={isProcessing}
-                        style={{
-                          padding: '12px 20px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(239,68,68,0.1)',
-                          color: 'var(--danger)',
-                          border: '1px solid rgba(239,68,68,0.3)',
-                          fontWeight: 800,
-                          fontSize: '13.5px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <XCircle size={16} /> 🚫 요청 반려 (수리정비중 전환)
-                      </button>
-                    </>
+                        <button
+                          onClick={() => setShowRejectModal(true)}
+                          disabled={isProcessing}
+                          style={{
+                            padding: '12px 20px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(239,68,68,0.1)',
+                            color: 'var(--danger)',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            fontWeight: 800,
+                            fontSize: '13.5px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <XCircle size={16} /> 🚫 요청 반려 (수리정비중 전환)
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -1979,7 +2083,7 @@ export const OutboundInspections: React.FC = () => {
 
             <div style={{ padding: '12px 14px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '12px', color: 'var(--danger)', marginBottom: '16px', lineHeight: '1.5' }}>
               ⚠️ <strong>롤백 시 동작:</strong><br />
-              • 자산 상태가 <strong>RENTED(대여중)</strong>에서 <strong>ASSIGNED(출고배정)</strong>로 안전하게 원복됩니다.<br />
+              • 자산 상태가 <strong>대여중</strong>에서 <strong>출고배정</strong>로 안전하게 원복됩니다.<br />
               • 검수 항목 재확인 및 <strong>[🔁 장비 교체]</strong>를 다시 진행할 수 있습니다.
             </div>
 
@@ -2117,7 +2221,7 @@ export const OutboundInspections: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="관리번호 (예: G19008) 또는 시리얼번호 입력시 1초 필터링..."
+                  placeholder="관리번호 (예: G19008) 또는 제조번호 입력시 1초 필터링..."
                   value={exchangeSearchQuery}
                   onChange={e => setExchangeSearchQuery(e.target.value)}
                   style={{
@@ -2163,7 +2267,7 @@ export const OutboundInspections: React.FC = () => {
                 if (filteredAssets.length === 0) {
                   return (
                     <div style={{ padding: '16px', textAlign: 'center', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
-                      {exchangeSearchQuery ? `검색어 [${exchangeSearchQuery}]에 해당되는 임대가능(${exchangeModalAsset.modelName}) 장비가 없습니다.` : `교체 가능한 동일 모델(${exchangeModalAsset.modelName})의 임대가능(AVAILABLE) 자산이 없습니다.`}
+                      {exchangeSearchQuery ? `검색어 [${exchangeSearchQuery}]에 해당되는 임대가능(${exchangeModalAsset.modelName}) 장비가 없습니다.` : `교체 가능한 동일 모델(${exchangeModalAsset.modelName})의 임대가능 자산이 없습니다.`}
                     </div>
                   );
                 }

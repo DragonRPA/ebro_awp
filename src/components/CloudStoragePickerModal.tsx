@@ -88,7 +88,7 @@ export const CloudStoragePickerModal: React.FC<CloudStoragePickerModalProps> = (
     }
   }, [isOpen]);
 
-  // 현재 경로(prefix) 기준 하위 가상 폴더 및 직속 파일 추출
+  // 현재 경로 기준 하위 가상 폴더 및 직속 파일 추출
   const { currentFolders, currentFiles } = useMemo(() => {
     const foldersSet = new Set<string>();
     const files: Array<{ key: string; name: string; size: number; lastModified: string }> = [];

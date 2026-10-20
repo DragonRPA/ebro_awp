@@ -4,9 +4,9 @@
 // │                                                                         │
 // │ [WTT 100회 스트레스 테스트 7대 결함 전수 해결]                           │
 // │  1. DB 무누락 저장 (F5 시 증발 방지, 헌장 1.2, 5.2 준수)           │
-// │  2. 실제 배차 대장(deliveries) 및 계약 연동 (saveSmartDispatch 연결)      │
-// │  3. 대차(EXCHANGE) 회수 대상 전자산 1:1 매핑 패널 (헌장 2.3, 4.2 준수) │
-// │  4. 운송비 부담 주체(paidBy) 귀속선 패널 (헌장 5.5 준수)                 │
+// │  2. 실제 배차 대장 및 계약 연동 (saveSmartDispatch 연결)      │
+// │  3. 교환 회수 대상 전자산 1:1 매핑 패널 (헌장 2.3, 4.2 준수) │
+// │  4. 운송비 부담 주체 귀속선 패널 (헌장 5.5 준수)                 │
 // │  5. 현장 안전옵션/보양 4종 체크리스트 탑재                               │
 // │  6. 다수 장비 시차 출고 분할 메모 지원                                   │
 // │  7. 9대 필수 스키마 방어 차단 실드 & 정형화 서식 뷰 복원          │
@@ -105,7 +105,7 @@ type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST';
 const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',   label: '신규고객 출고',   color: '#7c3aed' },
   { id: 'ADDITIONAL',     label: '기존현장 출고',   color: 'var(--primary)' },
-  { id: 'EXCHANGE',       label: '교체(대차)',       color: '#0891b2' },
+  { id: 'EXCHANGE',       label: '교환',       color: '#0891b2' },
 ];
 
 const FT_GROUPS = ['19ft', '26ft', '32ft', '40ft', '46ft', '특수/기타', '전체'];
@@ -303,11 +303,11 @@ export const VoiceDispatch: React.FC = () => {
         else if (p.includes('편도지원')) paidBy = 'SPLIT';
       } else if (p.startsWith('[시차출고]')) {
         staggeredMemo = p.replace('[시차출고]', '').trim();
-      } else if (p.startsWith('[대차회수대상]')) {
+      } else if (p.startsWith('[교환회수대상]')) {
         if (p.includes('모름')) {
           retrievalAssetIds.push('UNKNOWN');
         } else {
-          const ids = p.replace('[대차회수대상]', '').replace(/자산|#/g, '').split(',').map(s => s.trim()).filter(Boolean);
+          const ids = p.replace('[교환회수대상]', '').replace(/자산|#/g, '').split(',').map(s => s.trim()).filter(Boolean);
           retrievalAssetIds.push(...ids);
         }
       } else if (p.startsWith('[차종]')) {
@@ -390,13 +390,13 @@ export const VoiceDispatch: React.FC = () => {
     loadDrafts();
     loadUploadsAndLogs();
 
-    // 1. 통화 업로드 구독 (INSERT, UPDATE, DELETE)
+    // 1. 통화 업로드 구독
     const unsubUploads = subscribeCallUploads(() => {
       loadUploadsAndLogs();
       loadDrafts();
     });
 
-    // 2. 파이프라인 로그 구독 (INSERT)
+    // 2. 파이프라인 로그 구독
     const unsubLogs = subscribePipelineLogs((newLog) => {
       setPipelineLogs(prev => [newLog, ...prev.filter(l => l.id !== newLog.id)].slice(0, 150));
     });
@@ -1142,7 +1142,7 @@ export const VoiceDispatch: React.FC = () => {
 
     // 업무 유형 자동 판별
     let targetContext: CallContext = 'ADDITIONAL'; // 기본: 기존현장 출고
-    if (/대차|교체|맞교환|회수후출고/i.test(text)) {
+    if (/대차|교체|교환|회수후출고/i.test(text)) {
       targetContext = 'EXCHANGE';
     } else if (/신규고객|신규업체|첫거래|신규출고/i.test(text)) {
       targetContext = 'NEW_CUSTOMER';
@@ -1276,7 +1276,7 @@ export const VoiceDispatch: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 9대 필수 스키마 유효성 검증 실드 (Validation Shield)
+  // 9대 필수 스키마 유효성 검증 실드
   // ─────────────────────────────────────────────────────────────────────────
   interface ValidationRule {
     id: string;
@@ -1305,7 +1305,7 @@ export const VoiceDispatch: React.FC = () => {
     const timeDisplay = !loadingTimeType
       ? '(상차시간 미지정)'
       : loadingTimeType === 'ASAP'
-        ? 'ASAP (최우선)'
+        ? '최우선'
         : loadingTimeType === 'MORNING'
           ? '오전'
           : loadingTimeType === 'AFTERNOON'
@@ -1387,7 +1387,7 @@ export const VoiceDispatch: React.FC = () => {
       });
     }
 
-    // 🌟 대차(EXCHANGE) 업무일 때만 회수 전자산 검증 항목 추가 (일반 출고 시 거짓 녹색불 방지)
+    // 🌟 교환 업무일 때만 회수 전자산 검증 항목 추가 (일반 출고 시 거짓 녹색불 방지)
     if (isExchangeMode) {
       rules.push({
         id: 'RETRIEVAL_ASSET',
@@ -1529,7 +1529,7 @@ export const VoiceDispatch: React.FC = () => {
         selectedSafetyOptions.size > 0 ? `[옵션] ${Array.from(selectedSafetyOptions).join(', ')}` : '',
         staggeredMemo ? `[시차출고] ${staggeredMemo}` : '',
         isExchangeMode && retrievalAssetIds.length > 0
-          ? (isUnknownRetrieval ? '[대차회수대상] 모름 (현장 확인 후 회수)' : `[대차회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
+          ? (isUnknownRetrieval ? '[교환회수대상] 모름 (현장 확인 후 회수)' : `[교환회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
           : '',
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
@@ -1597,7 +1597,7 @@ export const VoiceDispatch: React.FC = () => {
           console.error('출고 HTML 생성 오류:', printErr);
         }
 
-        // 🛡️ 강제 브라우저 인쇄 모달(handlePrint)을 바로 띄워 메인 화면을 가리고 폼이 사라지는 UX 결함 전면 개선:
+        // 🛡️ 강제 브라우저 인쇄 모달을 바로 띄워 메인 화면을 가리고 폼이 사라지는 UX 결함 전면 개선:
         // 성공 확인 전용 모달을 띄워 계약번호, 배차 생성, 이동 링크를 명확히 제시!
         setSuccessModalInfo({
           contractId: res.contractId || '',
@@ -1661,7 +1661,7 @@ export const VoiceDispatch: React.FC = () => {
         selectedSafetyOptions.size > 0 ? `[옵션] ${Array.from(selectedSafetyOptions).join(', ')}` : '',
         staggeredMemo ? `[시차출고] ${staggeredMemo}` : '',
         isExchangeMode && retrievalAssetIds.length > 0
-          ? (isUnknownRetrieval ? '[대차회수대상] 모름 (현장 확인 후 회수)' : `[대차회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
+          ? (isUnknownRetrieval ? '[교환회수대상] 모름 (현장 확인 후 회수)' : `[교환회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
           : '',
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
@@ -1818,7 +1818,7 @@ export const VoiceDispatch: React.FC = () => {
       return;
     }
 
-    // 🛡️ [동일 규격 장비 수량 합산 (SUM)]
+    // 🛡️ [동일 규격 장비 수량 합산]
     const modelQtyMap = new Map<string, number>();
     selected.flatMap(d => d.equipments || []).forEach(e => {
       modelQtyMap.set(e.modelName, (modelQtyMap.get(e.modelName) || 0) + (Number(e.qty) || 1));
@@ -1844,7 +1844,7 @@ export const VoiceDispatch: React.FC = () => {
     }
   };
 
-  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장(deliveries) 생성 ──
+  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장 생성 ──
   const handleSubmitDraft = async (draft: DraftOrder) => {
     // 신규 고객 차단 해제 조건: 고객 마스터(고객 관리)에 동일 상호가 등록되어 있을 것.
     // customerRegistered 플래그는 초안 생성 시점에만 설정되고 이후 갱신 경로가 없으므로, 마스터 등록 여부를 직접 조회한다.
@@ -1879,7 +1879,7 @@ export const VoiceDispatch: React.FC = () => {
 
     try {
       const unloadingStr = draft.unloadingDate
-        ? `${draft.unloadingDate} ${draft.unloadingTimeVal || (draft.unloadingTimeType === 'ASAP' ? 'ASAP' : draft.unloadingTimeType === 'MORNING' ? '오전' : draft.unloadingTimeType === 'AFTERNOON' ? '오후' : '')}`.trim()
+        ? `${draft.unloadingDate} ${draft.unloadingTimeVal || (draft.unloadingTimeType === 'ASAP' ? '최우선' : draft.unloadingTimeType === 'MORNING' ? '오전' : draft.unloadingTimeType === 'AFTERNOON' ? '오후' : '')}`.trim()
         : `${draft.loadingDate.value} ${draft.loadingTime.value}`.trim();
 
       const isExchange = draft.context?.includes('EXCHANGE');
@@ -2056,7 +2056,7 @@ export const VoiceDispatch: React.FC = () => {
       siteContactPhone = typeof targetDraft.contactPhone === 'string' ? targetDraft.contactPhone : targetDraft.contactPhone?.value || '';
       loadingSchedule = `${targetDraft.loadingDate?.value || ''} ${targetDraft.loadingTime?.value || ''}`.trim();
       unloadingSchedule = targetDraft.unloadingDate
-        ? `${targetDraft.unloadingDate} ${targetDraft.unloadingTimeVal || (targetDraft.unloadingTimeType === 'ASAP' ? '[ASAP]' : targetDraft.unloadingTimeType === 'MORNING' ? '[오전]' : targetDraft.unloadingTimeType === 'AFTERNOON' ? '[오후]' : '')}`.trim()
+        ? `${targetDraft.unloadingDate} ${targetDraft.unloadingTimeVal || (targetDraft.unloadingTimeType === 'ASAP' ? '[최우선]' : targetDraft.unloadingTimeType === 'MORNING' ? '[오전]' : targetDraft.unloadingTimeType === 'AFTERNOON' ? '[오후]' : '')}`.trim()
         : loadingSchedule;
       orderEquipments = targetDraft.equipments || [];
       orderSafetyOptions = targetDraft.safetyOptions || [];
@@ -2066,7 +2066,7 @@ export const VoiceDispatch: React.FC = () => {
       orderVehicleType = targetDraft.vehicleType || '5T';
       orderPaidBy = targetDraft.paidBy;
       const ctx = targetDraft.context?.[0];
-      contextLabel = ctx === 'NEW_CUSTOMER' ? '신규고객 출고' : ctx === 'EXCHANGE' ? '대차(교체)' : '기존현장 출고';
+      contextLabel = ctx === 'NEW_CUSTOMER' ? '신규고객 출고' : ctx === 'EXCHANGE' ? '교환' : '기존현장 출고';
       orderClosingDay = targetDraft.closingDay || closingDay;
       orderStatementClosingDay = targetDraft.statementClosingDay || statementClosingDay;
       orderPaymentDueDay = targetDraft.paymentDueDay || paymentDueDay;
@@ -2080,9 +2080,9 @@ export const VoiceDispatch: React.FC = () => {
           : (selectedSiteAddress || selectedSite?.address || '');
       siteContactName = contactPerson;
       siteContactPhone = contactPhone;
-      const loadTimeStr = loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || '';
+      const loadTimeStr = loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || '';
       loadingSchedule = `${loadingDate} ${loadTimeStr}`.trim();
-      const unloadTimeStr = unloadingTimeType === 'ASAP' ? '[ASAP]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '';
+      const unloadTimeStr = unloadingTimeType === 'ASAP' ? '[최우선]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '';
       unloadingSchedule = unloadingDate ? `${unloadingDate} ${unloadTimeStr}`.trim() : loadingSchedule;
       orderEquipments = equipments;
       orderSafetyOptions = Array.from(selectedSafetyOptions);
@@ -2356,7 +2356,7 @@ export const VoiceDispatch: React.FC = () => {
         </tbody>
       </table>
 
-      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙) -->
+      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구사양) -->
       ${(() => {
         const printCust = targetDraft
           ? customers.find(c => c.name === customerName)
@@ -2394,7 +2394,7 @@ export const VoiceDispatch: React.FC = () => {
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
           </tr>
           <tr>
-            <th class="nowrap">현장요구스펙</th>
+            <th class="nowrap">현장요구사양</th>
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
           </tr>
         </tbody>
@@ -3542,7 +3542,7 @@ export const VoiceDispatch: React.FC = () => {
                 <span>4. 출고 및 하차 일정</span>
                 {loadingDate && (
                   <span className="text-xs font-black text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50 font-mono">
-                    ✓ 상차: {loadingDate} {loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}
+                    ✓ 상차: {loadingDate} {loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}
                   </span>
                 )}
               </div>
@@ -3576,7 +3576,7 @@ export const VoiceDispatch: React.FC = () => {
                       <label className="text-xs font-bold text-slate-200">상차 시간 구분 *</label>
                       <div className="dispatch4-slot-group">
                         {[
-                          { id: 'ASAP', label: 'ASAP (최우선)' },
+                          { id: 'ASAP', label: '최우선' },
                           { id: 'MORNING', label: '🌅 오전' },
                           { id: 'AFTERNOON', label: '🌇 오후' },
                           { id: 'EXACT', label: '시간지정' },
@@ -3675,7 +3675,7 @@ export const VoiceDispatch: React.FC = () => {
             )}
           </div>
 
-          {/* 🌟 SAFETY & COST 블록 — 안전옵션, 대차회수 ───────────── */}
+          {/* 🌟 SAFETY & COST 블록 — 안전옵션, 교환회수 ───────────── */}
           <div data-mid="dispatch4-block-safety" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
@@ -3685,7 +3685,7 @@ export const VoiceDispatch: React.FC = () => {
             >
               <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
                 <Shield className="w-4 h-4 text-purple-400" />
-                <span>5. {isExchangeMode ? '안전옵션 · 대차회수' : '안전옵션'}</span>
+                <span>5. {isExchangeMode ? '안전옵션 · 교환회수' : '안전옵션'}</span>
                 {isExchangeMode && (
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
                     retrievalAssetIds.length > 0 ? 'bg-cyan-950 text-cyan-300 border-cyan-800' : 'bg-red-950 text-red-300 border-red-800'
@@ -3701,7 +3701,7 @@ export const VoiceDispatch: React.FC = () => {
 
             {openBlocks.has('SAFETY_COST') && (
               <div className="dispatch4-block-body">
-                {/* 1. 대차(EXCHANGE) 시 회수 대상 전자산 다수 매핑 지원 */}
+                {/* 1. 교환 시 회수 대상 전자산 다수 매핑 지원 */}
                 {isExchangeMode && (
                   <div data-mid="dispatch4-exchange-panel" className="p-2.5 bg-cyan-950/40 border border-cyan-500/40 rounded-xl flex flex-col gap-2">
                     <div className="flex items-center justify-between">
@@ -3872,7 +3872,7 @@ export const VoiceDispatch: React.FC = () => {
 
             {isExchangeMode && (
               <div className="flex flex-col gap-1 mt-0.5 mb-1.5">
-                <span className="text-[10px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
+                <span className="text-[10px] font-bold text-slate-400">교환 불량 증상 빠른 입력</span>
                 <div className="flex flex-wrap gap-1.5">
                   {defectSymptoms.map((cat) => (
                     <button
@@ -4019,16 +4019,16 @@ export const VoiceDispatch: React.FC = () => {
             </div>
           </div>
 
-          {/* 📄 [2] 정형화된 출고요청서 요약 (Dossier Preview) */}
+          {/* 📄 [2] 정형화된 출고요청서 요약 */}
           <div data-mid="dispatch4-preview-dossier" className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
             {/* 서식 헤더 */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
-                <span className="text-[9.5px] font-bold text-blue-400 uppercase tracking-widest block font-mono">
-                  {(currentTenant?.tradeName || 'E-BRO LIFT').toUpperCase()} ERP DISPATCH ORDER
+                <span className="text-[9.5px] font-bold text-blue-400 tracking-widest block">
+                  {currentTenant?.displayName || currentTenant?.tradeName || '(주)기연리프트'}
                 </span>
                 <h3 className="text-xs font-black text-white tracking-tight">
-                  출고 요청서 (정형화)
+                  출고요청서
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -4105,7 +4105,7 @@ export const VoiceDispatch: React.FC = () => {
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-blue-400 font-mono text-xs">
                   {loadingDate
-                    ? `${loadingDate} ${loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}`
+                    ? `${loadingDate} ${loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}`
                     : '(상차일시 미지정)'}
                 </div>
               </div>
@@ -4115,7 +4115,7 @@ export const VoiceDispatch: React.FC = () => {
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-cyan-400 font-mono text-xs">
                   {unloadingDate || loadingDate
-                    ? `${unloadingDate || loadingDate} ${unloadingTimeType === 'ASAP' ? '[ASAP]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '(상차직송)'}`
+                    ? `${unloadingDate || loadingDate} ${unloadingTimeType === 'ASAP' ? '[최우선]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '(상차직송)'}`
                     : '(하차일시 미지정)'}
                 </div>
               </div>
@@ -4295,7 +4295,7 @@ export const VoiceDispatch: React.FC = () => {
 
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-950">
-        {/* 1. 상단 컴팩트 툴바 (40px) */}
+        {/* 1. 상단 컴팩트 툴바 */}
         <div className="flex-shrink-0 px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
           {/* 좌측: 뷰 필터 */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -4540,7 +4540,7 @@ export const VoiceDispatch: React.FC = () => {
                       <div className="flex items-center justify-between text-[11px] font-bold text-blue-300">
                         <span className="flex items-center gap-1">
                           <Phone className="w-3 h-3 text-blue-400" />
-                          <span>모바일 통화 텍스트 (삼성 AI 요약 / 녹음 메모)</span>
+                          <span>모바일 통화 텍스트 (통화 요약 / 녹음 메모)</span>
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
                           {selectedUpload.summaryText.length}자

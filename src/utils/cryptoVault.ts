@@ -1,11 +1,11 @@
 // src/utils/cryptoVault.ts
 /**
- * 전사 표준 암호화 및 보안 볼트 유틸리티 (Enterprise Crypto Vault)
- * - 전사 표준 헌장 카테고리 I, II 준수 및 클라이언트 평문 노출 제로(Zero-Plaintext) 원칙
+ * 전사 표준 암호화 및 보안 볼트 유틸리티
+ * - 전사 표준 헌장 카테고리 I, II 준수 및 클라이언트 평문 노출 제로 원칙
  * - SHA-256 단방향 패스워드 해싱
  * - 로컬스토리지 및 클라이언트 설정 민감정보 양방향 암호화/복호화
  * - 세션 위변조 방지 (Tamper-Proof Session Signing & Verification)
- * - 민감 금융/인사 필드 역할 기반 마스킹 (Role-Based Masking)
+ * - 민감 금융/인사 필드 역할 기반 마스킹
  */
 
 // ─── 1. 경량 표준 SHA-256 구현 (동기/비동기 범용 지원) ───────────
@@ -169,7 +169,7 @@ export function decryptSecret(cipherText: string): string {
   }
 }
 
-// ─── 3. 안전 로컬스토리지 입출력 및 용량 한도(Quota) 방어 ──────────────
+// ─── 3. 안전 로컬스토리지 입출력 및 용량 한도 방어 ──────────────
 export const ESSENTIAL_STORAGE_KEYS = new Set([
   'remember_id',
   'remember_pw',
@@ -186,7 +186,7 @@ export const ESSENTIAL_STORAGE_KEYS = new Set([
 ]);
 
 /**
- * localStorage 용량 한도(5MB) 초과 방어 및 비핵심 캐시 자동 소탕
+ * localStorage 용량 한도 초과 방어 및 비핵심 캐시 자동 소탕
  */
 export function purgeStorageQuotaOverflow(): void {
   if (typeof localStorage === 'undefined') return;
@@ -273,7 +273,7 @@ export function getVaultItem(key: string, defaultValue: string = ''): string {
   }
 }
 
-// ─── 4. 세션 위변조 방지 (Tamper-Proof Session Guard) ─────────────
+// ─── 4. 세션 위변조 방지 ─────────────
 const SESSION_SIGN_SALT = 'ebro_auth_session_guard_v1';
 
 export interface TamperProofSession<T = any> {
@@ -350,7 +350,7 @@ export function safeJsonParse<T = any>(str: string | null | undefined, fallback:
 
 /**
  * 안전한 세션 사용자 복원 유틸 (암호화 서명본 및 레거시 평문 JSON 완전 무결 호환)
- * 암호화 접두사(__EBRO_ENC...)가 있는 문자열은 절대 JSON.parse로 넘기지 않고 verifySessionUser로만 복호화합니다.
+ * 암호화 접두사가 있는 문자열은 절대 JSON.parse로 넘기지 않고 verifySessionUser로만 복호화합니다.
  * 어떤 상황에서도 SyntaxError 예외를 외부로 전파하지 않습니다.
  */
 export function parseSessionUser<T extends { id: string; role?: string } = any>(raw: string | null | undefined): T | null {
@@ -358,7 +358,7 @@ export function parseSessionUser<T extends { id: string; role?: string } = any>(
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  // 1. 암호화 서명 세션인 경우 (__EBRO_ENC__v1__...)
+  // 1. 암호화 서명 세션인 경우
   if (trimmed.startsWith(VAULT_PREFIX)) {
     try {
       const verified = verifySessionUser<T>(trimmed);
@@ -384,7 +384,7 @@ export function parseSessionUser<T extends { id: string; role?: string } = any>(
 }
 
 
-// ─── 5. 역할 기반 민감정보 마스킹 (Role-Based Masking) ───────────
+// ─── 5. 역할 기반 민감정보 마스킹 ───────────
 /**
  * 키/비밀번호 UI 마스킹 (앞 3자리, 뒤 4자리 표기, 나머지 마스킹)
  */
@@ -398,7 +398,7 @@ export function maskSensitiveKey(key: string): string {
 
 /**
  * 급여/연봉 정보 열람 권한 검증 및 마스킹
- * - 최고관리자(ADMIN) 또는 인사/경영지원(HR, MANAGEMENT) 권한자만 열람 허용
+ * - 최고관리자 또는 인사/경영지원 권한자만 열람 허용
  */
 export function maskSalaryForRole(salary: number | undefined, userRole?: string, userDept?: string): number | string {
   const isHrOrAdmin = userRole === 'ADMIN' || 
@@ -411,7 +411,7 @@ export function maskSalaryForRole(salary: number | undefined, userRole?: string,
   return '비공개 (인사권한 필요)';
 }
 
-// ─── 6. 법정 개인정보 보호 암호화 엔진 (Privacy Data Encryption Engine) ───
+// ─── 6. 법정 개인정보 보호 암호화 엔진 ───
 // 개인정보 보호법 제24조의2(고유식별정보 처리 제한), 제29조(안전조치의무), 시행령 제30조(개인정보의 안전성 확보조치)
 // 및 개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시 제2023-4호) 제7조(개인정보의 암호화) 준수
 

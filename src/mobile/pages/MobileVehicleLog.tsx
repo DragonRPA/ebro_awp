@@ -78,7 +78,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
       const aMine = a.primaryDriverId && a.primaryDriverId === currentUser?.id ? 1 : 0;
       const bMine = b.primaryDriverId && b.primaryDriverId === currentUser?.id ? 1 : 0;
       if (aMine !== bMine) return bMine - aMine;
-      // 2. 가용(Active) 차량 우선
+      // 2. 가용 차량 우선
       const aActive = a.isActive !== false ? 1 : 0;
       const bActive = b.isActive !== false ? 1 : 0;
       if (aActive !== bActive) return bActive - aActive;
@@ -599,7 +599,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
             </div>
           </div>
 
-          {/* 주유 시점 계기판 주행거리 (km) */}
+          {/* 주유 시점 계기판 주행거리(킬로미터) */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
               <span>계기판 주행거리 *</span>
@@ -635,7 +635,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
             maxImages={1}
           />
 
-          {/* 주유량(L) & 주유금액(원) 2열 배치 */}
+          {/* 주유량(리터) & 주유금액(원) 2열 배치 */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-slate-300">주유용량 (리터 L) *</label>
@@ -851,7 +851,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
             </div>
           </div>
 
-          {/* 출발 계기판 & 도착 계기판 (km) */}
+          {/* 출발 계기판 & 도착 계기판(킬로미터) */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">

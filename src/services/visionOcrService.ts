@@ -136,7 +136,7 @@ export interface BusinessLicenseAnalysisResult {
   bizRegNo?: string;           // 사업자등록번호 (10자리, 000-00-00000)
   companyName?: string;         // 상호 또는 법인명
   representative?: string;      // 대표자 성명
-  openingDate?: string;         // 개업연월일 (YYYY-MM-DD)
+  openingDate?: string;         // 개업연월일(일자)
   address?: string;             // 사업장 소재지
   headOfficeAddress?: string;   // 본점 소재지
   bizType?: string;             // 업태

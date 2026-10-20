@@ -1,5 +1,5 @@
 // src/pages/users_permissions.tsx
-// 권한 관리 체계: 관리자 정의 권한 명칭(CustomRole) 생성 및 직원 권한 자동 상속 스튜디오
+// 권한 관리 체계: 관리자 정의 권한 명칭 생성 및 직원 권한 자동 상속 스튜디오
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -60,7 +60,7 @@ export const UsersPermissions: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // ─── [탭 1: 권한 명칭 관리 (CustomRole Master)] 상태 ───
+  // ─── [탭 1: 권한 명칭 관리] 상태 ───
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
@@ -427,7 +427,7 @@ export const UsersPermissions: React.FC = () => {
     }
   };
 
-  // ── [액션 7: 직원에게 권한 명칭 상속 배정 (Tab 2)] ──
+  // ── [액션 7: 직원에게 권한 명칭 상속 배정] ──
   const handleAssignUserRole = async (userId: string, roleId: string) => {
     if (!canSave) return;
     const targetUser = users.find(u => u.id === userId);
@@ -447,7 +447,7 @@ export const UsersPermissions: React.FC = () => {
     }
   };
 
-  // ── [액션 8: 직원 시스템 등급(Role) 변경 (ADMIN / USER)] ──
+  // ── [액션 8: 직원 시스템 등급 변경] ──
   const handleUserGradeChange = async (userId: string, newRole: string) => {
     if (!canSave) return;
     if (userId === 'u-1' || userId === 'sys-admin') {
@@ -1340,7 +1340,7 @@ export const UsersPermissions: React.FC = () => {
                   fontWeight: 700,
                   whiteSpace: 'nowrap'
                 }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', width: '45px' }}>NO</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', width: '45px' }}>순번</th>
                   <SortableTh label="사번 / ID" sortKey="employeeId" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
                   <SortableTh label="성명" sortKey="name" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
                   <SortableTh label="소속 부서" sortKey="department" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
@@ -1427,7 +1427,7 @@ export const UsersPermissions: React.FC = () => {
                         <td style={{ padding: '8px 12px', color: 'var(--text-muted, #64748b)' }}>
                           {user.position || '-'}{user.duty ? ` (${user.duty})` : ''}
                         </td>
-                        {/* 시스템 등급 (ADMIN / USER) */}
+                        {/* 시스템 등급 */}
                         <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                           {isDev ? (
                             <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--warning-light)', color: 'var(--warning)' }}>

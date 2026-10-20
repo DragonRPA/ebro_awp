@@ -1,5 +1,5 @@
 // src/utils/siteMatcher.ts
-// 물리 현장(SiteMaster) 명칭/주소 정규화 및 중복 방지·주소 누락 판정 SSOT 유틸리티
+// 물리 현장 명칭/주소 정규화 및 중복 방지·주소 누락 판정 SSOT 유틸리티
 
 const PLACEHOLDER_ADDRESS_SET = new Set([
   '-',
@@ -121,7 +121,7 @@ export function normalizeSiteAddressKey(address?: string | null): string {
 }
 
 /**
- * 등록된 물리 현장(SiteMaster) 컬렉션에서
+ * 등록된 물리 현장 컬렉션에서
  * 1순위: 정규화 현장명 일치
  * 2순위: 상세 주소(번지수 포함) 정규화 키 일치 (현장명 오타·이명 보정)
  * 조건으로 기존 물리 현장을 탐색하여 반환

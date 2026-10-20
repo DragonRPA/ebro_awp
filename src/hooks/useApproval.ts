@@ -77,7 +77,7 @@ export function useApproval() {
         .single();
         
       if (reqErr) {
-        // 혹시 supabase 컬럼에 payload가 없어 42703 (undefined column) 에러 발생 시 fallback
+        // 혹시 supabase 컬럼에 payload가 없어 42703 에러 발생 시 fallback
         if (payload && (reqErr.code === '42703' || reqErr.message?.includes('payload'))) {
           delete insertObj.payload;
           const { data: fallbackInserted, error: fbErr } = await supabase
@@ -101,7 +101,7 @@ export function useApproval() {
         } catch {}
       }
       
-      // 결재선(approval_steps) 자동 생성 로직 (R&R 및 책임분리 원칙 준수)
+      // 결재선 자동 생성 로직 (R&R 및 책임분리 원칙 준수)
       const { data: consensusList } = await supabase
         .from('rule_consensus')
         .select('*')
@@ -132,13 +132,13 @@ export function useApproval() {
       const origTier = originator ? getUserEffectiveTier(originator).effectiveTier : 0;
       const origDeptId = originator?.departmentId;
 
-      // 🛡️ 책임 분리(Segregation of Duties) & 셀프 승인 방지 원칙:
+      // 🛡️ 책임 분리 & 셀프 승인 방지 원칙:
       // 기안자 본인은 어떠한 결재 스텝에도 승인권자로 참여할 수 없음
       const assignedUserIds = new Set<string>();
       if (originatorId) assignedUserIds.add(originatorId);
       if (safeOriginatorId) assignedUserIds.add(safeOriginatorId);
 
-      // 목표 티어(targetTier) 및 기안자 권한에 따른 다양한 결재선 동역학(Approval Dynamics)
+      // 목표 티어 및 기안자 권한에 따른 다양한 결재선 동역학
       let milestoneTiers: number[] = [];
       if (targetTier <= 4) {
         if (origTier < 4) {
@@ -198,7 +198,7 @@ export function useApproval() {
         );
         if (higherTierApprover) return higherTierApprover;
 
-        // 5. 최고관리자(ADMIN) fallback (단, 기안자 제외)
+        // 5. 최고관리자 fallback (단, 기안자 제외)
         const adminFallback = usersList.find(u => 
           !assignedUserIds.has(u.id) && 
           u.role === 'ADMIN'
@@ -229,7 +229,7 @@ export function useApproval() {
             status: stepsToInsert.length === 0 ? 'PENDING' : 'WAITING'
           });
 
-          // 합의선(rule_consensus) 체크: 현재 티어 직후 트리거되는 부서 합의 단계 삽입
+          // 합의선 체크: 현재 티어 직후 트리거되는 부서 합의 단계 삽입
           const matchingConsensus = (consensusList || []).filter(c => c.trigger_after_tier === t);
           for (const con of matchingConsensus) {
             const conApprover = findApprover(con.consensus_tier, con.target_dept_id);
@@ -298,14 +298,14 @@ export function useApproval() {
       if (stepData) {
         if (action === 'REJECTED') {
           await supabase.from('approval_requests').update({ status: 'REJECTED' }).eq('id', stepData.request_id);
-          // 잔여 대기(WAITING/PENDING) 스텝 전체 취소 마감
+          // 잔여 대기 스텝 전체 취소 마감
           await supabase
             .from('approval_steps')
             .update({ status: 'CANCELLED' })
             .eq('request_id', stepData.request_id)
             .in('status', ['WAITING', 'PENDING']);
         } else if (action === 'APPROVED') {
-          // 다음 순번 대기(WAITING) 스텝 조회
+          // 다음 순번 대기 스텝 조회
           const { data: nextSteps } = await supabase
             .from('approval_steps')
             .select('*')

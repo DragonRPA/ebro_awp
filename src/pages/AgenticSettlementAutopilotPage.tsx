@@ -115,9 +115,9 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Gutenberg Z-패턴 ① 좌상단(Scope) & ② 우상단(Pipeline) 컨트롤 바 (헌장 3.5) */}
+      {/* Gutenberg Z-패턴 ① 좌상단 & ② 우상단 컨트롤 바 (헌장 3.5) */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-        {/* ① 좌상단 (Start / Scope): 상하 스택 레이블-입력창 (헌장 3.4) */}
+        {/* ① 좌상단: 상하 스택 레이블-입력창 (헌장 3.4) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} data-uia="autopilot-scope-filter">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>정산 대상 연월</label>
@@ -139,7 +139,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단 (Input / Pipeline): 오토파일럿 대사 실행 */}
+        {/* ② 우상단: 오토파일럿 대사 실행 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             className="btn-primary"
@@ -160,7 +160,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
         </div>
       )}
 
-      {/* Gutenberg Z-패턴 ③ 중앙 본문 (Inspection): 38px 슬림 고밀도 대사 그리드 (화면 80~85% 차지, 헌장 3.6 유형 B) */}
+      {/* Gutenberg Z-패턴 ③ 중앙 본문: 38px 슬림 고밀도 대사 그리드 (화면 80~85% 차지, 헌장 3.6 유형 B) */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-app)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }} data-uia="table-prorata-audit">
           <thead style={{ backgroundColor: 'var(--bg-secondary)', position: 'sticky', top: 0, zIndex: 10, borderBottom: '2px solid var(--border-color)' }}>
@@ -222,7 +222,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
         </table>
       </div>
 
-      {/* Gutenberg Z-패턴 ④ 우측 하단 (Terminal Action): 대차대조 합계 검증식 및 최종 완결 버튼 (헌장 3.5) */}
+      {/* Gutenberg Z-패턴 ④ 우측 하단: 대차대조 합계 검증식 및 최종 완결 버튼 (헌장 3.5) */}
       <div
         style={{
           display: 'flex',

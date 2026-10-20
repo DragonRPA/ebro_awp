@@ -235,7 +235,7 @@ export const CorporateCardPage: React.FC = () => {
         const actual = actualAmounts[c.categoryId] || 0;
         const diff = c.defaultExpectedAmount - actual;
         return {
-          'No': idx + 1,
+          '순번': idx + 1,
           '매입항목명': c.categoryName,
           '회계계정과목': c.accountCode,
           '지급수단': c.paymentMethod === 'TAX_INVOICE' ? '세금계산서' : c.paymentMethod === 'CARD' ? '법인카드' : '자동이체',
@@ -254,7 +254,7 @@ export const CorporateCardPage: React.FC = () => {
 
     // 카드 내역이 있을 때는 카드 이용내역 상세 내보내기
     const rows = transactions.map((tx, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '승인번호': tx.approvalNo,
       '거래일시': tx.transactionDate,
       '사용사원': tx.employeeName,
@@ -420,7 +420,7 @@ export const CorporateCardPage: React.FC = () => {
                 <div style={{ border: '2px dashed var(--border-color)', borderRadius: '8px', padding: '16px 10px', textAlign: 'center', backgroundColor: isUploaded ? 'rgba(34, 197, 94, 0.03)' : 'transparent' }}>
                   <Upload size={24} style={{ color: isUploaded ? 'var(--success)' : 'var(--text-muted)', marginBottom: '6px' }} />
                   <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    {isUploaded ? '신한법인카드이용명세서.csv' : '카드사 이용내역(CSV/Excel)'}
+                    {isUploaded ? '신한법인카드이용명세서.csv' : '카드사 이용내역'}
                   </div>
                   <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                     <input type="file" onChange={handleFileUpload} style={{ display: 'none' }} id="card-upload-file" />

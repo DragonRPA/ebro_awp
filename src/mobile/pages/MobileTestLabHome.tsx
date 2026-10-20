@@ -142,7 +142,7 @@ export const MobileTestLabHome: React.FC<MobileTestLabHomeProps> = ({
         note: '[테스트랩 원패스 승인] 출고 검수 통과'
       });
 
-      // 2. 헌장 1.3 출고 검수 승인 즉시 자산 RENTED 전환
+      // 2. 헌장 1.3 출고 검수 승인 즉시 자산 대여중 전환
       if (inspection.assetId) {
         await changeAssetStatus(inspection.assetId, 'RENTED');
       }
@@ -177,7 +177,7 @@ export const MobileTestLabHome: React.FC<MobileTestLabHomeProps> = ({
             <div className="w-8 h-8 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-400">
               <FlaskConical className="w-5 h-5" />
             </div>
-            <span className="text-xs font-black tracking-wider text-pink-400">TEST 랩 · 기능 최적화 스튜디오</span>
+            <span className="text-xs font-black tracking-wider text-pink-400">기능 최적화 실험실</span>
           </div>
           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
             ADMIN 전용
@@ -186,7 +186,7 @@ export const MobileTestLabHome: React.FC<MobileTestLabHomeProps> = ({
 
         <h2 className="text-xl font-black text-white leading-tight">
           최소 조작 · 최대 편익 실증 비교<br />
-          <span className="text-pink-400">4대 핵심 패스트트랙(Fast-Track)</span>
+          <span className="text-pink-400">4대 핵심 패스트트랙</span>
         </h2>
         <p className="text-xs text-slate-300 mt-2 leading-relaxed">
           헌장 1.1(최대 편익) 및 1.4(1단어 1뜻) 원칙에 입각하여 개발된 고효율 원터치 액션을 기존 방식과 직접 조작하며 비교하실 수 있습니다.
@@ -204,7 +204,7 @@ export const MobileTestLabHome: React.FC<MobileTestLabHomeProps> = ({
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>기존 vs 개선 A/B 비교</span>
+            <span>기존 대비 개선 비교</span>
           </button>
           <button
             type="button"
@@ -407,7 +407,7 @@ export const MobileTestLabHome: React.FC<MobileTestLabHomeProps> = ({
               <h3 className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
                 ③ 검수 승인 ➔ 기사 알림 원패스 (출고/주기장)
               </h3>
-              <p className="text-[11px] text-slate-400">승인 즉시 자산 RENTED 전환 + 기사 문자 복사 (헌장 1.3)</p>
+              <p className="text-[11px] text-slate-400">승인 즉시 자산 대여중 전환 + 기사 문자 복사 (헌장 1.3)</p>
             </div>
           </div>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" style={{ whiteSpace: 'nowrap' }}>

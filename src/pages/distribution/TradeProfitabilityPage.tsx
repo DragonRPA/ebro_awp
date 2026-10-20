@@ -317,16 +317,16 @@ export const TradeProfitabilityPage: React.FC = () => {
           <h1>유통 사업부 수익성 분석 보고서</h1>
           <div class="sub">조회기간: ${periodText} | 출력일시: ${new Date().toISOString().replace('T', ' ').substring(0, 16)} | (주)기연리프트</div>
 
-          <h2>1. 종합 손익 요약 (Executive Summary)</h2>
+          <h2>1. 종합 손익 요약</h2>
           <table>
             <thead>
               <tr>
                 <th>총 매출액</th>
                 <th>반품 차감액</th>
-                <th>순매출액 (A)</th>
-                <th>매출원가 FIFO (B)</th>
-                <th>당사 운송비 (C)</th>
-                <th>순마진액 (A-B-C)</th>
+                <th>순매출액(가)</th>
+                <th>매출원가 선입선출 (나)</th>
+                <th>당사 운송비(다)</th>
+                <th>순마진액(가-나-다)</th>
                 <th>순마진율 (%)</th>
               </tr>
             </thead>
@@ -343,11 +343,11 @@ export const TradeProfitabilityPage: React.FC = () => {
             </tbody>
           </table>
 
-          <h2>2. 품목(SKU)별 수익 기여도</h2>
+          <h2>2. 품목별 수익 기여도</h2>
           <table>
             <thead>
               <tr>
-                <th>No</th>
+                <th>순번</th>
                 <th>품목코드</th>
                 <th>품명</th>
                 <th>판매수량</th>
@@ -364,7 +364,7 @@ export const TradeProfitabilityPage: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>No</th>
+                <th>순번</th>
                 <th>수주번호</th>
                 <th>수주일자</th>
                 <th>고객사</th>
@@ -540,7 +540,7 @@ export const TradeProfitabilityPage: React.FC = () => {
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-card)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 매출원가 (FIFO)</div>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 매출원가</div>
           <div style={{ fontSize: '20px', fontWeight: 800, color: '#d97706', marginTop: '2px' }}>{totals.totalCogs.toLocaleString()}원</div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
             매출총이익 {totals.grossMargin.toLocaleString()}원
@@ -618,7 +618,7 @@ export const TradeProfitabilityPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / SKU</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / 품목코드</label>
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
@@ -693,10 +693,10 @@ export const TradeProfitabilityPage: React.FC = () => {
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>고객사</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목 명세</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>총매출 / 반품차감</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>순매출액 (A)</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>매출원가 FIFO (B)</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>당사 운송비 (C)</th>
-                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>순마진 (A-B-C)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>순매출액(가)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>매출원가 선입선출 (나)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>당사 운송비(다)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>순마진(가-나-다)</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>마진율</th>
               </tr>
             </thead>
@@ -788,7 +788,7 @@ export const TradeProfitabilityPage: React.FC = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목코드 (SKU)</th>
+                <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목코드</th>
                 <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품명</th>
                 <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>카테고리</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>수주건수</th>
@@ -870,7 +870,7 @@ export const TradeProfitabilityPage: React.FC = () => {
         <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span>순매출액: <strong style={{ color: 'var(--text-main)' }}>₩{totals.totalRev.toLocaleString()}</strong></span>
           <span>=</span>
-          <span>매출원가(FIFO): <strong style={{ color: '#d97706' }}>₩{totals.totalCogs.toLocaleString()}</strong></span>
+          <span>매출원가: <strong style={{ color: '#d97706' }}>₩{totals.totalCogs.toLocaleString()}</strong></span>
           <span>+</span>
           <span>당사운송비: <strong style={{ color: '#dc2626' }}>₩{totals.totalShipping.toLocaleString()}</strong></span>
           <span>+</span>
@@ -983,10 +983,10 @@ export const TradeProfitabilityPage: React.FC = () => {
                   <tr style={{ backgroundColor: '#f1f5f9' }}>
                     <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>총 매출액</th>
                     <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>반품 차감액</th>
-                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>순매출액 (A)</th>
-                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>매출원가 FIFO (B)</th>
-                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>당사 운송비 (C)</th>
-                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>순마진액 (A-B-C)</th>
+                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>순매출액(가)</th>
+                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>매출원가 선입선출 (나)</th>
+                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>당사 운송비(다)</th>
+                    <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>순마진액(가-나-다)</th>
                     <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>순마진율</th>
                   </tr>
                 </thead>

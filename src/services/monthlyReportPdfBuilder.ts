@@ -1,10 +1,10 @@
 // @ts-nocheck
 /**
  * src/services/monthlyReportPdfBuilder.ts
- * 전사 월간 경영 종합보고서(Executive Monthly Dossier) 3페이지 고해상도 벡터 PDF 빌더
+ * 전사 월간 경영 종합보고서 3페이지 고해상도 벡터 PDF 빌더
  * 
  * - pdf-lib + HTML5 Canvas 결합으로 브라우저 환경에서 완벽한 한글 렌더링 보장
- * - A4 규격 (595.28 x 841.89 pt) 고해상도 벡터 출력
+ * - A4 규격 고해상도 벡터 출력
  * - 전사 표준 헌장 3.1 무수식어 건조 표준, 3.5 Gutenberg 대차대조 검증 준수
  */
 
@@ -372,7 +372,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
   });
 
   // =========================================================================
-  // [3페이지: 채권 에이징 + 영업 면제(Waiver) + 경영진 진단 및 서명란]
+  // [3페이지: 채권 에이징 + 영업 면제 + 경영진 진단 및 서명란]
   // =========================================================================
   const page3Bytes = await renderPageToPngBlob(canvasW, canvasH, (ctx) => {
     // 3페이지 상단 헤더 스트립
@@ -420,7 +420,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
       ctx.fillText(ag.val, (ax + 8) * scale, (agingBoxY + 36) * scale);
     });
 
-    // 2. 섹션 7: 영업 청구 면제(Waiver) 손실 투명 보고
+    // 2. 섹션 7: 영업 청구 면제 손실 투명 보고
     curY = agingBoxY + 65;
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';

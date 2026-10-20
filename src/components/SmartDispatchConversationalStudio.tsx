@@ -511,7 +511,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
     speakPrompt('입력된 내용이 우측 폼에 반영되었습니다. 내용을 확인 후 출고지시를 저장하세요.');
   };
 
-  // 음성인식 (STT) 통합 디스패처 (각 단계별 검색/입력 객체에 직결)
+  // 음성인식 통합 디스패처 (각 단계별 검색/입력 객체에 직결)
   const handleVoiceResultForStep = (text: string, step: StudioStep) => {
     const raw = text.trim();
     if (!raw) return;
@@ -606,7 +606,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
     }
   };
 
-  // 브라우저 음성인식 (STT) 시작
+  // 브라우저 음성인식 시작
   const startRecording = (forStep?: StudioStep) => {
     const targetStep = forStep || currentStep;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -796,7 +796,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
         </div>
       </div>
 
-      {/* 3-B. 음성인식(STT) 확인 및 클릭 수정 배지 */}
+      {/* 3-B. 음성인식 확인 및 클릭 수정 배지 */}
       {lastSttText && (
         <div style={{
           padding: '6px 12px',

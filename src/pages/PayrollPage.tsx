@@ -15,7 +15,7 @@ export const PayrollPage: React.FC = () => {
   const canSave = hasPermission('payroll', 'save');
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
-  // 오늘 날짜가 속한 당월 (YYYY-MM) 자동 계산
+  // 오늘 날짜가 속한 당월(연월) 자동 계산
   const todayMonth = new Date().toISOString().substring(0, 7);
 
   // 상태 관리 (기본값: 오늘 날짜가 속한 당월)
@@ -85,7 +85,7 @@ export const PayrollPage: React.FC = () => {
     };
   }, [payrollList]);
 
-  // 선택한 월이 변경되면 DB의 월별 마감 상태(payrollClosings) 자동 동기화
+  // 선택한 월이 변경되면 DB의 월별 마감 상태 자동 동기화
   useEffect(() => {
     const closing = payrollClosings.find(p => p.month === selectedMonth);
     setPayrollStatus(closing?.status || 'DRAFT');
@@ -338,7 +338,7 @@ export const PayrollPage: React.FC = () => {
       const netSalary = Math.round(totalGross - taxSum);
 
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '귀속연월': selectedMonth,
         '사원명': p.name,
         '부서': p.deptName || '-',

@@ -4,7 +4,7 @@
  * 
  * 원천 데이터: D:\OneDrive\Desktop\기연리프트자료_\자동업로드\밴드\소모품재고.txt
  * 표준 헌장:
- * - 카테고리 1.2: 발생되는 사건(Event) 기록의 무누락 DB 저장 (입고/적재 시 ConsumableLog 무누락 동시 저장)
+ * - 카테고리 1.2: 발생되는 사건 기록의 무누락 DB 저장 (입고/적재 시 ConsumableLog 무누락 동시 저장)
  * - 카테고리 3.1: 무수식어 건조 표준
  * - 카테고리 5.2: await db.awaitPendingWrites() 무음 실패 방지
  */
@@ -34,41 +34,41 @@ export interface ConsumableIngestResult {
 /** 30종 기본 관리 소모품 마스터 시드 데이터 (소모품재고.txt 기반 원천 데이터) */
 export const SEED_INVENTORY_ITEMS: ParsedConsumableItem[] = [
   { modelName: 'JLG 충전기', stockQty: 2, unit: '개', unitPrice: 450000, supplier: 'JLG', category: '충전기', note: '' },
-  { modelName: '지니 충전기', stockQty: 5, unit: '개', unitPrice: 400000, supplier: '지니 (Genie)', category: '충전기', note: '' },
-  { modelName: '지니 P콘', stockQty: 1, unit: '개', unitPrice: 350000, supplier: '지니 (Genie)', category: '제어기', note: '플랫폼 컨트롤박스' },
-  { modelName: '지니 P콘 케이블', stockQty: 1, unit: '개', unitPrice: 80000, supplier: '지니 (Genie)', category: '기판/전장', note: '' },
-  { modelName: '지니 오일필터 (유압타입)', stockQty: 2, unit: '개', unitPrice: 35000, supplier: '지니 (Genie)', category: '밸브/유압', note: '' },
-  { modelName: '지니 조향실린더', stockQty: 1, unit: '개', unitPrice: 250000, supplier: '지니 (Genie)', category: '모터/구동', note: '' },
-  { modelName: '지니 포트홀 쿠션', stockQty: 2, unit: '개', unitPrice: 45000, supplier: '지니 (Genie)', category: '모터/구동', note: '' },
-  { modelName: '지니 비상하강밸브', stockQty: 1, unit: '개', unitPrice: 120000, supplier: '지니 (Genie)', category: '밸브/유압', note: '' },
-  { modelName: '지니 비상하강코일', stockQty: 2, unit: '개', unitPrice: 65000, supplier: '지니 (Genie)', category: '밸브/유압', note: '' },
-  { modelName: '스카이잭 컨트롤박스', stockQty: 1, unit: '개', unitPrice: 450000, supplier: '스카이잭 (Skyjack)', category: '제어기', note: '' },
-  { modelName: '스카이잭 마그네틱 콘택터', stockQty: 2, unit: '개', unitPrice: 75000, supplier: '스카이잭 (Skyjack)', category: '기판/전장', note: '' },
-  { modelName: '스카이잭 상승밸브', stockQty: 1, unit: '개', unitPrice: 130000, supplier: '스카이잭 (Skyjack)', category: '밸브/유압', note: '' },
-  { modelName: '스카이잭 모터컨트롤러', stockQty: 1, unit: '개', unitPrice: 600000, supplier: '스카이잭 (Skyjack)', category: '제어기', note: '' },
-  { modelName: '스카이잭 유압 매니폴드 블록', stockQty: 1, unit: '개', unitPrice: 380000, supplier: '스카이잭 (Skyjack)', category: '밸브/유압', note: '' },
-  { modelName: '스카이잭 솔레노이드 밸브 코일', stockQty: 1, unit: '개', unitPrice: 70000, supplier: '스카이잭 (Skyjack)', category: '밸브/유압', note: '' },
-  { modelName: '스카이잭 하강밸브', stockQty: 1, unit: '개', unitPrice: 110000, supplier: '스카이잭 (Skyjack)', category: '밸브/유압', note: '' },
-  { modelName: '스카이잭 12발 3단 토글 스위치', stockQty: 2, unit: '개', unitPrice: 25000, supplier: '스카이잭 (Skyjack)', category: '기판/전장', note: '' },
-  { modelName: '스카이잭 조향실린더 엔드볼', stockQty: 8, unit: '개', unitPrice: 35000, supplier: '스카이잭 (Skyjack)', category: '모터/구동', note: '' },
-  { modelName: '스카이잭 주행모터 기어박스', stockQty: 2, unit: '개', unitPrice: 850000, supplier: '스카이잭 (Skyjack)', category: '모터/구동', note: '' },
-  { modelName: '지니 G콘 (유압식)', stockQty: 4, unit: '개', unitPrice: 320000, supplier: '지니 (Genie)', category: '제어기', note: '3개 수리중 (실가용 1개)', repairingQty: 3 },
+  { modelName: '지니 충전기', stockQty: 5, unit: '개', unitPrice: 400000, supplier: '지니', category: '충전기', note: '' },
+  { modelName: '지니 P콘', stockQty: 1, unit: '개', unitPrice: 350000, supplier: '지니', category: '제어기', note: '플랫폼 컨트롤박스' },
+  { modelName: '지니 P콘 케이블', stockQty: 1, unit: '개', unitPrice: 80000, supplier: '지니', category: '기판/전장', note: '' },
+  { modelName: '지니 오일필터 (유압타입)', stockQty: 2, unit: '개', unitPrice: 35000, supplier: '지니', category: '밸브/유압', note: '' },
+  { modelName: '지니 조향실린더', stockQty: 1, unit: '개', unitPrice: 250000, supplier: '지니', category: '모터/구동', note: '' },
+  { modelName: '지니 포트홀 쿠션', stockQty: 2, unit: '개', unitPrice: 45000, supplier: '지니', category: '모터/구동', note: '' },
+  { modelName: '지니 비상하강밸브', stockQty: 1, unit: '개', unitPrice: 120000, supplier: '지니', category: '밸브/유압', note: '' },
+  { modelName: '지니 비상하강코일', stockQty: 2, unit: '개', unitPrice: 65000, supplier: '지니', category: '밸브/유압', note: '' },
+  { modelName: '스카이잭 컨트롤박스', stockQty: 1, unit: '개', unitPrice: 450000, supplier: '스카이잭', category: '제어기', note: '' },
+  { modelName: '스카이잭 마그네틱 콘택터', stockQty: 2, unit: '개', unitPrice: 75000, supplier: '스카이잭', category: '기판/전장', note: '' },
+  { modelName: '스카이잭 상승밸브', stockQty: 1, unit: '개', unitPrice: 130000, supplier: '스카이잭', category: '밸브/유압', note: '' },
+  { modelName: '스카이잭 모터컨트롤러', stockQty: 1, unit: '개', unitPrice: 600000, supplier: '스카이잭', category: '제어기', note: '' },
+  { modelName: '스카이잭 유압 매니폴드 블록', stockQty: 1, unit: '개', unitPrice: 380000, supplier: '스카이잭', category: '밸브/유압', note: '' },
+  { modelName: '스카이잭 솔레노이드 밸브 코일', stockQty: 1, unit: '개', unitPrice: 70000, supplier: '스카이잭', category: '밸브/유압', note: '' },
+  { modelName: '스카이잭 하강밸브', stockQty: 1, unit: '개', unitPrice: 110000, supplier: '스카이잭', category: '밸브/유압', note: '' },
+  { modelName: '스카이잭 12발 3단 토글 스위치', stockQty: 2, unit: '개', unitPrice: 25000, supplier: '스카이잭', category: '기판/전장', note: '' },
+  { modelName: '스카이잭 조향실린더 엔드볼', stockQty: 8, unit: '개', unitPrice: 35000, supplier: '스카이잭', category: '모터/구동', note: '' },
+  { modelName: '스카이잭 주행모터 기어박스', stockQty: 2, unit: '개', unitPrice: 850000, supplier: '스카이잭', category: '모터/구동', note: '' },
+  { modelName: '지니 G콘 (유압식)', stockQty: 4, unit: '개', unitPrice: 320000, supplier: '지니', category: '제어기', note: '3개 수리중 (실가용 1개)', repairingQty: 3 },
   { modelName: '마그네틱 콘택터 (공용)', stockQty: 5, unit: '개', unitPrice: 65000, supplier: '공용', category: '기판/전장', note: '' },
-  { modelName: '지니 조향밸브', stockQty: 2, unit: '개', unitPrice: 180000, supplier: '지니 (Genie)', category: '밸브/유압', note: '' },
-  { modelName: '지니 틸트 센서', stockQty: 2, unit: '개', unitPrice: 140000, supplier: '지니 (Genie)', category: '안전/센서', note: '' },
-  { modelName: '지니 상부기판 (6버튼)', stockQty: 10, unit: '개', unitPrice: 280000, supplier: '지니 (Genie)', category: '기판/전장', note: '' },
-  { modelName: '지니 상부기판 (4버튼)', stockQty: 3, unit: '개', unitPrice: 250000, supplier: '지니 (Genie)', category: '기판/전장', note: '' },
+  { modelName: '지니 조향밸브', stockQty: 2, unit: '개', unitPrice: 180000, supplier: '지니', category: '밸브/유압', note: '' },
+  { modelName: '지니 틸트 센서', stockQty: 2, unit: '개', unitPrice: 140000, supplier: '지니', category: '안전/센서', note: '' },
+  { modelName: '지니 상부기판 (6버튼)', stockQty: 10, unit: '개', unitPrice: 280000, supplier: '지니', category: '기판/전장', note: '' },
+  { modelName: '지니 상부기판 (4버튼)', stockQty: 3, unit: '개', unitPrice: 250000, supplier: '지니', category: '기판/전장', note: '' },
   { modelName: '아날라이저 (진단기)', stockQty: 1, unit: '개', unitPrice: 550000, supplier: '공용', category: '안전/센서', note: '장비 점검 진단기' },
-  { modelName: '지니 비상하강와이어', stockQty: 5, unit: '개', unitPrice: 45000, supplier: '지니 (Genie)', category: '안전/센서', note: '' },
-  { modelName: '지니 조이스틱', stockQty: 30, unit: '개', unitPrice: 180000, supplier: '지니 (Genie)', category: '제어기', note: '' },
-  { modelName: '지니 주행모터 (유압식)', stockQty: 1, unit: '개', unitPrice: 750000, supplier: '지니 (Genie)', category: '모터/구동', note: '수리중 (실가용 0개)', repairingQty: 1 },
-  { modelName: '지니 브레이크', stockQty: 2, unit: '개', unitPrice: 220000, supplier: '지니 (Genie)', category: '모터/구동', note: '2개 수리중 (실가용 0개)', repairingQty: 2 },
+  { modelName: '지니 비상하강와이어', stockQty: 5, unit: '개', unitPrice: 45000, supplier: '지니', category: '안전/센서', note: '' },
+  { modelName: '지니 조이스틱', stockQty: 30, unit: '개', unitPrice: 180000, supplier: '지니', category: '제어기', note: '' },
+  { modelName: '지니 주행모터 (유압식)', stockQty: 1, unit: '개', unitPrice: 750000, supplier: '지니', category: '모터/구동', note: '수리중 (실가용 0개)', repairingQty: 1 },
+  { modelName: '지니 브레이크', stockQty: 2, unit: '개', unitPrice: 220000, supplier: '지니', category: '모터/구동', note: '2개 수리중 (실가용 0개)', repairingQty: 2 },
 ];
 
 /** 브랜드/공급처 판별기 */
 export function detectSupplier(name: string): string {
-  if (/지니|genie/i.test(name)) return '지니 (Genie)';
-  if (/스카이잭|skyjack/i.test(name)) return '스카이잭 (Skyjack)';
+  if (/지니|genie/i.test(name)) return '지니';
+  if (/스카이잭|skyjack/i.test(name)) return '스카이잭';
   if (/jlg/i.test(name)) return 'JLG';
   return '공용';
 }

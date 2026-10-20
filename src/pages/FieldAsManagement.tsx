@@ -330,7 +330,7 @@ export const FieldAsManagement: React.FC = () => {
     }
   };
 
-  // 🏢 조직도 최상위(root)에 속하지 않으면서 field_as 권한을 보유한 담당자 목록 (SSOT)
+  // 🏢 조직도 최상위에 속하지 않으면서 field_as 권한을 보유한 담당자 목록
   const eligibleAssignees = useMemo(() => {
     const depts = db.departments || [];
     const rootDeptIds = new Set<string>(['DEPT-0000001', 'DEPT-1']);
@@ -349,7 +349,7 @@ export const FieldAsManagement: React.FC = () => {
     return users.filter(u => {
       if (u.status === 'RETIRED') return false;
 
-      // 1. 조직도 최상위(root) 소속 배제 (대표이사, 임원진, 시스템 최고관리자)
+      // 1. 조직도 최상위 소속 배제 (대표이사, 임원진, 시스템 최고관리자)
       if (u.id === 'sys-admin' || u.id === 'u-1' || u.loginId === 'admin') return false;
       if (u.position === '대표이사' || u.position === '대표' || u.position?.includes('대표')) return false;
       const dName = (u.department || '').trim();
@@ -357,7 +357,7 @@ export const FieldAsManagement: React.FC = () => {
       if (u.departmentId && rootDeptIds.has(u.departmentId)) return false;
       if (!u.departmentId && u.role === 'ADMIN') return false;
 
-      // 2. 해당 메뉴(field_as) 권한 보유 여부 확인
+      // 2. 해당 메뉴 권한 보유 여부 확인
       const perm = fieldAsPermMap.get(u.id);
       if (perm) {
         return Boolean(perm.canView || perm.canSave);
@@ -463,7 +463,7 @@ export const FieldAsManagement: React.FC = () => {
       return true;
     });
 
-    // 당면 과제 우선순위 정렬: 긴급(URGENT) > 담당자 미지정 > 최신 접수순
+    // 당면 과제 우선순위 정렬: 긴급 > 담당자 미지정 > 최신 접수순
     return list.sort((a, b) => {
       if (a.priority === 'URGENT' && b.priority !== 'URGENT') return -1;
       if (b.priority === 'URGENT' && a.priority !== 'URGENT') return 1;
@@ -937,7 +937,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
   const handleExportLedgerExcel = () => {
     const data = sortedLedgerTickets.map((t, idx) => ({
       // ① 식별 및 접수
-      'No': idx + 1,
+      '순번': idx + 1,
       '접수번호': t.ticketNo,
       '관리번호': t.assetNo || '-',
       '모델명': t.modelName || '-',
@@ -4059,7 +4059,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               </div>
             </div>
 
-            {/* 3️⃣ 처리 판정 버튼 (48px) */}
+            {/* 3️⃣ 처리 판정 버튼 */}
             <div>
               <label style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
                 3. 처리 결과 판정
@@ -4185,7 +4185,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               )}
             </div>
 
-            {/* 5️⃣ 최하단 고정 완료 버튼 (54px) */}
+            {/* 5️⃣ 최하단 고정 완료 버튼 */}
             <button
               type="button"
               onClick={async () => {
@@ -4504,7 +4504,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   cursor: 'pointer'
                 }}
               >
-                🔴 T맵 (Tmap)으로 바로 길안내
+                🔴 T맵으로 바로 길안내
               </button>
 
               <button

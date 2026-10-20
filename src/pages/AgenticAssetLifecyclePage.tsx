@@ -81,7 +81,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
         status: 'RENTED',
         recommendedAction: '대여중 정상 가동 (출고 검수 마감 완료)'
       } : item));
-      setStatusMessage('승인 완료: 헌장 1.3에 따라 자산 상태가 대여중(RENTED)으로 성공적으로 전환되었습니다.');
+      setStatusMessage('승인 완료: 헌장 1.3에 따라 자산 상태가 대여중으로 성공적으로 전환되었습니다.');
     } catch (err: any) {
       setStatusMessage(`오류 발생: ${err?.message || '실패'}`);
     } finally {
@@ -102,7 +102,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
         maintenanceScore: 0,
         recommendedAction: '정비 완료 ➔ 임대 가능 상태로 복원 완료 (정비점수 0점)'
       } : item));
-      setStatusMessage('정비 완료: 정비점수 0점 복원 및 임대가능(AVAILABLE) 상태 전환 완료.');
+      setStatusMessage('정비 완료: 정비점수 0점 복원 및 임대가능 상태 전환 완료.');
     } catch (err: any) {
       setStatusMessage(`오류 발생: ${err?.message || '실패'}`);
     } finally {

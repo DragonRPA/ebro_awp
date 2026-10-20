@@ -1,6 +1,6 @@
 // src/services/hindsightMemoryService.ts
 // 🧠 eBro Hindsight 4-Tier Memory & Real-DB Cognitive Core Service
-// 🏛️ 무목업(Zero-Mock) · 무시드(Zero-Seed) · 100% 실DB(Central + Tenant) 직접 연동 엔진
+// 🏛️ 무목업 · 무시드 · 100% 실DB(Central + Tenant) 직접 연동 엔진
 
 import { centralSupabase } from './centralDb';
 import { db, supabase } from './db';
@@ -514,7 +514,7 @@ class HindsightMemoryService {
       }
     }
 
-    // 5-2. 실제 계약자산(contract_assets) 기종별 체결 단가 분포 패턴
+    // 5-2. 실제 계약자산 기종별 체결 단가 분포 패턴
     if (contractAssets.length > 0) {
       const modelRateStats = new Map<string, {
         count: number;
@@ -644,7 +644,7 @@ class HindsightMemoryService {
       }
     }
 
-    // 5-4. 실제 배차(deliveries) 원장 상태 및 운송비 실측 패턴
+    // 5-4. 실제 배차 원장 상태 및 운송비 실측 패턴
     if (deliveries.length > 0) {
       let outboundCnt = 0;
       let inboundCnt = 0;
@@ -681,7 +681,7 @@ class HindsightMemoryService {
         domain: 'LOGISTICS',
         cluster_key: 'DB_DELIVERIES_REAL_STATS',
         belief_title: `[실측 배차통계] 전체 배차 ${deliveries.length}건 유형 및 운송비 기록 현황`,
-        belief_statement: `실제 DB deliveries(${deliveries.length}건) 전수 집계: 출고(OUTBOUND) ${outboundCnt}건, 입고(INBOUND) ${inboundCnt}건, 교환(EXCHANGE) ${exchangeCnt}건. 운송비가 입력된 배차는 ${costRecordedCnt}건(평균 ₩${avgCost.toLocaleString()})이며, 배정 기사 기록 상위: ${topDrivers.length > 0 ? topDrivers.join(', ') : '운송기사 미입력'}.`,
+        belief_statement: `실제 DB deliveries(${deliveries.length}건) 전수 집계: 출고 ${outboundCnt}건, 입고 ${inboundCnt}건, 교환 ${exchangeCnt}건. 운송비가 입력된 배차는 ${costRecordedCnt}건(평균 ₩${avgCost.toLocaleString()})이며, 배정 기사 기록 상위: ${topDrivers.length > 0 ? topDrivers.join(', ') : '운송기사 미입력'}.`,
         proof_count: deliveries.length,
         confidence: 1.0,
         supporting_quotes: [`총 ${deliveries.length}건 중 운송비 기재 ${costRecordedCnt}건`, `기사 배정: ${topDrivers.join(', ') || '없음'}`],
@@ -690,7 +690,7 @@ class HindsightMemoryService {
       });
     }
 
-    // 5-5. 실제 청구(billings) 및 수납(payments) 실측 패턴
+    // 5-5. 실제 청구 및 수납 실측 패턴
     if (billings.length > 0) {
       let totalBilled = 0;
       let totalPaid = 0;
@@ -738,11 +738,11 @@ class HindsightMemoryService {
       standing_query: '고객사 현장의 실제 계약 건수, 투입 대수, 기종별 체결 단가 현황',
       content_markdown: [
         `# 실제 DB 영업·계약·현장 집계 (시드/목업 제외)`,
-        `- **등록 고객사(customers)**: ${customers.length.toLocaleString()}개사`,
-        `- **독립 물리 현장(site_masters)**: ${siteMasters.length.toLocaleString()}개 현장 (고객-현장 연결 ${sites.length.toLocaleString()}건)`,
-        `- **전체 계약(contracts)**: ${contracts.length.toLocaleString()}건 (진행중 ACTIVE/EXTENDED: ${activeContractsCnt.toLocaleString()}건)`,
-        `- **체결 계약자산(contract_assets)**: ${contractAssets.length.toLocaleString()}건`,
-        `- **등록 표준옵션(standard_options)**: ${standardOptions.length.toLocaleString()}종`
+        `- **등록 고객사**: ${customers.length.toLocaleString()}개사`,
+        `- **독립 물리 현장**: ${siteMasters.length.toLocaleString()}개 현장 (고객-현장 연결 ${sites.length.toLocaleString()}건)`,
+        `- **전체 계약**: ${contracts.length.toLocaleString()}건 (진행중 ACTIVE/EXTENDED: ${activeContractsCnt.toLocaleString()}건)`,
+        `- **체결 계약자산**: ${contractAssets.length.toLocaleString()}건`,
+        `- **등록 표준옵션**: ${standardOptions.length.toLocaleString()}종`
       ].join('\n'),
       structured_data: {
         customersCount: customers.length,
@@ -774,10 +774,10 @@ class HindsightMemoryService {
       standing_query: '보유 자산 상태별 대수, 등록 상품 제원, 출고검수 및 수리 이력 건수',
       content_markdown: [
         `# 실제 DB 자산·제원·정비 집계 (시드/목업 제외)`,
-        `- **총 등록 자산(assets)**: ${assets.length.toLocaleString()}대 (${statusSummaryLine || '데이터 없음'})`,
-        `- **등록 장비 모델(products)**: ${products.length.toLocaleString()}종`,
-        `- **출고 검수 이력(outbound_inspections)**: ${outboundInspections.length.toLocaleString()}건 ${outboundInspections.length === 0 ? '(현재 실제 DB에 적재된 검수 레코드 0건)' : ''}`,
-        `- **정비/수리 이력(repairs)**: ${repairs.length.toLocaleString()}건 ${repairs.length === 0 ? '(현재 실제 DB에 적재된 수리 레코드 0건 — 예지정비 분석을 위해 수리 데이터 축적 필요)' : ''}`
+        `- **총 등록 자산**: ${assets.length.toLocaleString()}대 (${statusSummaryLine || '데이터 없음'})`,
+        `- **등록 장비 모델**: ${products.length.toLocaleString()}종`,
+        `- **출고 검수 이력**: ${outboundInspections.length.toLocaleString()}건 ${outboundInspections.length === 0 ? '(현재 실제 DB에 적재된 검수 레코드 0건)' : ''}`,
+        `- **정비/수리 이력**: ${repairs.length.toLocaleString()}건 ${repairs.length === 0 ? '(현재 실제 DB에 적재된 수리 레코드 0건 — 예지정비 분석을 위해 수리 데이터 축적 필요)' : ''}`
       ].join('\n'),
       structured_data: {
         totalAssets: assets.length,
@@ -809,10 +809,10 @@ class HindsightMemoryService {
       standing_query: '배차 상태별 건수, 노선 운송비 기록 여부, 기사 배정 현황',
       content_markdown: [
         `# 실제 DB 배차·운송 집계 (시드/목업 제외)`,
-        `- **총 배차 레코드(deliveries)**: ${deliveries.length.toLocaleString()}건 (${delivStatusLine || '데이터 없음'})`,
-        `- **실제 운송비(deliveryCost/finalCost) 기록 건수**: ${deliveries.filter((d: any) => Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0) > 0).length}건`,
-        `- **실제 기사명(driverName) 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.driverName)).length}건`,
-        `- **실제 하차지 주소(destinationAddress) 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.destinationAddress)).length}건`
+        `- **총 배차 레코드**: ${deliveries.length.toLocaleString()}건 (${delivStatusLine || '데이터 없음'})`,
+        `- **실제 운송비 기록 건수**: ${deliveries.filter((d: any) => Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0) > 0).length}건`,
+        `- **실제 기사명 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.driverName)).length}건`,
+        `- **실제 하차지 주소 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.destinationAddress)).length}건`
       ].join('\n'),
       structured_data: {
         deliveriesCount: deliveries.length,
@@ -832,9 +832,9 @@ class HindsightMemoryService {
       standing_query: '월말 청구 건수, 수납 건수, 미수금 현황',
       content_markdown: [
         `# 실제 DB 청구·수납 집계 (시드/목업 제외)`,
-        `- **청구 원장(billings)**: ${billings.length.toLocaleString()}건`,
-        `- **수납 내역(payments)**: ${payments.length.toLocaleString()}건`,
-        `- **통장 입출금(bank_transactions)**: ${((db as any).bankTransactions || []).length.toLocaleString()}건`
+        `- **청구 원장**: ${billings.length.toLocaleString()}건`,
+        `- **수납 내역**: ${payments.length.toLocaleString()}건`,
+        `- **통장 입출금**: ${((db as any).bankTransactions || []).length.toLocaleString()}건`
       ].join('\n'),
       structured_data: {
         billingsCount: billings.length,
@@ -1012,7 +1012,7 @@ class HindsightMemoryService {
       return false;
     };
 
-    // ── 실제 운영 DB 원장 직접 검색 (Live ERP Entity Query) ──
+    // ── 실제 운영 DB 원장 직접 검색 ──
     const customers: any[] = (db as any).customers || [];
     const siteMasters: any[] = (db as any).siteMasters || [];
     const sites: any[] = (db as any).sites || [];
@@ -1063,11 +1063,11 @@ class HindsightMemoryService {
       return matchesAnyToken([c.contractNo, custName, sInfo.name, sInfo.address, modelNames]);
     });
 
-    // 2) 매칭된 장비 모델(products) & 보유 자산(assets)
+    // 2) 매칭된 장비 모델 & 보유 자산
     const matchedProducts = products.filter(p => matchesAnyToken([p.modelName, p.manufacturer, p.spec, p.feet ? `${p.feet}ft` : '']));
     const matchedAssets = assets.filter(a => matchesAnyToken([a.assetNo, a.modelName, a.manufacturer, a.serialNo, a.status]));
 
-    // 3) 매칭된 배차(deliveries)
+    // 3) 매칭된 배차
     const matchedDeliveries = deliveries.filter(d => {
       const c = d.contractId ? contracts.find((ct: any) => ct.id === d.contractId) : null;
       const custName = d.customerName || (c ? customerMap.get(c.customerId)?.name : '') || '';
@@ -1079,7 +1079,7 @@ class HindsightMemoryService {
       ]);
     });
 
-    // 4) 매칭된 청구(billings)
+    // 4) 매칭된 청구
     const matchedBillings = billings.filter(b => {
       const custName = customerMap.get(b.customerId)?.name || '';
       return matchesAnyToken([b.id, b.billingYm, b.status, custName, b.customStatementReason]);
@@ -1178,19 +1178,19 @@ class HindsightMemoryService {
       sections.push(lines.join('\n'));
     }
 
-    // E. Hindsight 4대 메모리 매칭 결과 (World Facts, Observations, Experiences)
+    // E. Hindsight 4대 메모리 매칭 결과
     if (recallResult.observations.length > 0) {
       const obsLines = recallResult.observations.slice(0, 4).map(
         o => `  • ${o.belief_title}: ${o.belief_statement} (증거 ${o.proof_count}건)`
       );
-      sections.push(`■ [Hindsight 귀납 관찰(Observations) 매칭 ${recallResult.observations.length}건]\n${obsLines.join('\n')}`);
+      sections.push(`■ [Hindsight 귀납 관찰 매칭 ${recallResult.observations.length}건]\n${obsLines.join('\n')}`);
     }
 
     if (recallResult.experiences.length > 0) {
       const expLines = recallResult.experiences.slice(0, 4).map(
         e => `  • [${new Date(e.created_at).toLocaleString('ko-KR')}] ${e.menu_path} ➔ ${e.action_name}${e.raw_sql ? ` | SQL: ${e.raw_sql.slice(0, 90)}...` : ''}`
       );
-      sections.push(`■ [Hindsight 사용자 경험(awp_shared_memories) 매칭 ${recallResult.experiences.length}건]\n${expLines.join('\n')}`);
+      sections.push(`■ [Hindsight 사용자 경험 매칭 ${recallResult.experiences.length}건]\n${expLines.join('\n')}`);
     }
 
     const totalLiveMatches =

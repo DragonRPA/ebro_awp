@@ -148,12 +148,12 @@ export type SubscriptionPlan = 'TRIAL' | 'STARTER' | 'STANDARD' | 'PRO' | 'ENTER
 /** ⏳ 테넌트 구독 라이선스 상태 */
 export type SubscriptionStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'EXPIRED' | 'SUSPENDED';
 
-/** 📑 테넌트 구독 계약 및 만료(Expire) 라이선스 정보 */
+/** 📑 테넌트 구독 계약 및 만료 라이선스 정보 */
 export interface TenantSubscription {
   plan: SubscriptionPlan;              // 구독 요금제 등급
   status: SubscriptionStatus;          // 구독 상태
-  startDate: string;                   // 구독 시작일자 (YYYY-MM-DD)
-  endDate: string;                     // 구독 만료일자 (YYYY-MM-DD)
+  startDate: string;                   // 구독 시작일자(일자)
+  endDate: string;                     // 구독 만료일자(일자)
   gracePeriodDays: number;             // 만료 후 서비스 유예 기간 일수 (기본 7일)
   billingCycle: 'MONTHLY' | 'YEARLY' | 'CUSTOM'; // 결제 주기 (월납, 연납, 수시)
   monthlyFee?: number;                 // 월간 구독료 (원 단위)
@@ -277,7 +277,7 @@ export interface Tenant {
   solutionType?: SolutionType;         // 솔루션 업종 분류 (AWP: 고소작업대, IT: IT 인프라/장비, MULTI: 복합 사업군)
   targetRepo?: string;                 // 연동 깃허브 레포지토리 (예: 'DragonRPA/ebro_awp', 'DragonRPA/ebro_it')
   features?: TenantFeatures;           // 활성화된 모듈 및 라이선스 플러그인
-  subscription?: TenantSubscription;   // 💳 구독 요금제 및 만료(Expire) 라이선스 정보
+  subscription?: TenantSubscription;   // 💳 구독 요금제 및 만료 라이선스 정보
   systemName: string;                  // 시스템 기본 명칭 ('e-Bro System')
   displayName: string;                 // 시스템 표출 회사명 (예: '기연리프트')
   corporateName: string;               // 법인명(단체명): '주식회사 기연리프트'
@@ -322,7 +322,7 @@ export interface Tenant {
   hiddenPages?: string[];
   specialFeatures?: string[]; // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록 (예: ['tab:truck_dispatch:audit_settle'])                // 🚫 테넌트별 숨김/비노출 페이지 ID 목록
 
-  // 🛡️ 법정 개인정보 보호책임자 (CPO - Chief Privacy Officer)
+  // 🛡️ 법정 개인정보 보호책임자
   privacyOfficer?: TenantPrivacyOfficer;
   privacyOfficerName?: string;
   privacyOfficerPosition?: string;
@@ -335,7 +335,7 @@ export interface Tenant {
   r2Config?: Partial<OfficialMailConfig>;
 }
 
-/** 🛡️ 법정 개인정보 보호책임자 (CPO) 엔티티 */
+/** 🛡️ 법정 개인정보 보호책임자 엔티티 */
 export interface TenantPrivacyOfficer {
   name: string;        // 성명 (예: '이수용')
   position: string;    // 직책/직급 (예: '대표이사 / 관리부 총괄')
@@ -549,7 +549,7 @@ export async function loadApprovalTierConfigs(): Promise<{
   return { duties, positions };
 }
 
-/** 동기(Sync) 로더 (LocalStorage 또는 기본값 즉시 반환) */
+/** 동기 로더 (LocalStorage 또는 기본값 즉시 반환) */
 export function getStoredApprovalTierConfigs(): {
   duties: ApprovalTierConfig[];
   positions: ApprovalTierConfig[];
@@ -573,8 +573,8 @@ export function getStoredApprovalTierConfigs(): {
 
 /**
  * 임직원의 유효 결재 티어 산출 함수 (R&R 기반 직책 우선 강제 원칙)
- * 1. 직책(duty)이 등록되어 있으면 직책 티어가 최우선(더 강력하게) 작동
- * 2. 직책이 없거나 미등록 직책인 경우 직급(position) 티어로 fallback 작동 (소규모 기업/일반 사원 호환)
+ * 1. 직책이 등록되어 있으면 직책 티어가 최우선(더 강력하게) 작동
+ * 2. 직책이 없거나 미등록 직책인 경우 직급 티어로 fallback 작동 (소규모 기업/일반 사원 호환)
  * 3. 둘 다 매핑되지 않으면 user.tier_level 또는 0 반환
  */
 export function getUserEffectiveTier(
@@ -590,7 +590,7 @@ export function getUserEffectiveTier(
   const dutyList = (dutyConfigs && dutyConfigs.length > 0) ? dutyConfigs : (stored?.duties || DEFAULT_DUTY_TIERS);
   const positionList = (positionConfigs && positionConfigs.length > 0) ? positionConfigs : (stored?.positions || DEFAULT_POSITION_TIERS);
 
-  // 1. 직책(Duty) 우선 판정 (R&R 단위 조직 책임자 권한 우선)
+  // 1. 직책 우선 판정 (R&R 단위 조직 책임자 권한 우선)
   if (user.duty && user.duty.trim()) {
     const trimmedDuty = user.duty.trim().toLowerCase();
     const matchedDuty = dutyList.find(d => d.title.trim().toLowerCase() === trimmedDuty);
@@ -603,7 +603,7 @@ export function getUserEffectiveTier(
     }
   }
 
-  // 2. 직급(Position) 판정 (Fallback for 소규모 기업 및 일반 사원)
+  // 2. 직급 판정 (Fallback for 소규모 기업 및 일반 사원)
   if (user.position && user.position.trim()) {
     const trimmedPos = user.position.trim().toLowerCase();
     const matchedPos = positionList.find(p => p.title.trim().toLowerCase() === trimmedPos);
@@ -671,7 +671,7 @@ export function getTierDisplayLabel(
   return `${tier}티어: ${posText}`;
 }
 
-/** 전사 업무 이벤트 레지스트리 (SSOT) — 결재선 설정 화면 드롭다운 원본 (유형별 정렬) */
+/** 전사 업무 이벤트 레지스트리 — 결재선 설정 화면 드롭다운 원본 (유형별 정렬) */
 export const APPROVAL_EVENT_REGISTRY = [
   // ── 1. 고객 (1) ──
   { code: 'CUSTOMER_REGISTRATION',       name: '고객 등록',        targetTable: 'customers',           category: '고객' },
@@ -715,7 +715,7 @@ export interface User {
   position?: string;
   status?: 'ACTIVE' | 'LEAVE_OF_ABSENCE' | 'RETIRED';
   birthDate?: string;
-  joinDate?: string;  // 입사일 (YYYY-MM-DD)
+  joinDate?: string;  // 입사일(일자)
   baseSalary?: number; // 기본급 (원) - 급여 정산 권한자 전용
   address?: string;
   phone?: string;
@@ -784,7 +784,7 @@ export interface Department {
   updatedAt?: string;
 }
 
-/** 9대 보편 조직 기능 속성 (Universal Functional Attributes) SSOT 정의 */
+/** 9대 보편 조직 기능 속성 SSOT 정의 */
 export interface FunctionalAttributeConfig {
   id: string; // e.g. 'ATTR_PRODUCTION'
   code: string; // 'PRODUCTION'
@@ -799,7 +799,7 @@ export const UNIVERSAL_FUNCTIONAL_ATTRIBUTES: FunctionalAttributeConfig[] = [
   { id: 'ATTR_PRODUCTION', code: 'PRODUCTION', label: '생산', description: '신규 장비 검수, 제작, 조립, 부품 볼팅, 초기 셋업', color: '#6366f1', badgeBg: '#eef2ff', badgeText: '#4338ca' },
   { id: 'ATTR_SALES', code: 'SALES', label: '영업', description: '고객 견적, 계약 체결, 대차 요구 의뢰 발의', color: '#2563eb', badgeBg: '#eff6ff', badgeText: '#1d4ed8' },
   { id: 'ATTR_DISPATCH', code: 'DISPATCH', label: '배차', description: '운송 차량 섭외, 배차 지시, 배차 대장 관리, 운송료 정산', color: '#d97706', badgeBg: '#fffbeb', badgeText: '#b45309' },
-  { id: 'ATTR_OUTBOUND', code: 'OUTBOUND', label: '출고', description: '출고 전 점검, 안전옵션 장착, 출고 검수 승인(RENTED)', color: '#059669', badgeBg: '#ecfdf5', badgeText: '#047857' },
+  { id: 'ATTR_OUTBOUND', code: 'OUTBOUND', label: '출고', description: '출고 전 점검, 안전옵션 장착, 출고 검수 승인', color: '#059669', badgeBg: '#ecfdf5', badgeText: '#047857' },
   { id: 'ATTR_AFTER_SERVICE', code: 'AFTER_SERVICE', label: '현장AS', description: '출동 수리, 긴급 고장 조치, 현장 경정비, 순회 점검', color: '#e11d48', badgeBg: '#fff1f2', badgeText: '#be123c' },
   { id: 'ATTR_INBOUND', code: 'INBOUND', label: '입고정비', description: '반납 장비 입고 확인, 세척, 입고 검사, 공장 정비 및 부품 교체', color: '#0891b2', badgeBg: '#ecfeff', badgeText: '#0e7490' },
   { id: 'ATTR_ASSET', code: 'ASSET', label: '자산', description: '장비 등록, 타사 임차(전대) 매핑, 장비 매각/폐기, 자산 현황', color: '#9333ea', badgeBg: '#faf5ff', badgeText: '#7e22ce' },
@@ -832,7 +832,7 @@ export function userHasFunctionalAttribute(
     return tags.includes(normTarget);
   });
   if (!anyDeptHasAttr) {
-    return true; // 아무 부서도 없으면 전사 공유 풀 개방 (Fallback)
+    return true; // 아무 부서도 없으면 전사 공유 풀 개방
   }
 
   // 2. 사용자의 소속 부서가 해당 기능 태그를 보유하고 있는지 검증
@@ -854,7 +854,7 @@ export interface MenuPermission {
   role?: string;
 }
 
-/** MenuPermission 단일 진실의 원천(SSOT) 팩토리 생성 함수 */
+/** MenuPermission 단일 진실의 원천 팩토리 생성 함수 */
 export function createMenuPermission(
   userId: string,
   menuId: string,
@@ -973,10 +973,10 @@ export interface SiteContactPerson {
 }
 
 export const PAYMENT_DUE_MONTH_OPTIONS = [
-  { value: 0, label: '당월 (M0)', shortLabel: '당월' },
-  { value: 1, label: '익월 (M1)', shortLabel: '익월' },
-  { value: 2, label: '익익월 (M2)', shortLabel: '익익월' },
-  { value: 3, label: '익익익월 (M3)', shortLabel: '익익익월' },
+  { value: 0, label: '당월', shortLabel: '당월' },
+  { value: 1, label: '익월', shortLabel: '익월' },
+  { value: 2, label: '익익월', shortLabel: '익익월' },
+  { value: 3, label: '익익익월', shortLabel: '익익익월' },
 ] as const;
 
 export function formatPaymentDueCondition(monthOffset?: number | null, day?: number | null): string {
@@ -1058,7 +1058,7 @@ export interface Customer {
   defaultBillingDay?: number; // 청구서(세금계산서) 기본 마감일 (예: 30일/월말)
   defaultStatementClosingDay?: number; // 거래명세서 기본 마감일 (예: 25일)
   paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
-  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3), 기본값 1
+  paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월, 기본값 1
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
   bankAccounts?: CustomerBankAccount[]; // 고객사 다중 계좌 목록
   
@@ -1072,7 +1072,7 @@ export interface Customer {
   // 📄 사업자등록증 및 💳 통장사본 증빙 스토리지
   businessCertFileUrl?: string;      // 사업자등록증 첨부/스토리지 URL
   taxOffice?: string;                // 관할 세무서 (예: '평택세무서')
-  openingDate?: string;              // 개업연월일 (YYYY-MM-DD)
+  openingDate?: string;              // 개업연월일(일자)
   headOfficeAddress?: string;        // 본점 소재지
   passbookFileUrl?: string;          // 고객사 대표 통장사본 URL (이미지/PDF)
   passbookFileName?: string;         // 고객사 대표 통장사본 파일명
@@ -1081,7 +1081,7 @@ export interface Customer {
   taxType?: string;                  // 과세유형 (예: '부가가치세 일반과세자', '간이과세자', '면세사업자')
   taxTypeCd?: string;                // 과세유형 코드 ('01', '02', '03' 등)
   businessStatus?: 'ACTIVE' | 'SUSPENDED' | 'CLOSED' | 'UNREGISTERED'; // 사업자 상태
-  closedDate?: string;               // 폐업일자 (YYYY-MM-DD)
+  closedDate?: string;               // 폐업일자(일자)
   lastStatusCheckDate?: string;      // 최근 국세청 상태조회 일시
 
   createdAt: string;
@@ -1149,7 +1149,7 @@ export interface CustomerSite {
   safetyContactName?: string;     // 안전담당자 성명
   safetyContactPhone?: string;    // 안전담당자 전화번호
   safetyContactEmail?: string;    // 안전담당자 이메일
-  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
+  paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월
   
   // 🌟 고객현장 전용 옵션/보양/부착물/요구사양 (고객 현장관리에서 직접 설정 및 옵션그룹 상속 저장)
   paidOptions?: string;              // 현장 전용 유상옵션 품목
@@ -1201,7 +1201,7 @@ export interface Product {
 }
 
 /**
- * 🔒 협착방지봉(Anti-entrapment Safety Bar) 옵션 소유권 구분
+ * 🔒 협착방지봉 옵션 소유권 구분
  * - 'VENDOR': 임차거래처 소유 (※ 주기장 입고 시 절대 탈거 금지, 원형 보존 필수. 탈거 시 분실/원상복구 비용 피청구 방지)
  * - 'OURS': 당사(기연) 소유 (※ 임차처 최종 반납 전 반드시 탈거하여 당사 부품고로 회수)
  * - 'NONE': 미장착 (협착방지봉 없음)
@@ -1301,8 +1301,8 @@ export interface Asset {
 /**
  * IFRS 회계기준 자산 월별 자동 감가상각 계산 함수
  * - 매월 말일 기준으로 상각경과 월수를 계산하여 감가상각누계액 및 미상각 잔액(장부가치) 산출
- * - 매각된 자산 (status === 'SOLD')은 매각일(disposalDate) 시점까지만 감가상각 적용 (매각 이후 상각 정지)
- * - 감가상각누계액: 1원 단위 반올림 처리 (Math.round)
+ * - 매각된 자산 (status === 'SOLD')은 매각일 시점까지만 감가상각 적용 (매각 이후 상각 정지)
+ * - 감가상각누계액: 1원 단위 반올림 처리
  * - 미상각 잔액 (장부가치) = 취득원가 - 감가상각누계액
  */
 export function calculateAssetDepreciation(asset: Asset, asOfDate: Date = new Date()): {
@@ -1397,7 +1397,7 @@ export interface ConsumableLot {
   inboundDate: string; // 입고일
   unitPrice: number; // 해당 로트의 입고 단가
   initialQty: number; // 최초 입고 수량
-  currentQty: number; // 현재 주기장(HQ) 잔여 수량
+  currentQty: number; // 현재 주기장 잔여 수량
   purchaseRequestId?: string; // 연결된 구매 이력
   createdAt: string;
   updatedAt?: string;
@@ -1490,7 +1490,7 @@ export interface StocktakingAuditItem {
   assetNo?: string; // 신규 추가
   modelName: string;
   unit: string;
-  unitPrice: number; // 장비인 경우 장부잔존가액(Net Book Value) 또는 취득원가
+  unitPrice: number; // 장비인 경우 장부잔존가액 또는 취득원가
   systemQty: number;
   actualQty: number;
   diffQty: number; // actualQty - systemQty
@@ -1524,7 +1524,7 @@ export interface ContractAsset {
   expectedModel?: string;
   status?: 'RENTED' | 'RETURNED' | 'ASSIGNED' | 'SOLD' | string;
   actualReturnDate?: string;
-  inRegisteredAt?: string;   // 💡 전산 입고 처리 일시 (ISO String)
+  inRegisteredAt?: string;   // 💡 전산 입고 처리 일시
   monthlyRentalFee: number;
   dailyRentalFee: number;
   salePrice?: number; // 💡 자산 매각 계약 시 매각 공급가액
@@ -1544,17 +1544,17 @@ export interface SaleContractTerms {
   lumpSumDueTerm?: string; // 일시불 완납 기한 ('IMMEDIATE' | 'DELIVERY' | '7_DAYS' | '14_DAYS' | 'MONTH_10')
   installmentDownRate?: number; // 계약금 비율 (예: 20%)
   installmentDownAmount?: number; // 계약금 금액 (원)
-  installmentDownDate?: string; // 계약금 납기일 (YYYY-MM-DD)
+  installmentDownDate?: string; // 계약금 납기일(일자)
   installmentBalanceAmount?: number; // 잔금 금액 (원)
-  installmentBalanceDueDate?: string; // 잔금 납기일 (YYYY-MM-DD)
+  installmentBalanceDueDate?: string; // 잔금 납기일(일자)
   bankAccount?: string; // 입금 지정 계좌
 
-  deliveryDate?: string; // 장비 인도 예정일 (YYYY-MM-DD)
-  deliveryLocationType?: 'YARD' | 'BUYER_SITE'; // 당사 주기장 상차도(FOB) | 매수처 도착도
+  deliveryDate?: string; // 장비 인도 예정일(일자)
+  deliveryLocationType?: 'YARD' | 'BUYER_SITE'; // 당사 주기장 상차도 | 매수처 도착도
   deliverySiteAddress?: string; // 도착도 시 상세 주소
   freightBearer?: 'BUYER' | 'SELLER'; // 운송비 부담 주체: 매수자 부담(기본) | 당사(기연) 부담
 
-  useStandardAsIsClause?: boolean; // 현상태 인수(As-Is) 및 하자담보책임 면책 특약 동의 여부
+  useStandardAsIsClause?: boolean; // 현상태 인수 및 하자담보책임 면책 특약 동의 여부
   specialNotes?: string; // 추가 특약 사항 전문
 }
 
@@ -1572,7 +1572,7 @@ export interface Contract {
   statementClosingDay?: number; // 거래명세서 마감일 (구버전 호환)
   lateInterestRate: number; // 연체이자율 (%), 기본값 0 = 미발생
   paymentDueDay?: number; // 납기일 (1~30, 31: 말일)
-  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
+  paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월
   status: 'ACTIVE' | 'EXTENDED' | 'SHORTENED' | 'SUCCEEDED' | 'COMPLETED';
   successorContractId?: string;
   predecessorContractId?: string; // 승계 전 이전 계약 ID
@@ -1582,13 +1582,13 @@ export interface Contract {
   driveFolderId?: string;
   salespersonId?: string; // 계약담당자 (영업사원 ID)
   // 💡 직전 청구 마일스톤 메타데이터 (청구 발행 시 자동 트리거 갱신)
-  lastBillingDate?: string; // 최근 렌탈료 청구 발행일 (YYYY-MM-DD)
-  lastBilledPeriodStart?: string; // 최근 청구 시작일 (YYYY-MM-DD)
-  lastBilledPeriodEnd?: string; // 최근 청구 종료일 (YYYY-MM-DD)
-  lastBilledYm?: string; // 최근 청구 귀속월 (YYYY-MM)
+  lastBillingDate?: string; // 최근 렌탈료 청구 발행일(일자)
+  lastBilledPeriodStart?: string; // 최근 청구 시작일(일자)
+  lastBilledPeriodEnd?: string; // 최근 청구 종료일(일자)
+  lastBilledYm?: string; // 최근 청구 귀속월(연월)
   billingCount?: number; // 누적 발행 청구 건수
-  packageSentAt?: string; // 💡 계약서패키지(PDF+인증서 등) 발송 일시 (ISO string)
-  // 💡 결재선 연동 및 사전 입력 승인(Staging-to-Live) 필드
+  packageSentAt?: string; // 💡 계약서패키지(PDF+인증서 등) 발송 일시
+  // 💡 결재선 연동 및 사전 입력 승인 필드
   approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
   approvalRequestId?: string;
   stagedExtend?: {
@@ -1692,7 +1692,7 @@ export interface Billing {
   customStatementCreatedBy?: string;         // 작성자
   approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; // 결재선 승인 상태
   approvalRequestId?: string;                // 결재 요청 FK
-  stagedCustomStatement?: {                  // 💡 전결권자 승인 대기 중인 변경 예정 데이터 (Staging)
+  stagedCustomStatement?: {                  // 💡 전결권자 승인 대기 중인 변경 예정 데이터
     reason: string;
     items: CustomStatementItem[];
     originalSummary?: string;
@@ -1735,7 +1735,7 @@ export interface Payment {
   feeAdjustment?: number; // 송금수수료 등 차액 자동 감액 상계액 (500원/1,000원 등)
   createdAt: string;
   updatedAt?: string;
-  // 상계(역분개) 필드: 취소 시 원 행을 삭제하지 않고 음수 상계 행을 추가한다 (G-10)
+  // 상계(역분개) 필드: 취소 시 원 행을 삭제하지 않고 음수 상계 행을 추가한다
   reversalOf?: string;      // 이 행이 상계 행이면 원 수납 행 ID
   reversedBy?: string;      // 이 행이 상계된 경우 상계 행 ID
   reversalReason?: string;
@@ -1768,7 +1768,7 @@ export const isActiveDepositLink = (l: Pick<PaymentDepositLink, 'reversedBy' | '
 
 export type DeliveryStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED' | 'REQUESTED' | 'COMPLETED';
 
-/** 전사 표준 차종/톤수 옵션 목록 (SSOT) */
+/** 전사 표준 차종/톤수 옵션 목록 */
 export const VEHICLE_TYPE_OPTIONS: string[] = [
   '1.4T',
   '2.5T',
@@ -1799,11 +1799,11 @@ export interface Delivery {
   status: DeliveryStatus; // 배차 4단계 진행상태 (PENDING: 배차전, DISPATCHED: 배차완료, DELIVERED: 운송완료, CANCELLED: 배차취소)
   requestDate: string;
   scheduledDate?: string;
-  loadingDate?: string; // 상차 일자 (YYYY-MM-DD)
+  loadingDate?: string; // 상차 일자(일자)
   loadingTimeSlot?: string; // 상차 시간 구분 (오전/오후/희망시간)
   loadingCompletedAt?: string; // 출고팀 상차완료 처리 일시
   unloadingCompletedAt?: string; // 입고팀 하차완료/입고완료 처리 일시
-  unloadingDate?: string; // 하차 일자 (YYYY-MM-DD)
+  unloadingDate?: string; // 하차 일자(일자)
   unloadingTimeSlot?: string; // 하차 시간 구분 (오전/오후/희망시간)
   originAddress?: string; // 상차지
   pickupType?: 'HQ_YARD' | 'VENDOR_YARD' | 'CUSTOMER_SITE'; // 상차 구분
@@ -1927,8 +1927,8 @@ export interface Vendor {
   bizItem?: string;                  // 종목
   isActive?: boolean;
   memo?: string;
-  firstTradeDate?: string;       // 최초 거래개시일 (YYYY-MM-DD)
-  lastTradeDate?: string;        // 최근 거래일 (YYYY-MM-DD)
+  firstTradeDate?: string;       // 최초 거래개시일(일자)
+  lastTradeDate?: string;        // 최근 거래일(일자)
   totalPurchaseAmount?: number;  // 누적 거래액 (원, 매입거래 누계액)
 
   // 🏛️ [신규] 국세청 홈택스 휴폐업 및 과세유형
@@ -2031,9 +2031,9 @@ export interface Repair {
   
   // 4. 고장 증상 및 정비 내용
   issueCategory?: string;
-  inspectionItemId?: string;   // [NEW] 정비 항목 마스터 ID 매핑 (InspectionChecklistItem.id)
-  inspectionItemCode?: string; // [NEW] 정비 항목 코드 맵핑 (e.g. CHK-0000001)
-  degradationScore?: number;   // [NEW] 정비점수 누적 점수 (e.g. +15)
+  inspectionItemId?: string;   // [NEW] 정비 항목 마스터 ID 매핑
+  inspectionItemCode?: string; // [NEW] 정비 항목 코드 맵핑
+  degradationScore?: number;   // [NEW] 정비점수 누적 점수
   durationMinutes?: number;    // [NEW] 실제 정비 소요시간 (분 단위, 예: 30, 45, 60, 90)
   spentManHours?: number;      // [NEW] 실제 투입 공수 (M/H 단위 = durationMinutes / 60)
   issueDescription?: string;
@@ -2128,7 +2128,7 @@ export interface InspectionChecklistItem {
   relatedManualIds?: string[];
   recommendedConsumableIds?: string[]; // 추천 소모품 ID 목록
   standardManHours?: number;           // 표준 작업 공수 (M/H 단위, 예: 0.5, 1.5)
-  actionGuide?: string;                // 표준 조치 절차 (SOP)
+  actionGuide?: string;                // 표준 조치 절차
   createdAt: string;
   updatedAt?: string;
 }
@@ -2145,7 +2145,7 @@ export interface EquipmentManual {
   fileSize: number;             // 바이트 단위 용량 (영상/링크 시 0)
   fileSizeLabel?: string;       // 표시용 크기 (예: '14.2 MB' 또는 '08:24')
   version: string;              // 개정 버전 (예: 'Rev. 2024-C')
-  uploadDate: string;           // 등록일자 (YYYY-MM-DD)
+  uploadDate: string;           // 등록일자(일자)
   uploadedBy: string;           // 등록자
   memo?: string;                // 비고 및 가이드 요약
   inspectionItemCodes?: string[];// 연계 정비점검항목 코드 (선택)
@@ -2449,7 +2449,7 @@ export interface OfficialMailConfig {
 
 export interface CashFlowSnapshot {
   id: string;
-  snapshotDate: string; // 스냅샷 작성일 (YYYY-MM-DD)
+  snapshotDate: string; // 스냅샷 작성일(일자)
   startingBalance: number; // 스냅샷 시점의 통장 총잔액
   projectedInflow: number; // 향후 30일 수납 예정액
   projectedOpex: number; // 향후 30일 일반 지출예정액
@@ -2522,7 +2522,7 @@ export interface DepreciationLog {
 }
 
 // ============================================================
-// 월말 매입 정산 (Purchase Settlement)
+// 월말 매입 정산
 // ============================================================
 
 export type PurchaseSettlementType = 'TRANSPORT' | 'CONSUMABLE' | 'EQUIPMENT_LEASE' | 'EXTERNAL_REPAIR';
@@ -2548,7 +2548,7 @@ export interface PurchaseSettlement {
   memo?: string;
   // 국세청 전자세금계산서 (매입) 연동 필드
   taxInvoiceNo?: string;              // 국세청 24자리 승인번호
-  taxInvoiceIssueDate?: string;       // 세금계산서 작성일자 (YYYY-MM-DD)
+  taxInvoiceIssueDate?: string;       // 세금계산서 작성일자(일자)
   taxInvoiceSupplyAmount?: number;    // 세금계산서 공급가액
   taxInvoiceVatAmount?: number;       // 세금계산서 부가세액
   taxInvoiceTotalAmount?: number;     // 세금계산서 합계금액
@@ -2605,7 +2605,7 @@ export interface ExternalLease {
   updatedAt: string;
 }
 
-/** 📊 월간 결산 손익계산서 엔티티 (Financial Income Statement) */
+/** 📊 월간 결산 손익계산서 엔티티 */
 export interface MonthlyIncomeStatement {
   id: string; // e.g. 'IS-2026-08'
   targetYm: string; // 'YYYY-MM'
@@ -2686,7 +2686,7 @@ export interface MonthlyIncomeStatement {
 
 
 // ============================================================
-// 7. 법인 차량 및 차량운행일지/주유 영수증 관리 (Corporate Fleet & Logs)
+// 7. 법인 차량 및 차량운행일지/주유 영수증 관리
 // ============================================================
 
 export type CorporateVehicleType = '승합차' | '화물/탑차' | '승용차' | '전기차';
@@ -4041,7 +4041,7 @@ const generateMockAssets = (products: Product[]): Asset[] => {
     });
   }
 
-  // 임차 자산(RENTED) 테스트용 모의 데이터 3건 주입
+  // 임차 자산 테스트용 모의 데이터 3건 주입
   assets.push({
     id: 'asset-rent-1',
     modelName: 'GS3246',
@@ -4244,7 +4244,7 @@ export const SEED_TENANTS: Tenant[] = [
     email: 'giyeonlift@naver.com',
     websiteUrl: '',
     
-    // 🛡️ 법정 개인정보 보호책임자 (CPO)
+    // 🛡️ 법정 개인정보 보호책임자
     privacyOfficer: {
       name: '이수용',
       position: '대표이사 / 관리부 총괄',
@@ -4855,7 +4855,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     manufacturer: 'Skyjack',
     targetSpecFt: 19,
     category: 'PARTS_BOOK',
-    title: '[Skyjack] SJ-3219/3226 부품 카탈로그 (Parts Manual)',
+    title: '[Skyjack] SJ-3219/3226 부품 카탈로그',
     fileName: 'Skyjack_SJ3219_Parts_Manual_RevC.pdf',
     fileSize: 18450000,
     fileSizeLabel: '17.6 MB',
@@ -4879,7 +4879,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     manufacturer: 'Skyjack',
     targetSpecFt: 19,
     category: 'ERROR_CODE',
-    title: '[Skyjack] 시저리프트 플래시 에러코드 진단표 (Fault Codes)',
+    title: '[Skyjack] 시저리프트 플래시 에러코드 진단표',
     fileName: 'Skyjack_Flash_Code_Guide_2024.pdf',
     fileSize: 4200000,
     fileSizeLabel: '4.0 MB',
@@ -4903,7 +4903,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     manufacturer: 'Genie',
     targetSpecFt: 19,
     category: 'WIRING_DIAGRAM',
-    title: '[Genie] GS-1930/2032 전기배선 및 유압 회로도 (Schematics)',
+    title: '[Genie] GS-1930/2032 전기배선 및 유압 회로도',
     fileName: 'Genie_GS1930_Schematic_RevE.pdf',
     fileSize: 9800000,
     fileSizeLabel: '9.3 MB',
@@ -4927,7 +4927,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     manufacturer: 'Skyjack',
     targetSpecFt: 19,
     category: 'OPERATOR_MANUAL',
-    title: '[Skyjack] SJ-3219 운전자 조작 매뉴얼 (User Guide)',
+    title: '[Skyjack] SJ-3219 운전자 조작 매뉴얼',
     fileName: 'Skyjack_SJ3219_Operator_Manual.pdf',
     fileSize: 12100000,
     fileSizeLabel: '11.5 MB',
@@ -4942,7 +4942,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     errorCodes: [],
     majorParts: ['비상 하강 수동 레버', '플랫폼 확장 잠금 핀', '풋스위치'],
     symptoms: ['비상 하강 레버 미작동', '확장 플랫폼 걸림', '키 스위치 불량'],
-    aiSummary: '운전자 기본 조작법, 허용 하중(227kg), 상/하부 컨트롤 박스 전환, 정전 시 수동 비상하강 레버 당김 절차 설명.',
+    aiSummary: '운전자 기본 조작법, 허용 하중, 상/하부 컨트롤 박스 전환, 정전 시 수동 비상하강 레버 당김 절차 설명.',
     createdAt: '2026-08-25T11:00:00.000Z'
   },
   {
@@ -5001,7 +5001,7 @@ export const SEED_EQUIPMENT_MANUALS: EquipmentManual[] = [
     manufacturer: 'Genie',
     category: 'ERROR_CODE',
     mediaType: 'YOUTUBE',
-    title: '[사내 정비영상] Genie GS-1930 에러 18번 틸트 경사 센서 영점 보정(Level Calibration)',
+    title: '[사내 정비영상] Genie GS-1930 에러 18번 틸트 경사 센서 영점 보정',
     fileName: 'Genie_GS1930_Tilt_Calibration.mp4',
     fileUrl: 'https://www.youtube.com/watch?v=3JZ_D3ELwOQ',
     externalUrl: 'https://www.youtube.com/watch?v=3JZ_D3ELwOQ',
@@ -5411,7 +5411,7 @@ export const ALL_DB_KEYS = [
   'monthlyIncomeStatements', 'developerAuthorizedDevices'
 ];
 
-// 🛡️ [전사 외래키(Foreign Key) 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
+// 🛡️ [전사 외래키 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
 const FK_RULES_MAP: Record<string, { targetTable: string; targetProp: string | null; notNull: boolean }> = {
   'departments.parentDepartmentId': { targetTable: 'departments', targetProp: 'departments', notNull: false },
   'users.departmentId': { targetTable: 'departments', targetProp: 'departments', notNull: false },
@@ -5679,7 +5679,7 @@ class LocalDB {
     this.inMemoryCache.set(key, decryptedData);
 
     // 2. 브라우저 localStorage: 고유식별정보, 금융계좌, 연락처 등 법정 보호 개인정보를 100% 암호화하여 저장
-    // 💡 로그/대용량 트랜잭션은 localStorage 용량(5MB) 잠식을 방지하기 위해 로컬 캐시를 건너뜁니다 (인메모리 및 Supabase 영구 보존)
+    // 💡 로그/대용량 트랜잭션은 localStorage 용량 잠식을 방지하기 위해 로컬 캐시를 건너뜁니다 (인메모리 및 Supabase 영구 보존)
     const SKIP_LOCAL_STORAGE_TABLES = new Set([
       'privacyAccessLogs', 'privacy_access_logs', 'printQueue', 'walkieTalkieHistory'
     ]);
@@ -5698,7 +5698,7 @@ class LocalDB {
       }
       safeLocalStorageSet(`erp_${key}`, str);
     } catch (e: any) {
-      console.warn(`[LocalDB Quota Exceeded] localStorage 용량 한도(5MB) 초과로 erp_${key} 키를 인메모리에 안전하게 보존합니다:`, e?.message || e);
+      console.warn(`[LocalDB Quota Exceeded] localStorage 용량 한도 초과로 erp_${key} 키를 인메모리에 안전하게 보존합니다:`, e?.message || e);
     }
   }
 
@@ -5903,7 +5903,7 @@ class LocalDB {
   get permissions() { 
     const raw = this.get<MenuPermission>('permissions', SEED_PERMISSIONS); 
     const validUserIds = new Set(this.users.map(u => u.id));
-    // userId가 유실(null)되었거나, users 마스터 대장에 없는 유령/퇴사자 권한 찌꺼기 85건을 localStorage에서 즉각 100% 물리 삭제!
+    // userId가 유실되었거나, users 마스터 대장에 없는 유령/퇴사자 권한 찌꺼기 85건을 localStorage에서 즉각 100% 물리 삭제!
     const cleanPermissions = raw.filter(p => p && p.userId && validUserIds.has(p.userId));
     if (cleanPermissions.length !== raw.length) {
       this.set('permissions', cleanPermissions);
@@ -6207,7 +6207,7 @@ class LocalDB {
 
   get repairs() {
     const list = this.get<Repair>('repairs', SEED_REPAIRS);
-    // 🌟 현장 도로명 주소(siteAddress) 보강 (원격 DB 미반영 환경에서도 무누락 상속)
+    // 🌟 현장 도로명 주소 보강 (원격 DB 미반영 환경에서도 무누락 상속)
     return list.map(r => {
       if (r.siteAddress && r.siteAddress.trim()) return r;
       let addr = '';
@@ -6294,7 +6294,7 @@ class LocalDB {
 
   // 💡 [Zero Silent Failures / 1000-Row Pagination Bug Fix]
   // Supabase의 기본 select('*')는 최대 1000건까지만 반환합니다.
-  // 데이터가 1000건을 초과하면 이후 생성된 데이터가 프론트엔드에 동기화되지 않고 무음 누락(Silent Drop)되는 심각한 결함이 있었습니다.
+  // 데이터가 1000건을 초과하면 이후 생성된 데이터가 프론트엔드에 동기화되지 않고 무음 누락되는 심각한 결함이 있었습니다.
   // 이를 해결하기 위해 while 문과 range()를 사용하여 테이블의 모든 레코드를 페이지네이션으로 100% 무누락 조회합니다.
   private async fetchAllFromSupabase(tableName: string): Promise<any[]> {
     if (!supabase) return [];
@@ -6468,7 +6468,7 @@ class LocalDB {
       console.error("Supabase pending write error:", err);
       const errMsg = err?.message || String(err);
       if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
-        throw new Error(`원격 Supabase DB 통신 장애 (Failed to fetch):\n\n인터넷 네트워크 연결 상태, 사내 방화벽 정책 또는 Supabase 서버 상태를 확인해 주세요.\n(로컬 데이터는 안전하게 보존되었습니다.)`);
+        throw new Error(`원격 Supabase DB 통신 장애:\n\n인터넷 네트워크 연결 상태, 사내 방화벽 정책 또는 Supabase 서버 상태를 확인해 주세요.\n(로컬 데이터는 안전하게 보존되었습니다.)`);
       }
       throw err;
     } finally {
@@ -6590,8 +6590,8 @@ class LocalDB {
       }
       if (normalized.modelName && !normalized.supplier) {
         if (normalized.modelName.includes('JLG')) normalized.supplier = 'JLG';
-        else if (normalized.modelName.includes('지니')) normalized.supplier = '지니 (Genie)';
-        else if (normalized.modelName.includes('스카이잭')) normalized.supplier = '스카이잭 (Skyjack)';
+        else if (normalized.modelName.includes('지니')) normalized.supplier = '지니';
+        else if (normalized.modelName.includes('스카이잭')) normalized.supplier = '스카이잭';
         else normalized.supplier = '공용';
       }
     }
@@ -6756,7 +6756,7 @@ class LocalDB {
   async pullFromSupabase(): Promise<void> {
     if (!supabase && !centralSupabase) return;
 
-    // 대기 중인 모든 로컬 백그라운드 쓰기(insert/update/delete)가 완료될 때까지 대기
+    // 대기 중인 모든 로컬 백그라운드 쓰기가 완료될 때까지 대기
     if (this.pendingWrites.length > 0) {
       await this.awaitPendingWrites();
     }
@@ -6801,7 +6801,7 @@ class LocalDB {
     }
 
     if (pullErrors.length > 0) {
-      throw new Error(`[원격 DB 동기화(Pull) 오류 발생]\n\n${pullErrors.join('\n')}`);
+      throw new Error(`[원격 DB 동기화 오류 발생]\n\n${pullErrors.join('\n')}`);
     }
   }
 
@@ -7056,9 +7056,9 @@ class LocalDB {
         continue;
       }
 
-      // ─── 🛡️ [전사 외래키(FK) 가디언 방어벽 시작] ───
+      // ─── 🛡️ [전사 외래키 가디언 방어벽 시작] ───
 
-      // 1. 의사 널(Pseudo-null) 문자열 전면 정제 (공백, 'null', 'undefined', 'none', 'n/a' 등)
+      // 1. 의사 널 문자열 전면 정제 (공백, 'null', 'undefined', 'none', 'n/a' 등)
       if (typeof val === 'string') {
         const trimmed = val.trim();
         const lower = trimmed.toLowerCase();
@@ -7204,7 +7204,7 @@ class LocalDB {
       }
     }
 
-    // consumables 테이블 호환 (name, spec)
+    // consumables 테이블 호환
     if (resolvedTable === 'consumables') {
       if (!sanitized.name && obj.modelName) {
         sanitized.name = obj.modelName;
@@ -7778,7 +7778,7 @@ class LocalDB {
   }
 
 
-  // 조직도 및 구성원 일괄 저장 (Batch) - 기존 데이터를 전부 덮어씌움
+  // 조직도 및 구성원 일괄 저장 - 기존 데이터를 전부 덮어씌움
   async saveOrganizationBatch(departments: Department[], users: User[]): Promise<void> {
     // 🛡️ [테스터 배제] 테스터 계정 원천 차단
     const isTester = (u: any) =>
@@ -7947,7 +7947,7 @@ export async function logPrivacyAccess(
 
 
 // ==========================================
-// 유통 영업 (Trade & Distribution) 스키마
+// 유통 영업 스키마
 // ==========================================
 
 export interface TradeProduct {

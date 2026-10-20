@@ -418,7 +418,7 @@ export const SmartDispatch2: React.FC = () => {
     }
   };
 
-  // ── 음성 입력 (Web Speech API) ─────────────────────────────────────────────
+  // ── 음성 입력 ─────────────────────────────────────────────
   const toggleVoice = () => {
     if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       showToast('이 브라우저는 음성 인식을 지원하지 않습니다.', 'error');
@@ -736,7 +736,7 @@ export const SmartDispatch2: React.FC = () => {
             onChange={e => setDropBarText(e.target.value)}
             onKeyDown={handleDropBarKeyDown}
             onPaste={handleDropBarPaste}
-            placeholder="카카오톡/메신저의 출고 요청 줄글을 여기에 붙여넣기(Ctrl+V)하면 즉시 자동 파싱됩니다.
+            placeholder="카카오톡/메신저의 출고 요청 줄글을 여기에 붙여넣기하면 즉시 자동 파싱됩니다.
 또는 자연어를 입력하고 [파싱 실행] 버튼을 클릭하세요."
             rows={3}
             style={{
@@ -826,7 +826,7 @@ export const SmartDispatch2: React.FC = () => {
               <div style={{ ...fieldWrap, gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>
                   현장 상세 주소 <span style={{ color: 'var(--danger)' }}>*</span>
-                  {inheritedFieldList.includes('현장 상세 주소') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  {inheritedFieldList.includes('현장 상세 주소') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                 </label>
                 <input type="text" value={siteAddress} onChange={e => setSiteAddress(e.target.value)}
                   placeholder="예: 경기도 평택시 고덕면 고덕산단로 123"
@@ -853,7 +853,7 @@ export const SmartDispatch2: React.FC = () => {
                 <div key={label} style={fieldWrap}>
                   <label style={labelStyle}>
                     {label}
-                    {inherited && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    {inherited && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                   </label>
                   <input type="text" value={val}
                     onChange={e => setter(e.target.value)}
@@ -1036,7 +1036,7 @@ export const SmartDispatch2: React.FC = () => {
                 <label style={labelStyle}>
                   유상 옵션 내역
                   {(inheritedFieldList.includes('유상옵션(현장)') || inheritedFieldList.includes('유상옵션(고객기본)')) &&
-                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                 </label>
                 <input type="text" value={paidOptions} onChange={e => setPaidOptions(e.target.value)} placeholder="예: 3면 함석, 감지봉 4EA" />
               </div>
@@ -1044,7 +1044,7 @@ export const SmartDispatch2: React.FC = () => {
                 <label style={labelStyle}>
                   무상옵션 조건
                   {(inheritedFieldList.includes('보양작업(현장)') || inheritedFieldList.includes('보양작업(고객기본)')) &&
-                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                 </label>
                 <input type="text" value={protection} onChange={e => setProtection(e.target.value)} placeholder="예: 4면 망 포함 보양" />
               </div>
@@ -1111,14 +1111,14 @@ export const SmartDispatch2: React.FC = () => {
               <div style={fieldWrap}>
                 <label style={labelStyle}>
                   매달 청구 마감일
-                  {inheritedFieldList.includes('마감일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  {inheritedFieldList.includes('마감일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                 </label>
                 <input type="text" value={closingDay} onChange={e => setClosingDay(e.target.value)} placeholder="예: 20일" />
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>
                   결제 예정일
-                  {inheritedFieldList.includes('결제일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  {inheritedFieldList.includes('결제일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[자동 상속]</span>}
                 </label>
                 <input type="text" value={paymentDay} onChange={e => setPaymentDay(e.target.value)} placeholder="예: 익월 말일" />
               </div>

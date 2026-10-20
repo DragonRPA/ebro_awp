@@ -13,7 +13,7 @@ export interface NtsStatusResult {
   taxType: string;                // 과세유형 (예: '부가가치세 일반과세자')
   taxTypeCd?: string;
   closedDate?: string;            // 폐업일자 (YYYY-MM-DD 형식으로 정규화)
-  checkedAt: string;              // 조회 일시 (ISO String)
+  checkedAt: string;              // 조회 일시
   source: 'NTS_LIVE_API' | 'CHECKSUM_FALLBACK';
 }
 

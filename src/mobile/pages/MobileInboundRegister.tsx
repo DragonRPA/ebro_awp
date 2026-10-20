@@ -534,7 +534,7 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
             )}
           </div>
 
-          {/* 동적 불량 항목 칩 목록 (SSOT) */}
+          {/* 동적 불량 항목 칩 목록 */}
           <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto pr-0.5">
             {displayedDefects.length === 0 ? (
               <div className="w-full py-6 text-center text-xs text-slate-500">

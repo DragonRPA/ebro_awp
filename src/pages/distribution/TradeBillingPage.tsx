@@ -380,7 +380,7 @@ export const TradeBillingPage: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>No</th>
+                <th>순번</th>
                 <th>품목코드</th>
                 <th>품명</th>
                 <th>규격/단위</th>
@@ -397,7 +397,7 @@ export const TradeBillingPage: React.FC = () => {
           <div class="total-bar">
             <span>공급가액: ${supply.toLocaleString()}원</span>
             <span>부가세(10%): ${vat.toLocaleString()}원</span>
-            <span>합계 청구금액: ₩${total.toLocaleString()} (VAT 포함)</span>
+            <span>합계 청구금액: ₩${total.toLocaleString()} (부가세 포함)</span>
           </div>
           <div style="margin-top:14px; font-size:12.5px; color:#475569;">
             <strong>비고:</strong> ${formMemo || '-'}
@@ -505,7 +505,7 @@ export const TradeBillingPage: React.FC = () => {
       {/* KPI Strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(160px, 1fr))', gap: '10px' }}>
         <div style={{ backgroundColor: 'var(--bg-card)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>청구 대상 총액 (VAT포함)</div>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>청구 대상 총액 (부가세 포함)</div>
           <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
             {summary.totalTargetAmount.toLocaleString()}원 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>({summary.totalCount}건)</span>
           </div>
@@ -590,7 +590,7 @@ export const TradeBillingPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / SKU</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / 품목코드</label>
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
@@ -1145,7 +1145,7 @@ export const TradeBillingPage: React.FC = () => {
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '11.5px' }}>수신자 이메일 (To) *</label>
+                    <label style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '11.5px' }}>수신자 이메일 *</label>
                     <input
                       type="email"
                       placeholder="accounting@company.com"
@@ -1158,7 +1158,7 @@ export const TradeBillingPage: React.FC = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '11.5px' }}>참조 이메일 (CC)</label>
+                    <label style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '11.5px' }}>참조 이메일</label>
                     <input
                       type="text"
                       placeholder="선택 입력"

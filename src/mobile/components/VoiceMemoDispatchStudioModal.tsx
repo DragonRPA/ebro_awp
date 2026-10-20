@@ -235,7 +235,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
     }
   };
 
-  // 일반 서식으로 전달 (Handoff)
+  // 일반 서식으로 전달
   const handleHandOff = () => {
     stopListening();
     saveVoiceOrderDraft(draft);
@@ -243,7 +243,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
     onClose();
   };
 
-  // 출고의뢰 즉시 접수 (Direct Submit)
+  // 출고의뢰 즉시 접수
   const handleDirectSubmit = async () => {
     if (!slotsStatus.isAllComplete) {
       showErrorModal(`출고의뢰 접수를 위해 다음 필수 항목을 먼저 말씀해 주세요:\n\n${slotsStatus.missingSlotPrompts.join('\n')}`);
@@ -405,7 +405,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
 
       {/* 2. 중앙 스튜디오 본문 (스크롤 영역) */}
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3.5 max-w-lg mx-auto w-full">
-        {/* 🌟 2-1. 대형 음성 제어 센터 (Hero Microphone Visualizer) */}
+        {/* 🌟 2-1. 대형 음성 제어 센터 */}
         <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800 rounded-3xl p-4 flex flex-col items-center justify-center gap-3 relative shadow-xl">
           {/* 연속 청취 모드 토글 칩 */}
           <div className="w-full flex items-center justify-between text-[11px]">
@@ -677,7 +677,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
           </span>
         </div>
 
-        {/* 🌟 2-5. 음성 메모 누적 피드 (Snippets History) */}
+        {/* 🌟 2-5. 음성 메모 누적 피드 */}
         {(draft.snippets || []).length > 0 && (
           <div className="flex flex-col gap-1.5 pt-1">
             <div className="text-[11px] font-bold text-slate-400 flex items-center justify-between px-1">

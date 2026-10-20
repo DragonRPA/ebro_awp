@@ -72,7 +72,7 @@ export const TenantManagementPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [pageSearchKeyword, setPageSearchKeyword] = useState<string>('');
 
-  // 9. 초기 DB 업로드 (INITIAL_DB) 상태
+  // 9. 초기 DB 업로드 상태
   const [initialDbFile, setInitialDbFile] = useState<File | null>(null);
   const [initialDbParsed, setInitialDbParsed] = useState<ParsedInitialData | null>(null);
   const [isInitialDbParsing, setIsInitialDbParsing] = useState<boolean>(false);
@@ -82,7 +82,7 @@ export const TenantManagementPage: React.FC = () => {
   const [initialDbErrorMsg, setInitialDbErrorMsg] = useState<string>('');
   const initialDbFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 서식 관리 (TEMPLATES) 상태
+  // 서식 관리 상태
   const [selectedDocType, setSelectedDocType] = useState<TemplateDocType>('CONTRACT');
   const [templateVersion, setTemplateVersion] = useState<number>(0);
   const [templateSuccessMsg, setTemplateSuccessMsg] = useState<string>('');
@@ -453,7 +453,7 @@ export const TenantManagementPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  // ── 서식 관리 (TEMPLATES) 핸들러 ──
+  // ── 서식 관리 핸들러 ──
   const handleDownloadTemplate = () => {
     const code = formData.tenantCode || 'GIYEUN';
     const custom = getTenantTemplate(code, selectedDocType);
@@ -1028,7 +1028,7 @@ export const TenantManagementPage: React.FC = () => {
   return (
     <div data-hs-observe="tenantmanagementpage" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px', overflowY: 'auto' }}>
       
-      {/* ── 1. 상단 바: 좌상단 스코프 & 우상단 파이프라인 (Gutenberg Z-Pattern) ── */}
+      {/* ── 1. 상단 바: 좌상단 스코프 & 우상단 파이프라인 ── */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -1225,7 +1225,7 @@ export const TenantManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. 중앙 본문: 고밀도 그리드 테이블 (Inspection) ── */}
+      {/* ── 2. 중앙 본문: 고밀도 그리드 테이블 ── */}
       <div data-mid="tenant-inspection-grid" style={{
         flex: 1,
         backgroundColor: 'var(--bg-card)',
@@ -1430,7 +1430,7 @@ export const TenantManagementPage: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* 구독 플랜 & 만료일 (D-Day) */}
+                      {/* 구독 플랜 & 만료일 */}
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
                         {(() => {
                           const subInfo = getTenantSubscriptionInfo(tenant);
@@ -1933,9 +1933,9 @@ export const TenantManagementPage: React.FC = () => {
                         fontSize: '13px'
                       }}
                     >
-                      <option value="AWP">AWP (고소작업대)</option>
-                      <option value="IT">IT (IT 인프라/장비)</option>
-                      <option value="MULTI">MULTI (복합 사업군)</option>
+                      <option value="AWP">고소작업대</option>
+                      <option value="IT">정보통신 장비</option>
+                      <option value="MULTI">복합 사업군</option>
                     </select>
                   </div>
 
@@ -3474,7 +3474,7 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              {/* ─── 특수 기능 인가 (SPECIAL_FEATURES) ─── */}
+              {/* ─── 특수 기능 인가 ─── */}
               {modalTab === 'SPECIAL_FEATURES' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* 상단 컨트롤 바 (Gutenberg Z-패턴 1~2단계) */}
@@ -3572,7 +3572,7 @@ export const TenantManagementPage: React.FC = () => {
                     color: 'var(--text-secondary)',
                     lineHeight: '1.6'
                   }}>
-                    시스템 내 일반 탭과 버튼은 기본적으로 모두 노출(Default Open)됩니다.
+                    시스템 내 일반 탭과 버튼은 기본적으로 모두 노출됩니다.
                     상기 등록된 특수 탭과 특수 버튼에 한하여 테넌트별 인가 목록을 대조하여 선택적으로 노출 또는 차단합니다.
                   </div>
 
@@ -3807,7 +3807,7 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              {/* ─── 7번째 탭: 에이전트 관제 (AGENTS) ─── */}
+              {/* ─── 7번째 탭: 에이전트 관제 ─── */}
               {modalTab === 'AGENTS' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* 🌐 테넌트 AI 에이전트 런타임 동작 모드 제어 배너 */}
@@ -3938,7 +3938,7 @@ export const TenantManagementPage: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                       <thead>
                         <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                          <th style={{ padding: '10px 14px', textAlign: 'center', width: '50px' }}>NO</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', width: '50px' }}>순번</th>
                           <th style={{ padding: '10px 14px', textAlign: 'left' }}>호스트 (기기명)</th>
                           <th style={{ padding: '10px 14px', textAlign: 'left' }}>사용자 / 사번</th>
                           <th style={{ padding: '10px 14px', textAlign: 'left' }}>로컬 IP / 포트</th>
@@ -4009,7 +4009,7 @@ export const TenantManagementPage: React.FC = () => {
                 </div>
               )}
 
-              {/* ─── 8번째 탭: 서식 관리 (TEMPLATES) ─── */}
+              {/* ─── 8번째 탭: 서식 관리 ─── */}
               {modalTab === 'TEMPLATES' && (
                 <div style={{ display: 'flex', gap: '16px', minHeight: '620px' }}>
                   {/* 좌측: 표준 서식 문서 목록 */}
@@ -4208,7 +4208,7 @@ export const TenantManagementPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* 인라인 HTML 렌더링 뷰어 (Sandbox iframe) */}
+                    {/* 인라인 HTML 렌더링 뷰어 */}
                     <div style={{
                       flex: 1,
                       minHeight: '520px',
@@ -4235,7 +4235,7 @@ export const TenantManagementPage: React.FC = () => {
                 </div>
               )}
 
-              {/* ── 탭 11: 공식메일설정 (EMAIL) ── */}
+              {/* ── 탭 11: 공식메일설정 ── */}
               {modalTab === 'EMAIL' && (
                 <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -4305,9 +4305,9 @@ export const TenantManagementPage: React.FC = () => {
                         className="input-field"
                         style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
                       >
-                        <option value="NAVER">Naver (smtp.naver.com)</option>
-                        <option value="GMAIL">Gmail (smtp.gmail.com)</option>
-                        <option value="DAUM">Daum (smtp.daum.net)</option>
+                        <option value="NAVER">네이버 메일</option>
+                        <option value="GMAIL">구글 지메일</option>
+                        <option value="DAUM">다음/카카오 메일</option>
                         <option value="CUSTOM">직접 입력</option>
                       </select>
                     </div>
@@ -4575,7 +4575,7 @@ export const TenantManagementPage: React.FC = () => {
             {/* 모달 본문 */}
             <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                사업자등록증 파일(PDF, JPG, PNG)을 업로드하면 Vision AI가 상호, 사업자번호, 대표자, 주소 등을 자동 추출하여 신규 테넌트 폼을 완성합니다.
+                사업자등록증 파일을 업로드하면 Vision AI가 상호, 사업자번호, 대표자, 주소 등을 자동 추출하여 신규 테넌트 폼을 완성합니다.
               </div>
 
               {/* 숨겨진 파일 인풋 */}

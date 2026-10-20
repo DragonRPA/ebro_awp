@@ -386,7 +386,7 @@ export const TradeReturnsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / SKU</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>품명 / 품목코드</label>
           <select
             value={productFilter}
             onChange={e => setProductFilter(e.target.value)}
@@ -597,7 +597,7 @@ export const TradeReturnsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 2: 환입 및 반품 처리 대장 (Returns History & Workflow) */}
+        {/* Section 2: 환입 및 반품 처리 대장 */}
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>

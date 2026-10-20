@@ -76,7 +76,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const todayDate = new Date(today);
 
     // ─────────────────────────────────────────────────────────────
-    // 1. 통장 계좌별 실시간 잔고 집계 (Bank Accounts Real Balance)
+    // 1. 통장 계좌별 실시간 잔고 집계
     // ─────────────────────────────────────────────────────────────
     const initialBalancesMap: Record<string, number> = {};
     (app.bankInitialBalances || []).forEach(b => {
@@ -154,7 +154,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const totalBankBalance = bankAccountBalances.reduce((sum, b) => sum + b.currentBalance, 0);
 
     // ─────────────────────────────────────────────────────────────
-    // 2. 당월 실질 현금 유입 (Operating Inflows)
+    // 2. 당월 실질 현금 유입
     // ─────────────────────────────────────────────────────────────
     const rentalInflowItems: CashFlowActivityDetailItem[] = [];
     let currentMonthRentalCollected = 0;
@@ -204,7 +204,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const expectedRentalInflow = currentMonthRentalCollected + Math.round(rentalUncollected * 0.75);
 
     // ─────────────────────────────────────────────────────────────
-    // 3. 당월 실질 현금 유출 (Operating Outflows)
+    // 3. 당월 실질 현금 유출
     // ─────────────────────────────────────────────────────────────
     const purchaseOutflowItems: CashFlowActivityDetailItem[] = [];
     let currentMonthSettlementsPaid = 0;
@@ -283,7 +283,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 4. 투자활동 및 재무활동 실질 집계 (Investing & Financing)
+    // 4. 투자활동 및 재무활동 실질 집계
     // ─────────────────────────────────────────────────────────────
     let capexTotal = 0;
     const capexItems: CashFlowActivityDetailItem[] = [];
@@ -294,7 +294,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
           id: `acq-${a.id}`,
           date: a.acquisitionDate,
           category: '2. 투자활동 현금흐름',
-          subCategory: '신규 장비 취득 투자 (CAPEX)',
+          subCategory: '신규 장비 취득 투자',
           counterparty: a.supplier || '제조사/공급사',
           amount: Number(a.acquisitionPrice || 0),
           direction: 'OUTFLOW',
@@ -324,7 +324,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // 5. 단기 유동성 지표 및 런웨이 (Working Capital & Runway)
+    // 5. 단기 유동성 지표 및 런웨이
     // ─────────────────────────────────────────────────────────────
     const dPlus7 = new Date(todayDate);
     dPlus7.setDate(dPlus7.getDate() + 7);
@@ -442,7 +442,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     assetLeakageList.sort((a, b) => a.profit - b.profit);
 
     // ─────────────────────────────────────────────────────────────
-    // 8. 1일 ~ 말일 일별 자금 유출입 스케줄 (Daily Cash Timeline)
+    // 8. 1일 ~ 말일 일별 자금 유출입 스케줄
     // ─────────────────────────────────────────────────────────────
     const [yearStr, monthStr] = targetMonthYyyyMm.split('-');
     const year = parseInt(yearStr, 10);
@@ -500,7 +500,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 9. 표준 3대 활동 현금흐름표 마스터 그리드 (Master Grid)
+    // 9. 표준 3대 활동 현금흐름표 마스터 그리드
     // ─────────────────────────────────────────────────────────────
     const masterGrid: CashFlowActivityRow[] = [
       {
@@ -545,7 +545,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
       },
       {
         category: '2. 투자활동 현금흐름',
-        subCategory: '신규 렌탈 장비 취득 투자 (CAPEX)',
+        subCategory: '신규 렌탈 장비 취득 투자',
         inflow: 0,
         outflow: capexTotal,
         net: -capexTotal,
@@ -562,7 +562,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     ];
 
     // ─────────────────────────────────────────────────────────────
-    // 10. 대차대조식 검증 (Audit Integrity)
+    // 10. 대차대조식 검증
     // ─────────────────────────────────────────────────────────────
     let totalBillingsAmount = 0;
     let totalPaidAmount = 0;

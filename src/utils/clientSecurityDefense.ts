@@ -1,9 +1,9 @@
 // src/utils/clientSecurityDefense.ts
 /**
- * 🛡️ 웹앱 클라이언트 역공학(Reverse Engineering) 방어 및 런타임 보안 방어벽
- * 1. DevTools 열림 감지 및 런타임 디버깅 브레이크포인트 방해 (debugger loop in non-local)
- * 2. 프로덕션 환경 console 객체(log, info, debug, dir) 무력화 (내부 비즈니스 로직 및 DB 스키마 노출 차단)
- * 3. window 전역 객체 임의 변조 방지 (Object.freeze / sealed globals)
+ * 🛡️ 웹앱 클라이언트 역공학 방어 및 런타임 보안 방어벽
+ * 1. DevTools 열림 감지 및 런타임 디버깅 브레이크포인트 방해
+ * 2. 프로덕션 환경 console 객체 무력화 (내부 비즈니스 로직 및 DB 스키마 노출 차단)
+ * 3. window 전역 객체 임의 변조 방지
  * 4. F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U 등 소스보기 단축키 차단 (모바일 브라우저 및 웹앱 뷰)
  * 5. 마우스 우클릭 컨텍스트 메뉴 무력화 (Inspect Element 차단)
  */

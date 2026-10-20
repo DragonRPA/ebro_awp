@@ -173,7 +173,7 @@ export const Repairs: React.FC = () => {
     return { repairsByAssetIdMap: map, externalInProgressCount: extCount };
   }, [repairs]);
 
-  // 🏢 조직도 최상위(root)에 속하지 않으면서 repair 권한을 보유한 담당자 목록 (SSOT)
+  // 🏢 조직도 최상위에 속하지 않으면서 repair 권한을 보유한 담당자 목록
   const eligibleAssignees = useMemo(() => {
     const depts = db.departments || [];
     const rootDeptIds = new Set<string>(['DEPT-0000001', 'DEPT-1']);
@@ -184,7 +184,7 @@ export const Repairs: React.FC = () => {
     return users.filter(u => {
       if (u.status === 'RETIRED') return false;
 
-      // 1. 조직도 최상위(root) 소속 배제 (대표이사, 임원진, 시스템 최고관리자)
+      // 1. 조직도 최상위 소속 배제 (대표이사, 임원진, 시스템 최고관리자)
       if (u.id === 'sys-admin' || u.id === 'u-1' || u.loginId === 'admin') return false;
       if (u.position === '대표이사' || u.position === '대표' || u.position?.includes('대표')) return false;
       const dName = (u.department || '').trim();
@@ -192,7 +192,7 @@ export const Repairs: React.FC = () => {
       if (u.departmentId && rootDeptIds.has(u.departmentId)) return false;
       if (!u.departmentId && u.role === 'ADMIN') return false;
 
-      // 2. 해당 메뉴(repair) 권한 보유 여부 확인
+      // 2. 해당 메뉴 권한 보유 여부 확인
       const perm = permissionsByUserMap.get(u.id);
       if (perm) {
         return Boolean(perm.canView || perm.canSave);
@@ -235,7 +235,7 @@ export const Repairs: React.FC = () => {
     const matcher = yardSearchTerm.trim() ? createHangulMatcher(yardSearchTerm) : null;
 
     const list = assets.filter(a => {
-      // 대여중(RENTED)이나 매각(SOLD)은 주기장 정비 큐에서 제외
+      // 대여중이나 매각은 주기장 정비 큐에서 제외
       if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') return false;
 
       const assetRepairs = repairsByAssetIdMap.get(a.id);
@@ -825,7 +825,7 @@ export const Repairs: React.FC = () => {
   // 대장 엑셀 내보내기
   const handleExportExcel = () => {
     const data = sortedLedgerRepairs.map((r, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '접수번호': r.ticketNo || r.id,
       '정비일자': r.repairDate || r.requestDate || '-',
       '정비구분': r.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' : r.maintenanceType === 'PREVENTIVE' ? '예방점검' : '주기장 내 정비',
@@ -920,7 +920,7 @@ export const Repairs: React.FC = () => {
               </span>
             </div>
 
-            {/* 필터 탭 (Pill) */}
+            {/* 필터 탭 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', flexShrink: 0 }}>
               {[
                 { key: 'ALL', label: '전체', count: queueCounts.all },
@@ -1525,7 +1525,7 @@ export const Repairs: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 4. 정비 상세 내용 (Textarea) */}
+                {/* 4. 정비 상세 내용 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 상세 조치 내용 *</label>
                   <textarea
@@ -1811,7 +1811,7 @@ export const Repairs: React.FC = () => {
             <table style={{ width: '100%', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap', width: '45px' }}>No</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap', width: '45px' }}>순번</th>
                   <SortableTh sortKey="repairDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비일자</SortableTh>
                   <SortableTh sortKey="maintenanceType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비구분</SortableTh>
                   <SortableTh sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>자산번호</SortableTh>

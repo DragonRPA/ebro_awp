@@ -4,9 +4,9 @@
 // │                                                                         │
 // │ [WTT 100회 스트레스 테스트 7대 결함 전수 해결]                           │
 // │  1. DB 무누락 저장 (F5 시 증발 방지, 헌장 1.2, 5.2 준수)           │
-// │  2. 실제 배차 대장(deliveries) 및 계약 연동 (saveSmartDispatch 연결)      │
-// │  3. 대차(EXCHANGE) 회수 대상 전자산 1:1 매핑 패널 (헌장 2.3, 4.2 준수) │
-// │  4. 운송비 부담 주체(paidBy) 귀속선 패널 (헌장 5.5 준수)                 │
+// │  2. 실제 배차 대장 및 계약 연동 (saveSmartDispatch 연결)      │
+// │  3. 교환 회수 대상 전자산 1:1 매핑 패널 (헌장 2.3, 4.2 준수) │
+// │  4. 운송비 부담 주체 귀속선 패널 (헌장 5.5 준수)                 │
 // │  5. 현장 안전옵션/보양 4종 체크리스트 탑재                               │
 // │  6. 다수 장비 시차 출고 분할 메모 지원                                   │
 // │  7. 9대 필수 스키마 방어 차단 실드 & 정형화 서식 뷰 복원          │
@@ -105,7 +105,7 @@ type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST';
 const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',   label: '신규고객 출고',   color: '#7c3aed' },
   { id: 'ADDITIONAL',     label: '기존현장 출고',   color: 'var(--primary)' },
-  { id: 'EXCHANGE',       label: '교체(대차)',       color: '#0891b2' },
+  { id: 'EXCHANGE',       label: '교환',            color: '#0891b2' },
 ];
 
 const FT_GROUPS = ['19ft', '26ft', '32ft', '40ft', '46ft', '특수/기타', '전체'];
@@ -313,7 +313,7 @@ export const SmartDispatch4: React.FC = () => {
         const rest = p.replace('[하차일정]', '').trim();
         const match = rest.match(/(\d{4}-\d{2}-\d{2})/);
         if (match) unloadingDate = match[1];
-        if (rest.includes('ASAP')) unloadingTimeType = 'ASAP';
+        if (rest.includes('ASAP') || rest.includes('최우선')) unloadingTimeType = 'ASAP';
         else if (rest.includes('오전')) unloadingTimeType = 'MORNING';
         else if (rest.includes('오후')) unloadingTimeType = 'AFTERNOON';
         else {
@@ -326,11 +326,11 @@ export const SmartDispatch4: React.FC = () => {
         else if (p.includes('편도지원')) paidBy = 'SPLIT';
       } else if (p.startsWith('[시차출고]')) {
         staggeredMemo = p.replace('[시차출고]', '').trim();
-      } else if (p.startsWith('[대차회수대상]')) {
+      } else if (p.startsWith('[대차회수대상]') || p.startsWith('[교환회수대상]')) {
         if (p.includes('모름')) {
           retrievalAssetIds.push('UNKNOWN');
         } else {
-          const ids = p.replace('[대차회수대상]', '').replace(/자산|#/g, '').split(',').map(s => s.trim()).filter(Boolean);
+          const ids = p.replace(/^\[(?:대차회수대상|교환회수대상)\]/, '').replace(/자산|#/g, '').split(',').map(s => s.trim()).filter(Boolean);
           retrievalAssetIds.push(...ids);
         }
       } else if (p.startsWith('[차종]')) {
@@ -413,13 +413,13 @@ export const SmartDispatch4: React.FC = () => {
     loadDrafts();
     loadUploadsAndLogs();
 
-    // 1. 통화 업로드 구독 (INSERT, UPDATE, DELETE)
+    // 1. 통화 업로드 구독
     const unsubUploads = subscribeCallUploads(() => {
       loadUploadsAndLogs();
       loadDrafts();
     });
 
-    // 2. 파이프라인 로그 구독 (INSERT)
+    // 2. 파이프라인 로그 구독
     const unsubLogs = subscribePipelineLogs((newLog) => {
       setPipelineLogs(prev => [newLog, ...prev.filter(l => l.id !== newLog.id)].slice(0, 150));
     });
@@ -514,7 +514,7 @@ export const SmartDispatch4: React.FC = () => {
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
     const inherited = new Set<string>();
 
-    // ── 1순위: 선택된 고객현장 직접 등록 옵션 + 연결된 옵션 그룹(SiteMaster) ──
+    // ── 1순위: 선택된 고객현장 직접 등록 옵션 + 연결된 옵션 그룹 ──
     if (site) {
       const sm = site.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
       const effPaid = site.paidOptions || sm?.paidOptions;
@@ -647,7 +647,7 @@ export const SmartDispatch4: React.FC = () => {
     return base.filter(s => matcher.test(s.name)).slice(0, 16);
   }, [sitesByCustomerMap, selectedCustomer, siteQuery]);
 
-  // 🌟 옵션 그룹(SiteMaster) 선택 목록 (신규 현장 등록 / 신규 고객 모드 시 선택사항)
+  // 🌟 옵션 그룹 선택 목록 (신규 현장 등록 / 신규 고객 모드 시 선택사항)
   const filteredSiteMasters = useMemo(() => {
     const list = siteMasters || [];
     const q = siteMasterSearchQuery.trim();
@@ -712,7 +712,7 @@ export const SmartDispatch4: React.FC = () => {
     const allProds = products && products.length > 0 ? products : db.products;
     const allAssets = assets && assets.length > 0 ? assets : db.assets;
 
-    // 0. 가용 자산(AVAILABLE) 모델별 수량 O(A) 1-Pass 사전 집계 (대소문자 무관 정규화 키)
+    // 0. 가용 자산 모델별 수량 O(A) 1-Pass 사전 집계 (대소문자 무관 정규화 키)
     const availableCountByModel = new Map<string, number>();
     for (const a of allAssets) {
       if (a.modelName && a.status === 'AVAILABLE') {
@@ -926,7 +926,7 @@ export const SmartDispatch4: React.FC = () => {
   // 🌟 이번 출고 건 전용 유상옵션 1회성 단가 변경 상태 (현장 기본 옵션은 마스터 기본 단가 유지)
   const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
 
-  // 선택된 옵션 중 유상옵션(PAID) 마스터 매핑 및 기본단가 자동 초기화
+  // 선택된 옵션 중 유상옵션 마스터 매핑 및 기본단가 자동 초기화
   const selectedPaidMasterOptions = useMemo(() => {
     const paidList: StandardOption[] = [];
     Array.from(selectedSafetyOptions).forEach(label => {
@@ -1335,7 +1335,7 @@ export const SmartDispatch4: React.FC = () => {
 
     // 업무 유형 자동 판별
     let targetContext: CallContext = 'ADDITIONAL'; // 기본: 기존현장 출고
-    if (/대차|교체|맞교환|회수후출고/i.test(text)) {
+    if (/대차|교체|교환|회수후출고/i.test(text)) {
       targetContext = 'EXCHANGE';
     } else if (/신규고객|신규업체|첫거래|신규출고/i.test(text)) {
       targetContext = 'NEW_CUSTOMER';
@@ -1350,7 +1350,7 @@ export const SmartDispatch4: React.FC = () => {
     }
     if (ppaidby) setPaidBy(ppaidby);
 
-    // 안전옵션 & 보양 자동 감지 (하드코딩 배제 — 등록된 옵션 마스터(standardOptions) 품목명 매칭만 수행)
+    // 안전옵션 & 보양 자동 감지 (하드코딩 배제 — 등록된 옵션 마스터 품목명 매칭만 수행)
     const detectedSafety = new Set<string>();
     (standardOptions || []).forEach(opt => {
       if (!opt || !opt.isActive || !opt.name || opt.name === 'NONE' || opt.name.startsWith('NONE')) return;
@@ -1472,7 +1472,7 @@ export const SmartDispatch4: React.FC = () => {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 9대 필수 스키마 유효성 검증 실드 (Validation Shield)
+  // 9대 필수 스키마 유효성 검증 실드
   // ─────────────────────────────────────────────────────────────────────────
   interface ValidationRule {
     id: string;
@@ -1501,7 +1501,7 @@ export const SmartDispatch4: React.FC = () => {
     const timeDisplay = !loadingTimeType
       ? '(상차시간 미지정)'
       : loadingTimeType === 'ASAP'
-        ? 'ASAP (최우선)'
+        ? '최우선'
         : loadingTimeType === 'MORNING'
           ? '오전'
           : loadingTimeType === 'AFTERNOON'
@@ -1567,7 +1567,7 @@ export const SmartDispatch4: React.FC = () => {
         targetBlock: 'SCHEDULE',
         status: hasTime ? 'VALID' : 'INVALID',
         currentVal: timeDisplay,
-        hint: '상차 예정 시간 (ASAP, 오전, 오후 또는 시간지정)',
+        hint: '상차 예정 시간 (최우선, 오전, 오후 또는 시간지정)',
       },
       {
         id: 'SAFETY_OPTION',
@@ -1595,11 +1595,11 @@ export const SmartDispatch4: React.FC = () => {
       });
     }
 
-    // 🌟 대차(EXCHANGE) 업무일 때만 회수 전자산 검증 항목 추가 (일반 출고 시 거짓 녹색불 방지)
+    // 🌟 교환 업무일 때만 회수 전자산 검증 항목 추가 (일반 출고 시 거짓 녹색불 방지)
     if (isExchangeMode) {
       rules.push({
         id: 'RETRIEVAL_ASSET',
-        label: '회수 전자산 (대차전용)',
+        label: '회수 전자산 (교환전용)',
         targetBlock: 'SAFETY_COST',
         status: retrievalAssetIds.length > 0 ? 'VALID' : 'INVALID',
         currentVal: retrievalAssetIds.length > 0
@@ -1715,7 +1715,7 @@ export const SmartDispatch4: React.FC = () => {
       }
 
       const timeStr = loadingTimeType === 'ASAP'
-        ? 'ASAP'
+        ? '최우선'
         : loadingTimeType === 'MORNING'
           ? '오전'
           : loadingTimeType === 'AFTERNOON'
@@ -1725,7 +1725,7 @@ export const SmartDispatch4: React.FC = () => {
       const fullLoadingTime = `${loadingDate} ${timeStr}`.trim();
 
       const unloadTimeStr = unloadingTimeType === 'ASAP'
-        ? 'ASAP'
+        ? '최우선'
         : unloadingTimeType === 'MORNING'
           ? '오전'
           : unloadingTimeType === 'AFTERNOON'
@@ -1742,7 +1742,7 @@ export const SmartDispatch4: React.FC = () => {
         selectedSafetyOptions.size > 0 ? `[옵션] ${Array.from(selectedSafetyOptions).join(', ')}` : '',
         staggeredMemo ? `[시차출고] ${staggeredMemo}` : '',
         isExchangeMode && retrievalAssetIds.length > 0
-          ? (isUnknownRetrieval ? '[대차회수대상] 모름 (현장 확인 후 회수)' : `[대차회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
+          ? (isUnknownRetrieval ? '[교환회수대상] 모름 (현장 확인 후 회수)' : `[교환회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
           : '',
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
@@ -1820,7 +1820,7 @@ export const SmartDispatch4: React.FC = () => {
           console.error('출고 HTML 생성 오류:', printErr);
         }
 
-        // 🛡️ 강제 브라우저 인쇄 모달(handlePrint)을 바로 띄워 메인 화면을 가리고 폼이 사라지는 UX 결함 전면 개선:
+        // 🛡️ 강제 브라우저 인쇄 모달을 바로 띄워 메인 화면을 가리고 폼이 사라지는 UX 결함 전면 개선:
         // 성공 확인 전용 모달을 띄워 계약번호, 배차 생성, 이동 링크를 명확히 제시!
         setSuccessModalInfo({
           contractId: res.contractId || '',
@@ -1857,7 +1857,7 @@ export const SmartDispatch4: React.FC = () => {
       const siteSrc: ScoredField['source'] = selectedSite ? 'DB' : 'MANUAL';
       const loadConf: ConfidenceLevel = loadingDate ? 'HIGH' : 'MISSING';
       const timeStr = loadingTimeType === 'ASAP'
-        ? 'ASAP'
+        ? '최우선'
         : loadingTimeType === 'MORNING'
           ? '오전'
           : loadingTimeType === 'AFTERNOON'
@@ -1871,7 +1871,7 @@ export const SmartDispatch4: React.FC = () => {
           : (selectedSiteAddress || selectedSite?.address || '').trim();
 
       const unloadTimeStr = unloadingTimeType === 'ASAP'
-        ? 'ASAP'
+        ? '최우선'
         : unloadingTimeType === 'MORNING'
           ? '오전'
           : unloadingTimeType === 'AFTERNOON'
@@ -1884,7 +1884,7 @@ export const SmartDispatch4: React.FC = () => {
         selectedSafetyOptions.size > 0 ? `[옵션] ${Array.from(selectedSafetyOptions).join(', ')}` : '',
         staggeredMemo ? `[시차출고] ${staggeredMemo}` : '',
         isExchangeMode && retrievalAssetIds.length > 0
-          ? (isUnknownRetrieval ? '[대차회수대상] 모름 (현장 확인 후 회수)' : `[대차회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
+          ? (isUnknownRetrieval ? '[교환회수대상] 모름 (현장 확인 후 회수)' : `[교환회수대상] 자산 #${retrievalAssetIds.join(', #')}`)
           : '',
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
@@ -2032,7 +2032,7 @@ export const SmartDispatch4: React.FC = () => {
       return;
     }
 
-    // 🛡️ [동일 규격 장비 수량 합산 (SUM)]
+    // 🛡️ [동일 규격 장비 수량 합산]
     const modelQtyMap = new Map<string, number>();
     selected.flatMap(d => d.equipments || []).forEach(e => {
       modelQtyMap.set(e.modelName, (modelQtyMap.get(e.modelName) || 0) + (Number(e.qty) || 1));
@@ -2058,7 +2058,7 @@ export const SmartDispatch4: React.FC = () => {
     }
   };
 
-  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장(deliveries) 생성 ──
+  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장 생성 ──
   const handleSubmitDraft = async (draft: DraftOrder) => {
     // 신규 고객 차단 해제 조건: 고객 마스터(고객 관리)에 동일 상호가 등록되어 있을 것.
     // customerRegistered 플래그는 초안 생성 시점에만 설정되고 이후 갱신 경로가 없으므로, 마스터 등록 여부를 직접 조회한다.
@@ -2158,7 +2158,7 @@ export const SmartDispatch4: React.FC = () => {
       setIsConvertingId(uploadId);
       const newDraft = await convertUploadToDraft(uploadId);
       await Promise.all([loadDrafts(), loadUploadsAndLogs()]);
-      showToast(`출고 요청 초안이 생성되었습니다. (ID: ${newDraft.id.slice(0, 8)}...)`, 'success');
+      showToast(`출고 요청 초안이 생성되었습니다. (번호: ${newDraft.id.slice(0, 8)}...)`, 'success');
     } catch (err: any) {
       showToast(`초안 생성 실패: ${err?.message}`, 'error');
     } finally {
@@ -2271,7 +2271,7 @@ export const SmartDispatch4: React.FC = () => {
       siteContactPhone = typeof targetDraft.contactPhone === 'string' ? targetDraft.contactPhone : targetDraft.contactPhone?.value || '';
       loadingSchedule = `${targetDraft.loadingDate?.value || ''} ${targetDraft.loadingTime?.value || ''}`.trim();
       unloadingSchedule = targetDraft.unloadingDate
-        ? `${targetDraft.unloadingDate} ${targetDraft.unloadingTimeVal || (targetDraft.unloadingTimeType === 'ASAP' ? '[ASAP]' : targetDraft.unloadingTimeType === 'MORNING' ? '[오전]' : targetDraft.unloadingTimeType === 'AFTERNOON' ? '[오후]' : '')}`.trim()
+        ? `${targetDraft.unloadingDate} ${targetDraft.unloadingTimeVal || (targetDraft.unloadingTimeType === 'ASAP' ? '[최우선]' : targetDraft.unloadingTimeType === 'MORNING' ? '[오전]' : targetDraft.unloadingTimeType === 'AFTERNOON' ? '[오후]' : '')}`.trim()
         : loadingSchedule;
       orderEquipments = targetDraft.equipments || [];
       orderSafetyOptions = targetDraft.safetyOptions || [];
@@ -2281,7 +2281,7 @@ export const SmartDispatch4: React.FC = () => {
       orderVehicleType = targetDraft.vehicleType || '5T';
       orderPaidBy = targetDraft.paidBy;
       const ctx = targetDraft.context?.[0];
-      contextLabel = ctx === 'NEW_CUSTOMER' ? '신규고객 출고' : ctx === 'EXCHANGE' ? '대차(교체)' : '기존현장 출고';
+      contextLabel = ctx === 'NEW_CUSTOMER' ? '신규고객 출고' : ctx === 'EXCHANGE' ? '교환' : '기존현장 출고';
       orderClosingDay = targetDraft.closingDay || closingDay;
       orderStatementClosingDay = targetDraft.statementClosingDay || statementClosingDay;
       orderPaymentDueDay = targetDraft.paymentDueDay || paymentDueDay;
@@ -2295,9 +2295,9 @@ export const SmartDispatch4: React.FC = () => {
           : (selectedSiteAddress || selectedSite?.address || '');
       siteContactName = contactPerson;
       siteContactPhone = contactPhone;
-      const loadTimeStr = loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || '';
+      const loadTimeStr = loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || '';
       loadingSchedule = `${loadingDate} ${loadTimeStr}`.trim();
-      const unloadTimeStr = unloadingTimeType === 'ASAP' ? '[ASAP]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '';
+      const unloadTimeStr = unloadingTimeType === 'ASAP' ? '[최우선]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '';
       unloadingSchedule = unloadingDate ? `${unloadingDate} ${unloadTimeStr}`.trim() : loadingSchedule;
       orderEquipments = equipments;
       orderSafetyOptions = Array.from(selectedSafetyOptions);
@@ -2571,7 +2571,7 @@ export const SmartDispatch4: React.FC = () => {
         </tbody>
       </table>
 
-      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구스펙) -->
+      <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 (4줄 구분 출력: 유상옵션[단가제외] / 무상옵션 / 부착물 / 현장요구사양) -->
       ${(() => {
         const printCust = targetDraft
           ? customers.find(c => c.name === customerName)
@@ -2589,7 +2589,7 @@ export const SmartDispatch4: React.FC = () => {
           standardOptions,
         });
         return `
-      <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
+      <div class="sec-title">4. 장비 출고 사양 요구사항 (현장 요청 검수 항목)</div>
       <table>
         <colgroup>
           <col style="width: 14%;" />
@@ -2609,7 +2609,7 @@ export const SmartDispatch4: React.FC = () => {
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.attachmentsText}</td>
           </tr>
           <tr>
-            <th class="nowrap">현장요구스펙</th>
+            <th class="nowrap">현장요구사양</th>
             <td class="wrap-text" style="font-weight: 700;">${categorizedOpts.specsText}</td>
           </tr>
         </tbody>
@@ -3180,7 +3180,7 @@ export const SmartDispatch4: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">약정 결제일 (익월 N일) *</label>
+                          <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                             value={paymentDueDay}
@@ -3370,7 +3370,7 @@ export const SmartDispatch4: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">약정 결제일 (익월 N일) *</label>
+                          <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
                             value={paymentDueDay}
@@ -3498,7 +3498,7 @@ export const SmartDispatch4: React.FC = () => {
                               </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">약정 결제일 (익월 N일)</label>
+                              <label className="text-xs font-semibold text-slate-300">약정 결제일</label>
                               <select
                                 className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                                 value={paymentDueDay}
@@ -3875,7 +3875,7 @@ export const SmartDispatch4: React.FC = () => {
                 <span>4. 출고 및 하차 일정</span>
                 {loadingDate && (
                   <span className="text-xs font-black text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50 font-mono">
-                    ✓ 상차: {loadingDate} {loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}
+                    ✓ 상차: {loadingDate} {loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}
                   </span>
                 )}
               </div>
@@ -3909,7 +3909,7 @@ export const SmartDispatch4: React.FC = () => {
                       <label className="text-xs font-bold text-slate-200">상차 시간 구분 *</label>
                       <div className="dispatch4-slot-group">
                         {[
-                          { id: 'ASAP', label: 'ASAP (최우선)' },
+                          { id: 'ASAP', label: '최우선' },
                           { id: 'MORNING', label: '🌅 오전' },
                           { id: 'AFTERNOON', label: '🌇 오후' },
                           { id: 'EXACT', label: '시간지정' },
@@ -3963,7 +3963,7 @@ export const SmartDispatch4: React.FC = () => {
                       <label className="text-xs font-bold text-slate-200">하차 시간 구분</label>
                       <div className="dispatch4-slot-group">
                         {[
-                          { id: 'ASAP', label: 'ASAP' },
+                          { id: 'ASAP', label: '최우선' },
                           { id: 'MORNING', label: '🌅 오전' },
                           { id: 'AFTERNOON', label: '🌇 오후' },
                           { id: 'EXACT', label: '시간지정' },
@@ -4018,7 +4018,7 @@ export const SmartDispatch4: React.FC = () => {
             >
               <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
                 <Shield className="w-4 h-4 text-purple-400" />
-                <span>5. {isExchangeMode ? '안전옵션 · 대차회수' : '안전옵션'}</span>
+                <span>5. {isExchangeMode ? '안전옵션 · 교환회수' : '안전옵션'}</span>
                 {isExchangeMode && (
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
                     retrievalAssetIds.length > 0 ? 'bg-cyan-950 text-cyan-300 border-cyan-800' : 'bg-red-950 text-red-300 border-red-800'
@@ -4034,7 +4034,7 @@ export const SmartDispatch4: React.FC = () => {
 
             {openBlocks.has('SAFETY_COST') && (
               <div className="dispatch4-block-body">
-                {/* 1. 대차(EXCHANGE) 시 회수 대상 전자산 다수 매핑 지원 */}
+                {/* 1. 교환 시 회수 대상 전자산 다수 매핑 지원 */}
                 {isExchangeMode && (
                   <div data-mid="dispatch4-exchange-panel" className="p-2.5 bg-cyan-950/40 border border-cyan-500/40 rounded-xl flex flex-col gap-2">
                     <div className="flex items-center justify-between">
@@ -4377,7 +4377,7 @@ export const SmartDispatch4: React.FC = () => {
 
             {isExchangeMode && (
               <div className="flex flex-col gap-1 mt-0.5 mb-1.5">
-                <span className="text-[10px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
+                <span className="text-[10px] font-bold text-slate-400">교환 불량 증상 빠른 입력</span>
                 <div className="flex flex-wrap gap-1.5">
                   {defectSymptoms.map((cat) => (
                     <button
@@ -4524,16 +4524,16 @@ export const SmartDispatch4: React.FC = () => {
             </div>
           </div>
 
-          {/* 📄 [2] 정형화된 출고요청서 요약 (Dossier Preview) */}
+          {/* 📄 [2] 정형화된 출고요청서 요약 */}
           <div data-mid="dispatch4-preview-dossier" className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
             {/* 서식 헤더 */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
-                <span className="text-[9.5px] font-bold text-blue-400 uppercase tracking-widest block font-mono">
-                  {(currentTenant?.tradeName || 'E-BRO LIFT').toUpperCase()} ERP DISPATCH ORDER
+                <span className="text-[9.5px] font-bold text-blue-400 tracking-widest block">
+                  {currentTenant?.displayName || currentTenant?.tradeName || '(주)기연리프트'}
                 </span>
                 <h3 className="text-xs font-black text-white tracking-tight">
-                  출고 요청서 (정형화)
+                  출고요청서
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -4611,7 +4611,7 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-blue-400 font-mono text-xs">
                   {loadingDate
-                    ? `${loadingDate} ${loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}`
+                    ? `${loadingDate} ${loadingTimeType === 'ASAP' ? '[최우선]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}`
                     : '(상차일시 미지정)'}
                 </div>
               </div>
@@ -4621,7 +4621,7 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-cyan-400 font-mono text-xs">
                   {unloadingDate || loadingDate
-                    ? `${unloadingDate || loadingDate} ${unloadingTimeType === 'ASAP' ? '[ASAP]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '(상차직송)'}`
+                    ? `${unloadingDate || loadingDate} ${unloadingTimeType === 'ASAP' ? '[최우선]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '(상차직송)'}`
                     : '(하차일시 미지정)'}
                 </div>
               </div>
@@ -4691,7 +4691,7 @@ export const SmartDispatch4: React.FC = () => {
               </div>
             </div>
 
-            {/* 특이사항 및 옵션 (유상옵션 / 무상옵션 / 부착물 / 현장요구스펙 4줄 구분) */}
+            {/* 특이사항 및 옵션 (유상옵션 / 무상옵션 / 부착물 / 현장요구사양 4줄 구분) */}
             {(() => {
               const effSmId = selectedSite?.siteMasterId || selectedSiteMasterId || undefined;
               const previewSm = effSmId ? (siteMasters || []).find(sm => sm.id === effSmId) : null;
@@ -4726,14 +4726,14 @@ export const SmartDispatch4: React.FC = () => {
                         <span className="text-white font-bold">{categorizedPreview.attachmentsText}</span>
                       </div>
                       <div>
-                        <span className="font-black text-emerald-400">현장요구스펙: </span>
+                        <span className="font-black text-emerald-400">현장요구사양: </span>
                         <span className="text-white font-bold">{categorizedPreview.specsText}</span>
                       </div>
                     </div>
                   )}
                   {isExchangeMode && retrievalAssetIds.length > 0 && (
                     <div>
-                      <span className="font-black text-cyan-400">대차 회수장비: </span>
+                      <span className="font-black text-cyan-400">교환 회수장비: </span>
                       <span className="text-white font-bold">
                         {isUnknownRetrieval
                           ? '모름 (기사 현장 확인 후 회수)'
@@ -4810,7 +4810,7 @@ export const SmartDispatch4: React.FC = () => {
 
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-950">
-        {/* 1. 상단 컴팩트 툴바 (40px) */}
+        {/* 1. 상단 컴팩트 툴바 */}
         <div className="flex-shrink-0 px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2">
           {/* 좌측: 뷰 필터 */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -5046,7 +5046,7 @@ export const SmartDispatch4: React.FC = () => {
                     <audio controls src={selectedUpload.publicUrl} className="w-full h-7" preload="metadata" />
                   ) : (
                     <div className="text-[11px] text-slate-400 bg-slate-950 p-1.5 rounded">
-                      재생 URL 미등록 ({selectedUpload.fileName})
+                      재생 주소 미등록 ({selectedUpload.fileName})
                     </div>
                   )}
 
@@ -5055,7 +5055,7 @@ export const SmartDispatch4: React.FC = () => {
                       <div className="flex items-center justify-between text-[11px] font-bold text-blue-300">
                         <span className="flex items-center gap-1">
                           <Phone className="w-3 h-3 text-blue-400" />
-                          <span>모바일 통화 텍스트 (삼성 AI 요약 / 녹음 메모)</span>
+                          <span>모바일 통화 텍스트 (통화 요약 / 녹음 메모)</span>
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
                           {selectedUpload.summaryText.length}자
@@ -5217,7 +5217,7 @@ export const SmartDispatch4: React.FC = () => {
                                 className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10.5px] transition shadow-sm"
                                 title="출고 요청 작성 폼으로 초안 데이터 로드"
                               >
-                                {draft.context.includes('ADDITIONAL') ? '추가출고 작성 ➔' : draft.context.includes('EXCHANGE') ? '대차 요청 작성 ➔' : '출고 요청 작성 ➔'}
+                                {draft.context.includes('ADDITIONAL') ? '추가출고 작성 ➔' : draft.context.includes('EXCHANGE') ? '교환 요청 작성 ➔' : '출고 요청 작성 ➔'}
                               </button>
                             </td>
                             <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
@@ -5347,7 +5347,7 @@ export const SmartDispatch4: React.FC = () => {
                         className="px-3.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black transition flex items-center gap-1 shadow-sm whitespace-nowrap cursor-pointer"
                       >
                         <ArrowRight className="w-3.5 h-3.5" />
-                        <span>{selectedDraft.context.includes('ADDITIONAL') ? '추가출고 작성 ➔' : selectedDraft.context.includes('EXCHANGE') ? '대차 요청 작성 ➔' : '출고 요청 작성 ➔'}</span>
+                        <span>{selectedDraft.context.includes('ADDITIONAL') ? '추가출고 작성 ➔' : selectedDraft.context.includes('EXCHANGE') ? '교환 요청 작성 ➔' : '출고 요청 작성 ➔'}</span>
                       </button>
                       <button data-hs-trigger="Register"
                         type="button"
@@ -5566,7 +5566,7 @@ export const SmartDispatch4: React.FC = () => {
 
       // 요청 구분
       const reqTypeLabel = d.type === 'EXCHANGE' || d.dispatchCategory === '교환'
-        ? '교체(대차)'
+        ? '교환'
         : (snapMeta?.context === 'NEW_CUSTOMER' || d.rawText?.includes('NEW_CUSTOMER'))
           ? '신규고객 출고'
           : '기존현장 출고';
@@ -5584,7 +5584,7 @@ export const SmartDispatch4: React.FC = () => {
         return false;
       });
       const isInspectionCompleted = totalAssignedCount > 0 && (approvedInspCount > 0 || hasRentedAsset);
-      const canCancelRequest = d.status !== 'CANCELLED' && !isInspectionCompleted;
+      const canCancelRequest = d.status !== 'CANCELLED' && d.status !== 'DELIVERED' && d.status !== 'COMPLETED' && !isInspectionCompleted;
 
       return {
         id: d.id,
@@ -5606,8 +5606,8 @@ export const SmartDispatch4: React.FC = () => {
         paidOptionItems,
         protectionStr: protectionStr && protectionStr !== 'NONE' ? protectionStr : '없음',
         attachmentsStr: attachmentsStr && attachmentsStr !== 'NONE' ? attachmentsStr : '없음',
-        loadingSchedule: `${d.loadingDate || '-'} ${d.loadingTimeSlot || ''}`.trim(),
-        unloadingSchedule: `${d.unloadingDate || d.loadingDate || '-'} ${d.unloadingTimeSlot || d.loadingTimeSlot || ''}`.trim(),
+        loadingSchedule: `${d.loadingDate || '-'} ${(d.loadingTimeSlot || '').replace(/ASAP/g, '최우선')}`.trim(),
+        unloadingSchedule: `${d.unloadingDate || d.loadingDate || '-'} ${(d.unloadingTimeSlot || d.loadingTimeSlot || '').replace(/ASAP/g, '최우선')}`.trim(),
         vehicleType: d.vehicleType || '5T',
         driverName: d.driverName || '',
         driverContact: d.driverContact || '',
@@ -5663,7 +5663,7 @@ export const SmartDispatch4: React.FC = () => {
     const handlePrintHistoryRow = async (row: typeof reconstructedRows[0]) => {
       const draftLike: DraftOrder = {
         id: row.id,
-        context: [row.reqTypeLabel === '신규고객 출고' ? 'NEW_CUSTOMER' : row.reqTypeLabel === '교체(대차)' ? 'EXCHANGE' : 'ADDITIONAL'],
+        context: [row.reqTypeLabel === '신규고객 출고' ? 'NEW_CUSTOMER' : row.reqTypeLabel === '교환' ? 'EXCHANGE' : 'ADDITIONAL'],
         customerName: makeScoredField(row.customerName),
         siteName: makeScoredField(row.siteName),
         siteAddress: row.siteAddress,
@@ -5827,7 +5827,7 @@ export const SmartDispatch4: React.FC = () => {
                     <th style={{ width: 170 }}>투입 현장명</th>
                     <th style={{ width: 180 }}>요청 모델 및 수량</th>
                     {hasFinancialAccess && <th style={{ width: 135, textAlign: 'right' }}>월렌탈료 / 유상청구</th>}
-                    <th style={{ width: 170 }}>유상옵션 (적용단가)</th>
+                    <th style={{ width: 170 }}>유상옵션</th>
                     <th style={{ width: 110 }}>상차 요청일시</th>
                     <th style={{ width: 100 }}>현장담당자</th>
                     <th style={{ width: 95 }}>배차번호</th>
@@ -6007,7 +6007,7 @@ export const SmartDispatch4: React.FC = () => {
                           <td className="font-bold text-slate-200">{row.requesterName}</td>
                           <td>
                             <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${
-                              row.reqTypeLabel === '교체(대차)'
+                              row.reqTypeLabel === '교환'
                                 ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
                                 : row.reqTypeLabel === '신규고객 출고'
                                   ? 'bg-purple-950 text-purple-300 border border-purple-800'
@@ -6379,7 +6379,7 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 우하단 액션 바 (Gutenberg Z-Pattern Terminal Action) */}
+                {/* 우하단 액션 바 */}
                 <div className="flex-shrink-0 p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     {selectedRow.canCancelRequest ? (
@@ -6694,8 +6694,8 @@ export const SmartDispatch4: React.FC = () => {
                   <Check className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white m-0 tracking-tight">출고 의뢰 완료</h3>
-                  <p className="text-[11px] text-emerald-400 m-0">출고 의뢰가 정상 접수되었습니다.</p>
+                  <h3 className="text-sm font-black text-white m-0 tracking-tight">출고 요청 완료</h3>
+                  <p className="text-[11px] text-emerald-400 m-0">출고 요청이 정상 접수되었습니다.</p>
                 </div>
               </div>
               <button
@@ -6718,7 +6718,7 @@ export const SmartDispatch4: React.FC = () => {
                 <div className="bg-slate-800/80 border border-slate-700/70 p-3 rounded-xl flex flex-col gap-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">진행 상태</span>
                   <span className="text-sm font-black text-emerald-400 flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" /> 출고 의뢰 완료
+                    <Check className="w-3.5 h-3.5" /> 출고 요청 완료
                   </span>
                 </div>
               </div>
@@ -6760,7 +6760,7 @@ export const SmartDispatch4: React.FC = () => {
               <div className="bg-blue-950/30 border border-blue-800/30 p-3 rounded-xl flex items-start gap-2 text-blue-300 text-[11px]">
                 <Info className="w-4 h-4 flex-shrink-0 text-blue-400 mt-0.5" />
                 <span>
-                  출고 의뢰가 정상 접수되었습니다. 출고요청서를 인쇄할 수 있습니다.
+                  출고 요청이 정상 접수되었습니다. 출고요청서를 인쇄할 수 있습니다.
                 </span>
               </div>
             </div>

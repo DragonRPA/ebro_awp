@@ -180,7 +180,7 @@ ${buttonList}
   return `# [기능 정의서] ${manual.menuName} (${manual.menuId})
 
 ## 1. 기본 메타데이터
-- **메뉴 식별자(ID)**: \`${manual.menuId}\`
+- **메뉴 식별자**: \`${manual.menuId}\`
 - **매뉴얼 버전**: \`v${manual.version || 1}\`
 - **상위 그룹**: ${manual.groupName} (\`${manual.groupId}\`)
 - **담당 부서**: ${manual.department}

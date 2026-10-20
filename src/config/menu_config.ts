@@ -10,7 +10,7 @@ export interface MenuGroupConfig {
   items: MenuItemConfig[];
 }
 
-// 전사 전체 메뉴 그룹 및 항목 통합 관리 (Single Source of Truth)
+// 전사 전체 메뉴 그룹 및 항목 통합 관리
 export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   {
     id: 'grp_distribution',
@@ -19,7 +19,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'trade_products', name: '상품 등록 및 관리' },
       { id: 'trade_purchases', name: '구매 및 입고' },
       { id: 'trade_contracts', name: '유통 수주' },
-      { id: 'trade_outbounds', name: '출고 요청' },
+      { id: 'trade_outbounds', name: '유통 출고 관리' },
       { id: 'courier_dispatch', name: '택배 배송 관리' },
       { id: 'trade_billing', name: '유통 청구 및 명세' },
       { id: 'trade_returns', name: '환입 및 반품' },
@@ -45,7 +45,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'receivable', name: '외상미수금 대장' },
       { id: 'smart_dispatch4', name: '출고 요청' },
       { id: 'smart_return', name: '회수 요청' },
-      { id: 'smart_as_request', name: 'AS 요청' },
+      { id: 'smart_as_request', name: '현장 정비 요청' },
       { id: 'delinquency', name: '미수 채권 연체 관리' },
       { id: 'official_mail', name: '공식 메일 발송' },
       { id: 'public_construction_permits', name: '인허가 건축공정 조회' }
@@ -88,7 +88,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'consumable_purchase', name: '소모품 구매' },
       { id: 'consumable_inout', name: '소모품 입출고' },
       { id: 'consumable_stock', name: '소모품 재고' },
-      { id: 'field_as', name: '현장 AS 관리' },
+      { id: 'field_as', name: '현장 정비 관리' },
       { id: 'repair', name: '주기장 정비 관리' },
       { id: 'inspection_checklist_manage', name: '정비 항목 관리' }
     ]
@@ -133,12 +133,12 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_system_dev',
     name: '시스템관리 - 개발자',
     items: [
-      { id: 'agentic_ai_lab', name: 'AI 샌드박스 랩' },
+      { id: 'agentic_ai_lab', name: '지능형 실험실' },
       { id: 'agentic_dispatch_studio', name: '배차 관제 스튜디오' },
       { id: 'agentic_settlement_autopilot', name: '월말 대사 정산' },
       { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제' },
-      { id: 'initial_db_upload', name: '초기DB 업로드' },
-      { id: 'dev_uploader', name: 'DB 데이터 업로더' },
+      { id: 'initial_db_upload', name: '초기 데이터 업로드' },
+      { id: 'dev_uploader', name: '데이터 업로더' },
       { id: 'tenant_management', name: '테넌트 관리' }
     ]
   }
@@ -155,7 +155,7 @@ export const getAllSystemMenuIds = (): string[] => {
   return ids;
 };
 
-// 전사 복수형/변형 메뉴 ID를 단일 표준(SSOT) 단수형 ID로 정규화하는 별칭 맵
+// 전사 복수형/변형 메뉴 ID를 단일 표준 단수형 ID로 정규화하는 별칭 맵
 export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'consumables': 'consumable_stock',
   'consumable': 'consumable_stock',

@@ -186,7 +186,7 @@ export const Contracts: React.FC = () => {
   const [succDate, setSuccDate] = useState(new Date().toISOString().split('T')[0]);
   const [succDesc, setSuccDesc] = useState('');
 
-  // 4) 장비 교체(대차) 모달
+  // 4) 장비 교환 모달
   const [showExchangeModal, setShowExchangeModal] = useState(false);
   const [exchangeContractAssetId, setExchangeContractAssetId] = useState('');
   const [exchangeOldAssetId, setExchangeOldAssetId] = useState('');
@@ -215,7 +215,7 @@ export const Contracts: React.FC = () => {
   // Feature 5) 일부 자산 선택적 승계
   const [selectedSuccessionAssetIds, setSelectedSuccessionAssetIds] = useState<Set<string>>(new Set());
 
-  // Feature 6) 현장간 장비 이동 (Site Transfer) 모달 state
+  // Feature 6) 현장간 장비 이동 모달 state
   const [showRelocateModal, setShowRelocateModal] = useState(false);
   const [relocateCa, setRelocateCa] = useState<ContractAsset | null>(null);
   const [relocateTargetSiteId, setRelocateTargetSiteId] = useState('');
@@ -371,7 +371,7 @@ export const Contracts: React.FC = () => {
     const hasPendingInsp = relInsps.some(oi => oi.status !== 'COMPLETED');
     const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
 
-    // 현장 기투입(대여중) 여부: 배차/출고검수 대기 건이 없고, 체결된 활성 장비 전체가 자산 매핑 완료 및 대여중(RENTED) 상태인 경우
+    // 현장 기투입(대여중) 여부: 배차/출고검수 대기 건이 없고, 체결된 활성 장비 전체가 자산 매핑 완료 및 대여중 상태인 경우
     const hasPendingOutboundDel = outboundDel ? (outboundDel.status !== 'DELIVERED' && outboundDel.status !== 'COMPLETED') : false;
     const isFieldDeployedRented =
       isAssigned &&
@@ -476,7 +476,7 @@ export const Contracts: React.FC = () => {
         {m.isInspected ? (
           <span
             style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
-            title="출고 검수 승인 완료 (자산 상태: RENTED 대여중)"
+            title="출고 검수 승인 완료 (자산 상태: 대여중)"
           >
             ✓ 검수완료
           </span>
@@ -776,7 +776,7 @@ export const Contracts: React.FC = () => {
       if (h.changeType === 'BILLING_CREATED' || h.description?.includes('소급 청구') || h.description?.includes('청구서 발행')) {
         historyTitle = '🧾 정기 청구 발행';
       } else if (isExchange) {
-        historyTitle = '🔄 자산 대차/교체 이력';
+        historyTitle = '🔄 자산 교환 이력';
       } else if (h.changeType === 'FEE_CHANGE' || h.description?.includes('단가')) {
         if (h.description.includes('월/일') || (h.description.includes('월') && h.description.includes('일'))) {
           historyTitle = '월/일 렌탈료 단가 변경';
@@ -945,7 +945,7 @@ export const Contracts: React.FC = () => {
         ? allActiveCAs.filter(ca => selectedExtendAssetIds.has(ca.id))
         : allActiveCAs;
 
-      // 💡 결재선 규칙(CONTRACT_EXTEND) 조회 및 결재 상신 판정
+      // 💡 결재선 규칙 조회 및 결재 상신 판정
       let ruleData: any = null;
       try {
         const res = await fetchRuleForEvent('CONTRACT_EXTEND');
@@ -1178,7 +1178,7 @@ export const Contracts: React.FC = () => {
     );
 
     if (pendingExchangeDelivery || unassignedExchangeSlot) {
-      showToast('해당 계약에 이미 처리 대기 중인 대차/교체 배차 또는 미할당 슬롯이 존재합니다.', 'error');
+      showToast('해당 계약에 이미 처리 대기 중인 교환 배차 또는 미할당 슬롯이 존재합니다.', 'error');
       return;
     }
 
@@ -1230,7 +1230,7 @@ export const Contracts: React.FC = () => {
         contractId: selectedContractId,
         changeType: 'EXCHANGE',
         changeDate: exchangeDate,
-        description: `[대차/교체 의뢰 접수] ${identifyTag} / 회수모델: ${targetModelName} / 사유: ${exchangeReason || '현장 고장/스펙 변경 요청'} — 기존 계약 조건(렌탈료, 마감일, 현장조건) 100% 자동 상속 (전자산 마감: ${dayBeforeExchange} / 후장비 개시: ${exchangeDate})`,
+        description: `[교환 의뢰 접수] ${identifyTag} / 회수모델: ${targetModelName} / 사유: ${exchangeReason || '현장 고장/스펙 변경 요청'} — 기존 계약 조건(렌탈료, 마감일, 현장조건) 100% 자동 상속 (전자산 마감: ${dayBeforeExchange} / 후장비 개시: ${exchangeDate})`,
         createdAt: new Date().toISOString()
       });
 
@@ -1257,10 +1257,10 @@ export const Contracts: React.FC = () => {
         updatedAt: new Date().toISOString()
       });
 
-      // 3. 후속 업무 흐름 연계: 출고 부서를 위한 대차 출고 슬롯(ContractAsset) 자동 추가
+      // 3. 후속 업무 흐름 연계: 출고 부서를 위한 대차 출고 슬롯 자동 추가
       db.insertRow<ContractAsset>('contractAssets', {
         contractId: selectedContractId,
-        assetId: undefined, // 미할당 상태로 생성하여 출고 부서(asset_assignment.tsx)로 할당 요청
+        assetId: undefined, // 미할당 상태로 생성하여 출고 부서로 할당 요청
         expectedModel: targetModelName,
         monthlyRentalFee: targetOldContractAsset?.monthlyRentalFee || activeContractAssets[0]?.monthlyRentalFee || 0,
         dailyRentalFee: targetOldContractAsset?.dailyRentalFee || activeContractAssets[0]?.dailyRentalFee || 0,
@@ -1271,7 +1271,7 @@ export const Contracts: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast('대차/교체 의뢰가 접수되었습니다. (배차 및 장비할당 연동 완료)');
+      showToast('교환 의뢰가 접수되었습니다. (배차 및 장비할당 연동 완료)');
 
       setShowExchangeModal(false);
       setExchangeNewAssetId('');
@@ -1292,7 +1292,7 @@ export const Contracts: React.FC = () => {
 
       return {
         // ① 식별 및 계약
-        'No': idx + 1,
+        '순번': idx + 1,
         '계약번호': c.contractNo,
         '계약 상태': c.status === 'ACTIVE' ? '진행중' :
                    c.status === 'EXTENDED' ? '연장됨' :
@@ -1689,7 +1689,7 @@ export const Contracts: React.FC = () => {
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* 뷰 1: 계약 목록 (viewMode === 'LIST') */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-            {/* 계약 운용 KPI 바 (Scope) */}
+            {/* 계약 운용 KPI 바 */}
       {viewMode === 'LIST' && activeTab === 'ALL_LIST' && (
         <div data-subview="contract" data-subview-title="계약 관리" data-mid="contract-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2081,7 +2081,7 @@ export const Contracts: React.FC = () => {
                     {showPeriodCol && <SortableTh label="계약 기간" sortKey="period" currentSort={sortConfig} onSort={handleSort} />}
                     {showLastBilledCol && <SortableTh label="최근 청구 기간" sortKey="billingPeriod" currentSort={sortConfig} onSort={handleSort} />}
                     {showBillingCountCol && <SortableTh label="청구 건수" sortKey="billingCount" currentSort={sortConfig} onSort={handleSort} align="center" />}
-                    <SortableTh label="만료 D-Day" sortKey="dday" currentSort={sortConfig} onSort={handleSort} align="center" />
+                    <SortableTh label="만료 잔여일" sortKey="dday" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="청구 마감일" sortKey="billingDay" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="영업담당" sortKey="salesperson" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={handleSort} align="center" />
@@ -2537,7 +2537,7 @@ export const Contracts: React.FC = () => {
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>영업담당</label><span>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</span></div>
                 <div style={{ visibility: 'hidden' }}></div>
                 
-                {/* 3분할 담당자 상세 정보 (Full Width) */}
+                {/* 3분할 담당자 상세 정보 */}
                 <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)' }}>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '8px' }}>현장 담당자 정보</label>
                   {(() => {
@@ -3320,7 +3320,7 @@ export const Contracts: React.FC = () => {
                     </h3>
                     {isFrequent && (
                       <span className="badge badge-danger" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        ⚠️ AS {contractRepairs.length}회 발생 - 장비 대차/교체 검토 요망
+                        ⚠️ AS {contractRepairs.length}회 발생 - 장비 교환 검토 요망
                       </span>
                     )}
                   </div>
@@ -3878,7 +3878,7 @@ export const Contracts: React.FC = () => {
               {/* 회수 대상 장비 선택 */}
               {exchangeIdentifyType === 'KNOWN' ? (
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>회수 대상 계약 자산 선택 (자산번호/SN 지정) *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, marginBottom: '4px', display: 'block' }}>회수 대상 계약 자산 선택 (관리번호/제조번호 지정) *</label>
                   <select value={exchangeOldAssetId} onChange={e => setExchangeOldAssetId(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '6px', fontSize: '12.5px' }}>
                     {activeContractAssets.map(ca => {
                       const ast = assets.find(a => a.id === ca.assetId);
@@ -3901,7 +3901,7 @@ export const Contracts: React.FC = () => {
                     </select>
                   </div>
                   <div style={{ padding: '8px 10px', backgroundColor: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: '6px', fontSize: '11.5px', color: 'var(--warning-hover)' }}>
-                    💡 <strong>미식별 교체 안내:</strong> 현장의 정확한 자산번호/SN을 모르는 상태입니다. 대차 장비 출고 후 회수 장비가 센터에 <strong>입고 검수 승인되는 시점에 자산번호가 최종 매핑 완성</strong>됩니다.
+                    💡 <strong>미식별 교체 안내:</strong> 현장의 정확한 관리번호/제조번호을 모르는 상태입니다. 대차 장비 출고 후 회수 장비가 센터에 <strong>입고 검수 승인되는 시점에 자산번호가 최종 매핑 완성</strong>됩니다.
                   </div>
                 </div>
               )}
@@ -3923,10 +3923,10 @@ export const Contracts: React.FC = () => {
                 <div>3. <strong>[입고 검수]</strong> 승인 마감 시 회수 자산 임대가능(또는 수리) 자동 마감 연동</div>
               </div>
 
-              {/* 대차/교체 희망일자 및 희망시간대 (상하 헤더 세로 스택 컨셉) */}
+              {/* 교환 희망일자 및 희망시간대 (상하 헤더 세로 스택 컨셉) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>대차/교체 희망일자 *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>교환 희망일자 *</label>
                   <input
                     type="date"
                     value={exchangeDate}
@@ -4308,7 +4308,7 @@ export const Contracts: React.FC = () => {
         </div>
       )}
 
-      {/* Feature 6: 현장간 장비 이동 (Site Transfer) 모달 */}
+      {/* Feature 6: 현장간 장비 이동 모달 */}
       {showRelocateModal && relocateCa && activeContract && (() => {
         const asset = assets.find(a => a.id === relocateCa.assetId);
         const currentSite = sites.find(s => s.id === activeContract.siteId);

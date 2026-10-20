@@ -303,7 +303,7 @@ export function parseClosingDay(dayStr: any): number {
  *
  * 반환값:
  *   paymentDueDay   : 특정 날짜 기준 결제일 (익월N일 방식) — null이면 Net Terms 사용
- *   paymentTermDays : 청구일 기준 N일 이내 결제 (Net Terms) — null이면 익월N일 방식 사용
+ *   paymentTermDays : 청구일 기준 N일 이내 결제 — null이면 익월N일 방식 사용
  *
  * 판별 규칙:
  *   "익월N일" / "익익월N일" / "N일" (단, N ≤ 31)  →  paymentDueDay = N, paymentTermDays = null
@@ -344,10 +344,10 @@ export function parsePaymentDueTerm(rawStr: any): { paymentDueDay: number | null
 }
 
 /**
- * 결제 만기일(dueDate) 계산 — paymentTermDays 또는 paymentDueDay 기반 단일 로직
- * @param billingDateStr  청구서 발행일 (YYYY-MM-DD)
- * @param paymentDueDay   익월N일 방식의 결제일 (nullable)
- * @param paymentTermDays Net Terms 일수 (nullable)
+ * 결제 만기일 계산 — paymentTermDays 또는 paymentDueDay 기반 단일 로직
+ * @param billingDateStr  청구서 발행일(일자)
+ * @param paymentDueDay   익월N일 방식의 결제일
+ * @param paymentTermDays Net Terms 일수
  */
 export function calcDueDate(billingDateStr: string, paymentDueDay: number | null, paymentTermDays: number | null): string {
   if (!billingDateStr) return billingDateStr;
@@ -427,7 +427,7 @@ function inferFeetFromModel(m: string, heightM: number = 0): number {
   if (u.includes('4655') || u.includes('1414')) return 46;
   if (u.includes('5390') || u.includes('1612') || u.includes('1614') || u.includes('1623') || u.includes('GTBZ16')) return 53;
   if (u.includes('600JP')) return 60;
-  // 2순위: 모델명에서 추론 불가 시 작업높이(M)에서 2M(작업자 신장) 차감하여 발판높이(ft) 환산
+  // 2순위: 모델명에서 추론 불가 시 작업높이에서 2M(작업자 신장) 차감하여 발판높이 환산
   if (heightM > 0) {
     const platformM = heightM > 4 ? heightM - 2 : heightM;
     return Math.round(platformM * 3.28084);
@@ -436,7 +436,7 @@ function inferFeetFromModel(m: string, heightM: number = 0): number {
 }
 
 // ──────────────────────────────────────────────
-// 2. 전체 DB 76개 테이블 백업 및 복원(Disaster Recovery) 모듈
+// 2. 전체 DB 76개 테이블 백업 및 복원 모듈
 // ──────────────────────────────────────────────
 const ALL_TABLES = [
   'tenants',
@@ -565,7 +565,7 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
 }
 
 /**
- * 🛡️ [원클릭 DB 복원] 백업 JSON 데이터를 외래키(FK) 정방향 위상 정렬 순서로 100% 원상 복원
+ * 🛡️ [원클릭 DB 복원] 백업 JSON 데이터를 외래키 정방향 위상 정렬 순서로 100% 원상 복원
  */
 export async function restoreFullDatabaseBackup(
   backupData: Record<string, any[]>,
@@ -698,7 +698,7 @@ export async function resetAllDatabaseTables(
   targetTenantId?: string
 ): Promise<{ success: boolean; message: string }> {
   // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates),
-  // 중앙 테넌트 원장 및 공식메일설정(tenants.features.officialMailConfig), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
+  // 중앙 테넌트 원장 및 공식메일설정, 관리자 계정은 초기화 대상에서 영구 제외
   const DELETION_ORDER = [
     'monthly_income_statements',
     'settlement_payment_logs',
@@ -762,10 +762,10 @@ export async function resetAllDatabaseTables(
   try {
     const scopeId = targetTenantId;
     if (!scopeId) {
-      return { success: false, message: '초기화 대상 테넌트 식별자(targetTenantId)가 지정되지 않아 안전을 위해 작업을 원천 차단했습니다.' };
+      return { success: false, message: '초기화 대상 테넌트 식별자가 지정되지 않아 안전을 위해 작업을 원천 차단했습니다.' };
     }
 
-    // 🛡️ 유령 초기화(Ghost Reset) 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
+    // 🛡️ 유령 초기화 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
     const tenantVariants = Array.from(new Set([
       scopeId,
       'tenant-' + scopeId.replace(/^tenant-/, ''),
@@ -786,7 +786,7 @@ export async function resetAllDatabaseTables(
             throw new Error(`[DB 초기화 삭제 실패] ${table}: ${msg}`);
           }
         }
-        // 🛡️ 테넌트 미지정(NULL) 레거시 항목도 함께 안전 소탕
+        // 🛡️ 테넌트 미지정 레거시 항목도 함께 안전 소탕
         if (table === 'inspection_checklist_items' || table === 'site_masters' || table === 'customer_sites') {
           await supabase.from(table).delete().is('tenant_id', null);
         }
@@ -926,8 +926,8 @@ export function parseInitialExcelWorkbook(
   const nowIso = new Date().toISOString();
 
   // ── 초기 마이그레이션 담당자 지정 ──────────────────────────────
-  // 영업 담당(salesperson): 김동우 팀장
-  // 검수/출고 담당(inspector): 김관주 부장
+  // 영업 담당: 김동우 팀장
+  // 검수/출고 담당: 김관주 부장
   const kimDongwoo = users?.find(u =>
     u.name?.includes('김동우') || u.name?.replace(/\s/g, '').includes('김동우')
   );
@@ -946,7 +946,7 @@ export function parseInitialExcelWorkbook(
   const siteMap = new Map<string, any>();
   const contactMap = new Map<string, any>();
 
-  // 🌟 [보강 1] 내장된 표준 제원 마스터(PRESET_PRODUCT_SPECS)를 선제 등록하여 제원표/안전문서 자동 연결
+  // 🌟 [보강 1] 내장된 표준 제원 마스터를 선제 등록하여 제원표/안전문서 자동 연결
   let productSeqCounter = 1000;
   const generateUniqueProductId = () => {
     return `PROD-${String(++productSeqCounter).padStart(7, '0')}`;
@@ -1081,7 +1081,7 @@ export function parseInitialExcelWorkbook(
       id: assetId,
       modelName: modelName,
       assetNo: assetNo,
-      serialNo: getCol(r, assetHeaderMap, ['시리얼번호', 'S/N'], 3) ? String(getCol(r, assetHeaderMap, ['시리얼번호', 'S/N'], 3)).trim() : '',
+      serialNo: getCol(r, assetHeaderMap, ['제조번호', 'S/N'], 3) ? String(getCol(r, assetHeaderMap, ['제조번호', 'S/N'], 3)).trim() : '',
       manufacturer: maker,
       manufactureYear: getCol(r, assetHeaderMap, ['연식', '제조년월'], 5) ? String(getCol(r, assetHeaderMap, ['연식', '제조년월'], 5)).trim() : '2025년',
       ownerType: 'OWNED',
@@ -1360,7 +1360,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
 
   // ── 계약 그룹핑 맵 ──────────────────────────────────────────────
   // 동일 (고객사 + 현장 + 계약시작일 + 계약종료일) 조합 = 하나의 계약으로 통합
-  // 엑셀 1행 = 계약 1건이 아니라, N개 행 = 1개 계약 + N개 체결자산(contract_assets)
+  // 엑셀 1행 = 계약 1건이 아니라, N개 행 = 1개 계약 + N개 체결자산
   // ───────────────────────────────────────────────────────────────
   const contractGroupMap = new Map<string, any>(); // key → 계약 엔티티
 
@@ -1455,7 +1455,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     }
 
     // 💡 [단일 진실의 원천]: '반납일'이라는 범용 명칭과 하드코딩된 컬럼 인덱스(19)가 '고객사 현장 반납일'과 충돌하여 
-    // 멀쩡한 임차 자산을 '임차처 반납완료(RENTED_RETURNED)'로 오인하게 만드는 치명적 버그 수정.
+    // 멀쩡한 임차 자산을 '임차처 반납완료'로 오인하게 만드는 치명적 버그 수정.
     const leaseVendorName = getCol(r, mainHeaderMap, ['임차업체', '매입처', '임차처'], -1) ? String(getCol(r, mainHeaderMap, ['임차업체', '매입처', '임차처'], -1)).trim() : '';
     const leasePrice = sanitizeNumber(getCol(r, mainHeaderMap, ['임차단가', '매입단가'], -1));
     const leaseStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대개시일', '임차개시일', '임차시작일', '매입일'], -1));
@@ -1552,7 +1552,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       }
     }
 
-    // ── 전대(external_lease) 등록 —
+    // ── 전대 등록 —
     // 자사번호 + 전대번호 동시 존재(혼재 행) 또는 전대번호만 있는 행 모두 처리
     // Build.18 fix: if-else → 독립 블록으로 분리하여 1,520건 혼재 행 누락 방지
     if (leaseAssetNo) {
@@ -1588,7 +1588,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       const leaseEntity: any = {
         id: leaseId,
         vendorId: leaseVendor ? leaseVendor.id : null,
-        contractId: null,   // 계약 그룹핑 완료 후 아래에서 주입 (A-01 fix)
+        contractId: null,   // 계약 그룹핑 완료 후 아래에서 주입
         contractAssetId: null,
         assetDescription: `${targetModel} (${leaseAssetNo})`,
         monthlyRentFee: leasePrice,
@@ -1623,10 +1623,10 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
 
     // ── 계약 그룹핑: 헌장 원칙에 따라 동일 (고객사 + 현장) = 단 1개 계약 ──
     // 동일 현장의 장비는 출고일자가 다르더라도 단일 계약에 묶이며 자산별로 독립 라이프사이클을 가짐
-    // 🌟 [방어 가드]: 실물 장비 식별자(ownAssetNo, leaseAssetNo, rawModel)가 전무한 행은
+    // 🌟 [방어 가드]: 실물 장비 식별자가 전무한 행은
     // 유상수리비, 안전옵션/부품비, 운송비, 전월 미수금 등 단순 부대비용/정산 청구 행임.
-    // ➔ 기존 (고객+현장) 계약이 없을 때 빈 껍데기 계약(contracts / contract_history)이나
-    //    장비 슬롯(contract_assets)을 생성하지 않고, 청구서(billing_details)로만 직행시켜
+    // ➔ 기존 (고객+현장) 계약이 없을 때 빈 껍데기 계약이나
+    //    장비 슬롯을 생성하지 않고, 청구서로만 직행시켜
     //    빈 계약 생성·장비 할당 대기 화면 잔류 및 소급 청구 왜곡을 원천 차단함.
     const isRealAssetRow = Boolean(ownAssetNo || leaseAssetNo || rawModel);
     const contractGroupKey = `${customer.id}_${site.id}`;
@@ -1658,7 +1658,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         }
       }
     } else if (isRealAssetRow) {
-      // 신규 계약 생성: 실물 장비 행인 경우에만 최초 발생월(YYMM) 기준 채번
+      // 신규 계약 생성: 실물 장비 행인 경우에만 최초 발생월 기준 채번
       const effStartDate = firstStartDate || rowStartDate || '2026-08-01';
       const yymm = effStartDate.replace(/-/g, '').substring(2, 6) || '2608';
       const currentSeq = (contractSeqByYm.get(yymm) || 0) + 1;
@@ -1747,12 +1747,12 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
       }
     }
 
-    // 🌟 [보강 2] 자산(assets) ➔ 계약정보 양방향 동기화 바인딩
+    // 🌟 [보강 2] 자산 ➔ 계약정보 양방향 동기화 바인딩
     // 계약기간 만료 자산도 연장/반납 미결 상태이므로 RENTED + 현장 바인딩 유지.
     // 엑셀 Col[8]='종료' 명시 시에만 COMPLETED/RENTED_RETURNED 처리.
     if (matchedAsset) {
       if (!isCompleted) {
-        // 활성(ACTIVE) 계약 + 기간 만료 후 미결 계약 모두 RENTED로 처리
+        // 활성 계약 + 기간 만료 후 미결 계약 모두 RENTED로 처리
         matchedAsset.status = 'RENTED';
         matchedAsset.currentCustomerId = customer.id;
         matchedAsset.currentSiteId = site.id;
@@ -1773,13 +1773,13 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     // ────────────────────────────────────────────────────────────────────
 
 
-    // ── 외상미수금(receivables) 자동 생성 제외 ──────────────────────────
+    // ── 외상미수금 자동 생성 제외 ──────────────────────────
     // 엑셀 Col[7] 운반비는 과거 계약 체결 시점의 참조값이거나 날짜 오입력 셀이므로,
-    // 현재 시점의 미청구 외상채권(receivables)으로 자동 생성하지 않음.
+    // 현재 시점의 미청구 외상채권으로 자동 생성하지 않음.
     // 외상미수금은 향후 실제 배차(고객청구 확정) 또는 정비(고객과실 확정) 이벤트에 의해서만 생성됨.
     // ────────────────────────────────────────────────────────────────────
 
-    // ── 과거 소급 청구서 선택적 생성 (histBillingRange) ─────────────────
+    // ── 과거 소급 청구서 선택적 생성 ─────────────────
     // ※ 과거 소급 청구서는 ERP 정규화 표준(1계약 1청구, 체결 자산 N대 품목 묶음)을 위해
     //    개별 행 루프에서 생성하지 않고, 전체 행 파싱 완료 후 정규화된 contracts 목록을 기반으로 일괄 생성함.
     // ────────────────────────────────────────────────────────────────────
@@ -2067,7 +2067,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
             billingDetails.push(d);
           });
 
-          // 🌟 계약 이력(contractHistories)에 정규 소급 청구 생성 이력 1:1 무누락 적재
+          // 🌟 계약 이력에 정규 소급 청구 생성 이력 1:1 무누락 적재
           contractHistories.push({
             id: `CH-HIST-${contract.id.replace(/[^a-zA-Z0-9]/g, '')}-${ymStr.replace('-', '')}`,
             contractId: contract.id,
@@ -2098,7 +2098,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   // ──────────────────────────────────────────────────────────────────
   // 【자산 정보 확정 단계】 — 모든 시트 파싱 완료 후, DB INSERT 전
   // 이 시점에서 assetMap에 모든 자산이 확정 등록된 상태이므로
-  // 자사 보유(OWNED) 자산 전체에 대해 감가상각을 일괄 재계산한다.
+  // 자사 보유 자산 전체에 대해 감가상각을 일괄 재계산한다.
   //
   // 목적:
   //   - 보유자산현황 시트에서 직접 등록된 자산: 인라인 계산값을 덮어씀(재검증)
@@ -2155,7 +2155,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
   // ────────────────────────────────────────────────────────────────
   // 🌟 [방어 가드 - SSOT] ContractAsset 슬롯 병합 로직 (중복 행 제거)
   // 초기 엑셀 데이터가 청구 목적으로 8, 9월 등으로 나뉘어 있어도, 
-  // 물리적 투입 이력인 ContractAsset은 동일 계약 + 동일 장비에 대해 단일 슬롯으로 통합(Merge)되어야 함.
+  // 물리적 투입 이력인 ContractAsset은 동일 계약 + 동일 장비에 대해 단일 슬롯으로 통합되어야 함.
   // ────────────────────────────────────────────────────────────────
   const mergedCaMap = new Map<string, any>();
   const caIdRemap = new Map<string, string>(); // 구 ca.id -> 신규(통합) ca.id
@@ -2210,7 +2210,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
     }
   }
 
-  // 🌟 [방어 가드]: 체결 자산(contract_assets)이 단 1건도 없는 빈 껍데기 계약(0-asset contract) 및 연관 이력 제거
+  // 🌟 [방어 가드]: 체결 자산이 단 1건도 없는 빈 껍데기 계약 및 연관 이력 제거
   const validContractIds = new Set(contractAssets.map(ca => ca.contractId));
   for (let i = contracts.length - 1; i >= 0; i--) {
     if (!validContractIds.has(contracts[i].id)) {
@@ -2277,7 +2277,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
 }
 
 // ──────────────────────────────────────────────
-// 5. 청킹(Chunking) 일괄 DB 인서트 파이프라인 (스키마 화이트리스트 필터링 필수 적용)
+// 5. 청킹 일괄 DB 인서트 파이프라인 (스키마 화이트리스트 필터링 필수 적용)
 // ──────────────────────────────────────────────
 async function batchUpsertChunked(
   table: string,
@@ -2340,7 +2340,7 @@ export async function ingestExcelInitialData(
     // 🛡️ 멀티테넌트 원칙: 타 테넌트의 데이터는 절대 건드리지 않고, 오직 scopeId 테넌트 행만 격리 삭제
     onProgress?.(0, totalSteps, `0/13: [${scopeId}] 기존 데이터 정리 중 (해당 테넌트 격리 삭제)...`);
     
-    // 🛡️ 유령 초기화(Ghost Reset) 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
+    // 🛡️ 유령 초기화 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
     const tenantVariants = Array.from(new Set([
       scopeId,
       'tenant-' + scopeId.replace(/^tenant-/, ''),
@@ -2440,7 +2440,7 @@ export async function ingestExcelInitialData(
     await batchUpsertChunked('customer_sites', parsed.customerSites, 100);
     await batchUpsertChunked('customer_contacts', parsed.customerContacts, 100);
 
-    // Step 4.9: 🛡️ [무결성 절대 보장] assets -> products 외래키(assets_new_modelName_fkey) 100% 선행 검증 및 자동 등록
+    // Step 4.9: 🛡️ [무결성 절대 보장] assets -> products 외래키 100% 선행 검증 및 자동 등록
     onProgress?.(4.9, totalSteps, `자산 모델 외래키 무결성 선행 검증 및 누락 모델 자동 등록 중...`);
 
     // 1) parsed.assets 전수 모델명 정규화
@@ -2539,7 +2539,7 @@ export async function ingestExcelInitialData(
     // await batchUpsertChunked('outbound_inspections', parsed.outboundInspections, 200);
     // await batchUpsertChunked('asset_inout_logs', parsed.assetInOutLogs, 200);
 
-    // Step 10: 과거 및 당월 매출 청구서 (Billings & Details)
+    // Step 10: 과거 및 당월 매출 청구서
     onProgress?.(10, totalSteps, `10/13: 과거 전체 및 8월 청구서 (${parsed.billings.length}건) 적재 중...`);
     await batchUpsertChunked('billings', parsed.billings, 200);
     await batchUpsertChunked('billing_details', parsed.billingDetails, 200);
@@ -2557,7 +2557,7 @@ export async function ingestExcelInitialData(
     }
 
     // Step 12: 대사 검증 수행
-    onProgress?.(12, totalSteps, '12/13: 대사 검증(Reconciliation) 수행 중...');
+    onProgress?.(12, totalSteps, '12/13: 대사 검증 수행 중...');
     await db.awaitPendingWrites?.();
 
     const report = runReconciliationAudit(parsed);
@@ -2584,7 +2584,7 @@ export async function ingestExcelInitialData(
 }
 
 // ──────────────────────────────────────────────
-// 6. 4대 대차대조(Reconciliation) 정밀 검증
+// 6. 4대 대차대조 정밀 검증
 // ──────────────────────────────────────────────
 export function runReconciliationAudit(parsed: ParsedInitialData): ReconciliationReport {
   const ownedAssetsCount = parsed.assets.filter(a => a.ownerType === 'OWNED' && !a.isVirtual).length;
@@ -2593,7 +2593,7 @@ export function runReconciliationAudit(parsed: ParsedInitialData): Reconciliatio
 
   // 기존 보유자산 726대에 추가로 전대장비(임차) 수량까지 모두 합산하여 과부족 판정
   const expectedTotalAssets = 726 + rentedAssetsCount;
-  // 단, wsMain에서 자사자산(OWNED)이 추가 발견되었을 수 있으므로 유동적으로 검증
+  // 단, wsMain에서 자사자산이 추가 발견되었을 수 있으므로 유동적으로 검증
   const finalExpectedCount = Math.max(expectedTotalAssets, totalActualAssets);
   
   const currentMonthBills = parsed.billings.filter(b => b.billingYm === '2026-08');
@@ -2662,7 +2662,7 @@ export function runReconciliationAudit(parsed: ParsedInitialData): Reconciliatio
 export const parseWorkbookToEntities = parseInitialExcelWorkbook;
 
 // ────────────────────────────────────────────────────────────────────────────
-// 배차 이력 엑셀 파싱 & 적재 (Build.32)
+// 배차 이력 엑셀 파싱 & 적재
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface ParsedDispatchRow {
@@ -3063,7 +3063,7 @@ export async function rollbackDispatchData(
 
 /**
  * 💡 과거 소급 청구서 독립 선택 생성 및 적재 (기능 테스트 및 선택적 실행용)
- * 🌟 [전사 표준 헌장 4.1 준수] 소급 청구 생성 시 자산별 누적렌탈료(cumRentalFee) 1원도 오차 없이 정밀 가산 및 기존 소급액 롤백
+ * 🌟 [전사 표준 헌장 4.1 준수] 소급 청구 생성 시 자산별 누적렌탈료 1원도 오차 없이 정밀 가산 및 기존 소급액 롤백
  */
 export async function generateAndIngestHistoricalBillingsDirect(
   contracts: any[],
@@ -3220,7 +3220,7 @@ export async function generateAndIngestHistoricalBillingsDirect(
           billingDetails.push(d);
         });
 
-        // 🌟 계약 이력(contractHistories)에 소급 청구 생성 이력 1:1 무누락 생성
+        // 🌟 계약 이력에 소급 청구 생성 이력 1:1 무누락 생성
         contractHistories.push({
           id: `CH-HIST-${contract.id.replace(/[^a-zA-Z0-9]/g, '')}-${ymStr.replace('-', '')}`,
           contractId: contract.id,
@@ -3254,7 +3254,7 @@ export async function generateAndIngestHistoricalBillingsDirect(
         for (let i = 0; i < oldBillIds.length; i += 100) {
           const chunk = oldBillIds.slice(i, i + 100);
           let oldDetails: any[] | null = null;
-          // PostgreSQL 컬럼 대소문자 호환 (billingId vs billing_id)
+          // PostgreSQL 컬럼 대소문자 호환
           const res1 = await supabase.from('billing_details').select('*').in('billingId', chunk);
           if (!res1.error && res1.data) {
             oldDetails = res1.data;
@@ -3321,10 +3321,10 @@ export async function generateAndIngestHistoricalBillingsDirect(
       await batchUpsertChunked('contract_history', contractHistories, 100, msg => onProgress?.(4, 5, msg));
     }
 
-    // 🌟 [5단계: 자산 원장(assets.cumRentalFee) 재정산 및 보존 (헌장 4.1)]
+    // 🌟 [5단계: 자산 원장 재정산 및 보존 (헌장 4.1)]
     let updatedAssetCount = 0;
     if (assets && assets.length > 0) {
-      onProgress?.(5, 5, '자산별 누적렌탈료(cumRentalFee) 정밀 재집계 및 동기화 중...');
+      onProgress?.(5, 5, '자산별 누적렌탈료 정밀 재집계 및 동기화 중...');
       const assetMap = new Map<string, any>();
       assets.forEach(a => assetMap.set(a.id, { ...a }));
 
@@ -3363,7 +3363,7 @@ export async function generateAndIngestHistoricalBillingsDirect(
 
     return {
       success: true,
-      message: `지정 기간(${range.start} ~ ${range.end}) 소급 청구서 ${billings.length.toLocaleString()}건(₩${totalSum.toLocaleString()}원), 청구상세 ${billingDetails.length.toLocaleString()}건, 계약이력 ${contractHistories.length.toLocaleString()}건 적재 및 자산 ${updatedAssetCount}대 누적렌탈료(cumRentalFee) 정밀 집계 완료`,
+      message: `지정 기간(${range.start} ~ ${range.end}) 소급 청구서 ${billings.length.toLocaleString()}건(₩${totalSum.toLocaleString()}원), 청구상세 ${billingDetails.length.toLocaleString()}건, 계약이력 ${contractHistories.length.toLocaleString()}건 적재 및 자산 ${updatedAssetCount}대 누적렌탈료 정밀 집계 완료`,
       billingsCount: billings.length,
       detailsCount: billingDetails.length,
       historiesCount: contractHistories.length,
@@ -3760,7 +3760,7 @@ export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] 
       }
     });
 
-    // 🌟 [고객 요구사항 순수 통합] 본문 키워드 매칭 사양을 기본 유상옵션(paidOptions)과 기본 보양작업(protection)으로 자동 통합
+    // 🌟 [고객 요구사항 순수 통합] 본문 키워드 매칭 사양을 기본 유상옵션과 기본 보양작업으로 자동 통합
     const cleanedText = fullContentText.replace(/\s+/g, '');
     STANDARD_SPECS.forEach(spec => {
       const isMatched = spec.keywords.some(kw => cleanedText.includes(kw.replace(/\s+/g, '')));
@@ -3846,7 +3846,7 @@ export function analyzeDispatchHistoryForCustomerDefaults(
       return;
     }
 
-    // 유효 계약(contracts) 보유 여부 검증 (헌장 및 사장님 지침 준수)
+    // 유효 계약 보유 여부 검증 (헌장 및 사장님 지침 준수)
     const hasContract = contracts.some(c => c.customerId === matchedCustomer.id);
     if (!hasContract) {
       ignoredPosts.push({
@@ -3854,7 +3854,7 @@ export function analyzeDispatchHistoryForCustomerDefaults(
         date: p.dateStr,
         customerName: p.customerName,
         siteName: p.siteName || '-',
-        reason: '유효 계약(contracts) 없음 (거래 종료 고객)'
+        reason: '유효 계약 없음 (거래 종료 고객)'
       });
       return;
     }
@@ -4088,7 +4088,7 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
       }
     }
 
-    // 2. 고객 현장(customer_sites) 옵션 및 주소 직접 보완 (헌장 1.5 준수)
+    // 2. 고객 현장 옵션 및 주소 직접 보완 (헌장 1.5 준수)
     for (const siteItem of item.sites) {
       if (siteItem.siteId) {
         let existingSite = db.getRow<any>('customer_sites', siteItem.siteId);
@@ -4128,7 +4128,7 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
       }
     }
 
-    // 3. 담당자(contacts) 보완
+    // 3. 담당자 보완
     (item as any).contacts.forEach((ct: any) => {
       if ((ct as any).contact && (ct as any).contact !== '미상') {
         const existingContacts = db.customerContacts || [];
@@ -4163,7 +4163,7 @@ contact: (ct as any).contact,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 🛠️ [AS 이력 전수 분석 & 정비 마스터(repairs) 일괄 동기화 엔진]
+// 🛠️ [AS 이력 전수 분석 & 정비 마스터 일괄 동기화 엔진]
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ParsedBandAsRecord {
@@ -4365,7 +4365,7 @@ contact: string; raw: string; address?: string }[] {
     i++;
   }
 
-  // 🛡️ 날짜 미인식 레코드 대상 전후 인접 게시글 순차 보간 (Sequential Interpolation)
+  // 🛡️ 날짜 미인식 레코드 대상 전후 인접 게시글 순차 보간
   for (let idx = 0; idx < records.length; idx++) {
     if (!records[idx].date) {
       let prevDate = '';
@@ -4485,7 +4485,7 @@ export const AS_CLUSTER_RULES: AsClusterRule[] = [
     consumableKeyword: '타이어',
     score: 15,
     manHours: 1.0,
-    actionGuide: '주행 휠 너트 규격 토크 체결 및 비표시(Non-marking) 솔리드 타이어 마모도 교체'
+    actionGuide: '주행 휠 너트 규격 토크 체결 및 비표시 솔리드 타이어 마모도 교체'
   },
   {
     clusterId: 'JOYSTICK_FAIL',
@@ -4530,7 +4530,7 @@ export const AS_CLUSTER_RULES: AsClusterRule[] = [
     consumableKeyword: '리미트',
     score: 10,
     manHours: 0.5,
-    actionGuide: '포트홀(Pothole) 보호장치 전개 상태 및 리미트 스위치 감지 접점/배선 점검'
+    actionGuide: '포트홀 보호장치 전개 상태 및 리미트 스위치 감지 접점/배선 점검'
   },
   {
     clusterId: 'ERROR_CL',
@@ -4557,7 +4557,7 @@ export const AS_CLUSTER_RULES: AsClusterRule[] = [
     consumableKeyword: '틸트',
     score: 15,
     manHours: 0.8,
-    actionGuide: '기울기 경보 센서(Tilt Sensor) 수평 영점 캘리브레이션 및 수평면 레벨링 점검'
+    actionGuide: '기울기 경보 센서 수평 영점 캘리브레이션 및 수평면 레벨링 점검'
   },
   {
     clusterId: 'ERROR_MOTOR_F129',
@@ -4566,7 +4566,7 @@ export const AS_CLUSTER_RULES: AsClusterRule[] = [
     consumableKeyword: '모터컨트롤러',
     score: 20,
     manHours: 1.5,
-    actionGuide: '모터 컨트롤러(MCU) CAN 통신 배선 및 전원단자 체결 상태 진단기 점검'
+    actionGuide: '모터 컨트롤러 CAN 통신 배선 및 전원단자 체결 상태 진단기 점검'
   },
   {
     clusterId: 'NOISE_MECHANICAL',
@@ -4849,7 +4849,7 @@ export function analyzeBandAsHistory(
       }
     }
 
-    // 🌟 5. 자산 마스터(assets) 및 계약(contracts) 기반 현장/고객사 역추적 (Back-tracking)
+    // 🌟 5. 자산 마스터 및 계약 기반 현장/고객사 역추적
     let isAssetBacktracked = false;
     if (matchedAsset) {
       // 5-1. 현장명이 누락되었거나 미지정현장인 경우, 자산의 현재 현장 정보 역추적
@@ -5032,7 +5032,7 @@ export async function ingestBandAsHistoryDirect(
 
     newRepairs.push(repairRow);
 
-    // 자산 이력 로그(AssetInOutLog)
+    // 자산 이력 로그
     if (r.matchedAssetNo && r.matchedAssetNo !== '현장확인' && r.matchedAssetNo !== '전체장비') {
       const realAssetId = (r.matchedAssetId && validAssetIds.has(r.matchedAssetId))
         ? r.matchedAssetId
@@ -5058,7 +5058,7 @@ export async function ingestBandAsHistoryDirect(
       }
     }
 
-    // 계약 이력(ContractHistory)
+    // 계약 이력
     if (r.matchedContractId && validContractIds.has(r.matchedContractId) && r.status === 'COMPLETED') {
       newContractHistories.push({
         id: `ch-as-band-${Date.now()}-${idx + 1}`,
@@ -5078,7 +5078,7 @@ export async function ingestBandAsHistoryDirect(
   }
 
   if (newRepairs.length > 0) {
-    onProgress?.(total, total, `정비 마스터(repairs) ${newRepairs.length}건 Supabase DB 적재 중...`);
+    onProgress?.(total, total, `정비 마스터 ${newRepairs.length}건 Supabase DB 적재 중...`);
     await batchUpsertChunked('repairs', newRepairs, 100);
     db.repairs = [...newRepairs, ...(db.repairs || [])];
   }
@@ -5097,7 +5097,7 @@ export async function ingestBandAsHistoryDirect(
 
   return {
     success: true,
-    message: `🎉 밴드 과거 AS 이력 총 ${importedCount.toLocaleString()}건이 정비 마스터(repairs) 및 자산/계약 이력에 성공적으로 일괄 적재되었습니다.`,
+    message: `🎉 밴드 과거 AS 이력 총 ${importedCount.toLocaleString()}건이 정비 마스터 및 자산/계약 이력에 성공적으로 일괄 적재되었습니다.`,
     count: importedCount
   };
 }
@@ -5372,7 +5372,7 @@ export async function syncInspectionChecklistFromBandRepairs(
   onProgress?: (step: number, total: number, msg: string) => void
 ): Promise<{ success: boolean; message: string; itemCount: number; updatedRepairsCount: number }> {
   try {
-    onProgress?.(1, 4, 'DB 정비 이력(repairs) 조회 중...');
+    onProgress?.(1, 4, 'DB 정비 이력 조회 중...');
     let repRows: any[] = [];
     if (supabase) {
       let page = 0;
@@ -5497,8 +5497,8 @@ export function exportInitialDataExcelTemplate(tenantName: string = '신규테�
 
   // 1. 자산_장비목록 시트
   const assetHeaders = [
-    '관리번호*', '제조사*', '모델명*', '작업높이(m)', '장비상태*',
-    '시리얼번호', '도입일자', '취득가액', '월렌탈료', '일렌탈료', '주기장명', '비고'
+    '관리번호*', '제조사*', '모델명*', '작업높이(미터)', '장비상태*',
+    '제조번호', '도입일자', '취득가액', '월렌탈료', '일렌탈료', '주기장명', '비고'
   ];
   const sampleAssets = [
     ['KY-001', 'GENIE', 'GS-1930', 7.8, '대여가능', 'GS1930-100234', '2024-01-15', 12000000, 350000, 25000, '본사 주기장', '초기 도입 장비'],

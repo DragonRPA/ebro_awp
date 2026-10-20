@@ -73,7 +73,7 @@ export const ConsumableInOutPage: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // --- [1] 입고(Inbound) 상태 ---
+  // --- [1] 입고 상태 ---
   const [selectedReqId, setSelectedReqId] = useState('');
   const [inboundQty, setInboundQty] = useState(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -82,7 +82,7 @@ export const ConsumableInOutPage: React.FC = () => {
   const [noInvoiceReason, setNoInvoiceReason] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
-  // --- [2] 출고(Outbound/Use) 상태 ---
+  // --- [2] 출고 상태 ---
   const [useConsumableId, setUseConsumableId] = useState('');
   const [useQty, setUseQty] = useState(1);
   const [useAssetId, setUseAssetId] = useState('');
@@ -91,7 +91,7 @@ export const ConsumableInOutPage: React.FC = () => {
   const [consumableSearchQuery, setConsumableSearchQuery] = useState('');
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
 
-  // --- [3] 입출고 이력(Logs) 필터 상태 ---
+  // --- [3] 입출고 이력 필터 상태 ---
   const thisMonthStart = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; })();
   const thisMonthEnd   = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0')}`; })();
   const [logSearch, setLogSearch] = useState('');
@@ -150,7 +150,7 @@ export const ConsumableInOutPage: React.FC = () => {
       );
       if (hasExplicitPerm) return true;
 
-      // 3. 직무 템플릿(RBAC) 기준 권한 확인
+      // 3. 직무 템플릿 기준 권한 확인
       const dept = u.departmentId || u.department;
       const canViewStock = getRoleTemplatePermission(u.role, dept, 'consumable_stock', 'view');
       const canViewInout = getRoleTemplatePermission(u.role, dept, 'consumable_inout', 'view');
@@ -434,7 +434,7 @@ export const ConsumableInOutPage: React.FC = () => {
     const excelData = sortedLogs.map((l, idx) => {
       const item = consumableMap.get(l.consumableId);
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '구분': l.type === 'INBOUND' ? '구매입고' :
                 l.type === 'OUTBOUND' ? '현장출고' :
                 l.type === 'TRANSFER_TO_VEHICLE' ? '차량불출' :
@@ -1137,7 +1137,7 @@ export const ConsumableInOutPage: React.FC = () => {
               <table style={{ width: '100%', whiteSpace: 'nowrap', fontSize: '12px' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '45px', textAlign: 'center', whiteSpace: 'nowrap' }}>No</th>
+                    <th style={{ width: '45px', textAlign: 'center', whiteSpace: 'nowrap' }}>순번</th>
                     <SortableTh sortKey="type" currentSort={logSortConfig} onSort={requestLogSort}>구분</SortableTh>
                     <SortableTh sortKey="modelName" currentSort={logSortConfig} onSort={requestLogSort}>품목명</SortableTh>
                     <SortableTh sortKey="quantity" currentSort={logSortConfig} onSort={requestLogSort} align="center">수량</SortableTh>

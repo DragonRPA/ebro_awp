@@ -1,6 +1,6 @@
 // @ts-nocheck
 // src/data/modalManuals.ts
-// 전사 팝업(모달) 전용 표준 업무 매뉴얼 및 활성 모달 DOM 자동 감지 엔진 (SSOT)
+// 전사 팝업(모달) 전용 표준 업무 매뉴얼 및 활성 모달 DOM 자동 감지 엔진
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
 
 /**
@@ -116,7 +116,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'button[type="submit"], button:contains("의뢰"), button.btn-primary:contains("교체"), button.btn-primary',
         type: 'click_ripple',
         label: '단일 교환 배차 발행',
-        description: '출고/입고를 분할하지 않고 1건의 왕복 교환 배차(EXCHANGE)로 즉시 배차 대장에 인입됩니다.',
+        description: '출고/입고를 분할하지 않고 1건의 왕복 교환 배차로 즉시 배차 대장에 인입됩니다.',
         badgeColor: '#DC2626',
         positionHint: 'top',
         spotlight: true,
@@ -216,7 +216,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'button.btn-primary:contains("승인"), button.btn-primary:contains("출고"), button[type="submit"]',
         type: 'click_ripple',
         label: '출고 승인 ➔ 대여중 상태 전환',
-        description: '헌장 1.3 원칙에 따라 검수 승인 완료 즉시 자산 상태가 대여중(RENTED)으로 전환 마감됩니다.',
+        description: '헌장 1.3 원칙에 따라 검수 승인 완료 즉시 자산 상태가 대여중으로 전환 마감됩니다.',
         badgeColor: '#DC2626',
         positionHint: 'top',
         spotlight: true,
@@ -246,7 +246,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'select[name*="defect"], select[name*="fault"], input[type="checkbox"]',
         type: 'stamp',
         label: '외관 파손 및 고객 과실 귀책 판정',
-        description: '타이어 찢김, 발판 찌그러짐, 페인트 오염 등 고객 과실(PAID_BY_CUSTOMER) 여부를 판단합니다.',
+        description: '타이어 찢김, 발판 찌그러짐, 페인트 오염 등 고객 과실 여부를 판단합니다.',
         badgeColor: '#047857',
         positionHint: 'bottom',
         spotlight: false,
@@ -256,7 +256,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'button.btn-primary:contains("승인"), button.btn-primary:contains("반납"), button[type="submit"]',
         type: 'click_ripple',
         label: '반납 승인 (임대가능 또는 정비 입고 전환)',
-        description: '결함이 없으면 AVAILABLE(임대가능), 수리가 필요하면 REPAIRING(정비중)으로 안전하게 분기 전이됩니다.',
+        description: '결함이 없으면 임대가능, 수리가 필요하면 정비중으로 안전하게 분기 전이됩니다.',
         badgeColor: '#DC2626',
         positionHint: 'top',
         spotlight: true,
@@ -336,7 +336,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'input[placeholder*="사유"], textarea',
         type: 'stamp',
         label: '운송료 수정 사유 기재',
-        description: '월말 운송료 대사(Audit) 시 증빙으로 활용될 변동 사유를 명시합니다.',
+        description: '월말 운송료 대사 시 증빙으로 활용될 변동 사유를 명시합니다.',
         badgeColor: '#047857',
         positionHint: 'bottom',
         spotlight: false,
@@ -376,7 +376,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'input[name*="cost"], input[placeholder*="운송료"], select[name*="paidBy"]',
         type: 'stamp',
         label: '운송비 금액 및 지급/청구 주체',
-        description: '당사 부담(OURS), 고객 청구(CUSTOMER), 거래처 부담(VENDOR) 귀속선을 명확히 지정합니다.',
+        description: '당사 부담, 고객 청구, 거래처 부담 귀속선을 명확히 지정합니다.',
         badgeColor: '#047857',
         positionHint: 'bottom',
         spotlight: false,
@@ -426,7 +426,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'select[name*="paidBy"], input[placeholder*="수리비"], input[placeholder*="공임"]',
         type: 'stamp',
         label: '수리비 청구 구분 (유상 청구 / 당사 부담)',
-        description: '고객 과실 파손인 경우 유상 수리비 청구(REPAIR_BILLING) 결재선으로 연계됩니다.',
+        description: '고객 과실 파손인 경우 유상 수리비 청구 결재선으로 연계됩니다.',
         badgeColor: '#B45309',
         positionHint: 'bottom',
         spotlight: false,
@@ -636,7 +636,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'input[type="file"], button:contains("파일 선택"), .card h3',
         type: 'callout',
         label: '표준 서식 엑셀 파일 선택',
-        description: '시스템 표준 템플릿(.xlsx)에 맞추어 작성된 파일을 선택하여 로드합니다.',
+        description: '시스템 표준 템플릿에 맞추어 작성된 파일을 선택하여 로드합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true,
@@ -775,7 +775,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         seq: 1,
         selector: '.wind-speed, [data-mid*="wind"], .card h3',
         type: 'callout',
-        label: '실시간 풍속(m/s) 및 돌풍 지수',
+        label: '실시간 풍속(초속 미터) 및 돌풍 지수',
         description: '현장 실시간 풍속을 확인합니다. 고소작업대 표준 안전 수칙상 10m/s 이상 시 작업이 금지됩니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
@@ -816,7 +816,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'input[name*="asset"], input[placeholder*="자산번호"], .card h3',
         type: 'callout',
         label: '자산 관리 번호 (사번식 식별자)',
-        description: '회사 고유 자산번호(예: SJ-001) 및 차대번호(Serial Number)를 기재합니다.',
+        description: '회사 고유 자산번호(예: SJ-001) 및 제조번호를 기재합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true,
@@ -1059,7 +1059,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: '[data-mid="trade_contract_modal-special_terms"]',
         type: 'stamp',
         label: '5대 표준 특약 사항',
-        description: '운송비 부담 주체, 검수 기한(3영업일), 하자 발생 시 무상 맞교환 등 특약을 정의합니다.',
+        description: '운송비 부담 주체, 검수 기한(3영업일), 하자 발생 시 무상 교환 등 특약을 정의합니다.',
         badgeColor: '#0F172A',
         positionHint: 'top',
         spotlight: false,
@@ -1079,7 +1079,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: '[data-mid="trade_contract_modal-download_excel_btn"], [data-mid="trade_contract_modal-open_excel_agent_btn"]',
         type: 'click_ripple',
         label: '표준 엑셀 계약서 다운로드 및 에이전트 연동',
-        description: 'ExcelJS 기반 표준 물품매매계약서(.xlsx) 파일을 다운로드하거나 로컬 에이전트로 즉시 실행합니다.',
+        description: 'ExcelJS 기반 표준 물품매매계약서 파일을 다운로드하거나 로컬 에이전트로 즉시 실행합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true,
@@ -1261,7 +1261,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: '[data-mid="input-product-height"], input[placeholder*="작업높이"]',
         type: 'stamp',
         label: '2. 핵심 작업 제원 (5개 항목)',
-        description: '최대 작업높이(m), 최대 발판높이(m), 장비 중량(kg), 정격하중(kg), 등판능력(%)을 상세 조회/수정 폼과 100% 동일한 항목으로 입력합니다.',
+        description: '최대 작업높이(미터), 최대 발판높이(미터), 장비 중량(킬로그램), 정격하중(킬로그램), 등판능력(%)을 상세 조회/수정 폼과 100% 동일한 항목으로 입력합니다.',
         badgeColor: '#047857',
         positionHint: 'bottom',
         spotlight: false,
@@ -1301,7 +1301,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: '[data-mid*="tenant-modal-tab"], button:contains("기본 사업자"), button:contains("공식메일설정")',
         type: 'callout',
         label: '테넌트 통합 설정 탭 바',
-        description: '기본 사업자·인감·CPO, 사업장·주기장, 모듈 라이선스, 특수기능/AI, 공식메일설정(EMAIL), 클라우드 스토리지(R2) 탭을 전환합니다.',
+        description: '기본 사업자·인감·CPO, 사업장·주기장, 모듈 라이선스, 특수기능/AI, 공식메일설정, 클라우드 스토리지 탭을 전환합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true,
@@ -1371,7 +1371,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: 'button.btn-primary:contains("발송"), button:contains("패키지 발송")',
         type: 'click_ripple',
         label: '계약서 패키지 통합 발송 및 마일스톤 완결',
-        description: '선택된 문서를 일괄 조립·발송하고 계약의 [계약서패키지] 마일스톤(packageSentAt)을 즉시 완료 전환합니다.',
+        description: '선택된 문서를 일괄 조립·발송하고 계약의 [계약서패키지] 마일스톤을 즉시 완료 전환합니다.',
         badgeColor: '#DC2626',
         positionHint: 'top',
         spotlight: true,
@@ -1553,7 +1553,7 @@ export function detectCurrentContext(baseMenuId: string, defaultTitle?: string):
   const activeModal = detectActiveModalElement();
   if (activeModal) {
     // 💡 [가드] 모달 키가 특정되지 않고 'modal_generic_dialog'인 경우,
-    // 메인 메뉴(baseMenuId)가 명확하게 주어진 상태라면 가짜 감지일 가능성을 배제하기 위해
+    // 메인 메뉴가 명확하게 주어진 상태라면 가짜 감지일 가능성을 배제하기 위해
     // 실제 role="dialog", aria-modal="true" 또는 명시적 모달 클래스일 경우에만 모달로 인정!
     const isExplicit = activeModal.modalEl.getAttribute('role') === 'dialog' ||
                        activeModal.modalEl.getAttribute('aria-modal') === 'true' ||
@@ -1570,7 +1570,7 @@ export function detectCurrentContext(baseMenuId: string, defaultTitle?: string):
     }
   }
 
-  // 2. 현재 화면에 표시(visible) 중인 서브뷰 감지 ([data-subview])
+  // 2. 현재 화면에 표시 중인 서브뷰 감지 ([data-subview])
   const subviewEls = Array.from(document.querySelectorAll<HTMLElement>('[data-subview]'));
   for (const el of subviewEls) {
     // 매뉴얼 자체 UI 배제

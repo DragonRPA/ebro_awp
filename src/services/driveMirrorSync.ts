@@ -1,6 +1,6 @@
 // src/services/driveMirrorSync.ts
 // e-Bro ERP Cloudflare R2 ➔ 로컬 PC (C:\eBroAgent\drive_mirror\) 단방향 미러링 동기화 엔진
-// 원칙: CF R2가 유일한 마스터 원본(SSOT), 로컬 drive_mirror는 항상 CF R2를 따라가는 읽기 전용 사본
+// 원칙: CF R2가 유일한 마스터 원본, 로컬 drive_mirror는 항상 CF R2를 따라가는 읽기 전용 사본
 
 import { OfficialMailConfig } from './db';
 import { fetchWithAgentFallback } from './agentService';
@@ -114,7 +114,7 @@ const CF_MANIFEST_FILES: Array<{ key: string; size: number }> = [
 
 /**
  * CF R2 버킷 전체 파일을 로컬 에이전트로 미러링
- * - CF R2가 원본(SSOT), 로컬은 항상 원본을 단방향으로 덮어씌우는 사본
+ * - CF R2가 원본, 로컬은 항상 원본을 단방향으로 덮어씌우는 사본
  * - 구글 드라이브, Apps Script, 내장 HTML 템플릿 일체 사용 안 함
  */
 export async function executeDriveMirrorSync(

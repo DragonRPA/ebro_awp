@@ -5,7 +5,7 @@
  * [목적]
  * MCP(Model Context Protocol) 및 에이전틱 AI가 ERP를 자동화할 때,
  * 브라우저 및 시스템이 모든 비동기 초기화(인증, 테넌트, 권한, 라우트)를 마치고
- * 100% 조작 가능한 준비 상태(Ready)인지 일관되게 확인할 수 있는 표준 인터페이스를 제공합니다.
+ * 100% 조작 가능한 준비 상태인지 일관되게 확인할 수 있는 표준 인터페이스를 제공합니다.
  */
 
 export interface ErpReadinessDiagnostics {
@@ -76,7 +76,7 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * ERP 시스템이 조작 가능한 상태(Ready)임을 브라우저 전역에 공표합니다.
+ * ERP 시스템이 조작 가능한 상태임을 브라우저 전역에 공표합니다.
  */
 export const markErpReady = (options: {
   user?: any;

@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
  * src/services/incomeStatementEngine.ts
- * 월간 결산 손익계산서(Financial Income Statement) 정밀 산출 및 정기보고서 생성 엔진
+ * 월간 결산 손익계산서 정밀 산출 및 정기보고서 생성 엔진
  * 
  * [헌장 준수 기준]
  * - 헌장 1.4: 1단어 1뜻 전사 표준 용어 준수 (순 렌탈료 매출, 유통매출, 감가상각비, 임차렌탈료 등)
@@ -64,7 +64,7 @@ export interface IncomeStatementCalculationResult {
 }
 
 /**
- * 전사 DB 원천 데이터를 기반으로 지정 연월(YYYY-MM)의 재무 손익계산서를 수학적으로 정밀 계산
+ * 전사 DB 원천 데이터를 기반으로 지정 연월(연월)의 재무 손익계산서를 수학적으로 정밀 계산
  */
 export function calculateMonthlyIncomeStatement(
   targetYm: string,
@@ -103,7 +103,7 @@ export function calculateMonthlyIncomeStatement(
   let otherPartsRevenue = 0;
   let otherMiscRevenue = 0;
 
-  // 청구서 상세(billingDetails) 기반 정밀 분류
+  // 청구서 상세 기반 정밀 분류
   if (monthDetails.length > 0) {
     monthDetails.forEach((d: any) => {
       const amt = Number(d.amount || 0);
@@ -125,7 +125,7 @@ export function calculateMonthlyIncomeStatement(
       }
     });
   } else {
-    // 상세 내역 부재 시 청구서 헤더(billings) 유형별 집계
+    // 상세 내역 부재 시 청구서 헤더 유형별 집계
     monthBillings.forEach((b: any) => {
       const tot = Number(b.totalAmount || 0);
       if (b.billingType === 'ASSET_SALE') {
@@ -190,7 +190,7 @@ export function calculateMonthlyIncomeStatement(
   if (leaseSettlements.length > 0) {
     subleasePaymentCost = leaseSettlements.reduce((sum: number, p: any) => sum + Number(p.totalAmount || 0), 0);
   } else {
-    // 외부 타사 임차 계약(externalLeases) 활성 장비 월 임차료 합계
+    // 외부 타사 임차 계약 활성 장비 월 임차료 합계
     const activeLeases = externalLeases.filter((l: any) => {
       const start = l.leaseStartDate || '2000-01-01';
       const end = l.leaseEndDate || '9999-12-31';
@@ -239,13 +239,13 @@ export function calculateMonthlyIncomeStatement(
   const otherCostTotal = settledTransportCost + settledRepairCost + settledPartsCost + settledMiscCost;
   const otherNetProfit = otherRevenueTotal - otherCostTotal;
 
-  // 총 매출원가 및 매출총이익 (Gross Profit)
+  // 총 매출원가 및 매출총이익
   const totalCostOfSales = rentalCostTotal + distributionCost + otherCostTotal;
   const grossProfit = pureRentalProfit + pureDistributionProfit + otherNetProfit;
   const grossMarginRate = totalRevenue > 0 ? parseFloat(((grossProfit / totalRevenue) * 100).toFixed(1)) : 0;
 
   // ─────────────────────────────────────────────────────────────
-  // 3. [판매비와 일반관리비 (SG&A)]
+  // 3. [판매비와 일반관리비]
   // ─────────────────────────────────────────────────────────────
 
   // 3-1. 임직원 급여 (기본급 + 연장수당 등)
@@ -359,7 +359,7 @@ export function calculateMonthlyIncomeStatement(
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 7. [표준 재무제표 손익계산서 행(Row) 생성]
+  // 7. [표준 재무제표 손익계산서 행 생성]
   // ─────────────────────────────────────────────────────────────
   const rows: IncomeStatementRow[] = [
     // Ⅰ. 매출액

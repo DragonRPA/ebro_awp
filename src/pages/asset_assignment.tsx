@@ -440,8 +440,8 @@ export const AssetAssignment: React.FC = () => {
       const isExchange = ca.contractId ? exchangeHistoryByContractMap.has(ca.contractId) : false;
       
       exportRows.push({
-        'No': idx + 1,
-        '구분': isExchange ? '대차/교체' : '일반계약',
+        '순번': idx + 1,
+        '구분': isExchange ? '교환' : '일반계약',
         '계약번호': contract?.contractNo || '미등록',
         '고객사명': cust?.name || '미등록',
         '계약시작일': contract?.startDate || '',

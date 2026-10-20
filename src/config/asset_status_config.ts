@@ -1,4 +1,4 @@
-// src/config/asset_status_config.ts — 자산 상태 단일 원본 마스터 장부 (SSOT)
+// src/config/asset_status_config.ts — 자산 상태 단일 원본 마스터 장부
 
 export type AssetStatusKey = 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD';
 
@@ -9,7 +9,7 @@ export interface AssetStatusDetail {
   description: string;
 }
 
-// 자산 상태 전사 단일 원본 정의 (Single Source of Truth)
+// 자산 상태 전사 단일 원본 정의
 export const ASSET_STATUS_SSOT: Record<AssetStatusKey, AssetStatusDetail> = {
   AVAILABLE: {
     code: 'AVAILABLE',

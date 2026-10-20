@@ -1,11 +1,11 @@
 // src/services/manualAiEngine.ts
 /**
- * 고소작업대(AWP/MEWP) MRO 기술 문서 AI 메타데이터 자동 추출 및 다차원 색인 엔진
+ * 고소작업대 MRO 기술 문서 AI 메타데이터 자동 추출 및 다차원 색인 엔진
  * 
  * - 기능:
  *   1. PDF 제목, 모델명, 제조사, 카테고리, 메모 및 텍스트 샘플 분석
  *   2. Groq LPU (LLaMA 3.3) 및 Gemini Flash API 비동기 추출 시도
- *   3. 네트워크/오프라인 환경에서도 100% 무중단 작동하는 고소작업대 특화 룰베이스 AI 엔진 내장 (Fault-Tolerant)
+ *   3. 네트워크/오프라인 환경에서도 100% 무중단 작동하는 고소작업대 특화 룰베이스 AI 엔진 내장
  *   4. 5대 핵심 메타데이터 추출:
  *      • keywords   : 검색용 태그 (솔레노이드, 릴레이, 상승불가, 조이스틱 등)
  *      • errorCodes : 문서 수록 에러코드 (02, 18, LL, OL, E01 등)
@@ -47,7 +47,7 @@ const MRO_DOMAIN_KNOWLEDGE: Record<string, {
   },
   'dingli': {
     errorCodes: ['E01', 'E02', 'E03', 'E04', 'E05', 'E12', 'E16', 'LL', 'OL'],
-    majorParts: ['Curtis 모터 컨트롤러', '비상정지 스위치 버튼', '포트홀(Pothole) 리미트 스위치', 'Delta-Q 내장 충전기', '압력 센서 트랜스듀서'],
+    majorParts: ['Curtis 모터 컨트롤러', '비상정지 스위치 버튼', '포트홀 리미트 스위치', 'Delta-Q 내장 충전기', '압력 센서 트랜스듀서'],
     symptoms: ['포트홀 미하강으로 상승 제한', 'E02 모터 과열 경보', 'E12 배터리 저전압 컷오프', '발판 확장 슬라이드 걸림', '주행 감속 고착'],
     keywords: ['Dingli', '딩리', 'JCPT', 'Curtis컨트롤러', '포트홀보호', '리미트스위치', '충전기', '유압밸브블록']
   },
@@ -66,7 +66,7 @@ const MRO_DOMAIN_KNOWLEDGE: Record<string, {
 };
 
 /**
- * 도메인 텍스트 분석 기반 지능형 메타데이터 추출기 (Offline Heuristic AI)
+ * 도메인 텍스트 분석 기반 지능형 메타데이터 추출기
  */
 export function extractMetadataByHeuristics(manual: Partial<EquipmentManual>, extraText?: string): ManualAiMetadataResult {
   const title = (manual.title || '').toLowerCase();
@@ -170,7 +170,7 @@ export function extractMetadataByHeuristics(manual: Partial<EquipmentManual>, ex
   } else if (cat === 'WIRING_DIAGRAM') {
     aiSummary = `${mfrLabel} ${modelLabel} 기종의 24V 전원 공급 라인, 조이스틱 통신선, 비상정지 릴레이 및 솔레노이드 밸브 블록 전기/유압 통합 배선도.`;
   } else if (cat === 'PARTS_BOOK') {
-    aiSummary = `${mfrLabel} ${modelLabel} 샤시, 플랫폼 확장 메커니즘, 상승 실린더 및 주행 유압 모터의 파츠 분해도와 정품 소모품 품번(Part Number) 카탈로그.`;
+    aiSummary = `${mfrLabel} ${modelLabel} 샤시, 플랫폼 확장 메커니즘, 상승 실린더 및 주행 유압 모터의 파츠 분해도와 정품 소모품 품번 카탈로그.`;
   } else {
     aiSummary = `${mfrLabel} ${modelLabel} 운전자 기본 취급 조작 요령, 안전 허용 하중, 출고 전 점검 가이드 및 비상 시 수동 하강 레버 조작 절차 설명.`;
   }
@@ -255,7 +255,7 @@ export async function batchIndexManualsAI(
       updatedAt: nowStr
     });
 
-    // 논블로킹 UI 딜레이 (10ms)
+    // 논블로킹 UI 딜레이
     await new Promise(r => setTimeout(r, 10));
   }
 

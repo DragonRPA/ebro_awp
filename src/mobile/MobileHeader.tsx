@@ -135,7 +135,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
               />
             </button>
 
-            {/* 📻 현장 무전기 (PTT) 버튼 */}
+            {/* 📻 현장 무전기 버튼 */}
             <button
               type="button"
               onClick={onOpenWalkieTalkie}

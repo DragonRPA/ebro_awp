@@ -1,12 +1,12 @@
 // src/services/hometaxTaxInvoiceParser.ts
-// 국세청 홈택스 전자세금계산서(매입) 엑셀(.xlsx/.xls) 및 표준 XML 파싱 엔진
+// 국세청 홈택스 전자세금계산서(매입) 엑셀 및 표준 XML 파싱 엔진
 import * as XLSX from 'xlsx';
 
 export interface HometaxPurchaseInvoiceItem {
   taxInvoiceNo: string;           // 국세청 승인번호 (24자리 또는 고유번호)
-  writeDate: string;              // 작성일자 (YYYY-MM-DD)
-  issueDate?: string;             // 발급일자 (YYYY-MM-DD)
-  sendDate?: string;              // 전송일자 (YYYY-MM-DD)
+  writeDate: string;              // 작성일자(일자)
+  issueDate?: string;             // 발급일자(일자)
+  sendDate?: string;              // 전송일자(일자)
   supplierBizNo: string;          // 공급자 사업자등록번호 (10자리 숫자)
   formattedSupplierBizNo: string; // 000-00-00000 포맷
   supplierName: string;           // 공급자 상호
@@ -78,7 +78,7 @@ function normalizeApprovalNo(val: any): string {
 }
 
 /**
- * 홈택스 전자세금계산서 엑셀 파일(.xlsx, .xls) 파싱
+ * 홈택스 전자세금계산서 엑셀 파일 파싱
  */
 export async function parseHometaxInvoiceExcel(file: File): Promise<HometaxParseResult> {
   try {
@@ -104,7 +104,7 @@ export async function parseHometaxInvoiceExcel(file: File): Promise<HometaxParse
       };
     }
 
-    // 1. 헤더 행(Header Row) 탐색
+    // 1. 헤더 행 탐색
     let headerRowIdx = -1;
     let colMap: Record<string, number> = {};
 

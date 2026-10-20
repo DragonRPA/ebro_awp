@@ -205,7 +205,7 @@ const ApprovalInbox: React.FC = () => {
     // ── 반려 처리 ──
     if (action === 'REJECTED') {
       await supabase.from('approval_requests').update({ status: 'REJECTED' }).eq('id', requestId);
-      // 잔여 대기(WAITING/PENDING) 스텝 전체 취소 마감
+      // 잔여 대기 스텝 전체 취소 마감
       await supabase
         .from('approval_steps')
         .update({ status: 'CANCELLED' })
@@ -257,7 +257,7 @@ const ApprovalInbox: React.FC = () => {
     } 
     // ── 승인 처리 ──
     else {
-      // 1. 다음 순번 대기(WAITING) 스텝 조회
+      // 1. 다음 순번 대기 스텝 조회
       const { data: nextSteps } = await supabase
         .from('approval_steps')
         .select('*')
@@ -282,7 +282,7 @@ const ApprovalInbox: React.FC = () => {
         await supabase.from('approval_requests').update({ status: 'APPROVED' }).eq('id', requestId);
 
         if (reqItem) {
-          // ① 매출 청구 특수 거래명세서 자동 반영 (Zero Re-typing)
+          // ① 매출 청구 특수 거래명세서 자동 반영
           if (reqItem.target_table === 'billings') {
             const toBe = payload?.toBe;
             const updateObj: Partial<Billing> = {
@@ -311,7 +311,7 @@ const ApprovalInbox: React.FC = () => {
             refreshAllData();
           }
 
-          // ② 계약 기간 연장/단축 자동 반영 (Zero Re-typing)
+          // ② 계약 기간 연장/단축 자동 반영
           else if (reqItem.target_table === 'contracts') {
             const toBe = payload?.toBe;
             const targetContract = contracts.find(c => c.id === reqItem.target_record_id);

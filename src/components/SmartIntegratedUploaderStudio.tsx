@@ -157,7 +157,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   name: '명칭/이름',
   modelName: '모델명/품명',
   manufacturer: '제조사',
-  serialNo: '차대번호(S/N)',
+  serialNo: '제조번호',
   manufactureYear: '제작연도',
   assetNo: '관리번호(호기)',
   ownerType: '소유구분',
@@ -165,8 +165,8 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   acquisitionPrice: '취득원가',
   monthlyRentFee: '기준월렌탈료',
   dailyRentFee: '기준일렌탈료',
-  workingHeight: '작업높이(m)',
-  platformHeight: '발판높이(m)',
+  workingHeight: '작업높이(미터)',
+  platformHeight: '발판높이(미터)',
   machineDimensions: '장비외형규격',
   platformDimensions: '작업대규격',
   weight: '장비자중',
@@ -179,7 +179,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   maxWindSpeed: '허용풍속',
   asContact: 'AS문의처',
   spec: '제원/비고사양',
-  feet: '피트(ft)',
+  feet: '피트',
   department: '부서명',
   departmentId: '부서코드',
   loginId: '아이디',
@@ -213,7 +213,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   stockQty: '현재고수량',
   supplier: '주공급처',
   maintenanceScore: '정비배점',
-  standardManHours: '표준공수(h)',
+  standardManHours: '표준공수(시간)',
   isDefectSymptom: '불량증상여부',
   actionGuide: '조치/수리가이드',
   description: '설명/증상요약',
@@ -267,7 +267,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 마운트 시 로컬스토리지 임시보관본(Staging Draft) 확인
+  // 마운트 시 로컬스토리지 임시보관본 확인
   useEffect(() => {
     const draft = loadDraftFromStaging();
     if (draft) {
@@ -534,7 +534,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
     if (success) {
       setExistingDraft(draft);
       if (showNoticeModal) {
-        showNoticeModal('임시보관본(Staging Draft)이 브라우저에 안전하게 저장되었습니다.');
+        showNoticeModal('임시보관본이 브라우저에 안전하게 저장되었습니다.');
       }
     } else {
       if (showErrorModal) showErrorModal('임시보관본 저장에 실패했습니다.');
@@ -580,7 +580,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
     const confirmed = window.confirm(
       `총 ${parseResult.stats.totalEntitiesCount}건의 기초 데이터를 운영 DB에 확정 적재하시겠습니까?\n\n` +
       `• 대상: 8대 도메인 17개 테이블\n` +
-      `• 참조 무결성(FK) 순차 계층 적재가 실행됩니다.`
+      `• 참조 무결성 순차 계층 적재가 실행됩니다.`
     );
     if (!confirmed) return;
 
@@ -849,7 +849,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
         </div>
       )}
 
-      {/* ── 중앙 본문: 도메인 상세 검증 그리드 (Inspection Grid) ── */}
+      {/* ── 중앙 본문: 도메인 상세 검증 그리드 ── */}
       {parseResult && (
         <div className="card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -894,7 +894,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             </div>
 
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              * 중복 제거(Deduplication) 및 N:M 정규화 연결이 적용된 데이터입니다.
+              * 중복 제거 및 N:M 정규화 연결이 적용된 데이터입니다.
             </span>
           </div>
 
@@ -908,7 +908,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-body)', borderBottom: '1px solid var(--border-color)', height: '36px' }}>
-                    <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800 }}>NO</th>
+                    <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800 }}>순번</th>
                     {Object.keys(currentTableData[0] || {})
                       .filter(k => !['tenant_id', 'createdAt', 'updatedAt', 'passwordHash'].includes(k))
                       .map(col => (

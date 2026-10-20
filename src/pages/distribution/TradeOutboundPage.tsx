@@ -474,7 +474,7 @@ export const TradeOutboundPage: React.FC = () => {
           <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{kpi.total}건</div>
         </div>
         <div className="card" style={{ padding: '12px 16px', margin: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>할당 대기 (REQUESTED)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>할당 대기</div>
           <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '4px', color: kpi.requested > 0 ? '#d97706' : 'var(--text-main)', whiteSpace: 'nowrap' }}>{kpi.requested}건</div>
         </div>
         <div className="card" style={{ padding: '12px 16px', margin: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>

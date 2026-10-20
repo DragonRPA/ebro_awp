@@ -154,7 +154,7 @@ export function ensureContainerUnfolded(item: ManualAnnotationItem, root: Parent
     didUnfold = true;
   }
 
-  // 4. 결재선 규칙 탭 (RULES vs TIERS)
+  // 4. 결재선 규칙 탭
   if (sel.includes('tier-simulator') || sel.includes('duty-config') || sel.includes('position-config')) {
     const tierTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="approvalRules-tabs"] button')
       .find(b => b.innerText && b.innerText.includes('직급·직책'));
@@ -171,7 +171,7 @@ export function ensureContainerUnfolded(item: ManualAnnotationItem, root: Parent
     }
   }
 
-  // 5. 프린트 큐 모니터 탭 (stations vs queue)
+  // 5. 프린트 큐 모니터 탭
   if (sel.includes('queue-filter') || sel.includes('queue-grid')) {
     const queueTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="print_queue_monitor-tabs"] button')
       .find(b => b.innerText && b.innerText.includes('인쇄 대기 대장'));
@@ -573,7 +573,7 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
   );
 };
 
-/* ── 하단 플로팅 단계 안내 카드 (Dossier Popover) ──────────────── */
+/* ── 하단 플로팅 단계 안내 카드 ──────────────── */
 const BottomDossierCard: React.FC<{
   item: ManualAnnotationItem;
   totalCount: number;
@@ -600,8 +600,8 @@ const BottomDossierCard: React.FC<{
     }
   };
 
-  // 💡 [지능형 타겟 회피 배치 (Smart Collision Avoidance)]
-  // 매뉴얼 상세 카드가 타겟 UI 및 파동 효과(Click Ripple)를 가릴 경우,
+  // 💡 [지능형 타겟 회피 배치]
+  // 매뉴얼 상세 카드가 타겟 UI 및 파동 효과를 가릴 경우,
   // 타겟 위치를 감지하여 카드를 왼쪽 또는 오른쪽으로 자동 비켜서 배치!
   const getPositionStyle = (): React.CSSProperties => {
     if (typeof window === 'undefined') {
@@ -632,7 +632,7 @@ const BottomDossierCard: React.FC<{
     const tLeft = targetRect.left - 35;
     const tRight = targetRect.left + targetRect.width + 35;
 
-    // 카드가 기본 중앙 위치에 있을 때 타겟과 겹치는지(Collision) 검사
+    // 카드가 기본 중앙 위치에 있을 때 타겟과 겹치는지 검사
     const isColliding = !(
       tRight < defaultLeft ||
       tLeft > defaultRight ||
@@ -846,8 +846,8 @@ export const ManualOverlay: React.FC = () => {
       nextRects[item.seq] = getRect(el);
     });
 
-    // 💡 [깜빡임 및 불필요 리렌더링 원천 차단 가드 (Zero-Flicker Precision Guard)]
-    // 이전 엘리먼트 및 rect 좌표(0.5px 미만 차이)와 정밀 비교하여 변경이 없을 시 setState 생략(No-Op)
+    // 💡 [깜빡임 및 불필요 리렌더링 원천 차단 가드]
+    // 이전 엘리먼트 및 rect 좌표(0.5px 미만 차이)와 정밀 비교하여 변경이 없을 시 setState 생략
     const prevEls = elementsRef.current;
     const prevRects = rectsRef.current;
     let hasChanged = false;
@@ -1230,8 +1230,8 @@ export const ManualOverlay: React.FC = () => {
     }
   }, [mode]);
 
-  // 💡 [외부 트리거 및 모드 진입 보장] startGuidedTour 등으로 mode === 'viewing'이 시작되었거나 단위업무(activeProcessId) 전환 시:
-  // 1단계(seq 1) 자동 포커스 및 startTrackingLoop(1000) 트리거 보장!
+  // 💡 [외부 트리거 및 모드 진입 보장] startGuidedTour 등으로 mode === 'viewing'이 시작되었거나 단위업무 전환 시:
+  // 1단계 자동 포커스 및 startTrackingLoop(1000) 트리거 보장!
   useEffect(() => {
     if (mode === 'viewing') {
       const modeJustStarted = prevModeRef.current !== 'viewing';
@@ -1314,7 +1314,7 @@ export const ManualOverlay: React.FC = () => {
             />
 
             {/* 🌟 Click Ripple (파동 이펙트):
-                현재 사용자가 보고 있는 활성 단계(isExpanded)의 UI 요소에만 파동 이펙트 집중 표출!
+                현재 사용자가 보고 있는 활성 단계의 UI 요소에만 파동 이펙트 집중 표출!
                 비활성 단계에 파동이 고정되어 머물러 있는 현상을 원천 방지 */}
             {isExpanded && (
               <ClickRipple

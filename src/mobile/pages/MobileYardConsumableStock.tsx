@@ -39,7 +39,7 @@ export const MobileYardConsumableStock: React.FC<MobileYardConsumableStockProps>
     new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   );
 
-  // 화면 활성화(Visibility/Focus) 시 0.3초 자동 최신화
+  // 화면 활성화 시 0.3초 자동 최신화
   useEffect(() => {
     const handleSync = async () => {
       if (document.visibilityState === 'visible') {

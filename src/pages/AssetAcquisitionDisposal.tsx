@@ -77,7 +77,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   // ==========================================================================
-  // 🏢 [스튜디오 1] 자산 취득 스튜디오 (Asset Acquisition Studio)
+  // 🏢 [스튜디오 1] 자산 취득 스튜디오
   // ==========================================================================
   const [acqMode, setAcqMode] = useState<'SINGLE' | 'EXCEL'>('SINGLE');
 
@@ -436,10 +436,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     const headers = [
       '관리번호',
       '모델명',
-      '제조번호(SN)',
+      '제조번호',
       '제조사',
       '제조년도',
-      '취득일자(YYYY-MM-DD)',
+      '취득일자(일자)',
       '취득원가',
       '내용월수',
       '잔존가치율',
@@ -609,7 +609,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   const [includeRepairing, setIncludeRepairing] = useState<boolean>(false);
   const [checkedAssetIds, setCheckedAssetIds] = useState<Set<string>>(new Set());
 
-  // 매각 확정 바구니 (Cart) 아이템 인터페이스
+  // 매각 확정 바구니 아이템 인터페이스
   interface DisposalBasketItem {
     id: string;
     assetNo: string;
@@ -839,10 +839,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       const bookVal = assetDepreciationMap.get(a.id) ?? 0;
       const inBasket = basketAssetIdSet.has(a.id);
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '관리번호': a.assetNo || '',
         '모델명': a.modelName || '',
-        '제조번호(SN)': a.serialNo || '',
+        '제조번호': a.serialNo || '',
         '제조사': a.manufacturer || '',
         '제조년도': a.manufactureYear ? `${a.manufactureYear}년` : '',
         '취득일자': a.acquisitionDate || '',
@@ -867,10 +867,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     const exportRows = disposalBasket.map((b, idx) => {
       const margin = b.salePrice - b.bookValue;
       return {
-        'No': idx + 1,
+        '순번': idx + 1,
         '관리번호': b.assetNo,
         '모델명': b.modelName,
-        '제조번호(SN)': b.serialNo || '',
+        '제조번호': b.serialNo || '',
         '제조년도': b.manufactureYear ? `${b.manufactureYear}년` : '',
         '취득원가': b.acquisitionPrice || 0,
         '장부가액': b.bookValue,
@@ -892,7 +892,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     const results: SelectedSupplierInfo[] = [];
     const seenNames = new Set<string>();
 
-    // 1. 등록 제조/공급사 (vendors)
+    // 1. 등록 제조/공급사
     for (let i = 0; i < vendors.length; i++) {
       const v = vendors[i];
       if (
@@ -916,7 +916,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       }
     }
 
-    // 2. 고객사 및 중고 딜러 (customers)
+    // 2. 고객사 및 중고 딜러
     for (let i = 0; i < customers.length; i++) {
       const c = customers[i];
       if (
@@ -1128,7 +1128,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   return (
     <div data-hs-observe="assetacquisitiondisposal" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
-      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      {/* ── 표준 헤더 바 ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -1327,7 +1327,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   />
                 </div>
 
-                {/* 3. 일련번호 (S/N) */}
+                {/* 3. 제조번호 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>제조번호</label>
                   <input
@@ -1695,7 +1695,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                           </span>
                         </div>
 
-                        {/* 4. 제조번호 (S/N) */}
+                        {/* 4. 제조번호 */}
                         <input
                           type="text"
                           placeholder="차대/제조일련번호"
@@ -1824,7 +1824,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
               }} onClick={() => fileInputRef.current?.click()}>
                 <Upload size={28} style={{ margin: '0 auto 8px auto', color: 'var(--text-muted)' }} />
                 <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  엑셀 파일 (.xlsx, .xls)을 클릭하여 선택해 주세요
+                  엑셀 파일을 클릭하여 선택해 주세요
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                   업로드 즉시 관리번호 중복 및 필수 필드 유효성 검사가 자동 실행됩니다.
@@ -2226,7 +2226,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     <Layers size={16} color="var(--primary)" /> 매각 대상 자산 선별
                   </h3>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    * 현장 대여중(RENTED) 장비는 오매각 방지를 위해 원천 차단됩니다.
+                    * 현장 대여중 장비는 오매각 방지를 위해 원천 차단됩니다.
                   </span>
                 </div>
 
@@ -2237,7 +2237,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       checked={includeRepairing}
                       onChange={e => setIncludeRepairing(e.target.checked)}
                     />
-                    정비중(REPAIRING) 포함
+                    정비중 포함
                   </label>
                   <button
                     type="button"
@@ -2362,7 +2362,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     {filteredDisposalAssets.length === 0 ? (
                       <tr>
                         <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                          해당 조건의 가용(AVAILABLE) 자산이 없습니다.
+                          해당 조건의 가용 자산이 없습니다.
                         </td>
                       </tr>
                     ) : (
@@ -2920,7 +2920,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* D. 하자담보책임(As-Is) 및 특약 사항 */}
+                {/* D. 하자담보책임 및 특약 사항 */}
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label style={{ fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                     <input
@@ -2928,10 +2928,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       checked={useStandardAsIsClause}
                       onChange={e => setUseStandardAsIsClause(e.target.checked)}
                     />
-                    현상태 인수(As-Is) 및 하자담보책임 면책 특약 적용
+                    현상태 인수 및 하자담보책임 면책 특약 적용
                   </label>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginLeft: '20px' }}>
-                    * 중고 건설기계 특성상 장비를 현상태(As-Is)로 인도하며, 인도 완료 후 일체의 기계적·성능적 하자담보책임을 지지 아니합니다.
+                    * 중고 건설기계 특성상 장비를 현상태로 인도하며, 인도 완료 후 일체의 기계적·성능적 하자담보책임을 지지 아니합니다.
                   </span>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
@@ -3063,7 +3063,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       </p>
                       <p style={{ margin: '4px 0 2px 0', fontWeight: 700 }}>[제5조 소유권 이전 및 하자면책]</p>
                       <p style={{ margin: '2px 0', color: 'var(--text-muted)' }}>
-                        대금 완납 즉시 소유권이 이전되며, {useStandardAsIsClause ? '본 장비는 현상태(As-Is)로 인도하고 인수 후 일체의 하자담보책임을 부담하지 아니한다.' : '별도 협의된 품질 보증 조건에 따른다.'}
+                        대금 완납 즉시 소유권이 이전되며, {useStandardAsIsClause ? '본 장비는 현상태로 인도하고 인수 후 일체의 하자담보책임을 부담하지 아니한다.' : '별도 협의된 품질 보증 조건에 따른다.'}
                       </p>
                       {specialNotes.trim() && (
                         <>

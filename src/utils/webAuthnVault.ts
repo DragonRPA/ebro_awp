@@ -74,7 +74,7 @@ export function getSavedAdminCredential(): WebAuthnCredentialData | null {
 }
 
 /**
- * 신규 지문(Windows Hello) 등록 (최초 1회)
+ * 신규 지문 등록 (최초 1회)
  */
 export async function registerAdminFingerprint(username: string = 'admin'): Promise<{
   success: boolean;

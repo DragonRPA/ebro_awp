@@ -108,7 +108,7 @@ class WalkieSoundEngine {
     return this.persistentAudio;
   }
 
-  // 모바일 브라우저의 AudioContext 자동 절전(Sleep/Suspension)을 원천 방지하는 무음 루프 유지 노드
+  // 모바일 브라우저의 AudioContext 자동 절전을 원천 방지하는 무음 루프 유지 노드
   ensureKeepAlive() {
     try {
       const ctx = this.getContext();
@@ -675,10 +675,10 @@ class WalkieTalkieService {
     if (!supabase) { console.warn('Supabase unavailable'); return; }
     this.currentUser = user ? { id: user.id, name: user.name, role: user.role, deptName: user.deptName } : null;
 
-    // 1. 전사 채널 메타 동기화 (WebSockets broadcast)
+    // 1. 전사 채널 메타 동기화
     this.initMetaChannel(user);
 
-    // 2. Supabase DB 변경 감지 (Postgres changes)
+    // 2. Supabase DB 변경 감지
     this.initDbChannelSync();
 
     // 3. 원격 DB 채널 1회 전체 동기화 및 로컬 병합

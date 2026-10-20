@@ -1063,7 +1063,7 @@ const ApprovalRulesManage: React.FC = () => {
           {/* ── 좌우 2단 그리드: 직책별 티어 설정 & 직급별 티어 설정 ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
-            {/* ── 좌측: 직책별 티어 관리 (Duty Tiers Master) ── */}
+            {/* ── 좌측: 직책별 티어 관리 ── */}
             <div data-mid="approvalRules-duty-config" style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
@@ -1205,7 +1205,7 @@ const ApprovalRulesManage: React.FC = () => {
               </div>
             </div>
 
-            {/* ── 우측: 직급별 티어 관리 (Position Tiers Master) ── */}
+            {/* ── 우측: 직급별 티어 관리 ── */}
             <div data-mid="approvalRules-position-config" style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',

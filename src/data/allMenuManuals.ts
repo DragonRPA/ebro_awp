@@ -1,6 +1,6 @@
 // @ts-nocheck
 // src/data/allMenuManuals.ts
-// 전사 모든 메뉴 기능의 본질적 업무 목적 및 표준 매뉴얼 데이터 (SSOT)
+// 전사 모든 메뉴 기능의 본질적 업무 목적 및 표준 매뉴얼 데이터
 import type { ManualPage, ManualAnnotationItem, ManualProcessFlow } from '../types/manual';
 
 export interface MenuSubTabDetail {
@@ -62,7 +62,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "경영진 특별지시 모달 (DirectiveModal)",
+        "modalName": "경영진 특별지시 모달",
         "triggerButton": "특별지시 등록 버튼",
         "keyFields": [
           "지시 대상 부서",
@@ -74,7 +74,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "대상 부서 임직원 ToDo 피드 긴급 과제 즉시 노출"
       },
       {
-        "modalName": "계약서 패키지 번들 모달 (BundleModal)",
+        "modalName": "계약서 패키지 번들 모달",
         "triggerButton": "패키지 재발송 버튼",
         "keyFields": [
           "계약서 번들 항목",
@@ -221,7 +221,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "전사 관리자/임원",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "직무 권한 및 전결 규정에 따른 기안 전표 심사 및 승인/반려 결정",
-    "scopeInfo": "로그인 사용자의 직급 티어(Tier 1~7) 및 위임(Delegation) 권한에 따라 도달한 [대기] 상태 결재 문서 목록",
+    "scopeInfo": "로그인 사용자의 직급 티어(Tier 1~7) 및 위임 권한에 따라 도달한 [대기] 상태 결재 문서 목록",
     "cognitiveSequence": [
       "1. 상단 결재함 탭 스코핑 (결재 대기 / 진행중 / 결재 완료 / 참조 문서)",
       "2. 결재 유형 필터링 (정산, 계약, 인사, 자산, 고객, 보고 6대 유형 분류)",
@@ -269,7 +269,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 3.5 [Z-패턴 동선]: 좌상단 대기목록  중앙 본문 내용 검토  우하단 [승인/반려] 액션"
     ],
     "precautions": [
-      "직무 대결(Delegation) 설정 기간 중에는 대결자의 승인도 본인 승인과 동일한 법적/회계적 효력을 가짐",
+      "직무 대결 설정 기간 중에는 대결자의 승인도 본인 승인과 동일한 법적/회계적 효력을 가짐",
       "반려 시에는 기안자가 보완할 수 있도록 구체적인 사유를 1줄 이상 명확히 기재"
     ],
     "annotations": [
@@ -414,7 +414,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "결재 센터",
     "department": "경영지원/시스템관리",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "이벤트 유형별 결재 필요 직급(Tier), 합의선 지정 및 직무분리(SoD) 규칙 정의",
+    "objective": "이벤트 유형별 결재 필요 직급, 합의선 지정 및 직무분리 규칙 정의",
     "scopeInfo": "테넌트 식별자, 등록된 직급/직책 체계, 문서 카테고리(계약, 배차, 할인, 비용, 인사) 목록",
     "cognitiveSequence": [
       "1. 상단 결재 카테고리 탭 스코핑 (고객, 계약, 자산, 정산, 인사, 보고 6대 유형)",
@@ -448,19 +448,19 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "전결 규정 규칙 정합성 검증 완료 및 자기승인 방지 규칙 100% 활성화",
     "rulesCompliance": [
-      "헌장 5.3 [단일 진실의 원천(SSOT)]: 결재 티어 레벨을 전사 단일 표준(Tier 1~7)으로 관리",
+      "헌장 5.3 [단일 진실의 원천]: 결재 티어 레벨을 전사 단일 표준(Tier 1~7)으로 관리",
       "헌장 7.1 [멀티테넌트 아키텍처]: 테넌트별 독립적인 결재 규칙 및 직급 매핑 보장"
     ],
     "precautions": [
       "티어 규칙 수정 시 현재 상신 진행 중인 결재선에는 영향을 주지 않으며, 신규 상신 건부터 적용됨",
-      "대표이사(Tier 7) 전결 규칙 설정 시 합의선 누락 여부를 반드시 시뮬레이터로 검증"
+      "대표이사 전결 규칙 설정 시 합의선 누락 여부를 반드시 시뮬레이터로 검증"
     ],
     "annotations": [
       {
         "seq": 1,
         "selector": "[data-mid=\"approvalRules-header\"]",
         "label": "결재 규칙 헤더",
-        "description": "전사 전결 규정 및 직무분리(SoD) 규칙 관리",
+        "description": "전사 전결 규정 및 직무분리 규칙 관리",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
@@ -582,7 +582,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "결재 규칙 등록 모달 (AddModal)",
+        "modalName": "결재 규칙 등록 모달",
         "triggerButton": "신규 규칙 추가",
         "keyFields": [
           "이벤트 명칭",
@@ -698,7 +698,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[type=\"submit\"]",
             "type": "click_ripple",
             "label": "4대 유형별 미상속 옵션 추가 후 현장 저장",
-            "description": "유상옵션, 무상옵션, 부착물, 현장 요구사양 각 유형별 [추가가능] 버튼을 클릭해 미상속 옵션을 추가한 뒤 고객현장(customer_sites)에 저장합니다.",
+            "description": "유상옵션, 무상옵션, 부착물, 현장 요구사양 각 유형별 [추가가능] 버튼을 클릭해 미상속 옵션을 추가한 뒤 고객현장에 저장합니다.",
             "positionHint": "bottom"
           }
         ]
@@ -708,14 +708,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "거래처 사업자 진위 검증, 담당자 연락망 및 고객현장(CustomerSite) 4대 옵션(유상옵션·무상옵션·부착물·요구사양) 상속·추가 관리",
-    "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 전자세금계산서 이메일, 거래제한 상태(정상/추가계약금지/전면차단), 고객현장(customer_sites), 현장별 4대 옵션(유상옵션·무상옵션·부착물·요구사양)",
+    "objective": "거래처 사업자 진위 검증, 담당자 연락망 및 고객현장 4대 옵션(유상옵션·무상옵션·부착물·요구사양) 상속·추가 관리",
+    "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 전자세금계산서 이메일, 거래제한 상태(정상/추가계약금지/전면차단), 고객현장, 현장별 4대 옵션(유상옵션·무상옵션·부착물·요구사양)",
     "cognitiveSequence": [
       "1. 거래처 통합 검색 및 거래 상태/초성 필터링 (상호, 사업자번호, 대표자, 거래제한 여부, 서류 누락 여부)",
       "2. 고객 및 현장 운용 KPI 실시간 집계 검토 (총 고객사, 정상 거래처, 거래제한/폐업, 연결 현장수)",
       "3. 고객사 대장 목록 탐색 및 선택 (활성 계약 또는 연결 현장이 존재하는 거래처 삭제 시 무결성 가드 안내 모달 작동)",
       "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 기본 유상옵션/무상옵션/부착물, 청구조건)",
-      "5. 고객현장(CustomerSite) 등록 및 관리: 현장명, 실주소, 현장담당자(장비/마감/안전)를 고객현장에 직접 귀속 등록",
+      "5. 고객현장 등록 및 관리: 현장명, 실주소, 현장담당자(장비/마감/안전)를 고객현장에 직접 귀속 등록",
       "6. 현장 옵션 설정 영역 내 옵션 그룹 조회·상속 및 4가지 유형(유상옵션, 무상옵션, 부착물, 요구사양)별 미상속 옵션 버튼 추가",
       "7. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어 완결"
     ],
@@ -732,7 +732,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "tabId": "SITE_LIST",
-        "tabName": "고객 현장 목록 (customer_sites)",
+        "tabName": "고객 현장 목록",
         "purpose": "고객사에 귀속된 고객현장 목록 및 4대 현장 옵션 조회",
         "keyActions": [
           "고객현장 추가/수정",
@@ -742,7 +742,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "거래처 등록/수정 모달 (CustModal)",
+        "modalName": "거래처 등록/수정 모달",
         "triggerButton": "신규 고객 등록",
         "keyFields": [
           "상호명",
@@ -756,7 +756,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "고객사 마스터 생성 및 거래 상태 ALLOWED 설정"
       },
       {
-        "modalName": "현장 등록·수정 모달 (SiteModal)",
+        "modalName": "현장 등록·수정 모달",
         "triggerButton": "현장 추가",
         "keyFields": [
           "현장명",
@@ -765,10 +765,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "하단 현장 옵션 설정: 옵션 그룹 조회/상속 및 4대 유형(유상옵션/무상옵션/부착물/요구사양) 추가 버튼"
         ],
         "terminalAction": "현장 저장",
-        "afterStateTransition": "고객현장(customer_sites)에 현장 기본 정보 및 4대 옵션 직접 저장"
+        "afterStateTransition": "고객현장에 현장 기본 정보 및 4대 옵션 직접 저장"
       },
       {
-        "modalName": "국세청 진위 확인 모달 (NtsAuditModal)",
+        "modalName": "국세청 진위 확인 모달",
         "triggerButton": "홈택스 검증",
         "keyFields": [
           "사업자번호",
@@ -840,10 +840,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부 / 출고부",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "물리 현장(SiteMaster)별 가동 상태, 유상옵션, 무상옵션 및 현장요구사양(21개 표준 체크리스트) 단일 진실의 원천(SSOT) 관리",
-    "scopeInfo": "고객사 필터(N:M 연결 고객사 전원 표시), 현장 검색어, 물리 현장(SiteMaster), 옵션품목마스터(StandardOption: 유상옵션 PAID / 무상옵션 PROTECTION / 요구사양 SPEC), 현장 특약단가, 현장 메모",
+    "objective": "물리 현장별 가동 상태, 유상옵션, 무상옵션 및 현장요구사양(21개 표준 체크리스트) 단일 진실의 원천 관리",
+    "scopeInfo": "고객사 필터(N:M 연결 고객사 전원 표시), 현장 검색어, 물리 현장, 옵션품목마스터(StandardOption: 유상옵션 PAID / 무상옵션 PROTECTION / 요구사양 SPEC), 현장 특약단가, 현장 메모",
     "cognitiveSequence": [
-      "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 물리 현장(SiteMaster) 스코핑",
+      "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 물리 현장 스코핑",
       "2. 좌측 등록 현장 목록에서 옵션을 설정할 특정 현장 선택 (복수 고객사가 공유 중인 현장도 단일 SiteMaster로 통합 표시)",
       "3. 우측 작업대 상단에서 [옵션 품목 마스터] 탭 또는 [현장별 옵션 설정] 탭 전환",
       "4. 중앙 [1. 유상 옵션] 그리드에서 적용할 옵션 체크박스 활성화 및 현장 특약단가(₩) 오버라이드 입력",
@@ -852,7 +852,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "7. 우하단 요약 바에서 적용 유상옵션 건수, 선택된 무상옵션, 월 유상옵션 총액 합계 검증",
       "8. 우하단 [현장 옵션 설정 저장] 버튼을 클릭하여 SiteMaster 단일 진실의 원천 DB에 100% 동기화 저장 완료"
     ],
-    "auditResult": "SiteMaster 단일 진실의 원천(SSOT) 옵션 프로필(유상옵션·무상옵션·요구사양) 저장 및 역정규화 필드 0건 유지",
+    "auditResult": "SiteMaster 단일 진실의 원천 옵션 프로필(유상옵션·무상옵션·요구사양) 저장 및 역정규화 필드 0건 유지",
     "rulesCompliance": [
       "헌장 1.4 [1단어 1뜻 표준화]: 구 무상옵션 명칭을 전면 폐기하고 무상옵션 단일 표준 명칭으로 통일",
       "헌장 1.5 [N:M 정규화 및 역정규화 영구 금지]: 유상옵션·무상옵션·요구사양·가동여부는 오직 SiteMaster에만 보관하며 customer_sites 역정규화 저장을 영구 금지",
@@ -972,7 +972,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"panel-site-scope\"]",
             "type": "callout",
             "label": "관리 대상 물리 현장 선택",
-            "description": "좌측 현장 목록에서 옵션을 설정할 공사 현장(SiteMaster)을 선택합니다.",
+            "description": "좌측 현장 목록에서 옵션을 설정할 공사 현장을 선택합니다.",
             "positionHint": "right"
           },
           {
@@ -1016,7 +1016,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "tabId": "SITE_OPTIONS",
         "tabName": "현장별 옵션",
-        "purpose": "물리 현장(SiteMaster)별 유상옵션·무상옵션·현장요구사양 프로필 설정",
+        "purpose": "물리 현장별 유상옵션·무상옵션·현장요구사양 프로필 설정",
         "keyActions": [
           "현장 선택",
           "유상옵션 토글 및 특약단가 입력",
@@ -1027,7 +1027,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "현장 마스터 수정 모달 (EditSiteMasterModal)",
+        "modalName": "현장 마스터 수정 모달",
         "triggerButton": "현장 정보 수정",
         "keyFields": [
           "현장명",
@@ -1039,7 +1039,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "SiteMaster 물리 속성 갱신 (연결된 N개 고객사 전체에 즉시 동기화)"
       },
       {
-        "modalName": "옵션 마스터 등록·수정 모달 (MasterModal)",
+        "modalName": "옵션 마스터 등록·수정 모달",
         "triggerButton": "신규 옵션 등록 / 수정",
         "keyFields": [
           "분류(유상옵션/무상옵션/요구사양)",
@@ -1048,7 +1048,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "단위"
         ],
         "terminalAction": "저장 / 삭제",
-        "afterStateTransition": "전사 공통 옵션 마스터(StandardOption) 갱신"
+        "afterStateTransition": "전사 공통 옵션 마스터 갱신"
       }
     ]
   },
@@ -1117,7 +1117,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "process_contract_extend",
         "title": "선택적 기간 연장·단축 및 현장간 장비 이동",
-        "description": "계약 체결 장비 전체 또는 일부 장비를 선택하여 기간을 연장/단축하거나 타 현장으로 이동(Site Transfer) 처리합니다.",
+        "description": "계약 체결 장비 전체 또는 일부 장비를 선택하여 기간을 연장/단축하거나 타 현장으로 이동 처리합니다.",
         "steps": [
           {
             "seq": 1,
@@ -1140,7 +1140,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
             "type": "click_ripple",
             "label": "대상 장비 선택 및 변경 확정",
-            "description": "적용할 장비를 체크하고 변경 일자·사유를 입력한 뒤 저장하여 계약 이력(contractHistory)에 반영합니다.",
+            "description": "적용할 장비를 체크하고 변경 일자·사유를 입력한 뒤 저장하여 계약 이력에 반영합니다.",
             "positionHint": "bottom"
           }
         ]
@@ -1181,15 +1181,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "렌탈·매각 계약 체결, 출고 4대 마일스톤 관제, 선택적 기간 연장/단축·계약 승계, 현장간 장비 이동(Site Transfer), EXCHANGE 대차 의뢰 및 계약서 패키지 발송",
-    "scopeInfo": "계약 유형(렌탈 계약 RENTAL / 자산 매각 계약 SALE), 진행 상태 필터(전체 / 출고진행 / 진행중 / 만료 임박 / 렌탈료 0원 / 종결건 — 상단 상태 드롭다운과 양방향 동기화), 출고 4대 마일스톤(배차·장비할당·출고검수·계약서패키지), 체결 자산 슬롯(ContractAsset), 계약 변경 이력(ContractHistory)",
+    "objective": "렌탈·매각 계약 체결, 출고 4대 마일스톤 관제, 선택적 기간 연장/단축·계약 승계, 현장간 장비 이동, EXCHANGE 대차 의뢰 및 계약서 패키지 발송",
+    "scopeInfo": "계약 유형(렌탈 계약 RENTAL / 자산 매각 계약 SALE), 진행 상태 필터(전체 / 출고진행 / 진행중 / 만료 임박 / 렌탈료 0원 / 종결건 — 상단 상태 드롭다운과 양방향 동기화), 출고 4대 마일스톤(배차·장비할당·출고검수·계약서패키지), 체결 자산 슬롯, 계약 변경 이력",
     "cognitiveSequence": [
       "1. 계약 유형 및 상태 스코핑: 상단 탭에서 [렌탈 계약] 또는 [자산 매각 계약]을 선택하고, 진행 상태 칩(전체 / 출고진행 / 진행중 / 만료 임박 / 렌탈료 0원 / 종결건) 또는 상단 [상태] 드롭다운으로 대상을 필터링 (칩과 드롭다운이 양방향 자동 동기화되어 종결건·전체 즉시 조회 보장)",
-      "2. 출고진행 vs 진행중 명확 구분: 아직 실물 장비가 미할당되었거나 배차·출고검수(PDI)가 진행 중인 계약만 [출고진행]으로 집계하며, 체결된 활성 장비 전체가 자산 매핑 및 대여중(RENTED) 상태로 현장에 기투입된 계약은 [운송완료] 및 [진행중]으로 분류",
+      "2. 출고진행 vs 진행중 명확 구분: 아직 실물 장비가 미할당되었거나 배차·출고검수가 진행 중인 계약만 [출고진행]으로 집계하며, 체결된 활성 장비 전체가 자산 매핑 및 대여중 상태로 현장에 기투입된 계약은 [운송완료] 및 [진행중]으로 분류",
       "3. 고밀도 계약 대장 그리드 1:1 대사: 1열 [상세 ➔] 버튼, 출고 진행 4대 마일스톤(배차·장비할당·출고검수·계약서패키지) 배지, 투입 모델/수량, 청구 마감일 확인",
       "4. 계약서 패키지 조립 및 발송: [계약서패키지] 배지 또는 상세 화면에서 임대차계약서, 반입전체크리스트({점검일시}={배차일-2} 및 {점검자} 자동 기입), R2 안전인증서·제원표(Eq_doc/{모델명}/)를 원클릭 패키징하여 이메일 발송",
       "5. 계약 상세 라이프사이클 조치: [상세 ➔] 진입 후 전체 또는 일부 장비 선택적 [기간 연장/단축], [단가 변경], [선택적 계약 승계], [현장간 장비 이동], [EXCHANGE 대차 의뢰] 수행",
-      "6. 동일 고객+현장 중복 계약 인터셉트: 신규 계약 작성 시 동일 고객사·동일 물리 현장에 활성 계약이 존재하면 기존 계약 장비 추가(ADD_ASSET)로 자동 안내",
+      "6. 동일 고객+현장 중복 계약 인터셉트: 신규 계약 작성 시 동일 고객사·동일 물리 현장에 활성 계약이 존재하면 기존 계약 장비 추가로 자동 안내",
       "7. 모든 계약 변동 이벤트를 contractHistory 타임라인에 무누락 보존하고 정밀 일할 매출 기여액(헌장 4.1) 정합성 확정"
     ],
     "subTabs": [
@@ -1218,7 +1218,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "선택적 기간 연장/단축 모달 (ExtendModal)",
+        "modalName": "선택적 기간 연장/단축 모달",
         "triggerButton": "기간 연장/단축",
         "keyFields": [
           "대상 장비 체크박스 선택(전체 또는 일부 장비 분할 연장/단축)",
@@ -1229,7 +1229,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "선택된 장비의 종료일 갱신(일부 장비만 변경 시 개별 슬롯 기간 분리) 및 이력 보존"
       },
       {
-        "modalName": "대차 교체 의뢰 모달 (ExchangeModal)",
+        "modalName": "대차 교체 의뢰 모달",
         "triggerButton": "자산 교체/대차 의뢰",
         "keyFields": [
           "회수 대상 전자산",
@@ -1241,11 +1241,11 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "헌장 2.3 단일 EXCHANGE 왕복 배차 의뢰 1건 발행 및 계약 속성 100% 자동 상속"
       },
       {
-        "modalName": "선택적 계약 승계 및 현장간 이동 모달 (TransferModal)",
+        "modalName": "선택적 계약 승계 및 현장간 이동 모달",
         "triggerButton": "계약 승계 / 현장 이동",
         "keyFields": [
           "승계/이동 대상 장비 선택",
-          "양수 고객사 또는 이동할 신규 현장(SiteMaster)",
+          "양수 고객사 또는 이동할 신규 현장",
           "승계/이동 기준일자",
           "이동 배차 발행 여부"
         ],
@@ -1253,7 +1253,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "기존 계약 전일 마감 및 신규 고객사/현장 당일 승계 계약 자동 생성"
       },
       {
-        "modalName": "계약서 패키지 조립 및 발송 모달 (PackageModal)",
+        "modalName": "계약서 패키지 조립 및 발송 모달",
         "triggerButton": "[계약서패키지] 마일스톤 배지 또는 [패키지 발송]",
         "keyFields": [
           "임대차계약서",
@@ -1267,7 +1267,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "계약별 총 청구액 = 자산별 누적 매출 기여액 합계 보존, 출고 4대 마일스톤 및 계약 변경 이력 100% 일치",
     "rulesCompliance": [
-      "헌장 1.3 [출고 검수 승인 시 RENTED 전환]: 체결 자산이 모두 출고검수 승인(RENTED)되기 전까지는 [출고진행] 상태로 구분 표기하여 현장 투입 진행률을 명확히 관제",
+      "헌장 1.3 [출고 검수 승인 시 RENTED 전환]: 체결 자산이 모두 출고검수 승인되기 전까지는 [출고진행] 상태로 구분 표기하여 현장 투입 진행률을 명확히 관제",
       "헌장 2.1~2.3 [영업/출고 R&R 분리 · 계약 속성 상속 · 단일 EXCHANGE 배차]: 대차 의뢰 시 1건의 EXCHANGE 왕복 배차만 발행하며 단가·마감일 100% 자동 상속",
       "헌장 4.1~4.2 [자산별 매출 기여액 일할 집계 및 1:1 추적성]: 전자산 전일 마감 ➔ 후장비 당일 승계 및 현장 이동 시 일할 매출 1원 오차 없이 집계"
     ],
@@ -1455,7 +1455,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "장비 바스켓 모달 (BasketPickerModal)",
+        "modalName": "장비 바스켓 모달",
         "triggerButton": "장비 담기",
         "keyFields": [
           "제품 모델",
@@ -1590,14 +1590,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "영업/재무팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "월별 렌탈료·운송비·수리비·매각대금 청구 산출, 00.거래명세서양식(39개 플레이스홀더) 정밀 출력, 공식메일설정 연동 발송 및 수납 대사",
-    "scopeInfo": "청구 귀속월(YYYY-MM), 고객사 초성/상호, 계약번호, 수납 상태(완납/부분수납/미납), 메일 발송 상태, 표준 거래명세서(00.거래명세서양식.xlsx 13행 레이아웃) 및 특수 거래명세서(custom_billing)",
+    "scopeInfo": "청구 귀속월(연월), 고객사 초성/상호, 계약번호, 수납 상태(완납/부분수납/미납), 메일 발송 상태, 표준 거래명세서(00.거래명세서양식.xlsx 13행 레이아웃) 및 특수 거래명세서",
     "cognitiveSequence": [
       "1. 좌상단 청구 귀속 시작월~종료월 기간 설정 및 [당월] / [<] / [>] 퀵 점프",
       "2. 고객사 초성(예: ㅅㅅ) 또는 상호·계약번호 입력 및 수납 상태(전체/완납/미완료) 필터링",
       "3. 청구·수납 6대 종합 집계(공급가, 세액, 청구총액, 수납액, 미수잔액, 통장잔액) 실시간 확인",
       "4. 월별 청구 대장 그리드에서 청구서 목록 조망 및 개별 행 클릭하여 우측 명세서 스튜디오 오픈",
       "5. 우측 명세서 스튜디오에서 장비별 일할 렌탈료 대조, [특수명세서 작성], [청구 분할], 표준 엑셀/PDF 출력(00.거래명세서양식.xlsx 39개 플레이스홀더 웹·에이전트 100% 동기화)",
-      "6. [발송] 클릭 시 중앙 공식메일설정(OfficialMailConfig) 연동 이메일 전송 (개발모드 시 안전 격리 / 서비스모드 시 실거래처 발송)",
+      "6. [발송] 클릭 시 중앙 공식메일설정 연동 이메일 전송 (개발모드 시 안전 격리 / 서비스모드 시 실거래처 발송)",
       "7. [수납] 클릭 시 통장 입금 내역 1:1 매칭 및 하단 대차대조 검증 바(📄 청구총액 = 🟢 수납액 + 🟡 미수잔액 | ⚖️ 대차 차액 ₩0) 무결성 확정"
     ],
     "subTabs": [
@@ -1642,7 +1642,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "수납 등록 모달 (PayModal)",
+        "modalName": "수납 등록 모달",
         "triggerButton": "수납 등록",
         "keyFields": [
           "수납 일자",
@@ -1654,7 +1654,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "청구서 수납 상태 PAID 전환 및 외상미수금 차감"
       },
       {
-        "modalName": "명세서 이메일 발송 모달 (MailModal)",
+        "modalName": "명세서 이메일 발송 모달",
         "triggerButton": "명세서 발송",
         "keyFields": [
           "수신 담당자 이메일",
@@ -1665,7 +1665,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "메일 발송 로그 기록 및 청구서 mailStatus SENT 전이"
       },
       {
-        "modalName": "청구서 재생성 모달 (RegenerateModal)",
+        "modalName": "청구서 재생성 모달",
         "triggerButton": "청구 재생성",
         "keyFields": [
           "정산 시작일",
@@ -1881,7 +1881,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "영업/재무팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "복수 현장/계약 청구서 통합 거래명세서 합산 및 전자세금계산서 발행",
-    "scopeInfo": "청구 귀속연월(YYYY-MM), 고객사 상호/초성, 통합 단위(고객/현장), 품목 카테고리(렌탈/수리/운반), 인보이스 납기일자 및 통합 비고",
+    "scopeInfo": "청구 귀속연월(연월), 고객사 상호/초성, 통합 단위(고객/현장), 품목 카테고리(렌탈/수리/운반), 인보이스 납기일자 및 통합 비고",
     "cognitiveSequence": [
       "1. 좌상단 청구 귀속연월 선택으로 통합 대상 기간 스코핑",
       "2. 고객명 검색 인풋에 상호 또는 초성 입력으로 대상 고객사 선별",
@@ -1897,7 +1897,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "12. 하단 회계 대차 검증 스트립(공급가 + 세액 = 총청구합계) 무결성 확인",
       "13. 정품 양식 주입 [정품 엑셀 다운로드] 실행",
       "14. [PDF 다운로드], [인쇄], [이메일 발송]으로 고객사 담당자에게 명세서 전달",
-      "15. [통합 청구서 발행] 클릭으로 단일 통합 인보이스(INV-XXXX) 최종 확정 마감"
+      "15. [통합 청구서 발행] 클릭으로 단일 통합 인보이스 최종 확정 마감"
     ],
     "auditResult": "통합 청구 합계 = 개별 현장 명세서 합계 (차액 ₩0) 및 국세청 전송 승인",
     "rulesCompliance": [
@@ -2234,7 +2234,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "수기 수납 등록 모달 (AddModal)",
+        "modalName": "수기 수납 등록 모달",
         "triggerButton": "수납 등록",
         "keyFields": [
           "수납 일자",
@@ -2253,7 +2253,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 3.6 [유형 B 고밀도 그리드]: 40px 행 높이로 다량의 거래처를 한눈에 비교 검증"
     ],
     "precautions": [
-      "입금자명과 계약처 상호가 다른 경우 통장 입출금 대장(BankMatching)과 교차 검증 필수",
+      "입금자명과 계약처 상호가 다른 경우 통장 입출금 대장과 교차 검증 필수",
       "90일 초과 악성 미수 건은 [미수 채권 연체 관리]로 즉시 이첩하여 법적 대응 착수"
     ],
     "annotations": [
@@ -2362,14 +2362,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "고객사/현장 마스터, 자연어 카톡/문자 원문, 모델 규격별 수량, 상하차 희망 일시, 현장 인수자 연락처, 필수 안전옵션, 9대 방어차단 규칙",
     "cognitiveSequence": [
       "1. (선택) 카톡/문자 텍스트 붙여넣기 파싱으로 자연어 요청 원문 자동 변환",
-      "2. 업무 유형 선택 (신규고객 출고 / 기존현장 출고 / 교체(대차))",
+      "2. 업무 유형 선택 (신규고객 출고 / 기존현장 출고 / 교환)",
       "3. 1. 거래처 (고객사) 블록에서 거래처 검색 지정 또는 신규 거래처 등록",
       "4. 2. 투입 현장 블록에서 현장 선택/신규등록 및 현장 인수자(성명/연락처) 지정",
       "5. 3. 출고 장비 규격 블록에서 작업높이 및 모델별 요구 수량 선택 (헌장 2.1 모델 요구)",
       "6. 4. 출고 및 하차 일정 블록에서 상차 희망일시(ASAP/지정시간) 및 현장 도착일정 지정",
       "7. 5. 안전옵션 블록에서 필수 안전장치(난간대, 감지봉 등) 체크 및 진입로 특이 메모 기재",
       "8. 우측 [필수 정보 검증 & 방어 차단] 9대 항목 충족 확인 (미충족 시 발행 자동 차단)",
-      "9. 우하단 [출고 요청 발행] 클릭  배차/출고 대기열(TruckDispatch)로 공식 전송"
+      "9. 우하단 [출고 요청 발행] 클릭  배차/출고 대기열로 공식 전송"
     ],
     "subTabs": [
       {
@@ -2721,7 +2721,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "독촉장/최고장 발송 모달 (NoticeModal)",
+        "modalName": "독촉장/최고장 발송 모달",
         "triggerButton": "독촉장 발송",
         "keyFields": [
           "수신자",
@@ -2733,7 +2733,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "독촉 이력 기록 및 최고장 발송 전표 생성"
       },
       {
-        "modalName": "출고 차단 설정 모달 (BlockModal)",
+        "modalName": "출고 차단 설정 모달",
         "triggerButton": "출고 차단",
         "keyFields": [
           "차단 사유",
@@ -2830,22 +2830,22 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "자산관리",
     "department": "자산/품질관리팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "고소작업대 모델별 19개 표준 제원(상세·수정·신규등록 100% 일치) 관리, 영문 대문자 정규화 캐스케이드 및 Cloudflare R2 제품 문서함(Eq_doc) 운영",
+    "objective": "고소작업대 모델별 19개 표준 제원(상세·수정·신규등록 100% 일치) 관리, 영문 대문자 정규화 캐스케이드 및 Cloudflare R2 제품 문서함 운영",
     "scopeInfo": "19개 표준 관리 항목 — ①기본 식별/분류(7개: 모델명, 약칭/검색별칭, 제조사, 장비 분류, 동력원, 구동 방식, 운용 상태), ②핵심 작업 제원(5개: 최대 작업높이, 최대 발판높이, 장비 중량, 정격하중, 등판능력), ③차체·배터리 상세 치수(7개: 보관높이, 전체길이, 전체폭, 휠베이스, 발판 치수, 연장발판, 배터리 규격) 및 R2 클라우드 문서함(Eq_doc/{모델명}/)",
     "cognitiveSequence": [
-      "1. 좌상단 (Scope): 제조사, 장비 분류(시저형/굴절형/직진형/마스트형 등), 동력원 및 모델명/약칭 검색 필터링",
-      "2. 우상단 (Pipeline): [+ 신규 제품 등록] 모달 오픈 또는 제품 대장 엑셀 내보내기 실행",
+      "1. 좌상단: 제조사, 장비 분류(시저형/굴절형/직진형/마스트형 등), 동력원 및 모델명/약칭 검색 필터링",
+      "2. 우상단: [+ 신규 제품 등록] 모달 오픈 또는 제품 대장 엑셀 내보내기 실행",
       "3. 신규 등록 19개 제원 일괄 입력: 상세 조회·수정 화면과 100% 동일한 3대 섹션 19개 제원 항목을 신규 등록 시점에 누락 없이 입력",
-      "4. 중앙 좌측 (Product Grid): 등록된 장비 모델 목록에서 작업높이, 적재하중, 보유 자산 대수, 운용 상태 조망 및 대상 모델 선택",
-      "5. 중앙 우측 (Detail & Edit Studio): 선택한 모델의 19개 상세 제원 조망 및 [정보 수정] 전환 시 동일 19개 필드 인라인 편집 (모델명 대소문자 수정 시 소속 실물 자산 modelName 자동 캐스케이드 업데이트)",
-      "6. 하단 (Cloudflare R2 제품 문서함): Eq_doc/{모델명}/ 경로의 안전인증서(KCs), 제원표, 비상하강 매뉴얼 PDF를 실시간 조회·업로드·삭제 (계약서 패키지 발송 시 자동 첨부 연동)",
-      "7. 우하단 (Terminal Action): [저장] 클릭으로 제품 마스터 DB 및 연결 자산 모델명 정합성 확정"
+      "4. 중앙 좌측: 등록된 장비 모델 목록에서 작업높이, 적재하중, 보유 자산 대수, 운용 상태 조망 및 대상 모델 선택",
+      "5. 중앙 우측: 선택한 모델의 19개 상세 제원 조망 및 [정보 수정] 전환 시 동일 19개 필드 인라인 편집 (모델명 대소문자 수정 시 소속 실물 자산 modelName 자동 캐스케이드 업데이트)",
+      "6. 하단 (Cloudflare R2 제품 문서함): Eq_doc/{모델명}/ 경로의 안전인증서, 제원표, 비상하강 매뉴얼 PDF를 실시간 조회·업로드·삭제 (계약서 패키지 발송 시 자동 첨부 연동)",
+      "7. 우하단: [저장] 클릭으로 제품 마스터 DB 및 연결 자산 모델명 정합성 확정"
     ],
-    "auditResult": "상세 조회 · 수정 · 신규 등록 모달 간 19개 관리 제원 100% 일치, 모델명 대문자 정규화 캐스케이드 및 R2 문서함(Eq_doc) 연동 확정",
+    "auditResult": "상세 조회 · 수정 · 신규 등록 모달 간 19개 관리 제원 100% 일치, 모델명 대문자 정규화 캐스케이드 및 R2 문서함 연동 확정",
     "rulesCompliance": [
       "헌장 1.1 [최대 편익 달성]: 상세 화면에서 관리·수정 가능한 19개 모든 제원 항목을 신규 등록 모달에서도 동일하게 입력하도록 일원화하여 사후 재입력 번복 제거",
       "헌장 3.4 [레이블-입력 필드 상하 스택 배치]: 3대 섹션 19개 입력 필드를 상하 세로 스택 그리드로 정교하게 배치",
-      "헌장 5.3 [SSOT 단일 진실의 원천]: 모델명 변경(소문자➔대문자 정규화 등) 시 소속 자산(assets.modelName)까지 원자적으로 일괄 동기화"
+      "헌장 5.3 [SSOT 단일 진실의 원천]: 모델명 변경(소문자➔대문자 정규화 등) 시 소속 자산까지 원자적으로 일괄 동기화"
     ],
     "precautions": [
       "모델명은 영문 대문자 표준(예: GS-1930, JCPT1008AC)으로 정규화되며, 기존 소문자 모델명을 대문자로 수정 저장하면 연결된 실물 자산도 자동 업데이트됩니다.",
@@ -2938,7 +2938,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "product_spec_edit_and_r2_docs",
         "title": "제품 제원 수정 및 Cloudflare R2 인증서·제원표 관리",
-        "description": "등록된 제품의 19개 제원을 수정하고 Cloudflare R2 클라우드 문서함(Eq_doc)에 모델별 제원표와 안전인증서를 등록합니다.",
+        "description": "등록된 제품의 19개 제원을 수정하고 Cloudflare R2 클라우드 문서함에 모델별 제원표와 안전인증서를 등록합니다.",
         "steps": [
           {
             "seq": 1,
@@ -3057,7 +3057,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "자산/주기장팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "회사 보유 자산 번호, 시리얼, 가동 상태, 위치 및 정비점수 추적 관리",
-    "scopeInfo": "자산번호(Barcode), 제품 모델, 시리얼 넘버, 소유 구분(당사 자산/외부 임차), 현재 상태, 현재 위치(주기장/고객현장)",
+    "scopeInfo": "자산번호, 제품 모델, 시리얼 넘버, 소유 구분(당사 자산/외부 임차), 현재 상태, 현재 위치(주기장/고객현장)",
     "cognitiveSequence": [
       "1. 자산 통합 검색 및 상태/소유구분/제조사 필터링 스코핑",
       "2. 자산 운용 실시간 KPI 지표 검토 (임대가능, 현장대여중, 출고검수대기, 수리정비중, 실가동률)",
@@ -3159,7 +3159,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "자산 상세 정보 모달 (AssetDetailModal)",
+        "modalName": "자산 상세 정보 모달",
         "triggerButton": "상세보기",
         "keyFields": [
           "자산번호",
@@ -3225,7 +3225,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "초기 검수 상태"
         ],
         "terminalAction": "[취득 등록 확정]",
-        "afterStateTransition": "자산 마스터(assets)에 AVAILABLE(임대가능) 상태로 신규 등록, QR 라벨 인쇄 큐 전송"
+        "afterStateTransition": "자산 마스터에 임대가능 상태로 신규 등록, QR 라벨 인쇄 큐 전송"
       }
     ],
     "auditResult": "자산 원장 취득/매각 금액 일치 및 장부가액 감가상각 원장 자동 연계",
@@ -3234,7 +3234,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 1.2 [이벤트 기록 무누락]: 취득/매각 전 과정의 증빙 문서 및 승인 이력 영구 보존"
     ],
     "precautions": [
-      "현재 대여중(RENTED) 상태인 장비는 반납 완료 전까지 매각 처리 불가",
+      "현재 대여중 상태인 장비는 반납 완료 전까지 매각 처리 불가",
       "세금계산서 발행 금액과 매각 확정 금액이 1원도 틀리지 않도록 사전 대사"
     ],
     "annotations": [
@@ -3276,7 +3276,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"acq-single-form-header\"]",
             "type": "highlight",
             "label": "취득 정보 입력",
-            "description": "[취득 정보 입력] UI 요소를 조작합니다. 장비 모델, 시리얼번호, 제조년월 및 매입처를 입력하십시오.",
+            "description": "[취득 정보 입력] UI 요소를 조작합니다. 장비 모델, 제조번호, 제조년월 및 매입처를 입력하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -3284,7 +3284,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[type=\"submit\"], button.btn-primary",
             "type": "click_ripple",
             "label": "자산 등재 확정",
-            "description": "[자산 등재 확정] UI 요소에 값을 입력하거나 조작합니다. 신규 자산번호를 발급받고 AVAILABLE(임대가능) 상태로 초기화하십시오.",
+            "description": "[자산 등재 확정] UI 요소에 값을 입력하거나 조작합니다. 신규 자산번호를 발급받고 임대가능 상태로 초기화하십시오.",
             "positionHint": "top"
           }
         ]
@@ -3386,7 +3386,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "임차료 지급요청 모달 (PaymentRequestModal)",
+        "modalName": "임차료 지급요청 모달",
         "triggerButton": "지급 요청",
         "keyFields": [
           "원사 공급업체",
@@ -3398,7 +3398,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "매입 정산 대장 청구 항목 자동 이관"
       },
       {
-        "modalName": "원사 반납 모달 (ReturnModal)",
+        "modalName": "원사 반납 모달",
         "triggerButton": "원사 반납",
         "keyFields": [
           "반납 일자",
@@ -3528,7 +3528,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "도착지 기상 및 작업환경 모달 (DestWeatherModal)",
+        "modalName": "도착지 기상 및 작업환경 모달",
         "triggerButton": "현장 날씨",
         "keyFields": [
           "현장 기온",
@@ -3540,7 +3540,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "배차 전표에 기상 확인 플래그 저장"
       },
       {
-        "modalName": "운송료 단가 수정 모달 (CostEditModal)",
+        "modalName": "운송료 단가 수정 모달",
         "triggerButton": "운송비 수정",
         "keyFields": [
           "기존 운송비",
@@ -3552,7 +3552,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "배차 전표 운송료 갱신 및 정산 원장 반영"
       },
       {
-        "modalName": "카카오 알림톡/문자 발송 모달 (KakaoModal)",
+        "modalName": "카카오 알림톡/문자 발송 모달",
         "triggerButton": "기사 배차 알림",
         "keyFields": [
           "운송 기사 휴대전화",
@@ -3643,7 +3643,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 1.2 [이벤트 기록]: 기사 정보 및 계좌 변경 이력 감사 로그 보존"
     ],
     "precautions": [
-      "셀프 로더(Self-loader) 차량이 아닌 일반 카고 차량은 고소작업대 자가 상하차 불가하므로 차종 등록 시 엄격 확인",
+      "셀프 로더 차량이 아닌 일반 카고 차량은 고소작업대 자가 상하차 불가하므로 차종 등록 시 엄격 확인",
       "운송비 입금 계좌의 예금주명과 사업자/주민번호 일치 여부 필수 검증"
     ],
     "annotations": [
@@ -3729,7 +3729,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "운송사 등록 모달 (CompanyModal)",
+        "modalName": "운송사 등록 모달",
         "triggerButton": "운송사 등록",
         "keyFields": [
           "운송사 상호",
@@ -3741,7 +3741,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "운송 거래처 마스터 생성"
       },
       {
-        "modalName": "기사 등록 모달 (DriverModal)",
+        "modalName": "기사 등록 모달",
         "triggerButton": "기사 등록",
         "keyFields": [
           "기사 성명",
@@ -3779,7 +3779,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 1.2: assetInOutLogs 입고/출고 완료 실적 이벤트 무누락 DB 추적 (단순 배차의뢰 일정 제외)",
       "헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수",
       "헌장 3.2: 캘린더 칩 및 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지",
-      "헌장 3.4: 필터 패널 레이블-입력 상하 스택(vertical column) 레이아웃 준수",
+      "헌장 3.4: 필터 패널 레이블-입력 상하 스택 레이아웃 준수",
       "헌장 3.5: 좌상단 스코프  우상단 파이프라인  중앙 본문  우하단 대차대조 4단계 Gutenberg Z-패턴 동선 확립"
     ],
     "precautions": [
@@ -3948,12 +3948,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "주기장팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "회수 장비 입고 검수 등록, 상태 판정 및 입출고 이력 추적",
-    "scopeInfo": "게이트 통과 일시, 입출고 구분(IN/OUT), 자산번호, 운송 차량번호, 담당 기사, 연계 계약/배차 번호",
+    "scopeInfo": "게이트 통과 일시, 입출고 구분(입고/출고), 자산번호, 운송 차량번호, 담당 기사, 연계 계약/배차 번호",
     "cognitiveSequence": [
       "1. 조회 기간 및 입출고 유형(출고, 반납, 대차교체, 주기장이동) 스코핑",
       "2. 자산 번호별 생애주기 입출고 타임라인 1:1 인과율 전수 검수 (헌장 5.6)",
       "3. 출고 검수 승인 시점의 RENTED 대여중 상태 전환 로그 확인 (헌장 1.3)",
-      "4. 대차 교체(EXCHANGE) 시 전자산 회수  후장비 승계 연결 관계 추적 (헌장 4.2)",
+      "4. 교환 시 전자산 회수  후장비 승계 연결 관계 추적 (헌장 4.2)",
       "5. 운송 기사 및 배차 번호 매핑 검증",
       "6. 주기장 입고 시 반납 검수 판정(정상/파손/오염) 기록 확인",
       "7. 자산 입출고 감사 이력 무누락 보존 확정 및 엑셀 내보내기"
@@ -4052,14 +4052,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "출고/자산관리팀",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "출고요청서에 대해 적합 모델의 임대가능 자산번호 물리적 1:1 매핑",
-    "scopeInfo": "미할당 출고 요청 목록, 요구 모델/사양, 주기장 내 임대가능(AVAILABLE) 자산 목록",
+    "scopeInfo": "미할당 출고 요청 목록, 요구 모델/사양, 주기장 내 임대가능 자산 목록",
     "cognitiveSequence": [
       "1. 미배정 배차 대기 큐 및 상차 임박 긴급도 스코핑",
       "2. 현장별 상하차 주소 및 고소작업대 적재 톤수/차종(셀프로더) 확인",
       "3. 주기장 근접 및 운행 가능한 협력 운송 기사 실시간 탐색",
       "4. 배차 유형(출고/회수/EXCHANGE 단일 교환) 확인 및 운송료 산정 (헌장 2.3)",
       "5. 운송 기사 배정 및 현장 작업지시서·기상 주의사항 모바일 전송",
-      "6. 기사 상차 확인 및 배차 상태 배정 완료(ASSIGNED) 전환",
+      "6. 기사 상차 확인 및 배차 상태 배정 완료 전환",
       "7. 당일 배차 배정 큐 100% 완결 확정"
     ],
     "auditResult": "출고요청 장비 = 자산번호 매핑 100% 완료 및 자산 상태 '출고대기' 전이",
@@ -4068,7 +4068,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 1.2 [효과적인 자산 운용]: 선입선출 및 배터리 수명 주기를 고려한 균등 장비 회전 배정"
     ],
     "precautions": [
-      "정비 중(REPAIRING)이거나 배터리 저전압 상태인 장비를 강제 할당 금지",
+      "정비 중이거나 배터리 저전압 상태인 장비를 강제 할당 금지",
       "현장 특수 요구(상부 센서 등)가 장착된 장비인지 실물 제원표 교차 확인"
     ],
     "annotations": [
@@ -4239,7 +4239,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "입출고관리",
     "department": "출고검수팀",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "출고 직전 안전장치/제원 검수 승인 및 자산 상태 대여중(RENTED) 최종 마감",
+    "objective": "출고 직전 안전장치/제원 검수 승인 및 자산 상태 대여중 최종 마감",
     "scopeInfo": "할당 완료된 출고 대기 장비, 출고 체크리스트 템플릿, 현장 요구 옵션 내역, 검수 사진",
     "cognitiveSequence": [
       "1. 당일 출고 대기 자산 목록 및 상차 스케줄 스코핑",
@@ -4252,27 +4252,27 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "검수 승인 취소 모달 (RollbackModal)",
+        "modalName": "검수 승인 취소 모달",
         "triggerButton": "승인 취소 (롤백)",
         "keyFields": [
           "취소 사유",
           "롤백 후 자산 상태 지정"
         ],
         "terminalAction": "롤백 확정",
-        "afterStateTransition": "자산 상태 대여중(RENTED)에서 출고대기로 복원"
+        "afterStateTransition": "자산 상태 대여중에서 출고대기로 복원"
       },
       {
-        "modalName": "검수 반려 모달 (RejectModal)",
+        "modalName": "검수 반려 모달",
         "triggerButton": "검수 반려",
         "keyFields": [
           "반려 사유 (안전 결함 내용)",
           "정비 이관 여부"
         ],
         "terminalAction": "반려 확정",
-        "afterStateTransition": "자산 상태 수리중(REPAIRING) 전이 및 재할당 요구"
+        "afterStateTransition": "자산 상태 수리중 전이 및 재할당 요구"
       }
     ],
-    "auditResult": "출고 검수 승인 마감 즉시 자산 상태 '대여중(RENTED)' 전이 완료 (헌장 1.3조)",
+    "auditResult": "출고 검수 승인 마감 즉시 자산 상태 '대여중' 전이 완료 (헌장 1.3조)",
     "rulesCompliance": [
       "헌장 1.3 [출고 검수 승인 마감 시 자산 상태 RENTED 전환 원칙]: 배차 단계가 아닌 이 시점에 대여중 전환 완결",
       "헌장 1.2 [이벤트 기록 무누락]: 검수자, 승인 시각, 20대 체크리스트 결과, 사진 증빙 DB 영구 저장"
@@ -4353,7 +4353,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "3. 바코드/QR코드 라벨 서식 템플릿 선택 및 ZPL 코드 보정",
       "4. 인쇄 위치(X/Y 좌표 오프셋) 미세 조정 및 테스트 인쇄",
       "5. 실물 품목별 바코드 라벨 대량 출력 큐 전송",
-      "6. 주기장 부품 보관 랙(Rack) 및 위치 번호(Bin) 매핑",
+      "6. 주기장 부품 보관 랙 및 위치 번호 매핑",
       "7. 소모품 실사 수량 확정 및 재고 원장 동기화"
     ],
     "subTabs": [
@@ -4398,7 +4398,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "부품 마스터 등록 모달 (MasterModal)",
+        "modalName": "부품 마스터 등록 모달",
         "triggerButton": "품목 등록",
         "keyFields": [
           "부품 코드",
@@ -4411,7 +4411,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "소모품 마스터 생성"
       },
       {
-        "modalName": "재고 이동 모달 (TransferModal)",
+        "modalName": "재고 이동 모달",
         "triggerButton": "재고 이동",
         "keyFields": [
           "출고 창고",
@@ -4505,7 +4505,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "프린터 네트워크 IP, 포트(9100), 라벨 규격(100x75 등), 대기/성공/오류 큐 목록, ZPL 원문 코드",
     "cognitiveSequence": [
       "1. 프린터 상태(온라인, 오프라인, 용지 부족) 및 출력 큐 스코핑",
-      "2. 대기 중인 라벨 출력 잡(Job) 우선순위 및 인쇄 수량 확인",
+      "2. 대기 중인 라벨 출력 잡 우선순위 및 인쇄 수량 확인",
       "3. ZPL 인쇄 스풀 데이터 및 프리뷰 렌더링 검증",
       "4. 라벨 프린터 IP 포트 통신 상태 및 연결 확인",
       "5. 인쇄 중단/용지 잼 발생 시 출력 잡 일시정지 및 재전송",
@@ -4516,7 +4516,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "tabId": "stations",
         "tabName": "프린트 스테이션 상태",
-        "purpose": "주기장 및 사무실에 설치된 제브라(Zebra)/네트워크 프린터의 온라인/오프라인 연결 상태 감시",
+        "purpose": "주기장 및 사무실에 설치된 제브라/네트워크 프린터의 온라인/오프라인 연결 상태 감시",
         "keyActions": [
           "프린터 연결 테스트",
           "ZPL 포트 설정"
@@ -4653,7 +4653,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "정비/자재팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "주기장 정비 부품 발주 등록, 입고 검수 및 매입 원장 반영",
-    "scopeInfo": "공급 업체(Vendor), 부품 품목, 발주 수량, 단가, 납기 예정일, 승인 결재선",
+    "scopeInfo": "공급 업체, 부품 품목, 발주 수량, 단가, 납기 예정일, 승인 결재선",
     "cognitiveSequence": [
       "1. 안전재고 미달 품목 및 긴급 보충 발주 큐 스코핑",
       "2. 매입처(부품 협력사) 선택 및 품목별 단가/수량 견적 비교",
@@ -4690,7 +4690,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 1.2 [이벤트 무누락]: 발주, 승인, 입고 전 단계 DB 로그 보존"
     ],
     "precautions": [
-      "정품(OEM) 부품과 호환 부품의 단가 차이가 크므로 발주서에 정품 여부 명기 필수",
+      "정품 부품과 호환 부품의 단가 차이가 크므로 발주서에 정품 여부 명기 필수",
       "입고 수량과 세금계산서 수량이 불일치할 경우 입고 보류 처리"
     ],
     "annotations": [
@@ -4882,13 +4882,13 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "2. 출동 엔지니어 배정 및 서비스 차량 탑재 부품 재고 점검",
       "3. 현장 도착 및 고소작업대 현물 고장 원인 정밀 진단",
       "4. 현장 즉시 조치: 부품 교체, 전기 배선 수리, 유압 압력 보정",
-      "5. 현장 조치 불가 판정 시: 즉시 [대차 교체(EXCHANGE) 요구] 발령 (헌장 2.1)",
+      "5. 현장 조치 불가 판정 시: 즉시 [교환 요구] 발령 (헌장 2.1)",
       "6. 유상 수리 발생 시: 고객 과실 증거 사진 등록 및 [수리비 청구] 채권 분리 (헌장 5.5)",
       "7. 현장 AS 완료 보고서 서명 날인 및 정비 이력 타임라인 영구 보존"
     ],
     "modalWorkflows": [
       {
-        "modalName": "현장 AS 접수 등록 모달 (CreateModal)",
+        "modalName": "현장 AS 접수 등록 모달",
         "triggerButton": "AS 접수 등록",
         "keyFields": [
           "현장",
@@ -5013,7 +5013,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"repair-pipeline-add\"], button.btn-primary",
             "type": "click_ripple",
             "label": "정비 완료 확정",
-            "description": "[정비 완료 확정] UI 요소에 값을 입력하거나 조작합니다. 작성된 정비 내역을 저장하고 해당 자산을 AVAILABLE(임대가능) 상태로 복원하십시오.",
+            "description": "[정비 완료 확정] UI 요소에 값을 입력하거나 조작합니다. 작성된 정비 내역을 저장하고 해당 자산을 임대가능 상태로 복원하십시오.",
             "positionHint": "top"
           }
         ]
@@ -5032,7 +5032,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "4. 정비 조치 작업 수행 (판금, 도색, 부품 교체, 배선 결선)",
       "5. 정비 완료 후 기능/하중 테스트 및 안전 센서 100% 정상 작동 검증",
       "6. 정비 투입 공수(시간) 및 부품 원가 집계 마감",
-      "7. [정비 완료 확정] 실행  자산 상태 AVAILABLE (임대가능) 복원 (헌장 1.2)"
+      "7. [정비 완료 확정] 실행  자산 상태 임대가능 복원 (헌장 1.2)"
     ],
     "subTabs": [
       {
@@ -5065,7 +5065,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "최종 판정 (정비 완료 / 외주 정비 / 폐기)"
         ],
         "terminalAction": "[정비 완료 승인]",
-        "afterStateTransition": "소모품 재고 자동 출고 차감(OUTBOUND), 자산 상태 UNDER_REPAIR에서 AVAILABLE(임대가능)으로 전환 복귀"
+        "afterStateTransition": "소모품 재고 자동 출고 차감, 자산 상태 UNDER_REPAIR에서 임대가능으로 전환 복귀"
       }
     ],
     "auditResult": "정비 완료 판정 즉시 감가 정비점수 0점 복원 및 자산 상태 '임대가능' 전이 (상태 보존)",
@@ -5451,7 +5451,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "cognitiveSequence": [
       "1. 법인 업무용 차량(서비스카, 견인차) 및 운행 월 스코핑",
       "2. 운행 일자, 운전자, 출발지 및 목적지(방문 현장) 입력",
-      "3. 운행 전/후 누적 주행거리(km) 입력 및 실 주행거리 자동 계산",
+      "3. 운행 전/후 누적 주행거리(킬로미터) 입력 및 실 주행거리 자동 계산",
       "4. 주유비, 하이패스 통행료, 주차비 등 운행 경비 영수증 증빙 첨부",
       "5. 업무용(현장AS, 장비탁송, 영업미팅) vs 비업무용 비율 자동 집계",
       "6. 국세청 법인 차량 운행기록부 법정 표준 서식 정합성 검증",
@@ -5491,7 +5491,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "precautions": [
       "계기판 시작 거리가 전일 종료 거리와 불일치할 경우 누락 구간 사유 소명 필수",
-      "엔진오일 교환 주기(10,000km) 및 자동차 정기검사 만료일 사전 점검"
+      "엔진오일 교환 주기 및 자동차 정기검사 만료일 사전 점검"
     ],
     "annotations": [
       {
@@ -5572,7 +5572,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"vehicle_log-tab-fuel\"]",
             "type": "click_ripple",
             "label": "주유 정산 대장 탭",
-            "description": "[주유 정산 대장 탭] UI 요소에 값을 입력하거나 조작합니다. 차량별 주유 일자, 주유량(L), 금액, 주유소를 1:1 대사하십시오.",
+            "description": "[주유 정산 대장 탭] UI 요소에 값을 입력하거나 조작합니다. 차량별 주유 일자, 주유량(리터), 금액, 주유소를 1:1 대사하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -5772,7 +5772,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "국세청 진위 확인 모달 (NtsAuditModal)",
+        "modalName": "국세청 진위 확인 모달",
         "triggerButton": "홈택스 검증",
         "keyFields": [
           "사업자번호",
@@ -5794,7 +5794,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "table",
         "type": "callout",
         "label": "분할 화면 레이아웃",
-        "description": "[분할 화면 레이아웃] 화면 영역입니다. 화면은 분할 구조로 이루어져 있으며, 좌측에는 입금 내역(Deposits), 우측에는 청구 내역(Billings) 정보가 표시되어 수납 대사를 효율적으로 진행할 수 있습니다.",
+        "description": "[분할 화면 레이아웃] 화면 영역입니다. 화면은 분할 구조로 이루어져 있으며, 좌측에는 입금 내역, 우측에는 청구 내역 정보가 표시되어 수납 대사를 효율적으로 진행할 수 있습니다.",
         "positionHint": "bottom"
       },
       {
@@ -5866,7 +5866,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "3. 입금자명, 입금액, 입금 일자 기반 미수금 원장 자동 추천 매칭",
       "4. 동명칭/상호 불일치 건 수동 거래처 탐색 및 1:1 강제 매칭",
       "5. 복수 청구서 일괄 입금 건 분할 대사 및 차액(수수료 등) 처리",
-      "6. 수납 확정 실행  외상매출금(미수금) 원장 실시간 차감 반영 (Audit Result)",
+      "6. 수납 확정 실행  외상매출금(미수금) 원장 실시간 차감 반영",
       "7. 통장 대사 합계 검증식(통장 총입금액 = 수납 확정액 | 차액 ₩0) 무결성 확정 (헌장 3.5)"
     ],
     "subTabs": [
@@ -6030,13 +6030,13 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "objective": "통장 실물 잔액 기반 전사 영업/투자/재무 현금흐름 대사, 일별 자금 스케줄러, 출혈 리스크(악성채권/적자자산) 조기 경보 및 자금 스냅샷 보존",
     "scopeInfo": "금융기관별 보통예금 실물 잔액, 당월 확정 매출 수금액, 매입 정산 실지급액, 전사 임직원 급여/수당, 법인차량 유류비, 자산 취득/처분 실적, D+7 단기 지출액",
     "cognitiveSequence": [
-      "1. 좌상단 (Scope): 기준 연월(YYYY-MM) 선택 및 5대 핵심 KPI(통장 실물 총잔액, D+7 지출 예정액, 순 가용 자금, 당월 순현금흐름, 현금 런웨이) 조망",
-      "2. 우상단 (Pipeline): [스냅샷 보존]으로 현재 진단 상태 DB 영구 박제 및 [엑셀 내보내기]로 4대 시트 통합 파일 다운로드",
+      "1. 좌상단: 기준 연월(연월) 선택 및 5대 핵심 KPI(통장 실물 총잔액, D+7 지출 예정액, 순 가용 자금, 당월 순현금흐름, 현금 런웨이) 조망",
+      "2. 우상단: [스냅샷 보존]으로 현재 진단 상태 DB 영구 박제 및 [엑셀 내보내기]로 4대 시트 통합 파일 다운로드",
       "3. 탭 1 [종합 현금흐름표]: 은행별 실시간 통장 잔액 카드 확인 및 영업/투자/재무 활동별 행 클릭하여 인라인 거래처/전표 원장 상세 드릴다운 검증",
       "4. 탭 2 [일별 자금 스케줄러]: 1일부터 말일까지 일자별 입금/출금/순흐름/예상잔액 추이 및 피크 결제일(10일 정기 수납, 25일 급여/매입 지급) 자금 바닥 여부 사전 경보",
       "5. 탭 3 [출혈 리스크]: 90일 이상 미회수 악성 미수채권 Top 5 및 누적 수리비가 렌탈 매출을 초과한 비용 누수 자산 Top 5 즉시 조치",
       "6. 탭 4 [자금 스냅샷 이력]: 과거 저장된 월별 자금 진단 스냅샷 목록 대조 및 이력 관리",
-      "7. 우하단 (Terminal Action): 대차대조식 검증 바(통장 총잔액 = 기초잔액 + 총입금 - 총출금 | 대차 정합 ₩0) 무결성 확정"
+      "7. 우하단: 대차대조식 검증 바(통장 총잔액 = 기초잔액 + 총입금 - 총출금 | 대차 정합 ₩0) 무결성 확정"
     ],
     "subTabs": [
       {
@@ -6101,7 +6101,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"cash_flow-month-input\"]",
         "label": "귀속 기준월",
-        "description": "자금 수지 분석 연월(YYYY-MM)을 선택합니다.",
+        "description": "자금 수지 분석 연월(연월)을 선택합니다.",
         "colorToken": "PURPLE",
         "type": "CALLOUT"
       },
@@ -6199,7 +6199,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"cash_flow-month-input\"]",
             "type": "click_ripple",
             "label": "기준 연월 설정",
-            "description": "진단할 분석 연월(YYYY-MM)을 선택합니다.",
+            "description": "진단할 분석 연월(연월)을 선택합니다.",
             "positionHint": "bottom"
           },
           {
@@ -6345,15 +6345,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "경영기획/경영진",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "월간 결산 시점 월간 손익계산서(순 렌탈료·유통·기타청구 대사·영업이익), 자금수지 및 채권, 경영진 종합 브리핑 정기보고서 생성, 1회 발행 확정 및 엑셀/PDF 출력",
-    "scopeInfo": "정산 귀속연월(YYYY-MM), 보고서 유형 탭(월간 손익계산서, 자금수지 및 채권, 경영진 종합 브리핑), 전사 매출·매입·급여 확정 데이터",
+    "scopeInfo": "정산 귀속연월(연월), 보고서 유형 탭(월간 손익계산서, 자금수지 및 채권, 경영진 종합 브리핑), 전사 매출·매입·급여 확정 데이터",
     "cognitiveSequence": [
-      "1. 좌상단 (Scope): 정산 귀속연월(YYYY-MM) 지정 및 3대 보고서 탭(월간 손익계산서 / 자금수지 및 채권 / 경영진 종합 브리핑) 선택",
-      "2. 우상단 (Pipeline): [조회] 버튼 클릭으로 당월 청구 마감, 매입 정산, 급여 마감 원천 데이터 실시간 동기화",
+      "1. 좌상단: 정산 귀속연월(연월) 지정 및 3대 보고서 탭(월간 손익계산서 / 자금수지 및 채권 / 경영진 종합 브리핑) 선택",
+      "2. 우상단: [조회] 버튼 클릭으로 당월 청구 마감, 매입 정산, 급여 마감 원천 데이터 실시간 동기화",
       "3. 본문 1 (월간 손익계산서): 순 렌탈료 매출/원가(감가상각비+외부임차료)/순이익 및 유통 매출/원가/순이익 계정별 대사 검토",
       "4. 본문 2 (기타 청구 대사): 운송비·정비비·무상옵션·소모품 등 기타 청구 유형별 당월 청구액과 당월 지급정산액 1:1 대사 내역 확인",
       "5. 수학적 산식 검증: 영업이익 = 렌탈순이익 + 유통순이익 + 기타청구차액 - 판관비(급여/기타) 공식 일치 확인",
-      "6. 우하단 (Terminal Action): 모든 정산 마감 후 [월간 손익계산서 발행 및 확정] 버튼을 클릭하여 스냅샷 영구 보존",
-      "7. 공식 배포: [엑셀 내보내기(XLSX)] 또는 [공식 PDF 다운로드]를 통해 경영진 공식 보고 자료 출력"
+      "6. 우하단: 모든 정산 마감 후 [월간 손익계산서 발행 및 확정] 버튼을 클릭하여 스냅샷 영구 보존",
+      "7. 공식 배포: [엑셀 내보내기] 또는 [공식 PDF 다운로드]를 통해 경영진 공식 보고 자료 출력"
     ],
     "subTabs": [
       {
@@ -6425,7 +6425,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-uia=\"input-report-target-ym\"]",
         "label": "정산 귀속연월 선택",
-        "description": "결산 및 보고 대상 연월(YYYY-MM)을 지정합니다.",
+        "description": "결산 및 보고 대상 연월(연월)을 지정합니다.",
         "colorToken": "BLUE",
         "type": "CALLOUT"
       },
@@ -6499,7 +6499,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-uia=\"input-report-target-ym\"]",
             "type": "click_ripple",
             "label": "정산 귀속연월 설정",
-            "description": "마감 대상 정산 연월(YYYY-MM)을 선택합니다.",
+            "description": "마감 대상 정산 연월(연월)을 선택합니다.",
             "positionHint": "bottom"
           },
           {
@@ -6559,8 +6559,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "cognitiveSequence": [
       "1. 부서 조직도 트리 및 소속 임직원 현황 스코핑",
       "2. 신규 임직원 등록 (성명, 사번, 입사일, 로그인 ID, 부서)",
-      "3. 직급(Position) 선택: 결재선 티어에 정의된 직급 내 선택 (0~7티어)",
-      "4. 직책(Duty) 선택: 직책 설정(팀장, 센터장, 본부장 등) 지정 및 실시간 티어 확인",
+      "3. 직급 선택: 결재선 티어에 정의된 직급 내 선택 (0~7티어)",
+      "4. 직책 선택: 직책 설정(팀장, 센터장, 본부장 등) 지정 및 실시간 티어 확인",
       "5. 임직원 실효 결재 권한 티어(직책 우선 판정) 인포 박스 검증",
       "6. 비밀번호 초기화 및 모바일 현장 권한 부여",
       "7. 인사 정보 최종 저장  전자결재 승인선 및 조직도 실시간 동기화 확정"
@@ -6587,7 +6587,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "전사 부서-임직원 소속 100% 결합 및 직무별 기본 권한 매핑 확정",
     "rulesCompliance": [
-      "헌장 5.3 [단일 진실의 원천(SSOT)]: 조직 및 직급 메타데이터의 단일 원본 보존",
+      "헌장 5.3 [단일 진실의 원천]: 조직 및 직급 메타데이터의 단일 원본 보존",
       "개인정보보호법 제31조 준수: 테넌트별 개인정보보호 책임자 필수 지정"
     ],
     "precautions": [
@@ -6705,7 +6705,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"matrix-title\"]",
         "type": "highlight",
         "label": "테넌트 맞춤 메뉴 권한 매트릭스",
-        "description": "[권한 설정 매트릭스] 영역입니다. 현재 테넌트에 활성화된 메뉴들에 대해 조회(View) 및 저장(Save) 권한을 정밀하게 제어합니다.",
+        "description": "[권한 설정 매트릭스] 영역입니다. 현재 테넌트에 활성화된 메뉴들에 대해 조회 및 저장 권한을 정밀하게 제어합니다.",
         "positionHint": "left"
       },
       {
@@ -6736,7 +6736,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"permission-matrix-grid\"], [data-mid=\"matrix-title\"]",
             "type": "highlight",
             "label": "메뉴별 조회·저장 권한 토글",
-            "description": "우측 매트릭스에서 테넌트 활성 메뉴별 조회(View) 또는 저장(Save) 체크박스를 설정합니다.",
+            "description": "우측 매트릭스에서 테넌트 활성 메뉴별 조회 또는 저장 체크박스를 설정합니다.",
             "positionHint": "top"
           },
           {
@@ -6785,12 +6785,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "경영관리 - 특수",
     "department": "경영관리팀 / 시스템관리자",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "커스텀 권한 역할(CustomRole) 정의·인라인 수정, 테넌트 활성 메뉴 연동 권한 매트릭스 설정 및 임직원 역할 상속 배정",
-    "scopeInfo": "테넌트 노출 허용 메뉴(allowedPages/hiddenPages/allowedModules), 커스텀 역할(custom_roles), 역할별 메뉴 권한(role_permissions: canView, canSave), 임직원별 역할 매핑 및 개별 예외 권한(user_permissions)",
+    "objective": "커스텀 권한 역할 정의·인라인 수정, 테넌트 활성 메뉴 연동 권한 매트릭스 설정 및 임직원 역할 상속 배정",
+    "scopeInfo": "테넌트 노출 허용 메뉴, 커스텀 역할, 역할별 메뉴 권한, 임직원별 역할 매핑 및 개별 예외 권한",
     "cognitiveSequence": [
       "1. 좌상단 탭 전환: [역할별 권한 매트릭스 설정] 탭과 [직원 권한 상속 배정] 탭 중 작업 대상 선택",
       "2. 커스텀 역할 관리: 좌측 역할 목록에서 신규 권한 명칭 생성, 기존 역할 인라인 [수정](명칭/설명 변경) 또는 [삭제] 수행",
-      "3. 테넌트 맞춤 메뉴 매트릭스 조망: 현재 테넌트에 라이선스 할당된 활성 메뉴(개발자 전용 메뉴 및 미사용 모듈 자동 제외)에 대해 [조회(View)] 및 [저장/수정(Save)] 권한 체크",
+      "3. 테넌트 맞춤 메뉴 매트릭스 조망: 현재 테넌트에 라이선스 할당된 활성 메뉴(개발자 전용 메뉴 및 미사용 모듈 자동 제외)에 대해 [조회] 및 [저장/수정] 권한 체크",
       "4. 전체/그룹 일괄 제어: 카테고리 그룹별 전체 조회·저장 일괄 체크 및 업무매뉴얼·오류신고 등 도구 메뉴 권한 통제",
       "5. 우하단 [역할 권한 저장]: 변경된 역할 권한 매트릭스를 DB에 저장하고 해당 역할을 상속받는 전 직원에게 실시간 동기화",
       "6. 직원 권한 상속 배정: [직원 권한 상속 배정] 탭에서 부서/직급별 직원을 검색(플랫폼 developer 계정 자동 은닉)하여 권한 역할을 1:1 매핑하거나 개별 예외 권한 부여"
@@ -6818,15 +6818,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         ]
       }
     ],
-    "auditResult": "테넌트 라이선스 활성 메뉴 100% 정합 노출, 직무분리(SoD) 준수 및 업무매뉴얼/오류신고 포함 전 메뉴 권한 통제 무결성 확정",
+    "auditResult": "테넌트 라이선스 활성 메뉴 100% 정합 노출, 직무분리 준수 및 업무매뉴얼/오류신고 포함 전 메뉴 권한 통제 무결성 확정",
     "rulesCompliance": [
       "헌장 2.1 [부서 R&R 엄격 분리]: 영업부서와 출고/자산부서 간 역할별 메뉴 조회·저장 권한 엄격 분리",
-      "헌장 5.3 [SSOT 권한]: 테넌트별 활성 메뉴(allowedModules/hiddenPages)와 권한 설정 매트릭스를 1:1 일치시켜 미사용 메뉴 노출로 인한 혼란 원천 방지",
+      "헌장 5.3 [SSOT 권한]: 테넌트별 활성 메뉴와 권한 설정 매트릭스를 1:1 일치시켜 미사용 메뉴 노출로 인한 혼란 원천 방지",
       "헌장 5.2 [무음 실패 방지]: 역할 생성·수정·삭제 및 권한 저장 시 DB 트랜잭션 완료 대기 후 즉시 UI 반영"
     ],
     "precautions": [
-      "업무매뉴얼(operations_manual) 및 오류 신고(error_report) 메뉴도 권한 매트릭스의 조회(canView)/저장(canSave) 설정에 따라 엄격히 통제됩니다.",
-      "플랫폼 개발자(developer) 계정은 테넌트 일반 관리자 화면에서 자동 은닉되어 오조작이 방지됩니다."
+      "업무매뉴얼 및 오류 신고 메뉴도 권한 매트릭스의 조회/저장 설정에 따라 엄격히 통제됩니다.",
+      "플랫폼 개발자 계정은 테넌트 일반 관리자 화면에서 자동 은닉되어 오조작이 방지됩니다."
     ],
     "annotations": [
       {
@@ -6859,8 +6859,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "modalName": "커스텀 역할 인라인 수정 모드",
         "triggerButton": "역할 카드 우측 [수정] 버튼",
         "keyFields": [
-          "권한 역할 명칭(name)",
-          "권한 역할 설명(description)"
+          "권한 역할 명칭",
+          "권한 역할 설명"
         ],
         "terminalAction": "[저장]",
         "afterStateTransition": "custom_roles 테이블 역할 명칭·설명 즉시 갱신 및 소속 직원 배지 동기화"
@@ -7100,12 +7100,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "개인정보보호책임자",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "주민등록번호, 연락처 등 개인정보 조회/다운로드 접속 로그 감사 및 오남용 감시",
-    "scopeInfo": "접속 일시, 접속자 ID/성명, 접속자 IP, 열람 대상 정보 주체, 수행 액션(READ/EXPORT/UPDATE), 법적 정당 사유",
+    "scopeInfo": "접속 일시, 접속자 ID/성명, 접속자 IP, 열람 대상 정보 주체, 수행 액션, 법적 정당 사유",
     "cognitiveSequence": [
       "1. 감사 기간 및 열람 유형(고객 주민번호, 계좌번호, 임직원 정보) 스코핑",
       "2. 개인정보 취급자의 조회 일시, 접속 IP, 열람 사유 로그 전수 검색",
       "3. 개인정보 다운로드(엑셀 내보내기) 대량 발생 건 탐지 및 경보 확인",
-      "4. 암호화 저장 및 전송 구간 안전성 기준(SSL/TLS, SHA256) 준수 점검",
+      "4. 암호화 저장 및 전송 구간 안전성 기준 준수 점검",
       "5. 3년 경과 불필요 개인정보 파기 대상 목록 추출",
       "6. 개인정보 파기 실행 및 파기 확인서 자동 발급",
       "7. 개인정보 보호법 제30조 법정 안전성 감사 보고서 확정"
@@ -7131,7 +7131,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "개인정보 처리 로그 100% 무누락 영구 보존 및 감사 리포트 확정",
     "rulesCompliance": [
-      "헌장 1.2 [이벤트 기록 무누락 DB 저장]: 접속 기록 로그 삭제/변조 영구 금지 (WORM)",
+      "헌장 1.2 [이벤트 기록 무누락 DB 저장]: 접속 기록 로그 삭제/변조 영구 금지",
       "헌장 5.6 [날조 영구 엄단]: 인과율과 실제 접속 IP 타임스탬프 완벽 일치 보증"
     ],
     "precautions": [
@@ -7170,7 +7170,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"privacy-scope-header\"]",
         "type": "highlight",
         "label": "개인정보 보호책임자 현황",
-        "description": "[개인정보 보호책임자 현황] 화면 영역입니다. 법정 개인정보 보호책임자(CPO) 지정 정보 및 전사 처리방침 규정을 확인하는 기본 기능을 제공합니다.",
+        "description": "[개인정보 보호책임자 현황] 화면 영역입니다. 법정 개인정보 보호책임자 지정 정보 및 전사 처리방침 규정을 확인하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -7216,19 +7216,19 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "도구 및 다운로드",
     "department": "전사 임직원",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "전사 72개 메뉴 및 26개 모달의 기능정의서(Markdown)·단위업무 매뉴얼·인앱 가이드 투어(Ctrl+M) 통합 조회 및 중앙 플랫폼 DB 동기화",
-    "scopeInfo": "전사 72개 메뉴 매뉴얼(ALL_MENU_MANUALS v16), 26개 모달 매뉴얼(MODAL_MANUAL_REGISTRY v6), 마크다운 기능정의서(MenuSpecDocModal), 부서별 필터 및 A4 인쇄 레이아웃",
+    "objective": "전사 72개 메뉴 및 26개 모달의 기능정의서·단위업무 매뉴얼·인앱 가이드 투어 통합 조회 및 중앙 플랫폼 DB 동기화",
+    "scopeInfo": "전사 72개 메뉴 매뉴얼, 26개 모달 매뉴얼, 마크다운 기능정의서, 부서별 필터 및 A4 인쇄 레이아웃",
     "cognitiveSequence": [
       "1. 좌상단 부서 필터(전체, 영업, 입출고/자산, 정비, 배차, 경영관리, 특수, 개발자) 및 키워드 검색으로 대상 매뉴얼 스코핑 (로그인 사용자의 조회 권한이 있는 메뉴만 노출)",
       "2. 좌측 그룹별 메뉴 트리에서 열람할 메뉴 클릭",
-      "3. 중앙 매뉴얼 상세 보드에서 업무 최종 목표(Objective), 시작 전제 조건(Scope), 1-Way 인지 조작 동선, 하위 탭 및 연동 모달 워크플로우 검토",
-      "4. 단위업무 매뉴얼(Processes) 섹션에서 단계별 조작 절차를 확인하고 [가이드 시작] 클릭 시 해당 메뉴로 즉시 이동하여 인앱 스포트라이트 투어 실행",
-      "5. 우상단 [DB 일괄 주입] 클릭 시 전사 72개 메뉴와 26개 모달의 단계 가이드·단위업무 프로세스·기능정의서(specDocMarkdown)를 중앙 플랫폼 DB(centralSupabase)에 일괄 동기화",
+      "3. 중앙 매뉴얼 상세 보드에서 업무 최종 목표, 시작 전제 조건, 1-Way 인지 조작 동선, 하위 탭 및 연동 모달 워크플로우 검토",
+      "4. 단위업무 매뉴얼 섹션에서 단계별 조작 절차를 확인하고 [가이드 시작] 클릭 시 해당 메뉴로 즉시 이동하여 인앱 스포트라이트 투어 실행",
+      "5. 우상단 [DB 일괄 주입] 클릭 시 전사 72개 메뉴와 26개 모달의 단계 가이드·단위업무 프로세스·기능정의서를 중앙 플랫폼 DB(centralSupabase)에 일괄 동기화",
       "6. 우상단 [A4 인쇄] 클릭으로 선택 메뉴 또는 전사 매뉴얼 편람 출력 완결"
     ],
     "auditResult": "전사 72개 메뉴·26개 모달 기능정의서 및 단위업무 매뉴얼 최신 개편사항 100% 동기화 확정",
     "rulesCompliance": [
-      "헌장 1.1 [최대 편익]: 문서 열람과 실제 화면 인앱 가이드 투어(Ctrl+M)를 단일 SSOT 데이터로 통합 제공",
+      "헌장 1.1 [최대 편익]: 문서 열람과 실제 화면 인앱 가이드 투어를 단일 SSOT 데이터로 통합 제공",
       "헌장 1.4 [1단어 1뜻 표준화]: 공식메일설정, 무상옵션, EXCHANGE 등 전사 표준 용어로 모든 매뉴얼 기술 통일",
       "헌장 3.1 [무수식어 건조 표준]: 감성적 미사여구를 배제한 건조하고 명확한 명사·동사형 업무 지침 수록"
     ],
@@ -7365,12 +7365,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "objective": "현장 업무 중 발견된 시스템 결함, UI 깨짐, 논리 오류 접수 및 조치 관리",
     "scopeInfo": "발생 메뉴, 오류 현상 설명, 재현 경로, 스크린샷 이미지, 사용자 브라우저/OS 정보, 콘솔 로그",
     "cognitiveSequence": [
-      "1. 오류 발생 기간 및 심각도(CRITICAL, WARNING, INFO) 스코핑",
+      "1. 오류 발생 기간 및 심각도 스코핑",
       "2. 브라우저 콘솔 에러, 네트워크 실패, DB RLS 차단 로그 상세 확인",
       "3. 발생 사용자 세션, 기기(PC/모바일), 화면 URL 추적",
-      "4. 무음 실패(Silent Swallow) 방지 헌장 5.2 준수 여부 점검",
+      "4. 무음 실패 방지 헌장 5.2 준수 여부 점검",
       "5. 오류 재현 절차 확인 및 임시 조치 가이드 등록",
-      "6. 버그 패치 배포 후 오류 티켓 상태 해결됨(RESOLVED) 전환",
+      "6. 버그 패치 배포 후 오류 티켓 상태 해결됨 전환",
       "7. 시스템 안정성 지표(가용성 99.9%) 확정 및 재발 방지 대책 수립"
     ],
     "modalWorkflows": [
@@ -7515,10 +7515,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "개발/기획팀",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "자연어 비즈니스 지시어 기반 다중 에이전트 자율 업무 수행 시뮬레이션 및 검증",
-    "scopeInfo": "에이전트 모델(LLaMA 3.3, Gemini Flash), 도메인 지식 사전, 테스트 프롬프트, 추론 지연시간/비용",
+    "scopeInfo": "에이전트 모델, 도메인 지식 사전, 테스트 프롬프트, 추론 지연시간/비용",
     "cognitiveSequence": [
       "1. 에이전틱 AI 실험 파이프라인 및 테스트 모델 스코핑",
-      "2. 자연어 ERP 프롬프트 입력 및 의도(Intent) 분석 테스트",
+      "2. 자연어 ERP 프롬프트 입력 및 의도 분석 테스트",
       "3. MCP(Model Context Protocol) 툴 호출 및 스키마 검증",
       "4. 가상 비즈니스 이벤트 시뮬레이션 및 안전성 가드레일 점검",
       "5. 타 부서 권한 침해 방지(영업의 자산번호 임의 지정 차단 등) 검증 (헌장 2.1)",
@@ -7566,7 +7566,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
         "type": "highlight",
         "label": "인공지능 추론 타임라인",
-        "description": "[인공지능 추론 타임라인] 화면 영역입니다. AI 에이전트의 단계별 생각(Thought), 표준 도구 호출(Tool Call) 및 관찰(Observation)을 실시간 모니터링하는 기본 기능을 제공합니다.",
+        "description": "[인공지능 추론 타임라인] 화면 영역입니다. AI 에이전트의 단계별 생각, 표준 도구 호출 및 관찰을 실시간 모니터링하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -7828,7 +7828,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "자산 마스터, 계약별 누적 매출 기여액(헌장 4.1), 정비비 투입 누계, 가동일수/유휴일수",
     "cognitiveSequence": [
       "1. 전사 고소작업대 자산 생애주기(취득  운용  정비  매각) 스코핑",
-      "2. 장비별 가동 시간(Hour Meter) 및 정비 점수 기반 이상 징후 예지 보전 감지",
+      "2. 장비별 가동 시간 및 정비 점수 기반 이상 징후 예지 보전 감지",
       "3. 출고 검수 승인 즉시 RENTED 전환 및 반납 시 정비 큐 자동 라우팅 (헌장 1.3)",
       "4. 렌탈료 누적 매출 기여액 대비 총 정비 비용 분석 (자산별 순수익성 산출)",
       "5. 노후/한계 자산 매각 및 폐기 권고 시점 자동 도출",
@@ -7955,13 +7955,13 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "시스템관리자 / 데이터엔지니어",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "레거시 엑셀 원장·밴드 AS 이력·소급 청구서 일괄 마이그레이션 적재, 단순 부대비용 행 빈 계약 생성 원천 차단 및 테넌트 안전 초기화(공식메일설정·매뉴얼 영구 보존)",
-    "scopeInfo": "통합 마스터 엑셀(고객사, 물리현장 SiteMaster, 제품 19개 제원, 실물자산, 계약, 청구), 정합성 대사 엔진, DB 스냅샷 백업 및 테넌트 안전 초기화(resetAllDatabaseTables)",
+    "scopeInfo": "통합 마스터 엑셀(고객사, 물리현장 SiteMaster, 제품 19개 제원, 실물자산, 계약, 청구), 정합성 대사 엔진, DB 스냅샷 백업 및 테넌트 안전 초기화",
     "cognitiveSequence": [
       "1. 상단 작업 단계 탭(초기데이터 적재 INGEST / 정합성 대사 CLEANUP / DB 백업 BACKUP / 데이터 초기화 RESET) 선택",
-      "2. 표준 엑셀 양식 업로드 및 파싱: 고객사·현장(N:M 정규화)·장비·계약·청구 데이터를 파싱하고, 실물 장비 식별자가 없는 단독 부대비용(운반비·수리비 등) 행은 빈 껍데기 계약(0-asset contract)을 생성하지 않고 청구 상세(billing_details)로만 직행 처리하여 무자산 계약 발생 원천 차단",
-      "3. 정합성 대사(CLEANUP): 외래키 고아 레코드, 중복 사업자번호/현장명 정규화 및 모델명 대문자 일괄 보정 실행",
-      "4. DB 스냅샷 백업(BACKUP): 마이그레이션 또는 초기화 전 전체 테이블 JSON/XLSX 스냅샷 백업 생성",
-      "5. 테넌트 안전 초기화(RESET): [데이터 초기화] 실행 시 중앙 플랫폼의 테넌트 원장·공식메일설정(officialMailConfig)·전사 매뉴얼·관리자 계정은 100% 보존하고, 은행(bank_*) 및 물리 현장(site_masters)을 포함한 테넌트 비즈니스 데이터와 로컬 캐시만 완전 초기화 후 refreshAllData() 즉시 동기화"
+      "2. 표준 엑셀 양식 업로드 및 파싱: 고객사·현장(N:M 정규화)·장비·계약·청구 데이터를 파싱하고, 실물 장비 식별자가 없는 단독 부대비용(운반비·수리비 등) 행은 빈 껍데기 계약을 생성하지 않고 청구 상세로만 직행 처리하여 무자산 계약 발생 원천 차단",
+      "3. 정합성 대사: 외래키 고아 레코드, 중복 사업자번호/현장명 정규화 및 모델명 대문자 일괄 보정 실행",
+      "4. DB 스냅샷 백업: 마이그레이션 또는 초기화 전 전체 테이블 JSON/XLSX 스냅샷 백업 생성",
+      "5. 테넌트 안전 초기화: [데이터 초기화] 실행 시 중앙 플랫폼의 테넌트 원장·공식메일설정·전사 매뉴얼·관리자 계정은 100% 보존하고, 은행(bank_*) 및 물리 현장을 포함한 테넌트 비즈니스 데이터와 로컬 캐시만 완전 초기화 후 refreshAllData() 즉시 동기화"
     ],
     "subTabs": [
       {
@@ -8003,10 +8003,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "rulesCompliance": [
       "헌장 1.5 [N:M 정규화 준수]: 초기 데이터 업로드 및 초기화 시 SiteMaster와 customer_sites 조인 구조를 엄격히 보존·초기화",
       "헌장 5.2 [무음 실패 방지]: 초기화 및 일괄 적재 시 await db.awaitPendingWrites() 및 refreshAllData() 동기 수행으로 잔존 캐시 0건 보장",
-      "헌장 5.3 [SSOT 보존]: 테넌트 비즈니스 데이터 초기화 시 중앙 플랫폼 DB의 공식메일설정(tenants.features.officialMailConfig)과 매뉴얼 데이터는 절대 삭제하지 않음"
+      "헌장 5.3 [SSOT 보존]: 테넌트 비즈니스 데이터 초기화 시 중앙 플랫폼 DB의 공식메일설정과 매뉴얼 데이터는 절대 삭제하지 않음"
     ],
     "precautions": [
-      "데이터 초기화(RESET) 실행 전 반드시 [DB 백업] 탭에서 최신 스냅샷 백업본을 다운로드하십시오.",
+      "데이터 초기화 실행 전 반드시 [DB 백업] 탭에서 최신 스냅샷 백업본을 다운로드하십시오.",
       "초기화 직후 브라우저 로컬 스토리지 캐시가 자동 클리어되며 화면 상태가 즉시 0건으로 갱신됩니다."
     ],
     "annotations": [
@@ -8064,7 +8064,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"initial_db_upload-tabs\"]",
             "type": "click_ripple",
             "label": "데이터 적재 탭 선택",
-            "description": "[데이터 적재 탭 선택] UI 요소를 조작합니다. 상단 탭에서 [엑셀 데이터 적재 (INGEST)] 모드를 클릭하십시오.",
+            "description": "[데이터 적재 탭 선택] UI 요소를 조작합니다. 상단 탭에서 [엑셀 데이터 적재] 모드를 클릭하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -8091,7 +8091,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "테스트 배치 ID(test_batch_id), 테스트 계약/배차/자산 건수, 스트레스 주입 축(공간/물리/시간/비용/수량)",
     "cognitiveSequence": [
       "1. 데이터베이스 DDL 스키마 및 마이그레이션 모드 스코핑",
-      "2. 로컬 스키마 정의(schema.sql)와 원격 Supabase 정합성 자가 검증 (헌장 5.3)",
+      "2. 로컬 스키마 정의와 원격 Supabase 정합성 자가 검증 (헌장 5.3)",
       "3. 신규 컬럼 및 테이블 추가 DDL 스크립트 프리뷰",
       "4. RLS(Row Level Security) 정책 멱등성 DROP/CREATE DDL 생성",
       "5. 마이그레이션 안전성 검증 및 백업 스냅샷 확인",
@@ -8233,8 +8233,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부 / 고객센터",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "중앙 공식메일설정(OfficialMailConfig) 연동 거래처 견적서·최고장·계약서류·R2 제원표/인증서 전자 발송 및 발송 로그 무누락 보존",
-    "scopeInfo": "중앙 플랫폼 DB 공식메일설정(tenants.features.officialMailConfig: 네이버/구글 SMTP 계정 및 개발모드/서비스모드 상태), 수신 고객사·담당자 이메일, 발송 서식 템플릿(견적서/공문/최고장), Cloudflare R2 제품 문서함(Eq_doc) 첨부파일",
+    "objective": "중앙 공식메일설정 연동 거래처 견적서·최고장·계약서류·R2 제원표/인증서 전자 발송 및 발송 로그 무누락 보존",
+    "scopeInfo": "중앙 플랫폼 DB 공식메일설정(tenants.features.officialMailConfig: 네이버/구글 SMTP 계정 및 개발모드/서비스모드 상태), 수신 고객사·담당자 이메일, 발송 서식 템플릿(견적서/공문/최고장), Cloudflare R2 제품 문서함 첨부파일",
     "cognitiveSequence": [
       "1. 상단 발송 환경 배지 확인: 테넌트 관리 센터에 설정된 공식메일설정 계정 및 현재 모드([개발모드 안전격리] 또는 [서비스모드 실발송]) 확인",
       "2. 좌측 패널에서 수신 대상 고객사, 현장 및 담당자 이메일 선택",
@@ -8244,7 +8244,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "중앙 공식메일설정 기반 SMTP 발송 완료 및 발송 감사 로그 무누락 보존",
     "rulesCompliance": [
-      "헌장 1.4 [1단어 1뜻 SSOT]: 공식메일설정(OfficialMailConfig) 단일 표준 용어 관통",
+      "헌장 1.4 [1단어 1뜻 SSOT]: 공식메일설정 단일 표준 용어 관통",
       "헌장 5.2 [무음 실패 방지]: SMTP 인증 실패 또는 네트워크 오류 시 즉시 상세 에러 모달 표출",
       "헌장 5.9 [외부 발송 안전 격리]: 개발모드 활성 시 외부 고객사 오발송을 원천 차단하고 지정 테스트 주소로만 안전 격리 발송"
     ],
@@ -8331,7 +8331,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "영업부 / 전략기획팀",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "공공 인허가 건축 데이터 조회를 통한 관내 착공 현장 및 잠재 영업 기회 발굴",
-    "scopeInfo": "전국 17개 시도/시군구 인허가 공정 데이터, 도로폭(V-World), CSI 안전계획 의무 여부",
+    "scopeInfo": "전국 17개 시도/시군구 인허가 공정 데이터, 도로폭, CSI 안전계획 의무 여부",
     "cognitiveSequence": [
       "1. 상단 필터 바에서 지역(시도/시군구) 및 공정 단계(마감·설비 골든타임) 선택",
       "2. 좌측 그리드에서 도로폭 및 예상 소요 대수 검토 후 대상 행 선택",
@@ -8432,20 +8432,20 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "플랫폼 아키텍트 / 개발자",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "멀티 테넌트 법인 개설, 모듈 라이선스·특수기능 제어, 중앙 공식메일설정(개발모드/서비스모드 전환) 및 Cloudflare R2 스토리지 통합 관제",
-    "scopeInfo": "테넌트 영문 코드, 표시 상호, 사업자등록번호, 구독 플랜/만료일, 허용 모듈(allowedModules), 특수기능(specialFeatures/AI스튜디오), 공식메일설정(officialMailConfig: SMTP 계정 및 개발모드/서비스모드), Cloudflare R2 설정(r2Config)",
+    "scopeInfo": "테넌트 영문 코드, 표시 상호, 사업자등록번호, 구독 플랜/만료일, 허용 모듈, 특수기능(specialFeatures/AI스튜디오), 공식메일설정(officialMailConfig: SMTP 계정 및 개발모드/서비스모드), Cloudflare R2 설정",
     "cognitiveSequence": [
-      "1. 좌상단 (Scope): 테넌트 검색어(상호명, 테넌트 코드, 사업자번호) 및 구독/가동 상태 필터링",
-      "2. 우상단 (Pipeline): [신규 테넌트 등록], [원클릭 온보딩], [엑셀 내보내기] 실행",
-      "3. 중앙 본문 (Inspection): 테넌트 대장 그리드에서 법인 정보, 구독 만료일, 로컬 에이전트 상태, [공식메일설정] 컬럼의 발송 계정 및 [개발모드 ↔ 서비스모드] 인라인 토글 확인",
+      "1. 좌상단: 테넌트 검색어(상호명, 테넌트 코드, 사업자번호) 및 구독/가동 상태 필터링",
+      "2. 우상단: [신규 테넌트 등록], [원클릭 온보딩], [엑셀 내보내기] 실행",
+      "3. 중앙 본문: 테넌트 대장 그리드에서 법인 정보, 구독 만료일, 로컬 에이전트 상태, [공식메일설정] 컬럼의 발송 계정 및 [개발모드 ↔ 서비스모드] 인라인 토글 확인",
       "4. 인라인 모드 전환: 목록 테이블의 [개발모드] 또는 [서비스모드] 버튼을 클릭하여 테넌트 공식 메일 발송 모드를 중앙 플랫폼 DB(ebro-platform-core)에 즉시 전환 반영",
-      "5. 테넌트 상세 설정 모달: [설정] 클릭 시 6대 탭(기본 사업자·인감·CPO / 사업장·주기장 / 모듈 라이선스 / 특수기능·AI / 공식메일설정(EMAIL) / 클라우드 스토리지(R2)) 정밀 구성",
+      "5. 테넌트 상세 설정 모달: [설정] 클릭 시 6대 탭(기본 사업자·인감·CPO / 사업장·주기장 / 모듈 라이선스 / 특수기능·AI / 공식메일설정 / 클라우드 스토리지) 정밀 구성",
       "6. 공식메일설정 및 R2 스토리지 검증: 네이버·구글·커스텀 SMTP 계정 및 Cloudflare R2 버킷 연결 테스트 실행 (테넌트 DB 초기화 시에도 중앙 플랫폼 DB에 영구 보존)",
-      "7. 우하단 (Terminal Action): [테넌트 설정 저장] 및 [작업공간 전환]으로 멀티 테넌트 격리 정책 확정"
+      "7. 우하단: [테넌트 설정 저장] 및 [작업공간 전환]으로 멀티 테넌트 격리 정책 확정"
     ],
     "auditResult": "중앙 플랫폼 DB(tenants.features) 기반 테넌트 라이선스·공식메일설정·R2 스토리지 영구 보존 및 테넌트 DB 초기화 시 설정 유실 0건 확정",
     "rulesCompliance": [
-      "헌장 1.4 [1단어 1뜻 단일 의미 표준화]: 레거시 google_configs 명칭을 전면 폐기하고 공식메일설정(OfficialMailConfig) 단일 표준 용어로 통합",
-      "헌장 5.3 [단일 진실의 원천(SSOT)]: 테넌트별 공식메일설정과 R2 스토리지 설정을 중앙 플랫폼 DB(ebro-platform-core)에서 통합 관리하여 테넌트 초기화 시에도 설정 영구 보존",
+      "헌장 1.4 [1단어 1뜻 단일 의미 표준화]: 레거시 google_configs 명칭을 전면 폐기하고 공식메일설정 단일 표준 용어로 통합",
+      "헌장 5.3 [단일 진실의 원천]: 테넌트별 공식메일설정과 R2 스토리지 설정을 중앙 플랫폼 DB(ebro-platform-core)에서 통합 관리하여 테넌트 초기화 시에도 설정 영구 보존",
       "헌장 5.9 [외부 발송 안전 격리 원칙]: 테넌트별 [개발모드] ↔ [서비스모드] 1클릭 전환을 통해 테스트 중 실거래처 오발송 원천 차단"
     ],
     "precautions": [
@@ -8497,7 +8497,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "tenant_official_mail_mode",
         "title": "테넌트별 공식메일설정 및 개발모드·서비스모드 전환",
-        "description": "테넌트 관리 센터에서 테넌트별 공식 발신 메일(SMTP) 계정을 설정하고 개발모드(안전 격리)와 서비스모드(실발송)를 전환합니다.",
+        "description": "테넌트 관리 센터에서 테넌트별 공식 발신 메일 계정을 설정하고 개발모드(안전 격리)와 서비스모드(실발송)를 전환합니다.",
         "steps": [
           {
             "seq": 1,
@@ -8511,7 +8511,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 2,
             "selector": "[data-mid=\"tenant-inspection-grid\"] button",
             "type": "callout",
-            "label": "공식메일설정(EMAIL) 상세 계정 구성",
+            "label": "공식메일설정 상세 계정 구성",
             "description": "테넌트 우측 [설정] 모달의 [공식메일설정] 탭에서 네이버/구글 SMTP 계정과 앱 비밀번호를 입력하고 연결 테스트 후 저장합니다.",
             "positionHint": "left"
           }
@@ -8564,7 +8564,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "tabId": "BASIC_INFO",
         "tabName": "기본 사업자·인감·CPO",
-        "purpose": "법인 사업자 정보, 대표 계좌, 법인 인감 이미지 및 개인정보 보호책임자(CPO) 설정",
+        "purpose": "법인 사업자 정보, 대표 계좌, 법인 인감 이미지 및 개인정보 보호책임자 설정",
         "keyActions": [
           "사업자 정보 입력",
           "법인 인감 등록",
@@ -8574,7 +8574,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "tabId": "MODULES",
         "tabName": "모듈 라이선스 설정",
-        "purpose": "테넌트별 허용 메뉴 그룹(영업-유통, 렌탈, 정비 등) 및 노출 페이지(allowedPages/hiddenPages) 할당",
+        "purpose": "테넌트별 허용 메뉴 그룹(영업-유통, 렌탈, 정비 등) 및 노출 페이지 할당",
         "keyActions": [
           "모듈 체크박스 토글",
           "권한 매트릭스 연동"
@@ -8591,7 +8591,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "tabId": "EMAIL",
-        "tabName": "공식메일설정 (OfficialMailConfig)",
+        "tabName": "공식메일설정",
         "purpose": "테넌트별 공식 발신 SMTP 계정(네이버/구글/다음/커스텀) 및 개발모드(안전 격리)/서비스모드(실발송) 중앙 영구 설정",
         "keyActions": [
           "SMTP 계정 입력",
@@ -8601,7 +8601,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "tabId": "STORAGE",
-        "tabName": "클라우드 스토리지 (Cloudflare R2)",
+        "tabName": "클라우드 스토리지",
         "purpose": "테넌트별 R2 버킷, Access Key, 공개 도메인 및 로컬 에이전트 드라이브 미러링 폴더 설정",
         "keyActions": [
           "R2 자격증명 입력",
@@ -8612,12 +8612,12 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "테넌트 통합 설정 모달 (TenantConfigModal)",
+        "modalName": "테넌트 통합 설정 모달",
         "triggerButton": "[신규 테넌트 등록] 또는 행 우측 [설정]",
         "keyFields": [
           "테넌트 코드 및 법인 사업자 제원",
-          "구독 요금제(TRIAL/BASIC/PRO/ENTERPRISE) 및 만료일",
-          "허용 모듈(allowedModules) 및 특수기능(specialFeatures)",
+          "구독 요금제 및 만료일",
+          "허용 모듈 및 특수기능",
           "공식메일설정(SMTP 계정, 앱 비밀번호, 개발모드/서비스모드 토글)",
           "Cloudflare R2 스토리지(Account ID, 버킷명, 공개 도메인)"
         ],
@@ -8647,7 +8647,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "3.6 고밀도 그리드 아키타입 적용"
     ],
     "precautions": [
-      "렌탈 장비(Assets)와 상품(TradeGoods) 마스터가 섞이지 않도록 ItemType 엄격 격리"
+      "렌탈 장비와 상품 마스터가 섞이지 않도록 ItemType 엄격 격리"
     ],
     "annotations": [
       {
@@ -8705,7 +8705,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": ".grid-container",
         "type": "highlight",
         "label": "상품 그리드",
-        "description": "중앙 표에서 상품의 단가와 이동평균원가(COGS) 방식을 한눈에 확인합니다.",
+        "description": "중앙 표에서 상품의 단가와 이동평균원가 방식을 한눈에 확인합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -8765,7 +8765,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "수량 보존 법칙"
     ],
     "precautions": [
-      "부분 입고(Partial Received) 시 잔여 수량 관리 주의",
+      "부분 입고 시 잔여 수량 관리 주의",
       "단가 변동 시 기존 재고 가치 희석 방지(LOT 기반 추적)"
     ],
     "annotations": [
@@ -8866,14 +8866,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "objective": "유통 수주 등록, 고밀도 그리드 기반 계약 대장 조회, 표준 물품매매계약서 엑셀 양식 편집 및 거래처 이메일 발송 관리",
     "scopeInfo": "거래처 마스터(고객사), 유통 상품 마스터, 계약서 상태(작성대기 DRAFT, 양식생성 GENERATED, 발송완료 SENT), 총 계약금액",
     "cognitiveSequence": [
-      "1. 좌상단 (Scope): 수주 주문번호/거래처 검색 및 계약서 진행 상태별 필터(전체, 작성대기, 양식생성, 발송완료) 스코핑",
-      "2. 우상단 (Pipeline): 신규 수주 등록 바(거래처 선택, 상품 선택, 수량 입력)에서 [수주 등록] 실행",
+      "1. 좌상단: 수주 주문번호/거래처 검색 및 계약서 진행 상태별 필터(전체, 작성대기, 양식생성, 발송완료) 스코핑",
+      "2. 우상단: 신규 수주 등록 바(거래처 선택, 상품 선택, 수량 입력)에서 [수주 등록] 실행",
       "3. 상단 우측 통계: 총 수주 건수, 총 계약금액, 계약서 발송 건수, 발송 대기 건수 실시간 요약 검증",
-      "4. 중앙 본문 (Inspection): 행 높이 38~42px 고밀도 그리드 테이블에서 수주 목록 조망 (1열 [계약서/이메일 ➔] 고정 배치)",
+      "4. 중앙 본문: 행 높이 38~42px 고밀도 그리드 테이블에서 수주 목록 조망 (1열 [계약서/이메일 ➔] 고정 배치)",
       "5. 모달 스튜디오: 1열 액션 버튼 클릭 시 [유통 물품매매계약서 양식 편집 및 이메일 발송] 모달 진입",
       "6. 계약 조건 편집: 계약일자, 납품기한, 인도장소, 대금결제조건, 5대 표준 특약사항 입력 후 [계약 조건 저장]",
       "7. 엑셀 계약서 생성: [엑셀 다운로드] 또는 [에이전트로 열기]를 통해 ExcelJS 기반 표준 서식 파일 확인",
-      "8. 우하단 (Terminal Action): 헌장 5.9조 안전 격리(테스트 모드: admin@ebro.co.kr) 확인 후 [계약서 이메일 발송] 완결 및 전표 확정"
+      "8. 우하단: 헌장 5.9조 안전 격리(테스트 모드: admin@ebro.co.kr) 확인 후 [계약서 이메일 발송] 완결 및 전표 확정"
     ],
     "subTabs": [],
     "modalWorkflows": [
@@ -8884,7 +8884,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "주문번호 및 계약일자",
           "납품 기한 및 인도 장소",
           "대금 결제 조건 (납품 검수 후 30일 이내 등)",
-          "5대 표준 특약 사항 (운송비 부담, 검수 기한, 하자 시 무상 맞교환 등)",
+          "5대 표준 특약 사항 (운송비 부담, 검수 기한, 하자 시 무상 교환 등)",
           "체결 품목 명세 (수량, 단가, 공급가액, 세액 합계)",
           "헌장 5.9조 안전 격리 테스트 모드 토글 (기본 활성: admin@ebro.co.kr)"
         ],
@@ -8892,7 +8892,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "contractDocStatus = 'SENT', contractSentAt/contractSentTo 무누락 영구 저장"
       }
     ],
-    "auditResult": "수주 전표 DB 저장, 엑셀 계약서 생성 및 발송 이력(contractSentAt, contractSentTo) 무누락 보존",
+    "auditResult": "수주 전표 DB 저장, 엑셀 계약서 생성 및 발송 이력 무누락 보존",
     "rulesCompliance": [
       "헌장 3.1 [무수식어 건조 표준]: 감성적 수식어 전면 배제 및 건조한 명사형 버튼 강제",
       "헌장 3.2 [No-Wrap 원칙]: 1열 액션 버튼 [계약서/이메일 ➔] 최좌측 배치 및 셀 줄바꿈 방지",
@@ -9061,7 +9061,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "유통 물류/구매",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "수주 상품 재고 할당, 출고 지시 및 패킹 검수 관리",
-    "scopeInfo": "승인된 수주 내역(Sales Order) 및 창고별 물리적 재고(On-hand Qty) 상황",
+    "scopeInfo": "승인된 수주 내역 및 창고별 물리적 재고 상황",
     "cognitiveSequence": [
       "1. 좌상단 출고 요청 번호 및 납기일 확인",
       "2. 우상단 '재고 할당' 실행을 통해 가용 창고 매핑",
@@ -9131,7 +9131,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": ".checkbox-inspect",
             "type": "click_ripple",
             "label": "단계 2",
-            "description": "중앙의 현장 특이사항(포장 주의 등) 텍스트를 읽고 검수 체크박스를 틱(V) 하세요.",
+            "description": "중앙의 현장 특이사항(포장 주의 등) 텍스트를 읽고 검수 체크박스를 틱 하세요.",
             "positionHint": "bottom"
           },
           {
@@ -9155,7 +9155,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "유통 물류/구매",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "택배 운송장 번호 등록, 출고 배송 추적 및 수령 확인 관리",
-    "scopeInfo": "당일 출고 승인(PACKED)된 전체 유통 주문 건",
+    "scopeInfo": "당일 출고 승인된 전체 유통 주문 건",
     "cognitiveSequence": [
       "1. 좌상단 배송 희망일 및 택배사(로젠/경동 등) 필터 적용",
       "2. 우상단 '운송장 일괄 다운로드'로 택배사 연동 파이프라인 유입",
@@ -9165,10 +9165,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "auditResult": "운송장 매핑 100% 및 배송 완료 상태 전이",
     "rulesCompliance": [
       "3.1 무수식어 원칙 (배송 vs 배차 의미 분리 적용)",
-      "3.2 셀 줄바꿈 방지(nowrap)"
+      "3.2 셀 줄바꿈 방지"
     ],
     "precautions": [
-      "렌탈 화물 배차(TruckDispatch)와 달리 중량/제원보다 주소 및 송장 번호 정확도 최우선"
+      "렌탈 화물 배차와 달리 중량/제원보다 주소 및 송장 번호 정확도 최우선"
     ],
     "annotations": [
       {
@@ -9257,7 +9257,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "경영 지원",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "유통 판매 매출 청구서 산출, 세금계산서 발행 및 수납 대사",
-    "scopeInfo": "정산 연월, 고객사별 출고 완료(SHIPPED/DELIVERED) 매출 건",
+    "scopeInfo": "정산 연월, 고객사별 출고 완료 매출 건",
     "cognitiveSequence": [
       "1. 좌상단 정산 연월(마감월) 및 수금 조건 필터",
       "2. 우상단 '데이터 불러오기'를 통해 미청구 매출 건 파이프라인 유입",
@@ -9359,7 +9359,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "유통 물류/구매",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "고객 반품 접수, 불량 검수, 양품 재입고 및 환불/대손 처리",
-    "scopeInfo": "고객 반환 접수 건 및 원본 수주 계약(Sales Order) 내역",
+    "scopeInfo": "고객 반환 접수 건 및 원본 수주 계약 내역",
     "cognitiveSequence": [
       "1. 좌상단 반품 접수 번호 스코핑",
       "2. 우상단 '원계약 조회'로 과거 출고 단가 및 LOT 이력 유입",
@@ -9472,7 +9472,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "분석 기간 및 특정 상품군, 거래처 필터",
     "cognitiveSequence": [
       "1. 좌상단 조회 연월 및 상품군 조건 지정",
-      "2. 우상단 '분석 실행'으로 DB 원장(Ledger) 실시간 연산 유입",
+      "2. 우상단 '분석 실행'으로 DB 원장 실시간 연산 유입",
       "3. 중앙 고밀도 그리드에서 품목별 총매출, 매출원가, 순수익, 마진율 차액 대조",
       "4. 우하단 총합 마진율 수식 확인 후 '마감' 또는 '엑셀 내보내기' 완결"
     ],
@@ -9564,7 +9564,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "department": "영업관리팀 / 회계팀",
     "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "비정형 렌탈료, 소모품 실비, 현장 위약금 등 특수 품목 거래명세서 수기 작성",
-    "scopeInfo": "원청구 전표(Billings) 데이터 및 고객사 요청 품목/단가/수량 변경 사유",
+    "scopeInfo": "원청구 전표 데이터 및 고객사 요청 품목/단가/수량 변경 사유",
     "cognitiveSequence": [
       "1. 좌상단 원청구 기본 정보(고객사, 현장명, 원공급가액, 원부가세, 원합계금액) 검토",
       "2. 특수 거래명세서 변환 사유 입력 (예: 건설 현장 기성 산출 내역서 양식 준용)",
@@ -9784,7 +9784,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "헌장 5.2 [무음 실패 방지] 준수: 갭 분석 실패 시 오류 행과 원인을 명확히 적발하여 적재 차단"
     ],
     "precautions": [
-      "자산(ASSET) 데이터 적재 전 고객사(CUSTOMER) 마스터가 먼저 생성되어 있어야 계약 연동이 가능합니다.",
+      "자산 데이터 적재 전 고객사 마스터가 먼저 생성되어 있어야 계약 연동이 가능합니다.",
       "실제 운영 DB에 적재 시 기존 레코드 덮어쓰기 여부를 사전에 반드시 확인해야 합니다."
     ],
     "annotations": [
@@ -10010,19 +10010,19 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "경영관리 - 특수",
     "department": "경영관리팀 / 전사 공통",
     "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "전사 메뉴별 핵심 단위업무 매뉴얼(Process Flow) 절차 검색, 단계별 매뉴얼 열람 및 1클릭 인앱 인터랙티브 가이드 투어 실행",
-    "scopeInfo": "사용자에게 조회(view) 권한이 부여된 메뉴의 전체 단위업무 프로세스(processes), 메뉴별 필터 드롭다운, 키워드 검색창",
+    "objective": "전사 메뉴별 핵심 단위업무 매뉴얼 절차 검색, 단계별 매뉴얼 열람 및 1클릭 인앱 인터랙티브 가이드 투어 실행",
+    "scopeInfo": "사용자에게 조회 권한이 부여된 메뉴의 전체 단위업무 프로세스, 메뉴별 필터 드롭다운, 키워드 검색창",
     "cognitiveSequence": [
       "1. 상단 [메뉴 필터] 드롭다운에서 특정 메뉴를 선택하거나 [업무명 또는 설명 검색] 창에 업무 키워드(예: 신규 계약, 공식메일설정, 19개 제원, 대차, 수납) 입력",
-      "2. 권한 격리 검증: 로그인한 사용자가 접근 권한(canView)을 보유한 메뉴의 단위업무 프로세스만 안전하게 필터링되어 카드 형태로 노출",
-      "3. 중앙 카드 리스트에서 단위업무 제목, 업무 목적 및 단계별(1~N단계) 조작 설명(Label & Description) 숙지",
+      "2. 권한 격리 검증: 로그인한 사용자가 접근 권한을 보유한 메뉴의 단위업무 프로세스만 안전하게 필터링되어 카드 형태로 노출",
+      "3. 중앙 카드 리스트에서 단위업무 제목, 업무 목적 및 단계별(1~N단계) 조작 설명 숙지",
       "4. 카드 우상단 [가이드 시작] 버튼 클릭 시 대상 메뉴 화면으로 즉시 자동 이동하며 인앱 단계별 클릭/하이라이트 가이드 투어 개시"
     ],
     "modalWorkflows": [],
-    "auditResult": "전사 단위업무 매뉴얼 프로세스 표준 스키마(processId, title, description, steps) 100% 정합 및 권한별 격리 열람 확정",
+    "auditResult": "전사 단위업무 매뉴얼 프로세스 표준 스키마 100% 정합 및 권한별 격리 열람 확정",
     "rulesCompliance": [
       "헌장 1.1 [최우선 개발 사명]: 신입 및 실무 담당자가 업무 절차를 검색 즉시 실제 화면에서 따라 할 수 있는 인터랙티브 실행 환경 제공",
-      "헌장 1.4 [1단어 1뜻 전사 단일 의미 표준화 원칙]: 모든 단위업무 절차의 용어를 전사 표준 용어집(SSOT)과 100% 일치 유지"
+      "헌장 1.4 [1단어 1뜻 전사 단일 의미 표준화 원칙]: 모든 단위업무 절차의 용어를 전사 표준 용어집과 100% 일치 유지"
     ],
     "precautions": [
       "사용자에게 조회 권한이 없는 메뉴의 단위업무는 사전 목록 및 드롭다운에서 자동으로 제외됩니다."

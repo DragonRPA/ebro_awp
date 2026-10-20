@@ -34,7 +34,7 @@ export interface ParsedPermissionData {
 }
 
 /**
- * 권한 JSON 텍스트를 파싱하여 현재 시스템 사용자(users)와 정확히 1:1 매핑
+ * 권한 JSON 텍스트를 파싱하여 현재 시스템 사용자와 정확히 1:1 매핑
  * - 임의 추정/기본값 덮어쓰기 전면 배제
  * - 파일에 명시된 canView, canSave 값을 100% 무결하게 보존
  */
@@ -60,7 +60,7 @@ export function parsePermissionJson(rawJsonText: string, currentUsers: User[], c
     });
   }
 
-  // 사용자 색인 (id, loginId, name)
+  // 사용자 색인
   const userById = new Map<string, User>();
   const userByLoginId = new Map<string, User>();
   const userByName = new Map<string, User>();
@@ -307,7 +307,7 @@ export function generatePermissionExportPayload(
       totalUsers: currentUsers.length,
       totalDepartments: currentDepartments.length,
       totalPermissions: currentPermissions.length,
-      description: '임직원별 메뉴 조회(canView) 및 저장(canSave) 권한 정밀 스냅샷'
+      description: '임직원별 메뉴 조회 및 저장 권한 정밀 스냅샷'
     },
     departments: currentDepartments.map(d => ({
       id: d.id,
@@ -331,7 +331,7 @@ export interface GenerateDefaultPermsResult {
 }
 
 /**
- * 현재 DB의 전 임직원을 직무 템플릿(role_templates.ts)으로 순회하여
+ * 현재 DB의 전 임직원을 직무 템플릿으로 순회하여
  * 모든 SYSTEM_MENU_CONFIG 메뉴 ID에 대한 기본 권한을 일괄 생성 후 DB에 적재.
  * - 이미 개인 오버라이드가 있는 항목은 덮어쓰지 않음 (merge 방식).
  * - agent_badge 포함 신규 추가된 menuId도 자동 반영됨 (SYSTEM_MENU_CONFIG SSOT 기반).

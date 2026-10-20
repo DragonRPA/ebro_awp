@@ -2,7 +2,7 @@
 import { StandardOption } from '../services/db';
 
 export interface SiteOptionItem {
-  id: string;               // 고유 식별자 (SO-YYYYMMDD-XXXX)
+  id: string;               // 고유 식별자
   siteId: string;           // 고객 현장 ID (CustomerSite.id) 또는 옵션그룹 ID (SiteMaster.id)
   optionId: string;         // 옵션품목마스터 ID (StandardOption.id)
   category: 'PAID' | 'PROTECTION' | 'ATTACHMENT' | 'SPEC'; // 마스터 상속
@@ -110,7 +110,7 @@ export function splitMasterAwareOptions(
 }
 
 /**
- * 옵션품목마스터(StandardOption) 풀을 기반으로 특정 현장/옵션그룹의 기본 SiteOptionItem[] 생성 (100% 상속)
+ * 옵션품목마스터 풀을 기반으로 특정 현장/옵션그룹의 기본 SiteOptionItem[] 생성 (100% 상속)
  */
 export function inheritOptionsFromMaster(
   siteId: string, 
@@ -179,9 +179,9 @@ export function inheritOptionsFromMaster(
 }
 
 /**
- * 출고요청서 / 회수요청서 출력 및 화면 표시를 위한 4대 구분(유상옵션, 무상옵션, 부착물, 현장요구스펙) 정밀 추출 헬퍼
+ * 출고요청서 / 회수요청서 출력 및 화면 표시를 위한 4대 구분(유상옵션, 무상옵션, 부착물, 현장요구사양) 정밀 추출 헬퍼
  * - 유상옵션은 단가를 절대 표시하지 않음
- * - 하드코딩/시드 배제: 표준 옵션 마스터(StandardOption) 기반으로 분류 및 쉼표 포함 마스터명 보존
+ * - 하드코딩/시드 배제: 표준 옵션 마스터 기반으로 분류 및 쉼표 포함 마스터명 보존
  */
 export function extractCategorizedSiteOptions(params: {
   site?: any;
@@ -260,7 +260,7 @@ export function extractCategorizedSiteOptions(params: {
     .filter(s => !s.includes('무상옵션 없음') && !s.includes('보양 없음'))
     .forEach(s => protSet.add(s));
 
-  // 3. 부착물 & 4. 현장요구스펙
+  // 3. 부착물 & 4. 현장요구사양
   const effectiveSpecs: Record<string, any> =
     (site?.checkedSpecs && Object.keys(site.checkedSpecs).length > 0)
       ? site.checkedSpecs
@@ -289,7 +289,7 @@ export function extractCategorizedSiteOptions(params: {
     }
   });
 
-  // 4. 현장요구스펙 (등록된 SPEC 옵션 마스터만 반영)
+  // 4. 현장요구사양 (등록된 SPEC 옵션 마스터만 반영)
   const specSet = new Set<string>();
   Object.entries(effectiveSpecs || {}).forEach(([k, v]) => {
     if (!v || k.startsWith('__')) return;
@@ -300,7 +300,7 @@ export function extractCategorizedSiteOptions(params: {
     }
   });
   if (specSet.size === 0 && combinedMemo) {
-    const m = combinedMemo.match(/(?:\[(?:현장요구스펙|현장요구사양|요구사양):\s*([^\]]+)\]|(?:현장요구스펙|현장요구사양):\s*([^|]+))/);
+    const m = combinedMemo.match(/(?:\[(?:현장요구사양|현장요구사양|요구사양):\s*([^\]]+)\]|(?:현장요구사양|현장요구사양):\s*([^|]+))/);
     if (m) {
       splitMasterAwareOptions(m[1] || m[2] || '', standardOptions, { onlyMasterOptions: true })
         .forEach(s => specSet.add(s));
@@ -320,7 +320,7 @@ export function extractCategorizedSiteOptions(params: {
     standardOptions.filter(o => o && o.isActive && o.name).map(o => o.name.trim())
   );
   extraOpts.forEach(item => {
-    const clean = stripOptionPrice(item).replace(/^(?:유상옵션|무상옵션|보양|부착물|현장요구스펙):\s*/, '').trim();
+    const clean = stripOptionPrice(item).replace(/^(?:유상옵션|무상옵션|보양|부착물|현장요구사양):\s*/, '').trim();
     if (!clean || clean === '없음' || clean.toUpperCase() === 'NONE') return;
     if (activeMasterNameSet.size > 0 && !activeMasterNameSet.has(clean)) return;
     if (isAttName(clean)) {
@@ -366,10 +366,10 @@ export interface PaidOptionBillingItem {
 }
 
 /**
- * 출고 요청 시 추가된 유상 옵션(PAID)을 단위('월', '건', '대')에 맞춰 정밀 산출하는 SSOT 헬퍼
- * - '월' (매월): 해당 유상옵션이 포함된 출고 건의 장비(ContractAsset) 중 정산 기간 내 가동 중인 대수 × 단가 (귀속월당 1회)
- * - '건' (1회): 해당 유상옵션이 포함된 출고 의뢰(Delivery) 건당 1회 × 단가 (최초 청구 시 1회)
- * - '대' (1회 × 출고수량): 해당 유상옵션이 포함된 출고 의뢰(Delivery)의 출고 대수 × 단가 (최초 청구 시 1회, 기존 계약 보유 대수와 무관하게 해당 출고 건의 수량만 청구)
+ * 출고 요청 시 추가된 유상 옵션을 단위('월', '건', '대')에 맞춰 정밀 산출하는 SSOT 헬퍼
+ * - '월' (매월): 해당 유상옵션이 포함된 출고 건의 장비 중 정산 기간 내 가동 중인 대수 × 단가 (귀속월당 1회)
+ * - '건' (1회): 해당 유상옵션이 포함된 출고 의뢰 건당 1회 × 단가 (최초 청구 시 1회)
+ * - '대' (1회 × 출고수량): 해당 유상옵션이 포함된 출고 의뢰의 출고 대수 × 단가 (최초 청구 시 1회, 기존 계약 보유 대수와 무관하게 해당 출고 건의 수량만 청구)
  */
 export function calculatePaidOptionBillingItems(params: {
   contract: any;
@@ -505,12 +505,12 @@ export function calculatePaidOptionBillingItems(params: {
     });
     if (parsedOptNames.length === 0) continue;
 
-    // 3) 이 출고 건(d)에 귀속된 ContractAsset 목록 결정
+    // 3) 이 출고 건에 귀속된 ContractAsset 목록 결정
     let linkedAssets: any[] = [];
     if (explicitCaIds.length > 0) {
       linkedAssets = allContractAssets.filter(ca => explicitCaIds.includes(ca.id));
     } else {
-      // 레거시 폴백: 동일 모델 및 출고일(startDate) 일치 자산 매칭
+      // 레거시 폴백: 동일 모델 및 출고일 일치 자산 매칭
       const dDate = (d.loadingDate || d.scheduledDate || d.requestDate || '').slice(0, 10);
       const candidateAssets = allContractAssets.filter(ca => !usedCaIdsAcrossDeliveries.has(ca.id));
       for (const item of parsedCargo) {

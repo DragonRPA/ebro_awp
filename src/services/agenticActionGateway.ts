@@ -45,12 +45,12 @@ export interface AgenticExecutionResult {
   };
 }
 
-// ─── 1. 에이전틱 AI 21대 표준 도구 매니페스트 (MCP / Tool Calling Schema) ───
+// ─── 1. 에이전틱 AI 21대 표준 도구 매니페스트 ───
 export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   {
     name: 'system_check_readiness',
     domain: 'D0_System',
-    description: 'ERP 시스템이 브라우저에서 조작 가능한 준비 상태(Ready)인지, 인증 세션, 활성 메뉴, DOM 속성(body[data-erp-status="ready"]), 헌장 가드레일 활성화 여부를 종합 진단합니다. 모든 자동화 액션 실행 전에 반드시 이 도구를 먼저 호출하여 준비 상태를 확인하십시오.',
+    description: 'ERP 시스템이 브라우저에서 조작 가능한 준비 상태인지, 인증 세션, 활성 메뉴, DOM 속성(body[data-erp-status="ready"]), 헌장 가드레일 활성화 여부를 종합 진단합니다. 모든 자동화 액션 실행 전에 반드시 이 도구를 먼저 호출하여 준비 상태를 확인하십시오.',
     charterRule: '헌장 1.1 (최대 편익 및 무누락 안전 운용 원칙)',
     parameters: {
       type: 'object',
@@ -63,7 +63,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   {
     name: 'dispatch_create_exchange',
     domain: 'D4_Dispatch',
-    description: '대차/교체 발생 시 왕복 운송비 할인을 적용하여 단일 EXCHANGE 1건의 왕복 배차를 원자적으로 발행합니다.',
+    description: '교환 발생 시 왕복 운송비 할인을 적용하여 단일 EXCHANGE 1건의 왕복 배차를 원자적으로 발행합니다.',
     charterRule: '헌장 2.3 (단일 EXCHANGE 1건 발행 원칙 및 왕복할인 자동산정)',
     parameters: {
       type: 'object',
@@ -72,9 +72,9 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
         siteName: { type: 'string', description: '현장명' },
         startAddress: { type: 'string', description: '상차지 주소' },
         endAddress: { type: 'string', description: '하차지 주소' },
-        requestDate: { type: 'string', description: '희망일시 (YYYY-MM-DD)' },
+        requestDate: { type: 'string', description: '희망일시(일자)' },
         normalOneWayCost: { type: 'number', description: '기준 편도 운송비 (원)' },
-        paidBy: { type: 'string', description: '운송비 부담 주체 (CUSTOMER/OURS)', enum: ['CUSTOMER', 'OURS'] }
+        paidBy: { type: 'string', description: '운송비 부담 주체', enum: ['CUSTOMER', 'OURS'] }
       },
       required: ['customerName', 'startAddress', 'endAddress', 'requestDate']
     }
@@ -82,7 +82,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   {
     name: 'inspection_approve_outbound',
     domain: 'D5_InOut',
-    description: '출고 검수 승인을 마감하고 자산 상태를 대여중(RENTED)으로 즉시 전환합니다.',
+    description: '출고 검수 승인을 마감하고 자산 상태를 대여중으로 즉시 전환합니다.',
     charterRule: '헌장 1.3 (출고 검수 승인 마감 시 자산 상태 RENTED 전환 원칙)',
     parameters: {
       type: 'object',
@@ -105,7 +105,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
         contractId: { type: 'string', description: '계약 ID' },
         prevAssetNo: { type: 'string', description: '회수 자산 번호 (전자산)' },
         newAssetNo: { type: 'string', description: '대차 투입 자산 번호 (후장비)' },
-        exchangeDate: { type: 'string', description: '교체 일자 (YYYY-MM-DD)' }
+        exchangeDate: { type: 'string', description: '교체 일자(일자)' }
       },
       required: ['contractId', 'prevAssetNo', 'newAssetNo', 'exchangeDate']
     }
@@ -129,7 +129,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   {
     name: 'customer_bulk_create',
     domain: 'D2_Sales',
-    description: '고객사 기본정보, 복수 현장(Site), 담당자(Contact)를 1:N 구조로 원스톱 생성합니다.',
+    description: '고객사 기본정보, 복수 현장, 담당자를 1:N 구조로 원스톱 생성합니다.',
     charterRule: '헌장 1.1 (최소 노력 최대 효익) 및 헌장 3.4 (상하 세로 스택)',
     parameters: {
       type: 'object',
@@ -181,7 +181,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
       properties: {
         vehicleNo: { type: 'string', description: '차량 번호' },
         fuelDate: { type: 'string', description: '주유 일자' },
-        fuelVolume: { type: 'number', description: '주유량(L)' },
+        fuelVolume: { type: 'number', description: '주유량(리터)' },
         fuelAmount: { type: 'number', description: '총 주유금액' }
       },
       required: ['vehicleNo', 'fuelDate', 'fuelAmount']
@@ -211,7 +211,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
     parameters: {
       type: 'object',
       properties: {
-        scope: { type: 'string', description: '감사 범위 (ALL, REVENUE, ASSET, DISPATCH)', enum: ['ALL', 'REVENUE', 'ASSET', 'DISPATCH'] }
+        scope: { type: 'string', description: '감사 범위', enum: ['ALL', 'REVENUE', 'ASSET', 'DISPATCH'] }
       },
       required: ['scope']
     }
@@ -227,7 +227,7 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
         title: { type: 'string', description: '오류 제목' },
         description: { type: 'string', description: '오류 현상 상세 설명' },
         category: { type: 'string', description: '오류 분류 (UI_BUG, DATA_ERROR, NETWORK_ERROR, CALCULATION_ERROR, OTHER)', enum: ['UI_BUG', 'DATA_ERROR', 'NETWORK_ERROR', 'CALCULATION_ERROR', 'OTHER'] },
-        severity: { type: 'string', description: '심각도 (CRITICAL, MAJOR, MINOR, TRIVIAL)', enum: ['CRITICAL', 'MAJOR', 'MINOR', 'TRIVIAL'] },
+        severity: { type: 'string', description: '심각도', enum: ['CRITICAL', 'MAJOR', 'MINOR', 'TRIVIAL'] },
         menuId: { type: 'string', description: '발생 메뉴 ID' },
         menuName: { type: 'string', description: '발생 메뉴명' },
         reporterName: { type: 'string', description: '신고자 성명' },
@@ -239,13 +239,13 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   {
     name: 'error_report_update_status',
     domain: 'D9_SystemDev',
-    description: '오류 신고의 처리 상태를 접수(IN_PROGRESS) 또는 완료(COMPLETED)로 전환하고 조치 내용과 해결 버전을 무누락 기록합니다.',
+    description: '오류 신고의 처리 상태를 접수 또는 완료로 전환하고 조치 내용과 해결 버전을 무누락 기록합니다.',
     charterRule: '헌장 1.2 (발생 사건 무누락 DB 저장) 및 헌장 3.1 (건조한 명사·동사 UI 표준)',
     parameters: {
       type: 'object',
       properties: {
         id: { type: 'string', description: '오류 신고 번호 (예: ERR-202609-001)' },
-        status: { type: 'string', description: '변경 상태 (IN_PROGRESS, COMPLETED, CANCELLED)', enum: ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'] },
+        status: { type: 'string', description: '변경 상태', enum: ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'] },
         assigneeName: { type: 'string', description: '담당 조치자 성명' },
         receptionNote: { type: 'string', description: '접수 확인 메모' },
         resolutionNote: { type: 'string', description: '원인 분석 및 조치 내역' },
@@ -257,13 +257,13 @@ export const AGENTIC_TOOLS_MANIFEST: AgenticToolDef[] = [
   }
 ];
 
-// ─── 2. 헌장 불변식 가드레일 인터셉터 (Charter Invariant Guardrails) ───
+// ─── 2. 헌장 불변식 가드레일 인터셉터 ───
 export const checkCharterGuardrails = (toolName: string, params: any): { allowed: boolean; reason?: string } => {
   // 가드레일 1: 대차 배차 시 출고/회수 분할 생성 차단 (헌장 2.3)
   if (toolName === 'dispatch_create_outbound' && (params.memo?.includes('대차') || params.memo?.includes('교체'))) {
     return {
       allowed: false,
-      reason: '헌장 2.3 위반: 대차/교체 배차는 편도 출고로 분할 발행할 수 없으며, 반드시 [dispatch_create_exchange] 단일 1건으로 발행해야 합니다.'
+      reason: '헌장 2.3 위반: 교환 배차는 편도 출고로 분할 발행할 수 없으며, 반드시 [dispatch_create_exchange] 단일 1건으로 발행해야 합니다.'
     };
   }
 
@@ -287,7 +287,7 @@ export const checkCharterGuardrails = (toolName: string, params: any): { allowed
   if (toolName === 'error_report_update_status' && params.status === 'COMPLETED' && (!params.resolutionNote || !params.resolutionNote.trim())) {
     return {
       allowed: false,
-      reason: '헌장 1.2 위반: 오류 완료 처리 시 조치 내용(resolutionNote)은 무누락 기록되어야 합니다.'
+      reason: '헌장 1.2 위반: 오류 완료 처리 시 조치 내용은 무누락 기록되어야 합니다.'
     };
   }
 
@@ -384,7 +384,7 @@ export const runAgenticWorkflow = async (prompt: string): Promise<AgenticExecuti
 
     addStep('THOUGHT', '소모품 대량 구매 및 재고 입고 파이프라인 감지. 50종 일괄 적재 및 수불로그 무누락 검증.');
     const toolToCall = 'consumable_bulk_purchase';
-    const params = { modelName: '유압작동유 (ISO VG 46)', qty: 50, unitPrice: 45000, sellerName: '삼화윤활유' };
+    const params = { modelName: '유압작동유', qty: 50, unitPrice: 45000, sellerName: '삼화윤활유' };
 
     const guardrail = checkCharterGuardrails(toolToCall, params);
     addStep('GUARDRAIL_CHECK', `헌장 1.2 & 5.2 가드레일 사전 점검: 통과 (무음 실패 방지 및 수불로그 적재 확인)`, toolToCall, params, guardrail);
@@ -471,7 +471,7 @@ export const runAgenticWorkflow = async (prompt: string): Promise<AgenticExecuti
       executedTools.push(toolToCall);
 
       const errNo = `ERR-${new Date().toISOString().slice(0,7).replace(/-/g,'')}-004`;
-      addStep('OBSERVATION', `오류 신고 신규 등록 완료: 접수번호 ${errNo}, 상태 [REGISTERED], 첨부파일 1건(Base64) 보존됨.`, toolToCall, null, {
+      addStep('OBSERVATION', `오류 신고 신규 등록 완료: 접수번호 ${errNo}, 상태 [REGISTERED], 첨부파일 1건 보존됨.`, toolToCall, null, {
         reportNo: errNo,
         status: 'REGISTERED',
         attachmentsCount: 1

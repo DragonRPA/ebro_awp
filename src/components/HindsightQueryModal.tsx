@@ -191,7 +191,7 @@ export const HindsightQueryModal: React.FC<HindsightQueryModalProps> = ({ isOpen
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <Brain size={20} style={{ color: '#2563eb' }} />
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-              Hindsight 4대 메모리 지식 콘솔
+              전사 업무 지식 콘솔
             </h2>
             <span style={{
               fontSize: '11px',
@@ -555,9 +555,9 @@ export const HindsightQueryModal: React.FC<HindsightQueryModalProps> = ({ isOpen
                     style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff' }}
                   >
                     <option value="ALL">전체 도메인 ({worldFacts.length})</option>
-                    <option value="ASSET">ASSET (장비제원)</option>
-                    <option value="SALES">SALES (표준옵션)</option>
-                    <option value="SYSTEM">SYSTEM (업무매뉴얼)</option>
+                    <option value="ASSET">장비제원</option>
+                    <option value="SALES">표준옵션</option>
+                    <option value="SYSTEM">업무매뉴얼</option>
                   </select>
                   <input
                     type="text"

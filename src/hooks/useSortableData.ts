@@ -11,7 +11,7 @@ export interface SortConfig {
  * 3단계 토글 정렬 훅 (오름차순 ➔ 내림차순 ➔ 정렬안함)
  * - 한국어 문자열 localeCompare('ko', { numeric: true }) 완벽 지원
  * - 쉼표 포함 숫자(₩, 건, 대, 원 등), 날짜, 불리언 자동 파싱 비교
- * - 정렬안함(null) 시 원본 순서(Array insertion order) 100% 보존
+ * - 정렬안함 시 원본 순서 100% 보존
  */
 export function useSortableData<T>(
   items: T[], 
@@ -54,7 +54,7 @@ export function useSortableData<T>(
       if (aEmpty) return 1;
       if (bEmpty) return -1;
 
-      // 2. 숫자(Number) 직접 비교
+      // 2. 숫자 직접 비교
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return direction === 'asc' ? aValue - bValue : bValue - aValue;
       }
@@ -64,7 +64,7 @@ export function useSortableData<T>(
         return direction === 'asc' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
       }
 
-      // 4. 불리언(Boolean) 비교
+      // 4. 불리언 비교
       if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
         const numA = aValue ? 1 : 0;
         const numB = bValue ? 1 : 0;

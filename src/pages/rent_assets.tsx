@@ -65,7 +65,7 @@ export const RentAssets: React.FC = () => {
   const [profitLedgerSubTab, setProfitLedgerSubTab] = useState<'CONTRACT' | 'ASSET'>('CONTRACT');
 
   // ==========================================
-  // [탭 2] 임차처 거래명세서 대사 (Reconciliation) 관련 상태
+  // [탭 2] 임차처 거래명세서 대사 관련 상태
   // ==========================================
   const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [selectedYm, setSelectedYm] = useState<string>(new Date().toISOString().slice(0, 7));
@@ -239,18 +239,18 @@ export const RentAssets: React.FC = () => {
 
   // 등록된 임차처(임차거래처) 목록 (알파벳/한글 오름차순 정렬)
   const renterVendors = React.useMemo(() => {
-    // 1. 등록된 매입처(vendors) 중 임차(RENTAL) 유형 또는 상호명에 '렌탈', '리프트' 등이 포함된 매입처
+    // 1. 등록된 매입처 중 임차 유형 또는 상호명에 '렌탈', '리프트' 등이 포함된 매입처
     const rentalVendorNames = (vendors || [])
       .filter(v => v.type === 'RENTAL' || (v.types && v.types.includes('RENTAL')) || (v.name && (v.name.includes('렌탈') || v.name.includes('리프트'))))
       .map(v => v.name)
       .filter(Boolean);
 
-    // 2. 실제 자사 임차자산(rentedAssets)에 등록된 임차처명
+    // 2. 실제 자사 임차자산에 등록된 임차처명
     const existingRenters = rentedAssets
       .map(a => getAssetRenterName(a))
       .filter(name => Boolean(name) && name !== '미지정');
 
-    // 3. 등록된 모든 매입처(vendors) 이름도 누락 없이 포괄 (거래처 관리 연동)
+    // 3. 등록된 모든 매입처 이름도 누락 없이 포괄 (거래처 관리 연동)
     const allVendorNames = (vendors || []).map(v => v.name).filter(Boolean);
 
     const combined = Array.from(new Set([...rentalVendorNames, ...existingRenters, ...allVendorNames]));
@@ -300,7 +300,7 @@ export const RentAssets: React.FC = () => {
         return;
       }
 
-      // 1단계: 관리번호(assetNo) 정밀 O(1) 매칭 (시리얼번호/제조번호 일절 무시)
+      // 1단계: 관리번호 정밀 O(1) 매칭 (제조번호/제조번호 일절 무시)
       const rowCleanNo = cleanStr(row.assetNo);
       let matched = rowCleanNo ? rentedAssetByCleanNoMap.get(rowCleanNo) : undefined;
 
@@ -344,7 +344,7 @@ export const RentAssets: React.FC = () => {
         const rDays = calcDaysBetween(rStart, rEnd);
         const mDays = calcDaysBetween(mStart, effectiveEnd);
 
-        // 1. 자사 기준 예상 약정금액 (expectedAmount) 산출
+        // 1. 자사 기준 예상 약정금액 산출
         let expected = baseMonthlyFee;
         const validReturnDays = (isReturned && mReturn) ? calcDaysBetween(mStart || rStart, mReturn) : 0;
         const targetDays = validReturnDays > 0 ? validReturnDays : (mDays > 0 && mDays < 30 ? mDays : rDays);
@@ -748,7 +748,7 @@ export const RentAssets: React.FC = () => {
           const scanNotice = parseResult.isImageScan ? ' (스캔 이미지 자동 인식)' : '';
           showToast(`${vendorNotice} PDF 파싱 완료${scanNotice} (${parseResult.totalParsedCount}건, ₩${parseResult.totalParsedAmount.toLocaleString()}원)`);
         } else {
-          // 엑셀 파일 (.xlsx / .xls) 범용 파서 연동
+          // 엑셀 파일 범용 파서 연동
           const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
           // 선택된 정산연월(selectedYm, 예: '2026-08')에 가장 부합하는 시트 동적 탐색 (중부/하이로드 등 30개 시트 지원)
           const [selYear, selMonth] = (selectedYm || new Date().toISOString().slice(0, 7)).split('-');
@@ -1096,7 +1096,7 @@ export const RentAssets: React.FC = () => {
   };
 
   // ==========================================
-  // [탭 2] 임차자산 대장 현황 (Current Assets) 관련 상태
+  // [탭 2] 임차자산 대장 현황 관련 상태
   // ==========================================
   const [searchQuery, setSearchQuery] = useState('');
   const [renterQuery, setRenterQuery] = useState('');
@@ -1491,7 +1491,7 @@ export const RentAssets: React.FC = () => {
   // 📥 임차자산 대장 엑셀 내보내기
   const handleExportRentedAssetsExcel = () => {
     const data = filteredAssets.map((a, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '관리번호': a.assetNo || '-',
       '임차처 원래번호': a.vendorAssetNo || '-',
       '모델명': a.modelName || '-',
@@ -1509,7 +1509,7 @@ export const RentAssets: React.FC = () => {
   const handleExportProfitLedgerExcel = () => {
     if (profitLedgerSubTab === 'CONTRACT') {
       const data = subleaseContracts.map((sc, idx) => ({
-        'No': idx + 1,
+        '순번': idx + 1,
         '계약번호': sc.contract.contractNo,
         '고객사명': sc.customer?.name || '고객 미지정',
         '현장명': sc.site?.name || '현장 미지정',
@@ -1524,7 +1524,7 @@ export const RentAssets: React.FC = () => {
       exportToExcel(data, `계약별_전대손익원장_${new Date().toISOString().split('T')[0]}`, '계약별전대손익');
     } else {
       const data = assetProfitLedgers.map((apl, idx) => ({
-        'No': idx + 1,
+        '순번': idx + 1,
         '관리번호': apl.asset.assetNo,
         '임차처 원래번호': apl.asset.vendorAssetNo || '-',
         '모델명': apl.asset.modelName,
@@ -1542,7 +1542,7 @@ export const RentAssets: React.FC = () => {
   // 📥 임차처 거래명세서 대사 결과 엑셀 내보내기
   const handleExportReconcileExcel = () => {
     const data = filteredReconcileResults.map((r, idx) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '대사상태': r.statusLabel,
       '관리번호': r.statementRow?.assetNo || r.matchedAsset?.assetNo || '-',
       '임차처 원래번호': r.matchedAsset?.vendorAssetNo || '-',
@@ -1694,7 +1694,7 @@ export const RentAssets: React.FC = () => {
       })()}
 
       {/* ========================================================================= */}
-      {/* 탭 1: 임차자산 정산 (Reconciliation) - Z-구텐버그 4단계 표준 준수 */}
+      {/* 탭 1: 임차자산 정산 - Z-구텐버그 4단계 표준 준수 */}
       {/* ========================================================================= */}
       {activeTab === 'RECONCILIATION' && (() => {
         // 우하단 대차대조 검증 계산
@@ -1715,7 +1715,7 @@ export const RentAssets: React.FC = () => {
             {/* =================================================================== */}
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)', gap: '8px', alignItems: 'stretch' }}>
               
-              {/* ① 좌상단: 정산 범위 설정 (Scope) */}
+              {/* ① 좌상단: 정산 범위 설정 */}
               <div className="card" style={{
                 padding: '8px 12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
                 display: 'flex', flexDirection: 'column', gap: '6px'
@@ -1855,7 +1855,7 @@ export const RentAssets: React.FC = () => {
                 </div>
               </div>
 
-              {/* ② 우상단: 데이터 유입 파이프라인 (Pipeline) */}
+              {/* ② 우상단: 데이터 유입 파이프라인 */}
               <div className="card" style={{
                 padding: '8px 12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '6px'
@@ -3195,7 +3195,7 @@ export const RentAssets: React.FC = () => {
     })()}
 
       {/* ========================================================================= */}
-      {/* 탭 1: 임차자산 대장 현황 (Current Assets) - 헌장 3.6 유형 B 고밀도 대장 */}
+      {/* 탭 1: 임차자산 대장 현황 - 헌장 3.6 유형 B 고밀도 대장 */}
       {/* ========================================================================= */}
       {activeTab === 'CURRENT' && (() => {
         const { activeRentedList, returnedList, totalMonthlyRentCost } = rentedKpiStats;
@@ -4343,7 +4343,7 @@ export const RentAssets: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11.5px' }}>
                   <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{a.modelName}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {a.manufacturer || '-'}</div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>시리얼번호:</span> {a.serialNo || '-'}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {a.serialNo || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>임차처번호:</span> {a.vendorAssetNo || '-'}</div>
                 </div>
               </div>

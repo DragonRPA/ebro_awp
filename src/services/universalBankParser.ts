@@ -1,5 +1,5 @@
 // src/services/universalBankParser.ts
-// 전사 금융 엑셀 헤더 퍼지 매칭(Fuzzy Matching) 파서 (SaaS 테넌트 공용 어댑터)
+// 전사 금융 엑셀 헤더 퍼지 매칭 파서 (SaaS 테넌트 공용 어댑터)
 import * as XLSX from 'xlsx';
 import { BankTransaction, db } from './db';
 import { ParsedBankResult } from '../integrations/types';
@@ -81,7 +81,7 @@ function formatDate(rawDate: any, rawTime?: any): string {
 }
 
 /**
- * 1금융권 전 은행 엑셀 범용 스마트 파서 (UniversalBankExcelParser)
+ * 1금융권 전 은행 엑셀 범용 스마트 파서
  */
 export async function parseUniversalBankExcel(file: File, forcedBankName?: string): Promise<ParsedBankResult> {
   const arrayBuffer = await file.arrayBuffer();
@@ -127,7 +127,7 @@ export async function parseUniversalBankExcel(file: File, forcedBankName?: strin
     }
   }
 
-  // 2. 헤더 행(Header Row) 동적 감지
+  // 2. 헤더 행 동적 감지
   let headerRowIndex = -1;
   let colMap = {
     date: -1,

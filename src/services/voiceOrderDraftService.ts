@@ -124,7 +124,7 @@ export function clearVoiceOrderDraft(): void {
   }
 }
 
-// 음성 조각 증분 병합 (Incremental Merge Parser)
+// 음성 조각 증분 병합
 export function mergeVoiceFragmentToDraft(
   currentDraft: VoiceOrderDraft,
   speechText: string,
@@ -642,7 +642,7 @@ export function parseLogisticsAndBillingVoiceInput(text: string): ParsedLogistic
 
 
 // ─────────────────────────────────────────────────────────────
-// 🔧 2. 현장 AS 접수 통화 텍스트 파서 (Field AS Intake Parser)
+// 🔧 2. 현장 AS 접수 통화 텍스트 파서
 // ─────────────────────────────────────────────────────────────
 export interface AsCallParseResult {
   customerName: string;
@@ -817,7 +817,7 @@ export function parseAsCallTranscript(
 
 
 // ─────────────────────────────────────────────────────────────
-// 🚚 3. 배차 담당자 기사 배정 통화 파서 (Dispatch Driver Call Parser)
+// 🚚 3. 배차 담당자 기사 배정 통화 파서
 // ─────────────────────────────────────────────────────────────
 export interface DispatchDriverParseResult {
   matchedDeliveryId?: string;
@@ -959,7 +959,7 @@ export function parseDispatchDriverCallTranscript(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🏗️ 4. 장비 규격 및 제조사 지식 매트릭스 (Equipment Knowledge Matrix)
+// 🏗️ 4. 장비 규격 및 제조사 지식 매트릭스
 // ─────────────────────────────────────────────────────────────
 export interface EquipmentSpecMatrixItem {
   manufacturer: string;
@@ -1055,7 +1055,7 @@ function parseSingleEquipmentVoiceInput(text: string): ParsedEquipmentResult | n
     }
   }
 
-  // 5. 피트(ft) 규격 감지 (예: "19피트", "26피트", "32피트", "40피트")
+  // 5. 피트 규격 감지 (예: "19피트", "26피트", "32피트", "40피트")
   const ftMatch = clean.match(/(19|26|32|40|46|53)\s*(?:피트|ft)?/i);
   if (ftMatch) {
     const ftStr = `${ftMatch[1]}ft`;
@@ -1119,7 +1119,7 @@ export function parseEquipmentVoiceInput(text: string): ParsedEquipmentResult | 
 }
 
 // ─────────────────────────────────────────────────────────────
-// 📅 5. 하차일시 정규화 엔진 (Smart DateTime Normalizer)
+// 📅 5. 하차일시 정규화 엔진
 // ─────────────────────────────────────────────────────────────
 export interface ParsedDateTimeResult {
   date: string;         // YYYY-MM-DD
@@ -1241,19 +1241,19 @@ export function parseDateTimeVoiceInput(text: string, baseDate: Date = new Date(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 👤 6. 단계별 단답형 초정밀 파서 (Step-by-Step Parsers)
+// 👤 6. 단계별 단답형 초정밀 파서
 // ─────────────────────────────────────────────────────────────
 export function parseCustomerVoiceInput(text: string, customers: Customer[]): Customer | null {
   const clean = decomposeComplexConsonants(text).replace(/주식회사|\(주\)|\s/g, '').toLowerCase();
   if (!clean || clean.length < 1) return null;
 
-  // 1. 정확 일치 (Exact Name Match)
+  // 1. 정확 일치
   for (const c of customers) {
     const sName = c.name.replace(/주식회사|\(주\)|\s/g, '').toLowerCase();
     if (sName === clean) return c;
   }
 
-  // 2. 완성형 접두 일치 (Prefix Full-name Match)
+  // 2. 완성형 접두 일치
   for (const c of customers) {
     const sName = c.name.replace(/주식회사|\(주\)|\s/g, '').toLowerCase();
     if (sName.startsWith(clean)) return c;
@@ -1282,7 +1282,7 @@ export function parseCustomerVoiceInput(text: string, customers: Customer[]): Cu
   });
   if (prefixChosungAny.length > 0) return prefixChosungAny[0];
 
-  // 5. 완성형 포함 일치 (Name Contains)
+  // 5. 완성형 포함 일치
   for (const c of customers) {
     const sName = c.name.replace(/주식회사|\(주\)|\s/g, '').toLowerCase();
     if (clean.includes(sName) || sName.includes(clean)) return c;
@@ -1406,7 +1406,7 @@ export function parseSiteVoiceInput(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🤝 7. 대화형 예/아니오 및 담당자 핀포인트 파서 (Context Proactive Parsers)
+// 🤝 7. 대화형 예/아니오 및 담당자 핀포인트 파서
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -1507,7 +1507,7 @@ export function isOptionsChangedFromSite(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🎯 5대 출고의뢰 핵심 항목 충족 검증 (OrderSlotsStatus)
+// 🎯 5대 출고의뢰 핵심 항목 충족 검증
 // ─────────────────────────────────────────────────────────────
 export interface SlotItemStatus {
   isComplete: boolean;

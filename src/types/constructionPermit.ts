@@ -3,7 +3,7 @@
 
 export interface RoadAccessInfo {
   roadName: string; // 접면 도로명 (예: 남양중앙로)
-  roadWidth: number; // 도로 폭(m) (예: 12m)
+  roadWidth: number; // 도로 폭(미터) (예: 12m)
   lanes: number; // 차로수 (예: 4차로)
   roadRank: '광로/대로' | '중로' | '소로' | '이면도로/골목길'; // 도로 등급
   truckFeasibility: 'TRAILER_ALLOWED' | 'LARGE_ALLOWED' | 'MID_ONLY' | 'SMALL_ONLY_WARNING';
@@ -21,7 +21,7 @@ export interface CsiSafetyInfo {
 
 export interface ConstructionPermitItem {
   id: string;
-  mgmtNo: string; // 인허가 관리번호 (mgmPmsrgstPk)
+  mgmtNo: string; // 인허가 관리번호
   permitKind: '신축' | '증축' | '대수선' | '용도변경';
   siteAddress: string; // 지번 주소
   siteRoadAddress?: string; // 도로명 주소
@@ -38,8 +38,8 @@ export interface ConstructionPermitItem {
   totArea: number; // 연면적(㎡)
   groundFloors: number; // 지상층수
   underFloors: number; // 지하층수
-  height?: number; // 높이(m)
-  permitDate: string; // 허가일자 (YYYY-MM-DD)
+  height?: number; // 높이(미터)
+  permitDate: string; // 허가일자(일자)
   startPlanDate?: string; // 착공예정일
   actualStartDate?: string; // 실제착공일
   expectedEndDate: string; // 준공예정일

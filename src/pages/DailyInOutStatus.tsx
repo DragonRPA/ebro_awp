@@ -368,7 +368,7 @@ export const DailyInOutStatus: React.FC = () => {
       data-subview-title="일일 입출고 조회" 
       style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
-      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      {/* ── 표준 헤더 바 ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -419,7 +419,7 @@ export const DailyInOutStatus: React.FC = () => {
           boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
         }}
       >
-        {/* ① 좌상단 (Start / Scope): 연월 네비게이션 & 기본 필터 */}
+        {/* ① 좌상단: 연월 네비게이션 & 기본 필터 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
           {/* 기준 연월 이동 바 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -548,7 +548,7 @@ export const DailyInOutStatus: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단 (Input / Pipeline): 뷰 전환 & 검색 & 엑셀 내보내기 */}
+        {/* ② 우상단: 뷰 전환 & 검색 & 엑셀 내보내기 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
           {/* 통합 검색창 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

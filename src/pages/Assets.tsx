@@ -208,7 +208,7 @@ export const Assets: React.FC = () => {
       return;
     }
     const dataToExport = assetLogs.map((log: AssetInOutLog, idx: number) => ({
-      'No': idx + 1,
+      '순번': idx + 1,
       '구분': log.type === 'ACQUISITION' ? '취득' : log.type === 'OUTBOUND' ? '출고' : log.type === 'INBOUND' ? '입고' : log.type === 'INBOUND_CANCEL' ? '입고취소' : log.type === 'DISPOSAL' ? '매각' : '정비',
       '입고고유번호': log.inboundNo || '-',
       '발생일자': log.eventDate,
@@ -436,7 +436,7 @@ export const Assets: React.FC = () => {
 
       // 기본 비재무 자산 속성 (전 부서 공통)
       const baseRow: Record<string, any> = {
-        'No': idx + 1,
+        '순번': idx + 1,
         '관리번호': a.assetNo || '-',
         '모델명': a.modelName || '-',
         '규격(피트)': getAssetFeet(a),
@@ -550,7 +550,7 @@ export const Assets: React.FC = () => {
         </div>
       </div>
 
-      {/* ② 자산 운용 KPI 요약 바 (Scope) */}
+      {/* ② 자산 운용 KPI 요약 바 */}
       <div data-mid="asset-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임대 가능 (주기장)</span>
@@ -596,7 +596,7 @@ export const Assets: React.FC = () => {
             <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="관리번호, 모델명, 제조사, S/N, 임차처"
+              placeholder="관리번호, 모델명, 제조사, 제조번호, 임차처"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{
@@ -843,7 +843,7 @@ export const Assets: React.FC = () => {
                       {/* 5. 제조사 */}
                       <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{a.manufacturer || '-'}</td>
 
-                      {/* 6. 시리얼번호 */}
+                      {/* 6. 제조번호 */}
                       <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {a.serialNo || '-'}
                       </td>
@@ -1220,7 +1220,8 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>사용 현장:</span> {getSiteName(selectedAsset.currentSiteId)}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>청구 마감일:</span> {selectedAsset.billingDay ? `매달 ${selectedAsset.billingDay}일` : '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>월 렌탈료:</span> <strong>₩{(selectedAsset.monthlyRentalFee || 0).toLocaleString()}</strong></div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>계약 기간:</span> {selectedAsset.contractStart ? `${selectedAsset.contractStart} ~ ${selectedAsset.contractEnd}` : '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>일 렌탈료:</span> <strong>₩{(selectedAsset.dailyRentalFee || Math.floor((selectedAsset.monthlyRentalFee || 0) / 30)).toLocaleString()}</strong></div>
+                    <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--text-secondary)' }}>계약 기간:</span> {selectedAsset.contractStart ? `${selectedAsset.contractStart} ~ ${selectedAsset.contractEnd}` : '-'}</div>
                   </div>
                 )}
               </div>
@@ -1282,7 +1283,7 @@ export const Assets: React.FC = () => {
                       )}
                     </div>
                     {hasFinancialAccess && (
-                      <div><span style={{ color: 'var(--text-secondary)' }}>일할 단가:</span> ₩{(selectedAsset.dailyRentFee || 0).toLocaleString()}</div>
+                      <div><span style={{ color: 'var(--text-secondary)' }}>일 임차료:</span> ₩{(selectedAsset.dailyRentFee || Math.floor((selectedAsset.monthlyRentFee || 0) / 30)).toLocaleString()}</div>
                     )}
                   </div>
                 </div>
