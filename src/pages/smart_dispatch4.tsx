@@ -774,13 +774,12 @@ export const SmartDispatch4: React.FC = () => {
 
   const displayedModels = useMemo(() => {
     let list = catalogModels;
-    if (activeFt !== '전체') {
-      list = list.filter(m => m.ftGroup === activeFt);
-    }
     const q = modelSearchQuery.trim();
     if (q) {
       const matcher = createHangulMatcher(q);
       list = list.filter(m => matcher.testAny([m.modelName, m.manufacturer, m.spec]));
+    } else if (activeFt !== '전체') {
+      list = list.filter(m => m.ftGroup === activeFt);
     }
     return [...list].sort((a, b) => a.modelName.localeCompare(b.modelName));
   }, [catalogModels, activeFt, modelSearchQuery]);
@@ -1741,6 +1740,7 @@ export const SmartDispatch4: React.FC = () => {
         retrievalAssetIds: retrievalAssetIds || [],
         paidOptions: effPaidOptStr,
         paidOptionPrices,
+        saveOptionsToSite: saveToSite,
         protection: effProtOptStr,
         attachments: effAttOptStr,
         siteMasterId: effectiveSmId || undefined,

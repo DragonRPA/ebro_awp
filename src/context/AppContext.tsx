@@ -2986,19 +2986,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 🌟 고객사 기본 옵션/보양 등록 및 전체 현장 일괄 전파 처리
+    // 🌟 고객사 기본 옵션/보양 등록 및 전체 현장 일괄 전파 처리 (1회성 출고 적용 시에는 고객사 기본값 오염 방지)
     const custOptionUpdates: Partial<Customer> = {};
-    if (data.isSetAsCustomerDefault || (!finalCustomer.defaultPaidOptions && data.paidOptions)) {
-      if (data.paidOptions) custOptionUpdates.defaultPaidOptions = data.paidOptions;
-    }
-    if (data.isSetAsCustomerDefault || (!finalCustomer.defaultProtection && data.protection)) {
-      if (data.protection) custOptionUpdates.defaultProtection = data.protection;
-    }
-    if (data.isSetAsCustomerDefault || (!finalCustomer.defaultAttachments && data.attachments)) {
-      if (data.attachments) custOptionUpdates.defaultAttachments = data.attachments;
-    }
-    if (data.isSetAsCustomerDefault || (!finalCustomer.defaultCheckedSpecs && data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
-      if (data.checkedSpecs) custOptionUpdates.defaultCheckedSpecs = data.checkedSpecs;
+    if (data.saveOptionsToSite !== false) {
+      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultPaidOptions && data.paidOptions)) {
+        if (data.paidOptions) custOptionUpdates.defaultPaidOptions = data.paidOptions;
+      }
+      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultProtection && data.protection)) {
+        if (data.protection) custOptionUpdates.defaultProtection = data.protection;
+      }
+      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultAttachments && data.attachments)) {
+        if (data.attachments) custOptionUpdates.defaultAttachments = data.attachments;
+      }
+      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultCheckedSpecs && data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
+        if (data.checkedSpecs) custOptionUpdates.defaultCheckedSpecs = data.checkedSpecs;
+      }
     }
     if (Object.keys(custOptionUpdates).length > 0) {
       db.updateRow<Customer>('customers', finalCustomer.id, { ...custOptionUpdates, updatedAt: new Date().toISOString() });
@@ -3899,6 +3901,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
+
+      await db.awaitPendingWrites();
 
       for (const summary of soldAssetSummaries) {
         db.insertRow<BillingDetail>('billingDetails', {
@@ -7862,6 +7866,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: now
     });
 
+    await db.awaitPendingWrites();
+
     const standaloneTitle = `[단독 청구 - ${reason}] ${rcv.displayName || rcv.internalDescription}`;
     await linkReceivableToBilling(newBilling.id, rcv.id, remaining, standaloneTitle);
     
@@ -8234,6 +8240,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
+    await db.awaitPendingWrites();
+
     detailsList.forEach(det => {
       db.insertRow<BillingDetail>('billingDetails', {
         ...det,
@@ -8368,6 +8376,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
+    await db.awaitPendingWrites();
+
     finalDetails.forEach(det => {
       db.insertRow<BillingDetail>('billingDetails', {
         ...det,
@@ -8460,6 +8470,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: now,
       updatedAt: now
     });
+
+    await db.awaitPendingWrites();
 
     const childDetailId = 'bd_' + Date.now().toString() + '_' + Math.floor(Math.random()*1000) + 'c';
     db.insertRow<BillingDetail>('billingDetails', {

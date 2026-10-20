@@ -399,7 +399,7 @@ export function calculatePaidOptionBillingItems(params: {
   if (!contract || !billingYm || !periodStart || !periodEnd) return [];
 
   const paidMasterOptions = (standardOptions || []).filter(
-    o => o && o.isActive !== false && o.category === 'PAID' && (o.defaultPrice || 0) > 0
+    o => o && o.isActive !== false && o.category === 'PAID'
   );
   if (paidMasterOptions.length === 0) return [];
 

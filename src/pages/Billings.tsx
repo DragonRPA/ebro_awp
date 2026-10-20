@@ -178,10 +178,12 @@ export const Billings: React.FC = () => {
   // --- 청구 마법사 상태 ---
   const [wizardSearchStartDate, setWizardSearchStartDate] = useState(() => {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
   });
   const [wizardSearchEndDate, setWizardSearchEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
   });
 
   // ⚡ Z-구텐버그 좌상단 Scope 퀵버튼 기간 설정 핸들러 (전월/당월/익월/최근 3개월/연간)
@@ -1852,7 +1854,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     // 💡 31일(말일) 지정 건을 해당 월의 실제 마지막 날(30일/28일 등)로 동적 보정
     const getEffectiveDay = (targetDay: number | undefined) => {
       if (!targetDay) return undefined;
-      const lastDayOfMonth = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 0).getDate();
+      const lastDayOfMonth = new Date(endDateObj.getFullYear(), endDateObj.getMonth() + 1, 0).getDate();
       return Math.min(targetDay, lastDayOfMonth);
     };
 
@@ -1865,15 +1867,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const effectiveBillingDay = getEffectiveDay(rawBillingDay);
     const effectiveStatementDay = getEffectiveDay(rawStatementDay);
 
-    // 💡 계약 시작일(c.startDate)이 이번 달 마감일보다 뒤에 있는 경우 (예: 8/31 시작 > 8/30 마감)
+    // 💡 계약 시작일(c.startDate)이 검색 종료월 마감일보다 뒤에 있는 경우 (예: 8/31 시작 > 8/30 마감)
     // 당월 마감 기준으로는 가동일이 0일이므로 당월 청구 대상에서 제외 (익월 청구로 이관)
     const targetClosingDay = effectiveBillingDay || effectiveStatementDay || 31;
-    const yStr = startDateObj.getFullYear();
-    const mStr = String(startDateObj.getMonth() + 1).padStart(2, '0');
+    const yStr = endDateObj.getFullYear();
+    const mStr = String(endDateObj.getMonth() + 1).padStart(2, '0');
     const dStr = String(targetClosingDay).padStart(2, '0');
     const closingDateStr = `${yStr}-${mStr}-${dStr}`;
 
-    if (c.startDate > closingDateStr) {
+    if (c.startDate > closingDateStr && c.startDate > wizardSearchEndDate) {
       return false;
     }
 
@@ -1883,8 +1885,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       return true;
     }
 
+    const isMultiMonthRange =
+      startDateObj.getFullYear() !== endDateObj.getFullYear() ||
+      startDateObj.getMonth() !== endDateObj.getMonth();
+
     const isDayInRange = (day: number | undefined) => {
       if (!day) return false;
+      if (isMultiMonthRange) return true;
       if (startDay <= endDay) {
         return day >= startDay && day <= endDay;
       } else {
@@ -1892,7 +1899,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       }
     };
     
-    const defaultDay = new Date(startDateObj.getFullYear(), startDateObj.getMonth() + 1, 0).getDate();
+    const defaultDay = new Date(endDateObj.getFullYear(), endDateObj.getMonth() + 1, 0).getDate();
     const bDay = effectiveBillingDay !== undefined ? effectiveBillingDay : defaultDay;
     const sDay = effectiveStatementDay;
     
@@ -2067,16 +2074,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const c = contracts.find(x => x.id === selectedContractIdForWizard);
     if (!c) return;
     const [targetY, targetM] = wizardBillingYm.split('-').map(Number);
-    const firstOfM = new Date(targetY, targetM - 1, 1);
-    const lastOfM = new Date(targetY, targetM, 0);
+    const lastDayNum = new Date(targetY, targetM, 0).getDate();
     
-    const startStr = firstOfM.toISOString().split('T')[0];
-    const endStr = lastOfM.toISOString().split('T')[0];
+    const startStr = `${targetY}-${String(targetM).padStart(2, '0')}-01`;
+    const endStr = `${targetY}-${String(targetM).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
     
     let calcStart = startStr;
     if (c.lastBilledPeriodEnd) {
-      const prevEndObj = new Date(c.lastBilledPeriodEnd);
-      prevEndObj.setDate(prevEndObj.getDate() + 1);
+      const [py, pm, pd] = c.lastBilledPeriodEnd.slice(0, 10).split('-').map(Number);
+      const prevEndObj = new Date(Date.UTC(py, pm - 1, pd + 1));
       calcStart = prevEndObj.toISOString().split('T')[0];
     } else if (c.startDate > startStr) {
       calcStart = c.startDate;
@@ -2108,17 +2114,16 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     setWizardBillingDate(targetBillingDate);
     
     const [targetY, targetM] = targetYm.split('-').map(Number);
-    const firstOfM = new Date(targetY, targetM - 1, 1);
-    const lastOfM = new Date(targetY, targetM, 0);
+    const lastDayNum = new Date(targetY, targetM, 0).getDate();
     
-    const startStr = firstOfM.toISOString().split('T')[0];
-    const endStr = lastOfM.toISOString().split('T')[0];
+    const startStr = `${targetY}-${String(targetM).padStart(2, '0')}-01`;
+    const endStr = `${targetY}-${String(targetM).padStart(2, '0')}-${String(lastDayNum).padStart(2, '0')}`;
     
     // 💡 직전 청구 종료일이 있으면 익일부터 시작, 없으면 계약시작일 또는 당월 1일 적용
     let calcStart = startStr;
     if (c.lastBilledPeriodEnd) {
-      const prevEndObj = new Date(c.lastBilledPeriodEnd);
-      prevEndObj.setDate(prevEndObj.getDate() + 1);
+      const [py, pm, pd] = c.lastBilledPeriodEnd.slice(0, 10).split('-').map(Number);
+      const prevEndObj = new Date(Date.UTC(py, pm - 1, pd + 1));
       calcStart = prevEndObj.toISOString().split('T')[0];
     } else if (c.startDate > startStr) {
       calcStart = c.startDate;
@@ -2409,6 +2414,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
+
+      // 💡 부모 청구서(billings) 원격 DB 커밋을 먼저 완료하여 자식(billing_details) FK 제약조건(23503) 경합 방지
+      await db.awaitPendingWrites();
 
       // 2) 기본 세부내역 저장
       detailsList.forEach(det => {
@@ -4840,7 +4848,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 updated[idx].customName = e.target.value;
                                 setExtraCharges(updated);
                               }}
-                              style={{ width: '110px', padding: '6px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                              style={{ flex: 1.5, minWidth: '170px', padding: '6px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
                             />
                           )}
 
