@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
  *   4) [Gate D] 출고 검수 완료 상태에서 [장비 할당 취소] 시도 ➔ 100% 차단 검증
  *   5) [Happy Path] 전 수량 장비 할당 완료 ➔ 출고 검수 완료(RENTED) ➔ 운송 완료(DELIVERED) 정상 완결 검증
  */
-const BASE_URL = process.env.RWTT_BASE_URL || 'http://localhost:5173';
+const BASE_URL = process.env.RWTT_BASE_URL || 'http://localhost:5174';
 
 test.describe('출고 절차적 무결성 네거티브 상태전이 게이트 RWTT (헌장 5.11)', () => {
   test('Gate A/B/C/D 네거티브 차단 및 정순서 완결 검증', async ({ page }) => {

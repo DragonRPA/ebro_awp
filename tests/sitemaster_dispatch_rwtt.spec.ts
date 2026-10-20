@@ -54,12 +54,9 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     await page.waitForTimeout(500);
 
     // 모달 내부 입력
-    const siteNameInput = page.locator('input[placeholder="예: 여의도 현대백화점 신축공사"]');
+    const siteNameInput = page.locator('input[placeholder*="삼성반도체 표준옵션"], input[placeholder*="현대건설 기본그룹"], input[placeholder*="현장명"]').first();
     await expect(siteNameInput).toBeVisible({ timeout: 5000 });
     await siteNameInput.fill(targetSiteMasterName);
-
-    const siteAddrInput = page.locator('input[placeholder="예: 서울시 영등포구 여의도동 22"]');
-    await siteAddrInput.fill(targetSiteMasterAddr);
 
     // 등록 및 저장 버튼 클릭
     const saveSiteBtn = page.locator('button:has-text("등록 및 저장")');
@@ -124,10 +121,14 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     await siteMasterSelect.selectOption({ label: targetSiteMasterName });
     await page.waitForTimeout(500);
 
-    // 자동 연동 확인
-    const boundSiteNameInput = page.locator('input[placeholder="상단에서 물리 현장(SiteMaster)을 먼저 선택하십시오"]').first();
-    const boundVal = await boundSiteNameInput.inputValue();
-    expect(boundVal).toBe(targetSiteMasterName);
+    // 현장명 및 주소 입력 (헌장 1.5: CustomerSite 직접 귀속)
+    const siteNameInputInCust = page.locator('input[placeholder*="고객 현장명을 입력하세요"], input[placeholder*="현장명"]').first();
+    await siteNameInputInCust.fill(targetSiteMasterName);
+
+    const siteAddrInputInCust = page.locator('input[placeholder*="현장 도로명 또는 지번 주소"]').first();
+    if (await siteAddrInputInCust.isVisible()) {
+      await siteAddrInputInCust.fill(targetSiteMasterAddr);
+    }
 
     // 담당자 정보 입력 (장비담당자 성명 및 휴대폰 필수)
     const siteContactInput = page.locator('input[placeholder*="김소장"]').first();
@@ -162,6 +163,19 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     });
     await page.waitForTimeout(2000);
 
+    // 0) 전체 블록 열기 (블록들이 기본 접힘 상태일 수 있으므로)
+    const toggleBlocksBtn = page.locator('button[data-mid="dispatch4-btn-toggle-blocks"]');
+    if (await toggleBlocksBtn.isVisible()) {
+      await toggleBlocksBtn.click();
+      await page.waitForTimeout(500);
+    } else {
+      const custBlockHeader = page.locator('div[data-mid="dispatch4-block-customer"] .dispatch4-block-header');
+      if (await custBlockHeader.isVisible()) {
+        await custBlockHeader.click();
+        await page.waitForTimeout(500);
+      }
+    }
+
     // 1) 고객 검색 및 선택
     const custSearchInDispatch = page.locator('input[data-mid="dispatch4-customer-search"]');
     await expect(custSearchInDispatch).toBeVisible({ timeout: 5000 });
@@ -185,11 +199,14 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     await modelChip.click();
     await page.waitForTimeout(500);
 
-    // 4) 상차 일정 선택 (4. 출고 및 하차 일정 블록 열기)
-    const scheduleBlockHeader = page.locator('div[data-mid="dispatch4-block-schedule"] .dispatch4-block-header').first();
-    if (await scheduleBlockHeader.isVisible()) {
-      await scheduleBlockHeader.click();
-      await page.waitForTimeout(500);
+    // 4) 상차 일정 선택 (스케줄 블록이 닫혀있는 경우에만 열기)
+    const dateInputBefore = page.locator('input[type="date"]').first();
+    if (!(await dateInputBefore.isVisible())) {
+      const scheduleBlockHeader = page.locator('div[data-mid="dispatch4-block-schedule"] .dispatch4-block-header').first();
+      if (await scheduleBlockHeader.isVisible()) {
+        await scheduleBlockHeader.click();
+        await page.waitForTimeout(500);
+      }
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -197,7 +214,7 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     await expect(loadingDateInput).toBeVisible({ timeout: 5000 });
     await loadingDateInput.fill(todayStr);
 
-    const asapTimeBtn = page.locator('button.dispatch4-slot-btn:has-text("ASAP"), button:has-text("ASAP")').first();
+    const asapTimeBtn = page.locator('button.dispatch4-slot-btn:has-text("최우선"), button.dispatch4-slot-btn:has-text("ASAP"), button:has-text("최우선"), button:has-text("ASAP")').first();
     await expect(asapTimeBtn).toBeVisible({ timeout: 5000 });
     await asapTimeBtn.click();
     await page.waitForTimeout(500);
@@ -212,6 +229,19 @@ test.describe('RWTT: SiteMaster SSOT & Strict N:M Full Cycle on Demo Tenant', ()
     if (await phoneInputInDispatch.isVisible()) {
       const cur = await phoneInputInDispatch.inputValue();
       if (!cur) await phoneInputInDispatch.fill(targetContactPhone);
+    }
+
+    // 5-1) 안전옵션 검증 방어 해제: 옵션 미선택 시 [안전옵션 없음 확인] 체크
+    const noSafetyOptLabel = page.locator('label:has-text("안전옵션 없음 확인")').first();
+    if (await noSafetyOptLabel.isVisible()) {
+      const chk = noSafetyOptLabel.locator('input[type="checkbox"]');
+      if (await chk.isVisible()) {
+        const isChecked = await chk.isChecked();
+        if (!isChecked) await noSafetyOptLabel.click();
+      } else {
+        await noSafetyOptLabel.click();
+      }
+      await page.waitForTimeout(500);
     }
 
     // 6) 폼 검증 상태 확인 및 최종 발행 버튼 클릭
