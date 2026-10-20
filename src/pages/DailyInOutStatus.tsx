@@ -121,6 +121,7 @@ export const DailyInOutStatus: React.FC = () => {
   // ── 📋 입출고 완료 실적 추출 파이프라인 (입고등록 / 출고검수 완료 내역만 표시) ──
   const allEvents = useMemo(() => {
     const groupMap = new Map<string, InOutEventItem>();
+    const seenAssetEventSet = new Set<string>();
 
     // assetInOutLogs 실적만 추출 (배차의뢰/예정 제외)
     (assetInOutLogs || []).forEach(log => {
@@ -150,8 +151,17 @@ export const DailyInOutStatus: React.FC = () => {
       const transportCompany = relDelivery?.transportCompany || undefined;
       const contractNo = relContract?.contractNo || undefined;
 
+      // 동일 일자 + 동일 입출구분 + 동일 자산번호 중복 로그 방어
+      const dedupAssetKey = `${dateStr}|${inOutType}|${assetNo || log.assetId || log.id}|${customerName || ''}|${siteName || ''}`;
+      if (assetNo && seenAssetEventSet.has(dedupAssetKey)) {
+        return;
+      }
+      if (assetNo) {
+        seenAssetEventSet.add(dedupAssetKey);
+      }
+
       // 동일 일자 + 입출고구분 + 기종 + 거래처 + 현장 + 배차건 단위로 묶어 수량 및 자산번호 집계
-      const groupKey = `${dateStr}|${inOutType}|${modelName}|${customerName || ''}|${siteName || ''}|${log.deliveryId || log.id}`;
+      const groupKey = `${dateStr}|${inOutType}|${modelName}|${customerName || ''}|${siteName || ''}|${log.deliveryId || ''}`;
       const existing = groupMap.get(groupKey);
 
       if (existing) {
@@ -183,7 +193,7 @@ export const DailyInOutStatus: React.FC = () => {
       }
     });
 
-    return Array.from(groupMap.values());
+    return Array.from(groupMap.values()).sort((a, b) => b.date.localeCompare(a.date));
   }, [assetInOutLogs, assetMap, customerMap, siteMap, contractMap, deliveryMap]);
 
   // ── 🔍 전체 모델명 목록 추출 (필터 드롭다운용) ──
@@ -228,14 +238,14 @@ export const DailyInOutStatus: React.FC = () => {
     });
   }, [allEvents, filterType, sourceFilter, modelFilter, searchKeyword]);
 
-  const { items: sortedEvents, requestSort, sortConfig } = useSortableData<InOutEventItem>(filteredEvents);
-
   // ── 📅 월간 기준 필터링 및 일자별 그룹핑 맵 ──
   const monthPrefix = `${calYear}-${String(calMonth).padStart(2, '0')}`;
 
   const currentMonthEvents = useMemo(() => {
     return filteredEvents.filter(e => e.date.startsWith(monthPrefix));
   }, [filteredEvents, monthPrefix]);
+
+  const { items: sortedEvents, requestSort, sortConfig } = useSortableData<InOutEventItem>(currentMonthEvents, { key: 'date', direction: 'desc' });
 
   // 일자별 통계 및 모델 요약 집계
   const eventsByDateMap = useMemo(() => {
@@ -1038,7 +1048,7 @@ export const DailyInOutStatus: React.FC = () => {
         >
           <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-              {calYear}년 {calMonth}월 입출고 대장 (총 {filteredEvents.length}건)
+              {calYear}년 {calMonth}월 입출고 대장 (총 {currentMonthEvents.length}건)
             </span>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               * 기종별 수량 단일 표준 표기 (`모델명 * 수량`)
@@ -1071,7 +1081,7 @@ export const DailyInOutStatus: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredEvents.length === 0 ? (
+                {currentMonthEvents.length === 0 ? (
                   <tr>
                     <td colSpan={10} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회 조건에 부합하는 일일 입출고 내역이 없습니다.
