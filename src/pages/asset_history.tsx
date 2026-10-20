@@ -7,7 +7,8 @@ import {
   CheckCircle2, RotateCcw, AlertTriangle, ShieldCheck, Camera
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { InboundDefectDetail, formatContractEndDate } from '../services/db';
+import { InboundDefectDetail, formatContractEndDate, isSystemDeveloperUser } from '../services/db';
+import { isDemoMode } from '../services/demoMode';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { compressImageFile } from '../utils/imageCompressor';
@@ -18,10 +19,11 @@ export const AssetHistory: React.FC = () => {
   const { 
     assetInOutLogs, assets, customers, sites, contractAssets, contracts, contractHistory, repairs,
     navigationPayload, setNavigationPayload,
-    inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, officialMailConfigs, showErrorModal, currentTenant
+    inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, officialMailConfigs, showErrorModal, currentTenant, currentUser
   } = useApp();
 
   // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
+  const canCancelInbound = isSystemDeveloperUser(currentUser) || isDemoMode();
   const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
   const assetByLowerNoMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -747,14 +749,14 @@ export const AssetHistory: React.FC = () => {
                     <SortableTh label="현장명" sortKey="siteName" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="정비 점수" sortKey="totalPenaltyScore" currentSort={sortConfig} onSort={requestSort} />
                     <th style={{ whiteSpace: 'nowrap' }}>불량 증상 상세</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>작업</th>
+                    {canCancelInbound && <th style={{ whiteSpace: 'nowrap' }}>작업 (개발자 전용)</th>}
                   </tr>
                 )}
               </thead>
               <tbody>
                 {sortedTabLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={activeTab === 'INBOUND' ? 10 : 7} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
+                    <td colSpan={activeTab === 'INBOUND' ? (canCancelInbound ? 10 : 9) : 7} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
                       선택한 탭 및 검색 조건에 부합하는 자산 이력 데이터가 존재하지 않습니다.
                     </td>
                   </tr>
@@ -816,17 +818,19 @@ export const AssetHistory: React.FC = () => {
                                   <span>{log.memo || '-'}</span>
                                 )}
                               </td>
-                              <td style={{ whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  className="btn-secondary"
-                                  onClick={() => handleCancelInbound(log)}
-                                  style={{ fontSize: '11px', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', border: '1px solid var(--danger-light)' }}
-                                  title="사용자 휴먼에러 입고 오타 시 원래 대여중 상태로 롤백 복원합니다."
-                                >
-                                  <RotateCcw size={12} /> 입고 취소
-                                </button>
-                              </td>
+                              {canCancelInbound && (
+                                <td style={{ whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={() => handleCancelInbound(log)}
+                                    style={{ fontSize: '11px', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', border: '1px solid var(--danger-light)' }}
+                                    title="[개발자 전용] 사용자 휴먼에러 입고 오타 시 원래 대여중 상태로 롤백 복원합니다."
+                                  >
+                                    <RotateCcw size={12} /> 입고 취소
+                                  </button>
+                                </td>
+                              )}
                             </>
                           )}
 

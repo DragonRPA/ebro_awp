@@ -16,6 +16,7 @@ import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentr
 import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, parseSessionUser, safeJsonParse, maskSalaryForRole } from '../utils/cryptoVault';
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
 import { calculatePaidOptionBillingItems } from '../types/siteOption';
+import { isDemoMode } from '../services/demoMode';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -1167,7 +1168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'consumable_inout':     ['consumables', 'consumableLogs', 'consumablePurchases', 'assets', 'mechanicConsumableStocks'],
     'consumable_stock':     ['consumables', 'consumableLogs', 'mechanicConsumableStocks', 'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts'],
     'smart_dispatch':       ['deliveries', 'contracts', 'assets', 'sites', 'siteMasters', 'standardOptions', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
-    'smart_dispatch4':      ['customers', 'sites', 'siteMasters', 'standardOptions', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
+    'smart_dispatch4':      ['customers', 'sites', 'siteMasters', 'standardOptions', 'contacts', 'contracts', 'contractAssets', 'contractHistory', 'deliveries', 'todos', 'outboundInspections', 'assets', 'products'],
     'voice_dispatch':       ['customers', 'sites', 'siteMasters', 'standardOptions', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
     'smart_return':         ['deliveries', 'contracts', 'assets', 'sites', 'siteMasters', 'standardOptions', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
     'asset_inout_history':  ['assetInOutLogs', 'assets', 'customers'],
@@ -10011,6 +10012,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   // 💡 [사장님 지시] 입고 취소 롤백 (휴먼에러 원상복구 6단계 트랜잭션: 계약종료일·계약상태·체결자산·정비·배차·감사로그 100% 복원)
   const cancelInboundAsset = async (logId: string, cancelReason?: string) => {
+    // 🔒 테넌트 정식 오픈 전까지 개발자 계정 또는 데모 모드에서만 실행 허용
+    if (!isSystemDeveloperUser(currentUser) && !isDemoMode()) {
+      throw new Error('입고 취소 기능은 현재 개발자 전용으로 제한되어 있습니다.');
+    }
+
     const log = db.assetInOutLogs.find(l => l.id === logId && l.type === 'INBOUND');
     if (!log) throw new Error('해당 입고 이력 로그를 찾을 수 없거나 이미 취소된 건입니다.');
 
