@@ -160,7 +160,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 export const SmartDispatch4: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
-    saveSmartDispatch, cancelOutboundRequest, assets, deliveries, standardOptions,
+    saveSmartDispatch, cancelOutboundRequest, updateOutboundRequestPricing, assets, deliveries, standardOptions,
     contracts = [],
     contractAssets = [],
     todos = [],
@@ -256,6 +256,13 @@ export const SmartDispatch4: React.FC = () => {
   } | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState<string>('');
   const [isCancellingRequest, setIsCancellingRequest] = useState<boolean>(false);
+
+  // 💰 출고 요청 내역 우측 상세: 장비 렌탈료 및 유상옵션 청구 단가 사후 수정 상태
+  const [isEditingHistoryPrices, setIsEditingHistoryPrices] = useState<boolean>(false);
+  const [editHistoryEqRates, setEditHistoryEqRates] = useState<Record<string, { monthlyRate: number; dailyRate: number }>>({});
+  const [editHistoryOptPrices, setEditHistoryOptPrices] = useState<Record<string, number>>({});
+  const [editHistoryPriceReason, setEditHistoryPriceReason] = useState<string>('');
+  const [isSavingHistoryPrices, setIsSavingHistoryPrices] = useState<boolean>(false);
   
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
@@ -5777,10 +5784,10 @@ export const SmartDispatch4: React.FC = () => {
                 <thead>
                   <tr>
                     <th style={{ width: 68, textAlign: 'center' }}>상세</th>
-                    <th style={{ width: 95 }}>배차번호</th>
-                    <th style={{ width: 118 }}>요청일시</th>
-                    <th style={{ width: 70 }}>요청자</th>
-                    <th style={{ width: 92 }}>구분</th>
+                    <th style={{ width: 84, textAlign: 'center' }}>배차상태</th>
+                    <th style={{ width: 105, textAlign: 'center' }}>장비할당</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>출고검수</th>
+                    <th style={{ width: 84, textAlign: 'center' }}>요청취소</th>
                     <th style={{ width: 130 }}>고객사명</th>
                     <th style={{ width: 170 }}>투입 현장명</th>
                     <th style={{ width: 180 }}>요청 모델 및 수량</th>
@@ -5788,10 +5795,10 @@ export const SmartDispatch4: React.FC = () => {
                     <th style={{ width: 170 }}>유상옵션 (적용단가)</th>
                     <th style={{ width: 110 }}>상차 요청일시</th>
                     <th style={{ width: 100 }}>현장담당자</th>
-                    <th style={{ width: 84, textAlign: 'center' }}>배차상태</th>
-                    <th style={{ width: 105, textAlign: 'center' }}>장비할당</th>
-                    <th style={{ width: 88, textAlign: 'center' }}>출고검수</th>
-                    <th style={{ width: 84, textAlign: 'center' }}>요청취소</th>
+                    <th style={{ width: 95 }}>배차번호</th>
+                    <th style={{ width: 118 }}>요청일시</th>
+                    <th style={{ width: 70 }}>요청자</th>
+                    <th style={{ width: 92 }}>구분</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5831,51 +5838,6 @@ export const SmartDispatch4: React.FC = () => {
                             >
                               상세 ➔
                             </button>
-                          </td>
-                          <td className="font-mono font-bold text-blue-400">{row.id}</td>
-                          <td className="font-mono text-slate-300 text-[11px]">
-                            {row.createdAt
-                              ? new Date(row.createdAt).toLocaleString('ko-KR', {
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                })
-                              : '-'}
-                          </td>
-                          <td className="font-bold text-slate-200">{row.requesterName}</td>
-                          <td>
-                            <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${
-                              row.reqTypeLabel === '교체(대차)'
-                                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
-                                : row.reqTypeLabel === '신규고객 출고'
-                                  ? 'bg-purple-950 text-purple-300 border border-purple-800'
-                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
-                            }`}>
-                              {row.reqTypeLabel}
-                            </span>
-                          </td>
-                          <td className="font-bold text-white max-w-[130px] truncate" title={row.customerName}>
-                            {row.customerName}
-                          </td>
-                          <td className="text-slate-200 max-w-[170px] truncate" title={row.siteName}>
-                            {row.siteName}
-                          </td>
-                          <td className="font-bold text-emerald-400 max-w-[180px] truncate" title={equipSummary}>
-                            {equipSummary || '-'}
-                          </td>
-                          {hasFinancialAccess && (
-                            <td className="font-mono text-right text-slate-200">
-                              {rateSummary}
-                            </td>
-                          )}
-                          <td className="text-amber-300 max-w-[170px] truncate" title={optSummary}>
-                            {optSummary}
-                          </td>
-                          <td className="font-mono text-slate-200 text-[11px]">{row.loadingSchedule}</td>
-                          <td className="text-slate-300 max-w-[100px] truncate" title={`${row.siteContactName} (${row.siteContactPhone})`}>
-                            {row.siteContactName !== '-' ? `${row.siteContactName}` : '-'}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border whitespace-nowrap ${
@@ -5954,6 +5916,51 @@ export const SmartDispatch4: React.FC = () => {
                                 취소불가
                               </span>
                             )}
+                          </td>
+                          <td className="font-bold text-white max-w-[130px] truncate" title={row.customerName}>
+                            {row.customerName}
+                          </td>
+                          <td className="text-slate-200 max-w-[170px] truncate" title={row.siteName}>
+                            {row.siteName}
+                          </td>
+                          <td className="font-bold text-emerald-400 max-w-[180px] truncate" title={equipSummary}>
+                            {equipSummary || '-'}
+                          </td>
+                          {hasFinancialAccess && (
+                            <td className="font-mono text-right text-slate-200">
+                              {rateSummary}
+                            </td>
+                          )}
+                          <td className="text-amber-300 max-w-[170px] truncate" title={optSummary}>
+                            {optSummary}
+                          </td>
+                          <td className="font-mono text-slate-200 text-[11px]">{row.loadingSchedule}</td>
+                          <td className="text-slate-300 max-w-[100px] truncate" title={`${row.siteContactName} (${row.siteContactPhone})`}>
+                            {row.siteContactName !== '-' ? `${row.siteContactName}` : '-'}
+                          </td>
+                          <td className="font-mono font-bold text-blue-400">{row.id}</td>
+                          <td className="font-mono text-slate-300 text-[11px]">
+                            {row.createdAt
+                              ? new Date(row.createdAt).toLocaleString('ko-KR', {
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                })
+                              : '-'}
+                          </td>
+                          <td className="font-bold text-slate-200">{row.requesterName}</td>
+                          <td>
+                            <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${
+                              row.reqTypeLabel === '교체(대차)'
+                                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                                : row.reqTypeLabel === '신규고객 출고'
+                                  ? 'bg-purple-950 text-purple-300 border border-purple-800'
+                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
+                            }`}>
+                              {row.reqTypeLabel}
+                            </span>
                           </td>
                         </tr>
                       );
