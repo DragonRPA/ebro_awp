@@ -277,3 +277,13 @@ pm run build)을 통해 무결성을 검증한다.
 - **UIA 4대 불변식 및 Gutenberg Z-패턴 설계 계승**:
   - 모든 신규 화면 및 기존 화면 유지보수 시 본 SSOT에 선언된 [UI 아키타입(유형 A / B / C)], [Gutenberg Z-패턴 4단계(Scope ➔ Pipeline ➔ Inspection ➔ Terminal Action)], [4대 헌장 가드레일(출고검수 승인 RENTED 전환, 단일 EXCHANGE 발행, 일할 기여액 대차 차액 ₩0, 무음 실패 방지)]을 100% 동일하게 추종하고 유지해야 한다.
 
+### 9.3 배포 무결성 사전 검증 및 변명 배제 원칙 (Pre-Push Build Gate & Zero-Excuse Standard)
+- **`tsc --noEmit` 단독 검증 영구 금지 ➔ `npm run build` (`tsc -b && vite build`) 필수 실행**:
+  - 루트 `tsconfig.json`이 Project References 구조이므로 `tsc --noEmit`은 아무 파일도 검사하지 않는다. 커밋 및 푸시 전에는 반드시 Vercel 프로덕션 빌드와 동일한 `npm run build` (`tsc -b && vite build`)를 실행하여 `exit code 0`을 확인한다.
+- **스테이징 원자성(Atomic Commit) 검증 및 Git Pre-Push 훅 강제**:
+  - 커밋 전 `git status` 및 `git diff --staged`를 확인하여 연관 파일 누락이나 미완성 코드 혼입을 원천 차단한다.
+  - `.git/hooks/pre-push`에 `npm run build` 게이트를 상시 활성화하여, 빌드가 실패한 코드는 물리적으로 `git push`가 거부되도록 강제한다.
+- **반복적 변명 및 장황한 해명 영구 금지**:
+  - 오류 발생 시 동일한 변명이나 장황한 경위 설명을 반복하지 않으며, 오직 사실관계(원인)와 완료된 기술적 조치만 간결하게 보고한다.
+
+
