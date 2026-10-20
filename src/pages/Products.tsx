@@ -3,13 +3,30 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Plus, Download, Search, RefreshCw, FileText, X, Folder, Trash2, ExternalLink, Upload, CheckCircle2, AlertCircle, Eye, Edit2, Save, Package, Layers } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { Product } from '../services/db';
+import { db, Product } from '../services/db';
 import { LIFT_RETRACTED_IMG, LIFT_EXTENDED_IMG } from '../services/specImages';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { decryptSecret } from '../utils/cryptoVault';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { getCanonicalModelKey } from '../utils/modelUtils';
+import { PRESET_PRODUCT_SPECS } from '../data/presetProductSpecs';
+
+const extractCertDateFromText = (raw?: string | null): string => {
+  if (!raw) return '';
+  let decoded = raw;
+  try { decoded = decodeURIComponent(raw); } catch {}
+  const krMatch = decoded.match(/(20\d{2}|\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (krMatch) {
+    const yr = krMatch[1].length === 2 ? `20${krMatch[1]}` : krMatch[1];
+    return `${yr}-${krMatch[2].padStart(2, '0')}-${krMatch[3].padStart(2, '0')}`;
+  }
+  const dotMatch = decoded.match(/(20\d{2})[.\-](\d{1,2})[.\-](\d{1,2})/);
+  if (dotMatch) {
+    return `${dotMatch[1]}-${dotMatch[2].padStart(2, '0')}-${dotMatch[3].padStart(2, '0')}`;
+  }
+  return '';
+};
 
 interface R2DocFile {
   key: string;
@@ -220,6 +237,45 @@ export const Products: React.FC = () => {
     return map;
   }, [products, r2Files]);
 
+  // 모델별 안전인증일 산출 헬퍼 (DB safetyCertDate -> R2 안전인증서 파일명 -> Preset 순)
+  const getSafetyCertDate = (p: Product): string => {
+    if (p.safetyCertDate) return p.safetyCertDate;
+    const fromUrl = extractCertDateFromText(p.safetyCertUrl);
+    if (fromUrl) return fromUrl;
+    const docs = r2FilesByModelMap.get(p.id) || [];
+    for (const d of docs) {
+      if (d.name.startsWith('5.') || d.name.includes('인증')) {
+        const dt = extractCertDateFromText(d.name);
+        if (dt) return dt;
+      }
+    }
+    const upper = (p.modelName || '').trim().toUpperCase();
+    const cKey = getCanonicalModelKey(p.modelName);
+    const preset =
+      PRESET_PRODUCT_SPECS[p.modelName] ||
+      PRESET_PRODUCT_SPECS[upper] ||
+      Object.values(PRESET_PRODUCT_SPECS).find(ps => getCanonicalModelKey(ps.modelName) === cKey);
+    return preset?.safetyCertDate || extractCertDateFromText(preset?.safetyCertUrl) || '';
+  };
+
+  // DB 내 safetyCertDate 누락 모델 자동 보정 및 영구 저장
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    let hasUpdates = false;
+    for (const p of products) {
+      if (!p.safetyCertDate) {
+        const resolved = getSafetyCertDate(p);
+        if (resolved) {
+          db.updateRow<Product>('products', p.id, { safetyCertDate: resolved });
+          hasUpdates = true;
+        }
+      }
+    }
+    if (hasUpdates) {
+      db.awaitPendingWrites().then(() => refreshAllData()).catch(() => {});
+    }
+  }, [products.length, r2Files.length]);
+
   // 고유 제조사 & 동력방식
   const uniqueManufacturers = useMemo(() => {
     return Array.from(new Set(products.map(p => p.manufacturer).filter(Boolean))) as string[];
@@ -296,6 +352,7 @@ export const Products: React.FC = () => {
         case 'loadingCapacity': return p.capacityPreExt || '';
         case 'machineDimensions': return p.machineDimensions || '';
         case 'travelSpeed': return p.speed || '';
+        case 'safetyCertDate': return getSafetyCertDate(p);
         case 'isActive': return p.isActive !== false ? 1 : 0;
         default: return (p as any)[key];
       }
@@ -303,14 +360,17 @@ export const Products: React.FC = () => {
   );
 
   const handleSelectProduct = (product: Product) => {
-    setSelectedProduct(product);
+    const certDate = getSafetyCertDate(product);
+    const enriched = certDate && !product.safetyCertDate ? { ...product, safetyCertDate: certDate } : product;
+    setSelectedProduct(enriched);
     setIsEditing(false);
-    setEditForm({ ...product });
+    setEditForm({ ...enriched });
   };
 
   const handleStartEdit = () => {
     if (selectedProduct) {
-      setEditForm({ ...selectedProduct });
+      const certDate = getSafetyCertDate(selectedProduct);
+      setEditForm({ ...selectedProduct, safetyCertDate: selectedProduct.safetyCertDate || certDate });
       setIsEditing(true);
     }
   };
@@ -484,6 +544,7 @@ export const Products: React.FC = () => {
         '플랫폼크기': p.platformDimensions || '-',
         '등판능력': p.gradeability || '-',
         '주행속도': p.speed || '-',
+        '안전인증일': p.safetyCertDate || '-',
         '최대풍속': p.maxWindSpeed || '-',
         'A/S접수': p.asContact || '031-334-5296',
         '제조사': p.manufacturer || '-',
@@ -750,13 +811,14 @@ export const Products: React.FC = () => {
                 <SortableTh sortKey="loadingCapacity" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>적재중량</SortableTh>
                 <SortableTh sortKey="machineDimensions" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>장비크기</SortableTh>
                 <SortableTh sortKey="travelSpeed" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>주행속도</SortableTh>
+                <SortableTh sortKey="safetyCertDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>안전인증일</SortableTh>
                 <SortableTh sortKey="isActive" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px' }}>상태</SortableTh>
               </tr>
             </thead>
             <tbody>
               {sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={15} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={16} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                     조회 조건에 해당하는 제품 모델이 없습니다.
                   </td>
                 </tr>
@@ -871,6 +933,9 @@ export const Products: React.FC = () => {
 
                       {/* 주행속도 */}
                       <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{p.speed || '-'}</td>
+
+                      {/* 안전인증일 */}
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{getSafetyCertDate(p) || '-'}</td>
 
                       {/* 사용여부 */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -1161,6 +1226,7 @@ export const Products: React.FC = () => {
                     <div><label style={labelStyle}>주행 속도</label><input style={inputStyle} value={editForm.speed || ''} onChange={ef('speed')} /></div>
                     <div><label style={labelStyle}>등판 능력</label><input style={inputStyle} value={editForm.gradeability || ''} onChange={ef('gradeability')} /></div>
                     <div><label style={labelStyle}>최대 풍속</label><input style={inputStyle} value={editForm.maxWindSpeed || ''} onChange={ef('maxWindSpeed')} /></div>
+                    <div><label style={labelStyle}>안전인증일</label><input type="date" style={inputStyle} value={editForm.safetyCertDate || ''} onChange={ef('safetyCertDate')} /></div>
                     <div><label style={labelStyle}>A/S 접수처</label><input style={inputStyle} value={editForm.asContact || ''} onChange={ef('asContact')} /></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <label style={labelStyle}>기타 제원 메모</label>
@@ -1186,6 +1252,7 @@ export const Products: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>주행 속도:</span> {selectedProduct.speed || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>등판 능력:</span> {selectedProduct.gradeability || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>최대 풍속:</span> {selectedProduct.maxWindSpeed || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>안전인증일:</span> <strong style={{ color: 'var(--primary)' }}>{getSafetyCertDate(selectedProduct) || '-'}</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>A/S 접수처:</span> <strong>{selectedProduct.asContact || '031-334-5296'}</strong></div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>기타 제원 메모:</span> {selectedProduct.spec || '-'}
@@ -1252,6 +1319,7 @@ export const Products: React.FC = () => {
               <div><label style={labelStyle}>주행 속도</label><input style={inputStyle} placeholder="예: 3.2 km/h" value={editForm.speed || ''} onChange={ef('speed')} /></div>
               <div><label style={labelStyle}>등판 능력</label><input style={inputStyle} placeholder="예: 25%" value={editForm.gradeability || ''} onChange={ef('gradeability')} /></div>
               <div><label style={labelStyle}>최대 풍속</label><input style={inputStyle} placeholder="예: 12.5 m/s 이내" value={editForm.maxWindSpeed || ''} onChange={ef('maxWindSpeed')} /></div>
+              <div><label style={labelStyle}>안전인증일</label><input type="date" style={inputStyle} value={editForm.safetyCertDate || ''} onChange={ef('safetyCertDate')} /></div>
               <div><label style={labelStyle}>A/S 접수처</label><input style={inputStyle} value={editForm.asContact || '031-334-5296'} onChange={ef('asContact')} /></div>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>기타 제원 메모</label>
@@ -1379,6 +1447,12 @@ export const Products: React.FC = () => {
                   <td style={{ padding: '5px' }}>{selectedProduct.machineDimensions || '-'}</td>
                   <td style={{ backgroundColor: 'var(--bg-app)', fontWeight: 'bold', padding: '5px' }}>주행 속도</td>
                   <td style={{ padding: '5px' }}>{selectedProduct.speed || '-'}</td>
+                </tr>
+                <tr>
+                  <td style={{ backgroundColor: 'var(--bg-app)', fontWeight: 'bold', padding: '5px' }}>안전인증일</td>
+                  <td style={{ padding: '5px', fontWeight: 'bold', color: 'var(--primary)' }}>{getSafetyCertDate(selectedProduct) || '-'}</td>
+                  <td style={{ backgroundColor: 'var(--bg-app)', fontWeight: 'bold', padding: '5px' }}>A/S 접수처</td>
+                  <td style={{ padding: '5px' }}>{selectedProduct.asContact || '031-334-5296'}</td>
                 </tr>
               </tbody>
             </table>

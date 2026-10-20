@@ -282,6 +282,8 @@ const server = http.createServer(async (req, res) => {
         const siteAddress = payload.siteAddress || '';
         const managerName = payload.managerName || '현장담당자';
         const managerPhone = payload.managerPhone || '010-0000-0000';
+        const salesRepName = String(payload.salesRepName || payload.salespersonName || '영업담당자').replace(/"/g, '""');
+        const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || '010-0000-0000').replace(/"/g, '""');
         const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
         const remarksText = payload.remarksText || '안전발판 지급';
 
@@ -338,6 +340,8 @@ Replace-Tag $wsContract "{하차일시}" "${contractDate}"
 Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
 Replace-Tag $wsContract "{현장담당자}" "${managerName}"
 Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"
+Replace-Tag $wsContract "{영업담당자}" "${salesRepName}"
+Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
 Replace-Tag $wsContract "{모델명}" "${primaryAsset.modelName}"
 Replace-Tag $wsContract "{수량}" "${assets.length}"
 Replace-Tag $wsContract "{SN}" "${primaryAsset.sn}"
@@ -419,19 +423,32 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     $curChecklist.PageSetup.FitToPagesWide = 1
     $curChecklist.PageSetup.FitToPagesTall = 1
 
+    $assetModel = if ($asset.modelName) { "$($asset.modelName)" } else { "-" }
+    $assetNo = if ($asset.assetNo) { "$($asset.assetNo)" } else { "-" }
+    $assetSn = if ($asset.sn -and "$($asset.sn)" -ne "-") { "$($asset.sn)" } else { "" }
+    $assetVehicleNo = if ($assetSn) { "$assetNo ($assetSn)" } else { "$assetNo" }
+    $assetMfg = if ($asset.manufacturer -and "$($asset.manufacturer)" -ne "-") { "$($asset.manufacturer)" } else { "SINOBOOM" }
+    $assetPower = if ($asset.powerSource -and "$($asset.powerSource)" -ne "-") { "$($asset.powerSource)" } else { "배터리" }
+    $assetWeight = if ($asset.weight -and "$($asset.weight)" -ne "-") { "$($asset.weight)" } else { "-" }
+    $assetSpeed = if ($asset.speed -and "$($asset.speed)" -ne "-") { "$($asset.speed)" } else { "-" }
+    $assetWorkingHeight = if ($asset.workingHeight -and "$($asset.workingHeight)" -ne "-") { "$($asset.workingHeight)" } else { "-" }
+    $assetCapacity = if ($asset.capacityPreExt -and "$($asset.capacityPreExt)" -ne "-") { "$($asset.capacityPreExt)" } else { "-" }
+    $assetMfgYear = if ($asset.manufactureYear -and "$($asset.manufactureYear)" -ne "-") { "$($asset.manufactureYear)" } else { "-" }
+    $assetCertDate = if ($asset.safetyCertDate -and "$($asset.safetyCertDate)" -ne "-") { "$($asset.safetyCertDate)" } elseif ($asset.certDate -and "$($asset.certDate)" -ne "-") { "$($asset.certDate)" } else { "-" }
+
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
-    Replace-Tag $curSafety "{제조사}" "SINOBOOM"
+    Replace-Tag $curSafety "{제조사}" "$assetMfg"
     Replace-Tag $curSafety "{고객명}" "${custName}"
-    Replace-Tag $curSafety "{동력방식}" "배터리식"
-    Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
-    Replace-Tag $curSafety "{중량}" "1,520 kg"
-    Replace-Tag $curSafety "{운행속도}" "3.5 km/h"
-    Replace-Tag $curSafety "{작업높이}" "6.0 m"
-    Replace-Tag $curSafety "{적재}" "230 kg"
-    Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
-    Replace-Tag $curSafety "{제조연도}" "2021년"
-    Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
+    Replace-Tag $curSafety "{동력방식}" "$assetPower"
+    Replace-Tag $curSafety "{모델명}" "$assetModel"
+    Replace-Tag $curSafety "{중량}" "$assetWeight"
+    Replace-Tag $curSafety "{운행속도}" "$assetSpeed"
+    Replace-Tag $curSafety "{작업높이}" "$assetWorkingHeight"
+    Replace-Tag $curSafety "{적재}" "$assetCapacity"
+    Replace-Tag $curSafety "{차량번호}" "$assetVehicleNo"
+    Replace-Tag $curSafety "{제조연도}" "$assetMfgYear"
+    Replace-Tag $curSafety "{안전인증일}" "$assetCertDate"
     Replace-Tag $curSafety "{Today}" "${contractDate}"
     Replace-Tag $curSafety "{점검자}" "김관주"
     $curSafety.PageSetup.Orientation = 1

@@ -738,6 +738,8 @@ async function executeContractBundleInternal(payload) {
     const tenantBizNo = payload.businessNumber || policy.businessNumber || '';
     const tenantRepName = payload.representativeName || policy.representativeName || '';
     const tenantTel = payload.salesRepPhone || payload.tel || policy.salesPhone || policy.tel || '';
+    const salesRepName = String(payload.salesRepName || payload.salespersonName || tenantRepName || '영업담당자').replace(/"/g, '""');
+    const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || tenantTel || '010-0000-0000').replace(/"/g, '""');
     const tenantBankAccount = payload.bankAccount || (policy.bankAccounts?.[0] ? `${policy.bankAccounts[0].bankName} ${policy.bankAccounts[0].accountNumber} (${policy.bankAccounts[0].accountHolder})` : '');
     const inspectorName = payload.inspectorName || payload.salesRepName || tenantRepName || '점검담당자';
 
@@ -768,9 +770,83 @@ async function executeContractBundleInternal(payload) {
       }
     }
 
-    const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
+    const rawAssets = payload.assets && payload.assets.length > 0 ? payload.assets : [
       { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
     ];
+
+    const MODEL_SAFETY_CERT_DATES = {
+      '1230ES': '2019-05-07', '1414EPLUS': '2023-06-20', '1532R': '2018-03-30', '1930ES': '2015-06-10',
+      '4069LE': '2018-04-04', 'ES1330L': '2020-01-17', 'ES2646': '2022-06-30', 'GS1330M': '2019-03-19',
+      'GS1432': '2021-04-08', 'GS1930': '2010-07-07', 'GS1930EDRIVE': '2021-02-09', 'GS2632': '2011-06-13',
+      'GS2632EDRIVE': '2021-11-16', 'GS2646': '2010-12-29', 'GS2646EDRIVE': '2021-02-09', 'GS3246': '2010-09-06',
+      'GS3246EDRIVE': '2021-02-09', 'GS4046': '2021-07-08', 'GS4047': '2013-03-11', 'GS4069DC': '2013-07-09',
+      'GS4655': '2020-06-18', 'GS4655EDRIVE': '2020-06-18', 'GS5390RT': '2010-09-29', 'GS5390': '2010-09-29',
+      'GTBZ16AE': '2022-07-12', 'GTJZ0608ME': '2023-06-20', 'GTJZ0808E': '2023-06-20', 'GTJZ0812E': '2024-10-02',
+      'GTJZ1012E': '2023-06-20', 'GTJZ1212E': '2023-06-20', 'JCPT0607DCS': '2016-04-25', 'JCPT0807AC': '2021-07-29',
+      'JCPT1008AC': '2021-07-29', 'JCPT1012AC': '2021-07-29', 'JCPT1212AC': '2021-07-29', 'JCPT1412AC': '2021-07-29',
+      'JCPT1614ACZ': '2023-06-28', 'MS104': '2009-06-03', 'MS10.4': '2009-06-03', 'MS118': '2014-04-03', 'MS11.8': '2014-04-03',
+      'OPTIMUM8': '2017-09-21', 'R1532I': '2020-11-12', 'S0807AC+': '2024-09-24', 'S0808E': '2023-12-14',
+      'S0812E': '2023-12-14', 'S1008AC+': '2025-04-15', 'S1012AC+': '2025-04-15', 'S1012E': '2023-11-14',
+      'S1212AC+': '2025-04-15', 'S1212E': '2023-11-14', 'S1412AC+': '2025-04-22', 'S1413E': '2023-11-28',
+      'S1612AC+': '2025-04-15', 'S1614AC+': '2025-03-13', 'SJ12': '2010-09-14', 'SJ3215': '2023-04-28',
+      'SJ3219': '2023-04-28', 'SJ3226': '2009-09-18', 'SR1623E': '2024-07-30', 'STAR6': '2017-09-21',
+      'Z3422DC': '2010-03-19', 'Z4525J': '2009-09-14'
+    };
+
+    const normKey = (s) => String(s || '').replace(/[\s\-_/]/g, '').toUpperCase();
+
+    const resolveEqDocModelDir = (modelName) => {
+      if (!modelName) return null;
+      const eqRoot = path.join(DRIVE_MIRROR_DIR, 'Eq_doc');
+      if (!fs.existsSync(eqRoot)) return null;
+      const exactPath = path.join(eqRoot, String(modelName).replace(/[\\/:*?"<>|]/g, ' '));
+      if (fs.existsSync(exactPath) && fs.statSync(exactPath).isDirectory()) return exactPath;
+      const targetNorm = normKey(modelName);
+      const dirs = fs.readdirSync(eqRoot);
+      for (const d of dirs) {
+        const full = path.join(eqRoot, d);
+        if (!fs.statSync(full).isDirectory()) continue;
+        const dNorm = normKey(d);
+        if (dNorm === targetNorm || (targetNorm === 'GS4655' && dNorm === 'GS4655EDRIVE') || (targetNorm === 'GS5390RT' && dNorm === 'GS5390')) {
+          return full;
+        }
+      }
+      return null;
+    };
+
+    const extractDateFromCertFiles = (modelName) => {
+      const dir = resolveEqDocModelDir(modelName);
+      if (dir && fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir).filter(f => f.startsWith('5.') || f.includes('인증'));
+        for (const f of files) {
+          const kr = f.match(/(20\d{2}|\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+          if (kr) {
+            const yr = kr[1].length === 2 ? `20${kr[1]}` : kr[1];
+            return `${yr}-${kr[2].padStart(2, '0')}-${kr[3].padStart(2, '0')}`;
+          }
+          const dot = f.match(/(20\d{2})[.\-](\d{1,2})[.\-](\d{1,2})/);
+          if (dot) {
+            return `${dot[1]}-${dot[2].padStart(2, '0')}-${dot[3].padStart(2, '0')}`;
+          }
+        }
+      }
+      return MODEL_SAFETY_CERT_DATES[normKey(modelName)] || null;
+    };
+
+    const assets = rawAssets.map(a => {
+      const mName = a.modelName || 'GTJZ0608ME';
+      const rawCert = (a.safetyCertDate && a.safetyCertDate !== '-') ? a.safetyCertDate : ((a.certDate && a.certDate !== '-') ? a.certDate : null);
+      const resolvedCert = rawCert || extractDateFromCertFiles(mName) || '-';
+      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim() : '';
+      const resolvedYr = rawYr && rawYr !== '-' ? (rawYr.endsWith('년') ? rawYr : `${rawYr}년`) : '-';
+      return {
+        ...a,
+        modelName: mName,
+        manufactureYear: resolvedYr,
+        safetyCertDate: resolvedCert,
+        certDate: resolvedCert
+      };
+    });
 
     const primaryAsset = assets[0];
     const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
@@ -875,6 +951,8 @@ Replace-Tag $wsContract "{하차일시}" "${contractDate}"
 Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
 Replace-Tag $wsContract "{현장담당자}" "${managerName}"
 Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"
+Replace-Tag $wsContract "{영업담당자}" "${salesRepName}"
+Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
 Replace-Tag $wsContract "{모델명}" "${primaryAsset.modelName}"
 Replace-Tag $wsContract "{수량}" "${assets.length}"
 Replace-Tag $wsContract "{SN}" "${primaryAsset.sn}"
@@ -967,22 +1045,35 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     $curChecklist.PageSetup.FitToPagesWide = 1
     $curChecklist.PageSetup.FitToPagesTall = 1
 
+    $assetModel = if ($asset.modelName) { "$($asset.modelName)" } else { "-" }
+    $assetNo = if ($asset.assetNo) { "$($asset.assetNo)" } else { "-" }
+    $assetSn = if ($asset.sn -and "$($asset.sn)" -ne "-") { "$($asset.sn)" } else { "" }
+    $assetVehicleNo = if ($assetSn) { "$assetNo ($assetSn)" } else { "$assetNo" }
+    $assetMfg = if ($asset.manufacturer -and "$($asset.manufacturer)" -ne "-") { "$($asset.manufacturer)" } else { "SINOBOOM" }
+    $assetPower = if ($asset.powerSource -and "$($asset.powerSource)" -ne "-") { "$($asset.powerSource)" } else { "배터리" }
+    $assetWeight = if ($asset.weight -and "$($asset.weight)" -ne "-") { "$($asset.weight)" } else { "-" }
+    $assetSpeed = if ($asset.speed -and "$($asset.speed)" -ne "-") { "$($asset.speed)" } else { "-" }
+    $assetWorkingHeight = if ($asset.workingHeight -and "$($asset.workingHeight)" -ne "-") { "$($asset.workingHeight)" } else { "-" }
+    $assetCapacity = if ($asset.capacityPreExt -and "$($asset.capacityPreExt)" -ne "-") { "$($asset.capacityPreExt)" } else { "-" }
+    $assetMfgYear = if ($asset.manufactureYear -and "$($asset.manufactureYear)" -ne "-") { "$($asset.manufactureYear)" } else { "-" }
+    $assetCertDate = if ($asset.safetyCertDate -and "$($asset.safetyCertDate)" -ne "-") { "$($asset.safetyCertDate)" } elseif ($asset.certDate -and "$($asset.certDate)" -ne "-") { "$($asset.certDate)" } else { "-" }
+
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
-    Replace-Tag $curSafety "{제조사}" "SINOBOOM"
+    Replace-Tag $curSafety "{제조사}" "$assetMfg"
     Replace-Tag $curSafety "{테넌트}" "${tenantCorp}"
     Replace-Tag $curSafety "(주)기연리프트" "${tenantCorp}"
     Replace-Tag $curSafety "기연리프트" "${tenantName}"
     Replace-Tag $curSafety "{고객명}" "${custName}"
-    Replace-Tag $curSafety "{동력방식}" "배터리식"
-    Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
-    Replace-Tag $curSafety "{중량}" "1,520 kg"
-    Replace-Tag $curSafety "{운행속도}" "3.5 km/h"
-    Replace-Tag $curSafety "{작업높이}" "6.0 m"
-    Replace-Tag $curSafety "{적재}" "230 kg"
-    Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
-    Replace-Tag $curSafety "{제조연도}" "2021년"
-    Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
+    Replace-Tag $curSafety "{동력방식}" "$assetPower"
+    Replace-Tag $curSafety "{모델명}" "$assetModel"
+    Replace-Tag $curSafety "{중량}" "$assetWeight"
+    Replace-Tag $curSafety "{운행속도}" "$assetSpeed"
+    Replace-Tag $curSafety "{작업높이}" "$assetWorkingHeight"
+    Replace-Tag $curSafety "{적재}" "$assetCapacity"
+    Replace-Tag $curSafety "{차량번호}" "$assetVehicleNo"
+    Replace-Tag $curSafety "{제조연도}" "$assetMfgYear"
+    Replace-Tag $curSafety "{안전인증일}" "$assetCertDate"
     Replace-Tag $curSafety "{Today}" "$assetInspDate"
     Replace-Tag $curSafety "{점검일시}" "$assetInspDate"
     Replace-Tag $curSafety "{안전점검일시}" "$assetInspDate"
@@ -1020,7 +1111,7 @@ $excel.Quit()
     const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
     
     for (const model of uniqueModels) {
-      const eqDocDir = path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
+      const eqDocDir = resolveEqDocModelDir(model) || path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
       if (fs.existsSync(eqDocDir)) {
         const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
         files.sort();

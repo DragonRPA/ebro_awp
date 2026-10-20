@@ -55,7 +55,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2019-05-07"
   },
   "1414E PLUS": {
     "id": "PROD-0001012",
@@ -84,7 +84,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-20"
   },
   "1532R": {
     "id": "PROD-0000063",
@@ -113,7 +113,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2018-03-30"
   },
   "1930ES": {
     "id": "PROD-0000021",
@@ -142,7 +142,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2015-06-10"
   },
   "4069LE": {
     "id": "PROD-0000023",
@@ -171,7 +171,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2018-04-04"
   },
   "JLG-E600JP": {
     "id": "PROD-0000067",
@@ -229,7 +229,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "115 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2020-01-17"
   },
   "ES2646": {
     "id": "PROD-0000044",
@@ -258,7 +258,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2022-06-30"
   },
   "GS-1330M": {
     "id": "PROD-0000054",
@@ -287,7 +287,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "91 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2019-03-19"
   },
   "GS-1432": {
     "id": "PROD-0001002",
@@ -316,7 +316,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "91 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-04-08"
   },
   "GS-1930": {
     "id": "PROD-0000010",
@@ -345,7 +345,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-07-07"
   },
   "GS-1930 E-DRIVE": {
     "id": "PROD-0001003",
@@ -374,7 +374,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-02-09"
   },
   "GS-2632": {
     "id": "PROD-CANON-GS2632",
@@ -403,7 +403,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2011-06-13"
   },
   "GS-2632 E-DRIVE": {
     "id": "PROD-0001005",
@@ -432,7 +432,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-11-16"
   },
   "GS-2646": {
     "id": "PROD-0001004",
@@ -461,7 +461,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-12-29"
   },
   "GS-2646 E-DRIVE": {
     "id": "PROD-CANON-GS2646EDRIVE",
@@ -490,7 +490,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-02-09"
   },
   "GS-3246": {
     "id": "PROD-0000014",
@@ -519,7 +519,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-09-06"
   },
   "GS-3246 E-DRIVE": {
     "id": "PROD-0000015",
@@ -548,7 +548,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-02-09"
   },
   "GS-4046": {
     "id": "PROD-CANON-GS4046",
@@ -577,7 +577,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-08"
   },
   "GS-4047": {
     "id": "PROD-0000016",
@@ -606,7 +606,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2013-03-11"
   },
   "GS-4069DC": {
     "id": "PROD-0000058",
@@ -635,7 +635,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2013-07-09"
   },
   "GS-4655": {
     "id": "PROD-0001006",
@@ -664,7 +664,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "136 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2020-06-18"
   },
   "GS-5390RT": {
     "id": "PROD-CANON-GS5390RT",
@@ -693,7 +693,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "110 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-09-29"
   },
   "GTBZ16AE": {
     "id": "PROD-0000051",
@@ -722,7 +722,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2022-07-12"
   },
   "GTJZ0608ME": {
     "id": "PROD-0001007",
@@ -751,7 +751,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-20"
   },
   "GTJZ0808E": {
     "id": "PROD-0001008",
@@ -780,7 +780,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-20"
   },
   "GTJZ0812E": {
     "id": "PROD-0001009",
@@ -809,7 +809,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2024-10-02"
   },
   "GTJZ1012E": {
     "id": "PROD-0001010",
@@ -838,7 +838,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-20"
   },
   "GTJZ1212E": {
     "id": "PROD-0001011",
@@ -867,7 +867,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-20"
   },
   "JCPT0607DCS": {
     "id": "PROD-0000033",
@@ -896,7 +896,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "100 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2016-04-25"
   },
   "JCPT0807AC": {
     "id": "PROD-0000002",
@@ -925,7 +925,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-29"
   },
   "JCPT1008AC": {
     "id": "PROD-0000025",
@@ -954,7 +954,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-29"
   },
   "JCPT1012AC": {
     "id": "PROD-0000043",
@@ -983,7 +983,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-29"
   },
   "JCPT1212AC": {
     "id": "PROD-0000045",
@@ -1012,7 +1012,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-29"
   },
   "JCPT1412AC": {
     "id": "PROD-0000022",
@@ -1041,7 +1041,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2021-07-29"
   },
   "JCPT1614ACZ": {
     "id": "PROD-0000046",
@@ -1070,7 +1070,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "16.0 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-06-28"
   },
   "MS10.4": {
     "id": "PROD-0000074",
@@ -1099,7 +1099,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2009-06-03"
   },
   "MS11.8": {
     "id": "PROD-0000075",
@@ -1128,7 +1128,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2014-04-03"
   },
   "OPTIMUM 8": {
     "id": "PROD-0000001",
@@ -1157,7 +1157,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "110 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2017-09-21"
   },
   "R1532I": {
     "id": "PROD-0000027",
@@ -1186,7 +1186,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2020-11-12"
   },
   "S0607E": {
     "id": "PROD-0000091",
@@ -1244,7 +1244,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2024-09-24"
   },
   "S0808E": {
     "id": "PROD-0000029",
@@ -1273,7 +1273,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "117 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-12-14"
   },
   "S0812E": {
     "id": "PROD-0000041",
@@ -1302,7 +1302,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "110 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-12-14"
   },
   "S1008AC+": {
     "id": "PROD-0001018",
@@ -1331,7 +1331,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-04-15"
   },
   "S1012AC+": {
     "id": "PROD-0000035",
@@ -1360,7 +1360,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-04-15"
   },
   "S1012E": {
     "id": "PROD-0000042",
@@ -1389,7 +1389,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-11-14"
   },
   "S1014AC+": {
     "id": "PROD-0000092",
@@ -1447,7 +1447,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-04-15"
   },
   "S1212E": {
     "id": "PROD-0001019",
@@ -1476,7 +1476,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-11-14"
   },
   "S1412AC+": {
     "id": "PROD-0000034",
@@ -1505,7 +1505,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-04-22"
   },
   "S1413E": {
     "id": "PROD-0000072",
@@ -1534,7 +1534,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-11-28"
   },
   "S1612AC+": {
     "id": "PROD-0000032",
@@ -1563,7 +1563,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "136 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-04-15"
   },
   "S1614AC+": {
     "id": "PROD-0000038",
@@ -1592,7 +1592,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2025-03-13"
   },
   "SJ12": {
     "id": "PROD-0000093",
@@ -1621,7 +1621,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-09-14"
   },
   "SJ3215": {
     "id": "PROD-0000003",
@@ -1650,7 +1650,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-04-28"
   },
   "SJ3219": {
     "id": "PROD-0001017",
@@ -1679,7 +1679,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2023-04-28"
   },
   "SJ3226": {
     "id": "PROD-0000011",
@@ -1708,7 +1708,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "113 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2009-09-18"
   },
   "SR1623E": {
     "id": "PROD-0000073",
@@ -1737,7 +1737,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "230 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2024-07-30"
   },
   "STAR6": {
     "id": "PROD-0000030",
@@ -1766,7 +1766,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "120 kg",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2017-09-21"
   },
   "Z-34/22DC": {
     "id": "PROD-0000094",
@@ -1795,7 +1795,7 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2010-03-19"
   },
   "Z-45/25J": {
     "id": "PROD-0000037",
@@ -1824,6 +1824,6 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "capacityPostExtDeck": "-",
     "maxWindSpeed": "12.5 m/s 이내",
     "maxHeightCapacity": null,
-    "safetyCertDate": null
+    "safetyCertDate": "2009-09-14"
   }
 };

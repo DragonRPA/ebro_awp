@@ -10,6 +10,27 @@ import { emailService } from '../services/email';
 import { db, formatContractEndDate } from '../services/db';
 import { clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { fetchWithAgentFallback, launchLocalAgentFromBrowser, isAgentOnlineGlobal, subscribeAgentStatus, setGlobalAgentStatus } from '../services/agentService';
+import { getCanonicalModelKey } from '../utils/modelUtils';
+import { PRESET_PRODUCT_SPECS } from '../data/presetProductSpecs';
+
+// 안전인증서 파일명/URL에서 안전인증일(YYYY-MM-DD) 자동 추출 헬퍼
+const extractCertDateFromText = (raw?: string | null): string | null => {
+  if (!raw) return null;
+  let decoded = raw;
+  try { decoded = decodeURIComponent(raw); } catch {}
+  const krMatch = decoded.match(/(20\d{2}|\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (krMatch) {
+    const yr = krMatch[1].length === 2 ? `20${krMatch[1]}` : krMatch[1];
+    const mo = krMatch[2].padStart(2, '0');
+    const dy = krMatch[3].padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
+  }
+  const dotMatch = decoded.match(/(20\d{2})[.\-](\d{1,2})[.\-](\d{1,2})/);
+  if (dotMatch) {
+    return `${dotMatch[1]}-${dotMatch[2].padStart(2, '0')}-${dotMatch[3].padStart(2, '0')}`;
+  }
+  return null;
+};
 
 interface Props {
   isOpen: boolean;
@@ -202,8 +223,38 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     
     return caList.map(ca => {
       const a = assets.find(ast => ast.id === ca.assetId);
-      const model = a?.modelName || ca.expectedModel || 'GS-2646';
-      const prod = products.find(p => p.modelName === model);
+      const rawModel = a?.modelName || ca.expectedModel || 'GS-2646';
+      const upperModel = rawModel.trim().toUpperCase();
+      const canonicalModel = getCanonicalModelKey(rawModel);
+
+      // 💡 1. 모델 마스터(Product) 조회 (정확 일치 -> 대소문자 무관 -> 축약명 -> 정규화 키 순)
+      const prod =
+        products.find(p => p.modelName === rawModel) ||
+        products.find(p => (p.modelName || '').trim().toUpperCase() === upperModel) ||
+        products.find(p => p.shortName && p.shortName.trim().toUpperCase() === upperModel) ||
+        products.find(p => getCanonicalModelKey(p.modelName) === canonicalModel);
+
+      const preset =
+        PRESET_PRODUCT_SPECS[prod?.modelName || ''] ||
+        PRESET_PRODUCT_SPECS[upperModel] ||
+        Object.values(PRESET_PRODUCT_SPECS).find(ps => getCanonicalModelKey(ps.modelName) === canonicalModel);
+
+      const model = prod?.modelName || preset?.modelName || rawModel;
+
+      // 💡 2. 모델별 안전인증일(safetyCertDate): Product 마스터 -> 안전인증서 URL 파일명 -> Preset 순
+      const resolvedCertDate =
+        prod?.safetyCertDate ||
+        (prod as any)?.certDate ||
+        extractCertDateFromText(prod?.safetyCertUrl) ||
+        preset?.safetyCertDate ||
+        extractCertDateFromText(preset?.safetyCertUrl) ||
+        '-';
+
+      // 💡 3. 자산별 제조연도(연식): Asset 대장의 manufactureYear 사용 ('2025' -> '2025년')
+      const rawYear = a?.manufactureYear ? String(a.manufactureYear).trim() : '';
+      const resolvedManufactureYear = rawYear
+        ? (rawYear.endsWith('년') ? rawYear : `${rawYear}년`)
+        : '-';
 
       const assetInsp = outboundInspections?.find(
         i => (i.contractAssetId && i.contractAssetId === ca.id) || (i.contractId === selectedContract.id && i.assetId === ca.assetId)
@@ -214,19 +265,24 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const unifiedInspectionDate = customInspectionDate || defaultInspectionDate;
 
       return {
-        assetNo: a?.assetNo || 'G26006',
-        modelName: model,
-        sn: a?.serialNo || 'GS46D-13045',
-        rentalFee: ca.monthlyRentalFee || 480000,
-        manufacturer: prod?.manufacturer || a?.manufacturer || 'GENIE',
-        manufactureYear: a?.manufactureYear || '2018',
-        weight: prod?.weight || '1,956 kg',
-        workingHeight: prod?.workingHeight || '9.92 M',
-        platformHeight: prod?.platformHeight || '7.92 M',
-        capacityPreExt: prod?.capacityPreExt || '454 kg',
-        certDate: (prod as any)?.certDate || '2010-12-29',
+        // [자산별 정보 (Asset)]
+        assetNo: a?.assetNo || '-',
+        sn: a?.serialNo || '',
+        manufactureYear: resolvedManufactureYear,
+        rentalFee: ca.monthlyRentalFee || a?.monthlyRentalFee || 0,
         inspectionDate: unifiedInspectionDate,
-        inspectorName: assetInspector
+        inspectorName: assetInspector,
+        // [모델별 정보 (Product)]
+        modelName: model,
+        manufacturer: prod?.manufacturer || preset?.manufacturer || a?.manufacturer || '-',
+        powerSource: prod?.powerSource || preset?.powerSource || '배터리',
+        weight: prod?.weight || preset?.weight || '-',
+        speed: prod?.speed || preset?.speed || '-',
+        workingHeight: prod?.workingHeight || preset?.workingHeight || '-',
+        platformHeight: prod?.platformHeight || preset?.platformHeight || '-',
+        capacityPreExt: prod?.capacityPreExt || preset?.capacityPreExt || '-',
+        safetyCertDate: resolvedCertDate,
+        certDate: resolvedCertDate
       };
     });
   }, [selectedContract, contractAssets, assets, products, filterDate, outboundInspections, users, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
