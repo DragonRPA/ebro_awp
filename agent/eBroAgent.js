@@ -82,7 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.14';
+const VERSION = 'v2.0.0.Build.15';
+const CORE_HASH = '1c5fd9d4f2ab';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -217,17 +218,32 @@ const FALLBACK_VERSION_URL = 'https://raw.githubusercontent.com/DragonRPA/ebro_a
 let updateState = {
   status: 'idle', // 'idle' | 'checking' | 'downloading' | 'installing' | 'completed' | 'error'
   currentVersion: VERSION,
+  currentCoreHash: CORE_HASH,
   targetVersion: null,
+  targetCoreHash: null,
   message: '',
   lastChecked: null
 };
+
+function appendCacheBust(urlStr) {
+  if (!urlStr) return urlStr;
+  const sep = urlStr.includes('?') ? '&' : '?';
+  return `${urlStr}${sep}_cb=${Date.now()}`;
+}
 
 function fetchTextWithRedirects(url, maxRedirects = 5) {
   return new Promise((resolve, reject) => {
     function attempt(currentUrl, redirectsLeft) {
       if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
       const client = currentUrl.startsWith('https') ? https : http;
-      const req = client.get(currentUrl, { timeout: 8000 }, (res) => {
+      const req = client.get(currentUrl, {
+        timeout: 8000,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'User-Agent': `eBroAgent/${VERSION}`
+        }
+      }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           const loc = res.headers.location;
           if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
@@ -255,7 +271,14 @@ function downloadFileWithRedirects(url, destPath, maxRedirects = 5) {
     function attempt(currentUrl, redirectsLeft) {
       if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
       const client = currentUrl.startsWith('https') ? https : http;
-      const req = client.get(currentUrl, { timeout: 30000 }, (res) => {
+      const req = client.get(currentUrl, {
+        timeout: 30000,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'User-Agent': `eBroAgent/${VERSION}`
+        }
+      }, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           const loc = res.headers.location;
           if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
@@ -363,34 +386,53 @@ async function checkAndApplyUpdate(force = false) {
   updateState.lastChecked = new Date().toISOString();
 
   try {
-    let res = await fetchTextWithRedirects(PRIMARY_VERSION_URL).catch(() => null);
-    if (!res || !res.ok) {
-      res = await fetchTextWithRedirects(FALLBACK_VERSION_URL).catch(() => null);
+    // PRIMARY(웹 배포본)와 FALLBACK(GitHub main 즉시 반영본)을 캐시 무효화 쿼리와 함께 동시 조회하여 더 최신이거나 해시가 변경된 메타데이터 채택
+    const [primaryRes, fallbackRes] = await Promise.all([
+      fetchTextWithRedirects(appendCacheBust(PRIMARY_VERSION_URL)).catch(() => null),
+      fetchTextWithRedirects(appendCacheBust(FALLBACK_VERSION_URL)).catch(() => null)
+    ]);
+
+    const candidates = [];
+    for (const r of [fallbackRes, primaryRes]) {
+      if (r && r.ok && r.body) {
+        try {
+          const parsed = JSON.parse(r.body);
+          if (parsed && parsed.version) candidates.push(parsed);
+        } catch (e) {}
+      }
     }
 
-    if (res && res.ok && res.body) {
-      const info = JSON.parse(res.body);
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => {
+        if (isNewerVersion(a.version, b.version)) return -1;
+        if (isNewerVersion(b.version, a.version)) return 1;
+        return String(b.buildTime || '').localeCompare(String(a.buildTime || ''));
+      });
+      const info = candidates[0];
       const remoteVersion = info.version;
+      const remoteCoreHash = info.coreHash || null;
       const coreUrl = info.coreUrl;
       const installerUrl = info.installerUrl;
       const downloadUrl = info.downloadUrl;
 
       updateState.targetVersion = remoteVersion;
+      updateState.targetCoreHash = remoteCoreHash;
 
       const hasNewVersion = isNewerVersion(remoteVersion, VERSION);
-      if (remoteVersion && (hasNewVersion || force)) {
-        agentLog('UPDATE', `새 버전 감지: ${VERSION} -> ${remoteVersion}`);
+      const hasHashChanged = Boolean(remoteCoreHash && CORE_HASH && remoteCoreHash !== CORE_HASH);
+      if (remoteVersion && (hasNewVersion || hasHashChanged || force)) {
+        agentLog('UPDATE', `코어 업데이트 감지: ${VERSION}(${CORE_HASH}) -> ${remoteVersion}(${remoteCoreHash || 'N/A'})`);
         updateState.status = 'downloading';
         updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
 
-        // 🚀 [1순위] 초경량 암호화 코어(engine.dat, ~1.5MB) 핫패치 다운로드
+        // 🚀 [1순위] 초경량 암호화 코어(engine.dat, ~2.2MB) 핫패치 다운로드 (캐시 무효화 적용)
         if (coreUrl) {
           const coreDir = path.join(AGENT_HOME, 'core');
           if (!fs.existsSync(coreDir)) fs.mkdirSync(coreDir, { recursive: true });
           const coreDownloadPath = path.join(coreDir, 'engine.dat.download');
           const coreFinalPath = path.join(coreDir, 'engine.dat');
 
-          downloadFileWithRedirects(coreUrl, coreDownloadPath)
+          downloadFileWithRedirects(appendCacheBust(coreUrl), coreDownloadPath)
             .then(() => {
               try {
                 const testBuf = fs.readFileSync(coreDownloadPath);
@@ -500,10 +542,9 @@ async function checkAndApplyUpdate(force = false) {
   }
 }
 
-// 백그라운드 자동 업데이트 점검 (기동 60초 후 1회, 이후 5분 주기)
-
-setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
-setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 5 * 60 * 1000);
+// 백그라운드 자동 업데이트 점검 (기동 5초 후 즉시 1회, 이후 3분 주기)
+setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 5000);
+setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 3 * 60 * 1000);
 
 // ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지 & 인위적 타임아웃 없음) ──
 function runCommandAsync(cmd, options = {}) {
@@ -1625,6 +1666,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({
       status: 'ONLINE',
       version: VERSION,
+      coreHash: CORE_HASH,
       callsign: activeCallsign,
       machineName: MACHINE_NAME,
       archiveRoot: ARCHIVE_ROOT,

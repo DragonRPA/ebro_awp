@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "tsc -b && vite build",
+    "build": "node agent/encrypt_core.cjs --if-changed && tsc -b && vite build",
+    "build:agent": "node agent/encrypt_core.cjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "devops:central-migrate": "node scripts/devops/migrate_data_to_central.cjs",

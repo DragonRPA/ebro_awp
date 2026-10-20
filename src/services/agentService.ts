@@ -1,6 +1,7 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.14';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.15';
+export const EXPECTED_CORE_HASH = '1c5fd9d4f2ab';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
@@ -144,6 +145,7 @@ export async function openAgentStudio(): Promise<boolean> {
 export interface AgentHealthInfo {
   status: 'ONLINE' | 'OFFLINE';
   version?: string;
+  coreHash?: string;
   callsign?: string;
   machineName?: string;
   archiveRoot?: string;
@@ -391,10 +393,11 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
   const hasExtension = isExtensionBridgeAvailable();
 
-  // 🛡️ [1단계: 사전 실행 상태 확인 (Pre-flight Health Check)]
-  // 본 작업을 실행하기 전에 먼저 짧은 /health 핑으로 로컬 에이전트가 실행 중인지 확인합니다.
+  // 🛡️ [1단계: 사전 실행 상태 확인 (Pre-flight Health Check & 구버전 코어 즉시 핫패치 동기화 가드)]
+  // 본 작업을 실행하기 전에 먼저 짧은 /health 핑으로 로컬 에이전트가 실행 중인지, 코어가 최신인지 확인합니다.
   if (!isHealthCheck && !init?.skipPrecheck) {
     let alive = false;
+    let detectedOutdatedHost: string | null = null;
 
     // 0-1. 직접 루프백 /health 핑 최우선 확인 (가장 빠르고 확실함, 2500ms 여유 부여)
     const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
@@ -408,7 +411,41 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
           alive = true;
           activeAgentBaseUrl = h;
           setGlobalAgentStatus(true);
+          try {
+            const pingData = await pingRes.json();
+            const verOutdated = pingData?.version && isExpectedNewer(EXPECTED_AGENT_VERSION, pingData.version);
+            const hashMismatch = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && pingData?.coreHash !== EXPECTED_CORE_HASH);
+            if (verOutdated || hashMismatch) {
+              detectedOutdatedHost = h;
+            }
+          } catch {}
           break;
+        }
+      } catch {}
+    }
+
+    // 0-1b. 문서 생성/발송 등 핵심 작업 실행 직전에 구버전 코어가 감지된 경우, 즉시 핫패치를 트리거하고 재기동 완료까지 최대 6.5초 대기
+    const isCriticalCoreJob = path.startsWith('/api/generate-') || path.startsWith('/api/send-email');
+    if (alive && detectedOutdatedHost && isCriticalCoreJob) {
+      try {
+        await fetch(`${detectedOutdatedHost}/api/check-update?force=true`, { method: 'POST', cache: 'no-store' }).catch(() => {});
+        const waitStart = Date.now();
+        while (Date.now() - waitStart < 6500) {
+          await new Promise(r => setTimeout(r, 600));
+          try {
+            const c = new AbortController();
+            const t = setTimeout(() => c.abort(), 1500);
+            const checkRes = await fetch(`${detectedOutdatedHost}/health`, { method: 'GET', signal: c.signal, cache: 'no-store' });
+            clearTimeout(t);
+            if (checkRes.ok) {
+              const checkData = await checkRes.json();
+              const stillOldVer = checkData?.version && isExpectedNewer(EXPECTED_AGENT_VERSION, checkData.version);
+              const stillOldHash = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && checkData?.coreHash !== EXPECTED_CORE_HASH);
+              if (!stillOldVer && !stillOldHash) {
+                break;
+              }
+            }
+          } catch {}
         }
       } catch {}
     }
@@ -543,6 +580,7 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       const info: AgentHealthInfo = {
         status: 'ONLINE',
         version: data.version || 'v2.0.0',
+        coreHash: data.coreHash,
         callsign: data.callsign || callsign,
         machineName: data.machineName,
         archiveRoot: data.archiveRoot,
@@ -555,13 +593,14 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       };
       setGlobalAgentStatus(true, info);
 
-      // 🚀 로컬 에이전트 버전이 배포 버전(EXPECTED_AGENT_VERSION)보다 낮으면 즉시 무소음 원격 업데이트 자동 트리거 (60초 쿨다운)
+      // 🚀 로컬 에이전트 버전이 배포 버전(EXPECTED_AGENT_VERSION)보다 낮거나 코어 해시(EXPECTED_CORE_HASH)가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (30초 쿨다운)
+      const isVersionOutdated = Boolean(data.version && isExpectedNewer(EXPECTED_AGENT_VERSION, data.version));
+      const isHashOutdated = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && data.coreHash !== EXPECTED_CORE_HASH);
       if (
-        data.version &&
-        isExpectedNewer(EXPECTED_AGENT_VERSION, data.version) &&
+        (isVersionOutdated || isHashOutdated) &&
         data.updateState?.status !== 'downloading' &&
         data.updateState?.status !== 'installing' &&
-        Date.now() - lastAutoUpdateTriggerAt > 60000
+        Date.now() - lastAutoUpdateTriggerAt > 30000
       ) {
         lastAutoUpdateTriggerAt = Date.now();
         triggerAgentSelfUpdate(true).catch(() => {});
