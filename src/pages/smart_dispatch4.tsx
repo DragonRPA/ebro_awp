@@ -5358,7 +5358,10 @@ export const SmartDispatch4: React.FC = () => {
       const snapMeta = parsedCargo.find(c => c?.requestMeta)?.requestMeta;
 
       // 요청자: 1) requestMeta.requesterName 2) todos(DISPATCH_REQUEST).senderName 3) contract.salespersonId -> users
-      const matchedTodo = todos.find(t => (t.entityId === d.id || (t as any).relatedEntityId === d.id) && (t.category === 'DISPATCH_REQUEST' || String(t.title || '').includes('출고')));
+      const matchedTodo = todos.find(t => {
+        const tAny = t as any;
+        return (t.entityId === d.id || t.relatedEntityId === d.id) && (tAny.category === 'DISPATCH_REQUEST' || String(t.title || '').includes('출고'));
+      });
       const contractSalesperson = contract?.salespersonId ? users.find(u => u.id === contract.salespersonId) : undefined;
       const requesterName = snapMeta?.requesterName || matchedTodo?.senderName || contractSalesperson?.name || '-';
 
@@ -5419,7 +5422,7 @@ export const SmartDispatch4: React.FC = () => {
             matchedCas.forEach(ca => {
               if (ca?.assetId) {
                 const a = assets.find(as => as.id === ca.assetId);
-                assignedAssets.push(a?.assetNo || a?.managementNo || ca.assetId);
+                assignedAssets.push(a?.assetNo || (a as any)?.managementNo || ca.assetId);
               } else {
                 unassignedCount++;
               }
@@ -5456,7 +5459,7 @@ export const SmartDispatch4: React.FC = () => {
           const customPrice = paidOptionPricesMap[optName];
           const masterOpt = (standardOptions || []).find(so => so.name === optName);
           const unitPrice = customPrice !== undefined ? Number(customPrice) : (masterOpt?.defaultPrice || 0);
-          const unitLabel = masterOpt?.billingCycle === 'ONE_TIME' ? '건' : masterOpt?.billingCycle === 'PER_UNIT' ? '대' : '월';
+          const unitLabel = masterOpt?.unit || '월';
           return {
             name: optName,
             price: unitPrice,
@@ -5505,9 +5508,9 @@ export const SmartDispatch4: React.FC = () => {
 
       // 출고검수 상태 확인
       const matchedInspections = outboundInspections.filter(ins =>
-        ins.deliveryId === d.id || (ins.contractId === d.contractId && allCaIds.some(caId => ins.contractAssetId === caId))
+        ins.deliveryId === d.id || (ins.contractId === d.contractId && allCaIds.some(caId => (ins as any).contractAssetId === caId))
       );
-      const approvedInspCount = matchedInspections.filter(i => i.status === 'APPROVED' || i.status === 'COMPLETED').length;
+      const approvedInspCount = matchedInspections.filter(i => (i.status as string) === 'APPROVED' || i.status === 'COMPLETED').length;
 
       return {
         id: d.id,
@@ -5604,8 +5607,8 @@ export const SmartDispatch4: React.FC = () => {
         urgency: 'MEDIUM',
         safetyOptions: [
           ...row.paidOptionItems.map(o => o.name),
-          ...(row.protectionStr !== '없음' ? row.protectionStr.split(',').map(s => s.trim()) : []),
-          ...(row.attachmentsStr !== '없음' ? row.attachmentsStr.split(',').map(s => s.trim()) : [])
+          ...(row.protectionStr !== '없음' ? row.protectionStr.split(',').map((s: string) => s.trim()) : []),
+          ...(row.attachmentsStr !== '없음' ? row.attachmentsStr.split(',').map((s: string) => s.trim()) : [])
         ].filter(Boolean),
         staggeredMemo: row.staggeredText,
         vehicleType: row.vehicleType,
