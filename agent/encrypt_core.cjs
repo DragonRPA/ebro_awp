@@ -129,13 +129,13 @@ function syncVersionAndHashAcrossFiles(ver, hash) {
   // 3-4. src/services/agentService.ts
   if (fs.existsSync(AGENT_SERVICE_TS_PATH)) {
     let tsContent = fs.readFileSync(AGENT_SERVICE_TS_PATH, 'utf8');
-    tsContent = tsContent.replace(/export const EXPECTED_AGENT_VERSION = ['"][^'"]+['"];/, `export const EXPECTED_AGENT_VERSION = '${ver}';`);
-    if (/export const EXPECTED_CORE_HASH = ['"][^'"]*['"];/.test(tsContent)) {
-      tsContent = tsContent.replace(/export const EXPECTED_CORE_HASH = ['"][^'"]*['"];/, `export const EXPECTED_CORE_HASH = '${hash}';`);
+    tsContent = tsContent.replace(/export const EXPECTED_AGENT_VERSION(?:\s*:\s*string)?\s*=\s*['"][^'"]+['"];/, `export const EXPECTED_AGENT_VERSION: string = '${ver}';`);
+    if (/export const EXPECTED_CORE_HASH(?:\s*:\s*string)?\s*=\s*['"][^'"]*['"];/.test(tsContent)) {
+      tsContent = tsContent.replace(/export const EXPECTED_CORE_HASH(?:\s*:\s*string)?\s*=\s*['"][^'"]*['"];/, `export const EXPECTED_CORE_HASH: string = '${hash}';`);
     } else {
       tsContent = tsContent.replace(
-        `export const EXPECTED_AGENT_VERSION = '${ver}';`,
-        `export const EXPECTED_AGENT_VERSION = '${ver}';\nexport const EXPECTED_CORE_HASH = '${hash}';`
+        `export const EXPECTED_AGENT_VERSION: string = '${ver}';`,
+        `export const EXPECTED_AGENT_VERSION: string = '${ver}';\nexport const EXPECTED_CORE_HASH: string = '${hash}';`
       );
     }
     fs.writeFileSync(AGENT_SERVICE_TS_PATH, tsContent, 'utf8');
