@@ -9916,6 +9916,99 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const delivery = db.deliveries.find(d => d.id === deliveryId);
     if (!delivery) return;
 
+    const isOutboundLike =
+      delivery.type === 'OUTBOUND' ||
+      delivery.type === 'EXCHANGE' ||
+      delivery.dispatchCategory === '출고' ||
+      delivery.dispatchCategory === '교환';
+
+    // 🛡️ [절차적 무결성 가드레일]: 출고/교환 배차는 반드시 (1) 기사 배정(DISPATCHED) ➔ (2) 장비 할당 완료 ➔ (3) 출고 검수 승인(COMPLETED/RENTED)을 거쳐야만 운송 완료(DELIVERED) 처리 가능
+    if (isOutboundLike && delivery.contractId) {
+      if (delivery.status === 'REQUESTED' || !delivery.driverName?.trim()) {
+        throw new Error('배차 기사 배정(배차 완료)이 선행되지 않은 출고 건은 운송 완료 처리할 수 없습니다.');
+      }
+
+      // 1. 해당 배차의 대상 계약자산 슬롯(contractAssetIds) 추출
+      let parsedCargo: any[] = [];
+      try {
+        if (delivery.cargoItems) {
+          const raw = JSON.parse(delivery.cargoItems);
+          if (Array.isArray(raw)) parsedCargo = raw;
+        }
+      } catch {
+        parsedCargo = [];
+      }
+
+      const deliveryCaIds: string[] = [];
+      let totalRequestedCount = 0;
+      parsedCargo.forEach(ci => {
+        totalRequestedCount += Number(ci?.count) || 0;
+        if (Array.isArray(ci?.contractAssetIds)) {
+          deliveryCaIds.push(...ci.contractAssetIds.filter(Boolean));
+        }
+      });
+
+      let targetCas = deliveryCaIds.length > 0
+        ? db.contractAssets.filter(ca => deliveryCaIds.includes(ca.id))
+        : [];
+
+      // 레거시/초기 계약 배차 등 contractAssetIds가 비어있는 경우 해당 계약의 슬롯 참조
+      if (targetCas.length === 0) {
+        const allContractCas = db.contractAssets.filter(ca => ca.contractId === delivery.contractId && ca.status !== 'RETURNED');
+        const unassignedCas = allContractCas.filter(ca => !ca.assetId);
+        if (unassignedCas.length > 0) {
+          targetCas = unassignedCas;
+        } else {
+          targetCas = allContractCas;
+        }
+      }
+
+      if (targetCas.length === 0 && totalRequestedCount > 0) {
+        throw new Error(`해당 출고 요청(${totalRequestedCount}대)에 연결된 계약 자산 슬롯을 찾을 수 없어 운송 완료 처리할 수 없습니다.`);
+      }
+
+      // 2. 미할당 슬롯(assetId 누락) 검증
+      const unassignedSlots = targetCas.filter(ca => !ca.assetId);
+      if (unassignedSlots.length > 0) {
+        const missingModels = unassignedSlots.map(ca => ca.expectedModel || '미지정').join(', ');
+        throw new Error(
+          `[절차 차단: 장비 미할당]\n` +
+          `이 출고 건에 아직 장비가 할당되지 않은 슬롯이 ${unassignedSlots.length}대(${missingModels}) 남아 있습니다.\n\n` +
+          `반드시 [장비 할당] ➔ [출고 검수 승인]을 먼저 완료한 후 운송 완료 처리해 주십시오.`
+        );
+      }
+
+      // 3. 출고 검수 승인 완료(COMPLETED & 자산 RENTED 전환) 검증
+      const uninspectedAssets: string[] = [];
+      for (const ca of targetCas) {
+        const asset = db.assets.find(a => a.id === ca.assetId);
+        const matchedInsps = db.outboundInspections.filter(
+          ins =>
+            ins.contractAssetId === ca.id ||
+            (ins.deliveryId === delivery.id && ins.assetId === ca.assetId) ||
+            (ins.contractId === delivery.contractId && ins.assetId === ca.assetId)
+        );
+        const isInspCompleted = matchedInsps.some(
+          ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
+        );
+        const isAssetRented = asset?.status === 'RENTED' || ca.status === 'RENTED';
+
+        if (!isInspCompleted && !isAssetRented) {
+          const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
+          uninspectedAssets.push(label);
+        }
+      }
+
+      if (uninspectedAssets.length > 0) {
+        throw new Error(
+          `[절차 차단: 출고 검수 미완료]\n` +
+          `출고 검수 승인이 완료되지 않은 장비가 ${uninspectedAssets.length}대 존재합니다:\n` +
+          `• ${uninspectedAssets.join(', ')}\n\n` +
+          `[출고 검수] 메뉴에서 기능 점검 및 출고 승인을 먼저 완료해 주십시오.`
+        );
+      }
+    }
+
     const nowIso = new Date().toISOString();
     // [헌장 1.3 준수] 배차 단계에서는 배차 상태만 마감(DELIVERED) 처리하며,
     // 자산 상태(RENTED/AVAILABLE) 전환 및 입출고 실적 로그(assetInOutLogs) 기록은

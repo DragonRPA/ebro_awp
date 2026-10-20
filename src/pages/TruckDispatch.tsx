@@ -160,8 +160,121 @@ export const TruckDispatch: React.FC = () => {
     return map;
   }, [outboundInspections]);
 
-  // 출고 검수 상태 파싱 헬퍼 (O(1) Map 조회)
-  const getOutboundInspectionStatus = (contractId?: string) => {
+  // 출고 배차 건별 절차적 준비 상태(장비 할당 + 출고 검수 승인) 정밀 검증 헬퍼
+  const checkDeliveryOutboundReadiness = (delivery?: Delivery) => {
+    if (!delivery) {
+      return { isOutboundLike: false, ready: true, status: 'NONE' as const, reason: '' };
+    }
+    const isOutboundLike =
+      delivery.type === 'OUTBOUND' ||
+      delivery.type === 'EXCHANGE' ||
+      delivery.dispatchCategory === '출고' ||
+      delivery.dispatchCategory === '교환';
+
+    if (!isOutboundLike || !delivery.contractId) {
+      return { isOutboundLike, ready: true, status: 'NONE' as const, reason: '' };
+    }
+
+    let parsedCargo: any[] = [];
+    try {
+      if (delivery.cargoItems) {
+        const raw = JSON.parse(delivery.cargoItems);
+        if (Array.isArray(raw)) parsedCargo = raw;
+      }
+    } catch {
+      parsedCargo = [];
+    }
+
+    const deliveryCaIds: string[] = [];
+    let totalRequestedCount = 0;
+    parsedCargo.forEach(ci => {
+      totalRequestedCount += Number(ci?.count) || 0;
+      if (Array.isArray(ci?.contractAssetIds)) {
+        deliveryCaIds.push(...ci.contractAssetIds.filter(Boolean));
+      }
+    });
+
+    const contractCas = (contractAssetsByContractMap.get(delivery.contractId) || []).filter(ca => ca.status !== 'RETURNED');
+    let targetCas = deliveryCaIds.length > 0
+      ? contractCas.filter(ca => deliveryCaIds.includes(ca.id))
+      : [];
+
+    if (targetCas.length === 0) {
+      const unassignedCas = contractCas.filter(ca => !ca.assetId);
+      targetCas = unassignedCas.length > 0 ? unassignedCas : contractCas;
+    }
+
+    if (targetCas.length === 0 && totalRequestedCount > 0) {
+      return {
+        isOutboundLike: true,
+        ready: false,
+        status: 'UNASSIGNED' as const,
+        reason: `요구 수량(${totalRequestedCount}대)에 대한 계약 자산 슬롯이 미할당 상태입니다.`
+      };
+    }
+
+    const unassignedSlots = targetCas.filter(ca => !ca.assetId);
+    if (unassignedSlots.length > 0) {
+      const missingModels = unassignedSlots.map(ca => ca.expectedModel || '미지정').join(', ');
+      return {
+        isOutboundLike: true,
+        ready: false,
+        status: 'UNASSIGNED' as const,
+        reason: `장비 미할당 ${unassignedSlots.length}대 (${missingModels})`
+      };
+    }
+
+    const contractInsps = outboundInspectionsByContractMap.get(delivery.contractId) || [];
+    let hasRejected = false;
+    let hasInProgress = false;
+    const uninspectedAssets: string[] = [];
+
+    for (const ca of targetCas) {
+      const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+      const matchedInsps = contractInsps.filter(
+        ins =>
+          ins.contractAssetId === ca.id ||
+          (ins.deliveryId === delivery.id && ins.assetId === ca.assetId) ||
+          (ins.contractId === delivery.contractId && ins.assetId === ca.assetId)
+      );
+      if (matchedInsps.some(ins => ins.status === 'REJECTED')) hasRejected = true;
+      if (matchedInsps.some(ins => ins.status === 'IN_PROGRESS')) hasInProgress = true;
+
+      const isInspCompleted = matchedInsps.some(
+        ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
+      );
+      const isAssetRented = asset?.status === 'RENTED' || ca.status === 'RENTED';
+
+      if (!isInspCompleted && !isAssetRented) {
+        const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
+        uninspectedAssets.push(label);
+      }
+    }
+
+    if (uninspectedAssets.length > 0) {
+      return {
+        isOutboundLike: true,
+        ready: false,
+        status: (hasRejected ? 'REJECTED' : hasInProgress ? 'IN_PROGRESS' : 'PENDING') as 'REJECTED' | 'IN_PROGRESS' | 'PENDING',
+        reason: `출고검수 미완료 ${uninspectedAssets.length}대 (${uninspectedAssets.join(', ')})`
+      };
+    }
+
+    return {
+      isOutboundLike: true,
+      ready: true,
+      status: 'COMPLETED' as const,
+      reason: '장비 할당 및 출고 검수 승인 완료'
+    };
+  };
+
+  // 출고 검수 상태 파싱 헬퍼 (배차 단위 또는 계약 단위 조회)
+  const getOutboundInspectionStatus = (contractId?: string, delivery?: Delivery) => {
+    if (delivery) {
+      const readiness = checkDeliveryOutboundReadiness(delivery);
+      if (!readiness.isOutboundLike) return 'NONE';
+      return readiness.status;
+    }
     if (!contractId) return 'NONE';
     const insps = outboundInspectionsByContractMap.get(contractId);
     if (!insps || insps.length === 0) return 'NONE';
@@ -190,26 +303,32 @@ export const TruckDispatch: React.FC = () => {
     return counts;
   }, [deliveries]);
 
-  const getOutboundInspectionBadge = (contractId?: string) => {
-    const status = getOutboundInspectionStatus(contractId);
+  const getOutboundInspectionBadge = (contractId?: string, delivery?: Delivery) => {
+    const status = getOutboundInspectionStatus(contractId, delivery);
     switch (status) {
+      case 'UNASSIGNED':
+        return (
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.35)', display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
+            <AlertCircle size={12} /> 🟠 장비할당 대기
+          </span>
+        );
       case 'REJECTED':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
             <AlertCircle size={12} /> 🔴 출고의뢰 반려됨
           </span>
         );
       case 'COMPLETED':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
             <CheckCircle size={12} /> 🟢 출고승인 완료
           </span>
         );
       case 'IN_PROGRESS':
       case 'PENDING':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-            <Clock size={12} /> 🔵 출고검수 진행중
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
+            <Clock size={12} /> 🔵 출고검수 대기
           </span>
         );
       default:
@@ -3041,6 +3160,12 @@ export const TruckDispatch: React.FC = () => {
       return;
     }
 
+    const validDrivers = assignedVehicles.filter(v => (v.driverName || '').trim() !== '');
+    if (validDrivers.length === 0) {
+      showErrorModal('배차 기사를 최소 1명 이상 입력해 주십시오. 기사 성명 없이는 배차 완료로 전환할 수 없습니다.', '배차 기사 미입력');
+      return;
+    }
+
     const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
     const isRestoringFromCancelled = prevStatus === 'CANCELLED';
     const isModifyingDispatched = prevStatus === 'DISPATCHED';
@@ -3177,9 +3302,15 @@ export const TruckDispatch: React.FC = () => {
 
     const targetDelivery = deliveries.find(d => d.id === deliveryId);
     if (targetDelivery) {
-      const inspStatus = getOutboundInspectionStatus(targetDelivery.contractId);
-      if (inspStatus === 'REJECTED') {
-        showToast('출고 검수 반려 이력이 있는 의뢰건의 운송 완료 마감을 진행합니다.', 'warning');
+      const readiness = checkDeliveryOutboundReadiness(targetDelivery);
+      if (readiness.isOutboundLike && !readiness.ready) {
+        showErrorModal(
+          `출고 절차가 완료되지 않아 운송 완료 마감을 진행할 수 없습니다.\n\n` +
+          `• 사유: ${readiness.reason}\n\n` +
+          `반드시 [장비 할당] ➔ [출고 검수 승인]을 먼저 완료해 주십시오.`,
+          '운송 완료 처리 불가 (선행 절차 미완료)'
+        );
+        return;
       }
     }
 
@@ -3844,7 +3975,7 @@ export const TruckDispatch: React.FC = () => {
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            {getOutboundInspectionBadge(d.contractId)}
+                            {getOutboundInspectionBadge(d.contractId, d)}
                             {getPrintQueueBadge(d)}
                             {getDeliveryStatusBadge(normStatus, d)}
                           </div>
@@ -3957,34 +4088,39 @@ export const TruckDispatch: React.FC = () => {
                         {d.driverName && (
                           <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
-                            {normStatus === 'DISPATCHED' && canSave && (
-                              <button data-hs-trigger="Process"
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCompleteDeliveryStatus(d.id);
-                                }}
-                                style={{
-                                  padding: '3px 8px',
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  backgroundColor: 'var(--success)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  borderRadius: '5px',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                  whiteSpace: 'nowrap'
-                                }}
-                                title={`${getDeliveryCompletionActionLabel(d)} 처리`}
-                              >
-                                <CheckCircle size={11} />
-                                {getDeliveryCompletionActionLabel(d)}
-                              </button>
-                            )}
+                            {normStatus === 'DISPATCHED' && canSave && (() => {
+                              const readiness = checkDeliveryOutboundReadiness(d);
+                              const isBlocked = readiness.isOutboundLike && !readiness.ready;
+                              return (
+                                <button data-hs-trigger="Process"
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCompleteDeliveryStatus(d.id);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    backgroundColor: isBlocked ? '#64748b' : 'var(--success)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '5px',
+                                    cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                    opacity: isBlocked ? 0.65 : 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : `${getDeliveryCompletionActionLabel(d)} 처리`}
+                                >
+                                  <CheckCircle size={11} />
+                                  {isBlocked ? '검수대기 (완료불가)' : getDeliveryCompletionActionLabel(d)}
+                                </button>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
@@ -4540,15 +4676,35 @@ export const TruckDispatch: React.FC = () => {
                               🚫 배차 취소
                             </button>
 
-                            <button data-hs-trigger="Process"
-                              type="button"
-                              onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
-                              style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-                              title={`${getDeliveryCompletionActionLabel(selectedDelivery)} 처리`}
-                            >
-                              <CheckCircle size={14} />
-                              {getDeliveryCompletionActionLabel(selectedDelivery)}
-                            </button>
+                            {(() => {
+                              const readiness = checkDeliveryOutboundReadiness(selectedDelivery);
+                              const isBlocked = readiness.isOutboundLike && !readiness.ready;
+                              return (
+                                <button data-hs-trigger="Process"
+                                  type="button"
+                                  onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
+                                  style={{
+                                    padding: '7px 14px',
+                                    backgroundColor: isBlocked ? '#64748b' : 'var(--success)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontWeight: 800,
+                                    fontSize: '12.5px',
+                                    cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                    opacity: isBlocked ? 0.65 : 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : `${getDeliveryCompletionActionLabel(selectedDelivery)} 처리`}
+                                >
+                                  <CheckCircle size={14} />
+                                  {isBlocked ? '출고검수 미완료 (운송완료 불가)' : getDeliveryCompletionActionLabel(selectedDelivery)}
+                                </button>
+                              );
+                            })()}
 
                             <button data-hs-trigger="Save"
                               type="button"

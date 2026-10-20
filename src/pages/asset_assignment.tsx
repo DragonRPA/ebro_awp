@@ -569,13 +569,19 @@ export const AssetAssignment: React.FC = () => {
               const isSelected = selectedContractId === contract.id;
               const progress = totalCount > 0 ? Math.round((assignedCount / totalCount) * 100) : 0;
 
-              // 모델별 × 수량 문자열 집계
-              const reqSummary = cas.reduce((acc, curr) => {
+              const unassignedCas = cas.filter(ca => !ca.assetId);
+              // 미할당 슬롯 모델별 × 수량 문자열 집계
+              const reqSummary = unassignedCas.reduce((acc, curr) => {
                 const model = curr.expectedModel || '미지정';
                 acc[model] = (acc[model] || 0) + 1;
                 return acc;
               }, {} as Record<string, number>);
               const reqText = Object.entries(reqSummary).map(([k, v]) => `${k} × ${v}대`).join(', ');
+              const latestScheduledDate = unassignedCas
+                .map(ca => ca.startDate)
+                .filter(Boolean)
+                .sort()
+                .pop() || contract.startDate;
 
               return (
                 <div 
@@ -602,10 +608,10 @@ export const AssetAssignment: React.FC = () => {
                   
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Layers size={11} /> 요구: <strong style={{ color: 'var(--primary)' }}>{reqText}</strong>
+                      <Layers size={11} /> 미할당 요구: <strong style={{ color: 'var(--primary)' }}>{reqText}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Truck size={11} /> 출고예정: {contract.startDate}
+                      <Truck size={11} /> 출고예정: {latestScheduledDate}
                     </div>
                   </div>
 

@@ -363,6 +363,57 @@ export const DriverPortalPage: React.FC = () => {
     if (!delivery) return;
     setUploading(true);
     try {
+      const isOutboundLike =
+        delivery.type === 'OUTBOUND' ||
+        delivery.type === 'EXCHANGE' ||
+        (delivery as any).dispatchCategory === '출고' ||
+        (delivery as any).dispatchCategory === '교환';
+
+      if (isOutboundLike && delivery.contractId && supabase) {
+        let parsedCargo: any[] = [];
+        try {
+          if (delivery.cargoItems) {
+            const raw = JSON.parse(delivery.cargoItems);
+            if (Array.isArray(raw)) parsedCargo = raw;
+          }
+        } catch {
+          parsedCargo = [];
+        }
+        const caIds: string[] = [];
+        parsedCargo.forEach(ci => {
+          if (Array.isArray(ci?.contractAssetIds)) {
+            caIds.push(...ci.contractAssetIds.filter(Boolean));
+          }
+        });
+
+        const caQuery = caIds.length > 0
+          ? supabase.from('contract_assets').select('id, assetId, expectedModel, status').in('id', caIds)
+          : supabase.from('contract_assets').select('id, assetId, expectedModel, status').eq('contractId', delivery.contractId).neq('status', 'RETURNED');
+        const { data: casData } = await caQuery;
+        const targetCas = casData || [];
+        const unassigned = targetCas.filter((c: any) => !c.assetId);
+        if (unassigned.length > 0) {
+          alert(`아직 본사에서 장비 할당이 완료되지 않은 품목(${unassigned.length}대)이 있어 운송 완료 처리할 수 없습니다. 배차 담당자에게 문의해 주세요.`);
+          setUploading(false);
+          return;
+        }
+
+        const { data: inspsData } = await supabase
+          .from('outbound_inspections')
+          .select('id, contractAssetId, assetId, status')
+          .eq('contractId', delivery.contractId);
+        const insps = inspsData || [];
+        const uninspected = targetCas.filter((ca: any) => {
+          if (ca.status === 'RENTED') return false;
+          return !insps.some((ins: any) => (ins.contractAssetId === ca.id || ins.assetId === ca.assetId) && (ins.status === 'COMPLETED' || ins.status === 'APPROVED'));
+        });
+        if (uninspected.length > 0) {
+          alert(`아직 출고 검수 승인이 완료되지 않은 장비(${uninspected.length}대)가 있어 운송 완료 처리할 수 없습니다. 주기장 출고 검수 완료 후 다시 시도해 주세요.`);
+          setUploading(false);
+          return;
+        }
+      }
+
       const ext = prefix === 'photo' ? 'jpg' : 'png';
       const fileName = `${delivery.id}_${prefix}_${Date.now()}.${ext}`;
       const tId = supplierInfo?.subdomain || (delivery as any).tenantId || (delivery as any).tenant_id || 'giyeonlift';

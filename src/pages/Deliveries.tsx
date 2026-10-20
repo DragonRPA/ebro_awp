@@ -731,9 +731,13 @@ export const Deliveries: React.FC = () => {
                               if (d.type === 'INBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납' || d.dispatchCategory === '교환') {
                                 handleOpenInboundReview(d);
                               } else {
-                                await completeDelivery(d.id);
-                                await db.awaitPendingWrites();
-                                showToast('배차 완료 처리가 승인되었습니다.');
+                                try {
+                                  await completeDelivery(d.id);
+                                  await db.awaitPendingWrites();
+                                  showToast('배차 완료 처리가 승인되었습니다.');
+                                } catch (err: any) {
+                                  showErrorModal(err?.message || String(err), '운송 완료 처리 불가');
+                                }
                               }
                             }}
                             style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '2px' }}

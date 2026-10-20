@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
-import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, isCustomerRestricted } from '../services/db';
+import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, Delivery, db, isCustomerRestricted } from '../services/db';
 import { splitMasterAwareOptions } from '../types/siteOption';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { isModelMatch } from '../utils/modelUtils';
@@ -551,6 +551,13 @@ export const OutboundInspections: React.FC = () => {
       return;
     }
 
+    // 🔴 [절차적 무결성 가드]: 모든 검수 품목에 실물 장비(assetId)가 할당되어 있어야 출고 승인 가능
+    const unassignedItems = selectedGroup.items.filter(item => !item.assetId);
+    if (unassignedItems.length > 0) {
+      showErrorModal(`장비가 할당되지 않은 검수 항목이 ${unassignedItems.length}건 존재합니다.\n[장비 할당] 메뉴에서 실물 장비를 먼저 매핑해 주십시오.`, '출고 승인 불가 (장비 미할당)');
+      return;
+    }
+
     const checkedCount = Object.values(checkedItems).filter(Boolean).length;
     const totalCount = selectedGroup.checkpoints.length;
 
@@ -740,7 +747,18 @@ export const OutboundInspections: React.FC = () => {
         }
       });
 
-      // 4. 출고 완료로 인해 발행되었던 상차출발 ToDo 취소 상계
+      // 4. 연결된 출고 배차가 이미 DELIVERED(운송완료) 상태였다면 출고 승인이 취소되었으므로 DISPATCHED(배차완료)로 동기 롤백하여 정합성 보존
+      const linkedDelivery = selectedGroup.deliveryId
+        ? db.deliveries.find(d => d.id === selectedGroup.deliveryId)
+        : db.deliveries.find(d => d.contractId === selectedGroup.contractId && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') && d.status === 'DELIVERED');
+      if (linkedDelivery && linkedDelivery.status === 'DELIVERED') {
+        db.updateRow<Delivery>('deliveries', linkedDelivery.id, {
+          status: 'DISPATCHED',
+          updatedAt: nowIso
+        });
+      }
+
+      // 5. 출고 완료로 인해 발행되었던 상차출발 ToDo 취소 상계
       if (selectedGroup.deliveryId) {
         await clearHandoverTasks({
           entityId: selectedGroup.deliveryId,
