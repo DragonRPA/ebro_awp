@@ -9,7 +9,7 @@ import {
   Truck, CheckCircle2, Network
 } from 'lucide-react';
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
-import { splitMasterAwareOptions } from '../utils/siteOptionCategorizer';
+import { splitMasterAwareOptions } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, createHangulMatcher, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
