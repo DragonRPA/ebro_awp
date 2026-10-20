@@ -71,8 +71,12 @@ try {
   };
 }
 
-// --if-changed 모드: 코어 소스 해시가 동일하고 public/downloads/engine.dat와 agent/core/engine.dat가 모두 일치하면 스킵
-if (isIfChangedMode) {
+// --if-changed 모드 또는 CI/Vercel 환경: 코어 소스 해시가 동일하거나 CI 환경이면 재빌드 생략
+if (isIfChangedMode || process.env.VERCEL || process.env.CI) {
+  if (process.env.VERCEL || process.env.CI) {
+    console.log(`[Agent Core Check] CI/Vercel 환경 감지 -> 사전 빌드된 engine.dat 사용 (재번들링 생략)`);
+    process.exit(0);
+  }
   const coreExists = fs.existsSync(OUTPUT_DAT);
   const pubExists = fs.existsSync(PUBLIC_DAT);
   const sameSize = coreExists && pubExists && fs.statSync(OUTPUT_DAT).size === fs.statSync(PUBLIC_DAT).size;
