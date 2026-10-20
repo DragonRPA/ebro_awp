@@ -1781,6 +1781,7 @@ export const VEHICLE_TYPE_OPTIONS: string[] = [
   '11T',
   '노배드',
   '1.2T 셀프',
+  '2.5T 셀프',
   '3.5T 셀프',
   '4T 셀프',
   '5T 셀프',

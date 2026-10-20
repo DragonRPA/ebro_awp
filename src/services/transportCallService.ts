@@ -204,6 +204,7 @@ export function parseTransportNegotiationText(
   // 2. 차종 추출
   let vehicleType = '5T';
   if (/1\.2톤\s*셀프|1\.2T\s*셀프/i.test(text)) vehicleType = '1.2T 셀프';
+  else if (/2\.5톤\s*셀프|2\.5T\s*셀프/i.test(text)) vehicleType = '2.5T 셀프';
   else if (/3\.5톤\s*셀프|3\.5T\s*셀프/i.test(text)) vehicleType = '3.5T 셀프';
   else if (/4톤\s*셀프|4T\s*셀프/i.test(text)) vehicleType = '4T 셀프';
   else if (/5톤\s*장축\s*셀프|5T\s*장축\s*셀프/i.test(text)) vehicleType = '5T장축 셀프';
