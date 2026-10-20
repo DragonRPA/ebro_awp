@@ -3100,7 +3100,7 @@ export const TruckDispatch: React.FC = () => {
         deliveryCost: totalFinalCost || totalExpectedCost,
         vehicles: JSON.stringify(sanitizedVehicles),
         closingMemo: closingMemo,
-        memo: closingMemo || selectedDelivery.memo || '',
+        memo: selectedDelivery.memo || '',
         updatedAt: new Date().toISOString()
       };
 

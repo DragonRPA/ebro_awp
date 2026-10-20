@@ -3136,7 +3136,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dData.paidOptionPrices && typeof dData.paidOptionPrices === 'object' && Object.keys(dData.paidOptionPrices).length > 0
         ? dData.paidOptionPrices
         : undefined;
-    const cargoItemsPayload: { modelName: string; count: number; contractAssetIds: string[]; paidOptions: string; paidOptionPrices?: Record<string, number> }[] = [];
+    const cargoItemsPayload: {
+      modelName: string;
+      count: number;
+      contractAssetIds: string[];
+      paidOptions: string;
+      paidOptionPrices?: Record<string, number>;
+      monthlyRentalFee?: number;
+      dailyRentalFee?: number;
+      requestMeta?: {
+        requesterId?: string;
+        requesterName?: string;
+        requestedAt: string;
+        context?: string;
+        customerName: string;
+        siteName: string;
+        siteAddress: string;
+        siteContactName: string;
+        siteContactPhone: string;
+        loadingTime: string;
+        unloadingTime: string;
+        vehicleType: string;
+        paidBy?: string;
+        protection?: string;
+        attachments?: string;
+        staggeredMemo?: string;
+        retrievalAssetIds?: string[];
+        closingDay?: number | string;
+        statementClosingDay?: number | string;
+        paymentDueDay?: number | string;
+        userNote?: string;
+        fullNote?: string;
+      };
+    }[] = [];
+
+    const requestSnapshotMeta = {
+      requesterId: currentUser?.id,
+      requesterName: currentUser?.name || '본사 담당자',
+      requestedAt: new Date().toISOString(),
+      context: dData.context || (dData.type === 'EXCHANGE' ? 'EXCHANGE' : 'ADDITIONAL'),
+      customerName: finalCustomer.name,
+      siteName: finalSite.name,
+      siteAddress: finalSite.address || data.siteAddress || '',
+      siteContactName: data.siteContactName || finalSite.contactName || '',
+      siteContactPhone: data.siteContactPhone || finalSite.contact || '',
+      loadingTime: data.loadingTime || '',
+      unloadingTime: data.unloadingTime || '',
+      vehicleType: dData.vehicleType || '5T',
+      paidBy: dData.paidBy || '',
+      protection: dData.protection || '',
+      attachments: dData.attachments || '',
+      staggeredMemo: dData.staggeredMemo || '',
+      retrievalAssetIds: dData.retrievalAssetIds || [],
+      closingDay: contractBillingDay,
+      statementClosingDay: contractStatementClosingDay,
+      paymentDueDay: contractPaymentDueDay,
+      userNote: dData.userNote !== undefined ? dData.userNote : (data.note || ''),
+      fullNote: data.note || ''
+    };
 
     data.equipments.forEach((eq) => {
       const eqData = eq as any;
@@ -3198,7 +3255,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         count,
         contractAssetIds: eqCreatedCaIds,
         paidOptions: effectivePaidOptionsForDelivery,
-        ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {})
+        ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {}),
+        monthlyRentalFee: determinedMonthly,
+        dailyRentalFee: determinedDaily,
+        ...(cargoItemsPayload.length === 0 ? { requestMeta: requestSnapshotMeta } : {})
       });
     });
 

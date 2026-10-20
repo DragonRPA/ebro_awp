@@ -99,7 +99,7 @@ interface DraftOrder {
   paymentDueDay?: number;
 }
 
-type ActiveTab = 'NEW' | 'QUEUE';
+type ActiveTab = 'NEW' | 'QUEUE' | 'HISTORY';
 type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST';
 
 const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
@@ -161,6 +161,11 @@ export const SmartDispatch4: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
     saveSmartDispatch, assets, deliveries, standardOptions,
+    contracts = [],
+    contractAssets = [],
+    todos = [],
+    outboundInspections = [],
+    users = [],
     printStations, enqueuePrintJob, showPrintSuccessModal,
     products = [],
     siteMasters = [],
@@ -236,6 +241,11 @@ export const SmartDispatch4: React.FC = () => {
 
   // ── 탭 (세션 기억으로 복귀 시 탭 유지) ──────────────────────────────────────
   const [activeTab, setActiveTabState] = useState<ActiveTab>('NEW');
+  const [historySearchQuery, setHistorySearchQuery] = useState<string>('');
+  const [historyStartDate, setHistoryStartDate] = useState<string>('');
+  const [historyEndDate, setHistoryEndDate] = useState<string>('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'UNASSIGNED' | 'REQUESTED' | 'DISPATCHED' | 'DELIVERED'>('ALL');
+  const [selectedHistoryDeliveryId, setSelectedHistoryDeliveryId] = useState<string | null>(null);
   
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
@@ -1732,6 +1742,9 @@ export const SmartDispatch4: React.FC = () => {
           dailyRentalFee: eq.dailyRate,
         })),
         note: fullNote,
+        userNote: note,
+        staggeredMemo,
+        context: selectedContext || 'ADDITIONAL',
         rawText: `[출고 요청 통합 발행] ${selectedContext || 'OUTBOUND'}`,
         vehicleType: vehicleType || '5T',
         paidBy: paidBy || undefined,
@@ -5318,15 +5331,796 @@ export const SmartDispatch4: React.FC = () => {
     );
   };
 
+  const renderHistoryTab = () => {
+    const outboundDeliveries = (deliveries || [])
+      .filter(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    const reconstructedRows = outboundDeliveries.map(d => {
+      const contract = d.contractId ? contracts.find(c => c.id === d.contractId) : undefined;
+      const customer = contract?.customerId ? customers.find(c => c.id === contract.customerId) : undefined;
+      const site = contract?.siteId ? sites.find(s => s.id === contract.siteId) : undefined;
+      const sm = (d.siteMasterId || site?.siteMasterId)
+        ? siteMasters.find(m => m.id === (d.siteMasterId || site?.siteMasterId))
+        : undefined;
+
+      // cargoItems 파싱
+      let parsedCargo: any[] = [];
+      try {
+        if (d.cargoItems) {
+          const raw = JSON.parse(d.cargoItems);
+          if (Array.isArray(raw)) parsedCargo = raw;
+        }
+      } catch {
+        parsedCargo = [];
+      }
+
+      const snapMeta = parsedCargo.find(c => c?.requestMeta)?.requestMeta;
+
+      // 요청자: 1) requestMeta.requesterName 2) todos(DISPATCH_REQUEST).senderName 3) contract.salespersonId -> users
+      const matchedTodo = todos.find(t => (t.entityId === d.id || (t as any).relatedEntityId === d.id) && (t.category === 'DISPATCH_REQUEST' || String(t.title || '').includes('출고')));
+      const contractSalesperson = contract?.salespersonId ? users.find(u => u.id === contract.salespersonId) : undefined;
+      const requesterName = snapMeta?.requesterName || matchedTodo?.senderName || contractSalesperson?.name || '-';
+
+      // 고객사명 / 현장명 / 상세주소 복원
+      let customerName = snapMeta?.customerName || customer?.name || '';
+      let siteName = snapMeta?.siteName || site?.name || '';
+      let siteAddress = snapMeta?.siteAddress || site?.address || '';
+      if ((!customerName || !siteName) && d.destinationAddress) {
+        const destMatch = d.destinationAddress.match(/^(.+?)\s*\((.+?)(?:\s*-\s*(.*))?\)$/);
+        if (destMatch) {
+          if (!customerName) customerName = destMatch[1].trim();
+          if (!siteName) siteName = destMatch[2].trim();
+          if (!siteAddress && destMatch[3]) siteAddress = destMatch[3].trim();
+        } else if (!customerName) {
+          customerName = d.destinationAddress;
+        }
+      }
+
+      // 현장담당자 / 연락처 복원
+      let siteContactName = snapMeta?.siteContactName || '';
+      let siteContactPhone = snapMeta?.siteContactPhone || '';
+      if (!siteContactName && d.memo) {
+        const mContact = d.memo.match(/현장담당:\s*([^\(\|]+?)(?:\s*\(([^\)]+)\))?(?:\s*\||$)/);
+        if (mContact) {
+          const n = (mContact[1] || '').trim();
+          const p = (mContact[2] || '').trim();
+          if (n && n !== '-') siteContactName = n;
+          if (p && p !== '-') siteContactPhone = p;
+        }
+      }
+      if (!siteContactName && site) {
+        const actContacts = ((site as any).contacts || []).filter((c: any) => c.isActive !== false && c.name && c.name !== '미상');
+        if (actContacts.length > 0) {
+          siteContactName = actContacts[0].name;
+          siteContactPhone = actContacts[0].contact || '';
+        } else if (site.contactName && site.contactName !== '미상') {
+          siteContactName = site.contactName;
+          siteContactPhone = site.contact || '';
+        }
+      }
+
+      // 장비 목록 및 단가 / 할당 현황 복원
+      const allCaIds: string[] = [];
+      const equipmentItems: { modelName: string; qty: number; monthlyRate: number; dailyRate: number; assignedAssets: string[]; unassignedCount: number }[] = [];
+
+      if (parsedCargo.length > 0) {
+        parsedCargo.forEach(ci => {
+          const caIds: string[] = Array.isArray(ci.contractAssetIds) ? ci.contractAssetIds : [];
+          allCaIds.push(...caIds);
+          const matchedCas = caIds.map(id => contractAssets.find(ca => ca.id === id)).filter(Boolean);
+          const firstCa = matchedCas[0];
+          const monthlyRate = Number(ci.monthlyRentalFee || firstCa?.monthlyRentalFee || 0);
+          const dailyRate = Number(ci.dailyRentalFee || firstCa?.dailyRentalFee || (monthlyRate ? Math.round(monthlyRate / 30) : 0));
+          const assignedAssets: string[] = [];
+          let unassignedCount = 0;
+
+          if (matchedCas.length > 0) {
+            matchedCas.forEach(ca => {
+              if (ca?.assetId) {
+                const a = assets.find(as => as.id === ca.assetId);
+                assignedAssets.push(a?.assetNo || a?.managementNo || ca.assetId);
+              } else {
+                unassignedCount++;
+              }
+            });
+          } else {
+            unassignedCount = Number(ci.count) || 1;
+          }
+
+          equipmentItems.push({
+            modelName: ci.modelName || '-',
+            qty: Number(ci.count) || 1,
+            monthlyRate,
+            dailyRate,
+            assignedAssets,
+            unassignedCount
+          });
+        });
+      }
+
+      const totalQty = equipmentItems.reduce((sum, eq) => sum + eq.qty, 0);
+      const totalAssignedCount = equipmentItems.reduce((sum, eq) => sum + eq.assignedAssets.length, 0);
+      const totalUnassignedCount = equipmentItems.reduce((sum, eq) => sum + eq.unassignedCount, 0);
+
+      // 유상옵션 및 적용 단가 복원
+      let paidOptionsStr = parsedCargo[0]?.paidOptions || '';
+      const paidOptionPricesMap: Record<string, number> = parsedCargo[0]?.paidOptionPrices || {};
+      if (!paidOptionsStr && d.closingMemo) {
+        const mOpt = d.closingMemo.match(/유상옵션:\s*([^\|]+)/);
+        if (mOpt && mOpt[1].trim() !== '없음') paidOptionsStr = mOpt[1].trim();
+      }
+      const paidOptionItems = splitMasterAwareOptions(paidOptionsStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
+        .filter(o => o && o !== '없음' && o !== 'NONE' && !isProtectionOption(o) && !isAttachmentOption(o))
+        .map(optName => {
+          const customPrice = paidOptionPricesMap[optName];
+          const masterOpt = (standardOptions || []).find(so => so.name === optName);
+          const unitPrice = customPrice !== undefined ? Number(customPrice) : (masterOpt?.defaultPrice || 0);
+          const unitLabel = masterOpt?.billingCycle === 'ONE_TIME' ? '건' : masterOpt?.billingCycle === 'PER_UNIT' ? '대' : '월';
+          return {
+            name: optName,
+            price: unitPrice,
+            isCustomPrice: customPrice !== undefined && masterOpt?.defaultPrice !== undefined && Number(customPrice) !== Number(masterOpt.defaultPrice),
+            unitLabel
+          };
+        });
+
+      // 무상보양 / 부착물 복원
+      let protectionStr = snapMeta?.protection || '';
+      if (!protectionStr && d.closingMemo) {
+        const mProt = d.closingMemo.match(/보양:\s*([^\|]+)/);
+        if (mProt && mProt[1].trim() !== '없음' && mProt[1].trim() !== 'NONE') protectionStr = mProt[1].trim();
+      }
+      if (!protectionStr && site?.protection && site.protection !== 'NONE') {
+        protectionStr = site.protection;
+      }
+      const attachmentsStr = snapMeta?.attachments || site?.attachments || sm?.attachments || '';
+
+      // 특이사항 / 메모 복원
+      let userNote = snapMeta?.userNote || '';
+      let staggeredText = snapMeta?.staggeredMemo || '';
+      if (!userNote && d.memo && !d.memo.startsWith('[마감조건]')) {
+        const mNote = d.memo.match(/특이사항:\s*(.+)$/);
+        if (mNote) {
+          const rawTail = mNote[1].trim();
+          const tailParts = rawTail.split(' | ').filter(p =>
+            !p.startsWith('[하차일정]') &&
+            !p.startsWith('[옵션]') &&
+            !p.startsWith('[현장상세주소]') &&
+            !p.startsWith('[차종]') &&
+            !p.startsWith('[정산일정]')
+          );
+          userNote = tailParts.join(' | ');
+        }
+        const mStag = d.memo.match(/\[시차출고\]\s*([^\|]+)/);
+        if (mStag) staggeredText = mStag[1].trim();
+      }
+
+      // 요청 구분
+      const reqTypeLabel = d.type === 'EXCHANGE' || d.dispatchCategory === '교환'
+        ? '교체(대차)'
+        : (snapMeta?.context === 'NEW_CUSTOMER' || d.rawText?.includes('NEW_CUSTOMER'))
+          ? '신규고객 출고'
+          : '기존현장 출고';
+
+      // 출고검수 상태 확인
+      const matchedInspections = outboundInspections.filter(ins =>
+        ins.deliveryId === d.id || (ins.contractId === d.contractId && allCaIds.some(caId => ins.contractAssetId === caId))
+      );
+      const approvedInspCount = matchedInspections.filter(i => i.status === 'APPROVED' || i.status === 'COMPLETED').length;
+
+      return {
+        id: d.id,
+        delivery: d,
+        contractNo: contract?.contractNo || '-',
+        contractId: d.contractId || '',
+        createdAt: d.createdAt || d.requestDate || '',
+        requesterName,
+        reqTypeLabel,
+        customerName: customerName || '-',
+        siteName: siteName || '-',
+        siteAddress: siteAddress || '-',
+        siteContactName: siteContactName || '-',
+        siteContactPhone: siteContactPhone || '-',
+        equipmentItems,
+        totalQty,
+        totalAssignedCount,
+        totalUnassignedCount,
+        paidOptionItems,
+        protectionStr: protectionStr && protectionStr !== 'NONE' ? protectionStr : '없음',
+        attachmentsStr: attachmentsStr && attachmentsStr !== 'NONE' ? attachmentsStr : '없음',
+        loadingSchedule: `${d.loadingDate || '-'} ${d.loadingTimeSlot || ''}`.trim(),
+        unloadingSchedule: `${d.unloadingDate || d.loadingDate || '-'} ${d.unloadingTimeSlot || d.loadingTimeSlot || ''}`.trim(),
+        vehicleType: d.vehicleType || '5T',
+        driverName: d.driverName || '',
+        driverContact: d.driverContact || '',
+        vehicleNo: d.vehicleNo || '',
+        transportCompany: d.transportCompany || '',
+        billableToCustomer: !!d.billableToCustomer,
+        dispatchStatus: d.status,
+        approvedInspCount,
+        userNote: userNote && userNote !== '없음' ? userNote : '',
+        staggeredText,
+        closingMemo: d.closingMemo || '',
+        rawMemo: d.memo || ''
+      };
+    });
+
+    const q = historySearchQuery.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
+
+    const filteredRows = reconstructedRows.filter(r => {
+      const datePart = (r.createdAt || '').slice(0, 10);
+      if (historyStartDate && datePart && datePart < historyStartDate) return false;
+      if (historyEndDate && datePart && datePart > historyEndDate) return false;
+
+      if (historyStatusFilter === 'UNASSIGNED' && r.totalUnassignedCount === 0) return false;
+      if (historyStatusFilter === 'REQUESTED' && r.dispatchStatus !== 'REQUESTED' && r.dispatchStatus !== 'PENDING') return false;
+      if (historyStatusFilter === 'DISPATCHED' && r.dispatchStatus !== 'DISPATCHED') return false;
+      if (historyStatusFilter === 'DELIVERED' && r.dispatchStatus !== 'DELIVERED' && r.dispatchStatus !== 'COMPLETED') return false;
+
+      if (!matcher) return true;
+      const equipStr = r.equipmentItems.map(e => `${e.modelName} ${e.assignedAssets.join(' ')}`).join(' ');
+      const optStr = r.paidOptionItems.map(o => o.name).join(' ');
+      return (
+        matcher.test(r.id) ||
+        matcher.test(r.contractNo) ||
+        matcher.test(r.customerName) ||
+        matcher.test(r.siteName) ||
+        matcher.test(r.siteAddress) ||
+        matcher.test(r.requesterName) ||
+        matcher.test(r.siteContactName) ||
+        matcher.test(equipStr) ||
+        matcher.test(optStr)
+      );
+    });
+
+    const selectedRow = filteredRows.find(r => r.id === selectedHistoryDeliveryId) || filteredRows[0] || null;
+
+    const handlePrintHistoryRow = async (row: typeof reconstructedRows[0]) => {
+      const draftLike: DraftOrder = {
+        id: row.id,
+        context: [row.reqTypeLabel === '신규고객 출고' ? 'NEW_CUSTOMER' : row.reqTypeLabel === '교체(대차)' ? 'EXCHANGE' : 'ADDITIONAL'],
+        customerName: makeScoredField(row.customerName),
+        siteName: makeScoredField(row.siteName),
+        siteAddress: row.siteAddress,
+        equipments: row.equipmentItems.map(e => ({
+          modelName: e.modelName,
+          qty: e.qty,
+          monthlyRate: e.monthlyRate,
+          dailyRate: e.dailyRate
+        })),
+        loadingDate: makeScoredField(row.delivery.loadingDate || ''),
+        loadingTime: makeScoredField(row.delivery.loadingTimeSlot || ''),
+        unloadingDate: row.delivery.unloadingDate || row.delivery.loadingDate || '',
+        unloadingTimeVal: row.delivery.unloadingTimeSlot || '',
+        contactPerson: makeScoredField(row.siteContactName === '-' ? '' : row.siteContactName),
+        contactPhone: makeScoredField(row.siteContactPhone === '-' ? '' : row.siteContactPhone),
+        note: row.userNote || '',
+        status: 'SUBMITTED',
+        isNewCustomer: false,
+        customerRegistered: true,
+        createdAt: row.createdAt,
+        urgency: 'MEDIUM',
+        safetyOptions: [
+          ...row.paidOptionItems.map(o => o.name),
+          ...(row.protectionStr !== '없음' ? row.protectionStr.split(',').map(s => s.trim()) : []),
+          ...(row.attachmentsStr !== '없음' ? row.attachmentsStr.split(',').map(s => s.trim()) : [])
+        ].filter(Boolean),
+        staggeredMemo: row.staggeredText,
+        vehicleType: row.vehicleType,
+        paidBy: row.billableToCustomer ? 'CUSTOMER' : 'OURS'
+      };
+      const { html, customerName, siteName } = generateDispatchOrderHtml(draftLike);
+      await handleRemoteQueuePrint(html, customerName, siteName);
+    };
+
+    const totalEquipCount = filteredRows.reduce((s, r) => s + r.totalQty, 0);
+    const totalUnassignedEquipCount = filteredRows.reduce((s, r) => s + r.totalUnassignedCount, 0);
+
+    return (
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-950 gap-2 p-2">
+        {/* 1. 상단 조회 스코프 & 필터 바 (Gutenberg Z-Pattern 좌상단 Scope -> 우상단 Pipeline) */}
+        <div className="flex-shrink-0 px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl flex items-end justify-between flex-wrap gap-3">
+          <div className="flex items-end gap-3 flex-wrap">
+            {/* 요청일자 시작 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">요청 시작일</label>
+              <input
+                type="date"
+                value={historyStartDate}
+                onChange={e => setHistoryStartDate(e.target.value)}
+                className="h-8 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono"
+              />
+            </div>
+            {/* 요청일자 종료 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">요청 종료일</label>
+              <input
+                type="date"
+                value={historyEndDate}
+                onChange={e => setHistoryEndDate(e.target.value)}
+                className="h-8 px-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono"
+              />
+            </div>
+            {/* 상태 필터 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">진행 상태</label>
+              <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 h-8">
+                {[
+                  { id: 'ALL', label: `전체 (${reconstructedRows.length})` },
+                  { id: 'UNASSIGNED', label: `장비미할당 (${reconstructedRows.filter(r => r.totalUnassignedCount > 0).length})` },
+                  { id: 'REQUESTED', label: '배차대기' },
+                  { id: 'DISPATCHED', label: '배차완료' },
+                  { id: 'DELIVERED', label: '운송완료' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setHistoryStatusFilter(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                      historyStatusFilter === tab.id ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* 통합 검색 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">검색어</label>
+              <div className="relative flex items-center">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={historySearchQuery}
+                  onChange={e => setHistorySearchQuery(e.target.value)}
+                  placeholder="고객사, 현장명, 모델명, 요청자, 배차번호"
+                  className="h-8 pl-8 pr-3 w-64 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 placeholder-slate-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setHistoryStartDate('');
+                setHistoryEndDate('');
+                setHistoryStatusFilter('ALL');
+                setHistorySearchQuery('');
+              }}
+              className="h-8 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white transition whitespace-nowrap cursor-pointer"
+            >
+              전체 기간 보기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                refreshAllData();
+                showToast('출고 요청 내역을 최신 상태로 갱신했습니다.', 'info');
+              }}
+              className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>새로고침</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2. 본문 마스터-디테일 영역 (좌측 고밀도 그리드 + 우측 상세 카드) */}
+        <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden">
+          {/* 좌측: 고밀도 출고 요청 내역 테이블 */}
+          <div className="flex-[6.3] min-w-0 bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+            <div className="dispatch4-section-header">
+              <div className="flex items-center gap-2">
+                <Package className="w-3.5 h-3.5 text-blue-400" />
+                <span>출고 요청 내역 목록</span>
+                <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono text-[11px] font-bold">
+                  총 {filteredRows.length}건 ({totalEquipCount}대)
+                </span>
+                {totalUnassignedEquipCount > 0 && (
+                  <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-mono text-[11px] font-bold">
+                    장비 미할당 {totalUnassignedEquipCount}대
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400">행 클릭 시 우측에 출고 요청 전체 상세 정보 표시</span>
+            </div>
+
+            <div className="dispatch4-table-container dispatch4-scrollbar">
+              <table className="dispatch4-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 72, textAlign: 'center' }}>상세</th>
+                    <th style={{ width: 95 }}>배차번호</th>
+                    <th style={{ width: 118 }}>요청일시</th>
+                    <th style={{ width: 70 }}>요청자</th>
+                    <th style={{ width: 92 }}>구분</th>
+                    <th style={{ width: 130 }}>고객사명</th>
+                    <th style={{ width: 170 }}>투입 현장명</th>
+                    <th style={{ width: 180 }}>요청 모델 및 수량</th>
+                    {hasFinancialAccess && <th style={{ width: 105, textAlign: 'right' }}>월 단가</th>}
+                    <th style={{ width: 170 }}>유상옵션 (적용단가)</th>
+                    <th style={{ width: 110 }}>상차 요청일시</th>
+                    <th style={{ width: 105 }}>현장담당자</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>배차상태</th>
+                    <th style={{ width: 110, textAlign: 'center' }}>장비할당</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={hasFinancialAccess ? 14 : 13} className="text-center py-10 text-slate-400">
+                        조회 조건에 해당하는 출고 요청 내역이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map(row => {
+                      const isSelected = selectedRow?.id === row.id;
+                      const equipSummary = row.equipmentItems.map(e => `${e.modelName}×${e.qty}대`).join(', ');
+                      const rateSummary = row.equipmentItems.map(e => e.monthlyRate > 0 ? `${e.monthlyRate.toLocaleString()}원` : '-').join(' / ');
+                      const optSummary = row.paidOptionItems.length > 0
+                        ? row.paidOptionItems.map(o => `${o.name}${o.price > 0 ? `(${(o.price / 10000).toFixed(0)}만)` : ''}`).join(', ')
+                        : '-';
+
+                      return (
+                        <tr
+                          key={row.id}
+                          onClick={() => setSelectedHistoryDeliveryId(row.id)}
+                          className={`cursor-pointer transition ${isSelected ? 'selected' : ''}`}
+                        >
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedHistoryDeliveryId(row.id);
+                              }}
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-500'
+                                  : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                              }`}
+                            >
+                              상세 ➔
+                            </button>
+                          </td>
+                          <td className="font-mono font-bold text-blue-400">{row.id}</td>
+                          <td className="font-mono text-slate-300 text-[11px]">
+                            {row.createdAt
+                              ? new Date(row.createdAt).toLocaleString('ko-KR', {
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                })
+                              : '-'}
+                          </td>
+                          <td className="font-bold text-slate-200">{row.requesterName}</td>
+                          <td>
+                            <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold ${
+                              row.reqTypeLabel === '교체(대차)'
+                                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                                : row.reqTypeLabel === '신규고객 출고'
+                                  ? 'bg-purple-950 text-purple-300 border border-purple-800'
+                                  : 'bg-slate-800 text-slate-200 border border-slate-700'
+                            }`}>
+                              {row.reqTypeLabel}
+                            </span>
+                          </td>
+                          <td className="font-bold text-white max-w-[130px] truncate" title={row.customerName}>
+                            {row.customerName}
+                          </td>
+                          <td className="text-slate-200 max-w-[170px] truncate" title={row.siteName}>
+                            {row.siteName}
+                          </td>
+                          <td className="font-bold text-emerald-400 max-w-[180px] truncate" title={equipSummary}>
+                            {equipSummary || '-'}
+                          </td>
+                          {hasFinancialAccess && (
+                            <td className="font-mono text-right text-slate-200">
+                              {rateSummary}
+                            </td>
+                          )}
+                          <td className="text-amber-300 max-w-[170px] truncate" title={optSummary}>
+                            {optSummary}
+                          </td>
+                          <td className="font-mono text-slate-200 text-[11px]">{row.loadingSchedule}</td>
+                          <td className="text-slate-300 max-w-[105px] truncate" title={`${row.siteContactName} (${row.siteContactPhone})`}>
+                            {row.siteContactName !== '-' ? `${row.siteContactName}` : '-'}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border ${
+                              row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
+                                ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                                : row.dispatchStatus === 'DISPATCHED'
+                                  ? 'bg-blue-950 text-blue-300 border-blue-800'
+                                  : row.dispatchStatus === 'CANCELLED'
+                                    ? 'bg-rose-950 text-rose-300 border-rose-800'
+                                    : 'bg-amber-950 text-amber-300 border-amber-800'
+                            }`}>
+                              {row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
+                                ? '운송완료'
+                                : row.dispatchStatus === 'DISPATCHED'
+                                  ? '배차완료'
+                                  : row.dispatchStatus === 'CANCELLED'
+                                    ? '취소'
+                                    : '배차대기'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {row.totalUnassignedCount > 0 ? (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-950 text-amber-300 border border-amber-700">
+                                미할당 {row.totalUnassignedCount}대
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                                할당완료 ({row.totalAssignedCount}대)
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 우측: 선택된 출고 요청 전체 상세 인스펙터 */}
+          <div className="flex-[3.7] min-w-[380px] max-w-[520px] bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+            <div className="dispatch4-section-header">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>출고 요청 상세 명세</span>
+              </div>
+              {selectedRow && (
+                <span className="font-mono text-xs font-bold text-blue-400">
+                  {selectedRow.id} ({selectedRow.contractNo})
+                </span>
+              )}
+            </div>
+
+            {selectedRow ? (
+              <>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3.5 flex flex-col gap-3 dispatch4-scrollbar text-xs">
+                  {/* 1. 요청 메타 요약 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <span className="font-bold text-slate-400">요청 일시 / 작성자</span>
+                      <span className="font-mono font-bold text-white">
+                        {selectedRow.createdAt ? new Date(selectedRow.createdAt).toLocaleString('ko-KR') : '-'} / {selectedRow.requesterName}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-400">계약 번호 / 구분</span>
+                      <span className="font-bold text-blue-400">
+                        {selectedRow.contractNo} · {selectedRow.reqTypeLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2. 고객사 및 투입 현장 정보 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="text-[11px] font-bold text-blue-400">1. 고객사 및 현장 정보</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">고객사명</span>
+                        <span className="font-bold text-white">{selectedRow.customerName}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">투입 현장명</span>
+                        <span className="font-bold text-white">{selectedRow.siteName}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10.5px] text-slate-400 block">현장 상세주소</span>
+                      <span className="text-slate-200">{selectedRow.siteAddress}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">현장 인수담당자</span>
+                        <span className="font-bold text-slate-200">{selectedRow.siteContactName}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">담당자 연락처</span>
+                        <span className="font-mono text-slate-200">{selectedRow.siteContactPhone}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. 요청 장비 및 단가 / 할당 내역 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-emerald-400">2. 요청 장비 및 단가 명세</span>
+                      <span className="font-bold text-slate-300">총 {selectedRow.totalQty}대</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {selectedRow.equipmentItems.map((eq, i) => (
+                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-white font-mono">{eq.modelName} × {eq.qty}대</span>
+                            {hasFinancialAccess && (
+                              <span className="font-mono font-bold text-emerald-400">
+                                월 {eq.monthlyRate.toLocaleString()}원 / 일 {eq.dailyRate.toLocaleString()}원
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>할당 장비번호</span>
+                            <span className="font-mono text-slate-200">
+                              {eq.assignedAssets.length > 0 ? eq.assignedAssets.join(', ') : '미할당'}
+                              {eq.unassignedCount > 0 ? ` (미할당 ${eq.unassignedCount}대)` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. 유상옵션 (단가 포함) 및 무상보양 / 부착물 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="text-[11px] font-bold text-amber-400">3. 옵션 및 현장 사양</div>
+                    <div>
+                      <span className="text-[10.5px] text-slate-400 block mb-1">유상옵션 및 적용 단가</span>
+                      {selectedRow.paidOptionItems.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedRow.paidOptionItems.map((opt, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-1 rounded-lg bg-amber-950/60 border border-amber-800/70 text-amber-200 text-xs font-bold font-mono"
+                            >
+                              {opt.name}: {opt.price.toLocaleString()}원/{opt.unitLabel}
+                              {opt.isCustomPrice ? ' (단가변경)' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">유상옵션 없음</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">무상보양</span>
+                        <span className="text-slate-200">{selectedRow.protectionStr}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">부착물</span>
+                        <span className="text-slate-200">{selectedRow.attachmentsStr}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. 상하차 일정 및 배차/운송 정보 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="text-[11px] font-bold text-blue-400">4. 상하차 일정 및 배차 현황</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">상차 일정</span>
+                        <span className="font-mono font-bold text-white">{selectedRow.loadingSchedule}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">하차 일정</span>
+                        <span className="font-mono font-bold text-white">{selectedRow.unloadingSchedule}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">희망 차종 / 운송비 부담</span>
+                        <span className="text-slate-200">
+                          {selectedRow.vehicleType} / {selectedRow.billableToCustomer ? '고객청구' : '당사부담'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10.5px] text-slate-400 block">배정 기사 / 차량번호</span>
+                        <span className="text-slate-200">
+                          {selectedRow.driverName ? `${selectedRow.driverName} (${selectedRow.vehicleNo || '-'})` : '배차 대기'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. 특이사항 및 원본 메모 */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-1.5">
+                    <div className="text-[11px] font-bold text-slate-300">5. 특이사항 및 기록 메모</div>
+                    {selectedRow.staggeredText && (
+                      <div className="text-amber-300 font-bold">• 시차출고: {selectedRow.staggeredText}</div>
+                    )}
+                    <div className="text-slate-200 whitespace-pre-wrap leading-relaxed">
+                      {selectedRow.userNote || '입력된 별도 특이사항 없음'}
+                    </div>
+                    {selectedRow.closingMemo && (
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
+                        {selectedRow.closingMemo}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 우하단 액션 바 (Gutenberg Z-Pattern Terminal Action) */}
+                <div className="flex-shrink-0 p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {selectedRow.totalUnassignedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setGlobalActiveTab('dispatch_assign')}
+                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      >
+                        장비 할당 이동 ➔
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setGlobalActiveTab('delivery')}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                    >
+                      배차 관리 이동 ➔
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePrintHistoryRow(selectedRow)}
+                    disabled={isAgentPrinting}
+                    className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>출고요청서 재인쇄</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-xs text-slate-400 p-6 text-center">
+                좌측 목록에서 출고 요청 내역을 선택하세요.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   // 최종 전체 페이지 렌더
   // ─────────────────────────────────────────────────────────────────────────
+  const outboundHistoryCount = useMemo(() => {
+    return (deliveries || []).filter(
+      d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'
+    ).length;
+  }, [deliveries]);
+
   return (
     <div className="dispatch4-container">
       {/* 최상단 컴팩트 툴바 (타이틀 + 탭 + 녹음 업로드 1줄 인라인) */}
       <div className="dispatch4-toolbar">
         <div className="dispatch4-toolbar-left">
           <h2 className="dispatch4-title">출고 요청</h2>
+          <div className="dispatch4-tab-group">
+            <button
+              data-mid="dispatch4-tab-new"
+              type="button"
+              onClick={() => setActiveTabState('NEW')}
+              className={`dispatch4-tab-btn ${activeTab === 'NEW' ? 'active' : ''}`}
+            >
+              <span>출고 요청 등록</span>
+            </button>
+            <button
+              data-mid="dispatch4-tab-history"
+              type="button"
+              onClick={() => setActiveTabState('HISTORY')}
+              className={`dispatch4-tab-btn ${activeTab === 'HISTORY' ? 'active' : ''}`}
+            >
+              <span>출고 요청 내역</span>
+              <span className="px-1.5 py-0.2 rounded bg-blue-950 text-blue-300 font-mono text-[10.5px] font-bold">
+                {outboundHistoryCount}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -5370,7 +6164,7 @@ export const SmartDispatch4: React.FC = () => {
       </div>
 
       {/* 본문 탭 전환 */}
-      {renderNewTab()}
+      {activeTab === 'HISTORY' ? renderHistoryTab() : renderNewTab()}
 
       {/* 통화 녹음 업로드 모달 */}
       
