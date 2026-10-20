@@ -483,7 +483,7 @@ export const SmartDispatch4: React.FC = () => {
     return splitMasterAwareOptions(str, standardOptions, { onlyMasterOptions: true, stripPrice: true });
   }, [standardOptions]);
 
-  // 🛡️ 보양/부착물/유상옵션 정밀 분류 헬퍼 (하드코딩 배제 — 등록된 옵션 마스터 카테고리만 준수)
+  // 🛡️ 무상/유상/부착물/요구사양 4대 그룹 정밀 분류 및 오름차순 정렬 헬퍼 (하드코딩 배제 — 등록된 옵션 마스터 카테고리만 준수)
   const protectionOptionNameSet = useMemo(() => {
     const set = new Set<string>();
     (standardOptions || []).forEach(o => {
@@ -500,6 +500,14 @@ export const SmartDispatch4: React.FC = () => {
     return set;
   }, [standardOptions]);
 
+  const specOptionNameSet = useMemo(() => {
+    const set = new Set<string>();
+    (standardOptions || []).forEach(o => {
+      if (o.category === 'SPEC' && o.name) set.add(o.name);
+    });
+    return set;
+  }, [standardOptions]);
+
   const isProtectionOption = useCallback((label: string): boolean => {
     const clean = stripOptionPrice(label);
     return protectionOptionNameSet.has(clean);
@@ -509,6 +517,75 @@ export const SmartDispatch4: React.FC = () => {
     const clean = stripOptionPrice(label);
     return attachmentOptionNameSet.has(clean);
   }, [attachmentOptionNameSet]);
+
+  const isSpecOption = useCallback((label: string): boolean => {
+    const clean = stripOptionPrice(label);
+    return specOptionNameSet.has(clean);
+  }, [specOptionNameSet]);
+
+  // 4대 옵션 그룹 메타 정보 (1순위: 무상, 2순위: 유상, 3순위: 부착물, 4순위: 요구사양)
+  const getOptionGroupMeta = useCallback((label: string): {
+    groupKey: 'PROTECTION' | 'PAID' | 'ATTACHMENT' | 'SPEC';
+    groupOrder: number;
+    groupTitle: string;
+    badgeText: string;
+    chipClass: string;
+    badgeClass: string;
+  } => {
+    if (isProtectionOption(label)) {
+      return { groupKey: 'PROTECTION', groupOrder: 0, groupTitle: '무상', badgeText: '무상', chipClass: 'free-option', badgeClass: 'available' };
+    }
+    if (isAttachmentOption(label)) {
+      return { groupKey: 'ATTACHMENT', groupOrder: 2, groupTitle: '부착물', badgeText: '부착물', chipClass: 'attachment-option', badgeClass: 'attachment' };
+    }
+    if (isSpecOption(label)) {
+      return { groupKey: 'SPEC', groupOrder: 3, groupTitle: '요구사양', badgeText: '요구사양', chipClass: 'spec-option', badgeClass: 'spec' };
+    }
+    return { groupKey: 'PAID', groupOrder: 1, groupTitle: '유상', badgeText: '유상', chipClass: 'paid-option', badgeClass: 'paid' };
+  }, [isProtectionOption, isAttachmentOption, isSpecOption]);
+
+  const groupAndSortOptionLabels = useCallback((labels: string[]) => {
+    const groups: Array<{
+      key: 'PROTECTION' | 'PAID' | 'ATTACHMENT' | 'SPEC';
+      title: string;
+      badgeClass: string;
+      items: string[];
+    }> = [
+      { key: 'PROTECTION', title: '무상', badgeClass: 'available', items: [] },
+      { key: 'PAID', title: '유상', badgeClass: 'paid', items: [] },
+      { key: 'ATTACHMENT', title: '부착물', badgeClass: 'attachment', items: [] },
+      { key: 'SPEC', title: '요구사양', badgeClass: 'spec', items: [] },
+    ];
+    const map = new Map(groups.map(g => [g.key, g]));
+    labels.forEach(lbl => {
+      const meta = getOptionGroupMeta(lbl);
+      map.get(meta.groupKey)?.items.push(lbl);
+    });
+    groups.forEach(g => {
+      g.items.sort((a, b) => a.localeCompare(b, 'ko', { numeric: true, sensitivity: 'base' }));
+    });
+    return groups;
+  }, [getOptionGroupMeta]);
+
+  const buildCheckedSpecsFromLabels = useCallback((labels: string[], baseSpecs?: Record<string, any>): Record<string, boolean> => {
+    const nextSpecs: Record<string, boolean> = {};
+    if (baseSpecs && typeof baseSpecs === 'object') {
+      Object.entries(baseSpecs).forEach(([k, v]) => {
+        if (k.startsWith('__') && v) nextSpecs[k] = Boolean(v);
+      });
+    }
+    labels.forEach(label => {
+      if (!isSpecOption(label)) return;
+      const clean = stripOptionPrice(label);
+      const matched = (standardOptions || []).find(o => o.category === 'SPEC' && o.name === clean);
+      if (matched) {
+        nextSpecs[matched.id] = true;
+      } else {
+        nextSpecs[clean] = true;
+      }
+    });
+    return nextSpecs;
+  }, [isSpecOption, standardOptions]);
 
   // 🌟 [현장 마스터 + 연결된 옵션 그룹에서 등록된 옵션 마스터 항목만 자동 로드]
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
@@ -520,6 +597,7 @@ export const SmartDispatch4: React.FC = () => {
       const effPaid = site.paidOptions || sm?.paidOptions;
       const effProt = (site.protection && site.protection !== 'NONE' && site.protection !== '-') ? site.protection : sm?.protection;
       const effAtt = site.attachments || sm?.attachments;
+      const effSpecs = (site.checkedSpecs && Object.keys(site.checkedSpecs).length > 0) ? site.checkedSpecs : sm?.checkedSpecs;
 
       if (effPaid) {
         parseOptionString(effPaid).forEach(opt => inherited.add(opt));
@@ -529,6 +607,13 @@ export const SmartDispatch4: React.FC = () => {
       }
       if (effAtt && effAtt !== 'NONE' && effAtt !== '-') {
         parseOptionString(effAtt).forEach(opt => inherited.add(opt));
+      }
+      if (effSpecs && typeof effSpecs === 'object') {
+        Object.entries(effSpecs).forEach(([k, v]) => {
+          if (!v || k.startsWith('__')) return;
+          const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+          if (matched && matched.name) inherited.add(matched.name);
+        });
       }
     }
 
@@ -543,13 +628,20 @@ export const SmartDispatch4: React.FC = () => {
       if (cust.defaultAttachments && cust.defaultAttachments !== 'NONE' && cust.defaultAttachments !== '-') {
         parseOptionString(cust.defaultAttachments).forEach(opt => inherited.add(opt));
       }
+      if ((cust as any).defaultCheckedSpecs && typeof (cust as any).defaultCheckedSpecs === 'object') {
+        Object.entries((cust as any).defaultCheckedSpecs).forEach(([k, v]) => {
+          if (!v || k.startsWith('__')) return;
+          const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+          if (matched && matched.name) inherited.add(matched.name);
+        });
+      }
     }
 
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
     setConfirmNoSafetyOptions(false);
     return inherited;
-  }, [siteMasters, parseOptionString]);
+  }, [siteMasters, parseOptionString, standardOptions]);
 
   const inheritPastSafetyOptions = loadSiteSafetyOptions;
 
@@ -926,11 +1018,11 @@ export const SmartDispatch4: React.FC = () => {
   // 🌟 이번 출고 건 전용 유상옵션 1회성 단가 변경 상태 (현장 기본 옵션은 마스터 기본 단가 유지)
   const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
 
-  // 선택된 옵션 중 유상옵션 마스터 매핑 및 기본단가 자동 초기화
+  // 선택된 옵션 중 유상옵션 마스터 매핑 및 기본단가 자동 초기화 (오름차순 정렬)
   const selectedPaidMasterOptions = useMemo(() => {
     const paidList: StandardOption[] = [];
     Array.from(selectedSafetyOptions).forEach(label => {
-      if (isProtectionOption(label) || isAttachmentOption(label)) return;
+      if (isProtectionOption(label) || isAttachmentOption(label) || isSpecOption(label)) return;
       const clean = stripOptionPrice(label).replace(/\s+/g, '');
       const matched = (standardOptions || []).find(
         o => o && o.isActive !== false && o.category === 'PAID' && o.name.replace(/\s+/g, '') === clean
@@ -939,8 +1031,9 @@ export const SmartDispatch4: React.FC = () => {
         paidList.push(matched);
       }
     });
+    paidList.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko', { numeric: true, sensitivity: 'base' }));
     return paidList;
-  }, [selectedSafetyOptions, standardOptions, isProtectionOption, isAttachmentOption]);
+  }, [selectedSafetyOptions, standardOptions, isProtectionOption, isAttachmentOption, isSpecOption]);
 
   useEffect(() => {
     setPaidOptionPrices(prev => {
@@ -952,7 +1045,7 @@ export const SmartDispatch4: React.FC = () => {
     });
   }, [selectedPaidMasterOptions]);
 
-  // 🌟 전사 표준 옵션 마스터 추천 칩 (목업/하드코딩 배제 — 등록된 옵션 마스터만 노출)
+  // 🌟 전사 표준 옵션 마스터 추천 칩 (무상 -> 유상 -> 부착물 -> 요구사양 그룹 분할 및 오름차순 정렬)
   const availableOptionSuggestions = useMemo(() => {
     const list: string[] = [];
     (standardOptions || [])
@@ -960,8 +1053,14 @@ export const SmartDispatch4: React.FC = () => {
       .forEach(o => {
         if (!list.includes(o.name)) list.push(o.name);
       });
+    list.sort((a, b) => {
+      const ma = getOptionGroupMeta(a);
+      const mb = getOptionGroupMeta(b);
+      if (ma.groupOrder !== mb.groupOrder) return ma.groupOrder - mb.groupOrder;
+      return a.localeCompare(b, 'ko', { numeric: true, sensitivity: 'base' });
+    });
     return list;
-  }, [standardOptions]);
+  }, [standardOptions, getOptionGroupMeta]);
 
   const toggleOptionTag = (tag: string) => {
     setConfirmNoSafetyOptions(false);
@@ -1001,19 +1100,28 @@ export const SmartDispatch4: React.FC = () => {
     if (sm.paidOptions) parseOptionString(sm.paidOptions).forEach(o => opts.add(o));
     if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection).forEach(o => opts.add(o));
     if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments).forEach(o => opts.add(o));
+    if (sm.checkedSpecs && typeof sm.checkedSpecs === 'object') {
+      Object.entries(sm.checkedSpecs).forEach(([k, v]) => {
+        if (!v || k.startsWith('__')) return;
+        const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+        if (matched && matched.name) opts.add(matched.name);
+      });
+    }
     setSelectedSafetyOptions(opts);
 
     if (autoSaveToSite && selectedSite) {
       const optionLabels = Array.from(opts);
-      const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+      const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
       const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
       const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
+      const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
       try {
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           siteMasterId: smId,
           paidOptions: paidOpts,
           protection: protOpts,
           attachments: attOpts,
+          checkedSpecs: nextSpecs,
           address: selectedSiteAddress || selectedSite.address,
           updatedAt: new Date().toISOString(),
         });
@@ -1024,6 +1132,7 @@ export const SmartDispatch4: React.FC = () => {
           paidOptions: paidOpts,
           protection: protOpts,
           attachments: attOpts,
+          checkedSpecs: nextSpecs,
         } : prev);
         setInitialSiteOptions(new Set(opts));
         refreshAllData();
@@ -1064,9 +1173,10 @@ export const SmartDispatch4: React.FC = () => {
       return;
     }
     const optionLabels = Array.from(selectedSafetyOptions);
-    const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+    const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
     const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
     const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
+    const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
 
     try {
       db.updateRow<CustomerSite>('sites', selectedSite.id, {
@@ -1074,6 +1184,7 @@ export const SmartDispatch4: React.FC = () => {
         paidOptions: paidOpts,
         protection: protOpts,
         attachments: attOpts,
+        checkedSpecs: nextSpecs,
         address: selectedSiteAddress || selectedSite.address,
         updatedAt: new Date().toISOString(),
       });
@@ -1084,6 +1195,7 @@ export const SmartDispatch4: React.FC = () => {
         paidOptions: paidOpts,
         protection: protOpts,
         attachments: attOpts,
+        checkedSpecs: nextSpecs,
       } : prev);
       setInitialSiteOptions(new Set(selectedSafetyOptions));
       refreshAllData();
@@ -1657,14 +1769,16 @@ export const SmartDispatch4: React.FC = () => {
       // 🌟 [첨삭 저장 확인] 현장 기본값으로 저장 선택 시 CustomerSite DB 업데이트
       if (saveToSite && selectedSite) {
         const optionLabels = Array.from(selectedSafetyOptions);
-        const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+        const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
         const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
         const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
+        const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
 
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           paidOptions: paidOpts,
           protection: protOpts,
           attachments: attOpts,
+          checkedSpecs: nextSpecs,
           address: selectedSiteAddress || selectedSite.address,
           updatedAt: new Date().toISOString(),
         });
@@ -1750,7 +1864,7 @@ export const SmartDispatch4: React.FC = () => {
       ].filter(Boolean).join(' | ');
 
       const allSelOpts = Array.from(selectedSafetyOptions);
-      const effPaidOptStr = allSelOpts.filter(label => !isProtectionOption(label) && !isAttachmentOption(label)).join(', ');
+      const effPaidOptStr = allSelOpts.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
       const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
       const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
 
@@ -4213,29 +4327,37 @@ export const SmartDispatch4: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 등록된 옵션 목록 (클릭 시 해제 — 유상옵션은 '유상' + 빨간색 강조, 무상옵션은 '무상') */}
+                  {/* 등록된 옵션 목록 (무상 -> 유상 -> 부착물 -> 요구사양 그룹별 분할 및 오름차순 정렬, 클릭 시 해제) */}
                   {selectedSafetyOptions.size > 0 ? (
-                    <div className="flex flex-wrap gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-slate-800">
-                      {Array.from(selectedSafetyOptions).map(opt => {
-                        const isProt = isProtectionOption(opt);
-                        const isAtt = isAttachmentOption(opt);
-                        const isPaid = !isProt && !isAtt;
-                        const catBadge = isProt ? '무상' : isAtt ? '부착물' : '유상';
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => handleRemoveOption(opt)}
-                            className={`dispatch4-model-chip selected ${isPaid ? 'paid-option' : ''}`}
-                            title="클릭하여 선택 옵션에서 제외"
-                          >
-                            <span className="whitespace-nowrap font-normal">{opt}</span>
-                            <span className={`dispatch4-qty-badge ${isPaid ? 'paid' : 'available'}`}>
-                              {catBadge} ✕
+                    <div className="flex flex-col gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                      {groupAndSortOptionLabels(Array.from(selectedSafetyOptions))
+                        .filter(grp => grp.items.length > 0)
+                        .map(grp => (
+                          <div key={`sel-grp-${grp.key}`} className="flex items-start gap-2">
+                            <span className="text-[11px] font-bold text-slate-300 min-w-[62px] pt-1 whitespace-nowrap flex-shrink-0">
+                              {grp.title} ({grp.items.length})
                             </span>
-                          </button>
-                        );
-                      })}
+                            <div className="flex items-center gap-2 flex-wrap flex-1">
+                              {grp.items.map(opt => {
+                                const meta = getOptionGroupMeta(opt);
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() => handleRemoveOption(opt)}
+                                    className={`dispatch4-model-chip selected ${meta.chipClass}`}
+                                    title="클릭하여 선택 옵션에서 제외"
+                                  >
+                                    <span className="whitespace-nowrap font-normal">{opt}</span>
+                                    <span className={`dispatch4-qty-badge ${meta.badgeClass}`}>
+                                      {meta.badgeText} ✕
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   ) : (
                     <div className="p-2.5 bg-slate-950/40 rounded-lg border border-slate-850 flex items-center justify-between gap-2 flex-wrap">
@@ -4334,34 +4456,43 @@ export const SmartDispatch4: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 추가 가능한 미선택 옵션 목록 (이미 선택된 옵션은 제외하고 미선택 항목만 균일 디자인으로 표시) */}
+                  {/* 추가 가능한 미선택 옵션 목록 (무상 -> 유상 -> 부착물 -> 요구사양 4대 그룹 분할 및 그룹 내 오름차순 정렬) */}
                   {(() => {
                     const unselectedSuggestions = availableOptionSuggestions.filter(tag => !selectedSafetyOptions.has(tag));
                     if (unselectedSuggestions.length === 0) return null;
+                    const groupedUnselected = groupAndSortOptionLabels(unselectedSuggestions);
                     return (
-                      <div className="flex flex-col gap-1.5 pt-1">
+                      <div className="flex flex-col gap-2 pt-1">
                         <span className="text-[11px] text-slate-400 font-semibold">추가 가능한 옵션 ({unselectedSuggestions.length}개):</span>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {unselectedSuggestions.map(tag => {
-                            const isProt = isProtectionOption(tag);
-                            const isAtt = isAttachmentOption(tag);
-                            const isPaid = !isProt && !isAtt;
-                            const catBadge = isProt ? '무상' : isAtt ? '부착물' : '유상';
-                            return (
-                              <button
-                                key={tag}
-                                type="button"
-                                onClick={() => toggleOptionTag(tag)}
-                                className={`dispatch4-model-chip ${isPaid ? 'paid-option' : ''}`}
-                                title="클릭하여 옵션 추가"
-                              >
-                                <span className="whitespace-nowrap font-normal">+ {tag}</span>
-                                <span className={`dispatch4-qty-badge ${isPaid ? 'paid' : 'available'}`}>
-                                  {catBadge}
+                        <div className="flex flex-col gap-2 p-2.5 bg-slate-950/40 rounded-lg border border-slate-850">
+                          {groupedUnselected
+                            .filter(grp => grp.items.length > 0)
+                            .map(grp => (
+                              <div key={`avail-grp-${grp.key}`} className="flex items-start gap-2 border-b border-slate-850/80 last:border-b-0 pb-2 last:pb-0">
+                                <span className="text-[11px] font-bold text-slate-300 min-w-[62px] pt-1 whitespace-nowrap flex-shrink-0">
+                                  {grp.title} ({grp.items.length})
                                 </span>
-                              </button>
-                            );
-                          })}
+                                <div className="flex items-center gap-2 flex-wrap flex-1">
+                                  {grp.items.map(tag => {
+                                    const meta = getOptionGroupMeta(tag);
+                                    return (
+                                      <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() => toggleOptionTag(tag)}
+                                        className={`dispatch4-model-chip ${meta.chipClass}`}
+                                        title="클릭하여 옵션 추가"
+                                      >
+                                        <span className="whitespace-nowrap font-normal">+ {tag}</span>
+                                        <span className={`dispatch4-qty-badge ${meta.badgeClass}`}>
+                                          {meta.badgeText}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
                         </div>
                       </div>
                     );
@@ -5519,7 +5650,7 @@ export const SmartDispatch4: React.FC = () => {
         if (mOpt && mOpt[1].trim() !== '없음') paidOptionsStr = mOpt[1].trim();
       }
       const paidOptionItems = splitMasterAwareOptions(paidOptionsStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
-        .filter(o => o && o !== '없음' && o !== 'NONE' && !isProtectionOption(o) && !isAttachmentOption(o))
+        .filter(o => o && o !== '없음' && o !== 'NONE' && !isProtectionOption(o) && !isAttachmentOption(o) && !isSpecOption(o))
         .map(optName => {
           const customPrice = paidOptionPricesMap[optName];
           const masterOpt = (standardOptions || []).find(so => so.name === optName);

@@ -54,6 +54,14 @@ export const SiteOptionManage: React.FC = () => {
         if (valA > valB) return masterSortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
+    } else {
+      const catRank: Record<string, number> = { PROTECTION: 0, PAID: 1, ATTACHMENT: 2, SPEC: 3 };
+      sorted.sort((a, b) => {
+        const ra = catRank[a.category] ?? 9;
+        const rb = catRank[b.category] ?? 9;
+        if (ra !== rb) return ra - rb;
+        return (a.name || '').localeCompare(b.name || '', 'ko', { numeric: true, sensitivity: 'base' });
+      });
     }
     return sorted;
   }, [standardOptions, masterSortConfig]);
@@ -454,6 +462,16 @@ export const SiteOptionManage: React.FC = () => {
         }
       }
     }
+
+    const sortByNameAsc = (a: SiteOptionItem, b: SiteOptionItem) =>
+      (a.name || '').localeCompare(b.name || '', 'ko', { numeric: true, sensitivity: 'base' });
+    paidDisabled.sort(sortByNameAsc);
+    paidEnabled.sort(sortByNameAsc);
+    protection.sort(sortByNameAsc);
+    attachmentDisabled.sort(sortByNameAsc);
+    attachmentEnabled.sort(sortByNameAsc);
+    specDisabled.sort(sortByNameAsc);
+    specEnabled.sort(sortByNameAsc);
 
     return {
       paidDisabledOptions: paidDisabled,

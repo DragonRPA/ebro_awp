@@ -844,5 +844,85 @@
   font-weight: 800 !important;
 }
 
+/* 🟣 부착물 칩 및 배지 (보라색/Violet 고대비 단색 강조) */
+.dispatch4-model-chip.attachment-option {
+  border-color: rgba(139, 92, 246, 0.65) !important;
+  background-color: rgba(76, 29, 149, 0.18) !important;
+  color: #ede9fe !important;
+}
+[data-theme='light'] .dispatch4-model-chip.attachment-option,
+:root:not([data-theme='dark']) .dispatch4-model-chip.attachment-option {
+  border-color: #8b5cf6 !important;
+  background-color: #f5f3ff !important;
+  color: #4c1d95 !important;
+}
+.dispatch4-model-chip.attachment-option:hover {
+  border-color: #8b5cf6 !important;
+  background-color: rgba(91, 33, 182, 0.32) !important;
+}
+[data-theme='light'] .dispatch4-model-chip.attachment-option:hover,
+:root:not([data-theme='dark']) .dispatch4-model-chip.attachment-option:hover {
+  border-color: #7c3aed !important;
+  background-color: #ede9fe !important;
+}
+.dispatch4-model-chip.selected.attachment-option {
+  background-color: #6d28d9 !important;
+  border-color: #8b5cf6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(109, 40, 217, 0.35) !important;
+}
+.dispatch4-qty-badge.attachment {
+  background-color: #7c3aed !important;
+  color: #ffffff !important;
+  border: 1px solid #a78bfa !important;
+  font-weight: 700 !important;
+}
+.dispatch4-model-chip.selected.attachment-option .dispatch4-qty-badge.attachment {
+  background-color: #ffffff !important;
+  color: #6d28d9 !important;
+  border: 1px solid #ede9fe !important;
+  font-weight: 800 !important;
+}
+
+/* 🟠 요구사양 칩 및 배지 (앰버/Amber 고대비 단색 강조 — 옵션 품목 마스터 '요구사양' 배지 색감 일치) */
+.dispatch4-model-chip.spec-option {
+  border-color: rgba(245, 158, 11, 0.65) !important;
+  background-color: rgba(120, 53, 15, 0.2) !important;
+  color: #fef3c7 !important;
+}
+[data-theme='light'] .dispatch4-model-chip.spec-option,
+:root:not([data-theme='dark']) .dispatch4-model-chip.spec-option {
+  border-color: #d97706 !important;
+  background-color: #fffbeb !important;
+  color: #78350f !important;
+}
+.dispatch4-model-chip.spec-option:hover {
+  border-color: #f59e0b !important;
+  background-color: rgba(146, 64, 14, 0.32) !important;
+}
+[data-theme='light'] .dispatch4-model-chip.spec-option:hover,
+:root:not([data-theme='dark']) .dispatch4-model-chip.spec-option:hover {
+  border-color: #b45309 !important;
+  background-color: #fef3c7 !important;
+}
+.dispatch4-model-chip.selected.spec-option {
+  background-color: #b45309 !important;
+  border-color: #f59e0b !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35) !important;
+}
+.dispatch4-qty-badge.spec {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+  border: 1px solid #fbbf24 !important;
+  font-weight: 700 !important;
+}
+.dispatch4-model-chip.selected.spec-option .dispatch4-qty-badge.spec {
+  background-color: #ffffff !important;
+  color: #b45309 !important;
+  border: 1px solid #fef3c7 !important;
+  font-weight: 800 !important;
+}
+
 
 
