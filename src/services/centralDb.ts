@@ -454,18 +454,28 @@ export async function fetchCentralDeveloperDevices(): Promise<any[]> {
     }
   } catch {}
 
-  // 2순위: 중앙 테넌트 원장의 글로벌 메타 조회
+  // 2순위: 중앙 테넌트 원장의 글로벌 메타 조회 (모든 테넌트 행의 인가 목록 통합 병합)
   try {
     const { data: tenantRows } = await centralSupabase
       .from('tenants')
       .select('features')
-      .limit(10);
+      .limit(20);
 
     if (Array.isArray(tenantRows)) {
+      const mergedMap = new Map<string, any>();
       for (const row of tenantRows) {
-        if (row.features && Array.isArray(row.features.developerAuthorizedDevices) && row.features.developerAuthorizedDevices.length > 0) {
-          return row.features.developerAuthorizedDevices;
+        if (row.features && Array.isArray(row.features.developerAuthorizedDevices)) {
+          for (const dev of row.features.developerAuthorizedDevices) {
+            if (!dev) continue;
+            const key = dev.id || dev.deviceId || `${dev.macAddress || ''}_${dev.hardwareFingerprint || ''}`;
+            if (key && !mergedMap.has(key)) {
+              mergedMap.set(key, dev);
+            }
+          }
         }
+      }
+      if (mergedMap.size > 0) {
+        return Array.from(mergedMap.values());
       }
     }
   } catch (err: any) {
@@ -493,30 +503,35 @@ export async function saveCentralDeveloperDevice(device: any): Promise<boolean> 
     if (!error) saved = true;
   } catch {}
 
-  // 2. 중앙 테넌트 글로벌 메타 영구 동기화
+  // 2. 중앙 테넌트 글로벌 메타 영구 동기화 (모든 테넌트 행에 일괄 반영하여 테넌트 간 편차 원천 차단)
   try {
-    const { data: tenantRow } = await centralSupabase
+    const { data: tenantRows } = await centralSupabase
       .from('tenants')
       .select('id, features')
-      .limit(1)
-      .maybeSingle();
+      .limit(20);
 
-    if (tenantRow) {
-      const curFeatures = tenantRow.features || {};
-      const list = Array.isArray(curFeatures.developerAuthorizedDevices) ? [...curFeatures.developerAuthorizedDevices] : [];
-      const idx = list.findIndex((d: any) => d.id === cleanDev.id || (d.macAddress && d.macAddress === cleanDev.macAddress));
-      if (idx >= 0) {
-        list[idx] = { ...list[idx], ...cleanDev };
-      } else {
-        list.unshift(cleanDev);
+    if (Array.isArray(tenantRows)) {
+      for (const tenantRow of tenantRows) {
+        const curFeatures = tenantRow.features || {};
+        const list = Array.isArray(curFeatures.developerAuthorizedDevices) ? [...curFeatures.developerAuthorizedDevices] : [];
+        const idx = list.findIndex(
+          (d: any) =>
+            d.id === cleanDev.id ||
+            (d.hardwareFingerprint && cleanDev.hardwareFingerprint && d.hardwareFingerprint === cleanDev.hardwareFingerprint)
+        );
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...cleanDev };
+        } else {
+          list.unshift(cleanDev);
+        }
+        curFeatures.developerAuthorizedDevices = list;
+        const { error: updErr } = await centralSupabase
+          .from('tenants')
+          .update({ features: curFeatures })
+          .eq('id', tenantRow.id);
+
+        if (!updErr) saved = true;
       }
-      curFeatures.developerAuthorizedDevices = list;
-      const { error: updErr } = await centralSupabase
-        .from('tenants')
-        .update({ features: curFeatures })
-        .eq('id', tenantRow.id);
-
-      if (!updErr) saved = true;
     }
   } catch (err: any) {
     console.warn('[Central DB] Global meta sync warn:', err.message);

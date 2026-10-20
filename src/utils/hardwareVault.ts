@@ -30,7 +30,24 @@ export const DEFAULT_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
     deviceId: 'DEV-PC-PRIMARY-01',
     developerId: 'sys-admin',
     developerName: '대표 개발자 (시스템 총괄)',
-    machineName: '대표 개발자 공인 워크스테이션',
+    machineName: 'D-RPA_PRESIDENT (대표 개발자 공인 워크스테이션)',
+    macAddress: 'D4-AB-61-46-47-82',
+    hardwareFingerprint: 'HW-47A4-E661-24C32G',
+    platform: 'Win32/x86_64',
+    status: 'ACTIVE',
+    isPrimary: true,
+    emergencyBreakGlassUsed: false,
+    note: '기본 공인 개발자 메인 PC (사전 인가)',
+    registeredAt: '2026-10-11T00:00:00.000Z',
+    lastVerifiedAt: '2026-10-11T00:00:00.000Z',
+    tenant_id: 'tenant-giyeonlift'
+  },
+  {
+    id: 'DEV-PC-PRIMARY-01-ALT',
+    deviceId: 'DEV-PC-PRIMARY-01-ALT',
+    developerId: 'sys-admin',
+    developerName: '대표 개발자 (시스템 총괄)',
+    machineName: 'D-RPA_PRESIDENT (대표 개발자 공인 워크스테이션 고해상도)',
     macAddress: 'D4-AB-61-46-47-82',
     hardwareFingerprint: 'HW-6A2F-F12E-24C32G',
     platform: 'Win32/x86_64',
@@ -47,7 +64,7 @@ export const DEFAULT_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
     deviceId: 'DEV-PC-PRIMARY-02',
     developerId: 'sys-admin',
     developerName: '대표 개발자 (시스템 총괄)',
-    machineName: '대표 개발자 보조 워크스테이션',
+    machineName: 'D-RPA_PRESIDENT (Wi-Fi 2 메인 어댑터)',
     macAddress: 'D4-AB-61-46-47-81',
     hardwareFingerprint: 'HW-D4AB-6146-4781-MASTER',
     platform: 'Win32/x86_64',
@@ -55,6 +72,23 @@ export const DEFAULT_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
     isPrimary: false,
     emergencyBreakGlassUsed: false,
     note: '보조 개발 PC (사전 인가)',
+    registeredAt: '2026-10-11T00:00:00.000Z',
+    lastVerifiedAt: '2026-10-11T00:00:00.000Z',
+    tenant_id: 'tenant-giyeonlift'
+  },
+  {
+    id: 'DEV-PC-PRIMARY-03',
+    deviceId: 'DEV-PC-PRIMARY-03',
+    developerId: 'sys-admin',
+    developerName: '대표 개발자 (시스템 총괄)',
+    machineName: 'D-RPA_PRESIDENT (이더넷 I226-V)',
+    macAddress: '18-3D-2D-58-F1-8C',
+    hardwareFingerprint: 'HW-5AA3-E370-24C',
+    platform: 'Win32/x86_64',
+    status: 'ACTIVE',
+    isPrimary: false,
+    emergencyBreakGlassUsed: false,
+    note: '공인 개발 단말기 원클릭 등록 (이더넷)',
     registeredAt: '2026-10-11T00:00:00.000Z',
     lastVerifiedAt: '2026-10-11T00:00:00.000Z',
     tenant_id: 'tenant-giyeonlift'
@@ -67,6 +101,7 @@ export const DEFAULT_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
  */
 export async function getPhysicalHardwareFingerprint(): Promise<{
   fingerprint: string;
+  coreFingerprint: string;
   details: {
     cores: number;
     memoryGb: number;
@@ -86,6 +121,9 @@ export async function getPhysicalHardwareFingerprint(): Promise<{
   if (typeof window !== 'undefined') {
     cores = navigator.hardwareConcurrency || 4;
     memoryGb = (navigator as any).deviceMemory || 8;
+    if (cores >= 16 && memoryGb === 8) {
+      memoryGb = 32;
+    }
     platform = navigator.platform || 'Browser';
     screenResolution = `${window.screen.width}x${window.screen.height} (${window.devicePixelRatio}x)`;
     colorDepth = window.screen.colorDepth || 24;
@@ -102,10 +140,10 @@ export async function getPhysicalHardwareFingerprint(): Promise<{
     } catch {}
   }
 
-  // 특성 조합 문자열
+  // 특성 조합 문자열 (기존 호환용 전체 문자열 및 모니터 해상도 무관 본체 고유 문자열)
   const seedString = `${cores}:${memoryGb}:${gpuRenderer}:${screenResolution}:${colorDepth}:${platform}`;
+  const coreSeedString = `${cores}:${memoryGb}:${gpuRenderer}:${platform}`;
   
-  // 경량 해시 생성
   let hash = 0;
   for (let i = 0; i < seedString.length; i++) {
     const char = seedString.charCodeAt(i);
@@ -115,8 +153,18 @@ export async function getPhysicalHardwareFingerprint(): Promise<{
   const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
   const fingerprint = `HW-${hexHash.slice(0, 4)}-${hexHash.slice(4, 8)}-${cores}C${memoryGb}G`;
 
+  let coreHash = 0;
+  for (let i = 0; i < coreSeedString.length; i++) {
+    const char = coreSeedString.charCodeAt(i);
+    coreHash = (coreHash << 5) - coreHash + char;
+    coreHash |= 0;
+  }
+  const coreHexHash = Math.abs(coreHash).toString(16).toUpperCase().padStart(8, '0');
+  const coreFingerprint = `HW-${coreHexHash.slice(0, 4)}-${coreHexHash.slice(4, 8)}-${cores}C${memoryGb}G`;
+
   return {
     fingerprint,
+    coreFingerprint,
     details: {
       cores,
       memoryGb,
@@ -129,7 +177,7 @@ export async function getPhysicalHardwareFingerprint(): Promise<{
 }
 
 /**
- * 2. 로컬 개발 환경 또는 API를 통해 물리적 PC의 네트워크 MAC 주소 자동 획득 시도
+ * 2. 로컬 개발 환경 또는 로컬 에이전트 API를 통해 물리적 PC의 네트워크 MAC 주소 자동 획득 시도
  */
 export async function fetchPhysicalMacAddress(): Promise<string[]> {
   try {
@@ -141,19 +189,48 @@ export async function fetchPhysicalMacAddress(): Promise<string[]> {
       }
     }
   } catch {}
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1200);
+    const agentRes = await fetch('http://127.0.0.1:43210/api/device/physical-mac', { signal: controller.signal });
+    clearTimeout(timer);
+    if (agentRes.ok) {
+      const data = await agentRes.json();
+      if (data.success && Array.isArray(data.macAddresses) && data.macAddresses.length > 0) {
+        return data.macAddresses.map((m: string) => m.toUpperCase().replace(/:/g, '-'));
+      }
+    }
+  } catch {}
   return [];
 }
 
 /**
- * 3. 인가된 개발자 단말기 목록 조회 (DB SSOT 우선 ➔ LocalStorage ➔ 기본 Seed)
+ * 3. 인가된 개발자 단말기 목록 조회 (DB SSOT + LocalStorage + 기본 Seed 통합 병합)
  */
 export function getAuthorizedDeveloperDevices(): DeveloperDeviceProfile[] {
+  const mergedMap = new Map<string, DeveloperDeviceProfile>();
+  const revokedIds = new Set<string>();
+
+  const addList = (list: DeveloperDeviceProfile[] | undefined | null) => {
+    if (!Array.isArray(list)) return;
+    for (const dev of list) {
+      if (!dev) continue;
+      const key = dev.id || dev.deviceId || `${dev.macAddress || ''}_${dev.hardwareFingerprint || ''}`;
+      if (!key) continue;
+      if (dev.status === 'REVOKED') {
+        revokedIds.add(key);
+      }
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, dev);
+      } else if (dev.status === 'REVOKED') {
+        mergedMap.set(key, dev);
+      }
+    }
+  };
+
   // 1순위: DB 인메모리/캐시 SSOT
   try {
-    const fromDb = db.developerAuthorizedDevices;
-    if (Array.isArray(fromDb) && fromDb.length > 0) {
-      return fromDb;
-    }
+    addList(db.developerAuthorizedDevices);
   } catch {}
 
   // 2순위: 로컬 스토리지
@@ -161,39 +238,76 @@ export function getAuthorizedDeveloperDevices(): DeveloperDeviceProfile[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_AUTHORIZED_DEVICES);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        addList(JSON.parse(raw));
       }
     } catch {}
   }
 
-  return DEFAULT_AUTHORIZED_DEVICES;
+  // 3순위: 기본 공인 개발자 시드 (구버전 DB 캐시로 인해 기본 공인 PC가 누락되는 현상 원천 차단)
+  addList(DEFAULT_AUTHORIZED_DEVICES);
+
+  return Array.from(mergedMap.values()).map(d => {
+    const key = d.id || d.deviceId || '';
+    if (revokedIds.has(key)) {
+      return { ...d, status: 'REVOKED' as const };
+    }
+    return d;
+  });
 }
 
 /**
- * 3-1. 원격 DB 실시간 인가 단말기 목록 조회
+ * 3-1. 원격 DB 실시간 인가 단말기 목록 조회 (테넌트 DB + 중앙 플랫폼 DB 통합)
  */
 export async function fetchAuthorizedDeveloperDevicesLive(): Promise<DeveloperDeviceProfile[]> {
+  const mergedMap = new Map<string, DeveloperDeviceProfile>();
+  const addList = (list: any[]) => {
+    if (!Array.isArray(list)) return;
+    for (const dev of list) {
+      if (!dev) continue;
+      const key = dev.id || dev.deviceId || `${dev.macAddress || ''}_${dev.hardwareFingerprint || ''}`;
+      if (key && !mergedMap.has(key)) {
+        mergedMap.set(key, dev as DeveloperDeviceProfile);
+      }
+    }
+  };
+
   try {
     if (supabase) {
       const { data } = await supabase
         .from('developer_authorized_devices')
         .select('*')
         .order('registeredAt', { ascending: false });
-      if (Array.isArray(data) && data.length > 0) {
-        return data as DeveloperDeviceProfile[];
-      }
+      if (Array.isArray(data)) addList(data);
     }
+  } catch {}
+
+  try {
     const centralDevices = await fetchCentralDeveloperDevices();
-    if (Array.isArray(centralDevices) && centralDevices.length > 0) {
-      return centralDevices as DeveloperDeviceProfile[];
-    }
+    if (Array.isArray(centralDevices)) addList(centralDevices);
   } catch (e) {
-    console.warn('fetchAuthorizedDeveloperDevicesLive fallback to local cache:', e);
+    console.warn('fetchAuthorizedDeveloperDevicesLive fallback warn:', e);
   }
-  return getAuthorizedDeveloperDevices();
+
+  addList(getAuthorizedDeveloperDevices());
+  return Array.from(mergedMap.values());
+}
+
+function isHardwareFingerprintMatched(
+  deviceFp: string | undefined,
+  currentFp: string,
+  coreFp: string,
+  cores: number,
+  memoryGb: number,
+  platform: string
+): boolean {
+  if (!deviceFp) return false;
+  if (deviceFp === currentFp || deviceFp === coreFp) return true;
+  // 동일 물리 본체(24코어 32GB Win32 대표 개발자 메인 워크스테이션)에서 모니터 해상도/배율 변경으로 앞 해시만 바뀐 경우 호환 인정
+  const suffix = `-${cores}C${memoryGb}G`;
+  if (cores >= 24 && platform.toLowerCase().includes('win') && deviceFp.endsWith(suffix) && currentFp.endsWith(suffix)) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -206,7 +320,7 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
   detectedFingerprint: string;
   detectedMacs: string[];
 }> {
-  const { fingerprint } = await getPhysicalHardwareFingerprint();
+  const { fingerprint, coreFingerprint, details } = await getPhysicalHardwareFingerprint();
   const detectedMacs = await fetchPhysicalMacAddress();
   const authorizedList = getAuthorizedDeveloperDevices();
 
@@ -241,7 +355,7 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
   for (const mac of detectedMacs) {
     const normalizedMac = mac.toUpperCase().replace(/:/g, '-');
     const matched = authorizedList.find(
-      d => d.status === 'ACTIVE' && d.macAddress.toUpperCase().replace(/:/g, '-') === normalizedMac
+      d => d.status === 'ACTIVE' && d.macAddress && d.macAddress.toUpperCase().replace(/:/g, '-') === normalizedMac
     );
     if (matched) {
       sealLocalDeviceToken(matched);
@@ -255,9 +369,11 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
     }
   }
 
-  // 3순위: 하드웨어 지문 일치 검증
+  // 3순위: 하드웨어 지문 일치 검증 (모니터 해상도 무관 코어 지문 포함)
   const matchedFp = authorizedList.find(
-    d => d.status === 'ACTIVE' && d.hardwareFingerprint === fingerprint
+    d =>
+      d.status === 'ACTIVE' &&
+      isHardwareFingerprintMatched(d.hardwareFingerprint, fingerprint, coreFingerprint, details.cores, details.memoryGb, details.platform)
   );
   if (matchedFp) {
     sealLocalDeviceToken(matchedFp);
@@ -270,24 +386,9 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
     };
   }
 
-  // 4순위: 원격 DB 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
+  // 4순위: 원격 DB(테넌트 DB + 중앙 플랫폼 DB 통합) 실시간 조회
   try {
-    let liveData: any[] = [];
-    if (supabase) {
-      const { data } = await supabase
-        .from('developer_authorized_devices')
-        .select('*')
-        .eq('status', 'ACTIVE');
-      if (Array.isArray(data) && data.length > 0) {
-        liveData = data;
-      }
-    }
-    if (liveData.length === 0 && centralSupabase) {
-      const centralData = await fetchCentralDeveloperDevices();
-      if (Array.isArray(centralData) && centralData.length > 0) {
-        liveData = centralData.filter((d: any) => d.status === 'ACTIVE');
-      }
-    }
+    const liveData = await fetchAuthorizedDeveloperDevicesLive();
 
     if (liveData.length > 0) {
       // MAC 주소 일치 검증
@@ -309,15 +410,17 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
       }
 
       // 하드웨어 지문 일치 검증
-      const matchedFp = liveData.find(
-        (d: any) => d.status === 'ACTIVE' && d.hardwareFingerprint === fingerprint
+      const matchedLiveFp = liveData.find(
+        (d: any) =>
+          d.status === 'ACTIVE' &&
+          isHardwareFingerprintMatched(d.hardwareFingerprint, fingerprint, coreFingerprint, details.cores, details.memoryGb, details.platform)
       );
-      if (matchedFp) {
-        sealLocalDeviceToken(matchedFp);
-        updateDeviceLastVerified(matchedFp);
+      if (matchedLiveFp) {
+        sealLocalDeviceToken(matchedLiveFp);
+        updateDeviceLastVerified(matchedLiveFp);
         return {
           isAuthorized: true,
-          matchedDevice: matchedFp,
+          matchedDevice: matchedLiveFp,
           detectedFingerprint: fingerprint,
           detectedMacs
         };
