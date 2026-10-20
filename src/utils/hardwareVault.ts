@@ -499,7 +499,7 @@ export async function registerAndAuthorizeDeveloperDevice(params: {
   if (!macRegex.test(cleanMac)) {
     return {
       success: false,
-      error: '올바른 물리 MAC 주소 형식이 아닙니다 (예: D4-AB-61-46-47-82).'
+      error: '올바른 물리 네트워크 주소 형식이 아닙니다.'
     };
   }
 

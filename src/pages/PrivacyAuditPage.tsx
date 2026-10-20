@@ -1338,7 +1338,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   type="text"
                   value={regMacAddress}
                   onChange={(e) => setRegMacAddress(e.target.value.toUpperCase())}
-                  placeholder="형식: D4-AB-61-46-47-82"
+                  placeholder="물리 네트워크 주소 입력"
                   required
                   style={{
                     padding: '8px 10px',
@@ -1363,7 +1363,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   type="password"
                   value={regMasterKey}
                   onChange={(e) => setRegMasterKey(e.target.value)}
-                  placeholder="공인 보안키 입력 (기본: ebro-dev-master-2026!)"
+                  placeholder="사전 인가된 마스터 보안키 입력"
                   required
                   style={{
                     padding: '8px 10px',

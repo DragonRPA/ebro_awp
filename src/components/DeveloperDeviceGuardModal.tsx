@@ -384,7 +384,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
                 type="text"
                 value={macAddress}
                 onChange={e => setMacAddress(e.target.value.toUpperCase())}
-                placeholder="예: D4-AB-61-46-47-82"
+                placeholder="물리 네트워크 주소 입력"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -408,7 +408,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
                 type="text"
                 value={developerName}
                 onChange={e => setDeveloperName(e.target.value)}
-                placeholder="예: 이정용 (대표개발자)"
+                placeholder="담당 개발자 성명 입력"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
