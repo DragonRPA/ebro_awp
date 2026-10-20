@@ -3241,6 +3241,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const createdCa = db.insertRow<ContractAsset>('contractAssets', {
           contractId: contract.id,
           assetId: '',
+          status: 'ASSIGNED',
           expectedModel: eq.modelName,
           monthlyRentalFee: determinedMonthly,
           dailyRentalFee: determinedDaily,
@@ -3436,11 +3437,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
     const targetCas = db.contractAssets.filter(ca => deliveryCaIds.includes(ca.id));
     const hasRentedAsset = targetCas.some(ca => {
-      if (ca.status === 'RENTED') return true;
-      if (ca.assetId) {
-        const a = db.assets.find(as => as.id === ca.assetId);
-        if (a?.status === 'RENTED') return true;
-      }
+      // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 RENTED(대여중)인 경우만 검수 완료로 간주
+      if (!ca.assetId) return false;
+      const a = db.assets.find(as => as.id === ca.assetId);
+      if (a?.status === 'RENTED') return true;
       return false;
     });
 

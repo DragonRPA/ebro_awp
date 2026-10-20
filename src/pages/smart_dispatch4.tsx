@@ -5416,10 +5416,23 @@ export const SmartDispatch4: React.FC = () => {
       // 장비 목록 및 단가 / 할당 현황 복원
       const allCaIds: string[] = [];
       const equipmentItems: { modelName: string; qty: number; monthlyRate: number; dailyRate: number; assignedAssets: string[]; unassignedCount: number }[] = [];
+      const deliveryDirectInspections = outboundInspections.filter(ins => ins.deliveryId === d.id);
 
       if (parsedCargo.length > 0) {
         parsedCargo.forEach(ci => {
-          const caIds: string[] = Array.isArray(ci.contractAssetIds) ? ci.contractAssetIds : [];
+          const caIds: string[] = Array.isArray(ci.contractAssetIds) ? [...ci.contractAssetIds] : [];
+          // cargoItems에 contractAssetIds가 없었던 초기 배차 건은 outboundInspections(deliveryId 매칭)에서 역추적 보완
+          if (caIds.length === 0 && deliveryDirectInspections.length > 0) {
+            deliveryDirectInspections.forEach(ins => {
+              const caId = (ins as any).contractAssetId;
+              if (caId && !caIds.includes(caId)) {
+                const caObj = contractAssets.find(ca => ca.id === caId);
+                if (!caObj || !ci.modelName || caObj.expectedModel === ci.modelName) {
+                  caIds.push(caId);
+                }
+              }
+            });
+          }
           allCaIds.push(...caIds);
           const matchedCas = caIds.map(id => contractAssets.find(ca => ca.id === id)).filter(Boolean);
           const firstCa = matchedCas[0];
@@ -5516,22 +5529,19 @@ export const SmartDispatch4: React.FC = () => {
           ? '신규고객 출고'
           : '기존현장 출고';
 
-      // 출고검수 상태 확인
+      // 출고검수 상태 확인 (반드시 장비가 실제 할당된 경우에만 검수 진행/완료 성립)
       const matchedInspections = outboundInspections.filter(ins =>
         ins.deliveryId === d.id || (ins.contractId === d.contractId && allCaIds.some(caId => (ins as any).contractAssetId === caId))
       );
       const approvedInspCount = matchedInspections.filter(i => (i.status as string) === 'APPROVED' || i.status === 'COMPLETED').length;
-      const hasRentedAsset = allCaIds.some(caId => {
+      const hasRentedAsset = totalAssignedCount > 0 && allCaIds.some(caId => {
         const ca = contractAssets.find(c => c.id === caId);
-        if (!ca) return false;
-        if (ca.status === 'RENTED') return true;
-        if (ca.assetId) {
-          const a = assets.find(as => as.id === ca.assetId);
-          if (a?.status === 'RENTED') return true;
-        }
+        if (!ca || !ca.assetId) return false;
+        const a = assets.find(as => as.id === ca.assetId);
+        if (a?.status === 'RENTED') return true;
         return false;
       });
-      const isInspectionCompleted = approvedInspCount > 0 || hasRentedAsset;
+      const isInspectionCompleted = totalAssignedCount > 0 && (approvedInspCount > 0 || hasRentedAsset);
       const canCancelRequest = d.status !== 'CANCELLED' && !isInspectionCompleted;
 
       return {
@@ -5904,13 +5914,17 @@ export const SmartDispatch4: React.FC = () => {
                           <td style={{ textAlign: 'center' }}>
                             {row.dispatchStatus === 'CANCELLED' ? (
                               <span className="text-[11px] text-slate-500 font-bold whitespace-nowrap">-</span>
+                            ) : row.totalAssignedCount === 0 ? (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-900 text-slate-400 border border-slate-700 whitespace-nowrap">
+                                할당대기
+                              </span>
                             ) : row.isInspectionCompleted ? (
                               <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 whitespace-nowrap">
                                 검수완료
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
-                                검수전
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-950 text-amber-300 border border-amber-800 whitespace-nowrap">
+                                검수대기
                               </span>
                             )}
                           </td>
@@ -6004,13 +6018,17 @@ export const SmartDispatch4: React.FC = () => {
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 whitespace-nowrap">
                             취소됨
                           </span>
+                        ) : selectedRow.totalAssignedCount === 0 ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-400 border border-slate-700 whitespace-nowrap">
+                            장비 할당대기
+                          </span>
                         ) : selectedRow.isInspectionCompleted ? (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 whitespace-nowrap">
                             출고검수 완료
                           </span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 whitespace-nowrap">
-                            출고검수 전
+                            출고검수 대기
                           </span>
                         )}
                       </div>
