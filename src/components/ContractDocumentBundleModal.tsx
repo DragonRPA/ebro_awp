@@ -192,18 +192,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   const [customInspectorName, setCustomInspectorName] = useState<string>('');
 
   const defaultInspectorName = useMemo(() => {
-    if (selectedContract && outboundInspections && outboundInspections.length > 0) {
-      const insp = outboundInspections.find(
-        i => i.contractId === selectedContract.id && (i.inspectorId || (i as any).inspectorName || (i as any).completedByName)
-      );
-      if (insp) {
-        const matchedUser = insp.inspectorId ? users?.find(u => u.id === insp.inspectorId) : null;
-        const resolved = matchedUser?.name || (insp as any).inspectorName || (insp as any).completedByName;
-        if (resolved) return String(resolved).trim();
-      }
-    }
     return '김관주';
-  }, [selectedContract, outboundInspections, users]);
+  }, []);
 
   useEffect(() => {
     setCustomInspectionDate(defaultInspectionDate);
@@ -222,17 +212,18 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     }
     
     return caList.map(ca => {
-      const a = assets.find(ast => ast.id === ca.assetId);
+      const a = assets.find(ast => ast.id === ca.assetId) || db.assets.find(ast => ast.id === ca.assetId);
       const rawModel = a?.modelName || ca.expectedModel || 'GS-2646';
       const upperModel = rawModel.trim().toUpperCase();
       const canonicalModel = getCanonicalModelKey(rawModel);
 
       // 💡 1. 모델 마스터(Product) 조회 (정확 일치 -> 대소문자 무관 -> 축약명 -> 정규화 키 순)
+      const allProducts = products.length > 0 ? products : db.products;
       const prod =
-        products.find(p => p.modelName === rawModel) ||
-        products.find(p => (p.modelName || '').trim().toUpperCase() === upperModel) ||
-        products.find(p => p.shortName && p.shortName.trim().toUpperCase() === upperModel) ||
-        products.find(p => getCanonicalModelKey(p.modelName) === canonicalModel);
+        allProducts.find(p => p.modelName === rawModel) ||
+        allProducts.find(p => (p.modelName || '').trim().toUpperCase() === upperModel) ||
+        allProducts.find(p => p.shortName && p.shortName.trim().toUpperCase() === upperModel) ||
+        allProducts.find(p => getCanonicalModelKey(p.modelName) === canonicalModel);
 
       const preset =
         PRESET_PRODUCT_SPECS[prod?.modelName || ''] ||
@@ -256,11 +247,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         ? (/^\d{4}$/.test(rawYear) ? `${rawYear}년` : rawYear)
         : '-';
 
-      const assetInsp = outboundInspections?.find(
-        i => (i.contractAssetId && i.contractAssetId === ca.id) || (i.contractId === selectedContract.id && i.assetId === ca.assetId)
-      );
-      const inspUser = assetInsp?.inspectorId ? users?.find(u => u.id === assetInsp.inspectorId) : null;
-      const assetInspector = customInspectorName.trim() || inspUser?.name || (assetInsp as any)?.inspectorName || defaultInspectorName;
+      const assetInspector = customInspectorName.trim() || defaultInspectorName;
       // 💡 02.반입전체크리스트 {점검일시} 값은 03.안전점검결과서 {{배차일)-2} 또는 {지정} 값과 100% 동일한 값 사용
       const unifiedInspectionDate = customInspectionDate || defaultInspectionDate;
 
@@ -272,9 +259,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         rentalFee: ca.monthlyRentalFee || a?.monthlyRentalFee || 0,
         inspectionDate: unifiedInspectionDate,
         inspectorName: assetInspector,
-        // [모델별 정보 (Product)]
+        // [자산별 제조사 최우선 -> 모델별 정보 (Product)]
         modelName: model,
-        manufacturer: prod?.manufacturer || preset?.manufacturer || a?.manufacturer || '-',
+        manufacturer: a?.manufacturer || prod?.manufacturer || preset?.manufacturer || '-',
         powerSource: prod?.powerSource || preset?.powerSource || '배터리',
         weight: prod?.weight || preset?.weight || '-',
         speed: prod?.speed || preset?.speed || '-',
@@ -285,7 +272,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         certDate: resolvedCertDate
       };
     });
-  }, [selectedContract, contractAssets, assets, products, filterDate, outboundInspections, users, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
+  }, [selectedContract, contractAssets, assets, products, filterDate, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
 
   // 고유 모델 목록
   const uniqueModelList = useMemo(() => {

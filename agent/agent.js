@@ -365,13 +365,12 @@ if (${assets.length} -gt 12) {
 ` + assets.map((ast, idx) => {
   const row = 44 + idx;
   const aModel = ast.modelName || 'GS-2646';
-  const aSn = ast.sn ? String(ast.sn) : '';
   const aNo = ast.assetNo || '';
   const aFee = (ast.rentalFee || 480000).toLocaleString();
   return `
 $wsContract.Cells.Item(${row}, 1).Value2 = "${aModel}"
 $wsContract.Cells.Item(${row}, 3).Value2 = "1"
-$wsContract.Cells.Item(${row}, 4).Value2 = "${aSn}\`r\`n${aNo}"
+$wsContract.Cells.Item(${row}, 4).Value2 = "${aNo}"
 $wsContract.Cells.Item(${row}, 5).Value2 = "${aFee}"
 $wsContract.Cells.Item(${row}, 7).Value2 = "${aFee}"
 `;
@@ -427,7 +426,7 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     $assetNo = if ($asset.assetNo) { "$($asset.assetNo)" } else { "-" }
     $assetSn = if ($asset.sn -and "$($asset.sn)" -ne "-") { "$($asset.sn)" } else { "" }
     $assetVehicleNo = if ($assetSn) { "$assetNo ($assetSn)" } else { "$assetNo" }
-    $assetMfg = if ($asset.manufacturer -and "$($asset.manufacturer)" -ne "-") { "$($asset.manufacturer)" } else { "SINOBOOM" }
+    $assetMfg = if ($asset.manufacturer -and "$($asset.manufacturer)" -ne "-") { "$($asset.manufacturer)" } else { "-" }
     $assetPower = if ($asset.powerSource -and "$($asset.powerSource)" -ne "-") { "$($asset.powerSource)" } else { "배터리" }
     $assetWeight = if ($asset.weight -and "$($asset.weight)" -ne "-") { "$($asset.weight)" } else { "-" }
     $assetSpeed = if ($asset.speed -and "$($asset.speed)" -ne "-") { "$($asset.speed)" } else { "-" }

@@ -1,11 +1,11 @@
 {
-  "version": "v2.0.0.Build.13",
-  "buildTime": "2026-10-19T09:02:00.000Z",
+  "version": "v2.0.0.Build.14",
+  "buildTime": "2026-10-20T12:15:00.000Z",
   "coreUrl": "https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/engine.dat",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "certUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/downloads/eBroAgent_Root.cer",
-  "changelog": "계약서 패키지 엑셀 시트 교체 무결성 방어 로직 탑재 및 원격 자동 업데이트 주기 단축",
+  "changelog": "계약서 장비번호 제조번호(SN) 제거, 점검자 기본값 김관주 고정, 안전점검결과서 제조사 자산정보 최우선 적용",
   "minCompatibleVersion": "v2.0.0.Build.1",
-  "fileSize": "2.1MB (core) / 24MB (installer)"
+  "fileSize": "2.2MB (core) / 24MB (installer)"
 }

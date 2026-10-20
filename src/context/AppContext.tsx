@@ -1155,7 +1155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'field_as':             ['repairs', 'assets', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'siteMasters', 'contracts'],
     'smart_as_request':     ['repairs', 'customers', 'sites', 'siteMasters', 'contracts', 'contractAssets', 'assets'],
     'repair':               ['repairs', 'assets', 'consumables', 'repairConsumables', 'mechanicConsumableStocks', 'vendors'],
-    'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'sites', 'siteMasters', 'standardOptions', 'assets'],
+    'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'sites', 'siteMasters', 'standardOptions', 'assets', 'products', 'deliveries'],
     'billing':              ['billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'bankTransactions', 'contracts', 'customers'],
     'customer':             ['customers', 'contacts', 'sites', 'siteMasters', 'standardOptions'],
     'site_options':         ['siteMasters', 'sites', 'standardOptions', 'customers', 'contracts', 'assets'],
