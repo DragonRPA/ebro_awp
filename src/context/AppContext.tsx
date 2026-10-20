@@ -9779,98 +9779,29 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const delivery = db.deliveries.find(d => d.id === deliveryId);
     if (!delivery) return;
 
+    const nowIso = new Date().toISOString();
+    // [헌장 1.3 준수] 배차 단계에서는 배차 상태만 마감(DELIVERED) 처리하며,
+    // 자산 상태(RENTED/AVAILABLE) 전환 및 입출고 실적 로그(assetInOutLogs) 기록은
+    // 오직 [출고 검수 승인] 및 [입고 검수 등록] 시점에만 해당 대상 장비에 대해 1:1로 수행한다.
     db.updateRow<Delivery>('deliveries', deliveryId, {
-      status: 'COMPLETED',
-      updatedAt: new Date().toISOString()
+      status: 'DELIVERED',
+      loadingCompletedAt: delivery.loadingCompletedAt || nowIso,
+      updatedAt: nowIso
     });
 
-    const contract = delivery.contractId ? db.contracts.find(c => c.id === delivery.contractId) : null;
-    const customer = contract ? db.customers.find(c => c.id === contract.customerId) : null;
-    const site = contract ? db.sites.find(s => s.id === contract.siteId) : null;
-
-    // INBOUND (회수) 완료 시 장비를 대기중(AVAILABLE)으로 복원 및 계약 완료 처리
-    if (delivery.type === 'INBOUND' && delivery.contractId) {
-      const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
-      cAssets.forEach(ca => {
-        if (ca.assetId) {
-          const asset = db.assets.find(a => a.id === ca.assetId);
-          db.updateRow<Asset>('assets', ca.assetId, {
-            status: 'AVAILABLE',
-            currentCustomerId: '',
-            currentSiteId: '',
-            contractStart: '',
-            contractEnd: '',
-            monthlyRentalFee: 0,
-            dailyRentalFee: 0,
-            updatedAt: new Date().toISOString()
-          });
-
-          if (asset) {
-            // 입고 이력 추가 (기본 점수 0, 특이사항 없음)
-            db.insertRow<AssetInOutLog>('assetInOutLogs', {
-              assetId: asset.id,
-              assetNo: asset.assetNo,
-              modelName: asset.modelName,
-              type: 'INBOUND',
-              eventDate: new Date().toISOString().split('T')[0],
-              customerId: contract?.customerId,
-              customerName: customer?.name || '',
-              siteId: contract?.siteId,
-              siteName: site?.name || '',
-              deliveryId: deliveryId,
-              maintenanceScore: asset.maintenanceScore || 0,
-              memo: '일반 배차 반납 입고',
-              createdAt: new Date().toISOString()
-            });
-          }
-        }
-      });
-
-      db.updateRow<Contract>('contracts', delivery.contractId, {
-        status: 'COMPLETED',
-        updatedAt: new Date().toISOString()
-      });
-    }
-
-    // OUTBOUND (출고) 완료 시 계약 활성화 및 출고 이력 생성
-    if (delivery.type === 'OUTBOUND' && delivery.contractId) {
-      if (contract && contract.status !== 'COMPLETED') {
+    if ((delivery.type === 'OUTBOUND' || delivery.type === 'EXCHANGE') && delivery.contractId) {
+      const contract = db.contracts.find(c => c.id === delivery.contractId);
+      if (contract && contract.status !== 'COMPLETED' && contract.status !== 'ACTIVE') {
         db.updateRow<Contract>('contracts', delivery.contractId, {
           status: 'ACTIVE',
-          updatedAt: new Date().toISOString()
-        });
-
-        // OUTBOUND 로그 추가 (중복 방지 가드)
-        const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
-        cAssets.forEach(ca => {
-          if (ca.assetId) {
-            const asset = db.assets.find(a => a.id === ca.assetId);
-            if (asset) {
-              const alreadyLogged = db.assetInOutLogs.some(
-                l => l.assetId === asset.id && l.type === 'OUTBOUND' && l.deliveryId === deliveryId
-              );
-              if (!alreadyLogged) {
-                db.insertRow<AssetInOutLog>('assetInOutLogs', {
-                  assetId: asset.id,
-                  assetNo: asset.assetNo,
-                  modelName: asset.modelName,
-                  type: 'OUTBOUND',
-                  eventDate: delivery.scheduledDate || new Date().toISOString().split('T')[0],
-                  customerId: contract.customerId,
-                  customerName: customer?.name || '',
-                  siteId: contract.siteId,
-                  siteName: site?.name || '',
-                  deliveryId: deliveryId,
-                  createdAt: new Date().toISOString()
-                });
-              }
-            }
-          }
+          updatedAt: nowIso
         });
       }
     }
 
-    await db.awaitPendingWrites(); refreshAllData(); };
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
 
   const completeInboundDelivery = async (
     deliveryId: string,
