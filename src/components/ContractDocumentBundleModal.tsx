@@ -250,10 +250,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         extractCertDateFromText(preset?.safetyCertUrl) ||
         '-';
 
-      // 💡 3. 자산별 제조연도(연식): Asset 대장의 manufactureYear 사용 ('2025' -> '2025년')
-      const rawYear = a?.manufactureYear ? String(a.manufactureYear).trim() : '';
+      // 💡 3. 자산별 제조연도(연식): Asset 대장의 manufactureYear 사용 ('2025' -> '2025년', '2026년7월' -> '2026년7월')
+      const rawYear = a?.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
       const resolvedManufactureYear = rawYear
-        ? (rawYear.endsWith('년') ? rawYear : `${rawYear}년`)
+        ? (/^\d{4}$/.test(rawYear) ? `${rawYear}년` : rawYear)
         : '-';
 
       const assetInsp = outboundInspections?.find(

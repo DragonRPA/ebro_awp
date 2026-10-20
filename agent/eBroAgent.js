@@ -833,15 +833,52 @@ async function executeContractBundleInternal(payload) {
       return MODEL_SAFETY_CERT_DATES[normKey(modelName)] || null;
     };
 
+    const PRESET_SPECS = (() => {
+      try { return require('../src/data/presetProductSpecs.json'); } catch (e) { return {}; }
+    })();
+
+    const findPresetSpec = (modelName) => {
+      if (!modelName) return null;
+      const upper = String(modelName).trim().toUpperCase();
+      if (PRESET_SPECS[modelName]) return PRESET_SPECS[modelName];
+      if (PRESET_SPECS[upper]) return PRESET_SPECS[upper];
+      const targetNorm = normKey(modelName);
+      for (const [k, v] of Object.entries(PRESET_SPECS)) {
+        if (normKey(k) === targetNorm || (v.shortName && normKey(v.shortName) === targetNorm)) {
+          return v;
+        }
+      }
+      return null;
+    };
+
     const assets = rawAssets.map(a => {
       const mName = a.modelName || 'GTJZ0608ME';
-      const rawCert = (a.safetyCertDate && a.safetyCertDate !== '-') ? a.safetyCertDate : ((a.certDate && a.certDate !== '-') ? a.certDate : null);
-      const resolvedCert = rawCert || extractDateFromCertFiles(mName) || '-';
-      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim() : '';
-      const resolvedYr = rawYr && rawYr !== '-' ? (rawYr.endsWith('년') ? rawYr : `${rawYr}년`) : '-';
+      const preset = findPresetSpec(mName);
+      const certFromFiles = extractDateFromCertFiles(mName) || (preset && preset.safetyCertDate) || null;
+      // 구버전 프론트엔드가 비-GS-2646 모델에 하드코딩 기본값 '2010-12-29'를 보낸 경우 모델 실제 인증일로 우선 교정
+      const incomingCert = (a.safetyCertDate && a.safetyCertDate !== '-')
+        ? a.safetyCertDate
+        : ((a.certDate && a.certDate !== '-' && !(a.certDate === '2010-12-29' && normKey(mName) !== 'GS2646')) ? a.certDate : null);
+      const resolvedCert = incomingCert || certFromFiles || '-';
+
+      // 제조연도: '2025' (4자리 숫자만 있는 경우) -> '2025년', '2025년' 또는 '2026년7월' -> 그대로 유지 ('년월년' 방지)
+      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
+      const resolvedYr = rawYr && rawYr !== '-'
+        ? (/^\d{4}$/.test(rawYr) ? `${rawYr}년` : rawYr)
+        : '-';
+
+      const pickSpec = (val, fallbackVal) => (val && val !== '-') ? val : (fallbackVal || '-');
+
       return {
         ...a,
-        modelName: mName,
+        modelName: (preset && preset.modelName) || mName,
+        manufacturer: pickSpec(a.manufacturer, preset && preset.manufacturer),
+        powerSource: pickSpec(a.powerSource, (preset && preset.powerSource) || '배터리'),
+        weight: pickSpec(a.weight, preset && preset.weight),
+        speed: pickSpec(a.speed, preset && preset.speed),
+        workingHeight: pickSpec(a.workingHeight, preset && preset.workingHeight),
+        platformHeight: pickSpec(a.platformHeight, preset && preset.platformHeight),
+        capacityPreExt: pickSpec(a.capacityPreExt, preset && preset.capacityPreExt),
         manufactureYear: resolvedYr,
         safetyCertDate: resolvedCert,
         certDate: resolvedCert
@@ -936,10 +973,9 @@ $wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
 
 # --- 2. 계약서 데이터 주입 (Sheet 1) ---
 Replace-Tag $wsContract "{Today}" "${contractDate}"
-Replace-Tag $wsContract "{테넌트}" "${tenantCorp}"
 Replace-Tag $wsContract "(주)기연리프트" "${tenantCorp}"
 Replace-Tag $wsContract "주식회사 기연리프트" "${tenantCorp}"
-Replace-Tag $wsContract "기연리프트" "${tenantName}"
+Replace-Tag $wsContract "{테넌트}" "${tenantCorp}"
 ${tenantBizNo ? `Replace-Tag $wsContract "138-81-83251" "${tenantBizNo}"` : ''}
 ${tenantRepName ? `Replace-Tag $wsContract "이수용" "${tenantRepName}"` : ''}
 ${tenantBankAccount ? `Replace-Tag $wsContract "{입금계좌}" "${tenantBankAccount}"` : ''}
@@ -1026,9 +1062,9 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     $assetInspDate = "${inspectionDate}"
     $assetInspName = if ($asset.inspectorName) { "$($asset.inspectorName)" } else { "${inspectorName}" }
 
-    Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
     Replace-Tag $curChecklist "(주)기연리프트" "${tenantCorp}"
-    Replace-Tag $curChecklist "기연리프트" "${tenantName}"
+    Replace-Tag $curChecklist "주식회사 기연리프트" "${tenantCorp}"
+    Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
     Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
     Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
     Replace-Tag $curChecklist "{점검일시}" "$assetInspDate"
@@ -1061,9 +1097,9 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
     Replace-Tag $curSafety "{제조사}" "$assetMfg"
-    Replace-Tag $curSafety "{테넌트}" "${tenantCorp}"
     Replace-Tag $curSafety "(주)기연리프트" "${tenantCorp}"
-    Replace-Tag $curSafety "기연리프트" "${tenantName}"
+    Replace-Tag $curSafety "주식회사 기연리프트" "${tenantCorp}"
+    Replace-Tag $curSafety "{테넌트}" "${tenantCorp}"
     Replace-Tag $curSafety "{고객명}" "${custName}"
     Replace-Tag $curSafety "{동력방식}" "$assetPower"
     Replace-Tag $curSafety "{모델명}" "$assetModel"
