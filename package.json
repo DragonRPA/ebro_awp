@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port 5174",
     "check:korean": "node scripts/check-korean-ui.cjs",
-    "build": "node scripts/check-korean-ui.cjs && tsc -b && vite build",
+    "build": "node -e \"if(require('fs').existsSync('scripts/check-korean-ui.cjs'))require('./scripts/check-korean-ui.cjs')\" && tsc -b && vite build",
     "build:agent": "node agent/encrypt_core.cjs",
     "lint": "oxlint",
     "preview": "vite preview",

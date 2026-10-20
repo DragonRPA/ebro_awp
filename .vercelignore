@@ -6,7 +6,8 @@ dist
 dist-ssr
 node_modules
 scratch
-scripts
+scripts/*
+!scripts/check-korean-ui.cjs
 src/tests
 public/downloads/eBroAgent.exe
 public/downloads/*.zip

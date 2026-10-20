@@ -311,9 +311,12 @@ pm run build)을 통해 무결성을 검증한다.
 - **UIA 4대 불변식 및 Gutenberg Z-패턴 설계 계승**:
   - 모든 신규 화면 및 기존 화면 유지보수 시 본 SSOT에 선언된 [UI 아키타입(유형 A / B / C)], [Gutenberg Z-패턴 4단계(Scope ➔ Pipeline ➔ Inspection ➔ Terminal Action)], [4대 헌장 가드레일(출고검수 승인 RENTED 전환, 단일 EXCHANGE 발행, 일할 기여액 대차 차액 ₩0, 무음 실패 방지)]을 100% 동일하게 추종하고 유지해야 한다.
 
-### 9.3 배포 무결성 사전 검증 및 변명 배제 원칙 (Pre-Push Build Gate & Zero-Excuse Standard)
+### 9.3 배포 무결성 사전·사후 검증 및 변명 배제 원칙 (Pre-Push Build Gate, Post-Push Ready Verification & Zero-Excuse Standard)
 - **`tsc --noEmit` 단독 검증 영구 금지 ➔ `npm run build` (`tsc -b && vite build`) 필수 실행**:
   - 루트 `tsconfig.json`이 Project References 구조이므로 `tsc --noEmit`은 아무 파일도 검사하지 않는다. 커밋 및 푸시 전에는 반드시 Vercel 프로덕션 빌드와 동일한 `npm run build` (`tsc -b && vite build`)를 실행하여 `exit code 0`을 확인한다.
+- **`.vercelignore` 정합성 및 푸시 후 Vercel `● Ready` 실측 확인 의무**:
+  - `package.json`의 `build` 스크립트에서 참조하는 파일이 `.vercelignore`에 의해 제외되지 않는지 반드시 검증한다.
+  - `git push origin main` 수행 후 로컬 빌드 통과만으로 배포 완료를 단정하지 않으며, 반드시 `npx vercel ls`를 통해 실제 원격 Vercel 배포 슬롯이 `● Ready` 상태에 도달했음을 확인(Error 슬롯은 헌장 6.3에 따라 즉시 삭제)한 뒤 보고한다.
 - **스테이징 원자성(Atomic Commit) 검증 및 Git Pre-Push 훅 강제**:
   - 커밋 전 `git status` 및 `git diff --staged`를 확인하여 연관 파일 누락이나 미완성 코드 혼입을 원천 차단한다.
   - `.git/hooks/pre-push`에 `npm run build` 게이트를 상시 활성화하여, 빌드가 실패한 코드는 물리적으로 `git push`가 거부되도록 강제한다.
