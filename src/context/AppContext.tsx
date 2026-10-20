@@ -350,13 +350,14 @@ interface AppContextType {
     reason?: string;
   }) => Promise<void>;
   
-  // 장비 할당 및 출고전 교체 / 할당 취소
+  // 장비 할당 및 출고전 교체 / 할당 취소 / 출고요청 취소
   assignAssetToContract: (contractAssetId: string, assetId: string) => Promise<void>;
   batchAssignAssetsToContract: (pairs: { contractAssetId: string; assetId: string }[]) => Promise<void>;
   unassignAssetFromContract: (contractAssetId: string) => Promise<void>;
   batchUnassignAssetsFromContract: (contractAssetIds: string[]) => Promise<void>;
   exchangeOutboundAsset: (contractAssetId: string, oldAssetId: string, newAssetId: string, reason?: string, markOldAsRepairing?: boolean, customPenaltyScore?: number) => Promise<void>;
   saveSmartDispatch: (data: SmartDispatchData, autoRegister: boolean, onProgress?: (log: string, percent: number) => void) => Promise<{ success: boolean; requiresConfirm?: boolean; missingFields?: string[]; errorMessage?: string; contractId?: string; contractNo?: string }>;
+  cancelOutboundRequest: (deliveryId: string, cancelReason?: string) => Promise<{ success: boolean; errorMessage?: string }>;
   saveSmartReturn: (data: SmartReturnData) => Promise<any>;
   
   // Todos & Executive Directives
@@ -3380,6 +3381,222 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     return { success: true, contractId: contract.id, contractNo: contract.contractNo };
+  };
+
+  // 🚫 출고 검수 완료 전 출고 요청 취소 트랜잭션 (장비 할당 해제 + 슬롯 제거 + 배차 CANCELLED + 이력/ToDo 정리)
+  const cancelOutboundRequest = async (deliveryId: string, cancelReason?: string): Promise<{ success: boolean; errorMessage?: string }> => {
+    const targetDelivery = db.deliveries.find(d => d.id === deliveryId);
+    if (!targetDelivery) {
+      showErrorModal('취소할 대상 출고 요청(배차)을 찾을 수 없습니다.');
+      return { success: false, errorMessage: '출고 요청을 찾을 수 없습니다.' };
+    }
+    if (targetDelivery.status === 'CANCELLED') {
+      showErrorModal('이미 취소된 출고 요청입니다.');
+      return { success: false, errorMessage: '이미 취소된 출고 요청입니다.' };
+    }
+
+    // 1. cargoItems에서 contractAssetIds 추출
+    let parsedCargo: any[] = [];
+    try {
+      if (targetDelivery.cargoItems) {
+        const raw = JSON.parse(targetDelivery.cargoItems);
+        if (Array.isArray(raw)) parsedCargo = raw;
+      }
+    } catch {
+      parsedCargo = [];
+    }
+
+    const deliveryCaIds: string[] = [];
+    parsedCargo.forEach(ci => {
+      if (Array.isArray(ci?.contractAssetIds)) {
+        deliveryCaIds.push(...ci.contractAssetIds.filter(Boolean));
+      }
+    });
+
+    // 만약 cargoItems에 contractAssetIds가 없고 해당 계약에 이 배차 1건만 존재하는 초기/레거시 건이라면 계약 전체 슬롯 참조
+    if (deliveryCaIds.length === 0 && targetDelivery.contractId) {
+      const siblingOutboundDeliveries = db.deliveries.filter(
+        d => d.contractId === targetDelivery.contractId && d.id !== targetDelivery.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE')
+      );
+      if (siblingOutboundDeliveries.length === 0) {
+        db.contractAssets
+          .filter(ca => ca.contractId === targetDelivery.contractId)
+          .forEach(ca => deliveryCaIds.push(ca.id));
+      }
+    }
+
+    // 2. 출고 검수 완료 여부 검증 (헌장 1.3: 출고 검수 완료되어 RENTED 전환된 건은 출고 요청 취소 불가)
+    const matchedInsps = db.outboundInspections.filter(ins =>
+      ins.deliveryId === deliveryId ||
+      (deliveryCaIds.length > 0 && ins.contractAssetId && deliveryCaIds.includes(ins.contractAssetId)) ||
+      (deliveryCaIds.length === 0 && targetDelivery.contractId && ins.contractId === targetDelivery.contractId)
+    );
+    const hasCompletedInspection = matchedInsps.some(
+      ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
+    );
+    const targetCas = db.contractAssets.filter(ca => deliveryCaIds.includes(ca.id));
+    const hasRentedAsset = targetCas.some(ca => {
+      if (ca.status === 'RENTED') return true;
+      if (ca.assetId) {
+        const a = db.assets.find(as => as.id === ca.assetId);
+        if (a?.status === 'RENTED') return true;
+      }
+      return false;
+    });
+
+    if (hasCompletedInspection || hasRentedAsset) {
+      const msg = '출고 검수가 이미 완료(대여중 전환)된 출고 요청은 취소할 수 없습니다.\n출고 검수 화면에서 승인 롤백을 먼저 수행하거나 반납/회수 절차를 이용해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가');
+      return { success: false, errorMessage: msg };
+    }
+
+    // 3. 롤백용 스냅샷 백업
+    const deliverySnapshot = { ...targetDelivery };
+    const caSnapshots = targetCas.map(ca => ({ ...ca }));
+    const assetSnapshots: Asset[] = [];
+    const inspSnapshots = matchedInsps.map(i => ({ ...i }));
+    const parentContract = targetDelivery.contractId ? db.contracts.find(c => c.id === targetDelivery.contractId) : undefined;
+    const contractSnapshot = parentContract ? { ...parentContract } : null;
+
+    targetCas.forEach(ca => {
+      if (ca.assetId) {
+        const a = db.assets.find(as => as.id === ca.assetId);
+        if (a) assetSnapshots.push({ ...a });
+      }
+    });
+
+    try {
+      const nowIso = new Date().toISOString();
+      const todayStr = nowIso.split('T')[0];
+      const actorName = currentUser?.name || '담당자';
+      const cleanReason = (cancelReason || '').trim() || '출고 검수 전 요청 취소';
+
+      // 4. 할당된 장비가 있으면 AVAILABLE(임대가능)로 복원
+      for (const ca of targetCas) {
+        if (ca.assetId) {
+          const origAsset = db.assets.find(a => a.id === ca.assetId);
+          if (origAsset) {
+            db.updateRow<Asset>('assets', origAsset.id, {
+              status: 'AVAILABLE',
+              currentCustomerId: null as any,
+              currentSiteId: null as any,
+              contractStart: null as any,
+              contractEnd: null as any,
+              updatedAt: nowIso
+            });
+          }
+        }
+      }
+
+      // 5. 대기 중인 출고 검수 레코드(outboundInspections) 삭제
+      for (const ins of matchedInsps) {
+        db.deleteRow('outboundInspections', ins.id);
+      }
+
+      // 6. 해당 출고 요청으로 생성된 계약 자산 슬롯(contractAssets) 삭제
+      for (const ca of targetCas) {
+        db.deleteRow('contractAssets', ca.id);
+      }
+
+      // 7. 부모 계약(contracts)에 남은 슬롯 확인 및 계약 이력(contractHistory) 기록
+      if (parentContract) {
+        const remainingCas = db.contractAssets.filter(
+          ca => ca.contractId === parentContract.id && !deliveryCaIds.includes(ca.id)
+        );
+        const equipSummary = parsedCargo.map(ci => `${ci.modelName || '장비'} ${ci.count || 1}대`).join(', ');
+
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: parentContract.id,
+          changeType: 'TERMINATE',
+          changeDate: todayStr,
+          prevEndDate: parentContract.endDate || '',
+          newEndDate: todayStr,
+          description: `[출고 요청 취소] 배차번호 ${targetDelivery.id} (${equipSummary || `${targetCas.length}대`}) 출고 검수 전 취소 처리 (처리자: ${actorName}, 사유: ${cleanReason})`,
+          createdAt: nowIso
+        });
+
+        // 남은 계약 자산 슬롯이 0개이고 청구서가 발행되지 않은 신규 계약이라면 계약을 COMPLETED(종료) 마감하여 유령 활성 계약 방지
+        const hasActiveBillings = db.billings.some(b => b.contractId === parentContract.id && b.status !== 'REJECTED');
+        if (remainingCas.length === 0 && !hasActiveBillings) {
+          db.updateRow<Contract>('contracts', parentContract.id, {
+            status: 'COMPLETED',
+            endDate: todayStr,
+            updatedAt: nowIso
+          });
+        }
+      }
+
+      // 8. 배차(deliveries) 상태를 CANCELLED로 업데이트하고 취소 메타 보존
+      const updatedCargo = parsedCargo.map((ci, idx) => {
+        if (idx === 0) {
+          return {
+            ...ci,
+            requestMeta: {
+              ...(ci.requestMeta || {}),
+              cancelledAt: nowIso,
+              cancelledBy: actorName,
+              cancelReason: cleanReason
+            }
+          };
+        }
+        return ci;
+      });
+
+      const cancelClosingNote = `[출고취소 ${todayStr} ${actorName}] 사유: ${cleanReason}`;
+      db.updateRow<Delivery>('deliveries', targetDelivery.id, {
+        status: 'CANCELLED',
+        cargoItems: updatedCargo.length > 0 ? JSON.stringify(updatedCargo) : targetDelivery.cargoItems,
+        closingMemo: targetDelivery.closingMemo
+          ? `${targetDelivery.closingMemo} | ${cancelClosingNote}`
+          : cancelClosingNote,
+        updatedAt: nowIso
+      });
+
+      // 9. 관련 미완료 ToDo 상계 완료 처리
+      const relatedTodos = db.todos.filter(
+        t => !t.isCompleted && (t.entityId === targetDelivery.id || t.relatedEntityId === targetDelivery.id)
+      );
+      relatedTodos.forEach(t => {
+        db.updateRow<Todo>('todos', t.id, {
+          isCompleted: true,
+          completedAt: nowIso,
+          completedByUserId: currentUser?.id,
+          completedByName: actorName,
+          completionAction: 'OUTBOUND_REQUEST_CANCELLED',
+          updatedAt: nowIso
+        });
+      });
+
+      // 10. 원격 DB 동기 대기 및 상태 리프레시 (헌장 5.2)
+      await db.awaitPendingWrites();
+      refreshAllData();
+      return { success: true };
+    } catch (err: any) {
+      console.error('cancelOutboundRequest error & Rollback:', err);
+      // 롤백 복구
+      db.updateRow<Delivery>('deliveries', deliverySnapshot.id, deliverySnapshot);
+      caSnapshots.forEach(ca => {
+        if (!db.contractAssets.some(existing => existing.id === ca.id)) {
+          db.insertRow<ContractAsset>('contractAssets', ca);
+        } else {
+          db.updateRow<ContractAsset>('contractAssets', ca.id, ca);
+        }
+      });
+      assetSnapshots.forEach(a => db.updateRow<Asset>('assets', a.id, a));
+      inspSnapshots.forEach(i => {
+        if (!db.outboundInspections.some(existing => existing.id === i.id)) {
+          db.insertRow<OutboundInspection>('outboundInspections', i);
+        }
+      });
+      if (contractSnapshot) {
+        db.updateRow<Contract>('contracts', contractSnapshot.id, contractSnapshot);
+      }
+      refreshAllData();
+
+      const errMsg = err?.message || err?.details || JSON.stringify(err);
+      showErrorModal(`⚠️ 출고 요청 취소 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '출고 요청 취소 실패');
+      return { success: false, errorMessage: errMsg };
+    }
   };
 
   const saveSmartReturn = async (data: SmartReturnData) => {
@@ -11837,7 +12054,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       requestConsumablePurchase, updatePurchaseUnitPrice, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
       createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
-      saveSmartDispatch, saveSmartReturn,
+      saveSmartDispatch, cancelOutboundRequest, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
       generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,

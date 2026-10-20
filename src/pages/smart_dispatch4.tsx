@@ -160,7 +160,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 export const SmartDispatch4: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
-    saveSmartDispatch, assets, deliveries, standardOptions,
+    saveSmartDispatch, cancelOutboundRequest, assets, deliveries, standardOptions,
     contracts = [],
     contractAssets = [],
     todos = [],
@@ -244,8 +244,18 @@ export const SmartDispatch4: React.FC = () => {
   const [historySearchQuery, setHistorySearchQuery] = useState<string>('');
   const [historyStartDate, setHistoryStartDate] = useState<string>('');
   const [historyEndDate, setHistoryEndDate] = useState<string>('');
-  const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'UNASSIGNED' | 'REQUESTED' | 'DISPATCHED' | 'DELIVERED'>('ALL');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'UNASSIGNED' | 'REQUESTED' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED'>('ALL');
   const [selectedHistoryDeliveryId, setSelectedHistoryDeliveryId] = useState<string | null>(null);
+  const [cancelTargetRow, setCancelTargetRow] = useState<{
+    id: string;
+    contractNo: string;
+    customerName: string;
+    siteName: string;
+    equipSummary: string;
+    totalAssignedCount: number;
+  } | null>(null);
+  const [cancelReasonInput, setCancelReasonInput] = useState<string>('');
+  const [isCancellingRequest, setIsCancellingRequest] = useState<boolean>(false);
   
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
@@ -5511,6 +5521,18 @@ export const SmartDispatch4: React.FC = () => {
         ins.deliveryId === d.id || (ins.contractId === d.contractId && allCaIds.some(caId => (ins as any).contractAssetId === caId))
       );
       const approvedInspCount = matchedInspections.filter(i => (i.status as string) === 'APPROVED' || i.status === 'COMPLETED').length;
+      const hasRentedAsset = allCaIds.some(caId => {
+        const ca = contractAssets.find(c => c.id === caId);
+        if (!ca) return false;
+        if (ca.status === 'RENTED') return true;
+        if (ca.assetId) {
+          const a = assets.find(as => as.id === ca.assetId);
+          if (a?.status === 'RENTED') return true;
+        }
+        return false;
+      });
+      const isInspectionCompleted = approvedInspCount > 0 || hasRentedAsset;
+      const canCancelRequest = d.status !== 'CANCELLED' && !isInspectionCompleted;
 
       return {
         id: d.id,
@@ -5542,6 +5564,11 @@ export const SmartDispatch4: React.FC = () => {
         billableToCustomer: !!d.billableToCustomer,
         dispatchStatus: d.status,
         approvedInspCount,
+        isInspectionCompleted,
+        canCancelRequest,
+        cancelReason: snapMeta?.cancelReason || '',
+        cancelledAt: snapMeta?.cancelledAt || '',
+        cancelledBy: snapMeta?.cancelledBy || '',
         userNote: userNote && userNote !== '없음' ? userNote : '',
         staggeredText,
         closingMemo: d.closingMemo || '',
@@ -5557,10 +5584,11 @@ export const SmartDispatch4: React.FC = () => {
       if (historyStartDate && datePart && datePart < historyStartDate) return false;
       if (historyEndDate && datePart && datePart > historyEndDate) return false;
 
-      if (historyStatusFilter === 'UNASSIGNED' && r.totalUnassignedCount === 0) return false;
+      if (historyStatusFilter === 'UNASSIGNED' && (r.totalUnassignedCount === 0 || r.dispatchStatus === 'CANCELLED')) return false;
       if (historyStatusFilter === 'REQUESTED' && r.dispatchStatus !== 'REQUESTED' && r.dispatchStatus !== 'PENDING') return false;
       if (historyStatusFilter === 'DISPATCHED' && r.dispatchStatus !== 'DISPATCHED') return false;
       if (historyStatusFilter === 'DELIVERED' && r.dispatchStatus !== 'DELIVERED' && r.dispatchStatus !== 'COMPLETED') return false;
+      if (historyStatusFilter === 'CANCELLED' && r.dispatchStatus !== 'CANCELLED') return false;
 
       if (!matcher) return true;
       const equipStr = r.equipmentItems.map(e => `${e.modelName} ${e.assignedAssets.join(' ')}`).join(' ');
@@ -5619,7 +5647,7 @@ export const SmartDispatch4: React.FC = () => {
     };
 
     const totalEquipCount = filteredRows.reduce((s, r) => s + r.totalQty, 0);
-    const totalUnassignedEquipCount = filteredRows.reduce((s, r) => s + r.totalUnassignedCount, 0);
+    const totalUnassignedEquipCount = filteredRows.reduce((s, r) => s + (r.dispatchStatus === 'CANCELLED' ? 0 : r.totalUnassignedCount), 0);
 
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-950 gap-2 p-2">
@@ -5652,10 +5680,11 @@ export const SmartDispatch4: React.FC = () => {
               <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 h-8">
                 {[
                   { id: 'ALL', label: `전체 (${reconstructedRows.length})` },
-                  { id: 'UNASSIGNED', label: `장비미할당 (${reconstructedRows.filter(r => r.totalUnassignedCount > 0).length})` },
+                  { id: 'UNASSIGNED', label: `장비미할당 (${reconstructedRows.filter(r => r.totalUnassignedCount > 0 && r.dispatchStatus !== 'CANCELLED').length})` },
                   { id: 'REQUESTED', label: '배차대기' },
                   { id: 'DISPATCHED', label: '배차완료' },
                   { id: 'DELIVERED', label: '운송완료' },
+                  { id: 'CANCELLED', label: `취소 (${reconstructedRows.filter(r => r.dispatchStatus === 'CANCELLED').length})` },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -5686,7 +5715,7 @@ export const SmartDispatch4: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -5713,31 +5742,31 @@ export const SmartDispatch4: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. 본문 마스터-디테일 영역 (좌측 고밀도 그리드 + 우측 상세 카드) */}
-        <div className="flex-1 min-h-0 flex gap-2.5 overflow-hidden">
-          {/* 좌측: 고밀도 출고 요청 내역 테이블 */}
-          <div className="flex-[6.3] min-w-0 bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+        {/* 2. 본문 마스터-디테일 영역 (좌측 고정 그리드 + 우측 480px 고정 상세 카드) */}
+        <div className="dispatch4-history-stage">
+          {/* 좌측: 고밀도 출고 요청 내역 테이블 (폭 고정) */}
+          <div className="dispatch4-history-left">
             <div className="dispatch4-section-header">
-              <div className="flex items-center gap-2">
-                <Package className="w-3.5 h-3.5 text-blue-400" />
-                <span>출고 요청 내역 목록</span>
-                <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono text-[11px] font-bold">
+              <div className="flex items-center gap-2 flex-nowrap whitespace-nowrap min-w-0">
+                <Package className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <span className="whitespace-nowrap flex-shrink-0">출고 요청 내역 목록</span>
+                <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono text-[11px] font-bold whitespace-nowrap flex-shrink-0">
                   총 {filteredRows.length}건 ({totalEquipCount}대)
                 </span>
                 {totalUnassignedEquipCount > 0 && (
-                  <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-mono text-[11px] font-bold">
+                  <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-mono text-[11px] font-bold whitespace-nowrap flex-shrink-0">
                     장비 미할당 {totalUnassignedEquipCount}대
                   </span>
                 )}
               </div>
-              <span className="text-[11px] text-slate-400">행 클릭 시 우측에 출고 요청 전체 상세 정보 표시</span>
+              <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">행 선택 시 우측 상세 표시</span>
             </div>
 
             <div className="dispatch4-table-container dispatch4-scrollbar">
               <table className="dispatch4-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 72, textAlign: 'center' }}>상세</th>
+                    <th style={{ width: 68, textAlign: 'center' }}>상세</th>
                     <th style={{ width: 95 }}>배차번호</th>
                     <th style={{ width: 118 }}>요청일시</th>
                     <th style={{ width: 70 }}>요청자</th>
@@ -5748,15 +5777,17 @@ export const SmartDispatch4: React.FC = () => {
                     {hasFinancialAccess && <th style={{ width: 105, textAlign: 'right' }}>월 단가</th>}
                     <th style={{ width: 170 }}>유상옵션 (적용단가)</th>
                     <th style={{ width: 110 }}>상차 요청일시</th>
-                    <th style={{ width: 105 }}>현장담당자</th>
-                    <th style={{ width: 88, textAlign: 'center' }}>배차상태</th>
-                    <th style={{ width: 110, textAlign: 'center' }}>장비할당</th>
+                    <th style={{ width: 100 }}>현장담당자</th>
+                    <th style={{ width: 84, textAlign: 'center' }}>배차상태</th>
+                    <th style={{ width: 105, textAlign: 'center' }}>장비할당</th>
+                    <th style={{ width: 88, textAlign: 'center' }}>출고검수</th>
+                    <th style={{ width: 84, textAlign: 'center' }}>요청취소</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={hasFinancialAccess ? 14 : 13} className="text-center py-10 text-slate-400">
+                      <td colSpan={hasFinancialAccess ? 16 : 15} className="text-center py-10 text-slate-400">
                         조회 조건에 해당하는 출고 요청 내역이 없습니다.
                       </td>
                     </tr>
@@ -5773,7 +5804,7 @@ export const SmartDispatch4: React.FC = () => {
                         <tr
                           key={row.id}
                           onClick={() => setSelectedHistoryDeliveryId(row.id)}
-                          className={`cursor-pointer transition ${isSelected ? 'selected' : ''}`}
+                          className={`cursor-pointer transition ${isSelected ? 'selected' : ''} ${row.dispatchStatus === 'CANCELLED' ? 'opacity-60' : ''}`}
                         >
                           <td style={{ textAlign: 'center' }}>
                             <button
@@ -5782,7 +5813,7 @@ export const SmartDispatch4: React.FC = () => {
                                 e.stopPropagation();
                                 setSelectedHistoryDeliveryId(row.id);
                               }}
-                              className={`px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer ${
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer whitespace-nowrap ${
                                 isSelected
                                   ? 'bg-blue-600 text-white border-blue-500'
                                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
@@ -5805,7 +5836,7 @@ export const SmartDispatch4: React.FC = () => {
                           </td>
                           <td className="font-bold text-slate-200">{row.requesterName}</td>
                           <td>
-                            <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold ${
+                            <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${
                               row.reqTypeLabel === '교체(대차)'
                                 ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
                                 : row.reqTypeLabel === '신규고객 출고'
@@ -5833,11 +5864,11 @@ export const SmartDispatch4: React.FC = () => {
                             {optSummary}
                           </td>
                           <td className="font-mono text-slate-200 text-[11px]">{row.loadingSchedule}</td>
-                          <td className="text-slate-300 max-w-[105px] truncate" title={`${row.siteContactName} (${row.siteContactPhone})`}>
+                          <td className="text-slate-300 max-w-[100px] truncate" title={`${row.siteContactName} (${row.siteContactPhone})`}>
                             {row.siteContactName !== '-' ? `${row.siteContactName}` : '-'}
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border ${
+                            <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border whitespace-nowrap ${
                               row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
                                 ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                                 : row.dispatchStatus === 'DISPATCHED'
@@ -5851,18 +5882,62 @@ export const SmartDispatch4: React.FC = () => {
                                 : row.dispatchStatus === 'DISPATCHED'
                                   ? '배차완료'
                                   : row.dispatchStatus === 'CANCELLED'
-                                    ? '취소'
+                                    ? '출고취소'
                                     : '배차대기'}
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>
-                            {row.totalUnassignedCount > 0 ? (
-                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-950 text-amber-300 border border-amber-700">
+                            {row.dispatchStatus === 'CANCELLED' ? (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 text-slate-400 border border-slate-700 whitespace-nowrap">
+                                취소됨
+                              </span>
+                            ) : row.totalUnassignedCount > 0 ? (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-950 text-amber-300 border border-amber-700 whitespace-nowrap">
                                 미할당 {row.totalUnassignedCount}대
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 whitespace-nowrap">
                                 할당완료 ({row.totalAssignedCount}대)
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {row.dispatchStatus === 'CANCELLED' ? (
+                              <span className="text-[11px] text-slate-500 font-bold whitespace-nowrap">-</span>
+                            ) : row.isInspectionCompleted ? (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 whitespace-nowrap">
+                                검수완료
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+                                검수전
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                            {row.canCancelRequest ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCancelTargetRow({
+                                    id: row.id,
+                                    contractNo: row.contractNo,
+                                    customerName: row.customerName,
+                                    siteName: row.siteName,
+                                    equipSummary: equipSummary || `${row.totalQty}대`,
+                                    totalAssignedCount: row.totalAssignedCount
+                                  });
+                                  setCancelReasonInput('');
+                                }}
+                                className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-950/80 hover:bg-rose-700 text-rose-300 hover:text-white border border-rose-700/80 transition whitespace-nowrap cursor-pointer"
+                              >
+                                출고 취소
+                              </button>
+                            ) : row.dispatchStatus === 'CANCELLED' ? (
+                              <span className="text-[10.5px] text-rose-400 font-bold whitespace-nowrap">취소완료</span>
+                            ) : (
+                              <span className="text-[10.5px] text-slate-500 font-bold whitespace-nowrap" title="출고 검수가 완료되어 취소할 수 없습니다">
+                                취소불가
                               </span>
                             )}
                           </td>
@@ -5875,15 +5950,15 @@ export const SmartDispatch4: React.FC = () => {
             </div>
           </div>
 
-          {/* 우측: 선택된 출고 요청 전체 상세 인스펙터 */}
-          <div className="flex-[3.7] min-w-[380px] max-w-[520px] bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+          {/* 우측: 선택된 출고 요청 전체 상세 인스펙터 (480px 고정 폭) */}
+          <div className="dispatch4-history-right">
             <div className="dispatch4-section-header">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <div className="flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                 <span>출고 요청 상세 명세</span>
               </div>
               {selectedRow && (
-                <span className="font-mono text-xs font-bold text-blue-400">
+                <span className="font-mono text-xs font-bold text-blue-400 whitespace-nowrap truncate">
                   {selectedRow.id} ({selectedRow.contractNo})
                 </span>
               )}
@@ -5891,20 +5966,54 @@ export const SmartDispatch4: React.FC = () => {
 
             {selectedRow ? (
               <>
-                <div className="flex-1 min-h-0 overflow-y-auto p-3.5 flex flex-col gap-3 dispatch4-scrollbar text-xs">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3.5 flex flex-col gap-3 dispatch4-scrollbar text-xs">
+                  {/* 취소 상태 알림 배너 */}
+                  {selectedRow.dispatchStatus === 'CANCELLED' && (
+                    <div className="bg-rose-950/60 border border-rose-700/80 rounded-xl p-3 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-rose-300">출고 요청 취소됨</span>
+                        {selectedRow.cancelledAt && (
+                          <span className="font-mono text-[11px] text-rose-300">
+                            {new Date(selectedRow.cancelledAt).toLocaleString('ko-KR')}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-rose-200">
+                        {selectedRow.cancelReason
+                          ? `취소 사유: ${selectedRow.cancelReason}${selectedRow.cancelledBy ? ` (${selectedRow.cancelledBy})` : ''}`
+                          : selectedRow.closingMemo || '출고 검수 전 취소 처리된 건입니다.'}
+                      </div>
+                    </div>
+                  )}
+
                   {/* 1. 요청 메타 요약 */}
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <span className="font-bold text-slate-400">요청 일시 / 작성자</span>
-                      <span className="font-mono font-bold text-white">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 gap-2">
+                      <span className="font-bold text-slate-400 whitespace-nowrap">요청 일시 / 작성자</span>
+                      <span className="font-mono font-bold text-white text-right">
                         {selectedRow.createdAt ? new Date(selectedRow.createdAt).toLocaleString('ko-KR') : '-'} / {selectedRow.requesterName}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-400">계약 번호 / 구분</span>
-                      <span className="font-bold text-blue-400">
-                        {selectedRow.contractNo} · {selectedRow.reqTypeLabel}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-400 whitespace-nowrap">계약 번호 / 검수 상태</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-blue-400 whitespace-nowrap">
+                          {selectedRow.contractNo} · {selectedRow.reqTypeLabel}
+                        </span>
+                        {selectedRow.dispatchStatus === 'CANCELLED' ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 whitespace-nowrap">
+                            취소됨
+                          </span>
+                        ) : selectedRow.isInspectionCompleted ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 whitespace-nowrap">
+                            출고검수 완료
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 whitespace-nowrap">
+                            출고검수 전
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -5912,27 +6021,27 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="text-[11px] font-bold text-blue-400">1. 고객사 및 현장 정보</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">고객사명</span>
-                        <span className="font-bold text-white">{selectedRow.customerName}</span>
+                        <span className="font-bold text-white break-words">{selectedRow.customerName}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">투입 현장명</span>
-                        <span className="font-bold text-white">{selectedRow.siteName}</span>
+                        <span className="font-bold text-white break-words">{selectedRow.siteName}</span>
                       </div>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10.5px] text-slate-400 block">현장 상세주소</span>
-                      <span className="text-slate-200">{selectedRow.siteAddress}</span>
+                      <span className="text-slate-200 break-words">{selectedRow.siteAddress}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">현장 인수담당자</span>
-                        <span className="font-bold text-slate-200">{selectedRow.siteContactName}</span>
+                        <span className="font-bold text-slate-200 break-words">{selectedRow.siteContactName}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">담당자 연락처</span>
-                        <span className="font-mono text-slate-200">{selectedRow.siteContactPhone}</span>
+                        <span className="font-mono text-slate-200 break-words">{selectedRow.siteContactPhone}</span>
                       </div>
                     </div>
                   </div>
@@ -5946,19 +6055,20 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       {selectedRow.equipmentItems.map((eq, i) => (
                         <div key={i} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex flex-col gap-1">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <span className="font-bold text-white font-mono">{eq.modelName} × {eq.qty}대</span>
                             {hasFinancialAccess && (
-                              <span className="font-mono font-bold text-emerald-400">
+                              <span className="font-mono font-bold text-emerald-400 whitespace-nowrap">
                                 월 {eq.monthlyRate.toLocaleString()}원 / 일 {eq.dailyRate.toLocaleString()}원
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center justify-between text-[11px] text-slate-400">
-                            <span>할당 장비번호</span>
-                            <span className="font-mono text-slate-200">
-                              {eq.assignedAssets.length > 0 ? eq.assignedAssets.join(', ') : '미할당'}
-                              {eq.unassignedCount > 0 ? ` (미할당 ${eq.unassignedCount}대)` : ''}
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 gap-2">
+                            <span className="whitespace-nowrap">할당 장비번호</span>
+                            <span className="font-mono text-slate-200 text-right break-words">
+                              {selectedRow.dispatchStatus === 'CANCELLED'
+                                ? '출고 취소 (할당 해제됨)'
+                                : `${eq.assignedAssets.length > 0 ? eq.assignedAssets.join(', ') : '미할당'}${eq.unassignedCount > 0 ? ` (미할당 ${eq.unassignedCount}대)` : ''}`}
                             </span>
                           </div>
                         </div>
@@ -5969,7 +6079,7 @@ export const SmartDispatch4: React.FC = () => {
                   {/* 4. 유상옵션 (단가 포함) 및 무상보양 / 부착물 */}
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="text-[11px] font-bold text-amber-400">3. 옵션 및 현장 사양</div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10.5px] text-slate-400 block mb-1">유상옵션 및 적용 단가</span>
                       {selectedRow.paidOptionItems.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
@@ -5988,13 +6098,13 @@ export const SmartDispatch4: React.FC = () => {
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">무상보양</span>
-                        <span className="text-slate-200">{selectedRow.protectionStr}</span>
+                        <span className="text-slate-200 break-words leading-relaxed">{selectedRow.protectionStr}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">부착물</span>
-                        <span className="text-slate-200">{selectedRow.attachmentsStr}</span>
+                        <span className="text-slate-200 break-words leading-relaxed">{selectedRow.attachmentsStr}</span>
                       </div>
                     </div>
                   </div>
@@ -6003,25 +6113,25 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="text-[11px] font-bold text-blue-400">4. 상하차 일정 및 배차 현황</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">상차 일정</span>
                         <span className="font-mono font-bold text-white">{selectedRow.loadingSchedule}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">하차 일정</span>
                         <span className="font-mono font-bold text-white">{selectedRow.unloadingSchedule}</span>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">희망 차종 / 운송비 부담</span>
                         <span className="text-slate-200">
                           {selectedRow.vehicleType} / {selectedRow.billableToCustomer ? '고객청구' : '당사부담'}
                         </span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">배정 기사 / 차량번호</span>
-                        <span className="text-slate-200">
+                        <span className="text-slate-200 break-words">
                           {selectedRow.driverName ? `${selectedRow.driverName} (${selectedRow.vehicleNo || '-'})` : '배차 대기'}
                         </span>
                       </div>
@@ -6032,13 +6142,13 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-1.5">
                     <div className="text-[11px] font-bold text-slate-300">5. 특이사항 및 기록 메모</div>
                     {selectedRow.staggeredText && (
-                      <div className="text-amber-300 font-bold">• 시차출고: {selectedRow.staggeredText}</div>
+                      <div className="text-amber-300 font-bold break-words">• 시차출고: {selectedRow.staggeredText}</div>
                     )}
-                    <div className="text-slate-200 whitespace-pre-wrap leading-relaxed">
+                    <div className="text-slate-200 whitespace-pre-wrap break-words leading-relaxed">
                       {selectedRow.userNote || '입력된 별도 특이사항 없음'}
                     </div>
                     {selectedRow.closingMemo && (
-                      <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
+                      <div className="text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono break-words">
                         {selectedRow.closingMemo}
                       </div>
                     )}
@@ -6048,29 +6158,61 @@ export const SmartDispatch4: React.FC = () => {
                 {/* 우하단 액션 바 (Gutenberg Z-Pattern Terminal Action) */}
                 <div className="flex-shrink-0 p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    {selectedRow.totalUnassignedCount > 0 && (
+                    {selectedRow.canCancelRequest ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const equipSummary = selectedRow.equipmentItems.map(e => `${e.modelName}×${e.qty}대`).join(', ');
+                          setCancelTargetRow({
+                            id: selectedRow.id,
+                            contractNo: selectedRow.contractNo,
+                            customerName: selectedRow.customerName,
+                            siteName: selectedRow.siteName,
+                            equipSummary: equipSummary || `${selectedRow.totalQty}대`,
+                            totalAssignedCount: selectedRow.totalAssignedCount
+                          });
+                          setCancelReasonInput('');
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      >
+                        출고 요청 취소
+                      </button>
+                    ) : selectedRow.dispatchStatus === 'CANCELLED' ? (
+                      <span className="px-2.5 py-1.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-bold whitespace-nowrap">
+                        취소된 출고 요청
+                      </span>
+                    ) : (
+                      <span
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 text-xs font-bold whitespace-nowrap"
+                        title="출고 검수가 완료되어 취소할 수 없습니다"
+                      >
+                        검수완료 (취소불가)
+                      </span>
+                    )}
+
+                    {selectedRow.dispatchStatus !== 'CANCELLED' && selectedRow.totalUnassignedCount > 0 && (
                       <button
                         type="button"
                         onClick={() => setGlobalActiveTab('dispatch_assign')}
-                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
                       >
-                        장비 할당 이동 ➔
+                        장비 할당 ➔
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => setGlobalActiveTab('delivery')}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition whitespace-nowrap cursor-pointer"
                     >
-                      배차 관리 이동 ➔
+                      배차 관리 ➔
                     </button>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handlePrintHistoryRow(selectedRow)}
-                    disabled={isAgentPrinting}
-                    className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                    disabled={isAgentPrinting || selectedRow.dispatchStatus === 'CANCELLED'}
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>출고요청서 재인쇄</span>
@@ -6168,6 +6310,114 @@ export const SmartDispatch4: React.FC = () => {
 
       {/* 본문 탭 전환 */}
       {activeTab === 'HISTORY' ? renderHistoryTab() : renderNewTab()}
+
+      {/* 🚫 [출고 검수 전 출고 요청 취소 확인 모달] */}
+      {cancelTargetRow && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-rose-950/50 border-b border-rose-800/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white m-0">출고 요청 취소 확인</h3>
+                  <p className="text-[11px] text-rose-300 m-0">출고 검수 완료 전 요청 건 취소</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isCancellingRequest && setCancelTargetRow(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-3.5 text-xs">
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold">배차번호 / 계약번호</span>
+                  <span className="font-mono font-bold text-blue-400">
+                    {cancelTargetRow.id} ({cancelTargetRow.contractNo})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold">고객사 / 현장</span>
+                  <span className="font-bold text-white truncate max-w-[240px]">
+                    {cancelTargetRow.customerName} · {cancelTargetRow.siteName}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold">요청 장비</span>
+                  <span className="font-mono font-bold text-emerald-400">{cancelTargetRow.equipSummary}</span>
+                </div>
+              </div>
+
+              <div className="bg-rose-950/30 border border-rose-800/40 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed flex flex-col gap-1">
+                <span className="font-bold text-rose-300">취소 처리 시 자동 반영 사항:</span>
+                <span>• 배차 대장 상태가 [출고취소]로 전환됩니다.</span>
+                <span>• 해당 출고 요청으로 생성된 계약 자산 슬롯 및 대기 중인 출고검수 건이 정리됩니다.</span>
+                {cancelTargetRow.totalAssignedCount > 0 && (
+                  <span className="text-amber-300 font-bold">
+                    • 기할당된 장비({cancelTargetRow.totalAssignedCount}대)는 할당 해제되어 [임대가능] 상태로 즉시 복원됩니다.
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-300">취소 사유</label>
+                <input
+                  type="text"
+                  value={cancelReasonInput}
+                  onChange={e => setCancelReasonInput(e.target.value)}
+                  placeholder="예: 고객사 일정 연기, 모델 변경 재요청, 중복 입력 등"
+                  className="h-9 px-3 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={isCancellingRequest}
+                onClick={() => setCancelTargetRow(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer whitespace-nowrap"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                disabled={isCancellingRequest}
+                onClick={async () => {
+                  if (!cancelTargetRow) return;
+                  setIsCancellingRequest(true);
+                  try {
+                    const res = await cancelOutboundRequest(cancelTargetRow.id, cancelReasonInput);
+                    if (res.success) {
+                      showToast(`배차번호 ${cancelTargetRow.id} 출고 요청이 취소되었습니다.`, 'info');
+                      setCancelTargetRow(null);
+                      setCancelReasonInput('');
+                    }
+                  } finally {
+                    setIsCancellingRequest(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                {isCancellingRequest ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>취소 처리 중...</span>
+                  </>
+                ) : (
+                  <span>출고 요청 취소 실행</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 통화 녹음 업로드 모달 */}
       
