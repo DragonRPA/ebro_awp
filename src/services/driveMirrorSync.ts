@@ -83,9 +83,9 @@ async function listR2AllFiles(config?: OfficialMailConfig): Promise<Array<{ key:
  */
 async function downloadFromR2(publicDomain: string, key: string): Promise<ArrayBuffer | null> {
   const encodedKey = key.split('/').map(encodeURIComponent).join('/');
-  const url = `${publicDomain.replace(/\/$/, '')}/${encodedKey}`;
+  const url = `${publicDomain.replace(/\/$/, '')}/${encodedKey}?v=${Date.now()}`;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
     if (res.ok) {
       const ab = await res.arrayBuffer();
       return ab.byteLength > 0 ? ab : null;

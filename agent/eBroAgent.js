@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.15';
-const CORE_HASH = '1c5fd9d4f2ab';
+const VERSION = 'v2.0.0.Build.16';
+const CORE_HASH = 'b53221d534c5';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -542,8 +542,14 @@ async function checkAndApplyUpdate(force = false) {
   }
 }
 
-// 백그라운드 자동 업데이트 점검 (기동 5초 후 즉시 1회, 이후 3분 주기)
-setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 5000);
+// 백그라운드 자동 업데이트 점검 (기동 후 즉시 점검 + 부팅 직후 네트워크 지연 대비 다단계 재시도 + 3분 주기 상시 점검)
+[4000, 15000, 35000, 65000].forEach((delayMs) => {
+  setTimeout(() => {
+    if (updateState.status === 'idle' || updateState.status === 'error') {
+      checkAndApplyUpdate().catch(() => {});
+    }
+  }, delayMs);
+});
 setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 3 * 60 * 1000);
 
 // ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지 & 인위적 타임아웃 없음) ──
@@ -2651,11 +2657,15 @@ async function autoSyncFromCloudflare() {
         }
       }
 
+      const tempFile = `${targetFile}.download`;
       try {
         const encKey = obj.key.split('/').map(encodeURIComponent).join('/');
-        const dlUrl = `${CF_PUBLIC_URL}/${encKey}`;
-        await downloadFileWithRedirects(dlUrl, targetFile);
-        if (fs.existsSync(targetFile) && fs.statSync(targetFile).size > 0) {
+        const cacheBustVer = encodeURIComponent(obj.etag || obj.lastModified || Date.now());
+        const dlUrl = `${CF_PUBLIC_URL}/${encKey}?v=${cacheBustVer}`;
+        await downloadFileWithRedirects(dlUrl, tempFile);
+        if (fs.existsSync(tempFile) && fs.statSync(tempFile).size > 0) {
+          fs.copyFileSync(tempFile, targetFile);
+          try { fs.unlinkSync(tempFile); } catch (e) {}
           if (obj.lastModified) {
             const remoteDate = new Date(obj.lastModified);
             if (!isNaN(remoteDate.getTime())) {
@@ -2664,8 +2674,11 @@ async function autoSyncFromCloudflare() {
           }
           downloaded++;
           agentLog('SYNC', `파일 동기화 완료: ${obj.key}`);
+        } else {
+          try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (e) {}
         }
       } catch (dlErr) {
+        try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (e) {}
         agentLog('ERROR', `다운로드 실패: ${obj.key} (${dlErr.message})`);
       }
     }
@@ -2946,8 +2959,17 @@ server.listen(PORT, '127.0.0.1', () => {
   setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
   sendAgentHeartbeat();
 
-  //  Cloudflare R2 원본 저장소 기동 즉시 동기화 및 5분 주기 자동 미러링
-  setTimeout(() => { autoSyncFromCloudflare().catch(() => {}); }, 1000);
+  //  Cloudflare R2 원본 저장소 기동 즉시 동기화 (부팅 초기 DNS 지연 대비 자동 재시도 포함) 및 5분 주기 자동 미러링
+  let initialR2Synced = false;
+  [1500, 15000, 40000].forEach((delayMs) => {
+    setTimeout(() => {
+      if (!initialR2Synced) {
+        autoSyncFromCloudflare().then((res) => {
+          if (res && res.success) initialR2Synced = true;
+        }).catch(() => {});
+      }
+    }, delayMs);
+  });
   setInterval(() => { autoSyncFromCloudflare().catch(() => {}); }, 5 * 60 * 1000);
 
   // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)

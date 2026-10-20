@@ -1,7 +1,7 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.15';
-export const EXPECTED_CORE_HASH: string = '1c5fd9d4f2ab';
+export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.16';
+export const EXPECTED_CORE_HASH: string = 'b53221d534c5';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트
@@ -424,28 +424,31 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
       } catch {}
     }
 
-    // 0-1b. 문서 생성/발송 등 핵심 작업 실행 직전에 구버전 코어가 감지된 경우, 즉시 핫패치를 트리거하고 재기동 완료까지 최대 6.5초 대기
-    const isCriticalCoreJob = path.startsWith('/api/generate-') || path.startsWith('/api/send-email');
-    if (alive && detectedOutdatedHost && isCriticalCoreJob) {
+    // 0-1b. 작업 실행 직전에 구버전 코어가 감지된 경우, 즉시 핫패치를 트리거하고 재기동 완료까지 최대 6.5초 대기
+    const isUpdateCall = path.startsWith('/api/check-update');
+    const isCriticalCoreJob = path.startsWith('/api/generate-') || path.startsWith('/api/send-email') || path.startsWith('/api/trigger-sync') || path.startsWith('/api/policy/sync');
+    if (alive && detectedOutdatedHost && !isUpdateCall) {
       try {
         await fetch(`${detectedOutdatedHost}/api/check-update?force=true`, { method: 'POST', cache: 'no-store' }).catch(() => {});
-        const waitStart = Date.now();
-        while (Date.now() - waitStart < 6500) {
-          await new Promise(r => setTimeout(r, 600));
-          try {
-            const c = new AbortController();
-            const t = setTimeout(() => c.abort(), 1500);
-            const checkRes = await fetch(`${detectedOutdatedHost}/health`, { method: 'GET', signal: c.signal, cache: 'no-store' });
-            clearTimeout(t);
-            if (checkRes.ok) {
-              const checkData = await checkRes.json();
-              const stillOldVer = checkData?.version && isExpectedNewer(EXPECTED_AGENT_VERSION, checkData.version);
-              const stillOldHash = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && checkData?.coreHash !== EXPECTED_CORE_HASH);
-              if (!stillOldVer && !stillOldHash) {
-                break;
+        if (isCriticalCoreJob) {
+          const waitStart = Date.now();
+          while (Date.now() - waitStart < 6500) {
+            await new Promise(r => setTimeout(r, 600));
+            try {
+              const c = new AbortController();
+              const t = setTimeout(() => c.abort(), 1500);
+              const checkRes = await fetch(`${detectedOutdatedHost}/health`, { method: 'GET', signal: c.signal, cache: 'no-store' });
+              clearTimeout(t);
+              if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                const stillOldVer = checkData?.version && isExpectedNewer(EXPECTED_AGENT_VERSION, checkData.version);
+                const stillOldHash = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && checkData?.coreHash !== EXPECTED_CORE_HASH);
+                if (!stillOldVer && !stillOldHash) {
+                  break;
+                }
               }
-            }
-          } catch {}
+            } catch {}
+          }
         }
       } catch {}
     }
@@ -536,9 +539,26 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
 
 // ── 🌐 단일 전역 에이전트 헬스체크 매니저 ──
 let globalHealthCheckTimer: any = null;
+let activeMonitorCallsign: string = 'admin';
 let consecutiveFailures = 0;
 let isCheckingHealth = false;
 let lastAutoUpdateTriggerAt = 0;
+let lastAutoR2SyncTriggerAt = 0;
+
+/**
+ * ☁️ 로컬 에이전트에 Cloudflare R2 변경 파일 즉시 동기화 명령 전송
+ */
+export async function triggerAgentCloudflareSync(): Promise<boolean> {
+  try {
+    const res = await fetchWithAgentFallback('/api/trigger-sync', {
+      method: 'POST',
+      skipPrecheck: true
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
 
 function isExpectedNewer(expectedVer: string, currentVer: string): boolean {
   const parse = (v: string) => {
@@ -593,17 +613,23 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       };
       setGlobalAgentStatus(true, info);
 
-      // 🚀 로컬 에이전트 버전이 배포 버전보다 낮거나 코어 해시가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (30초 쿨다운)
+      // 🚀 로컬 에이전트 버전이 배포 버전보다 낮거나 코어 해시가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (15초 쿨다운)
       const isVersionOutdated = Boolean(data.version && isExpectedNewer(EXPECTED_AGENT_VERSION, data.version));
       const isHashOutdated = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && data.coreHash !== EXPECTED_CORE_HASH);
-      if (
-        (isVersionOutdated || isHashOutdated) &&
-        data.updateState?.status !== 'downloading' &&
-        data.updateState?.status !== 'installing' &&
-        Date.now() - lastAutoUpdateTriggerAt > 30000
-      ) {
-        lastAutoUpdateTriggerAt = Date.now();
-        triggerAgentSelfUpdate(true).catch(() => {});
+      if (isVersionOutdated || isHashOutdated) {
+        if (
+          data.updateState?.status !== 'downloading' &&
+          data.updateState?.status !== 'installing' &&
+          Date.now() - lastAutoUpdateTriggerAt > 15000
+        ) {
+          lastAutoUpdateTriggerAt = Date.now();
+          lastAutoR2SyncTriggerAt = 0; // 코어 업데이트 완료 직후 R2 동기화가 즉시 실행되도록 초기화
+          triggerAgentSelfUpdate(true).catch(() => {});
+        }
+      } else if (Date.now() - lastAutoR2SyncTriggerAt > 5 * 60 * 1000) {
+        // ☁️ 최신 에이전트 코어 온라인 확인 즉시 (및 5분 주기) Cloudflare R2 변경 파일 자동 동기화 트리거
+        lastAutoR2SyncTriggerAt = Date.now();
+        triggerAgentCloudflareSync().catch(() => {});
       }
 
       return info;
@@ -656,21 +682,27 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
  */
 export function startGlobalAgentHealthMonitor(callsign: string = 'admin'): void {
   if (typeof window === 'undefined') return;
-  if (globalHealthCheckTimer) return;
+  if (callsign && callsign.trim()) {
+    activeMonitorCallsign = callsign.trim();
+  }
+  if (globalHealthCheckTimer) {
+    pingLocalAgentHealth(activeMonitorCallsign);
+    return;
+  }
 
   // 1. 즉시 1회 검사
-  pingLocalAgentHealth(callsign);
+  pingLocalAgentHealth(activeMonitorCallsign);
 
   // 2. 단일 주기적 폴링 (3.5초)
   globalHealthCheckTimer = setInterval(() => {
-    pingLocalAgentHealth(callsign);
+    pingLocalAgentHealth(activeMonitorCallsign);
   }, 3500);
 
   // 3. 브라우저 창/탭 복원 시 즉시 재검사 (트레이에서 올라왔을 때 0.1초 즉시 초록불 복귀)
-  window.addEventListener('focus', () => { pingLocalAgentHealth(callsign); });
+  window.addEventListener('focus', () => { pingLocalAgentHealth(activeMonitorCallsign); });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      pingLocalAgentHealth(callsign);
+      pingLocalAgentHealth(activeMonitorCallsign);
     }
   });
 }

@@ -11,7 +11,7 @@ import {
   FileCheck, ShieldCheck, Bot, Download, Bell, ClipboardList, Brain
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail, Mic } from 'lucide-react';
 const OfficialMailPage = React.lazy(() => import('./pages/OfficialMailPage').then(module => ({ default: module.OfficialMailPage })));
-import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent } from './services/agentService';
+import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent, startGlobalAgentHealthMonitor } from './services/agentService';
 
 import { JobAlertModal } from './components/JobAlertModal';
 import { PersistentJobAlertToast } from './components/PersistentJobAlertToast';
@@ -526,8 +526,10 @@ const App: React.FC = () => {
     loadTablesForMenu(activeTab);
   }, [activeTab]);
 
-  // 🚀 에이전틱 AI 및 MCP 자동화를 위한 시스템 Ready 상태 공표
+  // 🚀 에이전틱 AI 및 MCP 자동화를 위한 시스템 Ready 상태 공표 + 로컬 에이전트 최신 코어 핫패치 & CF R2 변경 파일 자동 동기화 가동
   useEffect(() => {
+    const callsign = currentUser?.loginId || currentUser?.name || 'admin';
+    startGlobalAgentHealthMonitor(callsign);
     if (currentUser) {
       markErpReady({
         user: currentUser,

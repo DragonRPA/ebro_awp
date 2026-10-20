@@ -23,9 +23,9 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# 1. esbuild 번들링
-Write-Host "1. Bundling with esbuild..." -ForegroundColor Yellow
-cmd /c "npx esbuild `"$scriptDir\eBroAgent.js`" --bundle --platform=node --outfile=`"$scriptDir\agent-bundle.js`""
+# 1. esbuild 번들링 (호스트 로더 eBroHost.js 번들링 -> 런타임에 core/engine.dat 동적 복호화 로드)
+Write-Host "1. Bundling eBroHost.js with esbuild..." -ForegroundColor Yellow
+cmd /c "npx esbuild `"$scriptDir\eBroHost.js`" --bundle --platform=node --outfile=`"$scriptDir\agent-bundle.js`""
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ esbuild 번들링 실패!" -ForegroundColor Red
     exit 1
