@@ -3422,6 +3422,36 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
+  // 5-B. 운송 완료 취소 처리 (DELIVERED ➔ DISPATCHED 배차완료 원복)
+  const handleRevertDeliveredToDispatched = async (deliveryId: string) => {
+    if (!canSave) return;
+    const targetDelivery = deliveries.find(d => d.id === deliveryId);
+    if (!targetDelivery) return;
+
+    try {
+      const nowIso = new Date().toISOString();
+      db.updateRow<Delivery>('deliveries', deliveryId, {
+        status: 'DISPATCHED',
+        loadingCompletedAt: null as any,
+        updatedAt: nowIso
+      });
+      await db.awaitPendingWrites();
+
+      refreshAllData();
+      if (selectedDelivery && selectedDelivery.id === deliveryId) {
+        setSelectedDelivery({
+          ...selectedDelivery,
+          status: 'DISPATCHED',
+          loadingCompletedAt: undefined,
+          updatedAt: nowIso
+        });
+      }
+      showToast('운송 완료가 취소되어 [배차 완료] 상태로 되돌아갔습니다. 선행 절차(장비 할당 ➔ 출고 검수 승인)를 완료한 후 다시 운송 완료 처리해 주십시오.');
+    } catch (err: any) {
+      showErrorModal(`운송 완료 취소 실패:\n${err?.message || err}`);
+    }
+  };
+
   const handleSaveManualDispatch = async () => {
     if (!manualOrigin || !manualDestination) {
       showErrorModal('상차지(출발지)와 하차지(도착지)를 작성해 주세요.');
@@ -4088,6 +4118,37 @@ export const TruckDispatch: React.FC = () => {
                         {d.driverName && (
                           <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
+                            {normStatus === 'DELIVERED' && canSave && (() => {
+                              const readiness = checkDeliveryOutboundReadiness(d);
+                              const hasProcError = readiness.isOutboundLike && !readiness.ready;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRevertDeliveredToDispatched(d.id);
+                                  }}
+                                  style={{
+                                    padding: '3px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    backgroundColor: hasProcError ? '#dc2626' : 'rgba(239,68,68,0.12)',
+                                    color: hasProcError ? '#ffffff' : 'var(--danger)',
+                                    border: hasProcError ? 'none' : '1px solid rgba(239,68,68,0.35)',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  title={hasProcError ? `절차 오류: ${readiness.reason} — 클릭하여 운송완료 취소(배차완료로 원복)` : '운송완료 취소 (배차완료 상태로 원복)'}
+                                >
+                                  <RotateCcw size={11} />
+                                  {hasProcError ? '🚨 절차오류 · 운송완료 취소' : '운송완료 취소'}
+                                </button>
+                              );
+                            })()}
                             {normStatus === 'DISPATCHED' && canSave && (() => {
                               const readiness = checkDeliveryOutboundReadiness(d);
                               const isBlocked = readiness.isOutboundLike && !readiness.ready;
@@ -4731,47 +4792,82 @@ export const TruckDispatch: React.FC = () => {
                             </button>
                           </>
                         ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DELIVERED' ? (
-                          !isEditUnlocked ? (
-                            <button
-                              type="button"
-                              onClick={() => setIsEditUnlocked(true)}
-                              style={{
-                                padding: '7px 14px',
-                                borderRadius: '6px',
-                                backgroundColor: 'rgba(245,158,11,0.12)',
-                                color: '#d97706',
-                                border: '1px solid rgba(245,158,11,0.35)',
-                                fontSize: '12.5px',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px'
-                              }}
-                            >
-                              <RotateCcw size={14} /> 배차 정보 수정 해제
-                            </button>
-                          ) : (
-                            <button data-hs-trigger="Save"
-                              type="button"
-                              onClick={handleSaveDispatch}
-                              disabled={isSavingDispatch}
-                              className="btn-primary"
-                              style={{
-                                padding: '8px 18px',
-                                fontWeight: 800,
-                                fontSize: '13px',
-                                borderRadius: '7px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
-                                opacity: isSavingDispatch ? 0.7 : 1
-                              }}
-                            >
-                              <Save size={15} /> {isSavingDispatch ? '저장 중...' : '배차 정보 수정 저장'}
-                            </button>
-                          )
+                          <>
+                            {(() => {
+                              const readiness = checkDeliveryOutboundReadiness(selectedDelivery);
+                              const hasProcError = readiness.isOutboundLike && !readiness.ready;
+                              return (
+                                <>
+                                  {hasProcError && (
+                                    <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)', padding: '6px 10px', borderRadius: '6px' }}>
+                                      🚨 절차 오류: {readiness.reason} 상태에서 운송완료 처리되었습니다. [운송완료 취소] 후 장비할당·출고검수를 먼저 진행하세요.
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRevertDeliveredToDispatched(selectedDelivery.id)}
+                                    style={{
+                                      padding: '7px 14px',
+                                      borderRadius: '6px',
+                                      backgroundColor: hasProcError ? '#dc2626' : 'rgba(239,68,68,0.12)',
+                                      color: hasProcError ? '#ffffff' : 'var(--danger)',
+                                      border: hasProcError ? 'none' : '1px solid rgba(239,68,68,0.35)',
+                                      fontSize: '12.5px',
+                                      fontWeight: 800,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <RotateCcw size={14} /> 운송완료 취소 (배차완료로 원복)
+                                  </button>
+                                </>
+                              );
+                            })()}
+                            {!isEditUnlocked ? (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditUnlocked(true)}
+                                style={{
+                                  padding: '7px 14px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(245,158,11,0.12)',
+                                  color: '#d97706',
+                                  border: '1px solid rgba(245,158,11,0.35)',
+                                  fontSize: '12.5px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <RotateCcw size={14} /> 배차 정보 수정 해제
+                              </button>
+                            ) : (
+                              <button data-hs-trigger="Save"
+                                type="button"
+                                onClick={handleSaveDispatch}
+                                disabled={isSavingDispatch}
+                                className="btn-primary"
+                                style={{
+                                  padding: '8px 18px',
+                                  fontWeight: 800,
+                                  fontSize: '13px',
+                                  borderRadius: '7px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                  opacity: isSavingDispatch ? 0.7 : 1
+                                }}
+                              >
+                                <Save size={15} /> {isSavingDispatch ? '저장 중...' : '배차 정보 수정 저장'}
+                              </button>
+                            )}
+                          </>
                         ) : (
                           <>
                             <button
