@@ -9,6 +9,7 @@ import {
   Truck, CheckCircle2, Network
 } from 'lucide-react';
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
+import { splitMasterAwareOptions } from '../utils/siteOptionCategorizer';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, createHangulMatcher, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
@@ -19,6 +20,7 @@ export const Contracts: React.FC = () => {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
     createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
+    standardOptions, updateOutboundRequestPricing,
     navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, showErrorModal,
     setActiveTab: setGlobalActiveTab
   } = useApp();
@@ -852,6 +854,11 @@ export const Contracts: React.FC = () => {
     setFeeChangeReason('');
     setShowFeeModal(true);
   };
+
+  // 💰 계약 귀속 배차(출고) 건별 유상옵션 청구 단가 수정 상태
+  const [editingOptDeliveryId, setEditingOptDeliveryId] = useState<string | null>(null);
+  const [editingOptPrices, setEditingOptPrices] = useState<Record<string, number>>({});
+  const [isSavingOptPrices, setIsSavingOptPrices] = useState<boolean>(false);
 
   const handleSaveFee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2938,6 +2945,221 @@ export const Contracts: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* 💰 체결 유상옵션 및 1회성/월단위 청구 금액 명세 (출고 배차 연동 및 단가 수정) */}
+              {(() => {
+                const contractDeliveries = (deliveries || []).filter(
+                  d => d.contractId === activeContract.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
+                );
+                const deliveryOptBatches = contractDeliveries.map(d => {
+                  let parsed: any[] = [];
+                  try {
+                    if (d.cargoItems) {
+                      const r = JSON.parse(d.cargoItems);
+                      if (Array.isArray(r)) parsed = r;
+                    }
+                  } catch { parsed = []; }
+                  const batchQty = parsed.reduce((s, ci) => s + (Number(ci?.count) || 1), 0) || 1;
+                  const equipText = parsed.map(ci => `${ci?.modelName || '장비'}×${ci?.count || 1}대`).join(', ');
+                  let paidStr = parsed[0]?.paidOptions || '';
+                  const priceMap: Record<string, number> = parsed[0]?.paidOptionPrices || {};
+                  if (!paidStr && d.closingMemo) {
+                    const mOpt = d.closingMemo.match(/유상옵션:\s*([^\|]+)/);
+                    if (mOpt && mOpt[1].trim() !== '없음') paidStr = mOpt[1].trim();
+                  }
+                  const optItems = splitMasterAwareOptions(paidStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
+                    .filter(o => o && o !== '없음' && o !== 'NONE')
+                    .map(optName => {
+                      const masterOpt = (standardOptions || []).find(so => so.name === optName);
+                      const isPaidCat = !masterOpt || masterOpt.category === 'PAID';
+                      if (!isPaidCat) return null;
+                      const customP = priceMap[optName];
+                      const unitPrice = customP !== undefined ? Number(customP) : Number(masterOpt?.defaultPrice || 0);
+                      const unit = (masterOpt?.unit || '월').trim();
+                      const mult = unit === '건' ? 1 : batchQty;
+                      return {
+                        name: optName,
+                        unit,
+                        unitPrice,
+                        mult,
+                        subTotal: unitPrice * mult,
+                        isOneTime: unit === '대' || unit === '건'
+                      };
+                    })
+                    .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+                  return {
+                    delivery: d,
+                    batchQty,
+                    equipText,
+                    optItems
+                  };
+                }).filter(b => b.optItems.length > 0);
+
+                return (
+                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '12.5px', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>유상옵션 · 1회성 청구 금액 명세</span>
+                        <span className="badge badge-danger" style={{ fontSize: '10px' }}>
+                          {deliveryOptBatches.reduce((s, b) => s + b.optItems.length, 0)}건
+                        </span>
+                      </strong>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        출고 건별 1회성(대/건) 및 월단위 유상옵션 청구 단가 확인·수정
+                      </span>
+                    </div>
+
+                    {deliveryOptBatches.length === 0 ? (
+                      <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: '12px' }}>
+                        등록된 유상옵션(1회성/월 청구) 내역이 없습니다.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {deliveryOptBatches.map(batch => {
+                          const isEditing = editingOptDeliveryId === batch.delivery.id;
+                          return (
+                            <div
+                              key={batch.delivery.id}
+                              style={{
+                                padding: '10px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'var(--bg-app)',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px',
+                                fontSize: '12px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{batch.delivery.id}</strong>
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                    ({batch.delivery.loadingDate || batch.delivery.requestDate || '-'} · {batch.equipText || `${batch.batchQty}대`})
+                                  </span>
+                                </div>
+                                {canSave && canModifyContract(activeContract) && (
+                                  !isEditing ? (
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => {
+                                        const initMap: Record<string, number> = {};
+                                        batch.optItems.forEach(o => { initMap[o.name] = o.unitPrice; });
+                                        setEditingOptPrices(initMap);
+                                        setEditingOptDeliveryId(batch.delivery.id);
+                                      }}
+                                      style={{ padding: '2px 8px', fontSize: '11px' }}
+                                    >
+                                      <Edit3 size={11} /> 옵션단가 수정
+                                    </button>
+                                  ) : (
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button
+                                        type="button"
+                                        className="btn-primary"
+                                        disabled={isSavingOptPrices}
+                                        onClick={async () => {
+                                          setIsSavingOptPrices(true);
+                                          try {
+                                            const res = await updateOutboundRequestPricing({
+                                              deliveryId: batch.delivery.id,
+                                              paidOptionPrices: editingOptPrices,
+                                              reason: '계약 상세에서 유상옵션 단가 수정'
+                                            });
+                                            if (res.success) {
+                                              showToast(`배차 ${batch.delivery.id} 유상옵션 청구 단가가 수정되었습니다.`);
+                                              setEditingOptDeliveryId(null);
+                                            }
+                                          } finally {
+                                            setIsSavingOptPrices(false);
+                                          }
+                                        }}
+                                        style={{ padding: '2px 8px', fontSize: '11px' }}
+                                      >
+                                        {isSavingOptPrices ? '저장중...' : '저장'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        disabled={isSavingOptPrices}
+                                        onClick={() => setEditingOptDeliveryId(null)}
+                                        style={{ padding: '2px 8px', fontSize: '11px' }}
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {batch.optItems.map((opt, idx) => {
+                                  const curVal = isEditing && editingOptPrices[opt.name] !== undefined ? editingOptPrices[opt.name] : opt.unitPrice;
+                                  const curTotal = curVal * opt.mult;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '4px 8px',
+                                        borderRadius: '6px',
+                                        backgroundColor: 'var(--bg-card)',
+                                        border: '1px solid var(--border-color)'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#e11d48', color: '#fff', fontSize: '10px', fontWeight: 700 }}>
+                                          {opt.isOneTime ? `유상 (1회성·${opt.unit})` : `유상 (매월·${opt.unit})`}
+                                        </span>
+                                        <strong>{opt.name}</strong>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                          × {opt.mult}{opt.unit}
+                                        </span>
+                                      </div>
+
+                                      {isEditing ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={curVal.toLocaleString()}
+                                            onChange={e => {
+                                              const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                              setEditingOptPrices(prev => ({ ...prev, [opt.name]: num }));
+                                            }}
+                                            style={{ width: '100px', padding: '3px 6px', textAlign: 'right', fontWeight: 700, fontSize: '12px', border: '1px solid #e11d48', borderRadius: '4px' }}
+                                          />
+                                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>원/{opt.unit}</span>
+                                          <strong style={{ color: '#e11d48', marginLeft: '4px' }}>
+                                            (합계 {curTotal.toLocaleString()}원)
+                                          </strong>
+                                        </div>
+                                      ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace' }}>
+                                          <span style={{ color: 'var(--text-secondary)', fontSize: '11.5px' }}>
+                                            단가 {opt.unitPrice.toLocaleString()}원/{opt.unit}
+                                          </span>
+                                          <strong style={{ color: '#e11d48', fontSize: '12.5px' }}>
+                                            청구액 ₩{opt.subTotal.toLocaleString()}원
+                                          </strong>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

@@ -804,5 +804,45 @@
   }
 }
 
+/* 🔴 유상옵션 칩 및 배지 (빨간색/Rose 고대비 단색 강조 - 헌장 3.7 준수) */
+.dispatch4-model-chip.paid-option {
+  border-color: rgba(244, 63, 94, 0.65) !important;
+  background-color: rgba(136, 19, 55, 0.18) !important;
+  color: #ffe4e6 !important;
+}
+[data-theme='light'] .dispatch4-model-chip.paid-option,
+:root:not([data-theme='dark']) .dispatch4-model-chip.paid-option {
+  border-color: #f43f5e !important;
+  background-color: #fff1f2 !important;
+  color: #881337 !important;
+}
+.dispatch4-model-chip.paid-option:hover {
+  border-color: #f43f5e !important;
+  background-color: rgba(159, 18, 57, 0.32) !important;
+}
+[data-theme='light'] .dispatch4-model-chip.paid-option:hover,
+:root:not([data-theme='dark']) .dispatch4-model-chip.paid-option:hover {
+  border-color: #e11d48 !important;
+  background-color: #ffe4e6 !important;
+}
+.dispatch4-model-chip.selected.paid-option {
+  background-color: #be123c !important;
+  border-color: #f43f5e !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.35) !important;
+}
+.dispatch4-qty-badge.paid {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+  border: 1px solid #fb7185 !important;
+  font-weight: 700 !important;
+}
+.dispatch4-model-chip.selected.paid-option .dispatch4-qty-badge.paid {
+  background-color: #ffffff !important;
+  color: #be123c !important;
+  border: 1px solid #ffe4e6 !important;
+  font-weight: 800 !important;
+}
+
 
 

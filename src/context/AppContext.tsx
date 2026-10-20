@@ -358,6 +358,12 @@ interface AppContextType {
   exchangeOutboundAsset: (contractAssetId: string, oldAssetId: string, newAssetId: string, reason?: string, markOldAsRepairing?: boolean, customPenaltyScore?: number) => Promise<void>;
   saveSmartDispatch: (data: SmartDispatchData, autoRegister: boolean, onProgress?: (log: string, percent: number) => void) => Promise<{ success: boolean; requiresConfirm?: boolean; missingFields?: string[]; errorMessage?: string; contractId?: string; contractNo?: string }>;
   cancelOutboundRequest: (deliveryId: string, cancelReason?: string) => Promise<{ success: boolean; errorMessage?: string }>;
+  updateOutboundRequestPricing: (params: {
+    deliveryId: string;
+    equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
+    paidOptionPrices?: Record<string, number>;
+    reason?: string;
+  }) => Promise<{ success: boolean; errorMessage?: string }>;
   saveSmartReturn: (data: SmartReturnData) => Promise<any>;
   
   // Todos & Executive Directives
@@ -3595,6 +3601,137 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const errMsg = err?.message || err?.details || JSON.stringify(err);
       showErrorModal(`⚠️ 출고 요청 취소 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '출고 요청 취소 실패');
+      return { success: false, errorMessage: errMsg };
+    }
+  };
+
+  // 💰 출고 요청 후 장비 렌탈료 및 유상옵션 청구 단가 사후 수정 트랜잭션
+  const updateOutboundRequestPricing = async (params: {
+    deliveryId: string;
+    equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
+    paidOptionPrices?: Record<string, number>;
+    reason?: string;
+  }): Promise<{ success: boolean; errorMessage?: string }> => {
+    const targetDelivery = db.deliveries.find(d => d.id === params.deliveryId);
+    if (!targetDelivery) {
+      showErrorModal('단가를 수정할 출고 요청(배차)을 찾을 수 없습니다.');
+      return { success: false, errorMessage: '출고 요청을 찾을 수 없습니다.' };
+    }
+
+    let parsedCargo: any[] = [];
+    try {
+      if (targetDelivery.cargoItems) {
+        const raw = JSON.parse(targetDelivery.cargoItems);
+        if (Array.isArray(raw)) parsedCargo = raw;
+      }
+    } catch {
+      parsedCargo = [];
+    }
+
+    const deliverySnapshot = { ...targetDelivery };
+    const caSnapshots: ContractAsset[] = [];
+
+    try {
+      const nowIso = new Date().toISOString();
+      const todayStr = nowIso.split('T')[0];
+      const actorName = currentUser?.name || '담당자';
+      const changeLogs: string[] = [];
+
+      const updatedCargo = parsedCargo.map(ci => {
+        const nextCi = { ...ci };
+
+        // 1. 장비 월/일 렌탈료 수정 반영
+        if (params.equipmentRates && params.equipmentRates.length > 0) {
+          const matchedRate = params.equipmentRates.find(r => r.modelName === ci.modelName);
+          if (matchedRate) {
+            const oldM = Number(ci.monthlyRentalFee || 0);
+            const oldD = Number(ci.dailyRentalFee || 0);
+            const newM = Number(matchedRate.monthlyRate || 0);
+            const newD = Number(matchedRate.dailyRate || (newM ? Math.round(newM / 30) : 0));
+
+            if (oldM !== newM || oldD !== newD) {
+              changeLogs.push(`${ci.modelName} 렌탈료: 월 ${oldM.toLocaleString()}원➔${newM.toLocaleString()}원 / 일 ${oldD.toLocaleString()}원➔${newD.toLocaleString()}원`);
+            }
+            nextCi.monthlyRentalFee = newM;
+            nextCi.dailyRentalFee = newD;
+
+            // 연결된 contractAssets 단가도 동시 업데이트
+            const caIds: string[] = Array.isArray(ci.contractAssetIds) ? [...ci.contractAssetIds] : [];
+            if (caIds.length === 0) {
+              db.outboundInspections
+                .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
+                .forEach(ins => {
+                  const caId = (ins as any).contractAssetId;
+                  const caObj = db.contractAssets.find(c => c.id === caId);
+                  if (caObj && (!ci.modelName || caObj.expectedModel === ci.modelName) && !caIds.includes(caId)) {
+                    caIds.push(caId);
+                  }
+                });
+            }
+            caIds.forEach(caId => {
+              const caObj = db.contractAssets.find(c => c.id === caId);
+              if (caObj) {
+                if (!caSnapshots.some(s => s.id === caObj.id)) {
+                  caSnapshots.push({ ...caObj });
+                }
+                db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+                  monthlyRentalFee: newM,
+                  dailyRentalFee: newD
+                });
+              }
+            });
+          }
+        }
+
+        // 2. 유상옵션 청구 단가 수정 반영
+        if (params.paidOptionPrices) {
+          const prevPrices = ci.paidOptionPrices || {};
+          Object.entries(params.paidOptionPrices).forEach(([optName, newVal]) => {
+            const oldVal = prevPrices[optName];
+            if (oldVal !== newVal && !changeLogs.some(l => l.includes(`유상옵션(${optName})`))) {
+              changeLogs.push(`유상옵션(${optName}) 단가: ${(oldVal ?? 0).toLocaleString()}원➔${Number(newVal).toLocaleString()}원`);
+            }
+          });
+          nextCi.paidOptionPrices = {
+            ...prevPrices,
+            ...params.paidOptionPrices
+          };
+          if (nextCi.requestMeta) {
+            nextCi.requestMeta = {
+              ...nextCi.requestMeta,
+              paidOptionPrices: nextCi.paidOptionPrices
+            };
+          }
+        }
+
+        return nextCi;
+      });
+
+      db.updateRow<Delivery>('deliveries', targetDelivery.id, {
+        cargoItems: JSON.stringify(updatedCargo),
+        updatedAt: nowIso
+      });
+
+      if (targetDelivery.contractId && changeLogs.length > 0) {
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: targetDelivery.contractId,
+          changeType: 'FEE_CHANGE',
+          changeDate: todayStr,
+          description: `[출고 요청 단가 수정] 배차 ${targetDelivery.id}: ${changeLogs.join(', ')} (처리자: ${actorName}${params.reason ? `, 사유: ${params.reason}` : ''})`,
+          createdAt: nowIso
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      return { success: true };
+    } catch (err: any) {
+      console.error('updateOutboundRequestPricing error:', err);
+      db.updateRow<Delivery>('deliveries', deliverySnapshot.id, deliverySnapshot);
+      caSnapshots.forEach(ca => db.updateRow<ContractAsset>('contractAssets', ca.id, ca));
+      refreshAllData();
+      const errMsg = err?.message || err?.details || JSON.stringify(err);
+      showErrorModal(`⚠️ 단가 수정 저장 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '단가 수정 저장 실패');
       return { success: false, errorMessage: errMsg };
     }
   };
@@ -11985,7 +12122,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       requestConsumablePurchase, updatePurchaseUnitPrice, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
       createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
-      saveSmartDispatch, cancelOutboundRequest, saveSmartReturn,
+      saveSmartDispatch, cancelOutboundRequest, updateOutboundRequestPricing, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
       generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,

@@ -547,6 +547,7 @@ export const SmartDispatch4: React.FC = () => {
 
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
+    setConfirmNoSafetyOptions(false);
     return inherited;
   }, [siteMasters, parseOptionString]);
 
@@ -921,6 +922,7 @@ export const SmartDispatch4: React.FC = () => {
   const [selectedSafetyOptions, setSelectedSafetyOptions] = useState<Set<string>>(new Set());
   const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
   const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true);
+  const [confirmNoSafetyOptions, setConfirmNoSafetyOptions] = useState<boolean>(false);
   // 🌟 이번 출고 건 전용 유상옵션 1회성 단가 변경 상태 (현장 기본 옵션은 마스터 기본 단가 유지)
   const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
 
@@ -962,6 +964,7 @@ export const SmartDispatch4: React.FC = () => {
   }, [standardOptions]);
 
   const toggleOptionTag = (tag: string) => {
+    setConfirmNoSafetyOptions(false);
     setSelectedSafetyOptions(prev => {
       const next = new Set(prev);
       if (next.has(tag)) next.delete(tag);
@@ -973,6 +976,7 @@ export const SmartDispatch4: React.FC = () => {
   const handleAddOption = (customVal?: string) => {
     const val = (customVal || newOptionInput).trim();
     if (!val) return;
+    setConfirmNoSafetyOptions(false);
     setSelectedSafetyOptions(prev => new Set(prev).add(val));
     if (!customVal) setNewOptionInput('');
   };
@@ -1454,6 +1458,7 @@ export const SmartDispatch4: React.FC = () => {
     setNewSiteName(''); setNewSiteAddress('');
     setRetrievalAssetIds([]); setPaidBy(null);
     setSelectedSafetyOptions(new Set()); setInitialSiteOptions(new Set());
+    setConfirmNoSafetyOptions(false);
     setPaidOptionPrices({});
     setNewOptionInput('');
     setStaggeredMemo('');
@@ -1564,6 +1569,18 @@ export const SmartDispatch4: React.FC = () => {
         currentVal: timeDisplay,
         hint: '상차 예정 시간 (ASAP, 오전, 오후 또는 시간지정)',
       },
+      {
+        id: 'SAFETY_OPTION',
+        label: '안전옵션 확인',
+        targetBlock: 'SAFETY_COST',
+        status: (selectedSafetyOptions.size > 0 || confirmNoSafetyOptions) ? 'VALID' : 'INVALID',
+        currentVal: selectedSafetyOptions.size > 0
+          ? `${Array.from(selectedSafetyOptions).join(', ')} (${selectedSafetyOptions.size}개)`
+          : confirmNoSafetyOptions
+            ? '안전옵션 없음 (확인완료)'
+            : '(안전옵션 미확인)',
+        hint: '5번 안전옵션 선택 또는 [안전옵션 없음] 체크 필수',
+      },
     ];
 
     // 🌟 신규현장(신규고객 또는 기존고객 신규현장) 출고 시 청구/거래명세서/결제일정 검증
@@ -1598,7 +1615,8 @@ export const SmartDispatch4: React.FC = () => {
     newSiteName, selectedSite, selectedSiteAddress, newSiteAddress, newCustomerAddress,
     selectedContext, equipments, totalQty,
     loadingDate, loadingTimeType, loadingTimeVal, contactPerson, contactPhone,
-    retrievalAssetIds, isUnknownRetrieval, closingDay, statementClosingDay, paymentDueDay
+    retrievalAssetIds, isUnknownRetrieval, closingDay, statementClosingDay, paymentDueDay,
+    selectedSafetyOptions, confirmNoSafetyOptions
   ]);
 
   const invalidRules = useMemo(() => validationRules.filter(r => r.status === 'INVALID'), [validationRules]);
@@ -4195,23 +4213,24 @@ export const SmartDispatch4: React.FC = () => {
                     </div>
                   )}
 
-                  {/* 등록된 옵션 목록 (클릭 시 해제 — 이미지2 dispatch4-model-chip selected 디자인 통일) */}
+                  {/* 등록된 옵션 목록 (클릭 시 해제 — 유상옵션은 '유상' + 빨간색 강조, 무상옵션은 '무상') */}
                   {selectedSafetyOptions.size > 0 ? (
                     <div className="flex flex-wrap gap-2 p-2.5 bg-slate-950/60 rounded-lg border border-slate-800">
                       {Array.from(selectedSafetyOptions).map(opt => {
                         const isProt = isProtectionOption(opt);
                         const isAtt = isAttachmentOption(opt);
-                        const catBadge = isProt ? '보양' : isAtt ? '부착물' : '옵션';
+                        const isPaid = !isProt && !isAtt;
+                        const catBadge = isProt ? '무상' : isAtt ? '부착물' : '유상';
                         return (
                           <button
                             key={opt}
                             type="button"
                             onClick={() => handleRemoveOption(opt)}
-                            className="dispatch4-model-chip selected"
+                            className={`dispatch4-model-chip selected ${isPaid ? 'paid-option' : ''}`}
                             title="클릭하여 선택 옵션에서 제외"
                           >
                             <span className="whitespace-nowrap font-normal">{opt}</span>
-                            <span className="dispatch4-qty-badge available">
+                            <span className={`dispatch4-qty-badge ${isPaid ? 'paid' : 'available'}`}>
                               {catBadge} ✕
                             </span>
                           </button>
@@ -4219,8 +4238,23 @@ export const SmartDispatch4: React.FC = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-500 p-2.5 bg-slate-950/40 rounded-lg border border-slate-850 text-center">
-                      선택된 옵션이 없습니다. (아래 추가 가능한 옵션 버튼을 클릭하거나 [현장별 옵션관리 불러오기]로 선택)
+                    <div className="p-2.5 bg-slate-950/40 rounded-lg border border-slate-850 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs text-slate-400">
+                        선택된 옵션이 없습니다. (아래 옵션 버튼을 클릭하거나, 옵션이 없는 현장인 경우 우측 체크)
+                      </span>
+                      <label className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer select-none transition whitespace-nowrap ${
+                        confirmNoSafetyOptions
+                          ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                          : 'bg-rose-950/40 border-rose-500/60 text-rose-300 hover:bg-rose-950/70'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={confirmNoSafetyOptions}
+                          onChange={e => setConfirmNoSafetyOptions(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded accent-emerald-500 cursor-pointer"
+                        />
+                        <span>안전옵션 없음 확인</span>
+                      </label>
                     </div>
                   )}
 
@@ -4311,17 +4345,18 @@ export const SmartDispatch4: React.FC = () => {
                           {unselectedSuggestions.map(tag => {
                             const isProt = isProtectionOption(tag);
                             const isAtt = isAttachmentOption(tag);
-                            const catBadge = isProt ? '보양' : isAtt ? '부착물' : '옵션';
+                            const isPaid = !isProt && !isAtt;
+                            const catBadge = isProt ? '무상' : isAtt ? '부착물' : '유상';
                             return (
                               <button
                                 key={tag}
                                 type="button"
                                 onClick={() => toggleOptionTag(tag)}
-                                className="dispatch4-model-chip"
+                                className={`dispatch4-model-chip ${isPaid ? 'paid-option' : ''}`}
                                 title="클릭하여 옵션 추가"
                               >
                                 <span className="whitespace-nowrap font-normal">+ {tag}</span>
-                                <span className="dispatch4-qty-badge available">
+                                <span className={`dispatch4-qty-badge ${isPaid ? 'paid' : 'available'}`}>
                                   {catBadge}
                                 </span>
                               </button>
@@ -5791,7 +5826,7 @@ export const SmartDispatch4: React.FC = () => {
                     <th style={{ width: 130 }}>고객사명</th>
                     <th style={{ width: 170 }}>투입 현장명</th>
                     <th style={{ width: 180 }}>요청 모델 및 수량</th>
-                    {hasFinancialAccess && <th style={{ width: 105, textAlign: 'right' }}>월 단가</th>}
+                    {hasFinancialAccess && <th style={{ width: 135, textAlign: 'right' }}>월렌탈료 / 유상청구</th>}
                     <th style={{ width: 170 }}>유상옵션 (적용단가)</th>
                     <th style={{ width: 110 }}>상차 요청일시</th>
                     <th style={{ width: 100 }}>현장담당자</th>
@@ -5812,7 +5847,15 @@ export const SmartDispatch4: React.FC = () => {
                     filteredRows.map(row => {
                       const isSelected = selectedRow?.id === row.id;
                       const equipSummary = row.equipmentItems.map(e => `${e.modelName}×${e.qty}대`).join(', ');
-                      const rateSummary = row.equipmentItems.map(e => e.monthlyRate > 0 ? `${e.monthlyRate.toLocaleString()}원` : '-').join(' / ');
+                      const totalMonthlyRentalAmount = row.equipmentItems.reduce(
+                        (sum, e) => sum + (Number(e.monthlyRate) || 0) * (Number(e.qty) || 1),
+                        0
+                      );
+                      const totalPaidOptionAmount = row.paidOptionItems.reduce((sum, o) => {
+                        const rawUnit = (o.unitLabel || '월').trim();
+                        const mult = rawUnit === '건' ? 1 : Math.max(1, row.totalQty || 1);
+                        return sum + (Number(o.price) || 0) * mult;
+                      }, 0);
                       const optSummary = row.paidOptionItems.length > 0
                         ? row.paidOptionItems.map(o => `${o.name}${o.price > 0 ? `(${(o.price / 10000).toFixed(0)}만)` : ''}`).join(', ')
                         : '-';
@@ -5820,7 +5863,10 @@ export const SmartDispatch4: React.FC = () => {
                       return (
                         <tr
                           key={row.id}
-                          onClick={() => setSelectedHistoryDeliveryId(row.id)}
+                          onClick={() => {
+                            setSelectedHistoryDeliveryId(row.id);
+                            setIsEditingHistoryPrices(false);
+                          }}
                           className={`cursor-pointer transition ${isSelected ? 'selected' : ''} ${row.dispatchStatus === 'CANCELLED' ? 'opacity-60' : ''}`}
                         >
                           <td style={{ textAlign: 'center' }}>
@@ -5829,6 +5875,7 @@ export const SmartDispatch4: React.FC = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedHistoryDeliveryId(row.id);
+                                setIsEditingHistoryPrices(false);
                               }}
                               className={`px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer whitespace-nowrap ${
                                 isSelected
@@ -5927,8 +5974,15 @@ export const SmartDispatch4: React.FC = () => {
                             {equipSummary || '-'}
                           </td>
                           {hasFinancialAccess && (
-                            <td className="font-mono text-right text-slate-200">
-                              {rateSummary}
+                            <td className="font-mono text-right text-slate-200 py-1">
+                              <div className="flex flex-col items-end leading-tight gap-0.5">
+                                <span className="font-bold text-emerald-300 text-[11.5px] whitespace-nowrap">
+                                  렌탈 {totalMonthlyRentalAmount > 0 ? `${totalMonthlyRentalAmount.toLocaleString()}원` : '-'}
+                                </span>
+                                <span className={`text-[10.5px] whitespace-nowrap ${totalPaidOptionAmount > 0 ? 'font-bold text-rose-300' : 'text-slate-500'}`}>
+                                  유상 {totalPaidOptionAmount > 0 ? `${totalPaidOptionAmount.toLocaleString()}원` : '0원'}
+                                </span>
+                              </div>
                             </td>
                           )}
                           <td className="text-amber-300 max-w-[170px] truncate" title={optSummary}>
@@ -6073,58 +6127,203 @@ export const SmartDispatch4: React.FC = () => {
 
                   {/* 3. 요청 장비 및 단가 / 할당 내역 */}
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-emerald-400">2. 요청 장비 및 단가 명세</span>
-                      <span className="font-bold text-slate-300">총 {selectedRow.totalQty}대</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-emerald-400">2. 요청 장비 및 단가 명세 (총 {selectedRow.totalQty}대)</span>
+                      {hasFinancialAccess && canSave && selectedRow.dispatchStatus !== 'CANCELLED' && (
+                        !isEditingHistoryPrices ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const eqInit: Record<string, { monthlyRate: number; dailyRate: number }> = {};
+                              selectedRow.equipmentItems.forEach(eq => {
+                                eqInit[eq.modelName] = { monthlyRate: eq.monthlyRate, dailyRate: eq.dailyRate };
+                              });
+                              const optInit: Record<string, number> = {};
+                              selectedRow.paidOptionItems.forEach(o => {
+                                optInit[o.name] = o.price;
+                              });
+                              setEditHistoryEqRates(eqInit);
+                              setEditHistoryOptPrices(optInit);
+                              setEditHistoryPriceReason('');
+                              setIsEditingHistoryPrices(true);
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-950 hover:bg-blue-800 text-blue-300 hover:text-white border border-blue-700 text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
+                          >
+                            단가 수정
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={isSavingHistoryPrices}
+                              onClick={async () => {
+                                setIsSavingHistoryPrices(true);
+                                try {
+                                  const eqList = Object.entries(editHistoryEqRates).map(([modelName, r]) => ({
+                                    modelName,
+                                    monthlyRate: r.monthlyRate,
+                                    dailyRate: r.dailyRate
+                                  }));
+                                  const res = await updateOutboundRequestPricing({
+                                    deliveryId: selectedRow.id,
+                                    equipmentRates: eqList,
+                                    paidOptionPrices: editHistoryOptPrices,
+                                    reason: editHistoryPriceReason
+                                  });
+                                  if (res.success) {
+                                    showToast(`배차번호 ${selectedRow.id}의 렌탈료 및 유상옵션 단가가 수정 저장되었습니다.`, 'success');
+                                    setIsEditingHistoryPrices(false);
+                                  }
+                                } finally {
+                                  setIsSavingHistoryPrices(false);
+                                }
+                              }}
+                              className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
+                            >
+                              {isSavingHistoryPrices ? '저장중...' : '단가 저장'}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSavingHistoryPrices}
+                              onClick={() => setIsEditingHistoryPrices(false)}
+                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10.5px] font-bold border border-slate-700 transition whitespace-nowrap cursor-pointer"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        )
+                      )}
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      {selectedRow.equipmentItems.map((eq, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex flex-col gap-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-white font-mono">{eq.modelName} × {eq.qty}대</span>
-                            {hasFinancialAccess && (
-                              <span className="font-mono font-bold text-emerald-400 whitespace-nowrap">
-                                월 {eq.monthlyRate.toLocaleString()}원 / 일 {eq.dailyRate.toLocaleString()}원
-                              </span>
+                      {selectedRow.equipmentItems.map((eq, i) => {
+                        const editVal = editHistoryEqRates[eq.modelName] || { monthlyRate: eq.monthlyRate, dailyRate: eq.dailyRate };
+                        return (
+                          <div key={i} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-white font-mono">{eq.modelName} × {eq.qty}대</span>
+                              {hasFinancialAccess && !isEditingHistoryPrices && (
+                                <span className="font-mono font-bold text-emerald-400 whitespace-nowrap">
+                                  월 {eq.monthlyRate.toLocaleString()}원 / 일 {eq.dailyRate.toLocaleString()}원
+                                </span>
+                              )}
+                            </div>
+                            {hasFinancialAccess && isEditingHistoryPrices && (
+                              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] text-slate-400">월 렌탈료 (1대당)</span>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editVal.monthlyRate.toLocaleString()}
+                                    onChange={e => {
+                                      const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                      setEditHistoryEqRates(prev => ({
+                                        ...prev,
+                                        [eq.modelName]: { monthlyRate: num, dailyRate: num > 0 ? Math.round(num / 30) : 0 }
+                                      }));
+                                    }}
+                                    className="h-7 px-2 rounded bg-slate-950 border border-emerald-500/60 text-right font-mono text-xs font-bold text-emerald-300"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] text-slate-400">일 렌탈료 (1대당)</span>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={editVal.dailyRate.toLocaleString()}
+                                    onChange={e => {
+                                      const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                      setEditHistoryEqRates(prev => ({
+                                        ...prev,
+                                        [eq.modelName]: { ...editVal, dailyRate: num }
+                                      }));
+                                    }}
+                                    className="h-7 px-2 rounded bg-slate-950 border border-slate-700 text-right font-mono text-xs font-bold text-white"
+                                  />
+                                </div>
+                              </div>
                             )}
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 gap-2">
+                              <span className="whitespace-nowrap">할당 장비번호</span>
+                              <span className="font-mono text-slate-200 text-right break-words">
+                                {selectedRow.dispatchStatus === 'CANCELLED'
+                                  ? '출고 취소 (할당 해제됨)'
+                                  : `${eq.assignedAssets.length > 0 ? eq.assignedAssets.join(', ') : '미할당'}${eq.unassignedCount > 0 ? ` (미할당 ${eq.unassignedCount}대)` : ''}`}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] text-slate-400 gap-2">
-                            <span className="whitespace-nowrap">할당 장비번호</span>
-                            <span className="font-mono text-slate-200 text-right break-words">
-                              {selectedRow.dispatchStatus === 'CANCELLED'
-                                ? '출고 취소 (할당 해제됨)'
-                                : `${eq.assignedAssets.length > 0 ? eq.assignedAssets.join(', ') : '미할당'}${eq.unassignedCount > 0 ? ` (미할당 ${eq.unassignedCount}대)` : ''}`}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* 4. 유상옵션 (단가 포함) 및 무상보양 / 부착물 */}
+                  {/* 4. 유상옵션 (단가 포함) 및 무상옵션 / 부착물 */}
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="text-[11px] font-bold text-amber-400">3. 옵션 및 현장 사양</div>
+                    <div className="text-[11px] font-bold text-rose-400">3. 유상옵션 · 무상옵션 · 부착물 명세</div>
                     <div className="min-w-0">
-                      <span className="text-[10.5px] text-slate-400 block mb-1">유상옵션 및 적용 단가</span>
+                      <span className="text-[10.5px] text-slate-400 block mb-1">유상옵션 및 청구 금액</span>
                       {selectedRow.paidOptionItems.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedRow.paidOptionItems.map((opt, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-1 rounded-lg bg-amber-950/60 border border-amber-800/70 text-amber-200 text-xs font-bold font-mono"
-                            >
-                              {opt.name}: {opt.price.toLocaleString()}원/{opt.unitLabel}
-                              {opt.isCustomPrice ? ' (단가변경)' : ''}
-                            </span>
-                          ))}
-                        </div>
+                        isEditingHistoryPrices && hasFinancialAccess ? (
+                          <div className="flex flex-col gap-1.5">
+                            {selectedRow.paidOptionItems.map((opt, idx) => {
+                              const curP = editHistoryOptPrices[opt.name] !== undefined ? editHistoryOptPrices[opt.name] : opt.price;
+                              const rawUnit = (opt.unitLabel || '월').trim();
+                              const mult = rawUnit === '건' ? 1 : Math.max(1, selectedRow.totalQty || 1);
+                              return (
+                                <div key={idx} className="flex items-center justify-between gap-2 bg-slate-900 border border-rose-800/60 rounded-lg p-2">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-rose-300">{opt.name} (단위: {opt.unitLabel})</span>
+                                    <span className="text-[10px] text-slate-400 font-mono">
+                                      합계({mult}{rawUnit}): {(curP * mult).toLocaleString()}원
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={curP.toLocaleString()}
+                                      onChange={e => {
+                                        const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                        setEditHistoryOptPrices(prev => ({ ...prev, [opt.name]: num }));
+                                      }}
+                                      className="w-28 h-7 px-2 rounded bg-slate-950 border border-rose-500 text-right font-mono text-xs font-bold text-rose-200"
+                                    />
+                                    <span className="text-[11px] text-slate-400">원</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {selectedRow.paidOptionItems.map((opt, idx) => {
+                              const rawUnit = (opt.unitLabel || '월').trim();
+                              const mult = rawUnit === '건' ? 1 : Math.max(1, selectedRow.totalQty || 1);
+                              const subTotal = (Number(opt.price) || 0) * mult;
+                              return (
+                                <div
+                                  key={idx}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-950/50 border border-rose-800/70 text-rose-200 text-xs font-bold font-mono flex items-center justify-between gap-2"
+                                >
+                                  <span>
+                                    <span className="px-1.5 py-0.2 mr-1.5 rounded bg-rose-600 text-white text-[10px]">유상</span>
+                                    {opt.name} ({opt.price.toLocaleString()}원/{opt.unitLabel}{opt.isCustomPrice ? ' · 단가변경' : ''})
+                                  </span>
+                                  <span className="text-rose-300 whitespace-nowrap">
+                                    청구합계: {subTotal.toLocaleString()}원
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )
                       ) : (
                         <span className="text-slate-400">유상옵션 없음</span>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
                       <div className="min-w-0">
-                        <span className="text-[10.5px] text-slate-400 block">무상보양</span>
+                        <span className="text-[10.5px] text-slate-400 block">무상옵션</span>
                         <span className="text-slate-200 break-words leading-relaxed">{selectedRow.protectionStr}</span>
                       </div>
                       <div className="min-w-0">
@@ -6214,34 +6413,7 @@ export const SmartDispatch4: React.FC = () => {
                         검수완료 (취소불가)
                       </span>
                     )}
-
-                    {selectedRow.dispatchStatus !== 'CANCELLED' && selectedRow.totalUnassignedCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setGlobalActiveTab('dispatch_assign')}
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
-                      >
-                        장비 할당 ➔
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setGlobalActiveTab('delivery')}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition whitespace-nowrap cursor-pointer"
-                    >
-                      배차 관리 ➔
-                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePrintHistoryRow(selectedRow)}
-                    disabled={isAgentPrinting || selectedRow.dispatchStatus === 'CANCELLED'}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>출고요청서 재인쇄</span>
-                  </button>
                 </div>
               </>
             ) : (
