@@ -4452,7 +4452,10 @@ export const SmartDispatch4: React.FC = () => {
 
                   {/* 🔒 유상옵션 출고 단가 설정 (영업/관리/경영진 전용, 이번 출고 1회성 적용 — 현장 기본단가는 마스터 기본단가 유지) */}
                   {hasFinancialAccess && selectedPaidMasterOptions.length > 0 && (
-                    <div data-mid="dispatch4-paid-option-prices" className="flex flex-col gap-1.5 p-2.5 bg-slate-950/80 rounded-lg border border-amber-500/30">
+                    <div
+                      data-mid="dispatch4-paid-option-prices"
+                      className="flex flex-col gap-1.5 p-2.5 bg-slate-950/80 rounded-lg border border-amber-500/30"
+                    >
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-amber-300">
                           유상옵션 청구 단가 (이번 출고 건 적용)
@@ -4461,7 +4464,7 @@ export const SmartDispatch4: React.FC = () => {
                           출고 수량: {totalQty}대
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1.5">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {selectedPaidMasterOptions.map(opt => {
                           const defaultPrice = Number(opt.defaultPrice || 0);
                           const currentPrice = paidOptionPrices[opt.name] !== undefined ? paidOptionPrices[opt.name] : defaultPrice;
@@ -4484,26 +4487,75 @@ export const SmartDispatch4: React.FC = () => {
                           return (
                             <div
                               key={opt.id}
-                              className="grid grid-cols-12 gap-2 items-center bg-slate-900/90 px-2.5 py-1.5 rounded border border-slate-800 text-xs"
+                              className="bg-slate-900/90 rounded border border-slate-800"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '8px',
+                                padding: '6px 10px',
+                                fontSize: '12px'
+                              }}
                             >
-                              <div className="col-span-5 flex items-center gap-1.5 flex-wrap min-w-0">
-                                <span className="font-bold text-white truncate whitespace-nowrap">{opt.name}</span>
+                              {/* 좌측: 유상옵션명 + 청구조건 + (1대당 선택 시) 1대당 수량 */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: '125px', flexShrink: 0 }}>
+                                  <span
+                                    style={{
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      fontSize: '10px',
+                                      fontWeight: 800,
+                                      backgroundColor: 'var(--danger-light, rgba(225,29,72,0.15))',
+                                      color: 'var(--danger, #e11d48)',
+                                      border: '1px solid rgba(225,29,72,0.35)',
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    유상
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontWeight: 800,
+                                      fontSize: '12.5px',
+                                      color: 'var(--text-main)',
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    {opt.name}
+                                  </span>
+                                </div>
+
                                 <select
                                   value={currentUnit}
                                   onChange={e => {
                                     const val = e.target.value as '월' | '대' | '건';
                                     setPaidOptionUnits(prev => ({ ...prev, [opt.name]: val }));
                                   }}
-                                  className="text-[10.5px] px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 border border-slate-700 font-bold cursor-pointer flex-shrink-0"
+                                  className="rounded bg-slate-950 text-amber-300 border border-slate-700 font-bold cursor-pointer"
+                                  style={{
+                                    width: '132px',
+                                    height: '28px',
+                                    padding: '2px 8px',
+                                    fontSize: '11.5px',
+                                    fontWeight: 700,
+                                    flexShrink: 0
+                                  }}
                                   title="청구조건 선택 (월별 / 1대당 1회 / 건당 1회)"
                                 >
                                   <option value="월">월 (매월×{totalQty}대)</option>
                                   <option value="대">1대당 (1회×{totalQty}대)</option>
                                   <option value="건">건 (1회)</option>
                                 </select>
+
                                 {currentUnit === '대' && (
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">1대당 수량</span>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                    <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                      1대당 수량
+                                    </span>
                                     <input
                                       type="number"
                                       min={1}
@@ -4513,52 +4565,94 @@ export const SmartDispatch4: React.FC = () => {
                                         const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
                                         setPaidOptionQtys(prev => ({ ...prev, [opt.name]: num }));
                                       }}
-                                      className="w-16 bg-slate-950 border border-amber-500/60 rounded px-2 py-0.5 text-center font-mono text-xs font-bold text-amber-300 focus:outline-none focus:border-blue-500"
+                                      className="bg-slate-950 border border-amber-500/60 rounded font-mono font-bold text-amber-300 focus:outline-none focus:border-blue-500"
+                                      style={{
+                                        width: '54px',
+                                        height: '28px',
+                                        padding: '2px 6px',
+                                        fontSize: '12px',
+                                        fontWeight: 800,
+                                        textAlign: 'center',
+                                        flexShrink: 0
+                                      }}
                                       title="1대당 기본수량 (기본 1개, 필요 시 2 이상 수정)"
                                     />
-                                    <span className="text-[11px] text-slate-400 whitespace-nowrap">
-                                      개 (계산수량: <strong className="text-amber-300">{calculatedQty}</strong>)
+                                    <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                      개
                                     </span>
                                   </div>
                                 )}
                               </div>
-                              <div className="col-span-4 flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={currentPrice.toLocaleString()}
-                                  onChange={e => {
-                                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
-                                    setPaidOptionPrices(prev => ({
-                                      ...prev,
-                                      [opt.name]: isNaN(num) ? 0 : num,
-                                    }));
-                                  }}
-                                  className={`w-full bg-slate-950 border rounded px-2 py-1 text-right font-mono text-xs font-bold focus:outline-none ${
-                                    isModified
-                                      ? 'border-amber-500 text-amber-300'
-                                      : 'border-slate-700 text-white focus:border-blue-500'
-                                  }`}
-                                />
-                                <span className="text-[11px] text-slate-400 whitespace-nowrap flex-shrink-0">원</span>
-                                {isModified && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
+
+                              {/* 우측: 단가 입력 + 수량 및 청구예상 */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto', flexWrap: 'wrap', flexShrink: 0 }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                    단가
+                                  </span>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={currentPrice.toLocaleString()}
+                                    onChange={e => {
+                                      const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
                                       setPaidOptionPrices(prev => ({
                                         ...prev,
-                                        [opt.name]: defaultPrice,
-                                      }))
-                                    }
-                                    className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 whitespace-nowrap flex-shrink-0"
-                                    title={`마스터 기본단가(${defaultPrice.toLocaleString()}원)로 복원`}
-                                  >
-                                    기본값
-                                  </button>
-                                )}
-                              </div>
-                              <div className="col-span-3 text-right font-mono text-[11px] text-slate-300 whitespace-nowrap">
-                                수량: <strong className="text-slate-200">{calculatedQty}</strong> · 청구예상: <strong className="text-amber-300">{expectedSupply.toLocaleString()}원</strong>
+                                        [opt.name]: isNaN(num) ? 0 : num,
+                                      }));
+                                    }}
+                                    className={`bg-slate-950 border rounded font-mono font-bold focus:outline-none ${
+                                      isModified
+                                        ? 'border-amber-500 text-amber-300'
+                                        : 'border-slate-700 text-white focus:border-blue-500'
+                                    }`}
+                                    style={{
+                                      width: '100px',
+                                      height: '28px',
+                                      padding: '2px 8px',
+                                      fontSize: '12px',
+                                      fontWeight: 800,
+                                      textAlign: 'right',
+                                      flexShrink: 0
+                                    }}
+                                  />
+                                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>원</span>
+                                  {isModified && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPaidOptionPrices(prev => ({
+                                          ...prev,
+                                          [opt.name]: defaultPrice,
+                                        }))
+                                      }
+                                      className="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 whitespace-nowrap cursor-pointer"
+                                      style={{
+                                        height: '24px',
+                                        padding: '0 6px',
+                                        fontSize: '10.5px',
+                                        fontWeight: 700,
+                                        flexShrink: 0
+                                      }}
+                                      title={`마스터 기본단가(${defaultPrice.toLocaleString()}원)로 복원`}
+                                    >
+                                      기본값
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div
+                                  className="font-mono text-slate-300"
+                                  style={{
+                                    minWidth: '155px',
+                                    textAlign: 'right',
+                                    fontSize: '11.5px',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  수량 <strong style={{ color: 'var(--text-main)' }}>{calculatedQty}</strong> · 청구예상: <strong className="text-amber-300">{expectedSupply.toLocaleString()}원</strong>
+                                </div>
                               </div>
                             </div>
                           );
@@ -7065,7 +7159,8 @@ export const SmartDispatch4: React.FC = () => {
                                             const val = e.target.value as '월' | '대' | '건';
                                             setEditHistoryOptUnits(prev => ({ ...prev, [optName]: val }));
                                           }}
-                                          className="h-7 px-2 rounded bg-slate-900 border border-amber-500/60 text-amber-300 font-bold text-xs cursor-pointer"
+                                          className="rounded bg-slate-900 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
+                                          style={{ height: '28px', padding: '2px 8px', fontSize: '11.5px' }}
                                         >
                                           <option value="월">월 (매월×{editTotalQty}대)</option>
                                           <option value="대">1대당 (1회×{editTotalQty}대)</option>
@@ -7084,7 +7179,8 @@ export const SmartDispatch4: React.FC = () => {
                                               const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
                                               setEditHistoryOptQtys(prev => ({ ...prev, [optName]: num }));
                                             }}
-                                            className="h-7 px-2 rounded bg-slate-900 border border-amber-500/60 text-center font-mono text-xs font-bold text-amber-300"
+                                            className="rounded bg-slate-900 border border-amber-500/60 text-center font-mono font-bold text-amber-300"
+                                            style={{ height: '28px', padding: '2px 6px', fontSize: '12px', textAlign: 'center' }}
                                           />
                                         </div>
                                       )}
@@ -7098,7 +7194,8 @@ export const SmartDispatch4: React.FC = () => {
                                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
                                             setEditHistoryOptPrices(prev => ({ ...prev, [optName]: num }));
                                           }}
-                                          className="h-7 px-2 rounded bg-slate-900 border border-rose-500/70 text-right font-mono text-xs font-bold text-rose-200"
+                                          className="rounded bg-slate-900 border border-rose-500/70 text-right font-mono font-bold text-rose-200"
+                                          style={{ height: '28px', padding: '2px 8px', fontSize: '12px', textAlign: 'right' }}
                                         />
                                       </div>
                                     </div>
@@ -7212,7 +7309,8 @@ export const SmartDispatch4: React.FC = () => {
                                               const val = e.target.value as '월' | '대' | '건';
                                               setEditHistoryOptUnits(prev => ({ ...prev, [opt.name]: val }));
                                             }}
-                                            className="h-6 px-1.5 rounded bg-slate-950 border border-amber-500/60 text-amber-300 text-[10.5px] font-bold cursor-pointer"
+                                            className="rounded bg-slate-950 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
+                                            style={{ width: '92px', height: '26px', padding: '2px 6px', fontSize: '11px', flexShrink: 0 }}
                                           >
                                             <option value="월">월 단위</option>
                                             <option value="대">1대당</option>
@@ -7230,7 +7328,8 @@ export const SmartDispatch4: React.FC = () => {
                                                   const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
                                                   setEditHistoryOptQtys(prev => ({ ...prev, [opt.name]: num }));
                                                 }}
-                                                className="w-12 h-6 px-1 rounded bg-slate-950 border border-amber-500/60 text-center font-mono text-[10.5px] font-bold text-amber-300"
+                                                className="rounded bg-slate-950 border border-amber-500/60 text-center font-mono font-bold text-amber-300"
+                                                style={{ width: '48px', height: '26px', padding: '2px 4px', fontSize: '11px', textAlign: 'center', flexShrink: 0 }}
                                               />
                                               <span className="text-[10px] text-slate-400">개</span>
                                             </div>
@@ -7249,7 +7348,8 @@ export const SmartDispatch4: React.FC = () => {
                                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
                                             setEditHistoryOptPrices(prev => ({ ...prev, [opt.name]: num }));
                                           }}
-                                          className="w-28 h-7 px-2 rounded bg-slate-950 border border-rose-500 text-right font-mono text-xs font-bold text-rose-200"
+                                          className="rounded bg-slate-950 border border-rose-500 text-right font-mono font-bold text-rose-200"
+                                          style={{ width: '100px', height: '28px', padding: '2px 8px', fontSize: '12px', textAlign: 'right', flexShrink: 0 }}
                                         />
                                         <span className="text-[11px] text-slate-400">원</span>
                                       </div>
