@@ -387,7 +387,7 @@ ALTER TABLE deliveries ADD CONSTRAINT deliveries_dispatchCategory_check CHECK ("
 
 -- 3-2. 배차 운송비 대사 상태 제약조건
 ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_reconciliationStatus_check;
-ALTER TABLE deliveries ADD CONSTRAINT deliveries_reconciliationStatus_check CHECK ("reconciliationStatus" IN ('PENDING', 'MATCHED', 'MISMATCH', 'RECONCILED', 'PAYMENT_REQUESTED', 'PAID'));
+ALTER TABLE deliveries ADD CONSTRAINT deliveries_reconciliationStatus_check CHECK ("reconciliationStatus" IN ('PENDING', 'MATCHED', 'MISMATCH', 'RECONCILED', 'PAYMENT_REQUESTED', 'PAID', 'SETTLED', 'UNRECONCILED', 'NONE'));
 
 -- 3-3. 고객사 거래상태 제약조건 (출고제한 BLOCKED)
 ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_transactionStatus_check;

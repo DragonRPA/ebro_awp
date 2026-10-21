@@ -129,10 +129,14 @@ function extractDdlStatements(message: string, ddlPatch: string): string[] {
     });
   }
   
-  if (text.includes('deliveries_status_check') || (text.includes('deliveries') && text.includes('check constraint'))) {
+  if (text.includes('deliveries_status_check') || text.includes('deliveries_reconciliationStatus_check') || text.includes('deliveries_dispatchCategory_check') || (text.includes('deliveries') && text.includes('check constraint'))) {
     const deliveryCheckDdl = [
       `ALTER TABLE "deliveries" DROP CONSTRAINT IF EXISTS "deliveries_status_check";`,
       `ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_status_check" CHECK (status IN ('PENDING', 'REQUESTED', 'DISPATCHED', 'DELIVERED', 'COMPLETED', 'CANCELLED'));`,
+      `ALTER TABLE "deliveries" DROP CONSTRAINT IF EXISTS "deliveries_reconciliationStatus_check";`,
+      `ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_reconciliationStatus_check" CHECK ("reconciliationStatus" IN ('PENDING', 'MATCHED', 'MISMATCH', 'RECONCILED', 'PAYMENT_REQUESTED', 'PAID', 'SETTLED', 'UNRECONCILED', 'NONE'));`,
+      `ALTER TABLE "deliveries" DROP CONSTRAINT IF EXISTS "deliveries_dispatchCategory_check";`,
+      `ALTER TABLE "deliveries" ADD CONSTRAINT "deliveries_dispatchCategory_check" CHECK ("dispatchCategory" IN ('출고', '입고', '반납', '정비', '이동', '교환'));`,
       `NOTIFY pgrst, 'reload schema';`
     ];
     deliveryCheckDdl.forEach(s => {

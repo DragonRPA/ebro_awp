@@ -3599,7 +3599,13 @@ export const TruckDispatch: React.FC = () => {
         deliveryCost: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : totalExpectedCost),
         deliveryCostConfirmed: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : selectedDelivery.deliveryCostConfirmed),
         isCostSettled: isAllCustDirect ? true : selectedDelivery.isCostSettled,
-        reconciliationStatus: isAllCustDirect ? ('SETTLED' as any) : selectedDelivery.reconciliationStatus,
+        reconciliationStatus: isAllCustDirect
+          ? 'PAID'
+          : (selectedDelivery.reconciliationStatus === ('SETTLED' as any)
+              ? 'PAID'
+              : (!selectedDelivery.reconciliationStatus || selectedDelivery.reconciliationStatus === ('UNRECONCILED' as any) || selectedDelivery.reconciliationStatus === ('NONE' as any))
+                ? 'PENDING'
+                : selectedDelivery.reconciliationStatus),
         vehicles: JSON.stringify(sanitizedVehicles),
         ...(returnCargoJson !== undefined ? { cargoItems: returnCargoJson } : {}),
         closingMemo: (() => {
