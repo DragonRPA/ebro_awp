@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.22';
-const CORE_HASH = '02a19f972f08';
+const VERSION = 'v2.0.0.Build.24';
+const CORE_HASH = '79f44cfd5607';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -1096,6 +1096,7 @@ Replace-Tag $wsContract "{최소기간}" "${psEscape(minPeriod)}"
 Replace-Tag $wsContract "{최고기간}" "${psEscape(minPeriod)}"
 Replace-Tag $wsContract "{기준기간}" "${psEscape(basePeriod)}"
 Replace-Tag $wsContract "■ 3개월 이하: 왕복 운반비 임차인 부담 ■ 5개월 이하: 편도 운반비 임차인 부담 ■ 5개월 초과 : 왕복 운반비 임대인 부담" "■ ${psEscape(minPeriod)}개월 이하: 왕복 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 이하: 편도 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 초과 : 왕복 운반비 임대인 부담"
+$wsContract.Range("C56").Value2 = "■ ${psEscape(minPeriod)}개월 이하: 왕복 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 이하: 편도 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 초과 : 왕복 운반비 임대인 부담 "
 Replace-Tag $wsContract "{합계}" "₩${grandTotalFee.toLocaleString()}"
 Replace-Tag $wsContract "{옵션}" ""
 $wsContract.Range("C57").Value2 = ""
