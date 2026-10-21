@@ -1,7 +1,114 @@
 // src/utils/nativeLauncher.ts
 // 폰 앱 딥링크, 클립보드 복사 및 전화걸기 안전 실행 유틸리티
 
-import { db } from '../services/db';
+import { db, User } from '../services/db';
+import { decryptPrivacyField } from './cryptoVault';
+
+/**
+ * 👤 배차 건(또는 현재 로그인하여 배차를 입력/조작 중인 임직원)을 기준으로 '당사 보관소' 담당 직원 이름 및 전화번호를 임직원 정보(users)에서 조회
+ * 1순위: 현재 로그인하여 배차 화면에서 입력/조작 중인 임직원(currentUser) 정보
+ * 2순위: 배차 메모에 기록된 [배차담당자: 이름 (연락처) | ID] 태그 및 해당 User 최신 정보
+ * 3순위: cargoItems 내 requestMeta.requesterId 또는 연결된 계약의 영업담당자(salespersonId) User 정보
+ * 4순위: 테넌트 기본 주기장/대표 연락처 폴백
+ */
+export function resolveDispatchStaffContact(params?: {
+  delivery?: {
+    contractId?: string;
+    cargoItems?: string;
+    memo?: string;
+    closingMemo?: string;
+    rawText?: string;
+  } | null;
+  currentUser?: User | null;
+  users?: User[];
+  contracts?: Array<{ id: string; salespersonId?: string }>;
+  currentTenant?: any;
+}): { name: string; phone: string; fullText: string } {
+  const userList: User[] = params?.users || db.users || [];
+  const contractList = params?.contracts || db.contracts || [];
+  const tenant = params?.currentTenant || db.currentTenant;
+  const delivery = params?.delivery;
+  const activeUser = params?.currentUser;
+
+  const formatUserContact = (u?: User | null, fallbackName?: string, fallbackPhone?: string) => {
+    if (!u && !fallbackName) return null;
+    const rawName = (u?.name || fallbackName || '').trim();
+    if (!rawName) return null;
+    const pos = (u?.position || '').trim();
+    const displayName = pos && !rawName.includes(pos) && pos !== '개발자' ? `${rawName} ${pos}` : rawName;
+    const rawPhone = decryptPrivacyField(u?.phone || '') || (fallbackPhone || '').trim() || tenant?.tel || '';
+    const cleanPhone = rawPhone.trim();
+    return {
+      name: displayName,
+      phone: cleanPhone || '연락처 미등록',
+      fullText: cleanPhone ? `${displayName} ${cleanPhone}` : displayName
+    };
+  };
+
+  // 1. 현재 로그인하여 배차 화면에서 입력/조작 중인 임직원(currentUser)
+  if (activeUser) {
+    const dbUser = userList.find(u => u.id === activeUser.id) || activeUser;
+    const resolved = formatUserContact(dbUser);
+    if (resolved) return resolved;
+  }
+
+  // 2. 배차 메모 내 [배차담당자: 이름 (연락처) | userId] 또는 [배차담당자: 이름 (연락처)] 추출 (저장된 배차 담당 직원)
+  const memoText = `${delivery?.memo || ''} ${delivery?.closingMemo || ''} ${delivery?.rawText || ''}`;
+  const staffTagMatch = memoText.match(/\[배차담당자:\s*([^|\]]+?)(?:\s*\|\s*([^\]]+))?\]/);
+  if (staffTagMatch) {
+    const bodyPart = (staffTagMatch[1] || '').trim();
+    const taggedUserId = (staffTagMatch[2] || '').trim();
+    const namePhoneMatch = bodyPart.match(/^([^\(]+?)(?:\s*\(([^\)]+)\))?$/);
+    const parsedName = (namePhoneMatch?.[1] || bodyPart).trim();
+    const parsedPhone = (namePhoneMatch?.[2] || '').trim();
+
+    const matchedById = taggedUserId ? userList.find(u => u.id === taggedUserId) : undefined;
+    const matchedByName = !matchedById && parsedName
+      ? userList.find(u => u.name === parsedName || `${u.name} ${u.position || ''}`.trim() === parsedName)
+      : undefined;
+    const resolved = formatUserContact(
+      matchedById || matchedByName,
+      parsedName,
+      parsedPhone !== '연락처 미등록' && parsedPhone !== '-' ? parsedPhone : undefined
+    );
+    if (resolved) return resolved;
+  }
+
+  // 3. cargoItems 내 requestMeta.requesterId / requesterName (출고 요청자)
+  if (delivery?.cargoItems) {
+    try {
+      const parsed = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+      if (Array.isArray(parsed) && parsed[0]?.requestMeta) {
+        const reqMeta = parsed[0].requestMeta;
+        const reqUser = reqMeta.requesterId
+          ? userList.find(u => u.id === reqMeta.requesterId)
+          : (reqMeta.requesterName ? userList.find(u => u.name === reqMeta.requesterName) : undefined);
+        const resolved = formatUserContact(reqUser, reqMeta.requesterName);
+        if (resolved) return resolved;
+      }
+    } catch {}
+  }
+
+  // 4. 계약서에 지정된 담당 임직원(salespersonId)
+  if (delivery?.contractId) {
+    const contract = contractList.find(c => c.id === delivery.contractId);
+    if (contract?.salespersonId) {
+      const salesUser = userList.find(u => u.id === contract.salespersonId);
+      const resolved = formatUserContact(salesUser);
+      if (resolved) return resolved;
+    }
+  }
+
+  // 4. 폴백: 테넌트 기본 주기장 정보
+  const defaultYard = tenant?.yards?.find((y: any) => y.isDefault) || tenant?.yards?.[0];
+  const fbName = defaultYard?.managerName || tenant?.representativeName || '배차담당';
+  const fbPhone = defaultYard?.managerPhone || defaultYard?.tel || tenant?.tel || '연락처 미등록';
+  return {
+    name: fbName,
+    phone: fbPhone,
+    fullText: fbPhone && fbPhone !== '연락처 미등록' ? `${fbName} ${fbPhone}` : fbName
+  };
+}
 
 export type NavAppType = 'TMAP' | 'KAKAO' | 'NAVER' | 'WEB';
 
@@ -344,7 +451,7 @@ export function sanitizeDispatcherSpecialNote(rawNote?: string | null): string {
     if (
       /^(?:마감일|결제일)\s*:/.test(stripped) ||
       /^(?:유상옵션|무상옵션|회수옵션|출고옵션|보양|부착물|현장요구사양)\s*:/.test(stripped) ||
-      /^\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|정산일정|차종|하차일정|현장상세주소)\]/.test(stripped) ||
+      /^\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|정산일정|차종|하차일정|현장상세주소|배차담당자|임차처|고객담당자)/.test(stripped) ||
       /^\[(?:납품증 사진|전자 서명)\]\s*:/.test(stripped) ||
       stripped === '출고 파이프라인 자동 지시건' ||
       stripped === '없음' ||
@@ -368,7 +475,7 @@ export function stripOptionsFromDispatchRawText(rawText?: string | null): string
 
   // [고객담당자: ...] 뒤에 바로 붙은 [회수옵션] 등을 분리하기 위해 먼저 태그 앞을 구분
   const normalized = rawText
-    .replace(/\]\s*\[(?=(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업)\])/g, '] | [');
+    .replace(/\]\s*\[(?=(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자|임차처|고객담당자))/g, '] | [');
 
   const segments = normalized
     .split('|')
@@ -378,7 +485,8 @@ export function stripOptionsFromDispatchRawText(rawText?: string | null): string
   const kept: string[] = [];
   for (const seg of segments) {
     const cleaned = seg
-      .replace(/\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업)\]\s*[^|]*/g, '')
+      .replace(/\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자)\][^\]]*\]?/g, '')
+      .replace(/\[배차담당자:[^\]]*\]/g, '')
       .replace(/(?:유상옵션|무상옵션|회수옵션|출고옵션|보양)\s*:\s*[^|]*/g, '')
       .trim();
 
@@ -425,6 +533,7 @@ export interface DispatchSmsParams {
   companyName?: string;
   hqYardAddress?: string;
   hqYardPhone?: string;
+  hqYardContactPerson?: string;
 }
 
 /**
@@ -433,13 +542,17 @@ export interface DispatchSmsParams {
 export function buildDispatchSmsText(params: DispatchSmsParams): string {
   const { delivery } = params;
   const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
-  const defaultYardAddress = defaultYard?.address || db.currentTenant?.mainYardAddress || db.currentTenant?.businessAddress || '본사 주기장';
+  const defaultYardAddress = db.currentTenant?.businessAddress || defaultYard?.address || db.currentTenant?.headOfficeAddress || db.currentTenant?.mainYardAddress || '본사 주기장';
   const defaultYardName = defaultYard?.name || '본사 주기장';
   const defaultCompany = db.currentTenant?.displayName || db.currentTenant?.tradeName || db.currentTenant?.corporateName || '기연리프트';
-  const defaultPhone = db.currentTenant?.tel || '배차/출고팀';
+  const resolvedStaff = resolveDispatchStaffContact({ delivery });
 
   const hqAddress = params.hqYardAddress || defaultYardAddress;
-  const hqPhone = params.hqYardPhone || defaultPhone;
+  const hqContactPerson = params.hqYardContactPerson || resolvedStaff.name;
+  const hqPhone = params.hqYardPhone || resolvedStaff.phone || db.currentTenant?.tel || '배차/출고팀';
+  const hqContactFull = hqContactPerson
+    ? (hqPhone && !hqContactPerson.includes(hqPhone) ? `${hqContactPerson} ${hqPhone}` : hqContactPerson)
+    : hqPhone;
   const companyName = params.companyName || defaultCompany;
 
   const type = delivery.type || 'OUTBOUND';
@@ -483,15 +596,16 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   // 상차지와 하차지 분기
   let origin = formatAddressWithCompanyYard(delivery.originAddress || hqAddress, hqAddress);
   let destination = formatAddressWithCompanyYard(siteAddress, hqAddress);
-  let originContact = hqPhone;
+  let originContact = hqContactFull;
   let destContact = [contactName, contactPhone].filter(Boolean).join(' ');
 
-  // 회수인 경우: 상차지가 현장, 하차지가 주기장
-  if (type === 'RETURN' || type === 'INBOUND') {
+  // 임차자산 반납(RETURN)은 당사 보관소 상차 -> 임차처 하차 / 일반 회수(INBOUND)는 현장 상차 -> 당사 보관소 하차
+  const isHqOrigin = !delivery.originAddress || delivery.originAddress.includes('당사 보관소') || delivery.originAddress.includes('주기장') || delivery.originAddress === hqAddress;
+  if ((type === 'RETURN' || type === 'INBOUND') && !isHqOrigin) {
     origin = formatAddressWithCompanyYard(siteAddress, hqAddress);
     originContact = [contactName, contactPhone].filter(Boolean).join(' ');
     destination = formatAddressWithCompanyYard(delivery.destinationAddress || '당사 보관소', hqAddress);
-    destContact = hqPhone;
+    destContact = hqContactFull;
   }
 
   const headerTitle = `[${companyName} 배차안내]`;
@@ -630,10 +744,11 @@ export function formatKakaoTimeSlot(timeSlot?: string, defaultPrefix = '오전')
 export function formatAddressWithCompanyYard(rawAddr: string | undefined, hqAddress?: string): string {
   const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
   const fallbackHq =
-    defaultYard?.address ||
-    db.currentTenant?.mainYardAddress ||
     db.currentTenant?.businessAddress ||
-    '경기 용인시 처인구 모현읍 갈담리 176-1';
+    defaultYard?.address ||
+    db.currentTenant?.headOfficeAddress ||
+    db.currentTenant?.mainYardAddress ||
+    '';
   const cleanHq =
     hqAddress && hqAddress.trim() && hqAddress.trim() !== '당사 보관소' && hqAddress.trim() !== '본사 주기장'
       ? hqAddress.trim()
@@ -641,7 +756,7 @@ export function formatAddressWithCompanyYard(rawAddr: string | undefined, hqAddr
 
   const trimmed = (rawAddr || '').trim();
   if (!trimmed) {
-    return `당사 보관소 (${cleanHq})`;
+    return cleanHq ? `당사 보관소 (${cleanHq})` : '당사 보관소';
   }
 
   const normalized = trimmed.replace(/\s+/g, '');
@@ -651,7 +766,7 @@ export function formatAddressWithCompanyYard(rawAddr: string | undefined, hqAddr
     normalized === '당사주기장' ||
     normalized === '본사주기장'
   ) {
-    return `${trimmed} (${cleanHq})`;
+    return cleanHq ? `${trimmed} (${cleanHq})` : trimmed;
   }
 
   if (
@@ -659,6 +774,7 @@ export function formatAddressWithCompanyYard(rawAddr: string | undefined, hqAddr
       trimmed.includes('당사보관소') ||
       trimmed.includes('본사 주기장') ||
       trimmed.includes('당사 주기장')) &&
+    cleanHq &&
     !trimmed.includes(cleanHq)
   ) {
     return `${trimmed} (${cleanHq})`;
@@ -714,24 +830,28 @@ export interface DispatchKakaoParams {
 export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string {
   const { delivery } = params;
 
-  // 1. 기본 주기장 및 당사 담당자 정보
+  // 1. 기본 주기장 및 당사 담당자 정보 (임직원 정보 기반 담당자 이름 + 전화번호 우선 적용)
   const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
-  const defaultYardAddress = defaultYard?.address || db.currentTenant?.mainYardAddress || db.currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
-  const defaultYardContact = params.hqYardContactPerson 
-    ? (params.hqYardPhone ? `${params.hqYardContactPerson} ${params.hqYardPhone}` : params.hqYardContactPerson)
-    : (defaultYard?.managerName ? `${defaultYard.managerName} ${defaultYard.managerPhone || defaultYard.tel || ''}`.trim() : (db.currentTenant?.tel || '주기장 관리팀'));
+  const defaultYardAddress = db.currentTenant?.businessAddress || defaultYard?.address || db.currentTenant?.headOfficeAddress || db.currentTenant?.mainYardAddress || '당사 보관소';
+  const resolvedStaff = resolveDispatchStaffContact({ delivery });
+  const staffContactPerson = params.hqYardContactPerson || resolvedStaff.name;
+  const staffContactPhone = params.hqYardPhone || resolvedStaff.phone;
+  const defaultYardContact = staffContactPerson
+    ? (staffContactPhone && staffContactPhone !== '연락처 미등록' && !staffContactPerson.includes(staffContactPhone)
+        ? `${staffContactPerson} ${staffContactPhone}`
+        : staffContactPerson)
+    : (defaultYard?.managerName ? `${defaultYard.managerName} ${defaultYard.managerPhone || defaultYard.tel || ''}`.trim() : (db.currentTenant?.tel || '배차담당'));
 
   const hqAddress = params.hqYardAddress || defaultYardAddress;
-  const hqContact = params.hqYardPhone 
-    ? (params.hqYardContactPerson ? `${params.hqYardContactPerson} ${params.hqYardPhone}` : params.hqYardPhone) 
-    : defaultYardContact;
+  const hqContact = defaultYardContact;
 
-  // 2. 배차 유형 판정 (출고 / 반납 / 교환)
+  // 2. 배차 유형 판정 (출고 / 반납(임차처반납) / 입고(회수) / 교환)
   const rawType = (delivery.type || '').toUpperCase();
   const rawCat = (delivery.dispatchCategory || '').trim();
 
   const isExchange = rawType === 'EXCHANGE' || rawCat === '교환';
-  const isReturn = rawType === 'RETURN' || rawType === 'INBOUND' || rawCat === '반납' || rawCat === '입고' || rawCat === '회수';
+  const isSubleaseReturn = rawType === 'RETURN' || rawCat === '반납';
+  const isReturn = isSubleaseReturn || rawType === 'INBOUND' || rawCat === '입고' || rawCat === '회수';
 
   // 3. 날짜 & 요일 포맷팅
   const baseLoadingDateStr = delivery.loadingDate || delivery.scheduledDate || delivery.requestDate || new Date().toISOString().slice(0, 10);
@@ -801,23 +921,42 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
   // 본문: 유형별 분기
   // ───────────────────────────────────────────────
   if (isReturn) {
-    // ═══════════════════════════════════════════════
-    // [유형 1: 반납/회수 배차] (현장 상차 -> 당사 주기장 하차)
-    // ═══════════════════════════════════════════════
-    const returnOrigin = formatAddressWithCompanyYard(delivery.originAddress || siteAddress, hqAddress);
-    const returnDest = formatAddressWithCompanyYard(delivery.destinationAddress || '당사 보관소', hqAddress);
-    lines.push(``);
-    lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
-    lines.push(`업체명 : ${customerName}`);
-    lines.push(`현장명 : ${siteName}`);
-    lines.push(`상차지 : ${returnOrigin}`);
-    lines.push(`담당자 : ${siteContactFull}`);
-    lines.push(`장비종류 : ${cargoStr}`);
-    lines.push(``);
-    lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
-    lines.push(`하차지: ${returnDest}`);
-    lines.push(`담당자: ${hqContact}`);
-
+    const rawOrigin = (delivery.originAddress || '').trim();
+    const isOriginHq = !rawOrigin || rawOrigin.includes('당사 보관소') || rawOrigin.includes('주기장') || rawOrigin === hqAddress;
+    if (isSubleaseReturn && isOriginHq) {
+      // ═══════════════════════════════════════════════
+      // [유형 1-A: 임차자산 반납 배차] (당사 보관소 상차 -> 임차처 하차)
+      // ═══════════════════════════════════════════════
+      const subleaseOrigin = formatAddressWithCompanyYard(delivery.originAddress || '당사 보관소', hqAddress);
+      const subleaseDest = formatAddressWithCompanyYard(siteAddress || delivery.destinationAddress || '임차처', hqAddress);
+      lines.push(``);
+      lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
+      lines.push(`상차지 : ${subleaseOrigin}`);
+      lines.push(`담당자 : ${hqContact}`);
+      lines.push(`장비종류 : ${cargoStr}`);
+      lines.push(``);
+      lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
+      lines.push(`업체명 : ${customerName}`);
+      lines.push(`하차지 : ${subleaseDest}`);
+      lines.push(`담당자 : ${siteContactFull}`);
+    } else {
+      // ═══════════════════════════════════════════════
+      // [유형 1-B: 입고/회수 배차] (현장 상차 -> 당사 보관소 하차)
+      // ═══════════════════════════════════════════════
+      const returnOrigin = formatAddressWithCompanyYard(delivery.originAddress || siteAddress, hqAddress);
+      const returnDest = formatAddressWithCompanyYard(delivery.destinationAddress || '당사 보관소', hqAddress);
+      lines.push(``);
+      lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
+      lines.push(`업체명 : ${customerName}`);
+      lines.push(`현장명 : ${siteName}`);
+      lines.push(`상차지 : ${returnOrigin}`);
+      lines.push(`담당자 : ${siteContactFull}`);
+      lines.push(`장비종류 : ${cargoStr}`);
+      lines.push(``);
+      lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
+      lines.push(`하차지: ${returnDest}`);
+      lines.push(`담당자: ${hqContact}`);
+    }
   } else if (isExchange) {
     // ═══════════════════════════════════════════════
     // [유형 3: 교환 배차] (당사 출고 상차 -> 현장 교환 -> 당사 회수 입고)

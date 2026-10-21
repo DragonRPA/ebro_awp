@@ -413,6 +413,39 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
 
   const [customInspectionDate, setCustomInspectionDate] = useState<string>('');
   const [customInspectorName, setCustomInspectorName] = useState<string>('');
+  const [freightBillingStandard, setFreightBillingStandard] = useState<'2/4' | '3/5'>('3/5');
+
+  const defaultFreightBillingStandard = useMemo<'2/4' | '3/5'>(() => {
+    const checkDelivery = (del?: any): '2/4' | '3/5' | null => {
+      if (!del) return null;
+      if (del.cargoItems) {
+        try {
+          const parsed = JSON.parse(del.cargoItems);
+          const metaStd = Array.isArray(parsed)
+            ? parsed.find((ci: any) => ci?.requestMeta?.freightBillingStandard)?.requestMeta?.freightBillingStandard
+            : undefined;
+          if (metaStd === '2/4' || metaStd === '3/5') return metaStd;
+        } catch {}
+      }
+      const combinedText = `${del.memo || ''} ${del.rawText || ''}`;
+      if (combinedText.includes('[운송료청구기준] 2/4') || combinedText.includes('운송료청구기준: 2/4')) return '2/4';
+      if (combinedText.includes('[운송료청구기준] 3/5') || combinedText.includes('운송료청구기준: 3/5')) return '3/5';
+      return null;
+    };
+
+    const fromTarget = checkDelivery(outboundDelivery);
+    if (fromTarget) return fromTarget;
+
+    for (const entry of contractOutboundDeliveries) {
+      const fromEntry = checkDelivery(entry.delivery);
+      if (fromEntry) return fromEntry;
+    }
+    return '3/5';
+  }, [outboundDelivery, contractOutboundDeliveries]);
+
+  useEffect(() => {
+    setFreightBillingStandard(defaultFreightBillingStandard);
+  }, [defaultFreightBillingStandard]);
 
   const defaultInspectorName = useMemo(() => {
     return '김관주';
@@ -430,7 +463,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setGeneratedResult(null);
     setEmailSentSuccess(false);
     setErrorMessage(null);
-  }, [selectedContractId, filterDate, customInspectionDate, customInspectorName]);
+  }, [selectedContractId, filterDate, customInspectionDate, customInspectorName, freightBillingStandard]);
 
   const mappedAssets = useMemo(() => {
     if (!selectedContract) return [];
@@ -625,10 +658,45 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     return models.length > 0 ? models : ['GS-2646'];
   }, [mappedAssets]);
 
-  // 등록된 현장(CustomerSite)에 저장된 수신인 풀만 수집 (타 현장 및 고객사 전체 담당자 유입 차단)
-  const availableCustomerContacts = useMemo(() => {
-    if (!site) return [];
-    const list: { id: string; name: string; position: string; email: string; typeLabel: string; roleLabel: string }[] = [];
+  // 등록된 현장(CustomerSite)에 저장된 담당자 및 수신인 풀 수집 (타 현장 담당자 무분별 유입 차단)
+  const siteContactDirectory = useMemo(() => {
+    const emailContacts: { id: string; name: string; position: string; email: string; phone?: string; typeLabel: string; roleLabel: string }[] = [];
+    const noEmailContacts: { id: string; name: string; position: string; phone: string; roleLabel: string }[] = [];
+    if (!site) return { emailContacts, noEmailContacts };
+
+    const normPersonName = (raw?: string | null) =>
+      String(raw || '')
+        .replace(/\s+/g, '')
+        .replace(/(과장님|차장님|부장님|대리님|소장님|팀장님|대표님|기사님|선임님|책임님|주임님|사원님|님|과장|차장|부장|대리|소장|팀장|대표|이사|선임|책임|주임|사원|공무과장|공무차장|공무대리|공무|안전관리자|안전담당|현장소장|현장담당자|현장담당|마감담당|장비담당|담당자|담당)$/g, '')
+        .trim();
+
+    const normPhoneDigits = (raw?: string | null) => String(raw || '').replace(/[^0-9]/g, '');
+
+    const custContacts = (contacts || []).filter(
+      c => c.customerId === site.customerId && c.isActive !== false
+    );
+
+    const resolveEmailFromCustomerContacts = (name?: string, phone?: string, explicitEmail?: string): string => {
+      if (explicitEmail && explicitEmail.includes('@')) return explicitEmail;
+      const pName = normPersonName(name);
+      const pPhone = normPhoneDigits(phone);
+      if (!pName && !pPhone) return '';
+
+      const matched = custContacts.filter(cc => {
+        const ccEmail = String(cc.email || '').trim();
+        if (!ccEmail.includes('@')) return false;
+        const ccPhone = normPhoneDigits(cc.contact);
+        const ccName = normPersonName(cc.name);
+        if (pPhone && pPhone.length >= 8 && ccPhone === pPhone) return true;
+        if (pName && pName.length >= 2 && ccName === pName) return true;
+        return false;
+      });
+
+      if (matched.length > 0) {
+        return matched.map(m => m.email).filter(Boolean).join(', ');
+      }
+      return '';
+    };
 
     const buildRoleLabel = (typeLabel: string, position?: string) => {
       const cleanPos = (position || '').trim();
@@ -638,81 +706,136 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       return `${typeLabel} · ${cleanPos}`;
     };
 
-    const pushEmails = (baseId: string, name: string, position: string, rawEmail: string | undefined, typeLabel: string) => {
-      if (!rawEmail) return;
-      const parts = String(rawEmail).split(/[\s,;/]+/).map(e => e.trim()).filter(Boolean);
-      parts.forEach((em, i) => {
-        if (em.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-          const roleLabel = buildRoleLabel(typeLabel, position);
-          list.push({
-            id: parts.length > 1 ? `${baseId}-${i}` : baseId,
-            name: (name || '').trim() || typeLabel,
-            position: (position || '').trim() || typeLabel,
-            email: em,
-            typeLabel,
-            roleLabel
-          });
-        }
-      });
+    const pushCandidate = (baseId: string, name: string, position: string, phone: string | undefined, rawEmail: string | undefined, typeLabel: string) => {
+      const cleanName = (name || '').trim();
+      const cleanPhone = (phone || '').trim();
+      const resolvedRawEmail = resolveEmailFromCustomerContacts(cleanName, cleanPhone, rawEmail);
+      const roleLabel = buildRoleLabel(typeLabel, position);
+
+      if (resolvedRawEmail) {
+        const parts = String(resolvedRawEmail).split(/[\s,;/]+/).map(e => e.trim()).filter(Boolean);
+        let pushedAny = false;
+        parts.forEach((em, i) => {
+          if (em.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            pushedAny = true;
+            emailContacts.push({
+              id: parts.length > 1 ? `${baseId}-${i}` : baseId,
+              name: cleanName || typeLabel,
+              position: (position || '').trim() || typeLabel,
+              email: em,
+              phone: cleanPhone,
+              typeLabel,
+              roleLabel
+            });
+          }
+        });
+        if (pushedAny) return;
+      }
+
+      if (cleanName && cleanName !== '-' && cleanName !== site.name) {
+        noEmailContacts.push({
+          id: `${baseId}-noemail`,
+          name: cleanName,
+          position: (position || '').trim() || typeLabel,
+          phone: cleanPhone,
+          roleLabel
+        });
+      }
     };
 
-    // 1) 등록된 현장의 contacts 배열 내 수신인 (장비담당 / 마감담당 / 안전담당 / 추가담당)
+    // 1) 등록된 현장의 contacts 배열 내 담당자 (장비담당 / 마감담당 / 안전담당 / 추가담당)
     if (site.contacts && site.contacts.length > 0) {
-      site.contacts.filter(sc => sc.isActive !== false && sc.email).forEach((sc, idx) => {
+      site.contacts.filter(sc => sc.isActive !== false).forEach((sc, idx) => {
         const typeLabel =
           sc.contactType === 'EQUIPMENT' ? '장비담당' :
           sc.contactType === 'CLOSING' ? '마감담당' :
           sc.contactType === 'SAFETY' ? '안전담당' :
           sc.isPrimary ? '현장대표' : '현장담당';
-        pushEmails(
+        pushCandidate(
           `site-${site.id}-c-${sc.id || idx}`,
-          sc.name || site.contactName || site.name || typeLabel,
+          sc.name || site.contactName || '',
           sc.position || typeLabel,
+          sc.contact,
           sc.email,
           typeLabel
         );
       });
     }
 
-    // 2) 등록된 현장의 기본/마감/안전 이메일 플랫 필드 보완 (contacts 배열과 중복 시 아래 uniqueMap에서 자동 병합)
-    if (site.email && site.email.trim()) {
-      pushEmails(
+    // 2) 등록된 현장의 기본/마감/안전 플랫 필드 보완
+    if ((site.contactName && site.contactName.trim()) || (site.email && site.email.trim())) {
+      pushCandidate(
         `site-${site.id}-eq`,
         site.contactName || site.name || '장비담당',
         '장비담당',
+        site.contact,
         site.email,
         '장비담당'
       );
     }
-    if (site.billingContactEmail && site.billingContactEmail.trim()) {
-      pushEmails(
+    if ((site.billingContactName && site.billingContactName.trim()) || (site.billingContactEmail && site.billingContactEmail.trim())) {
+      pushCandidate(
         `site-${site.id}-cl`,
         site.billingContactName || site.name || '마감담당',
         '마감담당',
+        site.billingContactPhone,
         site.billingContactEmail,
         '마감담당'
       );
     }
-    if (site.safetyContactEmail && site.safetyContactEmail.trim()) {
-      pushEmails(
+    if ((site.safetyContactName && site.safetyContactName.trim()) || (site.safetyContactEmail && site.safetyContactEmail.trim())) {
+      pushCandidate(
         `site-${site.id}-sf`,
         site.safetyContactName || site.name || '안전담당',
         '안전담당',
+        site.safetyContactPhone,
         site.safetyContactEmail,
         '안전담당'
       );
     }
 
+    // 3) 선택된 출고 요청(Delivery)에 현장담당자가 명시되어 있는 경우 보완
+    if (outboundDelivery) {
+      const delEntry = contractOutboundDeliveries.find(x => x.id === outboundDelivery.id);
+      if (delEntry?.siteContactName && delEntry.siteContactName !== '-') {
+        pushCandidate(
+          `del-${outboundDelivery.id}-sc`,
+          delEntry.siteContactName,
+          '출고현장담당',
+          delEntry.siteContactPhone,
+          undefined,
+          '현장담당'
+        );
+      }
+    }
+
     // 이메일 기준 중복 제거
-    const uniqueMap = new Map<string, typeof list[0]>();
-    list.forEach(item => {
-      if (item.email && !uniqueMap.has(item.email.toLowerCase())) {
-        uniqueMap.set(item.email.toLowerCase(), item);
+    const uniqueEmailMap = new Map<string, typeof emailContacts[0]>();
+    emailContacts.forEach(item => {
+      if (item.email && !uniqueEmailMap.has(item.email.toLowerCase())) {
+        uniqueEmailMap.set(item.email.toLowerCase(), item);
+      }
+    });
+    const dedupedEmailContacts = Array.from(uniqueEmailMap.values());
+
+    // 이메일이 이미 확보된 담당자 이름은 미등록 목록에서 제외
+    const namesWithEmail = new Set(dedupedEmailContacts.map(c => normPersonName(c.name)).filter(Boolean));
+    const uniqueNoEmailMap = new Map<string, typeof noEmailContacts[0]>();
+    noEmailContacts.forEach(item => {
+      const key = normPersonName(item.name) || item.name;
+      if (key && !namesWithEmail.has(key) && !uniqueNoEmailMap.has(key)) {
+        uniqueNoEmailMap.set(key, item);
       }
     });
 
-    return Array.from(uniqueMap.values());
-  }, [site]);
+    return {
+      emailContacts: dedupedEmailContacts,
+      noEmailContacts: Array.from(uniqueNoEmailMap.values())
+    };
+  }, [site, contacts, outboundDelivery, contractOutboundDeliveries]);
+
+  const availableCustomerContacts = siteContactDirectory.emailContacts;
+  const siteContactsMissingEmail = siteContactDirectory.noEmailContacts;
 
   // ── 계약 변경 시 등록된 현장(CustomerSite)에 저장된 수신인만 자동 지정 ──
   useEffect(() => {
@@ -897,6 +1020,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         })(),
         salesRepName: dynamicSalesRepName,
         salesRepPhone: dynamicSalesRepPhone,
+        freightBillingStandard,
+        minRentalMonths: freightBillingStandard === '2/4' ? '2' : '3',
+        baseRentalMonths: freightBillingStandard === '2/4' ? '4' : '5',
         optionsText: '',
         paidOptions: mappedPaidOptions,
         assets: mappedAssets.length > 0 ? mappedAssets : undefined,
@@ -1432,6 +1558,48 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                   }}
                 />
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '8px', borderLeft: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                  운송료 청구기준:
+                </span>
+                <div role="radiogroup" aria-label="운송료 청구기준" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  {(['2/4', '3/5'] as const).map(std => {
+                    const checked = freightBillingStandard === std;
+                    return (
+                      <label
+                        key={std}
+                        onClick={() => !(isGenerating || isSendingEmail) && setFreightBillingStandard(std)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: checked ? '1.5px solid #10b981' : '1px solid var(--border-color)',
+                          backgroundColor: checked ? 'rgba(16, 185, 129, 0.14)' : 'var(--bg-card)',
+                          color: checked ? '#10b981' : 'var(--text-main)',
+                          fontSize: '12.5px',
+                          fontWeight: 800,
+                          cursor: isGenerating || isSendingEmail ? 'not-allowed' : 'pointer',
+                          userSelect: 'none',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="bundleFreightBillingStandard"
+                          value={std}
+                          checked={checked}
+                          disabled={isGenerating || isSendingEmail}
+                          onChange={() => setFreightBillingStandard(std)}
+                          style={{ accentColor: '#10b981', cursor: isGenerating || isSendingEmail ? 'not-allowed' : 'pointer' }}
+                        />
+                        <span>{std}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
               <span style={{
                 fontSize: '11.5px',
                 padding: '2px 8px',
@@ -1595,11 +1763,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
             </div>
 
             {/* 3-3. 등록된 현장 수신인 추가/제외 헬퍼 */}
-            {availableCustomerContacts.length > 0 && (
+            {(availableCustomerContacts.length > 0 || siteContactsMissingEmail.length > 0) && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
                 <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Users size={12} color="var(--primary)" />
-                  등록된 현장 수신인 선택 (클릭하여 추가/제외):
+                  등록된 현장 담당자 선택 (클릭하여 추가/제외):
                 </span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                   {availableCustomerContacts.map(c => {
@@ -1630,6 +1798,30 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                       </button>
                     );
                   })}
+                  {siteContactsMissingEmail.map(mc => (
+                    <button
+                      key={mc.id}
+                      type="button"
+                      onClick={() => setManualInputName(mc.name)}
+                      title="이메일이 미등록된 현장 담당자입니다. 클릭 시 이름란에 입력됩니다."
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        border: '1px dashed rgba(245, 158, 11, 0.5)',
+                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                        color: '#b45309',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span>{mc.name} ({mc.roleLabel}{mc.phone ? ` · ${mc.phone}` : ''})</span>
+                      <span style={{ fontSize: '10.5px', opacity: 0.85 }}>[이메일 미등록]</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

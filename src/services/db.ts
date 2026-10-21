@@ -1530,6 +1530,7 @@ export interface ContractAsset {
   salePrice?: number; // 💡 자산 매각 계약 시 매각 공급가액
   startDate: string;
   endDate: string;
+  firstStartDate?: string; // 💡 최초개시일 (현장 최초 투입일)
   predecessorContractId?: string;
   predecessorContractAssetId?: string;
   createdAt: string;
@@ -4285,13 +4286,13 @@ export const SEED_TENANTS: Tenant[] = [
       {
         id: 'yard-01',
         yardCode: 'YARD-YONGIN',
-        name: '용인 본사 주기장',
+        name: '당사 보관소',
         isDefault: true,
         address: '경기도 용인시 처인구 모현읍 갈담로112번길 21-3',
-        addressDetail: '본사 주기장',
+        addressDetail: '당사 보관소',
         operatingCapacity: 250,
-        managerName: '주기장 관리팀',
-        managerPhone: '031-334-5295',
+        managerName: '김원진 부장',
+        managerPhone: '010-2018-1223',
         tel: '031-334-5295',
         operatingHours: '08:30 ~ 17:30',
         memo: '본사 주력 출고/입고/정비 복합 주기장',
@@ -6088,8 +6089,46 @@ class LocalDB {
         changed = true;
       }
 
+      // contacts 배열에서 마감담당자(CLOSING) 및 안전담당자(SAFETY) 플랫 필드 자동 복원
+      let billingContactName = s.billingContactName;
+      let billingContactPhone = s.billingContactPhone;
+      let billingContactEmail = s.billingContactEmail;
+      let safetyContactName = s.safetyContactName;
+      let safetyContactPhone = s.safetyContactPhone;
+      let safetyContactEmail = s.safetyContactEmail;
+
+      if (Array.isArray(s.contacts) && s.contacts.length > 0) {
+        const closing = s.contacts.find(c => c && c.contactType === 'CLOSING' && c.isActive !== false)
+          || s.contacts.find(c => c && c.contactType === 'CLOSING');
+        if (closing) {
+          if (!billingContactName && closing.name) { billingContactName = closing.name; changed = true; }
+          if (!billingContactPhone && closing.contact) { billingContactPhone = closing.contact; changed = true; }
+          if (!billingContactEmail && closing.email) { billingContactEmail = closing.email; changed = true; }
+        }
+        const safety = s.contacts.find(c => c && c.contactType === 'SAFETY' && c.isActive !== false)
+          || s.contacts.find(c => c && c.contactType === 'SAFETY');
+        if (safety) {
+          if (!safetyContactName && safety.name) { safetyContactName = safety.name; changed = true; }
+          if (!safetyContactPhone && safety.contact) { safetyContactPhone = safety.contact; changed = true; }
+          if (!safetyContactEmail && safety.email) { safetyContactEmail = safety.email; changed = true; }
+        }
+      }
+
       if (changed) {
-        return { ...s, paidOptions: paid, protection: prot, attachments: att, checkedSpecs: specs, isActive: isActiveVal };
+        return {
+          ...s,
+          paidOptions: paid,
+          protection: prot,
+          attachments: att,
+          checkedSpecs: specs,
+          isActive: isActiveVal,
+          billingContactName,
+          billingContactPhone,
+          billingContactEmail,
+          safetyContactName,
+          safetyContactPhone,
+          safetyContactEmail
+        };
       }
       return s;
     });

@@ -3505,6 +3505,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           monthlyRentalFee: determinedMonthly,
           dailyRentalFee: determinedDaily,
           startDate: targetStartDate || contract.startDate,
+          firstStartDate: targetStartDate || contract.startDate,
           endDate: '',
           createdAt: new Date().toISOString()
         });
@@ -4276,6 +4277,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 monthlyRentalFee: eq.monthlyRate,
                 dailyRentalFee: eq.dailyRate,
                 startDate: startDateStr,
+                firstStartDate: startDateStr,
                 endDate: '',
                 createdAt: nowIso
               });
@@ -7271,6 +7273,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         monthlyRentalFee: item.monthlyRentalFee,
         dailyRentalFee: item.dailyRentalFee,
         startDate: contractData.startDate,
+        firstStartDate: contractData.startDate,
         endDate: contractData.endDate,
         createdAt: nowIso
       });
@@ -7606,6 +7609,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         monthlyRentalFee: ca.monthlyRentalFee,
         dailyRentalFee: ca.dailyRentalFee,
         startDate: nextDay,
+        firstStartDate: ca.firstStartDate || ca.startDate || nextDay,
         endDate: oldEndDate,
         status: ca.status,
         predecessorContractId: contractId,
@@ -7796,6 +7800,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       monthlyRentalFee: sourceCA.monthlyRentalFee,
       dailyRentalFee: sourceCA.dailyRentalFee,
       startDate: relocationStartDate,
+      firstStartDate: relocationStartDate,
       endDate: oldEndDate,
       predecessorContractId: sourceContract.id,
       predecessorContractAssetId: sourceCA.id,
@@ -7938,6 +7943,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       monthlyRentalFee: feeMonth,
       dailyRentalFee: feeDay,
       startDate: redeployDate,
+      firstStartDate: prevCA?.firstStartDate || prevCA?.startDate || redeployDate,
       endDate: finalEndDate,
       createdAt: nowIso
     });
@@ -8723,6 +8729,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           monthlyRentalFee: ca.monthlyRentalFee,
           dailyRentalFee: ca.dailyRentalFee,
           startDate: exchangeDate,
+          firstStartDate: ca.firstStartDate || ca.startDate || exchangeDate,
           endDate: originalEndDate || contract.endDate,
           createdAt: new Date().toISOString()
         });

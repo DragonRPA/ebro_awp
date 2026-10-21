@@ -804,7 +804,7 @@ export const documentBuilder = {
       if (asset) {
         const prod = products.find((p: any) => p.modelName === asset.modelName);
         const spec = prod ? prod.spec : '동력: 배터리, 작업높이: 7.8M';
-        const fee = ca.monthlyRentalFee || 350000;
+        const fee = Number(ca.monthlyRentalFee) || 0;
         if (!modelGroup[asset.modelName]) {
           modelGroup[asset.modelName] = { qty: 0, price: fee, spec };
         }
@@ -892,7 +892,7 @@ export const documentBuilder = {
     matchingContractAssets.forEach((ca: any) => {
       const asset = assets.find((a: any) => a.id === ca.assetId);
       if (asset) {
-        const fee = ca.monthlyRentalFee || 350000;
+        const fee = Number(ca.monthlyRentalFee) || 0;
         const subtotal = fee; // 1대 기준
         linesHtml += `
         <tr>
@@ -914,12 +914,11 @@ export const documentBuilder = {
       </tr>`;
     }
 
-    // 운반비 청구 조건 마킹
-    const transportTerms = contract.durationMonths >= 4 
-      ? '■ 4개월 이상: 왕복 운반비 임대인(갑) 부담'
-      : contract.durationMonths >= 2
-        ? '■ 2개월 초과 4개월 미만: 편도 운반비 임차인(을) 부담'
-        : '■ 2개월 이하 사용: 왕복 운반비 임차인(을) 부담';
+    // 운송료 청구 기준 마킹 (기본값: 3/5, 2/4 선택 시 2개월/4개월)
+    const freightStd = contract.freightBillingStandard === '2/4' ? '2/4' : '3/5';
+    const minP = freightStd === '2/4' ? 2 : 3;
+    const baseP = freightStd === '2/4' ? 4 : 5;
+    const transportTerms = `■ ${minP}개월 이하: 왕복 운반비 임차인 부담 ■ ${baseP}개월 이하: 편도 운반비 임차인 부담 ■ ${baseP}개월 초과 : 왕복 운반비 임대인 부담`;
 
     return applyLessorPlaceholders(
       CONTRACT_TEMPLATE

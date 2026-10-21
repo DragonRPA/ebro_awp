@@ -728,7 +728,7 @@ export async function generateTransactionStatementExcel(data: TransactionStateme
   const lessorBizNo = data.lessorBizNo || curTenant?.businessNumber || '138-81-83251';
   const lessorName = data.lessorName || curTenant?.tradeName || curTenant?.corporateName || curTenant?.displayName || '(주)기연리프트';
   const lessorCeo = data.lessorCeo || curTenant?.representativeName || '이수용';
-  const lessorAddress = data.lessorAddress || curTenant?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33';
+  const lessorAddress = data.lessorAddress || curTenant?.businessAddress || '';
   const lessorBizType = data.lessorBizType || curTenant?.businessCategory || '사업지원및임대서비스업';
   const lessorBizItem = data.lessorBizItem || curTenant?.businessItem || '고소장비임대업';
   const lessorTel = data.billingManagerPhone || data.lessorTel || curTenant?.tel || '031-334-5295';

@@ -259,21 +259,11 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
       const siteName = draft.siteName.trim() || draft.newSiteName.trim() || '신규 현장';
       const totalCount = draft.orders.reduce((sum, o) => sum + (o.count || 1), 0);
 
-      // 장비 목록 구성
-      const SPEC_DEFAULT_MONTHLY_RENT: Record<string, number> = {
-        '19ft': 400000, '26ft': 500000, '32ft': 600000, '40ft': 900000, '46ft': 1200000, '53ft': 1500000
-      };
-
-      const custContractIds = contracts.filter(c => c.customerId === draft.customerId).map(c => c.id);
-      const recentCa = contractAssets
-        .filter(ca => custContractIds.includes(ca.contractId) && ca.monthlyRentalFee > 0)
-        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
-
+      // 장비 목록 구성 (영업사원이 입력한 단가만 반영, 미입력 시 0원 유지)
       const equipmentsList: any[] = [];
       draft.orders.forEach(o => {
-        const standardRent = SPEC_DEFAULT_MONTHLY_RENT[o.ft] || 400000;
-        const assignedMonthly = recentCa?.monthlyRentalFee || standardRent;
-        const assignedDaily = Math.round(assignedMonthly / 30);
+        const assignedMonthly = Math.max(0, Number((o as any).monthlyRate ?? (o as any).monthlyRent ?? (o as any).monthlyRentalFee) || 0);
+        const assignedDaily = Math.max(0, Number((o as any).dailyRate ?? (o as any).dailyRent ?? (o as any).dailyRentalFee) || (assignedMonthly > 0 ? Math.round(assignedMonthly / 30) : 0));
         const safeCount = Math.max(1, Math.floor(o.count || 1));
 
         for (let i = 0; i < safeCount; i++) {

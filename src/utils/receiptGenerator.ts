@@ -24,9 +24,10 @@ export function generateReceiptHtml(
                  effectiveTenant?.bizRegNo || 
                  defaultSupplier.businessNumber;
 
-  const sAddr = effectiveTenant?.headOfficeAddress || 
-                effectiveTenant?.businessAddress || 
+  const sAddr = effectiveTenant?.businessAddress || 
+                effectiveTenant?.headOfficeAddress || 
                 effectiveTenant?.address || 
+                defaultSupplier.businessAddress ||
                 defaultSupplier.headOfficeAddress;
 
   const sTel = effectiveTenant?.tel || 
@@ -644,9 +645,10 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
                   effectiveSupplier?.bizRegNo || 
                   defaultSupplier.businessNumber;
 
-  const sAddr = effectiveSupplier?.headOfficeAddress || 
-                effectiveSupplier?.businessAddress || 
+  const sAddr = effectiveSupplier?.businessAddress || 
+                effectiveSupplier?.headOfficeAddress || 
                 effectiveSupplier?.address || 
+                defaultSupplier.businessAddress ||
                 defaultSupplier.headOfficeAddress;
 
   const sTel = effectiveSupplier?.tel || 

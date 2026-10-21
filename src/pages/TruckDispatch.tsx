@@ -23,7 +23,8 @@ import {
   buildDispatchKakaoTalkText,
   copyToClipboard,
   sanitizeDispatcherSpecialNote,
-  stripOptionsFromDispatchRawText
+  stripOptionsFromDispatchRawText,
+  resolveDispatchStaffContact
 } from '../utils/nativeLauncher';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
@@ -586,10 +587,12 @@ export const TruckDispatch: React.FC = () => {
 
   const isHqYardLabel = (label?: string): boolean => {
     const trimmed = (label || '').trim();
-    return !trimmed || trimmed.includes('당사 보관소') || trimmed.includes('당사 주기장') || trimmed.includes('본사 주기장');
+    const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
+    const hqAddr = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.headOfficeAddress || currentTenant?.mainYardAddress || '';
+    return !trimmed || trimmed.includes('당사 보관소') || trimmed.includes('당사보관소') || trimmed.includes('당사 주기장') || trimmed.includes('본사 주기장') || (Boolean(hqAddr) && trimmed === hqAddr);
   };
 
-  const getHqYardOriginInfo = () => {
+  const getHqYardOriginInfo = (targetDelivery?: Delivery | null) => {
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
     const yardName = defaultYard?.name || '당사 보관소';
     const address =
@@ -598,18 +601,19 @@ export const TruckDispatch: React.FC = () => {
       currentTenant?.headOfficeAddress ||
       currentTenant?.mainYardAddress ||
       '주소 미등록';
-    const contactName =
-      defaultYard?.managerName ||
-      currentTenant?.representativeName ||
-      (currentTenant as any)?.representative ||
-      '배차담당';
-    const contactPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '연락처 미등록';
+    const staffInfo = resolveDispatchStaffContact({
+      delivery: targetDelivery,
+      currentUser,
+      users,
+      contracts,
+      currentTenant
+    });
     return {
       yardName,
       name: yardName,
       address,
-      contactName,
-      contactPhone
+      contactName: staffInfo.name,
+      contactPhone: staffInfo.phone
     };
   };
 
@@ -3236,9 +3240,10 @@ export const TruckDispatch: React.FC = () => {
       memo: targetDelivery.memo
     };
 
-    const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
-    const hqYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.headOfficeAddress || currentTenant?.mainYardAddress || '본사 주기장';
-    const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '배차/출고팀';
+    const hqInfoForSms = getHqYardOriginInfo(dObj);
+    const hqYardAddress = hqInfoForSms.address || '본사 주기장';
+    const hqYardContactPerson = hqInfoForSms.contactName;
+    const hqYardPhone = hqInfoForSms.contactPhone;
     const companyName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트';
 
     // 배차 의뢰건의 지정 현장 담당자 추출 헬퍼 (1순위: 배차 메모 지정 담당자, 2순위: 현장 contacts/contactName, 3순위: 계약 담당자)
@@ -3308,6 +3313,7 @@ export const TruckDispatch: React.FC = () => {
       companyName,
       hqYardAddress,
       hqYardPhone,
+      hqYardContactPerson,
     });
 
     launchDispatchSms({
@@ -3369,10 +3375,10 @@ export const TruckDispatch: React.FC = () => {
       }
     }
 
-    const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
-    const hqYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.headOfficeAddress || currentTenant?.mainYardAddress || '본사 주기장';
-    const hqYardContactPerson = defaultYard?.managerName || currentTenant?.representativeName || (currentTenant as any)?.representative || '주기장 담당자';
-    const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '';
+    const hqInfoForKakao = getHqYardOriginInfo(dObj);
+    const hqYardAddress = hqInfoForKakao.address || '본사 주기장';
+    const hqYardContactPerson = hqInfoForKakao.contactName;
+    const hqYardPhone = hqInfoForKakao.contactPhone;
 
     // 현장 담당자 (1순위: 배차 의뢰 시 지정된 담당자 [고객담당자: ...] / 현장담당:, 2순위: site.contacts 활성 담당자, 3순위: site.contactName, 4순위: 계약 담당자)
     const memoSource = `${dObj.memo || ''} ${targetDelivery.memo || ''} ${(targetDelivery as any).rawText || ''}`;
@@ -3558,10 +3564,16 @@ export const TruckDispatch: React.FC = () => {
         const baseMemo = (selectedDelivery.memo || '')
           .replace(/\[임차처:[^\]]*\]\s*/g, '')
           .replace(/\[고객담당자:[^\]]*\]\s*/g, '')
+          .replace(/\[배차담당자:[^\]]*\]\s*/g, '')
           .trim();
-        if (!isReturnCategory || !matchedSubleaseVendor) return selectedDelivery.memo || '';
-        const vendorTag = `[임차처: ${matchedSubleaseVendor.name} | 주소: ${matchedSubleaseVendor.address || '미등록'} | 담당자: ${matchedSubleaseVendor.contactName || '미등록'} | 연락처: ${matchedSubleaseVendor.contactPhone || '미등록'}] [고객담당자: ${matchedSubleaseVendor.contactName || matchedSubleaseVendor.name} (${matchedSubleaseVendor.contactPhone || '미등록'})]`;
-        return baseMemo ? `${baseMemo} ${vendorTag}` : vendorTag;
+        const currentStaff = resolveDispatchStaffContact({ delivery: null, currentUser, users, contracts, currentTenant });
+        const staffTag = currentUser
+          ? `[배차담당자: ${currentStaff.name} (${currentStaff.phone}) | ${currentUser.id}]`
+          : '';
+        const vendorTag = (isReturnCategory && matchedSubleaseVendor)
+          ? `[임차처: ${matchedSubleaseVendor.name} | 주소: ${matchedSubleaseVendor.address || '미등록'} | 담당자: ${matchedSubleaseVendor.contactName || '미등록'} | 연락처: ${matchedSubleaseVendor.contactPhone || '미등록'}] [고객담당자: ${matchedSubleaseVendor.contactName || matchedSubleaseVendor.name} (${matchedSubleaseVendor.contactPhone || '미등록'})]`
+          : '';
+        return [baseMemo, vendorTag, staffTag].filter(Boolean).join(' ').trim();
       })();
 
       const payload: Partial<Delivery> = {
@@ -4006,8 +4018,12 @@ export const TruckDispatch: React.FC = () => {
             ? `반납 임차자산: ${selectedManualReturnAssets.map(a => `${a.modelName} (${a.assetNo})`).join(', ')} / 반납일자: ${effectiveManualReturnDate}`
             : '반납 임차자산 미결정 (추후 선택)')
         : '';
+      const manualStaff = resolveDispatchStaffContact({ currentUser, users, contracts, currentTenant });
+      const staffMemoTag = currentUser
+        ? `[배차담당자: ${manualStaff.name} (${manualStaff.phone}) | ${currentUser.id}]`
+        : '';
       const rawUserMemo = (manualMemo || manualClosingMemo || '').trim();
-      const combinedMemo = [rawUserMemo || autoReturnNote, vendorMemoTag].filter(Boolean).join(' ');
+      const combinedMemo = [rawUserMemo || autoReturnNote, vendorMemoTag, staffMemoTag].filter(Boolean).join(' ');
 
       db.insertRow<Delivery>('deliveries', {
         type: manualCategory === '출고' ? 'OUTBOUND' : manualCategory === '교환' ? 'EXCHANGE' : manualCategory === '이동' ? 'MOVEMENT' : manualCategory === '반납' ? 'RETURN' : 'INBOUND',
@@ -5063,8 +5079,9 @@ export const TruckDispatch: React.FC = () => {
                           const detailSubleaseVendorInfo = dispatchCategory === '반납'
                             ? getSubleaseVendorInfoByAssets(selectedDetailReturnAssets, destinationAddress)
                             : null;
-                          const detailHqOriginInfo = getHqYardOriginInfo();
+                          const detailHqOriginInfo = getHqYardOriginInfo(selectedDelivery);
                           const isOriginHqYard = !originAddress || isHqYardLabel(originAddress);
+                          const isDestHqYard = Boolean(destinationAddress && isHqYardLabel(destinationAddress));
 
                           return (
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
@@ -5077,7 +5094,7 @@ export const TruckDispatch: React.FC = () => {
                                   onChange={e => setOriginAddress(e.target.value)}
                                   style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                 />
-                                {dispatchCategory === '반납' && (
+                                {(isOriginHqYard || dispatchCategory === '반납') && (
                                   <div style={{
                                     marginTop: '6px',
                                     padding: '8px 10px',
@@ -5112,7 +5129,7 @@ export const TruckDispatch: React.FC = () => {
                                   onChange={e => setDestinationAddress(e.target.value)}
                                   style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                 />
-                                {dispatchCategory === '반납' && (
+                                {dispatchCategory === '반납' ? (
                                   <div style={{
                                     marginTop: '6px',
                                     padding: '8px 10px',
@@ -5147,7 +5164,29 @@ export const TruckDispatch: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
-                                )}
+                                ) : isDestHqYard ? (
+                                  <div style={{
+                                    marginTop: '6px',
+                                    padding: '8px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                                    fontSize: '11.5px',
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '3px'
+                                  }}>
+                                    <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '11px' }}>
+                                      하차지 등록정보 ({detailHqOriginInfo.name})
+                                    </div>
+                                    <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {detailHqOriginInfo.address}</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                      <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {detailHqOriginInfo.contactName}</span>
+                                      <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {detailHqOriginInfo.contactPhone}</span>
+                                    </div>
+                                  </div>
+                                ) : null}
                               </div>
                             </div>
                           );
@@ -7513,15 +7552,16 @@ export const TruckDispatch: React.FC = () => {
               const modalSubleaseVendorInfo = manualCategory === '반납'
                 ? getSubleaseVendorInfoByAssets(selectedManualReturnAssetsForModal, manualDestination)
                 : null;
-              const modalHqOriginInfo = getHqYardOriginInfo();
+              const modalHqOriginInfo = getHqYardOriginInfo(null);
               const isManualOriginHq = !manualOrigin || isHqYardLabel(manualOrigin);
+              const isManualDestHq = Boolean(manualDestination && isHqYardLabel(manualDestination));
 
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
                   <div>
                     <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>출발지 (상차지)</label>
                     <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
-                    {manualCategory === '반납' && (
+                    {(isManualOriginHq || manualCategory === '반납') && (
                       <div style={{
                         marginTop: '6px',
                         padding: '8px 10px',
@@ -7556,7 +7596,7 @@ export const TruckDispatch: React.FC = () => {
                       placeholder={manualCategory === '반납' ? '임차처명 또는 하차지 입력 (미입력 시 자동 지정)' : '고객사명 또는 하차지 입력'}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
                     />
-                    {manualCategory === '반납' && (
+                    {manualCategory === '반납' ? (
                       <div style={{
                         marginTop: '6px',
                         padding: '8px 10px',
@@ -7591,7 +7631,29 @@ export const TruckDispatch: React.FC = () => {
                           </div>
                         )}
                       </div>
-                    )}
+                    ) : isManualDestHq ? (
+                      <div style={{
+                        marginTop: '6px',
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        fontSize: '11.5px',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px'
+                      }}>
+                        <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '11px' }}>
+                          도착지 정보 ({modalHqOriginInfo.name})
+                        </div>
+                        <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {modalHqOriginInfo.address}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {modalHqOriginInfo.contactName}</span>
+                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {modalHqOriginInfo.contactPhone}</span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );

@@ -152,8 +152,8 @@ export const Contracts: React.FC = () => {
   const [basketAssetMethod, setBasketAssetMethod] = useState<'ASSET' | 'MODEL'>('MODEL');
   const [selectedAssetToAdd, setSelectedAssetToAdd] = useState('');
   const [selectedModelToAdd, setSelectedModelToAdd] = useState('');
-  const [customMonthly, setCustomMonthly] = useState(400000);
-  const [customDaily, setCustomDaily] = useState(15000);
+  const [customMonthly, setCustomMonthly] = useState(0);
+  const [customDaily, setCustomDaily] = useState(0);
 
   // --- 💡 모달 팝업 상태들 ---
   // 0) 체결자산 상세 모달
@@ -331,6 +331,89 @@ export const Contracts: React.FC = () => {
   const getCustName = (id: string) => customerMap.get(id)?.name || '-';
   const getSiteName = (id?: string) => (id ? siteMap.get(id)?.name : undefined) || '-';
   const getContactName = (id?: string) => (id ? contactNameMap.get(id) : undefined) || '-';
+
+  // 💡 계약별·현장별 최초개시일(현장 최초 투입일) O(1) 산출 맵 (체결자산 firstStartDate, 체결자산 startDate, 계약 자체 startDate, 출고배차 상차일, 동일 현장 최초 계약일 중 가장 빠른 일자)
+  const initialContractDateMap = useMemo(() => {
+    const extractYmd = (raw?: string | null): string => {
+      if (!raw) return '';
+      const s = String(raw).trim().replace(/[./]/g, '-');
+      const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (!m) return '';
+      return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    };
+
+    const contractMinMap = new Map<string, string>();
+    const siteMinMap = new Map<string, string>();
+
+    for (const c of contracts) {
+      const candidates: string[] = [];
+      const cStart = extractYmd(c.startDate);
+      if (cStart) candidates.push(cStart);
+
+      const cas = contractAssetsByContractMap.get(c.id) || [];
+      for (const ca of cas) {
+        const caFirst = extractYmd(ca.firstStartDate);
+        if (caFirst) candidates.push(caFirst);
+        const caStart = extractYmd(ca.startDate);
+        if (caStart) candidates.push(caStart);
+        if (ca.assetId) {
+          const ast = assetMap.get(ca.assetId);
+          const astStart = extractYmd(ast?.contractStart);
+          if (astStart) candidates.push(astStart);
+        }
+      }
+
+      const dels = deliveriesByContractMap.get(c.id) || [];
+      for (const d of dels) {
+        if (d.status === 'CANCELLED') continue;
+        const lDate = extractYmd(d.loadingDate || d.scheduledDate || d.unloadingDate);
+        if (lDate) candidates.push(lDate);
+      }
+
+      for (const h of (contractHistory || [])) {
+        if (h.contractId === c.id && h.changeType === 'REGISTER') {
+          const hDate = extractYmd(h.changeDate);
+          if (hDate) candidates.push(hDate);
+        }
+      }
+
+      if (candidates.length === 0) {
+        const created = extractYmd(c.createdAt);
+        if (created) candidates.push(created);
+      }
+
+      const minDate = candidates.sort()[0] || c.startDate || '-';
+      contractMinMap.set(c.id, minDate);
+
+      if (c.siteId && minDate && minDate !== '-') {
+        const siteKey = `${c.customerId}_${c.siteId}`;
+        const prevSiteMin = siteMinMap.get(siteKey);
+        if (!prevSiteMin || minDate < prevSiteMin) {
+          siteMinMap.set(siteKey, minDate);
+        }
+      }
+    }
+
+    const finalMap = new Map<string, string>();
+    for (const c of contracts) {
+      const selfMin = contractMinMap.get(c.id) || c.startDate || '-';
+      if (c.siteId) {
+        const siteKey = `${c.customerId}_${c.siteId}`;
+        const siteMin = siteMinMap.get(siteKey);
+        if (siteMin && (selfMin === '-' || siteMin < selfMin)) {
+          finalMap.set(c.id, siteMin);
+          continue;
+        }
+      }
+      finalMap.set(c.id, selfMin);
+    }
+    return finalMap;
+  }, [contracts, contractAssetsByContractMap, assetMap, deliveriesByContractMap, contractHistory]);
+
+  const getInitialContractDate = (c?: Contract | null) => {
+    if (!c) return '-';
+    return initialContractDateMap.get(c.id) || c.startDate || '-';
+  };
 
   // 오늘 날짜 및 D-Day 계산
   const todayStr = new Date().toISOString().split('T')[0];
@@ -562,7 +645,11 @@ export const Contracts: React.FC = () => {
         if (!matchHangul(getSiteName(c.siteId), siteText)) return false;
       }
 
-      if (startDateFilter && (!c.startDate || c.startDate < startDateFilter)) return false;
+      if (startDateFilter) {
+        const initDate = getInitialContractDate(c);
+        const effStart = initDate && initDate !== '-' ? initDate : c.startDate;
+        if (!effStart || effStart < startDateFilter) return false;
+      }
       if (endDateFilter && normalizeEndDate(c.endDate) > endDateFilter) return false;
 
       const cas = contractAssetsByContractMap.get(c.id) || [];
@@ -650,9 +737,13 @@ export const Contracts: React.FC = () => {
             bValue = casB.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
             break;
           }
+          case 'initialDate':
+            aValue = getInitialContractDate(a);
+            bValue = getInitialContractDate(b);
+            break;
           case 'period':
-            aValue = a.startDate || '';
-            bValue = b.startDate || '';
+            aValue = getInitialContractDate(a);
+            bValue = getInitialContractDate(b);
             break;
           case 'billingPeriod': {
             aValue = a.lastBilledPeriodEnd || '';
@@ -2074,6 +2165,7 @@ export const Contracts: React.FC = () => {
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                     <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '80px' }}>상세 보기</th>
                     <SortableTh label="계약번호" sortKey="contractNo" currentSort={sortConfig} onSort={handleSort} />
+                    <SortableTh label="최초개시일" sortKey="initialDate" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="고객사명" sortKey="customer" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="현장명" sortKey="site" currentSort={sortConfig} onSort={handleSort} />
                     {showOutboundProgressCol && <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>}
@@ -2091,7 +2183,7 @@ export const Contracts: React.FC = () => {
                 <tbody style={{ whiteSpace: 'nowrap' }}>
                   {sortedContracts.length === 0 ? (
                     <tr>
-                      <td colSpan={10 + (showOutboundProgressCol ? 1 : 0) + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <td colSpan={11 + (showOutboundProgressCol ? 1 : 0) + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                         조회 결과가 없습니다.
                       </td>
                     </tr>
@@ -2153,6 +2245,9 @@ export const Contracts: React.FC = () => {
                               )}
                             </div>
                           </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {getInitialContractDate(c)}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <strong>{custObj?.name || '-'}</strong>
@@ -2198,7 +2293,7 @@ export const Contracts: React.FC = () => {
                               <span>{totalFee.toLocaleString()}원</span>
                             )}
                           </td>
-                          {showPeriodCol && <td style={{ whiteSpace: 'nowrap' }}>{c.startDate} ~ {formatContractEndDate(c.endDate)}</td>}
+                          {showPeriodCol && <td style={{ whiteSpace: 'nowrap' }}>{getInitialContractDate(c)} ~ {formatContractEndDate(c.endDate)}</td>}
                           {showLastBilledCol && (
                             <td style={{ whiteSpace: 'nowrap' }}>
                               {c.lastBilledPeriodStart && c.lastBilledPeriodEnd ? (
@@ -2581,7 +2676,8 @@ export const Contracts: React.FC = () => {
                 </div>
                 
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계산서 마감일 / 명세서 마감일 / 납기일</label>매월 {activeContract.billingDay === 31 ? '말일' : `${activeContract.billingDay}일`} / {activeContract.statementClosingDay ? (activeContract.statementClosingDay === 31 ? '말일' : `${activeContract.statementClosingDay}일`) : '-'} (납기: {formatPaymentDueCondition(activeContract.paymentDueMonthOffset, activeContract.paymentDueDay)})</div>
-                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 시작일</label><span>{activeContract.startDate}</span></div>
+                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>최초개시일 (현장 최초 투입일)</label><strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{getInitialContractDate(activeContract)}</strong></div>
+                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>당월 기산일 (개시일)</label><span>{activeContract.startDate}</span></div>
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 만료일</label>
                   <span>{formatContractEndDate(activeContract.endDate)}</span>
@@ -2866,7 +2962,7 @@ export const Contracts: React.FC = () => {
                                 <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운용중</span>
                               )}
                               <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                {ca.startDate ? ca.startDate.slice(2).replace(/-/g, '.') : ''} ~ {ca.status === 'RETURNED' ? (ca.actualReturnDate ? ca.actualReturnDate.slice(2).replace(/-/g, '.') : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미상')) : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정')}
+                                {(ca.firstStartDate || ca.startDate) ? (ca.firstStartDate || ca.startDate).slice(2).replace(/-/g, '.') : ''} ~ {ca.status === 'RETURNED' ? (ca.actualReturnDate ? ca.actualReturnDate.slice(2).replace(/-/g, '.') : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미상')) : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정')}
                               </span>
                             </div>
                           </td>
@@ -3424,7 +3520,7 @@ export const Contracts: React.FC = () => {
               </div>
               
               <div style={{ fontSize: '13px', marginBottom: '12px' }}>
-                고객사: <strong>{getCustName(c.customerId)}</strong> | 현장: <strong>{getSiteName(c.siteId)}</strong>
+                고객사: <strong>{getCustName(c.customerId)}</strong> | 현장: <strong>{getSiteName(c.siteId)}</strong> | 최초개시일: <strong style={{ color: 'var(--primary)' }}>{getInitialContractDate(c)}</strong>
               </div>
               
               <table className="table" style={{ width: '100%', fontSize: '12px', textAlign: 'left' }}>
@@ -3432,6 +3528,7 @@ export const Contracts: React.FC = () => {
                   <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '8px' }}>장비번호</th>
                     <th style={{ padding: '8px' }}>모델명</th>
+                    <th style={{ padding: '8px' }}>최초개시일</th>
                     <th style={{ padding: '8px' }}>상태</th>
                     <th style={{ padding: '8px' }}>월 렌탈료</th>
                     <th style={{ padding: '8px' }}>일 렌탈료</th>
@@ -3440,7 +3537,7 @@ export const Contracts: React.FC = () => {
                 <tbody>
                   {cas.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>등록된 체결 자산이 없습니다.</td>
+                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>등록된 체결 자산이 없습니다.</td>
                     </tr>
                   ) : (
                     cas.map(ca => {
@@ -3449,6 +3546,7 @@ export const Contracts: React.FC = () => {
                         <tr key={ca.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '8px' }}>{ast?.assetNo ? <strong style={{ color: 'var(--primary)' }}>{ast.assetNo}</strong> : <span style={{ color: 'var(--text-muted)' }}>미배정</span>}</td>
                           <td style={{ padding: '8px' }}>{ast?.modelName || ca.expectedModel || '미지정'}</td>
+                          <td style={{ padding: '8px', fontFamily: 'monospace' }}>{ca.firstStartDate || ca.startDate || '-'}</td>
                           <td style={{ padding: '8px' }}>
                             <span className={`badge ${
                               ca.status === 'RENTED' ? 'badge-success' : 

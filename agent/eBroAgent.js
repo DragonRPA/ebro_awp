@@ -812,6 +812,9 @@ async function executeContractBundleInternal(payload) {
     const paidOptions = Array.isArray(payload.paidOptions) ? payload.paidOptions : [];
     const optionsText = ''; // 기존 {옵션} 칸 표기 삭제 (아무 옵션도 표시하지 말 것)
     const remarksText = String(payload.remarksText || '').replace(/안전발판\s*지급/g, '').trim();
+    const freightStd = payload.freightBillingStandard === '2/4' ? '2/4' : '3/5';
+    const minPeriod = String(payload.minRentalMonths || (freightStd === '2/4' ? '2' : '3'));
+    const basePeriod = String(payload.baseRentalMonths || (freightStd === '2/4' ? '4' : '5'));
     const deliveryDate = payload.deliveryDate || payload.unloadingDate || payload.contractStartDate || contractDate;
     let inspectionDate = payload.inspectionDate;
     if (!inspectionDate) {
@@ -1089,6 +1092,10 @@ Replace-Tag $wsContract "{현장담당자}" "${psEscape(managerName)}"
 Replace-Tag $wsContract "{현장담당자연락처}" "${psEscape(managerPhone)}"
 Replace-Tag $wsContract "{영업담당자}" "${salesRepName}"
 Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
+Replace-Tag $wsContract "{최소기간}" "${psEscape(minPeriod)}"
+Replace-Tag $wsContract "{최고기간}" "${psEscape(minPeriod)}"
+Replace-Tag $wsContract "{기준기간}" "${psEscape(basePeriod)}"
+Replace-Tag $wsContract "■ 3개월 이하: 왕복 운반비 임차인 부담 ■ 5개월 이하: 편도 운반비 임차인 부담 ■ 5개월 초과 : 왕복 운반비 임대인 부담" "■ ${psEscape(minPeriod)}개월 이하: 왕복 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 이하: 편도 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 초과 : 왕복 운반비 임대인 부담"
 Replace-Tag $wsContract "{합계}" "₩${grandTotalFee.toLocaleString()}"
 Replace-Tag $wsContract "{옵션}" ""
 $wsContract.Range("C57").Value2 = ""
@@ -1314,7 +1321,7 @@ async function executeGenerateStatementInternal(payload) {
     const lessorName = (payload.lessorName || policy.tenantName || policy.corporateName || tenantName).replace(/"/g, '""');
     const lessorBizNo = (payload.lessorBizNo || policy.businessNumber || '138-81-83251').replace(/"/g, '""');
     const lessorCeo = (payload.lessorCeo || policy.representativeName || '이수용').replace(/"/g, '""');
-    const lessorAddress = (payload.lessorAddress || policy.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33').replace(/"/g, '""');
+    const lessorAddress = (payload.lessorAddress || policy.businessAddress || '').replace(/"/g, '""');
     const lessorBizType = (payload.lessorBizType || policy.businessCategory || '사업지원및임대서비스업').replace(/"/g, '""');
     const lessorBizItem = (payload.lessorBizItem || policy.businessItem || '고소장비임대업').replace(/"/g, '""');
     const lessorTel = (payload.billingManagerPhone || payload.lessorTel || policy.tel || '031-334-5295').replace(/"/g, '""');

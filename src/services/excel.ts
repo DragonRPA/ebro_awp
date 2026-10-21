@@ -222,7 +222,7 @@ export const exportTransactionStatementExcelBuffer = async (
     lessorBizNo: curTenant?.businessNumber || '138-81-83251',
     lessorName: curTenant?.tradeName || curTenant?.corporateName || '(주)기연리프트',
     lessorCeo: curTenant?.representativeName || '이수용',
-    lessorAddress: curTenant?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33',
+    lessorAddress: curTenant?.businessAddress || '',
     lessorBizType: curTenant?.businessCategory || '사업지원및임대서비스업',
     lessorBizItem: curTenant?.businessItem || '고소장비임대업',
     lessorTel: curTenant?.tel || '031-334-5295',

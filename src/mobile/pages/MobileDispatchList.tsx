@@ -163,7 +163,7 @@ export const MobileDispatchList: React.FC = () => {
     const site = sites.find(s => s.id === contract?.siteId || s.name === d.destinationAddress);
 
     const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
-    const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '본사 주기장';
+    const hqYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.mainYardAddress || '본사 주기장';
     const hqYardPhone = currentTenant?.tel || '배차/출고팀';
     const companyName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트';
 

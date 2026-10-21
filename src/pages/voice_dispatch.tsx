@@ -724,15 +724,10 @@ export const VoiceDispatch: React.FC = () => {
   }, [catalogModels]);
 
   const addModel = (modelName: string) => {
-    // 모델 기준 단가 조회 (기본 단가 자동 제안)
-    const prod = products.find(p => p.modelName === modelName);
-    const defMonthly = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || 0;
-    const defDaily = defMonthly > 0 ? Math.round(defMonthly / 30) : 0;
-
     setEquipments(prev => {
       const idx = prev.findIndex(e => e.modelName === modelName);
       if (idx >= 0) { const u = [...prev]; u[idx] = { ...u[idx], qty: u[idx].qty + 1 }; return u; }
-      return [...prev, { modelName, qty: 1, monthlyRate: defMonthly, dailyRate: defDaily }];
+      return [...prev, { modelName, qty: 1, monthlyRate: 0, dailyRate: 0 }];
     });
   };
   const changeQty = (index: number, delta: number) => {
@@ -1568,7 +1563,11 @@ export const VoiceDispatch: React.FC = () => {
         unloadingTime: fullUnloadingTime,
         equipments: equipments.map(eq => ({
           modelName: eq.modelName,
-          qty: Math.max(1, Math.floor(Number(eq.qty) || 1))
+          qty: Math.max(1, Math.floor(Number(eq.qty) || 1)),
+          monthlyRate: eq.monthlyRate ?? 0,
+          dailyRate: eq.dailyRate ?? 0,
+          monthlyRentalFee: eq.monthlyRate ?? 0,
+          dailyRentalFee: eq.dailyRate ?? 0,
         })),
         note: fullNote,
         rawText: `[출고 요청 통합 발행] ${selectedContext || 'OUTBOUND'}`,
