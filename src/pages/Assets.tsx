@@ -449,7 +449,7 @@ export const Assets: React.FC = () => {
         '현재 현장': getSiteName(a.currentSiteId),
         '계약번호': ci ? ci.contractNo : '-',
         '계약기간': a.contractStart ? `${a.contractStart.slice(0, 10)} ~ ${a.contractEnd?.slice(0, 10) || ''}` : '-',
-        '청구마감일': a.billingDay ? `${a.billingDay}일` : '-'
+        '계산서마감일': a.billingDay ? `${a.billingDay}일` : '-'
       };
 
       // 🔒 경영진, 관리부, 영업부 전용 단가/매출/이익/비용/취득가액 재무 필드
@@ -1209,7 +1209,7 @@ export const Assets: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <div><label style={labelStyle}>월 렌탈료 (원)</label><input type="number" style={inputStyle} value={editForm.monthlyRentalFee ?? ''} onChange={ef('monthlyRentalFee')} /></div>
                     <div><label style={labelStyle}>일 렌탈료 (원)</label><input type="number" style={inputStyle} value={editForm.dailyRentalFee ?? ''} onChange={ef('dailyRentalFee')} /></div>
-                    <div><label style={labelStyle}>청구 마감일 (일)</label><input type="number" style={inputStyle} value={editForm.billingDay ?? ''} onChange={ef('billingDay')} /></div>
+                    <div><label style={labelStyle}>계산서 마감일 (일)</label><input type="number" style={inputStyle} value={editForm.billingDay ?? ''} onChange={ef('billingDay')} /></div>
                     <div><label style={labelStyle}>계약 시작일</label><input type="date" style={inputStyle} value={editForm.contractStart || ''} onChange={ef('contractStart')} /></div>
                     <div><label style={labelStyle}>계약 종료일</label><input type="date" style={inputStyle} value={editForm.contractEnd || ''} onChange={ef('contractEnd')} /></div>
                   </div>
@@ -1218,7 +1218,7 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>계약번호:</span> {(() => { const ci = getAssetContractInfo(selectedAsset.id); return ci ? <strong style={{ color: 'var(--primary)' }}>{ci.contractNo}</strong> : '-'; })()}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>현재 고객사:</span> <strong>{getCustomerName(selectedAsset.currentCustomerId)}</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>사용 현장:</span> {getSiteName(selectedAsset.currentSiteId)}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>청구 마감일:</span> {selectedAsset.billingDay ? `매달 ${selectedAsset.billingDay}일` : '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>계산서 마감일:</span> {selectedAsset.billingDay ? `매달 ${selectedAsset.billingDay}일` : '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>월 렌탈료:</span> <strong>₩{(selectedAsset.monthlyRentalFee || 0).toLocaleString()}</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>일 렌탈료:</span> <strong>₩{(selectedAsset.dailyRentalFee || Math.floor((selectedAsset.monthlyRentalFee || 0) / 30)).toLocaleString()}</strong></div>
                     <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--text-secondary)' }}>계약 기간:</span> {selectedAsset.contractStart ? `${selectedAsset.contractStart} ~ ${selectedAsset.contractEnd}` : '-'}</div>

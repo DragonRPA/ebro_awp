@@ -705,7 +705,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
             {/* 마감 및 결제조건 (3종) */}
             <div className="grid grid-cols-3 gap-2">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">청구 마감일 (일)</label>
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">계산서 마감일 (일)</label>
                 <input 
                   type="number" 
                   value={editingCustomer.defaultBillingDay ?? ''} 
@@ -902,7 +902,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
             {/* 마감 및 결제조건 (3종) */}
             <div className="grid grid-cols-3 gap-2">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">청구 마감일 (일)</label>
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">계산서 마감일 (일)</label>
                 <input 
                   type="number" 
                   value={newCustomerForm.defaultBillingDay ?? ''} 

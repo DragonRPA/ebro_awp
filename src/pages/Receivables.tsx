@@ -1119,7 +1119,7 @@ export const Receivables: React.FC = () => {
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
                           계약번호: <strong style={{ color: 'var(--text-primary)' }}>{selectedC.contractNo}</strong> | 
                           기간: <strong>{selectedC.startDate} ~ {selectedC.endDate || '미정'}</strong> | 
-                          청구마감: <strong>매월 {selectedC.billingDay}일</strong>
+                          계산서 마감: <strong>매월 {selectedC.billingDay}일</strong>
                         </div>
                       </div>
                       <button

@@ -218,7 +218,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   siteId: '현장 ID',
   startDate: '시작일자',
   endDate: '종료일자',
-  billingDay: '청구마감일(일)',
+  billingDay: '계산서마감일(일)',
   statementClosingDay: '명세서마감일(일)',
   contractAssetId: '계약장비 ID',
   deliveryDate: '운송일자',

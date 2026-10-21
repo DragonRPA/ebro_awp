@@ -1741,7 +1741,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           {/* 마감일 / 결제일 / 계산서 수신 메일 */}
           <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">청구 마감일</label>
+              <label className="text-[11px] text-slate-400">계산서 마감일</label>
               <input
                 type="text"
                 value={closingDay}

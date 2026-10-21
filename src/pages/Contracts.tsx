@@ -1312,7 +1312,8 @@ export const Contracts: React.FC = () => {
         // ④ 계약 일정 및 청구 조건
         '계약 시작일': c.startDate,
         '계약 만료일': formatContractEndDate(c.endDate),
-        '청구 마감일': `매월 ${c.billingDay}일`,
+        '계산서 마감일': `매월 ${c.billingDay === 31 ? '말일' : `${c.billingDay}일`}`,
+        '명세서 마감일': c.statementClosingDay ? `매월 ${c.statementClosingDay === 31 ? '말일' : `${c.statementClosingDay}일`}` : '-',
         '납기일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
         '월 임대료 합계(원)': totalMonthlyRent,
 
@@ -2082,7 +2083,7 @@ export const Contracts: React.FC = () => {
                     {showLastBilledCol && <SortableTh label="최근 청구 기간" sortKey="billingPeriod" currentSort={sortConfig} onSort={handleSort} />}
                     {showBillingCountCol && <SortableTh label="청구 건수" sortKey="billingCount" currentSort={sortConfig} onSort={handleSort} align="center" />}
                     <SortableTh label="만료 잔여일" sortKey="dday" currentSort={sortConfig} onSort={handleSort} align="center" />
-                    <SortableTh label="청구 마감일" sortKey="billingDay" currentSort={sortConfig} onSort={handleSort} align="center" />
+                    <SortableTh label="계산서 마감일" sortKey="billingDay" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="영업담당" sortKey="salesperson" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={handleSort} align="center" />
                   </tr>
@@ -2579,7 +2580,7 @@ export const Contracts: React.FC = () => {
                   })()}
                 </div>
                 
-                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: {formatPaymentDueCondition(activeContract.paymentDueMonthOffset, activeContract.paymentDueDay)})</div>
+                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계산서 마감일 / 명세서 마감일 / 납기일</label>매월 {activeContract.billingDay === 31 ? '말일' : `${activeContract.billingDay}일`} / {activeContract.statementClosingDay ? (activeContract.statementClosingDay === 31 ? '말일' : `${activeContract.statementClosingDay}일`) : '-'} (납기: {formatPaymentDueCondition(activeContract.paymentDueMonthOffset, activeContract.paymentDueDay)})</div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 시작일</label><span>{activeContract.startDate}</span></div>
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 만료일</label>
@@ -3917,7 +3918,7 @@ export const Contracts: React.FC = () => {
                 <div>고객사 / 현장: <strong>{getCustName(activeContract.customerId)} — {getSiteName(activeContract.siteId)}</strong></div>
                 <div>대차 요구 모델: <strong>{exchangeIdentifyType === 'KNOWN' ? (assets.find(a => a.id === exchangeOldAssetId)?.modelName || activeContractAssets[0]?.expectedModel || '동급 동일 모델') : (exchangeContractAssetId || activeContractAssets[0]?.expectedModel || '동급 동일 모델')}</strong></div>
                 <div>렌탈료 단가 조건: 기존 계약 월 렌탈료 조건 100% 동일 상속 (추가 비용 없음)</div>
-                <div>청구 / 작업요청 조건: 매월 {activeContract.billingDay}일 청구 마감 조건 승계</div>
+                <div>계산서 / 작업요청 조건: 매월 {activeContract.billingDay}일 계산서 마감 조건 승계</div>
               </div>
 
               {/* 후속 업무 흐름 연계 시각화 카드 */}
@@ -4094,7 +4095,7 @@ export const Contracts: React.FC = () => {
 
             <div data-mid="create-contract-billing-terms" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.45fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>청구 마감일 (일) *</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>계산서 마감일 (일) *</label>
                 <input type="number" min={1} max={31} value={billingDay} onChange={e => setBillingDay(Number(e.target.value))} required style={{ width: '100%', padding: '8px' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

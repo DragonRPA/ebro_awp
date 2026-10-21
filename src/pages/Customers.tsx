@@ -639,8 +639,8 @@ export const Customers: React.FC = () => {
       '대표 연락처': isPrivileged ? (c.repContact || '-') : maskPhoneNumber(c.repContact),
       '대표 이메일': isPrivileged ? (c.repEmail || '-') : maskEmail(c.repEmail),
       '사업자등록번호': c.bizRegNo || '-',
-      '세금계산서 마감일': `매월 ${c.defaultBillingDay || 30}일`,
-      '거래명세서 마감일': `매월 ${c.defaultStatementClosingDay || 25}일`,
+      '계산서 마감일': `매월 ${(c.defaultBillingDay || 30) === 31 ? '말일' : `${c.defaultBillingDay || 30}일`}`,
+      '명세서 마감일': `매월 ${(c.defaultStatementClosingDay || 25) === 31 ? '말일' : `${c.defaultStatementClosingDay || 25}일`}`,
       '약정 결제일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
       '본사 주소': isPrivileged ? (c.address || '-') : maskAddress(c.address),
       '영업 상태': c.isClosed ? '폐업' : '영업중',
@@ -683,33 +683,43 @@ export const Customers: React.FC = () => {
   const handleExportSites = () => {
     if (!activeCustomer) return;
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
-    const excelData = sortedCustomerSites.map((cs, idx) => ({
-      '순번': idx + 1,
-      '고객사명': activeCustomer.name,
-      '현장명': cs.name,
-      '현장 주소': isPrivileged ? (cs.address || '-') : maskAddress(cs.address),
-      '현장 담당자': (() => {
-        const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
-        if (activeContacts.length > 0) {
-          return activeContacts.map(c => {
-            const n = isPrivileged ? c.name : maskName(c.name);
-            return c.position ? `${n}(${c.position})` : n;
-          }).join(', ');
-        }
-        return isPrivileged ? (cs.contactName || '-') : maskName(cs.contactName);
-      })(),
-      '연락처': (() => {
-        const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
-        if (activeContacts.length > 0) {
-          return activeContacts.map(c => isPrivileged ? c.contact : maskPhoneNumber(c.contact)).join(', ');
-        }
-        return isPrivileged ? (cs.contact || '-') : maskPhoneNumber(cs.contact);
-      })(),
-      '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
-      '무상옵션': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
-      '사용여부': cs.isActive !== false ? '가동중' : '완공/종료',
-      '등록 일시': cs.createdAt?.substring(0, 10) || '-'
-    }));
+    const excelData = sortedCustomerSites.map((cs, idx) => {
+      const stmtDay = cs.statementClosingDay || activeCustomer.defaultStatementClosingDay || 25;
+      const billDay = cs.billingDay || activeCustomer.defaultBillingDay || 30;
+      return {
+        '순번': idx + 1,
+        '고객사명': activeCustomer.name,
+        '현장명': cs.name,
+        '명세서 마감일': `매월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
+        '계산서 마감일': `매월 ${billDay === 31 ? '말일' : `${billDay}일`}`,
+        '약정 결제일': formatPaymentDueCondition(
+          cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : activeCustomer.paymentDueMonthOffset,
+          cs.paymentDueDay || activeCustomer.paymentDueDay
+        ),
+        '현장 주소': isPrivileged ? (cs.address || '-') : maskAddress(cs.address),
+        '현장 담당자': (() => {
+          const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
+          if (activeContacts.length > 0) {
+            return activeContacts.map(c => {
+              const n = isPrivileged ? c.name : maskName(c.name);
+              return c.position ? `${n}(${c.position})` : n;
+            }).join(', ');
+          }
+          return isPrivileged ? (cs.contactName || '-') : maskName(cs.contactName);
+        })(),
+        '연락처': (() => {
+          const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
+          if (activeContacts.length > 0) {
+            return activeContacts.map(c => isPrivileged ? c.contact : maskPhoneNumber(c.contact)).join(', ');
+          }
+          return isPrivileged ? (cs.contact || '-') : maskPhoneNumber(cs.contact);
+        })(),
+        '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
+        '무상옵션': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
+        '사용여부': cs.isActive !== false ? '가동중' : '완공/종료',
+        '등록 일시': cs.createdAt?.substring(0, 10) || '-'
+      };
+    });
     exportToExcel(excelData, `현장목록_${activeCustomer.name}_${new Date().toISOString().split('T')[0]}`, '현장리스트');
     logPrivacyAccess(
       'EXCEL_DOWNLOAD',
@@ -718,6 +728,42 @@ export const Customers: React.FC = () => {
       { targetSubjectId: activeCustomer.id, targetSubjectName: activeCustomer.name, isMasked: !isPrivileged }
     );
     showToast(`현장 목록 (${customerSites.length}건) 엑셀이 다운로드되었습니다. (${isPrivileged ? '전체 정보' : '마스킹 적용'})`);
+  };
+
+  const handleExportAllSitesClosingSchedule = () => {
+    const custMap = new Map(customers.map(c => [c.id, c]));
+    const sortedAllSites = [...(sites || [])].sort((a, b) => {
+      const custA = custMap.get(a.customerId || '')?.name || '';
+      const custB = custMap.get(b.customerId || '')?.name || '';
+      const cCmp = custA.localeCompare(custB, 'ko');
+      if (cCmp !== 0) return cCmp;
+      return (a.name || '').localeCompare(b.name || '', 'ko');
+    });
+    const excelData = sortedAllSites.map((cs, idx) => {
+      const cust = custMap.get(cs.customerId || '');
+      const stmtDay = cs.statementClosingDay || cust?.defaultStatementClosingDay || 25;
+      const billDay = cs.billingDay || cust?.defaultBillingDay || 30;
+      const closingContact = (cs.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING');
+      return {
+        '순번': idx + 1,
+        '고객사명': cust?.name || '-',
+        '사업자등록번호': cust?.bizRegNo || '-',
+        '고객현장명': cs.name || '-',
+        '현장 상태': cs.isActive !== false ? '가동중' : '완공/종료',
+        '명세서 마감일': `매월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
+        '계산서 마감일': `매월 ${billDay === 31 ? '말일' : `${billDay}일`}`,
+        '약정 결제일': formatPaymentDueCondition(
+          cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : cust?.paymentDueMonthOffset,
+          cs.paymentDueDay || cust?.paymentDueDay
+        ),
+        '마감담당자': closingContact?.name || cs.billingContactName || cs.contactName || '-',
+        '마감담당 연락처': closingContact?.contact || cs.billingContactPhone || cs.contact || '-',
+        '명세서/계산서 이메일': closingContact?.email || cs.billingContactEmail || cs.email || cust?.repEmail || '-',
+        '현장 주소': cs.address || '-'
+      };
+    });
+    exportToExcel(excelData, `전체고객_고객현장별_명세서_계산서_마감일_${new Date().toISOString().split('T')[0]}`, '고객현장별마감일');
+    showToast(`전체 고객현장 마감일 현황 (${excelData.length}개 현장) 엑셀이 다운로드되었습니다.`);
   };
 
   // 고객사 등록/수정 핸들러
@@ -1592,6 +1638,13 @@ const handleDeleteAccount = async (accId: string) => {
           )}
           <button
             className="btn-excel-download"
+            onClick={handleExportAllSitesClosingSchedule}
+            title="등록된 모든 고객의 고객현장별 명세서 마감일과 계산서 마감일 엑셀 다운로드"
+          >
+            <Download size={13} /> 현장별 마감일 엑셀
+          </button>
+          <button
+            className="btn-excel-download"
             onClick={handleExportAllCustomers}
           >
             <Download size={13} /> 엑셀 다운로드
@@ -1909,8 +1962,8 @@ const handleDeleteAccount = async (accId: string) => {
                   <div><span style={{ color: 'var(--text-secondary)' }}>대표 이메일:</span> {activeCustomer.repEmail || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>업태:</span> {activeCustomer.bizType || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>종목:</span> {activeCustomer.bizItem || '-'}</div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>청구서 마감:</span> 매월 <strong>{activeCustomer.defaultBillingDay || 30}일</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>명세서 마감:</span> 매월 <strong>{activeCustomer.defaultStatementClosingDay || 25}일</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>계산서 마감일:</span> 매월 <strong>{(activeCustomer.defaultBillingDay || 30) === 31 ? '말일' : `${activeCustomer.defaultBillingDay || 30}일`}</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>명세서 마감일:</span> 매월 <strong>{(activeCustomer.defaultStatementClosingDay || 25) === 31 ? '말일' : `${activeCustomer.defaultStatementClosingDay || 25}일`}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>약정 결제일:</span> <strong>{formatPaymentDueCondition(activeCustomer.paymentDueMonthOffset, activeCustomer.paymentDueDay)}</strong></div>
                   <div style={{ gridColumn: 'span 4' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>사업장 주소:</span> {activeCustomer.address || '-'}
@@ -1967,6 +2020,7 @@ const handleDeleteAccount = async (accId: string) => {
                         <SortableTh label="현장 소장/담당" sortKey="contactName" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
                         <SortableTh label="연락처" sortKey="contact" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
                         <SortableTh label="명세서 마감일" sortKey="closingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                        <SortableTh label="계산서 마감일" sortKey="billingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                       </tr>
@@ -1974,7 +2028,7 @@ const handleDeleteAccount = async (accId: string) => {
                     <tbody>
                       {sortedCustomerSites.length === 0 ? (
                         <tr>
-                          <td colSpan={8} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
+                          <td colSpan={9} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 현장이 없습니다. 현장을 추가해 주세요.
                           </td>
                         </tr>
@@ -2090,7 +2144,12 @@ const handleDeleteAccount = async (accId: string) => {
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <span style={{ fontSize: '11.5px', fontWeight: 600, color: cs.statementClosingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                매월 {cs.statementClosingDay === 31 ? '말일' : `${cs.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25}일`}
+                                매월 {(cs.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25) === 31 ? '말일' : `${cs.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25}일`}
+                              </span>
+                            </td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 600, color: cs.billingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                매월 {(cs.billingDay || activeCustomer?.defaultBillingDay || 30) === 31 ? '말일' : `${cs.billingDay || activeCustomer?.defaultBillingDay || 30}일`}
                               </span>
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -2555,7 +2614,7 @@ const handleDeleteAccount = async (accId: string) => {
                 alignItems: 'start'
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>청구서(세금계산서) 마감일</label>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>계산서 마감일</label>
                   <select
                     style={inputStyle}
                     value={editingCust.defaultBillingDay || 30}
@@ -2567,7 +2626,7 @@ const handleDeleteAccount = async (accId: string) => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>거래명세서 마감일</label>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>명세서 마감일</label>
                   <select
                     style={inputStyle}
                     value={editingCust.defaultStatementClosingDay || 25}
@@ -3219,13 +3278,13 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 📅 현장 마감 조건 (거래명세서 마감일 / 계산서 청구일 / 약정 결제일) */}
+              {/* 📅 현장 마감 조건 (명세서 마감일 / 계산서 마감일 / 약정 결제일) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {/* 거래명세서 마감일 */}
+                  {/* 명세서 마감일 */}
                   <div>
                     <label style={{ ...labelStyle, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>거래명세서 마감일</span>
+                      <span>명세서 마감일</span>
                       <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>*청구생성 연동</span>
                     </label>
                     <select
@@ -3240,10 +3299,10 @@ const handleDeleteAccount = async (accId: string) => {
                     </select>
                   </div>
 
-                  {/* 세금계산서 청구 마감일 */}
+                  {/* 계산서 마감일 */}
                   <div>
                     <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>
-                      세금계산서 청구일
+                      계산서 마감일
                     </label>
                     <select
                       style={inputStyle}

@@ -989,7 +989,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
                 <span>반납 마감 시 주의사항</span>
               </div>
               <div className="text-[11px] text-rose-300/80 leading-relaxed">
-                반납이 확정되면 자산 상태가 [임차처 반납완료]로 종결되며, 추가 임차료 계상이 중단되고 월말 매입 정산서에 확정 일수로 전송됩니다.
+                반납이 확정되면 자산 상태가 [임차처 반납완료]로 종결되며, 추가 임차료 계상이 중단되고 월말 매입 계산서에 확정 일수로 전송됩니다.
               </div>
             </div>
 

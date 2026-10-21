@@ -944,7 +944,7 @@ export const SITE_CONTACT_TYPE_CONFIG: Record<SiteContactType, { label: string; 
   },
   CLOSING: {
     label: '마감담당자',
-    subLabel: '거래명세서 / 정산서 수신인',
+    subLabel: '명세서 / 계산서 수신인',
     icon: '🧾',
     defaultPosition: '공무과장',
     color: '#059669',
@@ -1055,8 +1055,8 @@ export interface Customer {
   driveFolderId?: string;
   prepaidBalance?: number; // 선수금 (예치금) 잔액
   transactionStatus?: CustomerTransactionStatus; // ALLOWED: 정상거래, RESTRICT_NEW: 추가계약금지(기존계약유지), BLOCKED_ALL: 전면차단(장비회수·계약금지)
-  defaultBillingDay?: number; // 청구서(세금계산서) 기본 마감일 (예: 30일/월말)
-  defaultStatementClosingDay?: number; // 거래명세서 기본 마감일 (예: 25일)
+  defaultBillingDay?: number; // 계산서 기본 마감일 (예: 30일/월말)
+  defaultStatementClosingDay?: number; // 명세서 기본 마감일 (예: 25일)
   paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
   paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월, 기본값 1
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
@@ -1156,8 +1156,8 @@ export interface CustomerSite {
   protection?: string;               // 현장 전용 무상옵션
   attachments?: string;              // 현장 전용 부착물
   checkedSpecs?: Record<string, any>; // 현장 전용 요구 사양 체크 상태
-  billingDay?: number;               // 청구서(세금계산서) 마감일
-  statementClosingDay?: number;      // 거래명세서 마감일
+  billingDay?: number;               // 계산서 마감일
+  statementClosingDay?: number;      // 명세서 마감일
   paymentDueDay?: number;            // 약정 결제일 (1~30, 31: 말일)
 
   createdAt: string;
@@ -1568,8 +1568,8 @@ export interface Contract {
   siteId?: string;
   startDate: string;
   endDate: string;
-  billingDay: number; // 청구서 발행일 (예: 25 → 매월 25일 발행, 청구기간: 전월26~당월25)
-  statementClosingDay?: number; // 거래명세서 마감일 (구버전 호환)
+  billingDay: number; // 계산서 마감일 (예: 25 → 매월 25일 발행, 청구기간: 전월26~당월25)
+  statementClosingDay?: number; // 명세서 마감일
   lateInterestRate: number; // 연체이자율 (%), 기본값 0 = 미발생
   paymentDueDay?: number; // 납기일 (1~30, 31: 말일)
   paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월
@@ -2242,9 +2242,9 @@ export type TaskCategory =
   | 'OUTBOUND_REPAIR_DEFECT'      // 출고 결함/교체 장비 주기장 정비
   | 'CLAIM_DAMAGE_BILLING'        // 고객 과실 파손 구상권 청구
   | 'EXCHANGE_CHAIN_INSPECTION'   // 대차 입출고 1:1 검수 체인
-  | 'BILLING_APPROVAL_SEND'       // 월말 렌탈 청구서 승인 및 계산서 발행
+  | 'BILLING_APPROVAL_SEND'       // 월말 렌탈 명세서 승인 및 계산서 발행
   | 'DELINQUENCY_COLLECTION'      // 연체 채권 독촉 및 수납 확약
-  | 'PURCHASE_SETTLEMENT_AUDIT'   // 매입 정산서 대사 및 지급 승인
+  | 'PURCHASE_SETTLEMENT_AUDIT'   // 매입 계산서 대사 및 지급 승인
   | 'ASSET_DISPOSAL_HANDOVER'     // 매각 장비 실물 인도 및 잔금 수납
   | 'CONSUMABLE_RESTOCK'          // 안전재고 미달 소모품 긴급 발주
   | 'CONSUMABLE_PURCHASE_APPROVAL'// 소모품 구매 신청 결재 승인
@@ -4284,37 +4284,22 @@ export const SEED_TENANTS: Tenant[] = [
     yards: [
       {
         id: 'yard-01',
-        yardCode: 'YARD-HWASUNG',
-        name: '기연리프트 화성 주기장',
-        isDefault: true,
-        address: '기연리프트 화성 주기장',
-        addressDetail: '',
-        operatingCapacity: 200,
-        managerName: '야드관리팀',
-        managerPhone: '031-334-5296',
-        tel: '031-334-5296',
-        operatingHours: '07:00 ~ 18:00',
-        memo: '주력 출고/입고/정비 복합 주기장 (트레일러/셀프로더 진입 가능)',
-        createdAt: '2013-04-03T00:00:00.000Z',
-      },
-      {
-        id: 'yard-02',
         yardCode: 'YARD-YONGIN',
         name: '용인 본사 주기장',
-        isDefault: false,
+        isDefault: true,
         address: '경기도 용인시 처인구 모현읍 갈담로112번길 21-3',
         addressDetail: '본사 주기장',
-        operatingCapacity: 50,
-        managerName: '이수용',
+        operatingCapacity: 250,
+        managerName: '주기장 관리팀',
         managerPhone: '031-334-5295',
         tel: '031-334-5295',
         operatingHours: '08:30 ~ 17:30',
-        memo: '본사 부속 대기/수리 주기장',
+        memo: '본사 주력 출고/입고/정비 복합 주기장',
         createdAt: '2013-04-03T00:00:00.000Z',
       }
     ],
 
-    mainYardAddress: '기연리프트 화성 주기장',
+    mainYardAddress: '경기도 용인시 처인구 모현읍 갈담로112번길 21-3',
     bankAccounts: [
       {
         bankName: '신한은행',

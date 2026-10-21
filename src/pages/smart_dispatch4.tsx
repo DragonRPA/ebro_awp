@@ -1747,15 +1747,15 @@ export const SmartDispatch4: React.FC = () => {
       },
     ];
 
-    // 🌟 신규현장(신규고객 또는 기존고객 신규현장) 출고 시 청구/거래명세서/결제일정 검증
+    // 🌟 신규현장(신규고객 또는 기존고객 신규현장) 출고 시 계산서/명세서/결제일정 검증
     if (isNewCustomerMode || isRegisteringNewSite) {
       rules.push({
         id: 'BILLING_SCHEDULE',
-        label: '청구/결제 일정',
+        label: '계산서/명세서/결제 일정',
         targetBlock: 'SITE',
         status: (closingDay && statementClosingDay && paymentDueDay) ? 'VALID' : 'INVALID',
-        currentVal: `청구 ${closingDay === 31 ? '말일' : `${closingDay}일`} / 명세서 ${statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} / 결제 익월 ${paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}`,
-        hint: '신규 현장 필수 정산 일정 (청구서/명세서 마감일 및 약정결제일)',
+        currentVal: `계산서 ${closingDay === 31 ? '말일' : `${closingDay}일`} / 명세서 ${statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} / 결제 익월 ${paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}`,
+        hint: '신규 현장 필수 일정 (계산서/명세서 마감일 및 약정결제일)',
       });
     }
 
@@ -3334,13 +3334,13 @@ export const SmartDispatch4: React.FC = () => {
                       <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span>신규현장 청구 및 결제 마감일정 *</span>
+                          <span>신규현장 마감 및 결제일정 *</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 font-normal">세금계산서/명세서 마감 및 입금 약정일</span>
+                        <span className="text-[10px] text-slate-400 font-normal">계산서/명세서 마감 및 입금 약정일</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">청구서(세금계산서) 마감일 *</label>
+                          <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                             value={closingDay}
@@ -3352,7 +3352,7 @@ export const SmartDispatch4: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">거래명세서 마감일 *</label>
+                          <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                             value={statementClosingDay}
@@ -3524,13 +3524,13 @@ export const SmartDispatch4: React.FC = () => {
                       <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span>신규현장 청구 및 결제 마감일정 *</span>
+                          <span>신규현장 마감 및 결제일정 *</span>
                         </span>
                         <span className="text-[10px] text-slate-400 font-normal">고객사 기본값 상속 · 필요 시 현장 특약 수정</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">청구서(세금계산서) 마감일 *</label>
+                          <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
                             value={closingDay}
@@ -3542,7 +3542,7 @@ export const SmartDispatch4: React.FC = () => {
                           </select>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">거래명세서 마감일 *</label>
+                          <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
                           <select
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
                             value={statementClosingDay}
@@ -3637,7 +3637,7 @@ export const SmartDispatch4: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
                             <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>현장 정산/결제 마감일정</span>
+                            <span>현장 마감/결제 일정</span>
                           </div>
                           <button
                             type="button"
@@ -3649,7 +3649,7 @@ export const SmartDispatch4: React.FC = () => {
                         </div>
                         {!showEditScheduleForExistingSite ? (
                           <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
-                            <span className="text-slate-400">청구서: <strong className="text-white">{closingDay === 31 ? '말일' : `${closingDay}일`}</strong></span>
+                            <span className="text-slate-400">계산서: <strong className="text-white">{closingDay === 31 ? '말일' : `${closingDay}일`}</strong></span>
                             <span className="text-slate-600">|</span>
                             <span className="text-slate-400">명세서: <strong className="text-white">{statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`}</strong></span>
                             <span className="text-slate-600">|</span>
@@ -3658,7 +3658,7 @@ export const SmartDispatch4: React.FC = () => {
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                             <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">청구서(세금계산서) 마감일</label>
+                              <label className="text-xs font-semibold text-slate-300">계산서 마감일</label>
                               <select
                                 className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                                 value={closingDay}
@@ -3670,7 +3670,7 @@ export const SmartDispatch4: React.FC = () => {
                               </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">거래명세서 마감일</label>
+                              <label className="text-xs font-semibold text-slate-300">명세서 마감일</label>
                               <select
                                 className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
                                 value={statementClosingDay}
@@ -4931,10 +4931,10 @@ export const SmartDispatch4: React.FC = () => {
               </div>
               <div className="grid grid-cols-4">
                 <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
-                  정산/결제일
+                  마감/결제일
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-amber-300 text-xs">
-                  청구 {closingDay === 31 ? '말일' : `${closingDay}일`} · 명세서 {statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} · 결제 익월 {paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}
+                  계산서 {closingDay === 31 ? '말일' : `${closingDay}일`} · 명세서 {statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} · 결제 익월 {paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}
                 </div>
               </div>
             </div>

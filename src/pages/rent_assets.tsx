@@ -1048,7 +1048,7 @@ export const RentAssets: React.FC = () => {
 
     setIsSettling(true);
     try {
-      // 1. PurchaseSettlement 정산서 생성 (status: 'CONFIRMED' -> 지급 결제 요청 상태)
+      // 1. PurchaseSettlement 계산서 생성 (status: 'CONFIRMED' -> 지급 결제 요청 상태)
       const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
         settlementYm: selectedYm,
         settlementType: 'EQUIPMENT_LEASE',
@@ -3915,7 +3915,7 @@ export const RentAssets: React.FC = () => {
                         🎉 [지급 요청 완료] 매입 정산이 성공적으로 확정 승인되었습니다!
                       </h3>
                       <p style={{ fontSize: '12px', color: 'var(--text-main)', margin: '0 0 12px 0' }}>
-                        정산서 번호: <strong>{createdSettlementId}</strong> | 재무팀 지급 대장에 <strong>[정산확정]</strong> 상태로 등록되었습니다.
+                        계산서 번호: <strong>{createdSettlementId}</strong> | 재무팀 지급 대장에 <strong>[정산확정]</strong> 상태로 등록되었습니다.
                       </p>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
                         <button

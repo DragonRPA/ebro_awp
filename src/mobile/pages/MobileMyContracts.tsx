@@ -322,7 +322,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-500">청구 마감일</div>
+                      <div className="text-[10px] text-slate-500">계산서 마감일</div>
                       <div className="font-bold text-slate-200">매월 {selectedContract.billingDay || 30}일</div>
                     </div>
                     <div>

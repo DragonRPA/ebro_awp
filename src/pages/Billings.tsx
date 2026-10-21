@@ -4148,7 +4148,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <div>계약만료: <strong>{formatContractEndDate(c.endDate)}</strong></div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '8px', color: 'var(--text-muted)' }}>
-                        <div>청구 마감: <strong>매월 {statementStatus.rawBillingDay === 31 ? '말일' : `${statementStatus.rawBillingDay}일`}</strong></div>
+                        <div>계산서 마감: <strong>매월 {statementStatus.rawBillingDay === 31 ? '말일' : `${statementStatus.rawBillingDay}일`}</strong></div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span>명세서 마감:</span>
                           <strong style={{ color: statementStatus.isTodayDue && !statementStatus.isAlreadyBilledThisMonth ? '#dc2626' : 'inherit' }}>
@@ -4201,7 +4201,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     return (
                       <>
                         <span>현장: <strong>{getSiteName(selectedContractForWizard.siteId)}</strong></span>
-                        <span>청구 마감: <strong>매월 {selDue.rawBillingDay === 31 ? '말일' : `${selDue.rawBillingDay}일`}</strong></span>
+                        <span>계산서 마감: <strong>매월 {selDue.rawBillingDay === 31 ? '말일' : `${selDue.rawBillingDay}일`}</strong></span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           명세서 마감: 
                           <strong style={{ color: selDue.isTodayDue && !selDue.isAlreadyBilledThisMonth ? '#dc2626' : 'inherit' }}>
