@@ -99,7 +99,7 @@ export const AssetAssignment: React.FC = () => {
     return map;
   }, [pendingCaList]);
 
-  // 대차 교체 의뢰 접수 건 (EXCHANGE 이력 기반) & 일반 미할당 계약 목록
+  // 대차 교체 의뢰 접수 건 (EXCHANGE 이력 기반) & 일반 미할당/검수대기 계약 목록
   const { exchangePendingContracts, pendingContracts, exchangeSlotsCount } = useMemo(() => {
     const excList: typeof contracts = [];
     const normList: typeof contracts = [];
@@ -107,17 +107,24 @@ export const AssetAssignment: React.FC = () => {
 
     for (let i = 0; i < contracts.length; i++) {
       const c = contracts[i];
+      const activePreInspSlots = contractAssetsByContractMap.get(c.id) || [];
+      if (activePreInspSlots.length === 0) continue;
       const pCount = pendingCountByContractMap.get(c.id) || 0;
-      if (pCount <= 0) continue;
-      if (exchangeHistoryByContractMap.has(c.id)) {
+      if (exchangeHistoryByContractMap.has(c.id) && pCount > 0) {
         excList.push(c);
         excSlots += pCount;
       } else {
         normList.push(c);
       }
     }
+    // 미할당 슬롯이 남아있는 건을 앞쪽에, 전량 할당 완료(검수대기) 건을 뒤쪽에 배치
+    normList.sort((a, b) => {
+      const pa = (pendingCountByContractMap.get(a.id) || 0) > 0 ? 0 : 1;
+      const pb = (pendingCountByContractMap.get(b.id) || 0) > 0 ? 0 : 1;
+      return pa - pb;
+    });
     return { exchangePendingContracts: excList, pendingContracts: normList, exchangeSlotsCount: excSlots };
-  }, [contracts, pendingCountByContractMap, exchangeHistoryByContractMap]);
+  }, [contracts, contractAssetsByContractMap, pendingCountByContractMap, exchangeHistoryByContractMap]);
 
 
   // 선택된 계약의 하위 슬롯들 (미할당 + 기할당) (O(1) 맵 조회)
@@ -601,14 +608,15 @@ export const AssetAssignment: React.FC = () => {
               const progress = totalCount > 0 ? Math.round((assignedCount / totalCount) * 100) : 0;
 
               const unassignedCas = cas.filter(ca => !ca.assetId);
-              // 미할당 슬롯 모델별 × 수량 문자열 집계
-              const reqSummary = unassignedCas.reduce((acc, curr) => {
+              // 미할당 또는 기할당(검수대기) 슬롯 모델별 × 수량 문자열 집계
+              const targetSummaryCas = unassignedCas.length > 0 ? unassignedCas : cas;
+              const reqSummary = targetSummaryCas.reduce((acc, curr) => {
                 const model = curr.expectedModel || '미지정';
                 acc[model] = (acc[model] || 0) + 1;
                 return acc;
               }, {} as Record<string, number>);
               const reqText = Object.entries(reqSummary).map(([k, v]) => `${k} × ${v}대`).join(', ');
-              const latestScheduledDate = unassignedCas
+              const latestScheduledDate = targetSummaryCas
                 .map(ca => ca.startDate)
                 .filter(Boolean)
                 .sort()
@@ -641,12 +649,16 @@ export const AssetAssignment: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <span className="badge badge-warning" style={{ fontSize: '10px', padding: '2px 4px' }}>대기중</span>
+                    {unassignedCas.length > 0 ? (
+                      <span className="badge badge-warning" style={{ fontSize: '10px', padding: '2px 4px' }}>미할당 {unassignedCas.length}대</span>
+                    ) : (
+                      <span className="badge badge-success" style={{ fontSize: '10px', padding: '2px 5px' }}>할당완료 (검수대기)</span>
+                    )}
                   </div>
                   
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Layers size={11} /> 미할당 요구: <strong style={{ color: 'var(--primary)' }}>{reqText}</strong>
+                      <Layers size={11} /> {unassignedCas.length > 0 ? '미할당 요구:' : '할당 모델:'} <strong style={{ color: unassignedCas.length > 0 ? 'var(--primary)' : 'var(--success)' }}>{reqText}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Truck size={11} /> 출고예정: {latestScheduledDate}

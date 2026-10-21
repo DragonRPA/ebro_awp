@@ -3410,14 +3410,74 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 5. 배차 취소 처리 (status: 'CANCELLED')
+  // 5. 배차 취소 처리 (DISPATCHED ➔ REQUESTED 배차대기 원복 및 차량·기사 배정 해제)
   const handleCancelDeliveryStatus = async (deliveryId: string) => {
     if (!canSave) return;
-    
+    const targetDelivery = deliveries.find(d => d.id === deliveryId);
+    if (!targetDelivery) return;
+
     try {
+      const nowIso = new Date().toISOString();
+      const normSt = getNormalizedDeliveryStatus(targetDelivery);
+      const isOutboundOrExchange =
+        targetDelivery.type === 'OUTBOUND' ||
+        targetDelivery.type === 'EXCHANGE' ||
+        targetDelivery.dispatchCategory === '출고' ||
+        targetDelivery.dispatchCategory === '교환';
+
+      // 배차완료(DISPATCHED) 상태이거나 출고/교환 건인 경우: 출고 요청 전체를 죽이지 않고 차량·기사 배정만 해제하여 [배차대기(REQUESTED)]로 원복
+      if (normSt === 'DISPATCHED' || normSt === 'CANCELLED' || isOutboundOrExchange) {
+        const revertPayload: Partial<Delivery> = {
+          status: 'REQUESTED',
+          transportCompany: '',
+          vehicleNo: '',
+          driverName: '',
+          driverContact: '',
+          expectedCost: 0,
+          finalCost: 0,
+          deliveryCost: 0,
+          vehicles: '[]',
+          updatedAt: nowIso
+        };
+        db.updateRow<Delivery>('deliveries', deliveryId, revertPayload);
+        await db.awaitPendingWrites();
+
+        await clearHandoverTasks({
+          entityId: deliveryId,
+          category: 'OUTBOUND_PDI_INSPECTION',
+          completedByUserId: currentUser?.id,
+          completedByName: currentUser?.name,
+          completionAction: 'DISPATCH_REVERTED'
+        });
+
+        refreshAllData();
+        setAssignedVehicles([
+          {
+            id: `v-${Date.now()}`,
+            transportCompany: '',
+            vehicleType: targetDelivery.vehicleType || '3.5T',
+            vehicleNo: '',
+            driverName: '',
+            driverContact: '',
+            expectedCost: 0,
+            finalCost: 0,
+            deliveryCost: 0
+          }
+        ]);
+        if (selectedDelivery && selectedDelivery.id === deliveryId) {
+          setSelectedDelivery({
+            ...selectedDelivery,
+            ...revertPayload,
+            status: 'REQUESTED'
+          });
+        }
+        showToast('차량·기사 배정이 취소되어 [배차 대기] 상태로 전환되었습니다.');
+        return;
+      }
+
       db.updateRow<Delivery>('deliveries', deliveryId, {
         status: 'CANCELLED',
-        updatedAt: new Date().toISOString()
+        updatedAt: nowIso
       });
       await db.awaitPendingWrites();
 
@@ -3434,10 +3494,10 @@ export const TruckDispatch: React.FC = () => {
         setSelectedDelivery({
           ...selectedDelivery,
           status: 'CANCELLED',
-          updatedAt: new Date().toISOString()
+          updatedAt: nowIso
         });
       }
-      showToast('배차가 취소되었습니다. (배차 취소)');
+      showToast('배차가 취소되었습니다.');
     } catch (err: any) {
       showErrorModal(`배차 취소 처리 실패:\n${err?.message || err}`);
     }
@@ -4725,37 +4785,59 @@ export const TruckDispatch: React.FC = () => {
                     {canSave && (
                       <>
                         {getNormalizedDeliveryStatus(selectedDelivery) === 'CANCELLED' ? (
-                          <button
-                            type="button"
-                            onClick={handleSaveDispatch}
-                            disabled={isSavingDispatch}
-                            className="btn-primary"
-                            style={{
-                              padding: '8px 18px',
-                              fontWeight: 800,
-                              fontSize: '13px',
-                              borderRadius: '7px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              backgroundColor: '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
-                              cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
-                              boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
-                              opacity: isSavingDispatch ? 0.7 : 1
-                            }}
-                          >
-                            <RotateCcw size={15} /> {isSavingDispatch ? '처리 중...' : '배차 수정 및 배차완료로 재배정'}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
+                              style={{
+                                padding: '8px 14px',
+                                fontWeight: 800,
+                                fontSize: '12.5px',
+                                borderRadius: '7px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: 'rgba(245,158,11,0.12)',
+                                color: '#d97706',
+                                border: '1px solid rgba(245,158,11,0.35)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <RotateCcw size={14} /> 배차대기로 복원
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveDispatch}
+                              disabled={isSavingDispatch}
+                              className="btn-primary"
+                              style={{
+                                padding: '8px 18px',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                borderRadius: '7px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
+                                opacity: isSavingDispatch ? 0.7 : 1
+                              }}
+                            >
+                              <RotateCcw size={15} /> {isSavingDispatch ? '처리 중...' : '배차 수정 및 배차완료로 재배정'}
+                            </button>
+                          </>
                         ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DISPATCHED' ? (
                           <>
                             <button
                               type="button"
                               onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
+                              title="배정된 차량·기사를 해제하고 배차대기 상태로 되돌립니다 (출고 요청 자체는 유지됨)"
                               style={{ padding: '7px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                             >
-                              🚫 배차 취소
+                              🚫 배차 취소 (배차대기로 원복)
                             </button>
 
                             {(() => {
@@ -4891,13 +4973,19 @@ export const TruckDispatch: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
-                              style={{ padding: '7px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                            >
-                              🚫 배차 취소
-                            </button>
+                            {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? (
+                              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                ※ 출고 요청 취소는 [출고 요청 내역]에서 진행합니다.
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
+                                style={{ padding: '7px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                              >
+                                🚫 배차 취소
+                              </button>
+                            )}
 
                             <button
                               data-uia="btn-assign-driver"

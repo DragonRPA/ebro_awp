@@ -782,10 +782,10 @@ export const OutboundInspections: React.FC = () => {
       const userName = currentUser?.name || '담당엔지니어';
       const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
 
-      // 1. 검수 레코드 원복 (COMPLETED ➔ IN_PROGRESS)
+      // 1. 검수 레코드 원복 (COMPLETED ➔ PENDING 검수대기)
       selectedGroup.items.forEach(item => {
         db.updateRow<OutboundInspection>('outboundInspections', item.id, {
-          status: 'IN_PROGRESS',
+          status: 'PENDING',
           approvedAt: undefined,
           note: item.note ? `${item.note}\n[출고승인 취소 롤백] 사유: ${rollbackReason.trim()} (작업자: ${userName})` : `[출고승인 취소 롤백] 사유: ${rollbackReason.trim()}`,
           updatedAt: nowIso
@@ -848,13 +848,13 @@ export const OutboundInspections: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`[${selectedGroup.customerName}] 건의 출고 승인이 취소되고 검수 진행중으로 롤백되었습니다. 장비 교체 및 재검수가 가능합니다.`);
+      showToast(`[${selectedGroup.customerName}] 건의 출고 승인이 취소되어 검수대기 상태로 롤백되었습니다. 장비 할당 취소 및 재검수가 가능합니다.`);
       setShowRollbackModal(false);
       setRollbackReason('');
-      setActiveTabStatus('IN_PROGRESS');
+      setActiveTabStatus('PENDING');
       handleSelectGroup({
         ...selectedGroup,
-        status: 'IN_PROGRESS'
+        status: 'PENDING'
       });
     } catch (err: any) {
       showErrorModal(`출고 승인 취소 롤백 실패: ${err?.message || err}`);

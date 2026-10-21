@@ -161,7 +161,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 export const SmartDispatch4: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
-    saveSmartDispatch, cancelOutboundRequest, updateOutboundRequestPricing, assets, deliveries, standardOptions,
+    saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, assets, deliveries, standardOptions,
     contracts = [],
     contractAssets = [],
     todos = [],
@@ -261,6 +261,11 @@ export const SmartDispatch4: React.FC = () => {
   } | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState<string>('');
   const [isCancellingRequest, setIsCancellingRequest] = useState<boolean>(false);
+  const [deleteCancelledConfirmTarget, setDeleteCancelledConfirmTarget] = useState<{
+    filteredIds: string[];
+    allIds: string[];
+  } | null>(null);
+  const [isDeletingCancelled, setIsDeletingCancelled] = useState<boolean>(false);
   const [bundleModalTarget, setBundleModalTarget] = useState<{
     contractId: string;
     deliveryId: string;
@@ -5834,7 +5839,28 @@ export const SmartDispatch4: React.FC = () => {
         return false;
       });
       const isInspectionCompleted = totalAssignedCount > 0 && (approvedInspCount > 0 || hasRentedAsset);
-      const canCancelRequest = d.status !== 'CANCELLED' && d.status !== 'DELIVERED' && d.status !== 'COMPLETED' && !isInspectionCompleted;
+      const canEditPreInspection = d.status !== 'CANCELLED' && d.status !== 'DELIVERED' && d.status !== 'COMPLETED' && !isInspectionCompleted;
+      // 단계별 업무(운송완료 -> 출고검수 -> 배차완료/장비할당)가 모두 취소되어 초기 상태(배차대기 + 미할당)일 때만 출고 요청 취소 가능
+      const canCancelRequest = canEditPreInspection && d.status !== 'DISPATCHED' && totalAssignedCount === 0;
+
+      let cancelBlockBadge = '취소불가';
+      let cancelBlockTooltip = '출고 검수가 완료되어 취소할 수 없습니다';
+      if (d.status === 'DELIVERED' || d.status === 'COMPLETED') {
+        cancelBlockBadge = '운송취소 필요';
+        cancelBlockTooltip = '[배차/운송 관리]에서 운송완료 취소를 먼저 수행해야 합니다';
+      } else if (isInspectionCompleted) {
+        cancelBlockBadge = '검수취소 필요';
+        cancelBlockTooltip = '[출고 검수]에서 출고 승인 취소(검수 롤백)를 먼저 수행해야 합니다';
+      } else if (d.status === 'DISPATCHED' && totalAssignedCount > 0) {
+        cancelBlockBadge = '배차·할당취소 필요';
+        cancelBlockTooltip = '[배차/운송 관리]에서 배차 취소 및 [장비 할당]에서 장비 할당 취소를 먼저 수행해야 합니다';
+      } else if (d.status === 'DISPATCHED') {
+        cancelBlockBadge = '배차취소 필요';
+        cancelBlockTooltip = '[배차/운송 관리]에서 배차 취소를 먼저 수행하여 배차대기 상태로 전환해야 합니다';
+      } else if (totalAssignedCount > 0) {
+        cancelBlockBadge = '할당취소 필요';
+        cancelBlockTooltip = `[장비 할당]에서 할당된 장비(${totalAssignedCount}대)의 할당 취소를 먼저 수행해야 합니다`;
+      }
 
       return {
         id: d.id,
@@ -5869,7 +5895,10 @@ export const SmartDispatch4: React.FC = () => {
         dispatchStatus: d.status,
         approvedInspCount,
         isInspectionCompleted,
+        canEditPreInspection,
         canCancelRequest,
+        cancelBlockBadge,
+        cancelBlockTooltip,
         cancelReason: snapMeta?.cancelReason || '',
         cancelledAt: snapMeta?.cancelledAt || '',
         cancelledBy: snapMeta?.cancelledBy || '',
@@ -6028,6 +6057,35 @@ export const SmartDispatch4: React.FC = () => {
                 />
               </div>
             </div>
+            {/* 취소한 요청 삭제 버튼 (검색어 우측 배치) */}
+            {(() => {
+              const allCancelledIds = reconstructedRows.filter(r => r.dispatchStatus === 'CANCELLED').map(r => r.id);
+              const filteredCancelledIds = filteredRows.filter(r => r.dispatchStatus === 'CANCELLED').map(r => r.id);
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (allCancelledIds.length === 0) {
+                      showToast('삭제할 취소 상태의 출고 요청이 없습니다.', 'info');
+                      return;
+                    }
+                    setDeleteCancelledConfirmTarget({
+                      filteredIds: filteredCancelledIds,
+                      allIds: allCancelledIds
+                    });
+                  }}
+                  className={`h-8 px-3 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    allCancelledIds.length > 0
+                      ? 'bg-rose-950/90 hover:bg-rose-700 border-rose-700/80 text-rose-300 hover:text-white'
+                      : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                  }`}
+                  title="취소 완료(출고취소) 상태인 출고 요청을 삭제합니다"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>취소한 요청 삭제{allCancelledIds.length > 0 ? ` (${allCancelledIds.length})` : ''}</span>
+                </button>
+              );
+            })()}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -6266,13 +6324,12 @@ export const SmartDispatch4: React.FC = () => {
                               </button>
                             ) : row.dispatchStatus === 'CANCELLED' ? (
                               <span className="text-[10.5px] text-rose-400 font-bold whitespace-nowrap">취소완료</span>
-                            ) : !row.isInspectionCompleted && (row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED') ? (
-                              <span className="text-[10.5px] text-amber-400 font-bold whitespace-nowrap" title="출고검수 전 운송완료 처리된 건입니다. 배차/운송 관리에서 운송완료를 먼저 취소해야 합니다">
-                                배차취소 필요
-                              </span>
                             ) : (
-                              <span className="text-[10.5px] text-slate-500 font-bold whitespace-nowrap" title="출고 검수가 완료되어 취소할 수 없습니다">
-                                취소불가
+                              <span
+                                className="text-[10.5px] text-amber-400 font-bold whitespace-nowrap"
+                                title={row.cancelBlockTooltip}
+                              >
+                                {row.cancelBlockBadge}
                               </span>
                             )}
                           </td>
@@ -6441,9 +6498,9 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-bold text-emerald-400">
-                        2. 요청 장비 및 단가 명세 (총 {isEditingHistoryPrices && selectedRow.canCancelRequest ? editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0) : selectedRow.totalQty}대)
+                        2. 요청 장비 및 단가 명세 (총 {isEditingHistoryPrices && selectedRow.canEditPreInspection ? editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0) : selectedRow.totalQty}대)
                       </span>
-                      {canSave && selectedRow.dispatchStatus !== 'CANCELLED' && (selectedRow.canCancelRequest || hasFinancialAccess) && (
+                      {canSave && selectedRow.dispatchStatus !== 'CANCELLED' && (selectedRow.canEditPreInspection || hasFinancialAccess) && (
                         !isEditingHistoryPrices ? (
                           <button
                             type="button"
@@ -6503,7 +6560,7 @@ export const SmartDispatch4: React.FC = () => {
                             }}
                             className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
                           >
-                            {selectedRow.canCancelRequest ? '요청 내역 · 단가 수정' : '단가 수정'}
+                            {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '단가 수정'}
                           </button>
                         ) : (
                           <div className="flex items-center gap-1">
@@ -6511,13 +6568,13 @@ export const SmartDispatch4: React.FC = () => {
                               type="button"
                               disabled={isSavingHistoryPrices}
                               onClick={async () => {
-                                if (selectedRow.canCancelRequest && editHistoryEquipments.length === 0) {
+                                if (selectedRow.canEditPreInspection && editHistoryEquipments.length === 0) {
                                   showToast('최소 1개 이상의 장비 모델이 필요합니다.', 'error');
                                   return;
                                 }
                                 setIsSavingHistoryPrices(true);
                                 try {
-                                  if (selectedRow.canCancelRequest) {
+                                  if (selectedRow.canEditPreInspection) {
                                     const allOpts = Array.from(editHistorySelectedOptions);
                                     const nextPaidStr = allOpts
                                       .filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label))
@@ -6587,7 +6644,7 @@ export const SmartDispatch4: React.FC = () => {
                     </div>
 
                     {/* 편집 모드 A: 미완료 출고 요청 전체 장비(모델 수정, 수량 변경, 모델 삭제, 신규 모델 추가) 편집 */}
-                    {isEditingHistoryPrices && selectedRow.canCancelRequest ? (
+                    {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
                       <div className="flex flex-col gap-2">
                         {editHistoryEquipments.map((eq, i) => (
                           <div key={i} className="bg-slate-900 border border-blue-800/70 rounded-lg p-2.5 flex flex-col gap-2">
@@ -6869,7 +6926,7 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="text-[11px] font-bold text-rose-400">3. 유상옵션 · 무상옵션 · 부착물 명세</div>
 
                     {/* 편집 모드: 미완료 출고 요청 옵션 추가·삭제 및 유상옵션 청구조건·단가 변경 */}
-                    {isEditingHistoryPrices && selectedRow.canCancelRequest ? (
+                    {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
                       <div className="flex flex-col gap-2.5">
                         {/* 현재 선택된 요청 옵션 칩 목록 (클릭 시 삭제) */}
                         <div className="flex flex-col gap-1">
@@ -7223,19 +7280,12 @@ export const SmartDispatch4: React.FC = () => {
                       <span className="px-2.5 py-1.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-bold whitespace-nowrap">
                         취소된 출고 요청
                       </span>
-                    ) : !selectedRow.isInspectionCompleted && (selectedRow.dispatchStatus === 'DELIVERED' || selectedRow.dispatchStatus === 'COMPLETED') ? (
-                      <span
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-950/70 border border-amber-700 text-amber-300 text-xs font-bold whitespace-nowrap"
-                        title="출고검수 전 운송완료 처리된 건입니다. 배차/운송 관리에서 운송완료를 먼저 취소해야 합니다"
-                      >
-                        운송완료 (배차취소 필요)
-                      </span>
                     ) : (
                       <span
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 text-xs font-bold whitespace-nowrap"
-                        title="출고 검수가 완료되어 취소할 수 없습니다"
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-950/70 border border-amber-700 text-amber-300 text-xs font-bold whitespace-nowrap"
+                        title={selectedRow.cancelBlockTooltip}
                       >
-                        검수완료 (취소불가)
+                        {selectedRow.cancelBlockBadge}
                       </span>
                     )}
                   </div>
@@ -7480,6 +7530,116 @@ export const SmartDispatch4: React.FC = () => {
                   </>
                 ) : (
                   <span>출고 요청 취소 실행</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🗑️ [취소한 출고 요청 영구 삭제 확인 모달] */}
+      {deleteCancelledConfirmTarget && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-rose-950/50 border-b border-rose-800/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white m-0">취소한 출고 요청 삭제</h3>
+                  <p className="text-[11px] text-rose-300 m-0">취소 완료 상태인 출고 요청 영구 정리</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isDeletingCancelled && setDeleteCancelledConfirmTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-3.5 text-xs">
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 font-bold">전체 취소된 출고 요청</span>
+                  <span className="font-mono font-bold text-rose-400">총 {deleteCancelledConfirmTarget.allIds.length}건</span>
+                </div>
+                {deleteCancelledConfirmTarget.filteredIds.length > 0 &&
+                  deleteCancelledConfirmTarget.filteredIds.length !== deleteCancelledConfirmTarget.allIds.length && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 font-bold">현재 조회 조건 내 취소 요청</span>
+                      <span className="font-mono font-bold text-amber-300">{deleteCancelledConfirmTarget.filteredIds.length}건</span>
+                    </div>
+                  )}
+              </div>
+
+              <div className="bg-rose-950/30 border border-rose-800/40 rounded-xl p-3 text-[11px] text-slate-300 leading-relaxed flex flex-col gap-1">
+                <span className="font-bold text-rose-300">삭제 시 반영 사항:</span>
+                <span>• 취소 완료(출고취소) 상태인 출고 요청 내역이 목록 및 DB에서 영구 삭제됩니다.</span>
+                <span>• 취소 건에 남아있던 잔여 미할당 슬롯 및 유효 건이 없는 빈 계약도 함께 정리됩니다.</span>
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-950 border-t border-slate-800 flex items-center justify-end gap-2 flex-wrap">
+              <button
+                type="button"
+                disabled={isDeletingCancelled}
+                onClick={() => setDeleteCancelledConfirmTarget(null)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer whitespace-nowrap"
+              >
+                닫기
+              </button>
+              {deleteCancelledConfirmTarget.filteredIds.length > 0 &&
+                deleteCancelledConfirmTarget.filteredIds.length !== deleteCancelledConfirmTarget.allIds.length && (
+                  <button
+                    type="button"
+                    disabled={isDeletingCancelled}
+                    onClick={async () => {
+                      setIsDeletingCancelled(true);
+                      try {
+                        const res = await deleteCancelledOutboundRequests(deleteCancelledConfirmTarget.filteredIds);
+                        if (res.success) {
+                          showToast(`조회된 취소 요청 ${res.deletedCount}건이 삭제되었습니다.`, 'info');
+                          setDeleteCancelledConfirmTarget(null);
+                        }
+                      } finally {
+                        setIsDeletingCancelled(false);
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer whitespace-nowrap"
+                  >
+                    조회된 {deleteCancelledConfirmTarget.filteredIds.length}건만 삭제
+                  </button>
+                )}
+              <button
+                type="button"
+                disabled={isDeletingCancelled}
+                onClick={async () => {
+                  setIsDeletingCancelled(true);
+                  try {
+                    const res = await deleteCancelledOutboundRequests(deleteCancelledConfirmTarget.allIds);
+                    if (res.success) {
+                      showToast(`취소된 출고 요청 ${res.deletedCount}건이 모두 삭제되었습니다.`, 'info');
+                      setDeleteCancelledConfirmTarget(null);
+                    }
+                  } finally {
+                    setIsDeletingCancelled(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                {isDeletingCancelled ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>삭제 처리 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>전체 취소 요청 삭제 ({deleteCancelledConfirmTarget.allIds.length}건)</span>
+                  </>
                 )}
               </button>
             </div>

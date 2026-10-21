@@ -359,6 +359,7 @@ interface AppContextType {
   exchangeOutboundAsset: (contractAssetId: string, oldAssetId: string, newAssetId: string, reason?: string, markOldAsRepairing?: boolean, customPenaltyScore?: number) => Promise<void>;
   saveSmartDispatch: (data: SmartDispatchData, autoRegister: boolean, onProgress?: (log: string, percent: number) => void) => Promise<{ success: boolean; requiresConfirm?: boolean; missingFields?: string[]; errorMessage?: string; contractId?: string; contractNo?: string }>;
   cancelOutboundRequest: (deliveryId: string, cancelReason?: string) => Promise<{ success: boolean; errorMessage?: string }>;
+  deleteCancelledOutboundRequests: (deliveryIds?: string[]) => Promise<{ success: boolean; deletedCount: number; errorMessage?: string }>;
   updateOutboundRequestPricing: (params: {
     deliveryId: string;
     equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
@@ -2764,9 +2765,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     // 🛡️ [1. 방어 가드 - Validation Guard]
-    // 현장 상세 주소와 현장담당자 연락처가 입력값과 기존 DB 모두에 전혀 없는 경우 강력 방어
+    // 현장명은 반드시 100% 정확히 일치(===)해야만 기존 현장으로 매칭하며, 부분/포함 매칭을 원천 차단한다.
     const currentCust = customer;
-    const existingSite = currentCust ? db.sites.find(s => s.customerId === currentCust.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name))) : null;
+    const trimmedInputSiteName = (data.siteName || '').trim();
+    const existingSite = currentCust
+      ? db.sites.find(s => s.customerId === currentCust.id && s.name.trim() === trimmedInputSiteName)
+      : null;
+
+    // 🚫 기존 현장과 100% 일치하지 않는 현장명인데 신규 현장 등록(autoRegister)이 명시되지 않은 경우 입력 원천 차단
+    if (currentCust && !existingSite && !autoRegister) {
+      return {
+        success: false,
+        requiresConfirm: true,
+        missingFields: [`현장: ${trimmedInputSiteName}`],
+        errorMessage: `등록되지 않은 현장명('${trimmedInputSiteName}')입니다. 기존 현장명과 100% 일치하지 않으므로 입력이 제한됩니다. 기존 현장을 정확히 선택하거나 [신규현장 등록]을 통해 현장을 새로 등록해 주십시오.`
+      };
+    }
+
     const existingContact = currentCust ? db.contacts.find(ct => ct.customerId === currentCust.id && (data.siteContactName ? ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, '') : true)) : null;
 
     const effectiveAddress = data.siteAddress?.trim() || (existingSite?.address && existingSite.address !== '미상' ? existingSite.address : '');
@@ -2925,8 +2940,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalCustomer = customer;
 
-    // 현장 처리: 고객 산하 현장 매핑 또는 신규 고객현장 자동 등록 (옵션은 CustomerSite에 직접 저장)
-    let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
+    // 현장 처리: 고객 산하 현장 매핑 (100% 정확히 일치하는 현장명 === 매칭) 또는 신규 고객현장 등록 (옵션은 CustomerSite에 직접 저장)
+    let site = db.sites.find(s => s.customerId === finalCustomer.id && s.name.trim() === trimmedInputSiteName);
     const selectedOptionGroup = data.siteMasterId ? db.siteMasters.find(m => m.id === data.siteMasterId) : undefined;
 
     if (!site) {
@@ -3463,9 +3478,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     });
 
+    if (targetDelivery.status === 'DELIVERED' || targetDelivery.status === 'COMPLETED') {
+      const msg = '운송완료 처리된 출고 요청은 바로 취소할 수 없습니다.\n먼저 [배차/운송 관리]에서 [운송완료 취소] 및 [배차 취소]를 수행해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가 (운송완료 상태)');
+      return { success: false, errorMessage: msg };
+    }
+
     if (hasCompletedInspection || hasRentedAsset) {
-      const msg = '출고 검수가 이미 완료(대여중 전환)된 출고 요청은 취소할 수 없습니다.\n출고 검수 화면에서 승인 롤백을 먼저 수행하거나 반납/회수 절차를 이용해 주십시오.';
-      showErrorModal(msg, '출고 요청 취소 불가');
+      const msg = '출고 검수가 이미 완료(대여중 전환)된 출고 요청은 바로 취소할 수 없습니다.\n먼저 [출고 검수] 화면에서 [출고 승인 취소 (검수 롤백)]을 수행한 뒤, [장비 할당]에서 할당 취소를 진행해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가 (출고검수 완료 상태)');
+      return { success: false, errorMessage: msg };
+    }
+
+    const hasAssignedAsset = targetCas.some(ca => !!ca.assetId);
+    const isDispatched = targetDelivery.status === 'DISPATCHED';
+
+    if (isDispatched && hasAssignedAsset) {
+      const msg = '배차완료 및 장비할당이 진행된 출고 요청은 바로 취소할 수 없습니다.\n먼저 [배차/운송 관리]에서 [배차 취소]를 수행하고, [장비 할당]에서 [할당 취소]를 완료한 후 출고 취소를 진행해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가 (선행 단계 취소 필요)');
+      return { success: false, errorMessage: msg };
+    }
+
+    if (isDispatched) {
+      const msg = '배차완료(차량·기사 배정) 상태인 출고 요청은 바로 취소할 수 없습니다.\n먼저 [배차/운송 관리]에서 [배차 취소]를 수행하여 [배차대기] 상태로 되돌린 후 출고 취소를 진행해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가 (배차 취소 필요)');
+      return { success: false, errorMessage: msg };
+    }
+
+    if (hasAssignedAsset) {
+      const msg = '장비가 할당된 상태에서는 출고 요청을 바로 취소할 수 없습니다.\n먼저 [장비 할당] 메뉴에서 할당된 장비의 [할당 취소]를 수행하여 미할당 상태로 되돌린 후 출고 취소를 진행해 주십시오.';
+      showErrorModal(msg, '출고 요청 취소 불가 (장비 할당 취소 필요)');
       return { success: false, errorMessage: msg };
     }
 
@@ -3615,6 +3657,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const errMsg = err?.message || err?.details || JSON.stringify(err);
       showErrorModal(`⚠️ 출고 요청 취소 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '출고 요청 취소 실패');
       return { success: false, errorMessage: errMsg };
+    }
+  };
+
+  // 🗑️ 취소된 출고 요청(status === 'CANCELLED') 영구 삭제 및 잔여 슬롯/유령 계약 정리 트랜잭션
+  const deleteCancelledOutboundRequests = async (deliveryIds?: string[]): Promise<{ success: boolean; deletedCount: number; errorMessage?: string }> => {
+    const idSet = deliveryIds && deliveryIds.length > 0 ? new Set(deliveryIds) : null;
+    const targets = db.deliveries.filter(d => {
+      if (d.status !== 'CANCELLED') return false;
+      const isOutboundOrExchange = d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환';
+      if (!isOutboundOrExchange) return false;
+      if (idSet && !idSet.has(d.id)) return false;
+      return true;
+    });
+
+    if (targets.length === 0) {
+      return { success: false, deletedCount: 0, errorMessage: '삭제할 취소 상태의 출고 요청이 없습니다.' };
+    }
+
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
+
+    try {
+      const affectedContractIds = new Set<string>();
+      const deletedDeliveryIdSet = new Set(targets.map(t => t.id));
+
+      for (const deliv of targets) {
+        if (deliv.contractId) affectedContractIds.add(deliv.contractId);
+
+        // 1. cargoItems 내 contractAssetIds 추출
+        let parsedCargo: any[] = [];
+        try {
+          if (deliv.cargoItems) {
+            const raw = JSON.parse(deliv.cargoItems);
+            if (Array.isArray(raw)) parsedCargo = raw;
+          }
+        } catch {
+          parsedCargo = [];
+        }
+
+        const caIds: string[] = [];
+        parsedCargo.forEach(ci => {
+          if (Array.isArray(ci?.contractAssetIds)) {
+            caIds.push(...ci.contractAssetIds.filter(Boolean));
+          }
+        });
+
+        // 레거시 취소 건(배차 관리에서 단순 CANCELLED만 찍혀 슬롯이 남아있던 건)의 슬롯 정리
+        if (caIds.length === 0 && deliv.contractId) {
+          const activeSiblingDeliveries = db.deliveries.filter(
+            d => d.contractId === deliv.contractId && !deletedDeliveryIdSet.has(d.id) && d.status !== 'CANCELLED'
+          );
+          if (activeSiblingDeliveries.length === 0) {
+            db.contractAssets
+              .filter(ca => ca.contractId === deliv.contractId && ca.status !== 'RENTED')
+              .forEach(ca => caIds.push(ca.id));
+          }
+        }
+
+        // 2. 잔여 미검수 출고검수 레코드 삭제
+        const leftoverInsps = db.outboundInspections.filter(
+          ins => ins.status !== 'COMPLETED' && (ins.deliveryId === deliv.id || (ins.contractAssetId && caIds.includes(ins.contractAssetId)))
+        );
+        leftoverInsps.forEach(ins => db.deleteRow('outboundInspections', ins.id));
+
+        // 3. 잔여 계약 자산 슬롯 정리 및 ASSIGNED 상태 장비 임대가능 복원
+        const leftoverCas = db.contractAssets.filter(ca => caIds.includes(ca.id) && ca.status !== 'RENTED');
+        for (const ca of leftoverCas) {
+          if (ca.assetId) {
+            const a = db.assets.find(as => as.id === ca.assetId);
+            if (a && a.status === 'ASSIGNED') {
+              db.updateRow<Asset>('assets', a.id, {
+                status: 'AVAILABLE',
+                currentCustomerId: null as any,
+                currentSiteId: null as any,
+                contractStart: null as any,
+                contractEnd: null as any,
+                updatedAt: nowIso
+              });
+            }
+          }
+          db.deleteRow('contractAssets', ca.id);
+        }
+
+        // 4. 연결된 ToDo 삭제
+        const relTodos = db.todos.filter(t => t.entityId === deliv.id || t.relatedEntityId === deliv.id);
+        relTodos.forEach(t => db.deleteRow('todos', t.id));
+
+        // 5. 취소된 출고 요청(배차) 레코드 영구 삭제
+        db.deleteRow('deliveries', deliv.id);
+      }
+
+      // 6. 영향받은 계약 중 남은 슬롯·배차·청구서가 전혀 없는 유령 계약 정리
+      affectedContractIds.forEach(contractId => {
+        const contract = db.contracts.find(c => c.id === contractId);
+        if (!contract) return;
+        const remCas = db.contractAssets.filter(ca => ca.contractId === contractId);
+        const remDeliveries = db.deliveries.filter(d => d.contractId === contractId);
+        const remBillings = db.billings.filter(b => b.contractId === contractId);
+        if (remCas.length === 0 && remDeliveries.length === 0 && remBillings.length === 0) {
+          const relHist = db.contractHistory.filter(h => h.contractId === contractId);
+          relHist.forEach(h => db.deleteRow('contractHistory', h.id));
+          db.deleteRow('contracts', contractId);
+        } else if (remCas.length === 0 && remBillings.length === 0 && contract.status === 'ACTIVE') {
+          db.updateRow<Contract>('contracts', contractId, {
+            status: 'COMPLETED',
+            endDate: todayStr,
+            updatedAt: nowIso
+          });
+        }
+      });
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      return { success: true, deletedCount: targets.length };
+    } catch (err: any) {
+      console.error('deleteCancelledOutboundRequests error:', err);
+      const errMsg = err?.message || err?.details || JSON.stringify(err);
+      showErrorModal(`취소한 출고 요청 삭제 중 오류가 발생했습니다:\n${errMsg}`, '삭제 실패');
+      return { success: false, deletedCount: 0, errorMessage: errMsg };
     }
   };
 
@@ -12596,7 +12757,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       requestConsumablePurchase, updatePurchaseUnitPrice, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
       createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
-      saveSmartDispatch, cancelOutboundRequest, updateOutboundRequestPricing, saveSmartReturn,
+      saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
       generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,
