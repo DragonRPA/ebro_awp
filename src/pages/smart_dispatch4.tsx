@@ -98,6 +98,7 @@ interface DraftOrder {
   closingDay?: number;
   statementClosingDay?: number;
   paymentDueDay?: number;
+  freightBillingStandard?: '2/4' | '3/5';
 }
 
 type ActiveTab = 'NEW' | 'QUEUE' | 'HISTORY';
@@ -730,11 +731,14 @@ export const SmartDispatch4: React.FC = () => {
   const [contactPhone, setContactPhone] = useState('');
   const [contactPosition, setContactPosition] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [targetContractId, setTargetContractId] = useState<string>('');
+  const [forceNewContract, setForceNewContract] = useState<boolean>(false);
 
   // ── 정산/결제 마감 일정 (청구서 마감일, 거래명세서 마감일, 약정 결제일) ─────────────
   const [closingDay, setClosingDay] = useState<number>(30);
   const [statementClosingDay, setStatementClosingDay] = useState<number>(25);
   const [paymentDueDay, setPaymentDueDay] = useState<number>(15);
+  const [freightBillingStandard, setFreightBillingStandard] = useState<'2/4' | '3/5'>('3/5');
   const [showEditScheduleForExistingSite, setShowEditScheduleForExistingSite] = useState<boolean>(false);
 
   // ── 추가출고 옵션 첨삭 확인 모달 상태 ────────────────────────────────────
@@ -752,6 +756,57 @@ export const SmartDispatch4: React.FC = () => {
     return map;
   }, [sites]);
 
+  // 현장별 활성/종료 계약 및 체결 장비 대수 O(1) 인덱스 맵
+  const siteContractMetaMap = useMemo(() => {
+    const activeCountByContract = new Map<string, number>();
+    (contractAssets || []).forEach(ca => {
+      if (!ca || !ca.contractId) return;
+      if (ca.status !== 'RETURNED' && !ca.actualReturnDate) {
+        activeCountByContract.set(ca.contractId, (activeCountByContract.get(ca.contractId) || 0) + 1);
+      }
+    });
+    const map = new Map<string, {
+      activeContract?: typeof contracts[number];
+      completedContract?: typeof contracts[number];
+      rentedCount: number;
+    }>();
+    (contracts || []).forEach(c => {
+      if (!c || !c.siteId) return;
+      const prev = map.get(c.siteId) || { rentedCount: 0 };
+      if (c.status === 'ACTIVE' || c.status === 'EXTENDED') {
+        prev.activeContract = c;
+        prev.rentedCount = activeCountByContract.get(c.id) || 0;
+      } else if (c.status === 'COMPLETED' && !prev.activeContract) {
+        prev.completedContract = c;
+      }
+      map.set(c.siteId, prev);
+    });
+    return map;
+  }, [contracts, contractAssets]);
+
+  // 선택된 고객사의 전체 기존 계약 목록 (현장명 포함)
+  const customerExistingContracts = useMemo(() => {
+    if (!selectedCustomer) return [];
+    const custSites = sitesByCustomerMap.get(selectedCustomer.id) || [];
+    const siteNameById = new Map(custSites.map(s => [s.id, s.name]));
+    return (contracts || [])
+      .filter(c => c.customerId === selectedCustomer.id && (c.status === 'ACTIVE' || c.status === 'EXTENDED' || c.status === 'COMPLETED'))
+      .map(c => {
+        const meta = c.siteId ? siteContractMetaMap.get(c.siteId) : undefined;
+        return {
+          contract: c,
+          siteName: (c.siteId && siteNameById.get(c.siteId)) || '(현장 미지정)',
+          rentedCount: meta?.rentedCount || 0,
+        };
+      })
+      .sort((a, b) => {
+        const aActive = a.contract.status === 'ACTIVE' || a.contract.status === 'EXTENDED' ? 1 : 0;
+        const bActive = b.contract.status === 'ACTIVE' || b.contract.status === 'EXTENDED' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        return b.rentedCount - a.rentedCount;
+      });
+  }, [selectedCustomer, contracts, sitesByCustomerMap, siteContractMetaMap]);
+
   // 🌟 검색어가 없을 때는 고객사를 일절 추천/제시하지 않음 (사용자 피드백 100% 반영)
   const filteredCustomers = useMemo(() => {
     const q = customerQuery.trim();
@@ -760,15 +815,25 @@ export const SmartDispatch4: React.FC = () => {
     return sortCustomersByName(customers.filter(c => matcher.test(c.name))).slice(0, 16);
   }, [customers, customerQuery]);
 
-  // 🌟 [고객 지정 전 현장 노출 완전 차단] 고객사 미선택 시 현장 목록 일절 노출 금지!
+  // 🌟 [고객 지정 전 현장 노출 완전 차단] 활성 계약 보유 현장을 최상단 정렬하여 빈 현장 오선택 방지
   const filteredSites = useMemo(() => {
     if (!selectedCustomer) return [];
-    const base = sitesByCustomerMap.get(selectedCustomer.id) || [];
+    const base = [...(sitesByCustomerMap.get(selectedCustomer.id) || [])].sort((a, b) => {
+      const ma = siteContractMetaMap.get(a.id);
+      const mb = siteContractMetaMap.get(b.id);
+      const aRank = ma?.activeContract ? 2 : ma?.completedContract ? 1 : 0;
+      const bRank = mb?.activeContract ? 2 : mb?.completedContract ? 1 : 0;
+      if (aRank !== bRank) return bRank - aRank;
+      if ((ma?.rentedCount || 0) !== (mb?.rentedCount || 0)) {
+        return (mb?.rentedCount || 0) - (ma?.rentedCount || 0);
+      }
+      return (a.name || '').localeCompare(b.name || '', 'ko');
+    });
     const q = siteQuery.trim();
-    if (!q) return base.slice(0, 16);
+    if (!q) return base.slice(0, 40);
     const matcher = createHangulMatcher(q);
-    return base.filter(s => matcher.test(s.name)).slice(0, 16);
-  }, [sitesByCustomerMap, selectedCustomer, siteQuery]);
+    return base.filter(s => matcher.test(s.name)).slice(0, 40);
+  }, [sitesByCustomerMap, siteContractMetaMap, selectedCustomer, siteQuery]);
 
   // 🌟 옵션 그룹 선택 목록 (신규 현장 등록 / 신규 고객 모드 시 선택사항)
   const filteredSiteMasters = useMemo(() => {
@@ -1473,6 +1538,8 @@ export const SmartDispatch4: React.FC = () => {
     setSelectedSite(null);
     setSelectedSiteAddress('');
     setIsRegisteringNewSite(false);
+    setTargetContractId('');
+    setForceNewContract(false);
     setSiteQuery('');
     applyInheritance(cust, null);
     loadSiteSafetyOptions(null, cust);
@@ -1487,6 +1554,27 @@ export const SmartDispatch4: React.FC = () => {
     setSiteQuery('');
     applyInheritance(selectedCustomer, site);
 
+    // 🌟 계약 연결 자동 판별: 해당 현장의 활성/종료 계약 1순위 ➔ 계약이 없을 경우 동일 고객사의 유사 현장명 계약 자동 매칭
+    const siteMeta = siteContractMetaMap.get(site.id);
+    const directContract = siteMeta?.activeContract || siteMeta?.completedContract;
+    if (directContract) {
+      setTargetContractId(directContract.id);
+      setForceNewContract(false);
+    } else {
+      const normSelected = (site.name || '').replace(/[\s()[\]/,-]/g, '').toLowerCase();
+      const similarEntry = customerExistingContracts.find(entry => {
+        const normCand = (entry.siteName || '').replace(/[\s()[\]/,-]/g, '').toLowerCase();
+        return normSelected.length >= 2 && normCand.length >= 2 && (normCand.includes(normSelected) || normSelected.includes(normCand));
+      });
+      if (similarEntry) {
+        setTargetContractId(similarEntry.contract.id);
+        setForceNewContract(false);
+      } else {
+        setTargetContractId('');
+        setForceNewContract(false);
+      }
+    }
+
     // 🌟 과거 기록(현장 마스터 또는 배차 대장)에서 옵션 자동 승계
     loadSiteSafetyOptions(site, selectedCustomer);
 
@@ -1498,11 +1586,15 @@ export const SmartDispatch4: React.FC = () => {
     if (!reg.position) missingSub.push('직책');
     if (!reg.email) missingSub.push('이메일');
 
-    if (missingCore.length > 0 || missingSub.length > 0) {
-      // 기존 현장의 담당자 정보가 공백이거나 부족한 경우, 2번 현장/담당자 블록을 열어두고 입력을 요구
+    const hasNoDirectContractButCustomerHasContracts = !directContract && customerExistingContracts.length > 0;
+
+    if (missingCore.length > 0 || missingSub.length > 0 || hasNoDirectContractButCustomerHasContracts) {
+      // 기존 현장의 담당자 정보가 공백이거나 직접 연결된 계약이 없어 계약 연결 확인이 필요한 경우 2번 블록 유지
       setOpenBlocks(prev => new Set(prev).add('SITE').add('EQUIPMENT'));
       if (missingCore.length > 0) {
         showToast(`[${site.name}] 기존 현장담당자 필수 정보(${[...missingCore, ...missingSub].join(', ')})가 미입력 상태입니다. 부족한 현장담당자 정보를 입력해 주세요.`, 'error');
+      } else if (hasNoDirectContractButCustomerHasContracts) {
+        showToast(`[${site.name}] 선택한 현장에 직접 연결된 계약이 없습니다. 기존 계약 편입 여부를 2번 블록에서 확인해 주세요.`, 'info');
       } else {
         showToast(`[${site.name}] 현장담당자의 부족한 정보(${missingSub.join(', ')})를 추가로 입력해 주시면 현장 정보에 업데이트됩니다.`, 'info');
       }
@@ -1792,6 +1884,7 @@ export const SmartDispatch4: React.FC = () => {
   const resetForm = () => {
     setSelectedCustomer(null); setSelectedSite(null);
     setSelectedSiteAddress(''); setSelectedSiteMasterId(''); setIsRegisteringNewSite(false);
+    setTargetContractId(''); setForceNewContract(false);
     setCustomerQuery(''); setSiteQuery(''); setSiteMasterSearchQuery('');
     setEquipments([]);
     setLoadingDate(''); setLoadingTimeVal(''); setLoadingTimeType(null);
@@ -1809,6 +1902,7 @@ export const SmartDispatch4: React.FC = () => {
     setClosingDay(30);
     setStatementClosingDay(25);
     setPaymentDueDay(15);
+    setFreightBillingStandard('3/5');
     setShowEditScheduleForExistingSite(false);
     setOpenBlock('CUSTOMER');
     setEditingDraftId(null);
@@ -2111,6 +2205,7 @@ export const SmartDispatch4: React.FC = () => {
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
         `[정산일정] 청구:${closingDay}|명세서:${statementClosingDay}|결제:${paymentDueDay}`,
+        `[운송료청구기준] ${freightBillingStandard}`,
       ].filter(Boolean).join(' | ');
 
       const allSelOpts = Array.from(selectedSafetyOptions);
@@ -2163,6 +2258,9 @@ export const SmartDispatch4: React.FC = () => {
         statementClosingDay,
         paymentDay: paymentDueDay,
         paymentDueDay,
+        freightBillingStandard,
+        targetContractId: (!isNewCustomerMode && !isRegisteringNewSite && !forceNewContract && targetContractId) ? targetContractId : undefined,
+        forceNewContract: (!isNewCustomerMode && !isRegisteringNewSite) ? forceNewContract : false,
       };
 
       const res = await saveSmartDispatch(dispatchData as any, isNewCustomerMode || isRegisteringNewSite);
@@ -2255,6 +2353,7 @@ export const SmartDispatch4: React.FC = () => {
           : '',
         effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
         vehicleType ? `[차종] ${vehicleType}` : '',
+        `[운송료청구기준] ${freightBillingStandard}`,
       ].filter(Boolean).join(' | ');
 
       await createDraftOrder({
@@ -2277,7 +2376,8 @@ export const SmartDispatch4: React.FC = () => {
         urgency: calcUrgency(loadingDate),
         isNewCustomer: isNewCustomerMode,
         customerRegistered: !isNewCustomerMode,
-      });
+        freightBillingStandard,
+      } as any);
 
       await loadDrafts();
       resetForm();
@@ -2395,6 +2495,13 @@ export const SmartDispatch4: React.FC = () => {
     if (draft.closingDay) setClosingDay(draft.closingDay);
     if (draft.statementClosingDay) setStatementClosingDay(draft.statementClosingDay);
     if (draft.paymentDueDay) setPaymentDueDay(draft.paymentDueDay);
+    if (draft.freightBillingStandard === '2/4' || draft.freightBillingStandard === '3/5') {
+      setFreightBillingStandard(draft.freightBillingStandard);
+    } else if (draft.note?.includes('[운송료청구기준] 2/4')) {
+      setFreightBillingStandard('2/4');
+    } else {
+      setFreightBillingStandard('3/5');
+    }
 
     
     setOpenBlock('EQUIPMENT');
@@ -2512,6 +2619,7 @@ export const SmartDispatch4: React.FC = () => {
         statementClosingDay: draft.statementClosingDay,
         paymentDay: draft.paymentDueDay,
         paymentDueDay: draft.paymentDueDay,
+        freightBillingStandard: draft.freightBillingStandard || (draft.note?.includes('[운송료청구기준] 2/4') ? '2/4' : '3/5'),
       } as any, false);
 
       if (res && res.success) {
@@ -3236,30 +3344,63 @@ export const SmartDispatch4: React.FC = () => {
             )}
           </div>
 
-          {/* 업무 유형 선택 버튼군 (단일 선택 강제 & 건조한 명사 단일 표준) */}
-          <div data-mid="dispatch4-context-types" className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-slate-300">업무 유형</label>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {CONTEXT_OPTIONS.map(opt => {
-                const active = selectedContext === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleSelectContext(opt.id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
-                      active
-                        ? 'border-blue-500 bg-blue-600/40 text-blue-200 shadow-sm font-black'
-                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                    }`}
-                  >
-                    {active && <span className="mr-1">✓</span>}
-                    {opt.label}
-                  </button>
-                );
-              })}
+          {/* 업무 유형 선택 버튼군 & 운송료 청구기준 (단일 선택 강제 & 건조한 명사 단일 표준) */}
+          <div data-mid="dispatch4-context-types" className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-300">업무 유형</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CONTEXT_OPTIONS.map(opt => {
+                    const active = selectedContext === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleSelectContext(opt.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
+                          active
+                            ? 'border-blue-500 bg-blue-600/40 text-blue-200 shadow-sm font-black'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                      >
+                        {active && <span className="mr-1">✓</span>}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 🌟 운송료 청구기준 라디오버튼 그룹 (2/4 vs 3/5, 기본값 3/5) */}
+              <div data-mid="dispatch4-freight-billing-standard" className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-300 whitespace-nowrap">운송료 청구기준</label>
+                <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1">
+                  {(['2/4', '3/5'] as const).map(std => {
+                    const checked = freightBillingStandard === std;
+                    return (
+                      <label
+                        key={std}
+                        onClick={() => setFreightBillingStandard(std)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
+                          checked
+                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="freightBillingStandardTop"
+                          value={std}
+                          checked={checked}
+                          onChange={() => setFreightBillingStandard(std)}
+                          className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
+                        />
+                        <span>{std}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3793,7 +3934,7 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="flex flex-col gap-3">
                     <div className="p-3 bg-slate-950/80 border border-cyan-500/50 rounded-xl flex flex-col gap-2.5">
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Building2 className="w-4 h-4 text-cyan-400" />
                           <span className="font-extrabold text-white text-sm">{selectedSite.name}</span>
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">
@@ -3805,6 +3946,8 @@ export const SmartDispatch4: React.FC = () => {
                           onClick={() => {
                             setSelectedSite(null);
                             setSelectedSiteAddress('');
+                            setTargetContractId('');
+                            setForceNewContract(false);
                             setSiteQuery('');
                             applyInheritance(selectedCustomer, null);
                           }}
@@ -3814,6 +3957,112 @@ export const SmartDispatch4: React.FC = () => {
                           <span>현장 변경</span>
                         </button>
                       </div>
+
+                      {/* 🌟 기존 계약 연결 상태 및 계약 선택 보호 장치 */}
+                      {(() => {
+                        const siteMeta = siteContractMetaMap.get(selectedSite.id);
+                        const directContract = siteMeta?.activeContract || siteMeta?.completedContract;
+                        const selectedTargetEntry = customerExistingContracts.find(e => e.contract.id === targetContractId);
+
+                        if (directContract) {
+                          return (
+                            <div className="p-2.5 rounded-lg bg-emerald-950/50 border border-emerald-500/50 flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2 text-xs text-emerald-200">
+                                <span className="font-extrabold text-emerald-300">
+                                  ✓ 기존 계약 자동 편입: {directContract.contractNo}
+                                </span>
+                                <span className="text-[11px] text-emerald-300/90">
+                                  (체결 장비 {siteMeta?.rentedCount || 0}대 · 최초 계약일 {directContract.startDate || '-'})
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-900/70 text-emerald-200 border border-emerald-500/40">
+                                신규 계약을 만들지 않고 기존 계약에 추가됩니다
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (customerExistingContracts.length > 0) {
+                          return (
+                            <div className="p-2.5 rounded-lg bg-amber-950/50 border border-amber-500/60 flex flex-col gap-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-300">
+                                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                                  <span>선택한 현장에 직접 연결된 계약이 없습니다 — 계약 연결 방식을 선택하십시오</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setForceNewContract(false);
+                                      if (!targetContractId && customerExistingContracts[0]) {
+                                        setTargetContractId(customerExistingContracts[0].contract.id);
+                                      }
+                                    }}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${
+                                      !forceNewContract && targetContractId
+                                        ? 'bg-emerald-600 text-white border-emerald-400'
+                                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-emerald-500/50'
+                                    }`}
+                                  >
+                                    기존 계약에 편입
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setForceNewContract(true);
+                                      setTargetContractId('');
+                                    }}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold border transition cursor-pointer ${
+                                      forceNewContract || !targetContractId
+                                        ? 'bg-purple-600 text-white border-purple-400'
+                                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-purple-500/50'
+                                    }`}
+                                  >
+                                    신규 계약 생성
+                                  </button>
+                                </div>
+                              </div>
+
+                              {!forceNewContract && (
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[11px] font-bold text-amber-200">
+                                    편입할 기존 계약 선택 ({selectedCustomer?.name} 보유 계약 {customerExistingContracts.length}건)
+                                  </label>
+                                  <select
+                                    value={targetContractId}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setTargetContractId(val);
+                                      setForceNewContract(!val);
+                                    }}
+                                    className="w-full bg-slate-900 border border-amber-500/50 text-white rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-400"
+                                  >
+                                    <option value="">-- 기존 계약 선택 안함 (이 현장에 신규 계약 생성) --</option>
+                                    {customerExistingContracts.map(entry => (
+                                      <option key={entry.contract.id} value={entry.contract.id}>
+                                        [{entry.contract.contractNo}] {entry.siteName} (체결 {entry.rentedCount}대 · 계약일 {entry.contract.startDate || '-'})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {selectedTargetEntry && (
+                                    <div className="text-[11px] text-emerald-300 font-bold pt-0.5">
+                                      ✓ 출고 등록 시 신규 계약을 생성하지 않고 [{selectedTargetEntry.contract.contractNo} · {selectedTargetEntry.siteName}] 계약에 추가 편입됩니다.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+                            <span>이 현장은 기존 계약이 없으므로 출고 요청 등록 시 신규 계약이 생성됩니다.</span>
+                            <span className="font-bold text-purple-300">신규 계약 채번 대상</span>
+                          </div>
+                        );
+                      })()}
 
                       {/* 현장 상세주소 (인라인 확인 및 수정) */}
                       <div className="flex flex-col gap-1">
@@ -4079,24 +4328,44 @@ export const SmartDispatch4: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                    <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto p-1.5 bg-slate-950/60 rounded-lg border border-slate-800">
                       {filteredSites.map(s => {
                         const reg = getSiteRegisteredContact(s);
                         const isContactMissing = !reg.name || !reg.phone;
+                        const siteMeta = siteContractMetaMap.get(s.id);
+                        const activeCtr = siteMeta?.activeContract;
+                        const completedCtr = siteMeta?.completedContract;
                         return (
                           <button
                             key={s.id}
                             type="button"
                             onClick={() => handleSelectSite(s)}
-                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition border bg-slate-850 border-slate-750 text-slate-200 hover:bg-slate-750 hover:border-cyan-500/50 hover:text-white flex items-center gap-1.5"
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition border flex items-center gap-1.5 cursor-pointer ${
+                              activeCtr
+                                ? 'bg-emerald-950/40 border-emerald-600/60 text-white hover:bg-emerald-900/50 hover:border-emerald-400'
+                                : 'bg-slate-850 border-slate-750 text-slate-200 hover:bg-slate-750 hover:border-cyan-500/50 hover:text-white'
+                            }`}
                           >
-                            <Building2 className="w-3 h-3 text-cyan-400" />
-                            <span>{s.name}</span>
+                            <Building2 className={`w-3 h-3 ${activeCtr ? 'text-emerald-400' : 'text-cyan-400'}`} />
+                            <span className="font-bold">{s.name}</span>
+                            {activeCtr ? (
+                              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-900/80 text-emerald-200 border border-emerald-500/50 whitespace-nowrap">
+                                계약 {activeCtr.contractNo} · {siteMeta?.rentedCount || 0}대
+                              </span>
+                            ) : completedCtr ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-700/60 whitespace-nowrap">
+                                종료계약 {completedCtr.contractNo}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-700 whitespace-nowrap">
+                                계약 없음
+                              </span>
+                            )}
                             {s.address && (
                               <span className="text-[10px] text-slate-400 max-w-[120px] truncate">({s.address})</span>
                             )}
                             {isContactMissing && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/70">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-700/70 whitespace-nowrap">
                                 담당자 미입력
                               </span>
                             )}
@@ -4541,6 +4810,44 @@ export const SmartDispatch4: React.FC = () => {
                     onChange={e => setStaggeredMemo(e.target.value)}
                   />
                 </div>
+
+                {/* 🌟 운송료 청구기준 라디오버튼 그룹 (2/4 vs 3/5, 기본값 3/5) */}
+                <div className="p-2.5 bg-slate-950/80 border border-emerald-500/40 rounded-xl flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-xs font-bold text-emerald-300">운송료 청구기준</label>
+                    <span className="text-[11px] text-slate-300">
+                      {freightBillingStandard === '2/4'
+                        ? '■ 2개월 이하: 왕복 임차인 부담 · 4개월 이하: 편도 임차인 부담 · 4개월 초과: 왕복 임대인 부담'
+                        : '■ 3개월 이하: 왕복 임차인 부담 · 5개월 이하: 편도 임차인 부담 · 5개월 초과: 왕복 임대인 부담'}
+                    </span>
+                  </div>
+                  <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2">
+                    {(['2/4', '3/5'] as const).map(std => {
+                      const checked = freightBillingStandard === std;
+                      return (
+                        <label
+                          key={std}
+                          onClick={() => setFreightBillingStandard(std)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
+                            checked
+                              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="freightBillingStandardBlock4"
+                            value={std}
+                            checked={checked}
+                            onChange={() => setFreightBillingStandard(std)}
+                            className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
+                          />
+                          <span>{std}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -4648,7 +4955,44 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
                 )}
 
-                {/* 2. 운송비 부담 귀속선 선택기 */}
+                {/* 2. 운송료 청구기준 라디오버튼 그룹 */}
+                <div className="p-2.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[11px] font-bold text-slate-200">운송료 청구기준</label>
+                    <span className="text-[10.5px] text-slate-400">
+                      {freightBillingStandard === '2/4'
+                        ? '■ 2개월 이하: 왕복 임차인 부담 · 4개월 이하: 편도 임차인 부담 · 4개월 초과: 왕복 임대인 부담'
+                        : '■ 3개월 이하: 왕복 임차인 부담 · 5개월 이하: 편도 임차인 부담 · 5개월 초과: 왕복 임대인 부담'}
+                    </span>
+                  </div>
+                  <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2">
+                    {(['2/4', '3/5'] as const).map(std => {
+                      const checked = freightBillingStandard === std;
+                      return (
+                        <label
+                          key={std}
+                          onClick={() => setFreightBillingStandard(std)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
+                            checked
+                              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="freightBillingStandardBlock5"
+                            value={std}
+                            checked={checked}
+                            onChange={() => setFreightBillingStandard(std)}
+                            className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
+                          />
+                          <span>{std}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* 2. 고객 요청 옵션 및 작업 요구사항 */}
                 <div data-mid="dispatch4-safety-options" className="flex flex-col gap-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -5282,12 +5626,20 @@ export const SmartDispatch4: React.FC = () => {
                   {contactPerson ? `${contactPerson} (${contactPhone || '연락처 미등록'})` : '(담당자 미등록)'}
                 </div>
               </div>
-              <div className="grid grid-cols-4">
+              <div className="grid grid-cols-4 border-b border-slate-700">
                 <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   마감/결제일
                 </div>
                 <div className="col-span-3 bg-slate-900 p-2 font-black text-amber-300 text-xs">
                   계산서 {closingDay === 31 ? '말일' : `${closingDay}일`} · 명세서 {statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} · 결제 익월 {paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}
+                </div>
+              </div>
+              <div className="grid grid-cols-4">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs whitespace-nowrap">
+                  운송료 청구기준
+                </div>
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-emerald-300 text-xs">
+                  {freightBillingStandard} ({freightBillingStandard === '2/4' ? '2개월 이하 왕복 / 4개월 이하 편도 / 4개월 초과 임대인' : '3개월 이하 왕복 / 5개월 이하 편도 / 5개월 초과 임대인'})
                 </div>
               </div>
             </div>
@@ -6308,7 +6660,8 @@ export const SmartDispatch4: React.FC = () => {
             !p.startsWith('[옵션]') &&
             !p.startsWith('[현장상세주소]') &&
             !p.startsWith('[차종]') &&
-            !p.startsWith('[정산일정]')
+            !p.startsWith('[정산일정]') &&
+            !p.startsWith('[운송료청구기준]')
           );
           userNote = tailParts.join(' | ');
         }
@@ -6322,6 +6675,11 @@ export const SmartDispatch4: React.FC = () => {
         : (snapMeta?.context === 'NEW_CUSTOMER' || d.rawText?.includes('NEW_CUSTOMER'))
           ? '신규고객 출고'
           : '기존현장 출고';
+
+      const freightBillingStandardVal: '2/4' | '3/5' =
+        snapMeta?.freightBillingStandard === '2/4' || (d.memo || '').includes('2/4') || (d.rawText || '').includes('2/4')
+          ? '2/4'
+          : '3/5';
 
       // 출고검수 상태 확인 (반드시 장비가 실제 할당된 경우에만 검수 진행/완료 성립)
       const matchedInspections = outboundInspections.filter(ins =>
@@ -6367,6 +6725,7 @@ export const SmartDispatch4: React.FC = () => {
         createdAt: d.createdAt || d.requestDate || '',
         requesterName,
         reqTypeLabel,
+        freightBillingStandard: freightBillingStandardVal,
         customerName: customerName || '-',
         siteName: siteName || '-',
         siteAddress: siteAddress || '-',
@@ -7898,9 +8257,10 @@ export const SmartDispatch4: React.FC = () => {
                         </span>
                       </div>
                       <div className="min-w-0">
-                        <span className="text-[10.5px] text-slate-400 block">배정 기사 / 차량번호</span>
+                        <span className="text-[10.5px] text-slate-400 block">운송료 청구기준 / 배정 기사</span>
                         <span className="text-slate-200 break-words">
-                          {selectedRow.driverName ? `${selectedRow.driverName} (${selectedRow.vehicleNo || '-'})` : '배차 대기'}
+                          <span className="text-emerald-400 font-bold mr-1.5">{selectedRow.freightBillingStandard}</span>
+                          · {selectedRow.driverName ? `${selectedRow.driverName} (${selectedRow.vehicleNo || '-'})` : '배차 대기'}
                         </span>
                       </div>
                     </div>

@@ -2847,6 +2847,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return `${prefix}-${nextSeq}`;
   };
 
+  const getActorDispatchStaffTag = (): string => {
+    if (!currentUser) return '';
+    const matchedUser = db.users.find(u => u.id === currentUser.id) || currentUser;
+    const rawName = (matchedUser.name || '').trim();
+    if (!rawName) return '';
+    const pos = ((matchedUser as any).position || '').trim();
+    const displayName = pos && !rawName.endsWith(pos) ? `${rawName} ${pos}` : rawName;
+    const phone = (matchedUser.phone || '').trim() || '-';
+    return `[배차담당자: ${displayName} (${phone}) | ${matchedUser.id}]`;
+  };
+
+  const appendDispatchStaffTag = (memoText: string): string => {
+    const tag = getActorDispatchStaffTag();
+    const base = (memoText || '').trim();
+    if (!tag || base.includes('[배차담당자:')) return base;
+    return base ? `${base} ${tag}` : tag;
+  };
+
   const saveSmartDispatch = async (data: SmartDispatchData, autoRegister: boolean, onProgress?: (log: string, percent: number) => void) => {
     const notify = async (msg: string, pct: number, delayMs = 180) => {
       if (onProgress) {
@@ -3287,18 +3305,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const targetStartDate = extractDate(data.loadingTime) || extractDate(data.unloadingTime) || new Date().toISOString().split('T')[0];
 
-    // ── 계약 단일성 원칙: 동일 (고객사 + 현장) 활성 계약 탐색 ──
-    const existingActiveContract = db.contracts.find(c => 
-      c.customerId === finalCustomer.id && 
-      c.siteId === finalSite.id && 
-      (c.status === 'ACTIVE' || c.status === 'EXTENDED')
-    );
+    // ── 계약 단일성 원칙: 명시 지정 계약 ➔ 동일 (고객사 + 현장) 활성 계약 ➔ 동일 현장 종료 계약 탐색 ──
+    const explicitTargetContract = (!rawData.forceNewContract && rawData.targetContractId)
+      ? db.contracts.find(c => c.id === String(rawData.targetContractId) && c.customerId === finalCustomer.id)
+      : undefined;
+    const existingActiveContract = rawData.forceNewContract
+      ? undefined
+      : (
+          explicitTargetContract ||
+          db.contracts.find(c =>
+            c.customerId === finalCustomer.id &&
+            c.siteId === finalSite.id &&
+            (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+          ) ||
+          db.contracts.find(c =>
+            c.customerId === finalCustomer.id &&
+            c.siteId === finalSite.id &&
+            c.status === 'COMPLETED'
+          )
+        );
 
     let contract: Contract;
 
     if (existingActiveContract) {
-      // 1) 기존 활성 계약이 존재할 경우: 신규 계약을 파편화하여 생성하지 않고 기존 계약에 장비 편입!
-      contract = existingActiveContract;
+      // 1) 기존 계약이 존재할 경우: 신규 계약을 파편화하여 생성하지 않고 기존 계약에 장비 편입!
+      if (existingActiveContract.status === 'COMPLETED') {
+        const reactivated = db.updateRow<Contract>('contracts', existingActiveContract.id, {
+          status: 'ACTIVE',
+          updatedAt: new Date().toISOString(),
+        });
+        contract = reactivated || { ...existingActiveContract, status: 'ACTIVE' };
+      } else {
+        contract = existingActiveContract;
+      }
       await notify(`📄 [3/5 기존 계약 편입] 기존 계약(${contract.contractNo})에 신규 장비 편입 중...`, 55);
 
       // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 기존 계약에 장비 추가 편입 이력 등록
@@ -3406,6 +3445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closingDay?: number | string;
         statementClosingDay?: number | string;
         paymentDueDay?: number | string;
+        freightBillingStandard?: '2/4' | '3/5';
         userNote?: string;
         fullNote?: string;
         paidOptionPrices?: Record<string, number>;
@@ -3435,6 +3475,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       closingDay: contractBillingDay,
       statementClosingDay: contractStatementClosingDay,
       paymentDueDay: contractPaymentDueDay,
+      freightBillingStandard: (dData.freightBillingStandard === '2/4' ? '2/4' : '3/5') as '2/4' | '3/5',
       userNote: dData.userNote !== undefined ? dData.userNote : (data.note || ''),
       fullNote: data.note || '',
       ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {}),
@@ -3510,6 +3551,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const paidByMemo = dData.paidBy
       ? ` | [운송비부담] ${dData.paidBy === 'CUSTOMER' ? '고객청구' : dData.paidBy === 'OURS' ? '당사부담' : '편도지원'}`
       : '';
+    const freightBillingStdMemo = ` | [운송료청구기준] ${dData.freightBillingStandard === '2/4' ? '2/4' : '3/5'}`;
 
     const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
     const defaultYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.mainYardAddress || '당사 보관소';
@@ -3549,7 +3591,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cargoItems,
       isCostSettled: false,
       rawText: (data as any).prompt || (data as any).rawText || data.note || '',
-      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
+      memo: appendDispatchStaffTag(`현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo}${freightBillingStdMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`),
       closingMemo: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -4540,7 +4582,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           reconciliationStatus: 'PENDING',
           cargoItems,
           isCostSettled: false,
-          memo: `${contactInfoMemo}${data.note || ''}`.trim(),
+          memo: appendDispatchStaffTag(`${contactInfoMemo}${data.note || ''}`.trim()),
           closingMemo: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -4583,7 +4625,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           driverContact: '',
           deliveryCost: 0,
           isCostSettled: false,
-          memo: `[외주정비회수] 정비건: ${data.repairId || '-'} / 외주업체: ${data.vendorId || '-'} | ${data.note || ''}`,
+          memo: appendDispatchStaffTag(`[외주정비회수] 정비건: ${data.repairId || '-'} / 외주업체: ${data.vendorId || '-'} | ${data.note || ''}`),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -6559,7 +6601,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           destinationAddress: ticket.locationDetail || ticket.siteName || '현장',
           dropoffType: 'CUSTOMER_SITE',
           deliveryCost: 0,
-          memo: `[현장AS 대차 요청] 회수대상 자산: ${ticket.assetNo || '현장고장장비'} / 현장: ${ticket.siteName || ''} (${ticket.customerName || ''}) / 사유: ${data.actionTaken || '현장 수리불능 대차'}`,
+          memo: appendDispatchStaffTag(`[현장AS 대차 요청] 회수대상 자산: ${ticket.assetNo || '현장고장장비'} / 현장: ${ticket.siteName || ''} (${ticket.customerName || ''}) / 사유: ${data.actionTaken || '현장 수리불능 대차'}`),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -7297,7 +7339,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       unloadingTimeSlot: '오전',
       deliveryCost: 0,
       isCostSettled: false,
-      memo: '신규 계약 체결에 따른 출고 의뢰',
+      memo: appendDispatchStaffTag('신규 계약 체결에 따른 출고 의뢰'),
       closingMemo: '출고 파이프라인 자동 지시건',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -7409,7 +7451,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         scheduledDate: newEndDate,
         deliveryCost: 0,
         isCostSettled: false,
-        memo: '계약 조기 단축/만료에 따른 회수 하차',
+        memo: appendDispatchStaffTag('계약 조기 단축/만료에 따른 회수 하차'),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -7811,7 +7853,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         billableToCustomer: isCustPaid,
         billableCustomerId: isCustPaid ? sourceContract.customerId : undefined,
         isCostSettled: false,
-        memo: `[현장간 장비 이동] ${sourceSiteName} ➔ ${targetSiteName} (${assetNo} / ${modelName})${reason ? ' | 사유: ' + reason : ''}`,
+        memo: appendDispatchStaffTag(`[현장간 장비 이동] ${sourceSiteName} ➔ ${targetSiteName} (${assetNo} / ${modelName})${reason ? ' | 사유: ' + reason : ''}`),
         cargoItems: JSON.stringify([{ modelName, count: 1 }]),
         createdAt: nowIso,
         updatedAt: nowIso
@@ -7949,7 +7991,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         billableToCustomer: isCustPaid,
         billableCustomerId: isCustPaid ? contract.customerId : undefined,
         isCostSettled: false,
-        memo: `[수리완료 재투입 배차] ${asset.assetNo} (${asset.modelName}) ➔ ${site?.name || '현장'}${reason ? ' | 사유: ' + reason : ''}`,
+        memo: appendDispatchStaffTag(`[수리완료 재투입 배차] ${asset.assetNo} (${asset.modelName}) ➔ ${site?.name || '현장'}${reason ? ' | 사유: ' + reason : ''}`),
         cargoItems: JSON.stringify([{ modelName: asset.modelName, count: 1 }]),
         createdAt: nowIso,
         updatedAt: nowIso
@@ -8706,7 +8748,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         requestDate: exchangeDate,
         deliveryCost: 0,
         isCostSettled: false,
-        memo: `장비 교체 의뢰 (구: ${oldAsset?.assetNo || '미상'} -> 신: ${newAsset?.assetNo || '미상'})`,
+        memo: appendDispatchStaffTag(`장비 교체 의뢰 (구: ${oldAsset?.assetNo || '미상'} -> 신: ${newAsset?.assetNo || '미상'})`),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
