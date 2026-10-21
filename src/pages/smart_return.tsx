@@ -166,6 +166,7 @@ export const SmartReturn: React.FC = () => {
   const [salesSortDesc, setSalesSortDesc] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState('');
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [returnDate, setReturnDate] = useState(getTodayString()); // 오늘 날짜 기본 제공
   const [loadingTime, setLoadingTime] = useState('오전');
   const [contactName, setContactName] = useState('');
@@ -174,6 +175,7 @@ export const SmartReturn: React.FC = () => {
 
   // 💡 [사장님 지시] 계약 선택 시 회수예정일자 오늘날짜 세팅 및 담당자 정보 자동 기본값 세팅 (수정 가능)
   useEffect(() => {
+    setAssetSearchQuery('');
     if (!selectedContractId) return;
     const contract = contractMap.get(selectedContractId);
     if (!contract) return;
@@ -279,6 +281,7 @@ export const SmartReturn: React.FC = () => {
   // ==========================================
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [selectedRepairIds, setSelectedRepairIds] = useState<string[]>([]);
+  const [maintAssetSearchQuery, setMaintAssetSearchQuery] = useState('');
   const [maintReturnDate, setMaintReturnDate] = useState(getTodayString()); // 오늘 날짜 기본 제공
   const [maintLoadingTime, setMaintLoadingTime] = useState('오전');
   const [maintNote, setMaintNote] = useState('');
@@ -296,6 +299,9 @@ export const SmartReturn: React.FC = () => {
     const trimmed = salesSearch.trim();
     const matcher = trimmed ? createHangulMatcher(trimmed) : null;
     const lowerTrimmed = trimmed.toLowerCase();
+    const searchTokens = trimmed
+      ? trimmed.split(/[\s,;/|\n\t]+/).map(t => t.replace(/[-\s]/g, '').toLowerCase()).filter(Boolean)
+      : [];
 
     return activeContracts.filter(c => {
       if (returnStartDate && (c.endDate || '') < returnStartDate) return false;
@@ -304,14 +310,27 @@ export const SmartReturn: React.FC = () => {
 
       const custName = customerMap.get(c.customerId)?.name || '';
       const siteName = (c.siteId ? siteMap.get(c.siteId)?.name : '') || '';
-
-      return (
+      if (
         matcher.test(custName) ||
         matcher.test(siteName) ||
         Boolean(c.contractNo && c.contractNo.toLowerCase().includes(lowerTrimmed))
-      );
+      ) {
+        return true;
+      }
+
+      // 체결된 자산번호(여러 개 입력 포함)로도 계약 검색 지원
+      if (searchTokens.length > 0) {
+        const cAssets = contractAssetsByContractMap.get(c.id) || [];
+        for (const ca of cAssets) {
+          const a = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+          if (!a) continue;
+          const cleanNo = (a.assetNo || '').replace(/[-\s]/g, '').toLowerCase();
+          if (searchTokens.some(tok => cleanNo.includes(tok))) return true;
+        }
+      }
+      return false;
     });
-  }, [activeContracts, customerMap, siteMap, salesSearch, returnStartDate, returnEndDate]);
+  }, [activeContracts, customerMap, siteMap, salesSearch, returnStartDate, returnEndDate, contractAssetsByContractMap, assetMap]);
 
   const sortedContracts = useMemo(() => {
     return filteredContracts.slice().sort((a, b) => {
@@ -344,6 +363,36 @@ export const SmartReturn: React.FC = () => {
     [selectedContractId, contractAssetsByContractMap]
   );
 
+  // 다중 자산번호 검색 토큰 파싱 (쉼표, 공백, 줄바꿈, 슬래시 등 구분)
+  const salesAssetSearchTokens = useMemo(
+    () => assetSearchQuery.split(/[\s,;/|\n\t]+/).map(t => t.trim()).filter(Boolean),
+    [assetSearchQuery]
+  );
+
+  const doesAssetMatchSearchToken = (asset: any, rawToken: string): boolean => {
+    const cleanToken = rawToken.replace(/[-\s]/g, '').toLowerCase();
+    if (!cleanToken) return false;
+    const cleanAssetNo = (asset.assetNo || '').replace(/[-\s]/g, '').toLowerCase();
+    const digitsAssetNo = (asset.assetNo || '').replace(/\D/g, '');
+    const cleanModel = (asset.modelName || '').replace(/[-\s]/g, '').toLowerCase();
+    const cleanSerial = (asset.serialNo || '').replace(/[-\s]/g, '').toLowerCase();
+    return (
+      cleanAssetNo.includes(cleanToken) ||
+      Boolean(digitsAssetNo && digitsAssetNo === cleanToken) ||
+      cleanModel.includes(cleanToken) ||
+      cleanSerial.includes(cleanToken)
+    );
+  };
+
+  const filteredContractAssets = useMemo(() => {
+    if (salesAssetSearchTokens.length === 0) return activeContractAssets;
+    return activeContractAssets.filter(ca => {
+      const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+      if (!asset) return false;
+      return salesAssetSearchTokens.some(token => doesAssetMatchSearchToken(asset, token));
+    });
+  }, [activeContractAssets, salesAssetSearchTokens, assetMap]);
+
   const selectedAssetIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
   const handleSalesAssetCheckboxChange = (assetId: string) => {
@@ -360,6 +409,60 @@ export const SmartReturn: React.FC = () => {
       setSelectedAssetIds([]);
     } else {
       setSelectedAssetIds(allIds);
+    }
+  };
+
+  // 여러 자산번호 입력 시 일치하는 자산 동시 선택 핸들러
+  const handleBatchSelectSalesAssetsByQuery = () => {
+    if (salesAssetSearchTokens.length === 0) return;
+    const matchedIds = new Set<string>(selectedAssetIds);
+    let newlyAddedCount = 0;
+    let totalMatchedCount = 0;
+    const unmatchedTokens: string[] = [];
+
+    for (const rawToken of salesAssetSearchTokens) {
+      const cleanToken = rawToken.replace(/[-\s]/g, '').toLowerCase();
+      if (!cleanToken) continue;
+
+      // 1순위: 자산번호 완전 일치 또는 뒷자리 숫자/문자열 일치
+      let tokenMatches = activeContractAssets
+        .map(ca => (ca.assetId ? assetMap.get(ca.assetId) : undefined))
+        .filter((a): a is NonNullable<typeof a> => {
+          if (!a) return false;
+          const cleanNo = (a.assetNo || '').replace(/[-\s]/g, '').toLowerCase();
+          const digitsNo = (a.assetNo || '').replace(/\D/g, '');
+          return cleanNo === cleanToken || cleanNo.endsWith(cleanToken) || Boolean(digitsNo && digitsNo === cleanToken);
+        });
+
+      // 2순위: 부분 문자열(자산번호/모델명/제조번호) 일치
+      if (tokenMatches.length === 0) {
+        tokenMatches = activeContractAssets
+          .map(ca => (ca.assetId ? assetMap.get(ca.assetId) : undefined))
+          .filter((a): a is NonNullable<typeof a> => Boolean(a && doesAssetMatchSearchToken(a, rawToken)));
+      }
+
+      if (tokenMatches.length > 0) {
+        for (const a of tokenMatches) {
+          totalMatchedCount++;
+          if (!matchedIds.has(a.id)) {
+            matchedIds.add(a.id);
+            newlyAddedCount++;
+          }
+        }
+      } else {
+        unmatchedTokens.push(rawToken);
+      }
+    }
+
+    if (totalMatchedCount > 0) {
+      setSelectedAssetIds(Array.from(matchedIds));
+      if (unmatchedTokens.length > 0) {
+        showToast(`일치 자산 ${totalMatchedCount}대 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
+      } else {
+        showToast(`검색된 자산 ${totalMatchedCount}대가 동시 선택되었습니다.${newlyAddedCount > 0 ? ` (+${newlyAddedCount}대 추가)` : ''}`);
+      }
+    } else {
+      showToast(`입력하신 번호(${salesAssetSearchTokens.join(', ')})와 일치하는 현장 대여 자산이 없습니다.`, 'error');
     }
   };
 
@@ -673,6 +776,20 @@ export const SmartReturn: React.FC = () => {
     [selectedVendorId, ongoingRepairsByVendorMap]
   );
 
+  const maintAssetSearchTokens = useMemo(
+    () => maintAssetSearchQuery.split(/[\s,;/|\n\t]+/).map(t => t.trim()).filter(Boolean),
+    [maintAssetSearchQuery]
+  );
+
+  const filteredRepairsAtSelectedVendor = useMemo(() => {
+    if (maintAssetSearchTokens.length === 0) return repairsAtSelectedVendor;
+    return repairsAtSelectedVendor.filter(r => {
+      const asset = r.assetId ? assetMap.get(r.assetId) : undefined;
+      if (!asset) return false;
+      return maintAssetSearchTokens.some(token => doesAssetMatchSearchToken(asset, token));
+    });
+  }, [repairsAtSelectedVendor, maintAssetSearchTokens, assetMap]);
+
   const selectedRepairIdSet = useMemo(() => new Set(selectedRepairIds), [selectedRepairIds]);
 
   const handleMaintAssetCheckboxChange = (repairId: string) => {
@@ -689,6 +806,43 @@ export const SmartReturn: React.FC = () => {
       setSelectedRepairIds([]);
     } else {
       setSelectedRepairIds(allIds);
+    }
+  };
+
+  const handleBatchSelectMaintAssetsByQuery = () => {
+    if (maintAssetSearchTokens.length === 0) return;
+    const matchedRepairIds = new Set<string>(selectedRepairIds);
+    let totalMatchedCount = 0;
+    const unmatchedTokens: string[] = [];
+
+    for (const rawToken of maintAssetSearchTokens) {
+      const cleanToken = rawToken.replace(/[-\s]/g, '').toLowerCase();
+      if (!cleanToken) continue;
+
+      const tokenMatches = repairsAtSelectedVendor.filter(r => {
+        const a = r.assetId ? assetMap.get(r.assetId) : undefined;
+        return Boolean(a && doesAssetMatchSearchToken(a, rawToken));
+      });
+
+      if (tokenMatches.length > 0) {
+        for (const r of tokenMatches) {
+          totalMatchedCount++;
+          matchedRepairIds.add(r.id);
+        }
+      } else {
+        unmatchedTokens.push(rawToken);
+      }
+    }
+
+    if (totalMatchedCount > 0) {
+      setSelectedRepairIds(Array.from(matchedRepairIds));
+      if (unmatchedTokens.length > 0) {
+        showToast(`일치 자산 ${totalMatchedCount}대 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
+      } else {
+        showToast(`검색된 자산 ${totalMatchedCount}대가 동시 선택되었습니다.`);
+      }
+    } else {
+      showToast(`입력하신 번호(${maintAssetSearchTokens.join(', ')})와 일치하는 정비 자산이 없습니다.`, 'error');
     }
   };
 
@@ -927,7 +1081,7 @@ export const SmartReturn: React.FC = () => {
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="text"
-                      placeholder="고객명 / 초성 (예: ㅅㅅ, ㅎㄷ), 현장명, 계약번호 검색..."
+                      placeholder="고객명 / 초성, 현장명, 계약번호, 자산번호 검색..."
                       value={salesSearch}
                       onChange={e => setSalesSearch(e.target.value)}
                       style={{ flex: 1, padding: '6px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)' }}
@@ -1141,25 +1295,173 @@ export const SmartReturn: React.FC = () => {
                   })()}
                 </div>
 
-                {/* 2. 자산 선택 (전부 vs 일부) */}
-                <div data-mid="smart_return-asset-select">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>회수할 자산 지정 *</label>
-                    <button
-                      type="button"
-                      onClick={handleSelectAllSalesAssets}
-                      style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      전체선택 / 해제
-                    </button>
+                {/* 2. 자산 선택 (전부 vs 일부 + 다중 자산번호 검색 및 동시 선택) */}
+                <div data-mid="smart_return-asset-select" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>회수할 자산 지정 *</label>
+                      <span style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        backgroundColor: selectedAssetIds.length > 0 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-app)',
+                        color: selectedAssetIds.length > 0 ? 'var(--primary)' : 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        선택 {selectedAssetIds.length}대 / 총 {activeContractAssets.length}대
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {selectedAssetIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAssetIds([])}
+                          style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}
+                        >
+                          선택 초기화
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleSelectAllSalesAssets}
+                        style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'var(--bg-card)', fontWeight: 600 }}
+                      >
+                        전체선택 / 해제
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '8px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)' }}>
+
+                  {/* 🔍 다중 자산번호 입력 및 동시 선택 검색 바 */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <label style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      자산번호 다중 검색 및 동시 선택
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '9px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                          type="text"
+                          placeholder="예: G14002, P1624, H0596 또는 14002 1624 (쉼표·공백 구분 입력 후 엔터 시 동시 선택)"
+                          value={assetSearchQuery}
+                          onChange={e => setAssetSearchQuery(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleBatchSelectSalesAssetsByQuery();
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 28px 6px 28px',
+                            fontSize: '12.5px',
+                            borderRadius: '5px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)'
+                          }}
+                        />
+                        {assetSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setAssetSearchQuery('')}
+                            title="검색어 지우기"
+                            style={{
+                              position: 'absolute',
+                              right: '6px',
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              padding: '2px 4px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleBatchSelectSalesAssetsByQuery}
+                        disabled={salesAssetSearchTokens.length === 0 || filteredContractAssets.length === 0}
+                        className="btn-primary"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          borderRadius: '5px',
+                          whiteSpace: 'nowrap',
+                          cursor: salesAssetSearchTokens.length > 0 && filteredContractAssets.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: salesAssetSearchTokens.length > 0 && filteredContractAssets.length > 0 ? 1 : 0.55
+                        }}
+                      >
+                        검색결과 동시선택 ({salesAssetSearchTokens.length > 0 ? filteredContractAssets.length : 0}대)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 선택된 자산 요약 칩 바 (다수 자산 중 선택 내역 즉시 확인 및 개별 해제) */}
+                  {selectedAssetIds.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '5px',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(37, 99, 235, 0.06)',
+                      border: '1px solid rgba(37, 99, 235, 0.25)',
+                      maxHeight: '84px',
+                      overflowY: 'auto'
+                    }}>
+                      {selectedAssetIds.map(id => {
+                        const a = assetMap.get(id);
+                        if (!a) return null;
+                        return (
+                          <span
+                            key={id}
+                            onClick={() => handleSalesAssetCheckboxChange(id)}
+                            title="클릭하여 선택 해제"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              backgroundColor: 'var(--primary)',
+                              color: '#ffffff',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {a.assetNo} <span style={{ fontWeight: 500, opacity: 0.9 }}>({a.modelName})</span> <span style={{ marginLeft: '2px' }}>✕</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '8px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)' }}>
                     {activeContractAssets.length === 0 ? (
                       <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px' }}>
                         대여 중인 자산 정보가 없습니다.
                       </div>
+                    ) : filteredContractAssets.length === 0 ? (
+                      <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', textAlign: 'center', padding: '14px' }}>
+                        검색어("{assetSearchQuery}")와 일치하는 자산이 없습니다.
+                      </div>
                     ) : (
-                      activeContractAssets.map(ca => {
+                      filteredContractAssets.map(ca => {
                         const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
                         if (!asset) return null;
                         const isChecked = selectedAssetIdSet.has(asset.id);
@@ -1172,7 +1474,7 @@ export const SmartReturn: React.FC = () => {
                               gap: '10px',
                               fontSize: '12.5px',
                               cursor: 'pointer',
-                              padding: '8px 10px',
+                              padding: '7px 10px',
                               borderRadius: '6px',
                               border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-color)',
                               backgroundColor: isChecked ? 'var(--primary-light)' : 'var(--bg-card)',
@@ -1184,27 +1486,11 @@ export const SmartReturn: React.FC = () => {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleSalesAssetCheckboxChange(asset.id)}
-                              style={{ display: 'none' }}
                             />
-                            <div style={{
-                              width: '18px',
-                              height: '18px',
-                              borderRadius: '4px',
-                              border: isChecked ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: isChecked ? 'var(--primary)' : 'var(--bg-app)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#ffffff',
-                              flexShrink: 0,
-                              transition: 'all 0.15s ease'
-                            }}>
-                              {isChecked && <Check size={13} style={{ strokeWidth: 3.5, color: '#ffffff' }} />}
-                            </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               <strong style={{ color: 'var(--primary)' }}>{asset.assetNo}</strong>
                               <span style={{ fontWeight: 600 }}>{asset.modelName}</span>
-                              {asset.serialNo && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>(S/N: {asset.serialNo})</span>}
+                              {asset.serialNo && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>(제조번호: {asset.serialNo})</span>}
                               {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR' && (
                                 <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700, backgroundColor: 'rgba(220, 38, 38, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
                                   🚨 원사협착봉 (탈거금지)
@@ -1221,8 +1507,8 @@ export const SmartReturn: React.FC = () => {
                       })
                     )}
                   </div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    * 일부 장비만 부분 조기반송하는 경우 해당하는 장비만 체크하세요.
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                    * 여러 대를 선택할 때는 검색창에 자산번호들을 쉼표(,)나 공백으로 구분해 입력한 뒤 엔터 또는 [검색결과 동시선택]을 누르세요.
                   </div>
                 </div>
 
@@ -1453,19 +1739,108 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 해당 외주업체 정비 리스트 */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>수리완료 회수 대상 자산 선택 (전부 또는 일부) *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>수리완료 회수 대상 자산 선택 *</label>
+                      <span style={{
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        backgroundColor: selectedRepairIds.length > 0 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-app)',
+                        color: selectedRepairIds.length > 0 ? 'var(--primary)' : 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        선택 {selectedRepairIds.length}대 / 총 {repairsAtSelectedVendor.length}대
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleSelectAllMaintAssets}
-                      style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}
+                      style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'var(--bg-card)', fontWeight: 600 }}
                     >
                       전체선택 / 해제
                     </button>
                   </div>
-                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)' }}>
-                    {repairsAtSelectedVendor.map(r => {
+
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <label style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      자산번호 다중 검색 및 동시 선택
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '9px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                          type="text"
+                          placeholder="예: G14002, P1624 (쉼표·공백 구분 입력 후 엔터 시 동시 선택)"
+                          value={maintAssetSearchQuery}
+                          onChange={e => setMaintAssetSearchQuery(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleBatchSelectMaintAssetsByQuery();
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '6px 28px 6px 28px',
+                            fontSize: '12.5px',
+                            borderRadius: '5px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)'
+                          }}
+                        />
+                        {maintAssetSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setMaintAssetSearchQuery('')}
+                            style={{
+                              position: 'absolute',
+                              right: '6px',
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              padding: '2px 4px'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleBatchSelectMaintAssetsByQuery}
+                        disabled={maintAssetSearchTokens.length === 0 || filteredRepairsAtSelectedVendor.length === 0}
+                        className="btn-primary"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          borderRadius: '5px',
+                          whiteSpace: 'nowrap',
+                          cursor: maintAssetSearchTokens.length > 0 && filteredRepairsAtSelectedVendor.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: maintAssetSearchTokens.length > 0 && filteredRepairsAtSelectedVendor.length > 0 ? 1 : 0.55
+                        }}
+                      >
+                        검색결과 동시선택 ({maintAssetSearchTokens.length > 0 ? filteredRepairsAtSelectedVendor.length : 0}대)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)' }}>
+                    {filteredRepairsAtSelectedVendor.map(r => {
                       const asset = r.assetId ? assetMap.get(r.assetId) : undefined;
                       if (!asset) return null;
                       return (
