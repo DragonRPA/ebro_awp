@@ -142,7 +142,8 @@ export const TruckDispatch: React.FC = () => {
     refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
     currentTenant,
     printStations, printQueue, enqueuePrintJob,
-    completeDelivery, completeInboundDelivery
+    completeDelivery, completeInboundDelivery,
+    returnRentedAsset
   } = useApp();
 
   const canSave = hasPermission('delivery', 'save');
@@ -472,9 +473,54 @@ export const TruckDispatch: React.FC = () => {
   const getContract = (contractId?: string) => (contractId ? contractMap.get(contractId) : undefined);
   const getCustomer = (customerId?: string) => (customerId ? customerMap.get(customerId) : undefined);
 
-  // 회수 배차 대상 자산 조회 (delivery.assetIds 우선 매핑, 없으면 contractId 기준) - O(1) Map 조회
+  // 반납 배차건에 연결된 임차자산 ID 목록 추출 헬퍼 (cargoItems.returnAssetId 우선, assetIds 보조)
+  const extractReturnAssetIdsFromDelivery = (delivery?: Delivery | null): string[] => {
+    if (!delivery) return [];
+    const resultIds: string[] = [];
+    if (delivery.cargoItems) {
+      try {
+        const parsed = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            if (item?.returnAssetId && assetMap.has(String(item.returnAssetId))) {
+              const idStr = String(item.returnAssetId);
+              if (!resultIds.includes(idStr)) resultIds.push(idStr);
+            }
+          }
+        }
+      } catch {}
+    }
+    if (resultIds.length === 0 && delivery.assetIds) {
+      const rawIds = Array.isArray(delivery.assetIds)
+        ? (delivery.assetIds as any[])
+        : (typeof delivery.assetIds === 'string' ? delivery.assetIds.split(',') : []);
+      for (const rawId of rawIds) {
+        const idStr = String(rawId).trim();
+        const found = assetMap.get(idStr);
+        if (found && found.ownerType === 'RENTED' && !resultIds.includes(idStr)) {
+          resultIds.push(idStr);
+        }
+      }
+    }
+    return resultIds;
+  };
+
+  // 회수/반납 배차 대상 자산 조회 (cargoItems.returnAssetId / delivery.assetIds 우선 매핑, 없으면 contractId 기준) - O(1) Map 조회
   const getReturnAssets = (delivery: Delivery) => {
     if (!delivery) return [];
+    const returnAssetIdsFromCargo = extractReturnAssetIdsFromDelivery(delivery);
+    if (returnAssetIdsFromCargo.length > 0) {
+      const found = returnAssetIdsFromCargo.map(id => assetMap.get(id)).filter(Boolean) as Asset[];
+      if (found.length > 0) {
+        return found.map(a => ({
+          modelName: a.modelName || '-',
+          assetNo: a.assetNo || '-',
+          id: a.id,
+          ownerType: a.ownerType,
+          antiEntrapmentOwnership: a.antiEntrapmentOwnership
+        }));
+      }
+    }
     if (delivery.assetIds) {
       const rawIds = Array.isArray(delivery.assetIds)
         ? (delivery.assetIds as any[])
@@ -1453,6 +1499,28 @@ export const TruckDispatch: React.FC = () => {
   const [manualVehicles, setManualVehicles] = useState<VehicleReq[]>([{ vehicleType: '3.5T', count: 1 }]);
   const [manualCargos, setManualCargos] = useState<CargoItem[]>([]);
 
+  // 🔄 배차구분이 "반납"인 조건에서 선택된 반납 대상 임차자산 ID 목록 (미결정 시 빈 배열 [])
+  const [selectedReturnAssetIds, setSelectedReturnAssetIds] = useState<string[]>([]);
+  const [manualReturnAssetIds, setManualReturnAssetIds] = useState<string[]>([]);
+
+  // 상세 스튜디오용: 자산상태가 임대가능(AVAILABLE)인 임차자산 목록 (+ 현재 배차에 이미 선택된 임차자산 포함)
+  const availableReturnSubleaseAssets = useMemo(() => {
+    return assets.filter(
+      a =>
+        a.ownerType === 'RENTED' &&
+        ((!a.actualRentReturnDate && a.status === 'AVAILABLE') || selectedReturnAssetIds.includes(a.id))
+    );
+  }, [assets, selectedReturnAssetIds]);
+
+  // 수동 배차 모달용: 자산상태가 임대가능(AVAILABLE)인 임차자산 목록
+  const manualAvailableReturnSubleaseAssets = useMemo(() => {
+    return assets.filter(
+      a =>
+        a.ownerType === 'RENTED' &&
+        ((!a.actualRentReturnDate && a.status === 'AVAILABLE') || manualReturnAssetIds.includes(a.id))
+    );
+  }, [assets, manualReturnAssetIds]);
+
   // 📄 [월말 운송료 대사 탭 state & 1:1 Split Pair 파이프라인]
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -1532,6 +1600,19 @@ export const TruckDispatch: React.FC = () => {
 
       if (updatedVehicles.length > 0) {
         updateData.assignedVehicles = updatedVehicles;
+      }
+
+      if (editingDelivery.vehicles) {
+        try {
+          const parsed = JSON.parse(editingDelivery.vehicles);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            updateData.vehicles = JSON.stringify(
+              parsed.map((v: any, i: number) =>
+                i === 0 ? { ...v, finalCost: newCost, deliveryCost: newCost } : v
+              )
+            );
+          }
+        } catch {}
       }
 
       db.updateRow('deliveries', editingDelivery.id, updateData);
@@ -2852,8 +2933,19 @@ export const TruckDispatch: React.FC = () => {
     setSelectedDelivery(d);
     setIsEditUnlocked(false); // 💡 새로 선택 시 기본 잠금 적용!
 
-    let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' = d.dispatchCategory || (d.type === 'EXCHANGE' ? '교환' : d.type === 'OUTBOUND' ? '출고' : d.type === 'RETURN' || d.type === 'INBOUND' ? '반납' : '출고');
+    let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' =
+      d.dispatchCategory ||
+      (d.type === 'EXCHANGE'
+        ? '교환'
+        : d.type === 'OUTBOUND'
+          ? '출고'
+          : d.type === 'RETURN'
+            ? '반납'
+            : d.type === 'INBOUND'
+              ? '입고'
+              : '출고');
     setDispatchCategory(defaultCat);
+    setSelectedReturnAssetIds(extractReturnAssetIdsFromDelivery(d));
 
     setLoadingDate(d.loadingDate || todayStr);
     const lSlot = d.loadingTimeSlot || '오전';
@@ -2890,6 +2982,20 @@ export const TruckDispatch: React.FC = () => {
       try {
         const parsed = JSON.parse(d.vehicles);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          if (parsed.length === 1) {
+            const row0 = parsed[0];
+            const rowExp = Number(row0.expectedCost) || 0;
+            const rowFin = Number(row0.finalCost) || 0;
+            const dExp = Number(d.expectedCost) || 0;
+            const dFin = Number(d.finalCost) || 0;
+            const dCost = Number(d.deliveryCost) || 0;
+            parsed[0] = {
+              ...row0,
+              expectedCost: rowExp > 0 ? rowExp : dExp,
+              finalCost: rowFin > 0 ? rowFin : (dFin > 0 ? dFin : (rowExp === 0 && dExp === 0 && dCost > 0 ? dCost : 0)),
+              deliveryCost: (rowFin > 0 ? rowFin : dFin) || (rowExp > 0 ? rowExp : dExp) || dCost || 0
+            };
+          }
           setAssignedVehicles(parsed);
           return;
         }
@@ -2917,6 +3023,16 @@ export const TruckDispatch: React.FC = () => {
         sanitizedValue = Math.max(0, Number(value) || 0);
       }
       updated[index] = { ...updated[index], [field]: sanitizedValue };
+
+      if (field === 'expectedCost') {
+        const curFinal = Number(updated[index].finalCost) || 0;
+        if (curFinal <= 0) {
+          updated[index].deliveryCost = sanitizedValue;
+        }
+      } else if (field === 'finalCost') {
+        const curExpected = Number(updated[index].expectedCost) || 0;
+        updated[index].deliveryCost = sanitizedValue > 0 ? sanitizedValue : curExpected;
+      }
 
       // 고객직접운송 선택 시 운송료 0원 자동 고정 및 기사명 미입력 시 '고객직접운송' 기본 세팅
       if (field === 'transportCompany' && String(value || '').trim() === CUSTOMER_DIRECT_TRANSPORT) {
@@ -2999,7 +3115,7 @@ export const TruckDispatch: React.FC = () => {
     };
 
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
-    const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '본사 주기장';
+    const hqYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.headOfficeAddress || currentTenant?.mainYardAddress || '본사 주기장';
     const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '배차/출고팀';
     const companyName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트';
 
@@ -3126,7 +3242,7 @@ export const TruckDispatch: React.FC = () => {
     }
 
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
-    const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
+    const hqYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.headOfficeAddress || currentTenant?.mainYardAddress || '본사 주기장';
     const hqYardContactPerson = defaultYard?.managerName || currentTenant?.representativeName || (currentTenant as any)?.representative || '주기장 담당자';
     const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '';
 
@@ -3204,31 +3320,46 @@ export const TruckDispatch: React.FC = () => {
     }
 
     const validDrivers = assignedVehicles.filter(v => (v.driverName || '').trim() !== '' || (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT);
-    if (validDrivers.length === 0) {
+    const isReturnCategory = dispatchCategory === '반납';
+    const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
+    if (validDrivers.length === 0 && prevStatus !== 'DELIVERED' && !(isReturnCategory && prevStatus === 'PENDING')) {
       showErrorModal('배차 기사를 최소 1명 이상 입력하거나 운송거래처에서 [고객직접운송]을 선택해 주십시오.', '배차 기사 미입력');
       return;
     }
 
-    const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
+    // 🔄 [반납 배차 전용] 선택된 임차자산의 반납일자(=하차일) 정합성 검증
+    const effectiveReturnDate = unloadingDate || loadingDate || new Date().toISOString().split('T')[0];
+    if (isReturnCategory && selectedReturnAssetIds.length > 0) {
+      for (const assetId of selectedReturnAssetIds) {
+        const targetAsset = assetMap.get(assetId);
+        if (targetAsset && targetAsset.rentStart && effectiveReturnDate < targetAsset.rentStart) {
+          showErrorModal(`임차자산 [${targetAsset.assetNo} · ${targetAsset.modelName}]의 반납일자(하차일: ${effectiveReturnDate})는 임차 시작일(${targetAsset.rentStart}) 이전일 수 없습니다.`);
+          return;
+        }
+      }
+    }
+
     const isRestoringFromCancelled = prevStatus === 'CANCELLED';
     const isModifyingDispatched = prevStatus === 'DISPATCHED';
     const isModifyingDelivered = prevStatus === 'DELIVERED';
     const nextStatus: Delivery['status'] = isModifyingDelivered
       ? (selectedDelivery.status === 'COMPLETED' ? 'COMPLETED' : 'DELIVERED')
-      : 'DISPATCHED';
+      : (validDrivers.length === 0 && isReturnCategory && prevStatus === 'PENDING')
+        ? 'PENDING'
+        : 'DISPATCHED';
 
-    // 🚨 출고 제한 거래처 출고 배차 원천 차단
+    // 🚨 출고 제한 거래처 출고 배차 원천 차단 (이미 운송 완료된 건의 운송료/정보 수정은 허용)
     const targetContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
     const targetCustomer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
     const isOutboundOrExchange = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
-    if (isOutboundOrExchange && isCustomerRestricted(targetCustomer?.transactionStatus)) {
+    if (!isModifyingDelivered && isOutboundOrExchange && isCustomerRestricted(targetCustomer?.transactionStatus)) {
       showErrorModal(`[출고제한] 거래처 [${targetCustomer?.name}]은(는) 연체 관리 또는 경영진 지시로 인해 신규 출고가 차단된 상태입니다. 배차 기사를 배정할 수 없습니다.`, '출고 차단');
       return;
     }
 
     // ⚠️ 출고 의뢰가 반려된 상태인지 검사 및 예방적 경고 알림!
     const inspStatus = getOutboundInspectionStatus(selectedDelivery.contractId);
-    if (inspStatus === 'REJECTED') {
+    if (!isModifyingDelivered && inspStatus === 'REJECTED') {
       showToast('출고 검수 반려 이력이 있는 의뢰건의 배차 기사 배정을 진행합니다.', 'warning');
     }
 
@@ -3238,12 +3369,14 @@ export const TruckDispatch: React.FC = () => {
       const finalUnloadingSlot = unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot;
       const sanitizedVehicles = assignedVehicles.map(v => {
         const isCustDirect = (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT;
+        const expCost = isCustDirect ? 0 : Math.max(0, Number(v.expectedCost) || 0);
+        const finCost = isCustDirect ? 0 : Math.max(0, Number(v.finalCost) || 0);
         return {
           ...v,
           driverName: isCustDirect && !(v.driverName || '').trim() ? CUSTOMER_DIRECT_TRANSPORT : v.driverName,
-          expectedCost: isCustDirect ? 0 : Math.max(0, Number(v.expectedCost) || 0),
-          finalCost: isCustDirect ? 0 : Math.max(0, Number(v.finalCost) || 0),
-          deliveryCost: isCustDirect ? 0 : Math.max(0, Number(v.deliveryCost) || Number(v.finalCost) || Number(v.expectedCost) || 0)
+          expectedCost: expCost,
+          finalCost: finCost,
+          deliveryCost: isCustDirect ? 0 : (finCost > 0 ? finCost : expCost)
         };
       });
       const totalExpectedCost = sanitizedVehicles.reduce((sum, v) => sum + (Number(v.expectedCost) || 0), 0);
@@ -3251,8 +3384,28 @@ export const TruckDispatch: React.FC = () => {
       const isAllCustDirect = sanitizedVehicles.length > 0 && sanitizedVehicles.every(v => (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT);
 
       const mainVeh = sanitizedVehicles[0] || {};
+      const selectedReturnAssets = isReturnCategory
+        ? (selectedReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
+        : [];
+      const returnCargoJson = isReturnCategory
+        ? JSON.stringify(
+            selectedReturnAssets.map(a => ({
+              modelName: `${a.modelName} (${a.assetNo})`,
+              count: 1,
+              returnAssetId: a.id,
+              assetNo: a.assetNo,
+              renter: a.renter || ''
+            }))
+          )
+        : undefined;
+
+      const resolvedDestination = isReturnCategory && !destinationAddress.trim() && selectedReturnAssets[0]?.renter
+        ? selectedReturnAssets[0].renter!
+        : destinationAddress;
+
       const payload: Partial<Delivery> = {
         status: nextStatus,
+        type: isReturnCategory ? 'RETURN' : selectedDelivery.type,
         dispatchCategory: dispatchCategory,
         loadingDate: loadingDate,
         loadingTimeSlot: finalLoadingSlot,
@@ -3260,7 +3413,7 @@ export const TruckDispatch: React.FC = () => {
         unloadingTimeSlot: finalUnloadingSlot,
         scheduledDate: scheduledDate || loadingDate,
         originAddress: originAddress,
-        destinationAddress: destinationAddress,
+        destinationAddress: resolvedDestination,
         billableToCustomer: billableToCust,
         billableCustomerId: billableCustId,
         transportCompany: mainVeh.transportCompany || '',
@@ -3270,11 +3423,12 @@ export const TruckDispatch: React.FC = () => {
         driverContact: mainVeh.driverContact || '',
         expectedCost: isAllCustDirect ? 0 : totalExpectedCost,
         finalCost: isAllCustDirect ? 0 : totalFinalCost,
-        deliveryCost: isAllCustDirect ? 0 : (totalFinalCost || totalExpectedCost),
-        deliveryCostConfirmed: isAllCustDirect ? 0 : undefined,
+        deliveryCost: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : totalExpectedCost),
+        deliveryCostConfirmed: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : selectedDelivery.deliveryCostConfirmed),
         isCostSettled: isAllCustDirect ? true : selectedDelivery.isCostSettled,
         reconciliationStatus: isAllCustDirect ? ('SETTLED' as any) : selectedDelivery.reconciliationStatus,
         vehicles: JSON.stringify(sanitizedVehicles),
+        ...(returnCargoJson !== undefined ? { cargoItems: returnCargoJson } : {}),
         closingMemo: (() => {
           const cleanDispatcherNote = sanitizeDispatcherSpecialNote(closingMemo);
           const proofMatch = (selectedDelivery.closingMemo || '').match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s|]+)/);
@@ -3289,6 +3443,44 @@ export const TruckDispatch: React.FC = () => {
 
       db.updateRow<Delivery>('deliveries', selectedDelivery.id, payload);
       await db.awaitPendingWrites();
+
+      // 🔄 [반납 배차 전용] 임차자산 반납 처리 (반납일자 = 하차일) 및 선택 해제 자산 원복
+      let returnedAssetCount = 0;
+      if (isReturnCategory) {
+        const prevReturnIds = extractReturnAssetIdsFromDelivery(selectedDelivery);
+        const deselectedIds = prevReturnIds.filter(id => !selectedReturnAssetIds.includes(id));
+        for (const deselectedId of deselectedIds) {
+          const prevAsset = assetMap.get(deselectedId);
+          if (prevAsset && prevAsset.ownerType === 'RENTED' && prevAsset.status === 'RENTED_RETURNED') {
+            db.updateRow<Asset>('assets', deselectedId, {
+              status: 'AVAILABLE',
+              actualRentReturnDate: '',
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+        if (deselectedIds.length > 0) {
+          await db.awaitPendingWrites();
+        }
+
+        for (const assetId of selectedReturnAssetIds) {
+          const targetAsset = assetMap.get(assetId);
+          if (!targetAsset) continue;
+          if (targetAsset.status !== 'RENTED_RETURNED' || !targetAsset.actualRentReturnDate) {
+            await returnRentedAsset(assetId, effectiveReturnDate, {
+              memo: `[임차자산 반납 배차] 배차ID: ${selectedDelivery.id} / 반납일(하차일): ${effectiveReturnDate} / 임차처: ${resolvedDestination || targetAsset.renter || '임차처'}`
+            });
+            returnedAssetCount++;
+          } else if (targetAsset.actualRentReturnDate !== effectiveReturnDate) {
+            db.updateRow<Asset>('assets', assetId, {
+              actualRentReturnDate: effectiveReturnDate,
+              updatedAt: new Date().toISOString()
+            });
+            await db.awaitPendingWrites();
+            returnedAssetCount++;
+          }
+        }
+      }
 
       // [업무 인계 파이프라인] 선행 배차 의뢰 ToDo 자동 상계
       await clearHandoverTasks({
@@ -3337,7 +3529,11 @@ export const TruckDispatch: React.FC = () => {
       };
       setSelectedDelivery(updatedDelivery);
 
-      if (isModifyingDelivered) {
+      if (isReturnCategory && returnedAssetCount > 0) {
+        showToast(`반납 배차 저장 및 선택된 임차자산 ${returnedAssetCount}대 반납 처리 완료 (반납일자: ${effectiveReturnDate})`);
+      } else if (isReturnCategory && nextStatus === 'PENDING') {
+        showToast('반납 배차 정보가 저장되었습니다. (반납할 임차자산은 추후 선택 가능)');
+      } else if (isModifyingDelivered) {
         setIsEditUnlocked(false);
         showToast('완료된 배차 정보가 수정 저장되었습니다. (완료 상태 유지)');
       } else if (isRestoringFromCancelled) {
@@ -3571,9 +3767,35 @@ export const TruckDispatch: React.FC = () => {
   };
 
   const handleSaveManualDispatch = async () => {
-    if (!manualOrigin || !manualDestination) {
+    const isManualReturn = manualCategory === '반납';
+    const selectedManualReturnAssets = isManualReturn
+      ? (manualReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
+      : [];
+    const effectiveManualOrigin = (manualOrigin || '').trim() || (isManualReturn ? '당사 보관소' : '');
+    const effectiveManualDestination = (manualDestination || '').trim() || (
+      isManualReturn
+        ? (selectedManualReturnAssets[0]?.renter || '임차처 미정')
+        : ''
+    );
+
+    if (!effectiveManualOrigin || !effectiveManualDestination) {
       showErrorModal('상차지(출발지)와 하차지(도착지)를 작성해 주세요.');
       return;
+    }
+
+    if (manualLoadingDate && manualUnloadingDate && manualLoadingDate > manualUnloadingDate) {
+      showErrorModal('상차일이 하차일보다 늦을 수 없습니다. 일자를 확인해 주십시오.');
+      return;
+    }
+
+    const effectiveManualReturnDate = manualUnloadingDate || manualLoadingDate || new Date().toISOString().split('T')[0];
+    if (isManualReturn && selectedManualReturnAssets.length > 0) {
+      for (const targetAsset of selectedManualReturnAssets) {
+        if (targetAsset.rentStart && effectiveManualReturnDate < targetAsset.rentStart) {
+          showErrorModal(`임차자산 [${targetAsset.assetNo} · ${targetAsset.modelName}]의 반납일자(하차일: ${effectiveManualReturnDate})는 임차 시작일(${targetAsset.rentStart}) 이전일 수 없습니다.`);
+          return;
+        }
+      }
     }
 
     if (manualCategory === '출고' || manualCategory === '교환') {
@@ -3589,6 +3811,27 @@ export const TruckDispatch: React.FC = () => {
       const finalUnloadingSlot = manualUnloadingTimeSlot === '희망시간' ? manualUnloadingCustomTime : manualUnloadingTimeSlot;
       const nowIso = new Date().toISOString();
 
+      const cargoItemsPayload = isManualReturn
+        ? (selectedManualReturnAssets.length > 0
+            ? JSON.stringify(
+                selectedManualReturnAssets.map(a => ({
+                  modelName: `${a.modelName} (${a.assetNo})`,
+                  count: 1,
+                  returnAssetId: a.id,
+                  assetNo: a.assetNo,
+                  renter: a.renter || ''
+                }))
+              )
+            : '[]')
+        : (manualCargos.length > 0 ? JSON.stringify(manualCargos) : '[]');
+
+      const autoReturnNote = isManualReturn
+        ? (selectedManualReturnAssets.length > 0
+            ? `반납 임차자산: ${selectedManualReturnAssets.map(a => `${a.modelName} (${a.assetNo})`).join(', ')} / 반납일자: ${effectiveManualReturnDate}`
+            : '반납 임차자산 미결정 (추후 선택)')
+        : '';
+      const combinedMemo = (manualMemo || manualClosingMemo || '').trim() || autoReturnNote;
+
       db.insertRow<Delivery>('deliveries', {
         type: manualCategory === '출고' ? 'OUTBOUND' : manualCategory === '교환' ? 'EXCHANGE' : manualCategory === '이동' ? 'MOVEMENT' : manualCategory === '반납' ? 'RETURN' : 'INBOUND',
         status: 'PENDING',
@@ -3600,40 +3843,67 @@ export const TruckDispatch: React.FC = () => {
         loadingTimeSlot: finalLoadingSlot,
         unloadingDate: manualUnloadingDate,
         unloadingTimeSlot: finalUnloadingSlot,
-        originAddress: manualOrigin,
-        destinationAddress: manualDestination,
+        originAddress: effectiveManualOrigin,
+        destinationAddress: effectiveManualDestination,
         deliveryCost: manualExpectedCost,
         expectedCost: manualExpectedCost,
         finalCost: manualExpectedCost,
         billableToCustomer: manualBillable,
         billableCustomerId: manualCustomerId || undefined,
         isCostSettled: false,
-        memo: manualMemo || manualClosingMemo,
-        closingMemo: manualClosingMemo || manualMemo,
+        memo: combinedMemo,
+        closingMemo: manualClosingMemo || manualMemo || autoReturnNote,
         vehicleRequirements: JSON.stringify(manualVehicles),
-        cargoItems: manualCargos.length > 0 ? JSON.stringify(manualCargos) : '[]',
+        cargoItems: cargoItemsPayload,
         createdAt: nowIso,
         updatedAt: nowIso
       });
+
+      await db.awaitPendingWrites();
+
+      // 🔄 [반납 배차 전용] 반납할 임차자산을 결정하여 선택한 경우 하차일(=반납일자) 기준으로 즉시 반납 처리
+      let returnedCount = 0;
+      if (isManualReturn && selectedManualReturnAssets.length > 0) {
+        for (const targetAsset of selectedManualReturnAssets) {
+          if (targetAsset.status !== 'RENTED_RETURNED' || !targetAsset.actualRentReturnDate) {
+            await returnRentedAsset(targetAsset.id, effectiveManualReturnDate, {
+              memo: `[임차자산 반납 배차 등록] 반납일(하차일): ${effectiveManualReturnDate} / 임차처: ${effectiveManualDestination || targetAsset.renter || '임차처'}`
+            });
+            returnedCount++;
+          }
+        }
+      }
 
       // 🔔 주기장/공장 현장용 업무 알림 트리거 (소리 차임벨 및 확인 팝업 토스트)
       const targetCust = customers.find(c => c.id === manualCustomerId || (manualContractId && contracts.find(ct => ct.id === manualContractId)?.customerId === c.id));
       const targetContract = contracts.find(ct => ct.id === manualContractId);
       jobNotificationService.triggerJobAlert({
         type: manualCategory === '교환' ? 'EXCHANGE_REQUESTED' : (manualCategory === '반납' ? 'INBOUND_RETURN' : 'OUTBOUND_REQUESTED'),
-        title: manualCategory === '교환' ? '교환 의뢰 발생' : (manualCategory === '반납' ? '입고·반납 장비 주기장 도착' : '신규 출고의뢰 접수 (출고요청서 발행)'),
-        customerName: targetCust?.name || manualDestination || '고객사',
-        siteName: (targetContract as any)?.siteName || (targetContract?.siteId ? sites.find(s => s.id === targetContract.siteId)?.name : '') || manualDestination || '현장',
-        modelName: manualCargos[0]?.modelName || (manualMemo || manualClosingMemo || '수동 배차'),
-        quantity: manualCargos.length > 0 ? manualCargos.reduce((acc, c) => acc + (c.count || 1), 0) : 1,
+        title: manualCategory === '교환' ? '교환 의뢰 발생' : (manualCategory === '반납' ? '임차자산 반납 배차 등록' : '신규 출고의뢰 접수 (출고요청서 발행)'),
+        customerName: targetCust?.name || effectiveManualDestination || '고객사',
+        siteName: (targetContract as any)?.siteName || (targetContract?.siteId ? sites.find(s => s.id === targetContract.siteId)?.name : '') || effectiveManualDestination || '현장',
+        modelName: isManualReturn
+          ? (selectedManualReturnAssets.length > 0
+              ? selectedManualReturnAssets.map(a => `${a.modelName}(${a.assetNo})`).join(', ')
+              : '임차자산 미결정')
+          : (manualCargos[0]?.modelName || (manualMemo || manualClosingMemo || '수동 배차')),
+        quantity: isManualReturn
+          ? (selectedManualReturnAssets.length || 1)
+          : (manualCargos.length > 0 ? manualCargos.reduce((acc, c) => acc + (c.count || 1), 0) : 1),
         deliveryDate: manualLoadingDate,
-        memo: manualMemo || undefined,
+        memo: combinedMemo || undefined,
         actionMenuId: 'outbound_inspection'
       });
 
-      await db.awaitPendingWrites();
       refreshAllData();
-      showToast('신규 배차건이 생성되었습니다.');
+      if (isManualReturn && returnedCount > 0) {
+        showToast(`반납 배차 생성 및 임차자산 ${returnedCount}대 반납 처리 완료 (반납일자: ${effectiveManualReturnDate})`);
+      } else if (isManualReturn) {
+        showToast('임차자산 미선택 상태로 반납 배차가 등록되었습니다. (추후 배차 상세에서 선택 가능)');
+      } else {
+        showToast('신규 배차건이 생성되었습니다.');
+      }
+      setManualReturnAssetIds([]);
       setShowManualModal(false);
     } catch (err: any) {
       showErrorModal(`수동 배차 생성 실패:\n${err?.message || err}`);
@@ -3818,6 +4088,7 @@ export const TruckDispatch: React.FC = () => {
                     setManualMemo('');
                     setManualClosingMemo('');
                     setManualCargos([]);
+                    setManualReturnAssetIds([]);
                     setShowManualModal(true);
                   }}
                 >
@@ -4204,17 +4475,20 @@ export const TruckDispatch: React.FC = () => {
                           const returnAssetsList = getReturnAssets(d);
                           const specialNoteText = sanitizeDispatcherSpecialNote(d.closingMemo);
                           const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
+                          const isSubleaseReturn = d.type === 'RETURN' || d.dispatchCategory === '반납';
                           return (
-                            // 회수 배차: 계약/회수 자산 목록 표시 (수동 배차인 경우 특기사항 텍스트 표시)
+                            // 회수/반납 배차: 계약/회수/반납 자산 목록 표시
                             <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
                                 <span>
-                                  🔄 회수 대상:&nbsp;
+                                  🔄 {isSubleaseReturn ? '반납 임차자산:' : '회수 대상:'}&nbsp;
                                   {returnAssetsList.length > 0
-                                    ? returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
-                                    : isManualDispatch
-                                      ? (specialNoteText || '특기사항 없음')
-                                      : (specialNoteText || (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인'))}
+                                    ? `${returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')}${isSubleaseReturn && (d.unloadingDate || d.loadingDate) ? ` · 반납일: ${d.unloadingDate || d.loadingDate}` : ''}`
+                                    : isSubleaseReturn
+                                      ? `미결정 (배차 상세에서 임차자산 선택)${specialNoteText ? ` · ${specialNoteText}` : ''}`
+                                      : isManualDispatch
+                                        ? (specialNoteText || '특기사항 없음')
+                                        : (specialNoteText || (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인'))}
                                 </span>
                                 {returnAssetsList.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
                                   <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
@@ -4536,7 +4810,9 @@ export const TruckDispatch: React.FC = () => {
                           </div>
 
                           <div>
-                            <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>하차일자 & 시간</label>
+                            <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: dispatchCategory === '반납' ? '#e11d48' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                              {dispatchCategory === '반납' ? '하차일자 & 시간 (임차자산 반납일자)' : '하차일자 & 시간'}
+                            </label>
                             <div style={{ display: 'flex', gap: '6px', position: 'relative', height: '34px' }}>
                               <input
                                 type="date"
@@ -4617,17 +4893,182 @@ export const TruckDispatch: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* 🔄 [배차구분 === "반납" 전용] 임대가능 임차자산 버튼 선택 및 반납 처리 패널 */}
+                        {dispatchCategory === '반납' && (
+                          <div style={{
+                            marginBottom: '18px',
+                            padding: '12px 14px',
+                            borderRadius: '10px',
+                            border: '1.5px solid rgba(225, 29, 72, 0.35)',
+                            backgroundColor: 'rgba(225, 29, 72, 0.04)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#e11d48', whiteSpace: 'nowrap' }}>
+                                  🔄 반납 대상 임차자산 선택 (자산상태: 임대가능)
+                                </span>
+                                <span style={{
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  backgroundColor: selectedReturnAssetIds.length > 0 ? 'rgba(225, 29, 72, 0.14)' : 'rgba(100, 116, 139, 0.14)',
+                                  color: selectedReturnAssetIds.length > 0 ? '#e11d48' : 'var(--text-secondary)',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {selectedReturnAssetIds.length > 0 ? `${selectedReturnAssetIds.length}대 선택됨` : '미결정 · 미선택'}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                반납 처리 기준일자 (하차일): <strong style={{ color: '#e11d48' }}>{unloadingDate || loadingDate || '-'}</strong>
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', alignItems: 'center' }}>
+                              {/* 미결정 (선택 안 함) 버튼 */}
+                              <button
+                                type="button"
+                                disabled={isFormDisabled}
+                                onClick={() => setSelectedReturnAssetIds([])}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '7px',
+                                  fontSize: '12px',
+                                  fontWeight: selectedReturnAssetIds.length === 0 ? 800 : 600,
+                                  border: selectedReturnAssetIds.length === 0 ? '2px solid #475569' : '1px solid var(--border-color)',
+                                  backgroundColor: selectedReturnAssetIds.length === 0 ? 'rgba(71, 85, 105, 0.14)' : 'var(--bg-body)',
+                                  color: selectedReturnAssetIds.length === 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                                  cursor: isFormDisabled ? 'not-allowed' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0
+                                }}
+                              >
+                                {selectedReturnAssetIds.length === 0 ? '✓ ' : ''}미결정 · 선택 안 함
+                              </button>
+
+                              {/* 임대가능 상태인 임차자산 버튼 목록 */}
+                              {availableReturnSubleaseAssets.length === 0 ? (
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '4px 6px' }}>
+                                  현재 임대가능 상태인 임차자산이 없습니다. (미결정 상태로 반납 배차를 먼저 등록할 수 있습니다)
+                                </span>
+                              ) : (
+                                availableReturnSubleaseAssets.map(asset => {
+                                  const isSelectedAsset = selectedReturnAssetIds.includes(asset.id);
+                                  const isAlreadyReturned = asset.status === 'RENTED_RETURNED' || Boolean(asset.actualRentReturnDate);
+                                  return (
+                                    <button
+                                      key={asset.id}
+                                      type="button"
+                                      disabled={isFormDisabled}
+                                      onClick={() => {
+                                        setSelectedReturnAssetIds(prev => {
+                                          const exists = prev.includes(asset.id);
+                                          const next = exists ? prev.filter(id => id !== asset.id) : [...prev, asset.id];
+                                          if (!exists && (!destinationAddress || destinationAddress === '임차처 미정') && asset.renter) {
+                                            setDestinationAddress(asset.renter);
+                                          }
+                                          if (!exists && !originAddress) {
+                                            setOriginAddress('당사 보관소');
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      style={{
+                                        padding: '6px 12px',
+                                        borderRadius: '7px',
+                                        fontSize: '12px',
+                                        fontWeight: isSelectedAsset ? 800 : 600,
+                                        border: isSelectedAsset ? '2px solid #e11d48' : '1px solid var(--border-color)',
+                                        backgroundColor: isSelectedAsset ? 'rgba(225, 29, 72, 0.14)' : 'var(--bg-body)',
+                                        color: isSelectedAsset ? '#e11d48' : 'var(--text-primary)',
+                                        cursor: isFormDisabled ? 'not-allowed' : 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        whiteSpace: 'nowrap',
+                                        flexShrink: 0,
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      <span>{isSelectedAsset ? '✓' : '◻'}</span>
+                                      <span style={{ fontWeight: 800 }}>{asset.assetNo}</span>
+                                      <span>· {asset.modelName}</span>
+                                      {asset.renter && (
+                                        <span style={{ fontSize: '11px', color: isSelectedAsset ? '#be123c' : 'var(--text-secondary)' }}>
+                                          ({asset.renter})
+                                        </span>
+                                      )}
+                                      <span style={{
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        fontSize: '10.5px',
+                                        fontWeight: 800,
+                                        backgroundColor: isAlreadyReturned ? 'rgba(16, 185, 129, 0.16)' : 'rgba(59, 130, 246, 0.14)',
+                                        color: isAlreadyReturned ? '#059669' : '#2563eb'
+                                      }}>
+                                        {isAlreadyReturned ? `반납완료 (${asset.actualRentReturnDate || '-'})` : '임대가능'}
+                                      </span>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+
+                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                              <span>
+                                {selectedReturnAssetIds.length > 0
+                                  ? `선택된 임차자산 ${selectedReturnAssetIds.length}대가 저장 시 하차일(${unloadingDate || loadingDate})을 반납일자로 하여 즉시 반납 처리됩니다.`
+                                  : '반납할 임차자산이 아직 결정되지 않은 경우 [미결정 · 선택 안 함] 상태로 반납 배차를 먼저 저장하고 추후 선택할 수 있습니다.'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         {/* ────────────────────────────────────────────────────────────────── */}
-                        {/* 🚚 배정 운송 기사 및 운송 거래처 목록 (isFormDisabled 시 비활성화!) */}
+                        {/* 🚚 배정 운송 기사 및 운송 거래처 목록 (운송 완료 건도 운송비는 상시 수정 가능) */}
                         {/* ────────────────────────────────────────────────────────────────── */}
                         <div style={{ marginBottom: '20px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px', flexWrap: 'wrap' }}>
                             <label style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>🚚 배정 운송 기사 목록</label>
-                            {!isFormDisabled && (
-                              <button onClick={handleAddVehicleRow} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer' }}>
-                                + 차량 추가
-                              </button>
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {!isFormDisabled && (
+                                <button type="button" onClick={handleAddVehicleRow} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  + 차량 추가
+                                </button>
+                              )}
+                              {canSave && (normStatus === 'DELIVERED' || normStatus === 'DISPATCHED') && (
+                                <button
+                                  type="button"
+                                  onClick={handleSaveDispatch}
+                                  disabled={isSavingDispatch}
+                                  style={{
+                                    padding: '4px 12px',
+                                    fontSize: '11.5px',
+                                    fontWeight: 800,
+                                    borderRadius: '5px',
+                                    border: 'none',
+                                    backgroundColor: '#2563eb',
+                                    color: '#ffffff',
+                                    cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: '0 1px 3px rgba(37,99,235,0.25)',
+                                    opacity: isSavingDispatch ? 0.7 : 1
+                                  }}
+                                >
+                                  <Save size={12} />
+                                  {isSavingDispatch ? '저장 중...' : '운송비 저장'}
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* 컬럼 헤더 (사장님 지시: 예상 운송비 필수, 실제 운송비 선택적 입력 2열로 분리) */}
@@ -4645,6 +5086,7 @@ export const TruckDispatch: React.FC = () => {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {assignedVehicles.map((veh, idx) => {
                               const isCustDirect = (veh.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT;
+                              const isCostDisabled = !canSave || isCustDirect;
                               const matchedComp = transportCompanies.find(c => c.name.trim() === veh.transportCompany.trim());
                               const filteredDrivers = matchedComp
                                 ? transportDrivers.filter(d => d.companyId === matchedComp.id)
@@ -4726,34 +5168,45 @@ export const TruckDispatch: React.FC = () => {
                                     style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '11.5px', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                   />
 
-                                  {/* 5. 💰 예상 운송비 (필수) */}
+                                  {/* 5. 💰 예상 운송비 (운송 완료 건에서도 상시 수정 가능) */}
                                   <input
                                     data-uia="input-delivery-cost"
                                     type="number"
                                     min={0}
                                     placeholder="예상 운송비"
                                     value={isCustDirect ? 0 : (veh.expectedCost !== undefined ? veh.expectedCost : '')}
-                                    disabled={isFormDisabled || isCustDirect}
+                                    disabled={isCostDisabled}
                                     onChange={e => {
                                       const val = isCustDirect ? 0 : Math.max(0, Number(e.target.value) || 0);
                                       handleVehicleFieldChange(idx, 'expectedCost', val);
-                                      handleVehicleFieldChange(idx, 'deliveryCost', val);
                                     }}
-                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: (isFormDisabled || isCustDirect) ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: (isFormDisabled || isCustDirect) ? 0.65 : 1, cursor: (isFormDisabled || isCustDirect) ? 'not-allowed' : 'default' }}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleSaveDispatch();
+                                      }
+                                    }}
+                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-card)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isCostDisabled ? 0.65 : 1, cursor: isCostDisabled ? 'not-allowed' : 'text' }}
                                   />
 
-                                  {/* 6. 💵 실제 운송비 (선택 - 알면 금액 입력, 모르면 기본값 0 유지) */}
+                                  {/* 6. 💵 실제 운송비 (운송 완료 건에서도 상시 수정 가능) */}
                                   <input
                                     type="number"
                                     min={0}
                                     placeholder="0 (알면 입력)"
                                     value={isCustDirect ? 0 : (veh.finalCost !== undefined && veh.finalCost !== null ? veh.finalCost : 0)}
-                                    disabled={isFormDisabled || isCustDirect}
+                                    disabled={isCostDisabled}
                                     onChange={e => {
                                       const val = isCustDirect ? 0 : (e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0));
                                       handleVehicleFieldChange(idx, 'finalCost', val);
                                     }}
-                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: (isFormDisabled || isCustDirect) ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: (isFormDisabled || isCustDirect) ? 0.65 : 1, cursor: (isFormDisabled || isCustDirect) ? 'not-allowed' : 'default' }}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleSaveDispatch();
+                                      }
+                                    }}
+                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: isCostDisabled ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isCostDisabled ? 0.65 : 1, cursor: isCostDisabled ? 'not-allowed' : 'text' }}
                                   />
 
                                   {!isFormDisabled && (
@@ -4971,7 +5424,7 @@ export const TruckDispatch: React.FC = () => {
                                 </>
                               );
                             })()}
-                            {!isEditUnlocked ? (
+                            {!isEditUnlocked && (
                               <button
                                 type="button"
                                 onClick={() => setIsEditUnlocked(true)}
@@ -4986,32 +5439,37 @@ export const TruckDispatch: React.FC = () => {
                                   cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '5px'
+                                  gap: '5px',
+                                  whiteSpace: 'nowrap'
                                 }}
                               >
                                 <RotateCcw size={14} /> 배차 정보 수정 해제
                               </button>
-                            ) : (
-                              <button data-hs-trigger="Save"
-                                type="button"
-                                onClick={handleSaveDispatch}
-                                disabled={isSavingDispatch}
-                                className="btn-primary"
-                                style={{
-                                  padding: '8px 18px',
-                                  fontWeight: 800,
-                                  fontSize: '13px',
-                                  borderRadius: '7px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
-                                  opacity: isSavingDispatch ? 0.7 : 1
-                                }}
-                              >
-                                <Save size={15} /> {isSavingDispatch ? '저장 중...' : '배차 정보 수정 저장'}
-                              </button>
                             )}
+                            <button data-hs-trigger="Save"
+                              type="button"
+                              onClick={handleSaveDispatch}
+                              disabled={isSavingDispatch}
+                              className="btn-primary"
+                              style={{
+                                padding: '8px 18px',
+                                fontWeight: 800,
+                                fontSize: '13px',
+                                borderRadius: '7px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
+                                opacity: isSavingDispatch ? 0.7 : 1,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <Save size={15} /> {isSavingDispatch ? '저장 중...' : (isEditUnlocked ? '배차 정보 수정 저장' : '운송비 저장')}
+                            </button>
                           </>
                         ) : (
                           <>
@@ -5037,7 +5495,14 @@ export const TruckDispatch: React.FC = () => {
                               className="btn-primary"
                               style={{ padding: '7px 16px', fontWeight: 800, fontSize: '12.5px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '5px', opacity: isSavingDispatch ? 0.7 : 1, cursor: isSavingDispatch ? 'not-allowed' : 'pointer' }}
                             >
-                              <ShieldCheck size={15} /> {isSavingDispatch ? '배정 중...' : '배차 기사 배정 완료'}
+                              <ShieldCheck size={15} />{' '}
+                              {isSavingDispatch
+                                ? '저장 중...'
+                                : dispatchCategory === '반납'
+                                  ? (assignedVehicles.some(v => (v.driverName || '').trim() !== '' || (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT)
+                                      ? (selectedReturnAssetIds.length > 0 ? `배차 기사 배정 및 임차자산 ${selectedReturnAssetIds.length}대 반납 처리` : '배차 기사 배정 완료 (임차자산 미결정)')
+                                      : (selectedReturnAssetIds.length > 0 ? `반납 배차 저장 및 임차자산 ${selectedReturnAssetIds.length}대 반납 처리` : '반납 배차 저장 (임차자산 미결정)'))
+                                  : '배차 기사 배정 완료'}
                             </button>
                           </>
                         )}
