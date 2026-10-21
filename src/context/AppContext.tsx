@@ -58,6 +58,7 @@ export interface SmartDispatchData {
   equipments: { modelName: string; qty: number; monthlyRate?: number; dailyRate?: number; monthlyRentalFee?: number; dailyRentalFee?: number }[];
   paidOptions?: string;
   paidOptionPrices?: Record<string, number>; // 🌟 출고 요청 시 1회성 변경 유상옵션 단가 (현장 기본 단가는 마스터 기본 단가 유지)
+  paidOptionUnits?: Record<string, '월' | '대' | '건'>; // 🌟 출고 요청 시 1회성 변경 유상옵션 청구조건
   protection?: string;
   attachments?: string;
   checkedSpecs?: Record<string, boolean>;
@@ -360,8 +361,14 @@ interface AppContextType {
   cancelOutboundRequest: (deliveryId: string, cancelReason?: string) => Promise<{ success: boolean; errorMessage?: string }>;
   updateOutboundRequestPricing: (params: {
     deliveryId: string;
+    equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
     equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
+    paidOptions?: string;
+    protection?: string;
+    attachments?: string;
+    checkedSpecs?: Record<string, boolean>;
     paidOptionPrices?: Record<string, number>;
+    paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     reason?: string;
   }) => Promise<{ success: boolean; errorMessage?: string }>;
   saveSmartReturn: (data: SmartReturnData) => Promise<any>;
@@ -3143,12 +3150,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dData.paidOptionPrices && typeof dData.paidOptionPrices === 'object' && Object.keys(dData.paidOptionPrices).length > 0
         ? dData.paidOptionPrices
         : undefined;
+    const effectivePaidOptionUnitsForDelivery: Record<string, '월' | '대' | '건'> | undefined =
+      dData.paidOptionUnits && typeof dData.paidOptionUnits === 'object' && Object.keys(dData.paidOptionUnits).length > 0
+        ? dData.paidOptionUnits
+        : undefined;
     const cargoItemsPayload: {
       modelName: string;
       count: number;
       contractAssetIds: string[];
       paidOptions: string;
       paidOptionPrices?: Record<string, number>;
+      paidOptionUnits?: Record<string, '월' | '대' | '건'>;
       monthlyRentalFee?: number;
       dailyRentalFee?: number;
       requestMeta?: {
@@ -3264,6 +3276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         contractAssetIds: eqCreatedCaIds,
         paidOptions: effectivePaidOptionsForDelivery,
         ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {}),
+        ...(effectivePaidOptionUnitsForDelivery ? { paidOptionUnits: effectivePaidOptionUnitsForDelivery } : {}),
         monthlyRentalFee: determinedMonthly,
         dailyRentalFee: determinedDaily,
         ...(cargoItemsPayload.length === 0 ? { requestMeta: requestSnapshotMeta } : {})
@@ -3605,16 +3618,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // 💰 출고 요청 후 장비 렌탈료 및 유상옵션 청구 단가 사후 수정 트랜잭션
+  // 💰 출고 요청 내역 수정 (요청 모델/수량/삭제/추가, 옵션 변경, 유상옵션 청구조건·단가 및 렌탈료 수정) 트랜잭션
   const updateOutboundRequestPricing = async (params: {
     deliveryId: string;
+    equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
     equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
+    paidOptions?: string;
+    protection?: string;
+    attachments?: string;
+    checkedSpecs?: Record<string, boolean>;
     paidOptionPrices?: Record<string, number>;
+    paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     reason?: string;
   }): Promise<{ success: boolean; errorMessage?: string }> => {
     const targetDelivery = db.deliveries.find(d => d.id === params.deliveryId);
     if (!targetDelivery) {
-      showErrorModal('단가를 수정할 출고 요청(배차)을 찾을 수 없습니다.');
+      showErrorModal('수정할 출고 요청을 찾을 수 없습니다.');
       return { success: false, errorMessage: '출고 요청을 찾을 수 없습니다.' };
     }
 
@@ -3630,6 +3649,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const deliverySnapshot = { ...targetDelivery };
     const caSnapshots: ContractAsset[] = [];
+    const deletedCas: ContractAsset[] = [];
+    const createdCaIds: string[] = [];
+    const assetSnapshots: Asset[] = [];
+    const deletedInspections: OutboundInspection[] = [];
 
     try {
       const nowIso = new Date().toISOString();
@@ -3637,78 +3660,327 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const actorName = currentUser?.name || '담당자';
       const changeLogs: string[] = [];
 
-      const updatedCargo = parsedCargo.map(ci => {
-        const nextCi = { ...ci };
+      const baseMeta = parsedCargo.find(ci => ci?.requestMeta)?.requestMeta || {};
+      const origPaidOptions = parsedCargo[0]?.paidOptions ?? '';
+      const origPrices: Record<string, number> = parsedCargo[0]?.paidOptionPrices || baseMeta?.paidOptionPrices || {};
+      const origUnits: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || baseMeta?.paidOptionUnits || {};
 
-        // 1. 장비 월/일 렌탈료 수정 반영
-        if (params.equipmentRates && params.equipmentRates.length > 0) {
-          const matchedRate = params.equipmentRates.find(r => r.modelName === ci.modelName);
-          if (matchedRate) {
-            const oldM = Number(ci.monthlyRentalFee || 0);
-            const oldD = Number(ci.dailyRentalFee || 0);
-            const newM = Number(matchedRate.monthlyRate || 0);
-            const newD = Number(matchedRate.dailyRate || (newM ? Math.round(newM / 30) : 0));
+      const nextPaidOptions = params.paidOptions !== undefined ? params.paidOptions : origPaidOptions;
+      const nextProtection = params.protection !== undefined ? params.protection : (baseMeta?.protection ?? '');
+      const nextAttachments = params.attachments !== undefined ? params.attachments : (baseMeta?.attachments ?? '');
+      const nextCheckedSpecs = params.checkedSpecs !== undefined ? params.checkedSpecs : baseMeta?.checkedSpecs;
+      const nextPrices: Record<string, number> = params.paidOptionPrices !== undefined
+        ? { ...origPrices, ...params.paidOptionPrices }
+        : origPrices;
+      const nextUnits: Record<string, '월' | '대' | '건'> = params.paidOptionUnits !== undefined
+        ? { ...origUnits, ...params.paidOptionUnits }
+        : origUnits;
 
-            if (oldM !== newM || oldD !== newD) {
-              changeLogs.push(`${ci.modelName} 렌탈료: 월 ${oldM.toLocaleString()}원➔${newM.toLocaleString()}원 / 일 ${oldD.toLocaleString()}원➔${newD.toLocaleString()}원`);
+      if (params.paidOptions !== undefined && params.paidOptions !== origPaidOptions) {
+        changeLogs.push(`유상옵션: [${origPaidOptions || '없음'}]➔[${params.paidOptions || '없음'}]`);
+      }
+      if (params.protection !== undefined && params.protection !== (baseMeta?.protection ?? '')) {
+        changeLogs.push(`무상옵션: [${baseMeta?.protection || '없음'}]➔[${params.protection || '없음'}]`);
+      }
+      if (params.attachments !== undefined && params.attachments !== (baseMeta?.attachments ?? '')) {
+        changeLogs.push(`부착물: [${baseMeta?.attachments || '없음'}]➔[${params.attachments || '없음'}]`);
+      }
+      if (params.paidOptionUnits) {
+        Object.entries(params.paidOptionUnits).forEach(([optName, newUnit]) => {
+          const oldUnit = origUnits[optName];
+          if (oldUnit !== newUnit) {
+            changeLogs.push(`유상옵션(${optName}) 청구조건: ${oldUnit || '기본'}➔${newUnit}`);
+          }
+        });
+      }
+      if (params.paidOptionPrices) {
+        Object.entries(params.paidOptionPrices).forEach(([optName, newVal]) => {
+          const oldVal = origPrices[optName];
+          if (oldVal !== newVal) {
+            changeLogs.push(`유상옵션(${optName}) 단가: ${(oldVal ?? 0).toLocaleString()}원➔${Number(newVal).toLocaleString()}원`);
+          }
+        });
+      }
+
+      let updatedCargo: any[] = [];
+
+      // Case A: 미완료 출고 요청 전체 장비(모델 수정, 수량 변경, 모델 삭제, 신규 모델 추가) 및 단가 편집
+      if (params.equipments && params.equipments.length > 0) {
+        const mergedEqs: { contractAssetIds: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[] = [];
+        params.equipments.forEach(eq => {
+          const cleanModel = String(eq.modelName || '').trim();
+          if (!cleanModel) return;
+          const cleanQty = Math.max(1, Math.floor(Number(eq.qty) || 1));
+          const cleanM = Math.max(0, Number(eq.monthlyRate || 0));
+          const cleanD = Math.max(0, Number(eq.dailyRate || (cleanM ? Math.round(cleanM / 30) : 0)));
+          const existing = mergedEqs.find(m => m.modelName === cleanModel);
+          if (existing) {
+            existing.qty += cleanQty;
+            if (Array.isArray(eq.contractAssetIds)) {
+              eq.contractAssetIds.forEach(id => {
+                if (id && !existing.contractAssetIds.includes(id)) existing.contractAssetIds.push(id);
+              });
             }
-            nextCi.monthlyRentalFee = newM;
-            nextCi.dailyRentalFee = newD;
-
-            // 연결된 contractAssets 단가도 동시 업데이트
-            const caIds: string[] = Array.isArray(ci.contractAssetIds) ? [...ci.contractAssetIds] : [];
-            if (caIds.length === 0) {
-              db.outboundInspections
-                .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
-                .forEach(ins => {
-                  const caId = (ins as any).contractAssetId;
-                  const caObj = db.contractAssets.find(c => c.id === caId);
-                  if (caObj && (!ci.modelName || caObj.expectedModel === ci.modelName) && !caIds.includes(caId)) {
-                    caIds.push(caId);
-                  }
-                });
-            }
-            caIds.forEach(caId => {
-              const caObj = db.contractAssets.find(c => c.id === caId);
-              if (caObj) {
-                if (!caSnapshots.some(s => s.id === caObj.id)) {
-                  caSnapshots.push({ ...caObj });
-                }
-                db.updateRow<ContractAsset>('contractAssets', caObj.id, {
-                  monthlyRentalFee: newM,
-                  dailyRentalFee: newD
-                });
-              }
+            existing.monthlyRate = cleanM;
+            existing.dailyRate = cleanD;
+          } else {
+            mergedEqs.push({
+              contractAssetIds: Array.isArray(eq.contractAssetIds) ? [...eq.contractAssetIds.filter(Boolean)] : [],
+              modelName: cleanModel,
+              qty: cleanQty,
+              monthlyRate: cleanM,
+              dailyRate: cleanD
             });
           }
+        });
+
+        // 기존 배차에 속했던 모든 ContractAsset ID 수집
+        const allOriginalCaIds = new Set<string>();
+        parsedCargo.forEach(ci => {
+          if (Array.isArray(ci?.contractAssetIds)) {
+            ci.contractAssetIds.forEach((id: string) => {
+              if (id) allOriginalCaIds.add(id);
+            });
+          }
+        });
+        db.outboundInspections
+          .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
+          .forEach(ins => allOriginalCaIds.add((ins as any).contractAssetId));
+
+        const oldSummary = parsedCargo.map(ci => `${ci.modelName} ${ci.count || ci.qty || 1}대(월 ${(ci.monthlyRentalFee || 0).toLocaleString()}원)`).join(', ');
+        const newSummary = mergedEqs.map(eq => `${eq.modelName} ${eq.qty}대(월 ${eq.monthlyRate.toLocaleString()}원)`).join(', ');
+        if (oldSummary !== newSummary) {
+          changeLogs.push(`요청 장비: [${oldSummary || '없음'}] ➔ [${newSummary}]`);
         }
 
-        // 2. 유상옵션 청구 단가 수정 반영
-        if (params.paidOptionPrices) {
-          const prevPrices = ci.paidOptionPrices || {};
-          Object.entries(params.paidOptionPrices).forEach(([optName, newVal]) => {
-            const oldVal = prevPrices[optName];
-            if (oldVal !== newVal && !changeLogs.some(l => l.includes(`유상옵션(${optName})`))) {
-              changeLogs.push(`유상옵션(${optName}) 단가: ${(oldVal ?? 0).toLocaleString()}원➔${Number(newVal).toLocaleString()}원`);
+        const keptCaIds = new Set<string>();
+        const targetContract = targetDelivery.contractId ? db.contracts.find(c => c.id === targetDelivery.contractId) : undefined;
+        const startDateStr = (targetDelivery.loadingDate || targetDelivery.scheduledDate || targetContract?.startDate || todayStr).slice(0, 10);
+
+        const releaseAssignedAssetOnCa = (ca: ContractAsset) => {
+          if (!ca.assetId) return;
+          const assignedAsset = db.assets.find(a => a.id === ca.assetId);
+          if (assignedAsset) {
+            if (!assetSnapshots.some(s => s.id === assignedAsset.id)) {
+              assetSnapshots.push({ ...assignedAsset });
+            }
+            db.updateRow<Asset>('assets', assignedAsset.id, {
+              status: 'AVAILABLE',
+              currentCustomerId: null as any,
+              currentSiteId: null as any,
+              contractStart: null as any,
+              contractEnd: null as any
+            });
+          }
+          db.outboundInspections
+            .filter(ins => ins.deliveryId === targetDelivery.id && (ins.assetId === ca.assetId || (ins as any).contractAssetId === ca.id))
+            .forEach(ins => {
+              if (!deletedInspections.some(d => d.id === ins.id)) {
+                deletedInspections.push({ ...ins });
+              }
+              db.deleteRow('outboundInspections', ins.id);
+            });
+        };
+
+        mergedEqs.forEach((eq, idx) => {
+          const existingCas = eq.contractAssetIds
+            .map(id => db.contractAssets.find(c => c.id === id))
+            .filter((c): c is ContractAsset => Boolean(c));
+
+          // 모델이 변경된 경우 이미 할당된 장비가 새 모델과 다르면 할당 해제
+          existingCas.forEach(ca => {
+            if (ca.assetId) {
+              const assignedAsset = db.assets.find(a => a.id === ca.assetId);
+              if (assignedAsset && assignedAsset.modelName !== eq.modelName) {
+                if (!caSnapshots.some(s => s.id === ca.id)) {
+                  caSnapshots.push({ ...ca });
+                }
+                releaseAssignedAssetOnCa(ca);
+                db.updateRow<ContractAsset>('contractAssets', ca.id, {
+                  assetId: '',
+                  status: 'ASSIGNED'
+                });
+                ca.assetId = '';
+              }
             }
           });
-          nextCi.paidOptionPrices = {
-            ...prevPrices,
-            ...params.paidOptionPrices
+
+          // 유효하게 장비가 할당된 슬롯을 우선 보존
+          const sortedCas = [...existingCas].sort((a, b) => (b.assetId ? 1 : 0) - (a.assetId ? 1 : 0));
+          const toKeep = sortedCas.slice(0, eq.qty);
+          const finalCaIdsForRow: string[] = [];
+
+          toKeep.forEach(ca => {
+            keptCaIds.add(ca.id);
+            finalCaIdsForRow.push(ca.id);
+            if (!caSnapshots.some(s => s.id === ca.id)) {
+              caSnapshots.push({ ...ca });
+            }
+            db.updateRow<ContractAsset>('contractAssets', ca.id, {
+              expectedModel: eq.modelName,
+              monthlyRentalFee: eq.monthlyRate,
+              dailyRentalFee: eq.dailyRate
+            });
+            if (ca.assetId) {
+              const assignedAsset = db.assets.find(a => a.id === ca.assetId);
+              if (assignedAsset) {
+                if (!assetSnapshots.some(s => s.id === assignedAsset.id)) {
+                  assetSnapshots.push({ ...assignedAsset });
+                }
+                db.updateRow<Asset>('assets', assignedAsset.id, {
+                  monthlyRentalFee: eq.monthlyRate,
+                  dailyRentalFee: eq.dailyRate
+                });
+              }
+            }
+          });
+
+          // 수량 증가 또는 신규 모델 추가 시 새 ContractAsset 슬롯 생성
+          const needMore = eq.qty - toKeep.length;
+          if (needMore > 0 && targetDelivery.contractId) {
+            for (let i = 0; i < needMore; i++) {
+              const createdCa = db.insertRow<ContractAsset>('contractAssets', {
+                contractId: targetDelivery.contractId,
+                assetId: '',
+                status: 'ASSIGNED',
+                expectedModel: eq.modelName,
+                monthlyRentalFee: eq.monthlyRate,
+                dailyRentalFee: eq.dailyRate,
+                startDate: startDateStr,
+                endDate: '',
+                createdAt: nowIso
+              });
+              if (createdCa?.id) {
+                createdCaIds.push(createdCa.id);
+                keptCaIds.add(createdCa.id);
+                finalCaIdsForRow.push(createdCa.id);
+              }
+            }
+          }
+
+          const updatedMeta = {
+            ...baseMeta,
+            protection: nextProtection,
+            attachments: nextAttachments,
+            ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
+            ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
+            ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {})
           };
-          if (nextCi.requestMeta) {
+
+          updatedCargo.push({
+            modelName: eq.modelName,
+            count: eq.qty,
+            contractAssetIds: finalCaIdsForRow,
+            paidOptions: nextPaidOptions,
+            ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
+            ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {}),
+            monthlyRentalFee: eq.monthlyRate,
+            dailyRentalFee: eq.dailyRate,
+            ...(idx === 0 ? { requestMeta: updatedMeta } : {})
+          });
+        });
+
+        // 삭제된 모델 또는 수량 감소로 인해 제외된 기존 ContractAsset 슬롯 정리
+        allOriginalCaIds.forEach(origCaId => {
+          if (!keptCaIds.has(origCaId)) {
+            const caObj = db.contractAssets.find(c => c.id === origCaId);
+            if (caObj) {
+              releaseAssignedAssetOnCa(caObj);
+              deletedCas.push({ ...caObj });
+              db.deleteRow('contractAssets', caObj.id);
+            }
+          }
+        });
+      } else {
+        // Case B: 이미 완료된 출고 건 등의 단가/옵션만 수정하는 경우
+        updatedCargo = parsedCargo.map((ci, idx) => {
+          const nextCi = { ...ci };
+
+          if (params.equipmentRates && params.equipmentRates.length > 0) {
+            const matchedRate = params.equipmentRates.find(r => r.modelName === ci.modelName);
+            if (matchedRate) {
+              const oldM = Number(ci.monthlyRentalFee || 0);
+              const oldD = Number(ci.dailyRentalFee || 0);
+              const newM = Number(matchedRate.monthlyRate || 0);
+              const newD = Number(matchedRate.dailyRate || (newM ? Math.round(newM / 30) : 0));
+
+              if (oldM !== newM || oldD !== newD) {
+                changeLogs.push(`${ci.modelName} 렌탈료: 월 ${oldM.toLocaleString()}원➔${newM.toLocaleString()}원 / 일 ${oldD.toLocaleString()}원➔${newD.toLocaleString()}원`);
+              }
+              nextCi.monthlyRentalFee = newM;
+              nextCi.dailyRentalFee = newD;
+
+              const caIds: string[] = Array.isArray(ci.contractAssetIds) ? [...ci.contractAssetIds] : [];
+              if (caIds.length === 0) {
+                db.outboundInspections
+                  .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
+                  .forEach(ins => {
+                    const caId = (ins as any).contractAssetId;
+                    const caObj = db.contractAssets.find(c => c.id === caId);
+                    if (caObj && (!ci.modelName || caObj.expectedModel === ci.modelName) && !caIds.includes(caId)) {
+                      caIds.push(caId);
+                    }
+                  });
+              }
+              caIds.forEach(caId => {
+                const caObj = db.contractAssets.find(c => c.id === caId);
+                if (caObj) {
+                  if (!caSnapshots.some(s => s.id === caObj.id)) {
+                    caSnapshots.push({ ...caObj });
+                  }
+                  db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+                    monthlyRentalFee: newM,
+                    dailyRentalFee: newD
+                  });
+                }
+              });
+            }
+          }
+
+          nextCi.paidOptions = nextPaidOptions;
+          if (Object.keys(nextPrices).length > 0) {
+            nextCi.paidOptionPrices = nextPrices;
+          }
+          if (Object.keys(nextUnits).length > 0) {
+            nextCi.paidOptionUnits = nextUnits;
+          }
+          if (idx === 0 || nextCi.requestMeta) {
             nextCi.requestMeta = {
-              ...nextCi.requestMeta,
-              paidOptionPrices: nextCi.paidOptionPrices
+              ...(nextCi.requestMeta || baseMeta),
+              protection: nextProtection,
+              attachments: nextAttachments,
+              ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
+              ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
+              ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {})
             };
           }
-        }
 
-        return nextCi;
-      });
+          return nextCi;
+        });
+      }
+
+      // closingMemo 및 memo 내 옵션 텍스트 동기화
+      let nextClosingMemo = targetDelivery.closingMemo || '';
+      if (params.paidOptions !== undefined || params.protection !== undefined) {
+        if (nextClosingMemo.includes('유상옵션:')) {
+          nextClosingMemo = nextClosingMemo
+            .replace(/유상옵션:\s*[^|]+/, `유상옵션: ${nextPaidOptions || '없음'} `)
+            .replace(/보양:\s*[^|]+/, `보양: ${nextProtection || '없음'}`);
+        } else {
+          nextClosingMemo = `[마감조건] 유상옵션: ${nextPaidOptions || '없음'} | 보양: ${nextProtection || '없음'}`;
+        }
+      }
+
+      let nextMemo = targetDelivery.memo || '';
+      if ((params.paidOptions !== undefined || params.protection !== undefined) && nextMemo.includes('[옵션]')) {
+        const optSegment = `[옵션] ${nextPaidOptions || '없음'}${nextProtection && nextProtection !== 'NONE' && nextProtection !== '없음' ? ` / 보양: ${nextProtection}` : ''}`;
+        nextMemo = nextMemo.replace(/\[옵션\]\s*[^|]+/, `${optSegment} `);
+      }
 
       db.updateRow<Delivery>('deliveries', targetDelivery.id, {
         cargoItems: JSON.stringify(updatedCargo),
+        closingMemo: nextClosingMemo,
+        memo: nextMemo,
         updatedAt: nowIso
       });
 
@@ -3717,7 +3989,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           contractId: targetDelivery.contractId,
           changeType: 'FEE_CHANGE',
           changeDate: todayStr,
-          description: `[출고 요청 단가 수정] 배차 ${targetDelivery.id}: ${changeLogs.join(', ')} (처리자: ${actorName}${params.reason ? `, 사유: ${params.reason}` : ''})`,
+          description: `[출고 요청 내역 수정] 배차 ${targetDelivery.id}: ${changeLogs.join(' / ')} (처리자: ${actorName}${params.reason ? `, 사유: ${params.reason}` : ''})`,
           createdAt: nowIso
         });
       }
@@ -3728,10 +4000,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       console.error('updateOutboundRequestPricing error:', err);
       db.updateRow<Delivery>('deliveries', deliverySnapshot.id, deliverySnapshot);
+      createdCaIds.forEach(id => db.deleteRow('contractAssets', id));
+      deletedCas.forEach(ca => db.insertRow<ContractAsset>('contractAssets', ca));
       caSnapshots.forEach(ca => db.updateRow<ContractAsset>('contractAssets', ca.id, ca));
+      assetSnapshots.forEach(a => db.updateRow<Asset>('assets', a.id, a));
+      deletedInspections.forEach(ins => db.insertRow<OutboundInspection>('outboundInspections', ins));
       refreshAllData();
       const errMsg = err?.message || err?.details || JSON.stringify(err);
-      showErrorModal(`⚠️ 단가 수정 저장 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '단가 수정 저장 실패');
+      showErrorModal(`⚠️ 출고 요청 수정 저장 중 DB 동기화 오류가 발생하여 원복되었습니다:\n\n${errMsg}`, '출고 요청 수정 실패');
       return { success: false, errorMessage: errMsg };
     }
   };

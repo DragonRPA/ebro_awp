@@ -456,6 +456,7 @@ export function calculatePaidOptionBillingItems(params: {
     const explicitCaIds: string[] = [];
     let explicitPaidOptions: string | undefined = undefined;
     let explicitPaidOptionPrices: Record<string, number> = {};
+    let explicitPaidOptionUnits: Record<string, string> = {};
     let cargoTotalCount = 0;
 
     parsedCargo.forEach(item => {
@@ -469,12 +470,23 @@ export function calculatePaidOptionBillingItems(params: {
       if (typeof item?.paidOptions === 'string' && explicitPaidOptions === undefined) {
         explicitPaidOptions = item.paidOptions;
       }
-      if (item?.paidOptionPrices && typeof item.paidOptionPrices === 'object') {
-        Object.entries(item.paidOptionPrices).forEach(([k, v]) => {
+      const rawPrices = item?.paidOptionPrices || item?.requestMeta?.paidOptionPrices;
+      if (rawPrices && typeof rawPrices === 'object') {
+        Object.entries(rawPrices).forEach(([k, v]) => {
           const numVal = Number(v);
           if (!isNaN(numVal) && numVal >= 0) {
             explicitPaidOptionPrices[k] = numVal;
             explicitPaidOptionPrices[k.replace(/\s+/g, '')] = numVal;
+          }
+        });
+      }
+      const rawUnits = item?.paidOptionUnits || item?.requestMeta?.paidOptionUnits;
+      if (rawUnits && typeof rawUnits === 'object') {
+        Object.entries(rawUnits).forEach(([k, v]) => {
+          const uStr = String(v || '').trim();
+          if (uStr === '월' || uStr === '대' || uStr === '건') {
+            explicitPaidOptionUnits[k] = uStr;
+            explicitPaidOptionUnits[k.replace(/\s+/g, '')] = uStr;
           }
         });
       }
@@ -553,7 +565,14 @@ export function calculatePaidOptionBillingItems(params: {
       const unitPrice = overridePrice !== undefined ? Number(overridePrice) : Number(stdOpt.defaultPrice || 0);
       if (unitPrice <= 0) continue;
 
-      const rawUnit = (stdOpt.unit || '월').trim();
+      const overrideUnit =
+        explicitPaidOptionUnits[stdOpt.name] !== undefined
+          ? explicitPaidOptionUnits[stdOpt.name]
+          : explicitPaidOptionUnits[cleanTarget] !== undefined
+            ? explicitPaidOptionUnits[cleanTarget]
+            : explicitPaidOptionUnits[stdOpt.id];
+
+      const rawUnit = (overrideUnit || stdOpt.unit || '월').trim();
       const unit: '월' | '건' | '대' = rawUnit === '건' ? '건' : rawUnit === '대' ? '대' : '월';
 
       if (unit === '건') {
