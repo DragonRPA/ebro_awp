@@ -1558,48 +1558,6 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                   }}
                 />
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '8px', borderLeft: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  운송료 청구기준:
-                </span>
-                <div role="radiogroup" aria-label="운송료 청구기준" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  {(['2/4', '3/5'] as const).map(std => {
-                    const checked = freightBillingStandard === std;
-                    return (
-                      <label
-                        key={std}
-                        onClick={() => !(isGenerating || isSendingEmail) && setFreightBillingStandard(std)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          border: checked ? '1.5px solid #10b981' : '1px solid var(--border-color)',
-                          backgroundColor: checked ? 'rgba(16, 185, 129, 0.14)' : 'var(--bg-card)',
-                          color: checked ? '#10b981' : 'var(--text-main)',
-                          fontSize: '12.5px',
-                          fontWeight: 800,
-                          cursor: isGenerating || isSendingEmail ? 'not-allowed' : 'pointer',
-                          userSelect: 'none',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="bundleFreightBillingStandard"
-                          value={std}
-                          checked={checked}
-                          disabled={isGenerating || isSendingEmail}
-                          onChange={() => setFreightBillingStandard(std)}
-                          style={{ accentColor: '#10b981', cursor: isGenerating || isSendingEmail ? 'not-allowed' : 'pointer' }}
-                        />
-                        <span>{std}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
               <span style={{
                 fontSize: '11.5px',
                 padding: '2px 8px',
