@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
-import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess } from '../services/db';
+import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, Vendor, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess } from '../services/db';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
@@ -137,7 +137,7 @@ export const TruckDispatch: React.FC = () => {
   const { 
     currentUser,
     deliveries, contracts, customers, contacts, products, sites, siteMasters, standardOptions, users,
-    contractAssets, assets,
+    contractAssets, assets, vendors,
     transportCompanies, transportDrivers, transportNegotiations, outboundInspections, hasPermission, 
     refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
     currentTenant,
@@ -505,6 +505,114 @@ export const TruckDispatch: React.FC = () => {
     return resultIds;
   };
 
+  // 🏢 [반납 배차 전용] 임차자산 또는 임차처명으로 매입거래처(Vendor) 등록정보(주소·담당자·연락처) 조회 헬퍼
+  const normalizeVendorNameKey = (raw?: string): string =>
+    (raw || '')
+      .replace(/\(\s*주\s*\)|주식회사|유한회사|\(\s*유\s*\)/g, '')
+      .replace(/\s+/g, '')
+      .trim()
+      .toLowerCase();
+
+  const findSubleaseVendor = (asset?: Asset | null, fallbackRenterName?: string): Vendor | undefined => {
+    if (asset?.vendorId) {
+      const byId = (vendors || []).find(v => v.id === asset.vendorId);
+      if (byId) return byId;
+    }
+    const candidates = [asset?.renter, fallbackRenterName].filter(Boolean) as string[];
+    for (const cand of candidates) {
+      const trimmed = cand.trim();
+      if (!trimmed || trimmed === '임차처 미정') continue;
+      const exact = (vendors || []).find(v => (v.name || '').trim() === trimmed);
+      if (exact) return exact;
+      const normCand = normalizeVendorNameKey(trimmed);
+      if (normCand) {
+        const matched = (vendors || []).find(v => {
+          const nv = normalizeVendorNameKey(v.name);
+          return nv && (nv === normCand || normCand.includes(nv) || nv.includes(normCand));
+        });
+        if (matched) return matched;
+      }
+    }
+    return undefined;
+  };
+
+  const getSubleaseVendorInfoByAssets = (assetsOrIds: (string | Asset)[], destinationText?: string) => {
+    const selectedAssets = (assetsOrIds || [])
+      .map(item => (typeof item === 'string' ? assetMap.get(item) : item))
+      .filter(Boolean) as Asset[];
+    const firstAsset = selectedAssets[0];
+    const matchedVendor = findSubleaseVendor(firstAsset, destinationText);
+    const vendorName =
+      matchedVendor?.name ||
+      firstAsset?.renter ||
+      (destinationText && destinationText.trim() !== '임차처 미정' ? destinationText.trim() : '');
+    if (!vendorName && !matchedVendor) return null;
+    return {
+      vendor: matchedVendor,
+      vendorName,
+      name: vendorName,
+      address: matchedVendor?.address || '',
+      contactName: matchedVendor?.contactName || '',
+      contactPhone: matchedVendor?.contact || ''
+    };
+  };
+
+  const getDeliverySubleaseVendorInfo = (delivery?: Delivery | null, _fallbackAssets?: any[]) => {
+    if (!delivery) {
+      return null;
+    }
+    const returnIds = extractReturnAssetIdsFromDelivery(delivery);
+    let savedCargoVendor: any = null;
+    if (delivery.cargoItems) {
+      try {
+        const parsed = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          savedCargoVendor = parsed.find((c: any) => c?.vendorName || c?.renter || c?.vendorAddress || c?.vendorContactName) || parsed[0];
+        }
+      } catch {}
+    }
+    const baseInfo = getSubleaseVendorInfoByAssets(returnIds, savedCargoVendor?.renter || delivery.destinationAddress);
+    const vendorName = baseInfo?.vendorName || savedCargoVendor?.vendorName || savedCargoVendor?.renter || '';
+    if (!vendorName && !baseInfo?.vendor) return null;
+    return {
+      vendor: baseInfo?.vendor,
+      vendorName,
+      name: vendorName,
+      address: baseInfo?.address || savedCargoVendor?.vendorAddress || '',
+      contactName: baseInfo?.contactName || savedCargoVendor?.vendorContactName || '',
+      contactPhone: baseInfo?.contactPhone || savedCargoVendor?.vendorContactPhone || ''
+    };
+  };
+
+  const isHqYardLabel = (label?: string): boolean => {
+    const trimmed = (label || '').trim();
+    return !trimmed || trimmed.includes('당사 보관소') || trimmed.includes('당사 주기장') || trimmed.includes('본사 주기장');
+  };
+
+  const getHqYardOriginInfo = () => {
+    const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
+    const yardName = defaultYard?.name || '당사 보관소';
+    const address =
+      currentTenant?.businessAddress ||
+      defaultYard?.address ||
+      currentTenant?.headOfficeAddress ||
+      currentTenant?.mainYardAddress ||
+      '주소 미등록';
+    const contactName =
+      defaultYard?.managerName ||
+      currentTenant?.representativeName ||
+      (currentTenant as any)?.representative ||
+      '배차담당';
+    const contactPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '연락처 미등록';
+    return {
+      yardName,
+      name: yardName,
+      address,
+      contactName,
+      contactPhone
+    };
+  };
+
   // 회수/반납 배차 대상 자산 조회 (cargoItems.returnAssetId / delivery.assetIds 우선 매핑, 없으면 contractId 기준) - O(1) Map 조회
   const getReturnAssets = (delivery: Delivery) => {
     if (!delivery) return [];
@@ -606,8 +714,22 @@ export const TruckDispatch: React.FC = () => {
       }
     }
 
+    // 반납 배차인 경우 매입거래처(임차처) 등록정보(주소·담당자·연락처) 우선 적용
+    const isReturnDispatch = delivery.type === 'RETURN' || delivery.dispatchCategory === '반납';
+    const returnVendorInfo = isReturnDispatch ? getDeliverySubleaseVendorInfo(delivery) : null;
+    if (returnVendorInfo) {
+      if (returnVendorInfo.contactName) siteContactName = returnVendorInfo.contactName;
+      if (returnVendorInfo.contactPhone) siteContactPhone = returnVendorInfo.contactPhone;
+    }
+
     // 주소 결정
-    const destAddr = delivery.destinationAddress || site?.address || '-';
+    const destAddr =
+      (returnVendorInfo?.address
+        ? `${returnVendorInfo.vendorName ? `${returnVendorInfo.vendorName} — ` : ''}${returnVendorInfo.address}`
+        : '') ||
+      delivery.destinationAddress ||
+      site?.address ||
+      '-';
 
     // 스케줄
     const loadTimeStr = delivery.loadingTimeSlot ? `[${delivery.loadingTimeSlot}]` : '';
@@ -3169,14 +3291,20 @@ export const TruckDispatch: React.FC = () => {
     };
 
     const resolvedSmsContact = resolveDeliverySiteContact(dObj, site, contract);
+    const isReturnSms = dObj.type === 'RETURN' || dObj.dispatchCategory === '반납';
+    const smsVendorInfo = isReturnSms
+      ? (selectedDelivery?.id === targetDelivery.id
+          ? getSubleaseVendorInfoByAssets(selectedReturnAssetIds, dObj.destinationAddress)
+          : getDeliverySubleaseVendorInfo(dObj))
+      : null;
 
     const smsBody = buildDispatchSmsText({
       delivery: dObj,
-      siteName: site?.name || targetDelivery.destinationAddress,
-      siteAddress: targetDelivery.destinationAddress || site?.address,
-      siteContactName: resolvedSmsContact.name,
-      siteContactPhone: resolvedSmsContact.phone,
-      customerName: customer?.name,
+      siteName: smsVendorInfo?.vendorName || site?.name || targetDelivery.destinationAddress,
+      siteAddress: smsVendorInfo?.address || targetDelivery.destinationAddress || site?.address,
+      siteContactName: smsVendorInfo?.contactName || resolvedSmsContact.name,
+      siteContactPhone: smsVendorInfo?.contactPhone || resolvedSmsContact.phone,
+      customerName: smsVendorInfo?.vendorName || customer?.name,
       companyName,
       hqYardAddress,
       hqYardPhone,
@@ -3278,14 +3406,26 @@ export const TruckDispatch: React.FC = () => {
       siteContactPosition = contractContact.position;
     }
 
+    const isReturnKakao = dObj.type === 'RETURN' || dObj.dispatchCategory === '반납';
+    const kakaoVendorInfo = isReturnKakao
+      ? (isSelected
+          ? getSubleaseVendorInfoByAssets(selectedReturnAssetIds, dObj.destinationAddress)
+          : getDeliverySubleaseVendorInfo(dObj))
+      : null;
+
+    if (kakaoVendorInfo) {
+      if (kakaoVendorInfo.contactName) siteContactName = kakaoVendorInfo.contactName;
+      if (kakaoVendorInfo.contactPhone) siteContactPhone = kakaoVendorInfo.contactPhone;
+    }
+
     const generatedText = buildDispatchKakaoTalkText({
       delivery: dObj,
-      siteName: site?.name || targetDelivery.destinationAddress || '현장',
-      siteAddress: targetDelivery.destinationAddress || site?.address,
+      siteName: kakaoVendorInfo?.vendorName || site?.name || targetDelivery.destinationAddress || '현장',
+      siteAddress: kakaoVendorInfo?.address || targetDelivery.destinationAddress || site?.address,
       siteContactName,
       siteContactPhone,
       siteContactPosition,
-      customerName: customer?.name,
+      customerName: kakaoVendorInfo?.vendorName || customer?.name,
       companyName: currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트',
       hqYardAddress,
       hqYardPhone,
@@ -3387,21 +3527,42 @@ export const TruckDispatch: React.FC = () => {
       const selectedReturnAssets = isReturnCategory
         ? (selectedReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
         : [];
+      const matchedSubleaseVendor = isReturnCategory
+        ? getSubleaseVendorInfoByAssets(selectedReturnAssets, destinationAddress)
+        : null;
       const returnCargoJson = isReturnCategory
         ? JSON.stringify(
-            selectedReturnAssets.map(a => ({
-              modelName: `${a.modelName} (${a.assetNo})`,
-              count: 1,
-              returnAssetId: a.id,
-              assetNo: a.assetNo,
-              renter: a.renter || ''
-            }))
+            selectedReturnAssets.map(a => {
+              const assetVendor = findSubleaseVendor(a, destinationAddress);
+              return {
+                modelName: `${a.modelName} (${a.assetNo})`,
+                count: 1,
+                returnAssetId: a.id,
+                assetNo: a.assetNo,
+                renter: assetVendor?.name || a.renter || '',
+                vendorId: assetVendor?.id || a.vendorId || '',
+                vendorName: assetVendor?.name || a.renter || '',
+                vendorAddress: assetVendor?.address || '',
+                vendorContactName: assetVendor?.contactName || '',
+                vendorContactPhone: assetVendor?.contact || ''
+              };
+            })
           )
         : undefined;
 
-      const resolvedDestination = isReturnCategory && !destinationAddress.trim() && selectedReturnAssets[0]?.renter
-        ? selectedReturnAssets[0].renter!
+      const resolvedDestination = isReturnCategory
+        ? ((destinationAddress || '').trim() || matchedSubleaseVendor?.name || selectedReturnAssets[0]?.renter || '임차처 미정')
         : destinationAddress;
+
+      const updatedReturnMemo = (() => {
+        const baseMemo = (selectedDelivery.memo || '')
+          .replace(/\[임차처:[^\]]*\]\s*/g, '')
+          .replace(/\[고객담당자:[^\]]*\]\s*/g, '')
+          .trim();
+        if (!isReturnCategory || !matchedSubleaseVendor) return selectedDelivery.memo || '';
+        const vendorTag = `[임차처: ${matchedSubleaseVendor.name} | 주소: ${matchedSubleaseVendor.address || '미등록'} | 담당자: ${matchedSubleaseVendor.contactName || '미등록'} | 연락처: ${matchedSubleaseVendor.contactPhone || '미등록'}] [고객담당자: ${matchedSubleaseVendor.contactName || matchedSubleaseVendor.name} (${matchedSubleaseVendor.contactPhone || '미등록'})]`;
+        return baseMemo ? `${baseMemo} ${vendorTag}` : vendorTag;
+      })();
 
       const payload: Partial<Delivery> = {
         status: nextStatus,
@@ -3437,7 +3598,7 @@ export const TruckDispatch: React.FC = () => {
           }
           return cleanDispatcherNote;
         })(),
-        memo: selectedDelivery.memo || '',
+        memo: updatedReturnMemo,
         updatedAt: new Date().toISOString()
       };
 
@@ -3771,10 +3932,13 @@ export const TruckDispatch: React.FC = () => {
     const selectedManualReturnAssets = isManualReturn
       ? (manualReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
       : [];
+    const manualSubleaseVendorInfo = isManualReturn
+      ? getSubleaseVendorInfoByAssets(selectedManualReturnAssets, manualDestination)
+      : null;
     const effectiveManualOrigin = (manualOrigin || '').trim() || (isManualReturn ? '당사 보관소' : '');
     const effectiveManualDestination = (manualDestination || '').trim() || (
       isManualReturn
-        ? (selectedManualReturnAssets[0]?.renter || '임차처 미정')
+        ? (manualSubleaseVendorInfo?.name || selectedManualReturnAssets[0]?.renter || '임차처 미정')
         : ''
     );
 
@@ -3814,23 +3978,36 @@ export const TruckDispatch: React.FC = () => {
       const cargoItemsPayload = isManualReturn
         ? (selectedManualReturnAssets.length > 0
             ? JSON.stringify(
-                selectedManualReturnAssets.map(a => ({
-                  modelName: `${a.modelName} (${a.assetNo})`,
-                  count: 1,
-                  returnAssetId: a.id,
-                  assetNo: a.assetNo,
-                  renter: a.renter || ''
-                }))
+                selectedManualReturnAssets.map(a => {
+                  const assetVendor = findSubleaseVendor(a, effectiveManualDestination);
+                  return {
+                    modelName: `${a.modelName} (${a.assetNo})`,
+                    count: 1,
+                    returnAssetId: a.id,
+                    assetNo: a.assetNo,
+                    renter: assetVendor?.name || a.renter || '',
+                    vendorId: assetVendor?.id || a.vendorId || '',
+                    vendorName: assetVendor?.name || a.renter || '',
+                    vendorAddress: assetVendor?.address || '',
+                    vendorContactName: assetVendor?.contactName || '',
+                    vendorContactPhone: assetVendor?.contact || ''
+                  };
+                })
               )
             : '[]')
         : (manualCargos.length > 0 ? JSON.stringify(manualCargos) : '[]');
+
+      const vendorMemoTag = isManualReturn && manualSubleaseVendorInfo
+        ? `[임차처: ${manualSubleaseVendorInfo.name} | 주소: ${manualSubleaseVendorInfo.address || '미등록'} | 담당자: ${manualSubleaseVendorInfo.contactName || '미등록'} | 연락처: ${manualSubleaseVendorInfo.contactPhone || '미등록'}] [고객담당자: ${manualSubleaseVendorInfo.contactName || manualSubleaseVendorInfo.name} (${manualSubleaseVendorInfo.contactPhone || '미등록'})]`
+        : '';
 
       const autoReturnNote = isManualReturn
         ? (selectedManualReturnAssets.length > 0
             ? `반납 임차자산: ${selectedManualReturnAssets.map(a => `${a.modelName} (${a.assetNo})`).join(', ')} / 반납일자: ${effectiveManualReturnDate}`
             : '반납 임차자산 미결정 (추후 선택)')
         : '';
-      const combinedMemo = (manualMemo || manualClosingMemo || '').trim() || autoReturnNote;
+      const rawUserMemo = (manualMemo || manualClosingMemo || '').trim();
+      const combinedMemo = [rawUserMemo || autoReturnNote, vendorMemoTag].filter(Boolean).join(' ');
 
       db.insertRow<Delivery>('deliveries', {
         type: manualCategory === '출고' ? 'OUTBOUND' : manualCategory === '교환' ? 'EXCHANGE' : manualCategory === '이동' ? 'MOVEMENT' : manualCategory === '반납' ? 'RETURN' : 'INBOUND',
@@ -4476,9 +4653,10 @@ export const TruckDispatch: React.FC = () => {
                           const specialNoteText = sanitizeDispatcherSpecialNote(d.closingMemo);
                           const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
                           const isSubleaseReturn = d.type === 'RETURN' || d.dispatchCategory === '반납';
+                          const cardSubleaseVendorInfo = isSubleaseReturn ? getDeliverySubleaseVendorInfo(d, returnAssetsList) : null;
                           return (
                             // 회수/반납 배차: 계약/회수/반납 자산 목록 표시
-                            <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                            <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
                                 <span>
                                   🔄 {isSubleaseReturn ? '반납 임차자산:' : '회수 대상:'}&nbsp;
@@ -4496,6 +4674,14 @@ export const TruckDispatch: React.FC = () => {
                                   </span>
                                 )}
                               </div>
+                              {isSubleaseReturn && cardSubleaseVendorInfo && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-primary)', paddingTop: '3px', borderTop: '1px dashed rgba(239,68,68,0.2)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  <span><strong>임차처:</strong> {cardSubleaseVendorInfo.name}</span>
+                                  <span><strong>주소:</strong> {cardSubleaseVendorInfo.address || '미등록'}</span>
+                                  <span><strong>담당자:</strong> {cardSubleaseVendorInfo.contactName || '미등록'}</span>
+                                  <span><strong>담당자 연락처:</strong> {cardSubleaseVendorInfo.contactPhone || '미등록'}</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })() : (
@@ -4870,28 +5056,102 @@ export const TruckDispatch: React.FC = () => {
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>상차지 (출발지)</label>
-                            <input
-                              type="text"
-                              value={originAddress}
-                              disabled={isFormDisabled}
-                              onChange={e => setOriginAddress(e.target.value)}
-                              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>하차지 (도착지)</label>
-                            <input
-                              type="text"
-                              value={destinationAddress}
-                              disabled={isFormDisabled}
-                              onChange={e => setDestinationAddress(e.target.value)}
-                              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
-                            />
-                          </div>
-                        </div>
+                        {(() => {
+                          const selectedDetailReturnAssets = dispatchCategory === '반납'
+                            ? (selectedReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
+                            : [];
+                          const detailSubleaseVendorInfo = dispatchCategory === '반납'
+                            ? getSubleaseVendorInfoByAssets(selectedDetailReturnAssets, destinationAddress)
+                            : null;
+                          const detailHqOriginInfo = getHqYardOriginInfo();
+                          const isOriginHqYard = !originAddress || isHqYardLabel(originAddress);
+
+                          return (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                              <div>
+                                <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>상차지 (출발지)</label>
+                                <input
+                                  type="text"
+                                  value={originAddress}
+                                  disabled={isFormDisabled}
+                                  onChange={e => setOriginAddress(e.target.value)}
+                                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                                />
+                                {dispatchCategory === '반납' && (
+                                  <div style={{
+                                    marginTop: '6px',
+                                    padding: '8px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                                    fontSize: '11.5px',
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '3px'
+                                  }}>
+                                    <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '11px' }}>
+                                      출발지 등록정보 ({isOriginHqYard ? detailHqOriginInfo.name : originAddress})
+                                    </div>
+                                    <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {isOriginHqYard ? detailHqOriginInfo.address : originAddress}</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                      <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {detailHqOriginInfo.contactName}</span>
+                                      <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {detailHqOriginInfo.contactPhone}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: dispatchCategory === '반납' ? '#e11d48' : 'var(--text-secondary)' }}>
+                                  {dispatchCategory === '반납' ? '하차지 (도착지 · 임차처)' : '하차지 (도착지)'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={destinationAddress}
+                                  disabled={isFormDisabled}
+                                  onChange={e => setDestinationAddress(e.target.value)}
+                                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                                />
+                                {dispatchCategory === '반납' && (
+                                  <div style={{
+                                    marginTop: '6px',
+                                    padding: '8px 10px',
+                                    borderRadius: '7px',
+                                    border: '1px solid rgba(225, 29, 72, 0.35)',
+                                    backgroundColor: 'rgba(225, 29, 72, 0.05)',
+                                    fontSize: '11.5px',
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '3px'
+                                  }}>
+                                    {detailSubleaseVendorInfo ? (
+                                      <>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                          <span style={{ fontWeight: 800, color: '#e11d48', fontSize: '11px' }}>
+                                            임차처 (매입거래처 등록정보): {detailSubleaseVendorInfo.name}
+                                          </span>
+                                          {!detailSubleaseVendorInfo.vendor && (
+                                            <span style={{ fontSize: '10.5px', color: '#d97706', fontWeight: 700 }}>매입거래처 미매칭</span>
+                                          )}
+                                        </div>
+                                        <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {detailSubleaseVendorInfo.address || '매입거래처 주소 미등록'}</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {detailSubleaseVendorInfo.contactName || '미등록'}</span>
+                                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {detailSubleaseVendorInfo.contactPhone || '미등록'}</span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                        반납할 임차자산을 선택하면 해당 임차처(매입거래처)의 주소, 담당자, 담당자 연락처가 자동으로 표시됩니다.
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* 🔄 [배차구분 === "반납" 전용] 임대가능 임차자산 버튼 선택 및 반납 처리 패널 */}
                         {dispatchCategory === '반납' && (
@@ -4932,7 +5192,10 @@ export const TruckDispatch: React.FC = () => {
                               <button
                                 type="button"
                                 disabled={isFormDisabled}
-                                onClick={() => setSelectedReturnAssetIds([])}
+                                onClick={() => {
+                                  setSelectedReturnAssetIds([]);
+                                  setDestinationAddress('임차처 미정');
+                                }}
                                 style={{
                                   padding: '6px 12px',
                                   borderRadius: '7px',
@@ -4961,6 +5224,7 @@ export const TruckDispatch: React.FC = () => {
                                 availableReturnSubleaseAssets.map(asset => {
                                   const isSelectedAsset = selectedReturnAssetIds.includes(asset.id);
                                   const isAlreadyReturned = asset.status === 'RENTED_RETURNED' || Boolean(asset.actualRentReturnDate);
+                                  const matchedVendor = findSubleaseVendor(asset);
                                   return (
                                     <button
                                       key={asset.id}
@@ -4970,11 +5234,21 @@ export const TruckDispatch: React.FC = () => {
                                         setSelectedReturnAssetIds(prev => {
                                           const exists = prev.includes(asset.id);
                                           const next = exists ? prev.filter(id => id !== asset.id) : [...prev, asset.id];
-                                          if (!exists && (!destinationAddress || destinationAddress === '임차처 미정') && asset.renter) {
-                                            setDestinationAddress(asset.renter);
-                                          }
-                                          if (!exists && !originAddress) {
-                                            setOriginAddress('당사 보관소');
+                                          if (!exists) {
+                                            const vendorLabel = matchedVendor?.name || asset.renter || '';
+                                            if (vendorLabel) {
+                                              setDestinationAddress(vendorLabel);
+                                            }
+                                            if (!originAddress) {
+                                              setOriginAddress('당사 보관소');
+                                            }
+                                          } else if (next.length > 0) {
+                                            const firstRemaining = assetMap.get(next[0]);
+                                            const remainingVendor = firstRemaining ? findSubleaseVendor(firstRemaining) : null;
+                                            const remainingLabel = remainingVendor?.name || firstRemaining?.renter || '';
+                                            if (remainingLabel) {
+                                              setDestinationAddress(remainingLabel);
+                                            }
                                           }
                                           return next;
                                         });
@@ -7163,7 +7437,10 @@ export const TruckDispatch: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                   <button
                     type="button"
-                    onClick={() => setManualReturnAssetIds([])}
+                    onClick={() => {
+                      setManualReturnAssetIds([]);
+                      setManualDestination('');
+                    }}
                     style={{
                       padding: '6px 11px',
                       borderRadius: '6px',
@@ -7186,6 +7463,7 @@ export const TruckDispatch: React.FC = () => {
                   ) : (
                     manualAvailableReturnSubleaseAssets.map(asset => {
                       const isSel = manualReturnAssetIds.includes(asset.id);
+                      const matchedVendor = findSubleaseVendor(asset);
                       return (
                         <button
                           key={asset.id}
@@ -7194,8 +7472,20 @@ export const TruckDispatch: React.FC = () => {
                             setManualReturnAssetIds(prev => {
                               const exists = prev.includes(asset.id);
                               const next = exists ? prev.filter(id => id !== asset.id) : [...prev, asset.id];
-                              if (!exists && !manualDestination && asset.renter) {
-                                setManualDestination(asset.renter);
+                              if (!exists) {
+                                const vendorLabel = matchedVendor?.name || asset.renter || '';
+                                if (vendorLabel) {
+                                  setManualDestination(vendorLabel);
+                                }
+                              } else if (next.length > 0) {
+                                const firstRemaining = assetMap.get(next[0]);
+                                const remainingVendor = firstRemaining ? findSubleaseVendor(firstRemaining) : null;
+                                const remainingLabel = remainingVendor?.name || firstRemaining?.renter || '';
+                                if (remainingLabel) {
+                                  setManualDestination(remainingLabel);
+                                }
+                              } else {
+                                setManualDestination('');
                               }
                               return next;
                             });
@@ -7233,24 +7523,96 @@ export const TruckDispatch: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-              <div>
-                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>출발지 (상차지)</label>
-                <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>
-                  {manualCategory === '반납' ? '도착지 (하차지 · 임차처)' : '도착지 (하차지)'}
-                </label>
-                <input
-                  type="text"
-                  value={manualDestination}
-                  onChange={e => setManualDestination(e.target.value)}
-                  placeholder={manualCategory === '반납' ? '임차처명 또는 하차지 입력 (미입력 시 자동 지정)' : '고객사명 또는 하차지 입력'}
-                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
+            {(() => {
+              const selectedManualReturnAssetsForModal = manualCategory === '반납'
+                ? (manualReturnAssetIds.map(id => assetMap.get(id)).filter(Boolean) as Asset[])
+                : [];
+              const modalSubleaseVendorInfo = manualCategory === '반납'
+                ? getSubleaseVendorInfoByAssets(selectedManualReturnAssetsForModal, manualDestination)
+                : null;
+              const modalHqOriginInfo = getHqYardOriginInfo();
+              const isManualOriginHq = !manualOrigin || isHqYardLabel(manualOrigin);
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>출발지 (상차지)</label>
+                    <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                    {manualCategory === '반납' && (
+                      <div style={{
+                        marginTop: '6px',
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: '1px solid rgba(59, 130, 246, 0.35)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        fontSize: '11.5px',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px'
+                      }}>
+                        <div style={{ fontWeight: 800, color: '#2563eb', fontSize: '11px' }}>
+                          출발지 정보 ({isManualOriginHq ? modalHqOriginInfo.name : manualOrigin})
+                        </div>
+                        <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {isManualOriginHq ? modalHqOriginInfo.address : manualOrigin}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {modalHqOriginInfo.contactName}</span>
+                          <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {modalHqOriginInfo.contactPhone}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap', color: manualCategory === '반납' ? '#e11d48' : 'var(--text-primary)' }}>
+                      {manualCategory === '반납' ? '도착지 (하차지 · 임차처)' : '도착지 (하차지)'}
+                    </label>
+                    <input
+                      type="text"
+                      value={manualDestination}
+                      onChange={e => setManualDestination(e.target.value)}
+                      placeholder={manualCategory === '반납' ? '임차처명 또는 하차지 입력 (미입력 시 자동 지정)' : '고객사명 또는 하차지 입력'}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                    />
+                    {manualCategory === '반납' && (
+                      <div style={{
+                        marginTop: '6px',
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: '1px solid rgba(225, 29, 72, 0.35)',
+                        backgroundColor: 'rgba(225, 29, 72, 0.05)',
+                        fontSize: '11.5px',
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px'
+                      }}>
+                        {modalSubleaseVendorInfo ? (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: 800, color: '#e11d48', fontSize: '11px' }}>
+                                임차처 (매입거래처 등록정보): {modalSubleaseVendorInfo.name}
+                              </span>
+                              {!modalSubleaseVendorInfo.vendor && (
+                                <span style={{ fontSize: '10.5px', color: '#d97706', fontWeight: 700 }}>매입거래처 미매칭</span>
+                              )}
+                            </div>
+                            <div><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>주소:</span> {modalSubleaseVendorInfo.address || '매입거래처 주소 미등록'}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                              <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자:</span> {modalSubleaseVendorInfo.contactName || '미등록'}</span>
+                              <span><span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>담당자 연락처:</span> {modalSubleaseVendorInfo.contactPhone || '미등록'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                            위에서 반납할 임차자산을 선택하면 매입거래처 등록정보의 주소, 담당자, 담당자 연락처가 자동으로 표시됩니다.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>특기사항 (회수대상 / 배차 메모)</label>
