@@ -1,7 +1,7 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.18';
-export const EXPECTED_CORE_HASH: string = 'fb7aaf0cfe52';
+export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.19';
+export const EXPECTED_CORE_HASH: string = 'e514daca9a1e';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트
@@ -414,7 +414,8 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
           try {
             const pingData = await pingRes.json();
             const verOutdated = pingData?.version && isExpectedNewer(EXPECTED_AGENT_VERSION, pingData.version);
-            const hashMismatch = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && pingData?.coreHash !== EXPECTED_CORE_HASH);
+            const agentAlreadyNewer = pingData?.version && isExpectedNewer(pingData.version, EXPECTED_AGENT_VERSION);
+            const hashMismatch = !agentAlreadyNewer && Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && pingData?.coreHash !== EXPECTED_CORE_HASH);
             if (verOutdated || hashMismatch) {
               detectedOutdatedHost = h;
             }
@@ -429,7 +430,7 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
     const isCriticalCoreJob = path.startsWith('/api/generate-') || path.startsWith('/api/send-email') || path.startsWith('/api/trigger-sync') || path.startsWith('/api/policy/sync');
     if (alive && detectedOutdatedHost && !isUpdateCall) {
       try {
-        await fetch(`${detectedOutdatedHost}/api/check-update?force=true`, { method: 'POST', cache: 'no-store' }).catch(() => {});
+        await fetch(`${detectedOutdatedHost}/api/check-update`, { method: 'POST', cache: 'no-store' }).catch(() => {});
         if (isCriticalCoreJob) {
           const waitStart = Date.now();
           while (Date.now() - waitStart < 6500) {
@@ -613,18 +614,19 @@ export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<
       };
       setGlobalAgentStatus(true, info);
 
-      // 🚀 로컬 에이전트 버전이 배포 버전보다 낮거나 코어 해시가 불일치하면 즉시 무소음 원격 업데이트 자동 트리거 (15초 쿨다운)
+      // 🚀 로컬 에이전트 버전이 배포 버전보다 낮거나(동일 버전 내 해시 변경 시) 원격 업데이트 트리거 (구버전 브라우저 탭이 신버전 에이전트를 역공격하지 않도록 방어)
       const isVersionOutdated = Boolean(data.version && isExpectedNewer(EXPECTED_AGENT_VERSION, data.version));
-      const isHashOutdated = Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && data.coreHash !== EXPECTED_CORE_HASH);
+      const isAgentAlreadyNewer = Boolean(data.version && isExpectedNewer(data.version, EXPECTED_AGENT_VERSION));
+      const isHashOutdated = !isAgentAlreadyNewer && Boolean(EXPECTED_CORE_HASH && EXPECTED_CORE_HASH !== 'auto' && data.coreHash !== EXPECTED_CORE_HASH);
       if (isVersionOutdated || isHashOutdated) {
         if (
           data.updateState?.status !== 'downloading' &&
           data.updateState?.status !== 'installing' &&
-          Date.now() - lastAutoUpdateTriggerAt > 15000
+          Date.now() - lastAutoUpdateTriggerAt > 5 * 60 * 1000
         ) {
           lastAutoUpdateTriggerAt = Date.now();
           lastAutoR2SyncTriggerAt = 0; // 코어 업데이트 완료 직후 R2 동기화가 즉시 실행되도록 초기화
-          triggerAgentSelfUpdate(true).catch(() => {});
+          triggerAgentSelfUpdate(false).catch(() => {});
         }
       } else if (Date.now() - lastAutoR2SyncTriggerAt > 5 * 60 * 1000) {
         // ☁️ 최신 에이전트 코어 온라인 확인 즉시 (및 5분 주기) Cloudflare R2 변경 파일 자동 동기화 트리거

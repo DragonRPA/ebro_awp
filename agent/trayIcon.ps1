@@ -214,17 +214,8 @@ $mExit.add_Click({
 
 $notify.ContextMenuStrip = $menu
 
-if ($script:aiEnabled) {
-    $notify.BalloonTipTitle = "eBro AI Agent"
-    $notify.BalloonTipText = "에이전트가 백그라운드에서 실행 중입니다. 트레이 아이콘을 더블클릭하면 스튜디오가 열립니다."
-} else {
-    $notify.BalloonTipTitle = "eBro Agent (업무 지원 모드)"
-    $notify.BalloonTipText = "에이전트가 백그라운드에서 실행 중입니다. 트레이 아이콘을 더블클릭하면 로컬 문서고가 열립니다."
-}
-$notify.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
-$notify.ShowBalloonTip(2500)
-
-$script:hasShownTip = $false
+# 백그라운드 데몬 기동 및 핫패치 시 윈도우 풍선 알림(ShowBalloonTip)으로 업무 화면을 방해하지 않음 (무소음 트레이 상주)
+$script:hasShownTip = $true
 
 # 350ms 주기 모니터링 타이머: 에이전트 무중단 Watchdog 자가 복구 & 정책 실시간 반영 & 스튜디오 창 최소화 시 트레이 수납
 $timer = New-Object System.Windows.Forms.Timer

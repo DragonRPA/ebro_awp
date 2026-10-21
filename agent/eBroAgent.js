@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.18';
-const CORE_HASH = 'fb7aaf0cfe52';
+const VERSION = 'v2.0.0.Build.19';
+const CORE_HASH = 'e514daca9a1e';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -421,7 +421,8 @@ async function checkAndApplyUpdate(force = false) {
       const hasNewVersion = isNewerVersion(remoteVersion, VERSION);
       const isRemoteOlder = isNewerVersion(VERSION, remoteVersion);
       const hasHashChanged = !isRemoteOlder && Boolean(remoteCoreHash && CORE_HASH && remoteCoreHash !== CORE_HASH);
-      if (remoteVersion && (hasNewVersion || hasHashChanged || force)) {
+      // 🛡️ 구버전 브라우저 탭이 force=true를 호출하더라도, 원격 버전이 현재보다 낮거나 버전·해시가 이미 동일하면 절대 재설치/재기동하지 않음
+      if (remoteVersion && !isRemoteOlder && (hasNewVersion || hasHashChanged)) {
         agentLog('UPDATE', `코어 업데이트 감지: ${VERSION}(${CORE_HASH}) -> ${remoteVersion}(${remoteCoreHash || 'N/A'})`);
         updateState.status = 'downloading';
         updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
@@ -439,7 +440,16 @@ async function checkAndApplyUpdate(force = false) {
                 const testBuf = fs.readFileSync(coreDownloadPath);
                 if (testBuf.length < 28) throw new Error('파일 크기 미달');
                 if (fs.existsSync(coreFinalPath)) {
-                  try { fs.unlinkSync(coreFinalPath); } catch (e) {}
+                  try {
+                    const curBuf = fs.readFileSync(coreFinalPath);
+                    if (curBuf.equals(testBuf)) {
+                      try { fs.unlinkSync(coreDownloadPath); } catch (e) {}
+                      updateState.status = 'idle';
+                      updateState.message = '최신 버전을 사용 중입니다.';
+                      return;
+                    }
+                    fs.unlinkSync(coreFinalPath);
+                  } catch (e) {}
                 }
                 fs.renameSync(coreDownloadPath, coreFinalPath);
                 agentLog('UPDATE', '초경량 코어(engine.dat) 핫패치 완료: 무소음 재기동');
@@ -2439,9 +2449,6 @@ function openDefaultBrowser(url) {
 // ── 포트 선점 프로세스 강제 정리 및 Windows 시스템 트레이 워커 관리 ──
 function freePortIfOccupied(port) {
   try {
-    execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
-  } catch (e) {}
-  try {
     const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
     const lines = netstatOut.split('\n');
     for (const line of lines) {
@@ -2467,6 +2474,14 @@ function startTrayWorker() {
 
   if (targetScript) {
     try {
+      // 이미 실행 중인 trayIcon.ps1 프로세스가 있으면 죽이지 않고 그대로 재사용 (트레이 아이콘 깜빡임 및 중복 알림 원천 차단)
+      try {
+        const runningTray = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' }).ProcessId"', { encoding: 'utf8', windowsHide: true }).trim();
+        if (runningTray) {
+          return;
+        }
+      } catch (chkErr) {}
+
       // 💡 Windows PowerShell 5.1 한글 파싱 오류 방지를 위해 UTF-8 BOM(0xEF,0xBB,0xBF) 강제 보장
       try {
         const rawBuf = fs.readFileSync(targetScript);
@@ -2476,10 +2491,6 @@ function startTrayWorker() {
           if (process.platform === 'win32') exec(`attrib +h "${targetScript}"`, { windowsHide: true });
         }
       } catch (bomErr) {}
-
-      try {
-        execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
-      } catch (kErr) {}
 
       const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
       const ps = spawn(psExe, [
