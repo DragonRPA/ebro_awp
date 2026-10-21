@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.16';
-const CORE_HASH = 'b53221d534c5';
+const VERSION = 'v2.0.0.Build.17';
+const CORE_HASH = 'b04cb1e18148';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -1668,6 +1668,16 @@ const server = http.createServer(async (req, res) => {
       activeCallsign = queryCallsign.trim();
     }
 
+    let macAddresses = [];
+    try {
+      const ifaces = os.networkInterfaces();
+      const rawMacs = Object.values(ifaces)
+        .flat()
+        .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
+        .map(i => i.mac.toUpperCase().replace(/:/g, '-'));
+      macAddresses = [...new Set(rawMacs)];
+    } catch (e) {}
+
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({
       status: 'ONLINE',
@@ -1675,6 +1685,7 @@ const server = http.createServer(async (req, res) => {
       coreHash: CORE_HASH,
       callsign: activeCallsign,
       machineName: MACHINE_NAME,
+      macAddresses: macAddresses,
       archiveRoot: ARCHIVE_ROOT,
       driveMirrorDir: DRIVE_MIRROR_DIR,
       uptimeSeconds: Math.floor(process.uptime()),
@@ -1683,6 +1694,29 @@ const server = http.createServer(async (req, res) => {
       isAiEnabled: isAiEnabled(),
       timestamp: new Date().toISOString()
     }));
+    return;
+  }
+
+  // 1-1. 로컬 물리 단말기 네트워크 MAC 주소 직접 수집 API
+  if (req.method === 'GET' && pathname === '/api/device/physical-mac') {
+    try {
+      const ifaces = os.networkInterfaces();
+      const rawMacs = Object.values(ifaces)
+        .flat()
+        .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
+        .map(i => i.mac.toUpperCase().replace(/:/g, '-'));
+      const uniqueMacs = [...new Set(rawMacs)];
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        macAddresses: uniqueMacs,
+        hostname: MACHINE_NAME,
+        platform: os.platform()
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
     return;
   }
 

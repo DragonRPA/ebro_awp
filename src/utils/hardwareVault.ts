@@ -177,25 +177,30 @@ export async function getPhysicalHardwareFingerprint(): Promise<{
 }
 
 /**
- * 2. 로컬 개발 환경 또는 로컬 에이전트 API를 통해 물리적 PC의 네트워크 MAC 주소 자동 획득 시도
+ * 2. 로컬 에이전트(127.0.0.1:5175) 또는 로컬 개발 환경을 통해 물리적 PC의 네트워크 MAC 주소 자동 획득
  */
 export async function fetchPhysicalMacAddress(): Promise<string[]> {
+  // 1순위: 로컬 PC에서 실행 중인 eBroAgent (http://127.0.0.1:5175) 직접 조회
+  for (const url of ['http://127.0.0.1:5175/api/device/physical-mac', 'http://127.0.0.1:5175/health']) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 1200);
+      const agentRes = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (agentRes.ok) {
+        const data = await agentRes.json();
+        if (Array.isArray(data.macAddresses) && data.macAddresses.length > 0) {
+          return data.macAddresses.map((m: string) => m.toUpperCase().replace(/:/g, '-'));
+        }
+      }
+    } catch {}
+  }
+
+  // 2순위: 로컬 개발 서버 미들웨어 조회
   try {
     const res = await fetch('/api/device/physical-mac');
     if (res.ok) {
       const data = await res.json();
-      if (data.success && Array.isArray(data.macAddresses) && data.macAddresses.length > 0) {
-        return data.macAddresses.map((m: string) => m.toUpperCase().replace(/:/g, '-'));
-      }
-    }
-  } catch {}
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
-    const agentRes = await fetch('http://127.0.0.1:43210/api/device/physical-mac', { signal: controller.signal });
-    clearTimeout(timer);
-    if (agentRes.ok) {
-      const data = await agentRes.json();
       if (data.success && Array.isArray(data.macAddresses) && data.macAddresses.length > 0) {
         return data.macAddresses.map((m: string) => m.toUpperCase().replace(/:/g, '-'));
       }
@@ -479,7 +484,7 @@ export async function registerAndAuthorizeDeveloperDevice(params: {
   developerId?: string;
   developerName?: string;
   machineName: string;
-  macAddress: string;
+  macAddress?: string;
   masterSecurityKey: string;
   note?: string;
   isEmergency?: boolean;
@@ -494,16 +499,15 @@ export async function registerAndAuthorizeDeveloperDevice(params: {
     };
   }
 
-  const cleanMac = params.macAddress.trim().toUpperCase().replace(/:/g, '-');
-  const macRegex = /^([0-9A-F]{2}-){5}[0-9A-F]{2}$/;
-  if (!macRegex.test(cleanMac)) {
-    return {
-      success: false,
-      error: '올바른 물리 네트워크 주소 형식이 아닙니다.'
-    };
-  }
-
   const { fingerprint, details } = await getPhysicalHardwareFingerprint();
+  const detectedMacs = await fetchPhysicalMacAddress();
+  const rawInputMac = (params.macAddress || '').trim().toUpperCase().replace(/:/g, '-');
+  const macRegex = /^([0-9A-F]{2}-){5}[0-9A-F]{2}$/;
+
+  // 수기 입력 없이 로컬 PC에서 자동 수집된 MAC 주소 우선 사용, 미감지 시 하드웨어 지문으로 자동 바인딩
+  const cleanMac = macRegex.test(rawInputMac)
+    ? rawInputMac
+    : (detectedMacs[0] || `AUTO-${fingerprint}`);
   const nowIso = new Date().toISOString();
   const id = `DEV-PC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 

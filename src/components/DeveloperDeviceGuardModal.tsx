@@ -1,6 +1,6 @@
 // src/components/DeveloperDeviceGuardModal.tsx
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Cpu, Network, Key, CheckCircle2, X, AlertTriangle, Laptop, Lock, RefreshCw, Download } from 'lucide-react';
+import { ShieldAlert, Cpu, Key, CheckCircle2, X, AlertTriangle, Laptop, Lock, RefreshCw, Download } from 'lucide-react';
 import { 
   getPhysicalHardwareFingerprint, 
   fetchPhysicalMacAddress, 
@@ -345,16 +345,16 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
               </div>
             )}
 
-            {/* 하드웨어 지문 */}
+            {/* 하드웨어 지문 및 로컬 PC 물리 네트워크 주소 자동 감지 */}
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #334155)', marginBottom: '4px' }}>
                 <Cpu size={14} color="var(--primary, #2563eb)" />
-                감지된 물리 하드웨어 지문
+                자동 감지된 로컬 PC 물리 식별 정보
               </label>
               <input
                 type="text"
                 readOnly
-                value={hardwareFingerprint}
+                value={macAddress ? `${hardwareFingerprint} · ${macAddress}` : hardwareFingerprint}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -370,33 +370,9 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
               {hardwareDetails && (
                 <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', marginTop: '2px', display: 'block' }}>
                   CPU {hardwareDetails.cores}코어 • RAM 약 {hardwareDetails.memoryGb}GB • 해상도 {hardwareDetails.screenResolution} • {hardwareDetails.platform}
+                  {detectedMacs.length > 0 ? ` • 로컬 어댑터 ${detectedMacs.length}개 자동 연동됨` : ' • 하드웨어 지문 자동 바인딩'}
                 </span>
               )}
-            </div>
-
-            {/* MAC 주소 */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #334155)', marginBottom: '4px' }}>
-                <Network size={14} color="#0d9488" />
-                개발자 PC 물리 MAC 주소
-              </label>
-              <input
-                type="text"
-                value={macAddress}
-                onChange={e => setMacAddress(e.target.value.toUpperCase())}
-                placeholder="물리 네트워크 주소 입력"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-card)',
-                  fontFamily: 'monospace',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: 'var(--text-main)'
-                }}
-              />
             </div>
 
             {/* 개발자 담당자명 */}
