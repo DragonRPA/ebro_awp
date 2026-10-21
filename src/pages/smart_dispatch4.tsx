@@ -5677,7 +5677,11 @@ export const SmartDispatch4: React.FC = () => {
             });
           }
           allCaIds.push(...caIds);
-          const matchedCas = caIds.map(id => contractAssets.find(ca => ca.id === id)).filter(Boolean);
+          const matchedCas = d.status === 'CANCELLED'
+            ? []
+            : caIds
+                .map(id => contractAssets.find(ca => ca.id === id && (!d.contractId || ca.contractId === d.contractId)))
+                .filter(Boolean);
           const firstCa = matchedCas[0];
           const monthlyRate = Number(ci.monthlyRentalFee || firstCa?.monthlyRentalFee || 0);
           const dailyRate = Number(ci.dailyRentalFee || firstCa?.dailyRentalFee || (monthlyRate ? Math.round(monthlyRate / 30) : 0));

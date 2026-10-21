@@ -6931,7 +6931,15 @@ class LocalDB {
         prefix = key.slice(0, 4).toUpperCase() + '-';
     }
 
+    const hwmKey = `ebro_id_hwm_${key}`;
     let maxNum = 0;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const savedHwm = parseInt(window.localStorage.getItem(hwmKey) || '0', 10);
+        if (!isNaN(savedHwm) && savedHwm > maxNum) maxNum = savedHwm;
+      }
+    } catch {}
+
     const regex = new RegExp(`^${prefix}(\\d+)`, 'i');
     const fallbackRegex = new RegExp(`^${key.slice(0, 4)}-(\\d+)`, 'i');
 
@@ -6949,7 +6957,36 @@ class LocalDB {
       }
     });
 
+    // contractAssets(CAST-) 채번 시 삭제된 슬롯 ID가 재사용되어 타 배차 cargoItems와 충돌하는 현상 원천 차단
+    if (key === 'contractAssets') {
+      (this.deliveries || []).forEach((d: any) => {
+        if (!d?.cargoItems) return;
+        const matches = String(d.cargoItems).match(/CAST-(\d+)/gi);
+        if (matches) {
+          matches.forEach(m => {
+            const num = parseInt(m.replace(/^CAST-/i, ''), 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          });
+        }
+      });
+      (this.outboundInspections || []).forEach((ins: any) => {
+        const caId = ins?.contractAssetId;
+        if (typeof caId === 'string') {
+          const m = caId.match(regex);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        }
+      });
+    }
+
     const nextNum = maxNum + 1;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(hwmKey, String(nextNum));
+      }
+    } catch {}
     const paddedNum = String(nextNum).padStart(7, '0');
     return `${prefix}${paddedNum}`;
   }

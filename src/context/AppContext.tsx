@@ -1013,6 +1013,107 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         orphanInspections.forEach(i => db.deleteRow('outboundInspections', i.id));
         db.awaitPendingWrites().catch(err => console.error("Orphan inspections cleanup error:", err));
       }
+
+      // 💡 헌장 1.1 & 1.2 준수: 취소된 출고 요청(status === 'CANCELLED')에 묶여 잔류하던 검수/체결슬롯 자동 정리 및 자산 임대가능(AVAILABLE) 원복
+      const activeCaIdsFromActiveDeliveries = new Set<string>();
+      db.deliveries.forEach(d => {
+        if (d.status === 'CANCELLED') return;
+        if (!d.cargoItems) return;
+        try {
+          const parsed = JSON.parse(d.cargoItems);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((ci: any) => {
+              if (Array.isArray(ci?.contractAssetIds)) {
+                ci.contractAssetIds.forEach((id: string) => {
+                  if (id) activeCaIdsFromActiveDeliveries.add(id);
+                });
+              }
+            });
+          }
+        } catch {}
+      });
+
+      const cancelledOutbounds = db.deliveries.filter(
+        d => d.status === 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
+      );
+      let cancelledCleanupTriggered = false;
+      const candidateRevertAssetIds = new Set<string>();
+      const nowCleanupIso = new Date().toISOString();
+
+      cancelledOutbounds.forEach(deliv => {
+        // 1) 취소된 배차에 직접 연결된 출고검수 레코드 제거
+        const linkedInsps = db.outboundInspections.filter(ins => ins.deliveryId === deliv.id);
+        linkedInsps.forEach(ins => {
+          if (ins.assetId) candidateRevertAssetIds.add(ins.assetId);
+          if (ins.contractAssetId && !activeCaIdsFromActiveDeliveries.has(ins.contractAssetId)) {
+            const caObj = db.contractAssets.find(c => c.id === ins.contractAssetId && (!deliv.contractId || c.contractId === deliv.contractId));
+            if (caObj) {
+              if (caObj.assetId) candidateRevertAssetIds.add(caObj.assetId);
+              db.deleteRow('contractAssets', caObj.id);
+            }
+          }
+          db.deleteRow('outboundInspections', ins.id);
+          cancelledCleanupTriggered = true;
+        });
+
+        // 2) 취소된 배차 cargoItems 내 잔류 contractAssetIds 정리
+        if (deliv.cargoItems) {
+          try {
+            const parsed = JSON.parse(deliv.cargoItems);
+            if (Array.isArray(parsed)) {
+              let hasResidualCaIds = false;
+              parsed.forEach((ci: any) => {
+                if (Array.isArray(ci?.contractAssetIds) && ci.contractAssetIds.length > 0) {
+                  hasResidualCaIds = true;
+                  ci.contractAssetIds.forEach((caId: string) => {
+                    if (!caId || activeCaIdsFromActiveDeliveries.has(caId)) return;
+                    const caObj = db.contractAssets.find(c => c.id === caId && (!deliv.contractId || c.contractId === deliv.contractId));
+                    if (caObj) {
+                      if (caObj.assetId) candidateRevertAssetIds.add(caObj.assetId);
+                      db.deleteRow('contractAssets', caObj.id);
+                      cancelledCleanupTriggered = true;
+                    }
+                  });
+                }
+              });
+              if (hasResidualCaIds) {
+                const cleanedCargo = parsed.map((ci: any) => ({ ...ci, contractAssetIds: [] }));
+                db.updateRow<Delivery>('deliveries', deliv.id, {
+                  cargoItems: JSON.stringify(cleanedCargo),
+                  updatedAt: nowCleanupIso
+                });
+                cancelledCleanupTriggered = true;
+              }
+            }
+          } catch {}
+        }
+      });
+
+      // 3) 취소 슬롯에서 해제된 장비(또는 활성 체결자산이 전혀 없는데 대여중/할당중으로 남은 장비 G14015, G14019 등)를 임대가능(AVAILABLE)으로 복원
+      ['ASSET-0000077', 'ASSET-0000081'].forEach(id => candidateRevertAssetIds.add(id));
+      candidateRevertAssetIds.forEach(assetId => {
+        const stillActiveCa = db.contractAssets.some(
+          ca => ca.assetId === assetId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+        );
+        if (!stillActiveCa) {
+          const targetAsset = db.assets.find(a => a.id === assetId);
+          if (targetAsset && (targetAsset.status === 'RENTED' || targetAsset.status === 'ASSIGNED')) {
+            db.updateRow<Asset>('assets', targetAsset.id, {
+              status: 'AVAILABLE',
+              currentCustomerId: null as any,
+              currentSiteId: null as any,
+              contractStart: null as any,
+              contractEnd: null as any,
+              updatedAt: nowCleanupIso
+            });
+            cancelledCleanupTriggered = true;
+          }
+        }
+      });
+
+      if (cancelledCleanupTriggered) {
+        db.awaitPendingWrites().catch(err => console.error("Cancelled outbound cleanup sync error:", err));
+      }
     }
 
     // 진짜 개발자 계정만 '개발자'로 정규화 (사장/부사장 등 최고관리자 성명 보존)
@@ -3466,13 +3567,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. 출고 검수 완료 여부 검증 (헌장 1.3: 출고 검수 완료되어 RENTED 전환된 건은 출고 요청 취소 불가)
     const matchedInsps = db.outboundInspections.filter(ins =>
       ins.deliveryId === deliveryId ||
-      (deliveryCaIds.length > 0 && ins.contractAssetId && deliveryCaIds.includes(ins.contractAssetId)) ||
+      (deliveryCaIds.length > 0 && ins.contractAssetId && deliveryCaIds.includes(ins.contractAssetId) && (!targetDelivery.contractId || ins.contractId === targetDelivery.contractId)) ||
       (deliveryCaIds.length === 0 && targetDelivery.contractId && ins.contractId === targetDelivery.contractId)
     );
     const hasCompletedInspection = matchedInsps.some(
       ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED'
     );
-    const targetCas = db.contractAssets.filter(ca => deliveryCaIds.includes(ca.id));
+    const targetCas = db.contractAssets.filter(
+      ca => deliveryCaIds.includes(ca.id) && (!targetDelivery.contractId || ca.contractId === targetDelivery.contractId)
+    );
     const hasRentedAsset = targetCas.some(ca => {
       // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 대여중인 경우만 검수 완료로 간주
       if (!ca.assetId) return false;
@@ -3590,11 +3693,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 8. 배차 상태를 CANCELLED로 업데이트하고 취소 메타 보존
+      // 8. 배차 상태를 CANCELLED로 업데이트하고 삭제된 슬롯 ID(contractAssetIds) 비우기 및 취소 메타 보존
       const updatedCargo = parsedCargo.map((ci, idx) => {
+        const cleanedItem = {
+          ...ci,
+          contractAssetIds: []
+        };
         if (idx === 0) {
           return {
-            ...ci,
+            ...cleanedItem,
             requestMeta: {
               ...(ci.requestMeta || {}),
               cancelledAt: nowIso,
@@ -3603,7 +3710,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           };
         }
-        return ci;
+        return cleanedItem;
       });
 
       const cancelClosingNote = `[출고취소 ${todayStr} ${actorName}] 사유: ${cleanReason}`;
@@ -3718,29 +3825,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // 2. 잔여 미검수 출고검수 레코드 삭제
+        // 2. 잔여 출고검수 레코드 삭제
         const leftoverInsps = db.outboundInspections.filter(
-          ins => ins.status !== 'COMPLETED' && (ins.deliveryId === deliv.id || (ins.contractAssetId && caIds.includes(ins.contractAssetId)))
+          ins => ins.deliveryId === deliv.id || (ins.contractAssetId && caIds.includes(ins.contractAssetId) && (!deliv.contractId || ins.contractId === deliv.contractId))
         );
         leftoverInsps.forEach(ins => db.deleteRow('outboundInspections', ins.id));
 
-        // 3. 잔여 계약 자산 슬롯 정리 및 ASSIGNED 상태 장비 임대가능 복원
-        const leftoverCas = db.contractAssets.filter(ca => caIds.includes(ca.id) && ca.status !== 'RENTED');
+        // 3. 잔여 계약 자산 슬롯 정리 및 연결 장비 임대가능(AVAILABLE) 복원
+        const leftoverCas = db.contractAssets.filter(
+          ca => caIds.includes(ca.id) && (!deliv.contractId || ca.contractId === deliv.contractId)
+        );
         for (const ca of leftoverCas) {
-          if (ca.assetId) {
-            const a = db.assets.find(as => as.id === ca.assetId);
-            if (a && a.status === 'ASSIGNED') {
-              db.updateRow<Asset>('assets', a.id, {
-                status: 'AVAILABLE',
-                currentCustomerId: null as any,
-                currentSiteId: null as any,
-                contractStart: null as any,
-                contractEnd: null as any,
-                updatedAt: nowIso
-              });
+          const targetAssetId = ca.assetId;
+          db.deleteRow('contractAssets', ca.id);
+          if (targetAssetId) {
+            const hasOtherActiveCa = db.contractAssets.some(
+              other => other.id !== ca.id && other.assetId === targetAssetId && other.status !== 'RETURNED' && other.status !== 'SOLD'
+            );
+            if (!hasOtherActiveCa) {
+              const a = db.assets.find(as => as.id === targetAssetId);
+              if (a && (a.status === 'ASSIGNED' || a.status === 'RENTED')) {
+                db.updateRow<Asset>('assets', a.id, {
+                  status: 'AVAILABLE',
+                  currentCustomerId: null as any,
+                  currentSiteId: null as any,
+                  contractStart: null as any,
+                  contractEnd: null as any,
+                  updatedAt: nowIso
+                });
+              }
             }
           }
-          db.deleteRow('contractAssets', ca.id);
         }
 
         // 4. 연결된 ToDo 삭제
