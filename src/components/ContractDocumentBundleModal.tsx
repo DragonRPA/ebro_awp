@@ -306,7 +306,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     return candidates[0] || null;
   }, [deliveries, selectedContract, filterDate, contractAssets]);
 
-  // 기준 배차일 (배차일이 있으면 배차일, 없으면 선택된 투입일 또는 계약 시작일)
+  // 기준 배차일 (점검일시 D-2 자동 계산용: 상차일 최우선)
   const baseDeliveryDate = useMemo(() => {
     if (filterDate.startsWith('DELIVERY:')) {
       return outboundDelivery?.loadingDate || outboundDelivery?.scheduledDate || outboundDelivery?.unloadingDate || selectedContract?.startDate || new Date().toISOString().split('T')[0];
@@ -316,6 +316,81 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     }
     return outboundDelivery?.scheduledDate || outboundDelivery?.loadingDate || outboundDelivery?.unloadingDate || selectedContract?.startDate || new Date().toISOString().split('T')[0];
   }, [outboundDelivery, selectedContract, filterDate]);
+
+  // 장비 인도 일시 (출고 요청의 희망 하차일 최우선 -> 미지정 시 상차일/계약시작일)
+  const equipmentUnloadingDate = useMemo(() => {
+    const extractYmd = (raw?: string | null): string => {
+      if (!raw) return '';
+      const m = String(raw).trim().match(/\d{4}-\d{2}-\d{2}/);
+      return m ? m[0] : '';
+    };
+    if (outboundDelivery) {
+      if (outboundDelivery.unloadingDate) {
+        const d = extractYmd(outboundDelivery.unloadingDate);
+        if (d) return d;
+      }
+      if (outboundDelivery.cargoItems) {
+        try {
+          const parsed = JSON.parse(outboundDelivery.cargoItems);
+          const metaUnload = Array.isArray(parsed) ? parsed.find((ci: any) => ci?.requestMeta)?.requestMeta?.unloadingTime : undefined;
+          const d = extractYmd(metaUnload);
+          if (d) return d;
+        } catch {}
+      }
+      if (outboundDelivery.memo) {
+        const mUnload = outboundDelivery.memo.match(/(?:하차일정\]|하차:)\s*(\d{4}-\d{2}-\d{2})/);
+        if (mUnload?.[1]) return mUnload[1];
+      }
+      const fallbackDel = extractYmd(outboundDelivery.loadingDate || outboundDelivery.scheduledDate);
+      if (fallbackDel) return fallbackDel;
+    }
+    if (filterDate !== 'ALL' && !filterDate.startsWith('DELIVERY:')) {
+      return filterDate;
+    }
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return selectedContract?.startDate || todayLocal;
+  }, [outboundDelivery, selectedContract, filterDate]);
+
+  // 계약일 (출고 요청을 입력한 날 = 주문 접수일 최우선)
+  const orderReceivedDate = useMemo(() => {
+    const toLocalYmd = (raw?: string | null): string => {
+      if (!raw) return '';
+      const trimmed = String(raw).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      const d = new Date(trimmed);
+      if (!isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+      const m = trimmed.match(/\d{4}-\d{2}-\d{2}/);
+      return m ? m[0] : '';
+    };
+    if (outboundDelivery) {
+      if (outboundDelivery.cargoItems) {
+        try {
+          const parsed = JSON.parse(outboundDelivery.cargoItems);
+          const requestedAt = Array.isArray(parsed) ? parsed.find((ci: any) => ci?.requestMeta)?.requestMeta?.requestedAt : undefined;
+          const d = toLocalYmd(requestedAt);
+          if (d) return d;
+        } catch {}
+      }
+      if (outboundDelivery.createdAt) {
+        const d = toLocalYmd(outboundDelivery.createdAt);
+        if (d) return d;
+      }
+      if (outboundDelivery.requestDate) {
+        const d = toLocalYmd(outboundDelivery.requestDate);
+        if (d) return d;
+      }
+    }
+    if (selectedContract?.createdAt) {
+      const d = toLocalYmd(selectedContract.createdAt);
+      if (d) return d;
+    }
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return toLocalYmd(selectedContract?.startDate) || todayLocal;
+  }, [outboundDelivery, selectedContract]);
 
   // 배차일 기준 2일 전 자동 계산
   const defaultInspectionDate = useMemo(() => {
@@ -808,10 +883,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         accountHolder: primaryAccount?.accountHolder || '',
         bizRegNo: customer?.bizRegNo || '118-81-00241',
         ceoName: customer?.representative || '대표자',
-        contractDate: filterDate.startsWith('DELIVERY:') ? baseDeliveryDate : (filterDate !== 'ALL' ? filterDate : selectedContract.startDate),
-        contractStartDate: filterDate.startsWith('DELIVERY:') ? baseDeliveryDate : (filterDate !== 'ALL' ? filterDate : selectedContract.startDate),
+        contractDate: orderReceivedDate,
+        contractStartDate: equipmentUnloadingDate,
         contractEndDate: selectedContract.endDate,
-        deliveryDate: baseDeliveryDate,
+        deliveryDate: equipmentUnloadingDate,
+        unloadingDate: equipmentUnloadingDate,
+        remarksText: '',
         inspectionDate: customInspectionDate || defaultInspectionDate,
         inspectorName: customInspectorName.trim() || defaultInspectorName,
         siteName: siteName,
@@ -1315,8 +1392,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                 <strong>{site?.name || '현장미지정'}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '6px' }}>계약기간:</span>
-                <span>{selectedContract.startDate} ~ {formatContractEndDate(selectedContract.endDate)}</span>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '6px' }}>계약일 / 장비 인도일시:</span>
+                <span>계약일 <strong>{orderReceivedDate}</strong> · 인도(하차) <strong>{equipmentUnloadingDate}</strong></span>
               </div>
               <div>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 600, marginRight: '6px' }}>투입 자산 ({mappedAssets.length}대):</span>

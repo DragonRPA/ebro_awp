@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.20';
-const CORE_HASH = '3ebc08b45db6';
+const VERSION = 'v2.0.0.Build.21';
+const CORE_HASH = '853c999d1891';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -811,8 +811,8 @@ async function executeContractBundleInternal(payload) {
     const managerPhone = payload.managerPhone || '010-0000-0000';
     const paidOptions = Array.isArray(payload.paidOptions) ? payload.paidOptions : [];
     const optionsText = ''; // 기존 {옵션} 칸 표기 삭제 (아무 옵션도 표시하지 말 것)
-    const remarksText = payload.remarksText || '안전발판 지급';
-    const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
+    const remarksText = String(payload.remarksText || '').replace(/안전발판\s*지급/g, '').trim();
+    const deliveryDate = payload.deliveryDate || payload.unloadingDate || payload.contractStartDate || contractDate;
     let inspectionDate = payload.inspectionDate;
     if (!inspectionDate) {
       try {
@@ -1084,7 +1084,7 @@ Replace-Tag $wsContract "{사업자등록번호}" "${psEscape(bizRegNo)}"
 Replace-Tag $wsContract "{고객명}" "${psEscape(custName)}"
 Replace-Tag $wsContract "{대표자}" "${psEscape(ceoName)}"
 Replace-Tag $wsContract "{현장명}" "${psEscape(siteName)}"
-Replace-Tag $wsContract "{하차일시}" "${psEscape(contractDate)}"
+Replace-Tag $wsContract "{하차일시}" "${psEscape(deliveryDate)}"
 Replace-Tag $wsContract "{현장주소}" "${psEscape(siteAddress)}"
 Replace-Tag $wsContract "{현장담당자}" "${psEscape(managerName)}"
 Replace-Tag $wsContract "{현장담당자연락처}" "${psEscape(managerPhone)}"
@@ -1093,7 +1093,7 @@ Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
 Replace-Tag $wsContract "{합계}" "₩${grandTotalFee.toLocaleString()}"
 Replace-Tag $wsContract "{옵션}" ""
 $wsContract.Range("C57").Value2 = ""
-Replace-Tag $wsContract "{특이사항}" "${psEscape(remarksText)}"
+${remarksText ? `Replace-Tag $wsContract "{특이사항}" "${psEscape(remarksText)}"` : `Replace-Tag $wsContract "{특이사항} " ""\nReplace-Tag $wsContract "{특이사항}" ""`}
 Replace-Tag $wsContract "(유상옵션)" ""
 Replace-Tag $wsContract "(수량) / {단위}" ""
 Replace-Tag $wsContract "{단가}" ""

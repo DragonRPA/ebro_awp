@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 
 
-const VERSION = 'v2.0.0.Build.20';
+const VERSION = 'v2.0.0.Build.21';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -285,7 +285,8 @@ const server = http.createServer(async (req, res) => {
         const salesRepName = String(payload.salesRepName || payload.salespersonName || '영업담당자').replace(/"/g, '""');
         const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || '010-0000-0000').replace(/"/g, '""');
         const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
-        const remarksText = payload.remarksText || '안전발판 지급';
+        const remarksText = String(payload.remarksText || '').replace(/안전발판\s*지급/g, '').trim();
+        const deliveryDate = payload.deliveryDate || payload.unloadingDate || payload.contractStartDate || contractDate;
 
         const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
           { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
@@ -336,7 +337,7 @@ Replace-Tag $wsContract "{사업자등록번호}" "${bizRegNo}"
 Replace-Tag $wsContract "{고객명}" "${custName}"
 Replace-Tag $wsContract "{대표자}" "${ceoName}"
 Replace-Tag $wsContract "{현장명}" "${siteName}"
-Replace-Tag $wsContract "{하차일시}" "${contractDate}"
+Replace-Tag $wsContract "{하차일시}" "${deliveryDate}"
 Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
 Replace-Tag $wsContract "{현장담당자}" "${managerName}"
 Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"

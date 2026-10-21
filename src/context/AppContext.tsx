@@ -3332,13 +3332,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       finalSite?.name ? db.siteMasters.find(m => m.name && m.name.replace(/\s/g, '') === finalSite.name.replace(/\s/g, ''))?.id : undefined
     );
 
+    const nowOrderDate = new Date();
+    const orderInputDateStr = `${nowOrderDate.getFullYear()}-${String(nowOrderDate.getMonth() + 1).padStart(2, '0')}-${String(nowOrderDate.getDate()).padStart(2, '0')}`;
+
     const createdDelivery = db.insertRow<Delivery>('deliveries', {
       contractId: contract.id,
       siteMasterId: resolvedSiteMasterId,
       type: isExchangeDelivery ? 'EXCHANGE' : 'OUTBOUND',
       dispatchCategory: isExchangeDelivery ? '교환' : '출고',
       status: 'REQUESTED',
-      requestDate: contract.startDate,
+      requestDate: orderInputDateStr,
       scheduledDate: loadingDateStr,
       loadingDate: loadingDateStr,
       loadingTimeSlot: loadingTimeSlotStr,
