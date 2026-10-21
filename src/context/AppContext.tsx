@@ -48,6 +48,7 @@ export interface SmartDispatchData {
   salespersonPhone?: string;
   siteContactName: string;
   siteContactPhone: string;
+  siteContactPosition?: string;
   siteContactEmail: string;
   billingContactName: string;
   billingContactPhone: string;
@@ -2884,15 +2885,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const existingContact = currentCust ? db.contacts.find(ct => ct.customerId === currentCust.id && (data.siteContactName ? ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, '') : true)) : null;
+    const isBlankContactField = (v?: string | null) => {
+      if (!v) return true;
+      const t = String(v).trim();
+      return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력';
+    };
 
-    const effectiveAddress = data.siteAddress?.trim() || (existingSite?.address && existingSite.address !== '미상' ? existingSite.address : '');
-    const effectivePhone = data.siteContactPhone?.trim() || (existingSite?.contact && existingSite.contact !== '미상' ? existingSite.contact : '') || (existingContact?.contact && existingContact.contact !== '미상' ? existingContact.contact : '');
+    const existingSiteEqContact = existingSite
+      ? ((existingSite.contacts || []).find(c => c && c.isActive !== false && c.contactType === 'EQUIPMENT') || (existingSite.contacts || []).find(c => c && c.isActive !== false))
+      : undefined;
+
+    const existingContact = currentCust ? db.contacts.find(ct => ct.customerId === currentCust.id && (!isBlankContactField(data.siteContactName) ? ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, '') : true)) : null;
+
+    const effectiveAddress = (!isBlankContactField(data.siteAddress) ? data.siteAddress.trim() : '') || (!isBlankContactField(existingSite?.address) ? existingSite!.address.trim() : '');
+    const effectiveContactName = (!isBlankContactField(data.siteContactName) ? data.siteContactName.trim() : '')
+      || (!isBlankContactField(existingSite?.contactName) ? existingSite!.contactName.trim() : '')
+      || (!isBlankContactField(existingSiteEqContact?.name) ? existingSiteEqContact!.name.trim() : '');
+    const effectivePhone = (!isBlankContactField(data.siteContactPhone) ? data.siteContactPhone.trim() : '')
+      || (!isBlankContactField(existingSite?.contact) ? existingSite!.contact.trim() : '')
+      || (!isBlankContactField(existingSiteEqContact?.contact) ? existingSiteEqContact!.contact.trim() : '')
+      || (!isBlankContactField(existingContact?.contact) ? existingContact!.contact.trim() : '');
+    const effectivePosition = (!isBlankContactField(data.siteContactPosition) ? data.siteContactPosition!.trim() : '')
+      || (!isBlankContactField(existingSiteEqContact?.position) ? existingSiteEqContact!.position!.trim() : '');
+    const effectiveEmail = (!isBlankContactField(data.siteContactEmail) ? data.siteContactEmail.trim() : '')
+      || (!isBlankContactField(existingSite?.email) ? existingSite!.email.trim() : '')
+      || (!isBlankContactField(existingSiteEqContact?.email) ? existingSiteEqContact!.email!.trim() : '');
 
     if (!effectiveAddress) {
       return {
         success: false,
         errorMessage: `⚠️ [현장 상세 주소 필수 누락]\n\n고객사 '${data.customerName}' / 현장 '${data.siteName}'의 기존 DB에 등록된 주소가 없으며, 현재 입력창에도 주소가 생략되어 있습니다.\n\n배차 기사 운송 및 계약 체결을 위해 현장 상세 주소를 반드시 입력해주세요.`
+      };
+    }
+    if (!effectiveContactName) {
+      return {
+        success: false,
+        errorMessage: `⚠️ [현장 담당자 성명 필수 누락]\n\n고객사 '${data.customerName}' / 현장 '${data.siteName}'의 기존 현장담당자 성명이 미입력(공백) 상태입니다.\n\n현장담당자의 부족한 정보(성명 및 연락처)를 입력해 주시면 해당 현장 정보에 즉시 업데이트됩니다.`
       };
     }
     if (!effectivePhone) {
@@ -2904,10 +2932,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // ⚡ [2. 기존 정보 상속] 누락 필드 자동 승계
     data.siteAddress = effectiveAddress;
-    if (!data.siteContactPhone?.trim()) data.siteContactPhone = effectivePhone;
-    if (!data.siteContactName?.trim() && existingSite?.contactName && existingSite.contactName !== '미상') {
-      data.siteContactName = existingSite.contactName;
-    }
+    data.siteContactName = effectiveContactName;
+    data.siteContactPhone = effectivePhone;
+    if (effectivePosition) data.siteContactPosition = effectivePosition;
+    if (effectiveEmail) data.siteContactEmail = effectiveEmail;
     if (!data.taxBillEmail?.trim() && customer?.repEmail && customer.repEmail !== '미상') {
       data.taxBillEmail = customer.repEmail;
     }
@@ -2999,24 +3027,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 담당자 정보 업데이트 및 신규 추가
-      if (data.siteContactName) {
+      if (data.siteContactName && !isBlankContactField(data.siteContactName)) {
         const targetCustomerId = customer.id;
-        const matchedContact = db.contacts.find(ct => ct.customerId === targetCustomerId && ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, ''));
+        const matchedContact = db.contacts.find(ct => ct.customerId === targetCustomerId && ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, ''))
+          || db.contacts.find(ct => ct.customerId === targetCustomerId && isBlankContactField(ct.name));
         if (matchedContact) {
-          if ((data.siteContactPhone && data.siteContactPhone !== '미상' && data.siteContactPhone !== matchedContact.contact) || (data.siteContactEmail && data.siteContactEmail !== '미상' && data.siteContactEmail !== matchedContact.email)) {
+          const contactUpdates: Partial<CustomerContact> = {};
+          if (isBlankContactField(matchedContact.name) && data.siteContactName) {
+            contactUpdates.name = data.siteContactName;
+          }
+          if (data.siteContactPhone && !isBlankContactField(data.siteContactPhone) && data.siteContactPhone !== matchedContact.contact) {
+            contactUpdates.contact = data.siteContactPhone;
+          }
+          if (data.siteContactPosition && !isBlankContactField(data.siteContactPosition) && data.siteContactPosition !== matchedContact.position) {
+            contactUpdates.position = data.siteContactPosition;
+          }
+          if (data.siteContactEmail && !isBlankContactField(data.siteContactEmail) && data.siteContactEmail !== matchedContact.email) {
+            contactUpdates.email = data.siteContactEmail;
+          }
+          if (Object.keys(contactUpdates).length > 0) {
             db.updateRow<CustomerContact>('contacts', matchedContact.id, {
-              contact: data.siteContactPhone || matchedContact.contact,
-              email: data.siteContactEmail || matchedContact.email,
+              ...contactUpdates,
               updatedAt: new Date().toISOString()
             });
-            await notify(`👤 [담당자 최신화] 담당자 '${data.siteContactName}' 연락처가 최신값으로 업데이트되었습니다.`, 30);
+            await notify(`👤 [담당자 최신화] 담당자 '${data.siteContactName}' 정보가 최신값으로 업데이트되었습니다.`, 30);
           }
         } else {
           await notify(`👤 [신규 담당자] 현장 담당자 '${data.siteContactName}' 등록 중...`, 30);
           db.insertRow<CustomerContact>('contacts', {
             customerId: targetCustomerId,
             name: data.siteContactName,
-            position: '현장담당자',
+            position: data.siteContactPosition || '현장담당자',
             contact: data.siteContactPhone || '미상',
             email: data.siteContactEmail || '미상',
             createdAt: new Date().toISOString()
@@ -3048,6 +3089,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!site) {
       await notify(`📍 [2/5 현장 등록] 고객 현장 '${data.siteName}' 등록 중...`, 40);
+      const initialSiteContacts = (!isBlankContactField(data.siteContactName) || !isBlankContactField(data.siteContactPhone))
+        ? [{
+            id: `sc-eq-${Date.now()}`,
+            name: data.siteContactName || '미상',
+            contactType: 'EQUIPMENT' as const,
+            position: data.siteContactPosition || '현장담당자',
+            contact: data.siteContactPhone || '미상',
+            email: !isBlankContactField(data.siteContactEmail) ? data.siteContactEmail : '',
+            isPrimary: true,
+            isActive: true
+          }]
+        : undefined;
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
         siteMasterId: selectedOptionGroup?.id || null,
@@ -3057,6 +3110,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         contactName: data.siteContactName || '미상',
         contact: data.siteContactPhone || '미상',
         email: data.siteContactEmail || '미상',
+        contacts: initialSiteContacts,
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
         paymentDueDay: contractPaymentDueDay,
@@ -3069,22 +3123,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString()
       });
     } else {
-      // 기존 고객 현장 정보 최신화 (주소, 담당자, 마감조건, 현장 옵션/보양/사양)
+      // 기존 고객 현장 정보 최신화 (주소, 담당자, contacts 배열, 마감조건, 현장 옵션/보양/사양)
       const siteUpdates: Partial<CustomerSite> = {};
       if (selectedOptionGroup && selectedOptionGroup.id !== site.siteMasterId) {
         siteUpdates.siteMasterId = selectedOptionGroup.id;
       }
-      if (data.siteAddress && data.siteAddress !== '미상' && data.siteAddress !== site.address) {
+      if (data.siteAddress && !isBlankContactField(data.siteAddress) && data.siteAddress !== site.address) {
         siteUpdates.address = data.siteAddress;
       }
-      if (data.siteContactName && data.siteContactName !== '미상' && data.siteContactName !== site.contactName) {
+      if (data.siteContactName && !isBlankContactField(data.siteContactName) && data.siteContactName !== site.contactName) {
         siteUpdates.contactName = data.siteContactName;
       }
-      if (data.siteContactPhone && data.siteContactPhone !== '미상' && data.siteContactPhone !== site.contact) {
+      if (data.siteContactPhone && !isBlankContactField(data.siteContactPhone) && data.siteContactPhone !== site.contact) {
         siteUpdates.contact = data.siteContactPhone;
       }
-      if (data.siteContactEmail && data.siteContactEmail !== '미상' && data.siteContactEmail !== site.email) {
+      if (data.siteContactEmail && !isBlankContactField(data.siteContactEmail) && data.siteContactEmail !== site.email) {
         siteUpdates.email = data.siteContactEmail;
+      }
+
+      // 🌟 [현장담당자 목록(contacts) 1:1 동기화]: 기존 현장의 담당자가 공백이었거나 추가 정보가 입력된 경우 contacts 배열 동시 업데이트
+      if (!isBlankContactField(data.siteContactName) || !isBlankContactField(data.siteContactPhone) || !isBlankContactField(data.siteContactPosition) || !isBlankContactField(data.siteContactEmail)) {
+        const existingContactsList = Array.isArray(site.contacts) ? site.contacts.map(c => ({ ...c })) : [];
+        const eqIdx = existingContactsList.findIndex(c => c.contactType === 'EQUIPMENT');
+        const targetIdx = eqIdx >= 0 ? eqIdx : (existingContactsList.length > 0 && !existingContactsList[0].contactType ? 0 : -1);
+
+        const nextName = !isBlankContactField(data.siteContactName) ? data.siteContactName.trim() : (!isBlankContactField(site.contactName) ? site.contactName.trim() : '');
+        const nextPhone = !isBlankContactField(data.siteContactPhone) ? data.siteContactPhone.trim() : (!isBlankContactField(site.contact) ? site.contact.trim() : '');
+        const nextPos = !isBlankContactField(data.siteContactPosition) ? data.siteContactPosition!.trim() : '';
+        const nextEmail = !isBlankContactField(data.siteContactEmail) ? data.siteContactEmail.trim() : (!isBlankContactField(site.email) ? site.email.trim() : '');
+
+        if (targetIdx >= 0) {
+          const prevEq = existingContactsList[targetIdx];
+          const mergedName = nextName || prevEq.name || '';
+          const mergedPhone = nextPhone || prevEq.contact || '';
+          const mergedPos = nextPos || (!isBlankContactField(prevEq.position) ? prevEq.position! : '현장담당자');
+          const mergedEmail = nextEmail || (!isBlankContactField(prevEq.email) ? prevEq.email! : '');
+          if (mergedName !== prevEq.name || mergedPhone !== prevEq.contact || mergedPos !== prevEq.position || mergedEmail !== prevEq.email || prevEq.isActive === false) {
+            existingContactsList[targetIdx] = {
+              ...prevEq,
+              id: prevEq.id || `sc-eq-${Date.now()}`,
+              name: mergedName,
+              contactType: 'EQUIPMENT',
+              position: mergedPos,
+              contact: mergedPhone,
+              email: mergedEmail,
+              isPrimary: prevEq.isPrimary ?? true,
+              isActive: true
+            };
+            siteUpdates.contacts = existingContactsList;
+          }
+        } else if (nextName || nextPhone) {
+          existingContactsList.unshift({
+            id: `sc-eq-${Date.now()}`,
+            name: nextName || '현장담당자',
+            contactType: 'EQUIPMENT',
+            position: nextPos || '현장담당자',
+            contact: nextPhone || '',
+            email: nextEmail || '',
+            isPrimary: true,
+            isActive: true
+          });
+          siteUpdates.contacts = existingContactsList;
+        }
       }
       if (rawData.closingDay !== undefined) {
         siteUpdates.billingDay = contractBillingDay;

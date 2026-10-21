@@ -17,7 +17,7 @@ import {
   VoiceOrderDraft, 
   EquipmentOrderItem 
 } from '../../services/voiceOrderDraftService';
-import { db, ContractHistory, Delivery, ContractAsset } from '../../services/db';
+import { db, ContractHistory, Delivery, ContractAsset, CustomerSite, CustomerContact } from '../../services/db';
 import { broadcastWorkNotification } from '../../utils/workNotificationService';
 import { VoiceGuideWizardModal, VoiceGuideWizardCompleteData } from '../components/VoiceGuideWizardModal';
 import { VoiceMemoDispatchStudioModal } from '../components/VoiceMemoDispatchStudioModal';
@@ -60,7 +60,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
   initialSpecFt
 }) => {
   const { 
-    customers, sites, currentUser, saveSmartDispatch,
+    customers, sites, contacts, currentUser, saveSmartDispatch,
     contracts, contractAssets, assets, saveSmartReturn, refreshAllData, inspectionChecklistItems 
 } = useApp();
   const defectSymptoms = useMemo(() => { const list = inspectionChecklistItems.filter(i => i.isDefectSymptom).map(i => i.name); return list.length > 0 ? list : ['불량증상(설정요망)']; }, [inspectionChecklistItems]);
@@ -76,6 +76,33 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
   const [siteAddress, setSiteAddress] = useState('');
   const [siteContactName, setSiteContactName] = useState('');
   const [siteContactPhone, setSiteContactPhone] = useState('');
+  const [siteContactPosition, setSiteContactPosition] = useState('');
+  const [siteContactEmail, setSiteContactEmail] = useState('');
+
+  const isBlankMobileContact = (v?: string | null): boolean => {
+    if (!v) return true;
+    const t = String(v).trim();
+    return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력';
+  };
+
+  const getMobileSiteRegContact = (site: any) => {
+    if (!site) return { name: '', phone: '', position: '', email: '' };
+    const activeContacts = Array.isArray(site.contacts) ? site.contacts.filter((c: any) => c && c.isActive !== false) : [];
+    const eqContact = activeContacts.find((c: any) => c.contactType === 'EQUIPMENT') || activeContacts[0];
+    const name = !isBlankMobileContact(site.contactName)
+      ? String(site.contactName).trim()
+      : (!isBlankMobileContact(eqContact?.name) ? String(eqContact.name).trim() : '');
+    const phone = !isBlankMobileContact(site.contact)
+      ? String(site.contact).trim()
+      : (!isBlankMobileContact(eqContact?.contact) ? String(eqContact.contact).trim() : '');
+    const position = !isBlankMobileContact(eqContact?.position)
+      ? String(eqContact.position).trim()
+      : '';
+    const email = !isBlankMobileContact(site.email)
+      ? String(site.email).trim()
+      : (!isBlankMobileContact(eqContact?.email) ? String(eqContact.email).trim() : '');
+    return { name, phone, position, email };
+  };
   
   // 전체 출고의뢰 8대 도메인 확장 상태
   const [paidOptions, setPaidOptions] = useState('');
@@ -90,6 +117,16 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
   // 🌟 선택된 현장 객체 및 옵션 변경 발생 여부 실시간 감지
   const selectedSite = useMemo(() => sites.find(s => s.id === selectedSiteId), [sites, selectedSiteId]);
+  const selectedSiteRegContact = useMemo(() => getMobileSiteRegContact(selectedSite), [selectedSite]);
+  const selectedSiteMissingFields = useMemo(() => {
+    if (!selectedSite) return [] as string[];
+    const missing: string[] = [];
+    if (!selectedSiteRegContact.name) missing.push('성명');
+    if (!selectedSiteRegContact.phone) missing.push('연락처');
+    if (!selectedSiteRegContact.position) missing.push('직책');
+    if (!selectedSiteRegContact.email) missing.push('이메일');
+    return missing;
+  }, [selectedSite, selectedSiteRegContact]);
   const isOptionsDiff = useMemo(() => isOptionsChangedFromSite(selectedSite, paidOptions, protection), [selectedSite, paidOptions, protection]);
   
   // 납품/회수 일시 (기본값: 내일 08:00)
@@ -485,16 +522,125 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
       setSiteAddress('');
       setSiteContactName('');
       setSiteContactPhone('');
+      setSiteContactPosition('');
+      setSiteContactEmail('');
       return;
     }
     const found = sites.find(s => s.id === siteId);
     if (found) {
-      setSiteAddress(found.address || '');
-      setSiteContactName(found.contactName || '');
-      setSiteContactPhone(found.contact || '');
+      const reg = getMobileSiteRegContact(found);
+      setSiteAddress(!isBlankMobileContact(found.address) ? found.address : '');
+      setSiteContactName(reg.name);
+      setSiteContactPhone(reg.phone);
+      setSiteContactPosition(reg.position);
+      setSiteContactEmail(reg.email);
       if (found.paidOptions) setPaidOptions(typeof found.paidOptions === 'string' ? found.paidOptions : (Array.isArray(found.paidOptions) ? (found.paidOptions as any[]).join(', ') : String(found.paidOptions)));
       if (found.protection) setProtection(typeof found.protection === 'string' ? found.protection : (Array.isArray(found.protection) ? (found.protection as any[]).join(', ') : String(found.protection)));
       if (found.checkedSpecs) setCheckedSpecs(found.checkedSpecs);
+
+      const missingCore: string[] = [];
+      if (!reg.name) missingCore.push('성명');
+      if (!reg.phone) missingCore.push('연락처');
+      const missingSub: string[] = [];
+      if (!reg.position) missingSub.push('직책');
+      if (!reg.email) missingSub.push('이메일');
+      if (missingCore.length > 0) {
+        showToast(`[${found.name}] 기존 현장담당자 정보(${[...missingCore, ...missingSub].join(', ')})가 미입력 상태입니다. 부족한 정보를 입력해 주세요.`, 'error');
+      } else if (missingSub.length > 0) {
+        showToast(`[${found.name}] 현장담당자의 부족한 정보(${missingSub.join(', ')})를 추가로 입력해 주세요.`);
+      }
+    }
+  };
+
+  const handleUpdateMobileSiteContactNow = async () => {
+    if (!selectedSite) return;
+    const cleanName = siteContactName.trim();
+    const cleanPhone = siteContactPhone.trim();
+    const cleanPos = siteContactPosition.trim();
+    const cleanEmail = siteContactEmail.trim();
+
+    if (isBlankMobileContact(cleanName)) {
+      showToast('현장 담당자 성명을 입력해주세요.', 'error');
+      return;
+    }
+    if (isBlankMobileContact(cleanPhone) || cleanPhone.replace(/[^0-9]/g, '').length < 9) {
+      showToast('현장 담당자 연락처를 정확히 입력해주세요.', 'error');
+      return;
+    }
+
+    try {
+      const existingList = Array.isArray(selectedSite.contacts)
+        ? selectedSite.contacts.map(c => ({ ...c }))
+        : [];
+      const eqIdx = existingList.findIndex(c => c.contactType === 'EQUIPMENT');
+      const targetIdx = eqIdx >= 0 ? eqIdx : (existingList.length > 0 && !existingList[0].contactType ? 0 : -1);
+
+      if (targetIdx >= 0) {
+        const prevEq = existingList[targetIdx];
+        existingList[targetIdx] = {
+          ...prevEq,
+          id: prevEq.id || `sc-eq-${Date.now()}`,
+          name: cleanName,
+          contactType: 'EQUIPMENT',
+          position: cleanPos || (!isBlankMobileContact(prevEq.position) ? prevEq.position! : '현장담당자'),
+          contact: cleanPhone,
+          email: cleanEmail || (!isBlankMobileContact(prevEq.email) ? prevEq.email! : ''),
+          isPrimary: prevEq.isPrimary ?? true,
+          isActive: true,
+        };
+      } else {
+        existingList.unshift({
+          id: `sc-eq-${Date.now()}`,
+          name: cleanName,
+          contactType: 'EQUIPMENT',
+          position: cleanPos || '현장담당자',
+          contact: cleanPhone,
+          email: cleanEmail || '',
+          isPrimary: true,
+          isActive: true,
+        });
+      }
+
+      const nextEmail = cleanEmail || (!isBlankMobileContact(selectedSite.email) ? selectedSite.email : '');
+      db.updateRow<CustomerSite>('sites', selectedSite.id, {
+        contactName: cleanName,
+        contact: cleanPhone,
+        email: nextEmail || '미상',
+        contacts: existingList,
+        updatedAt: new Date().toISOString(),
+      });
+
+      if (selectedCustomerId) {
+        const matchedContact = (contacts || []).find(
+          ct => ct.customerId === selectedCustomerId && ct.name.replace(/\s/g, '') === cleanName.replace(/\s/g, '')
+        ) || (contacts || []).find(
+          ct => ct.customerId === selectedCustomerId && isBlankMobileContact(ct.name)
+        );
+        if (matchedContact) {
+          db.updateRow<CustomerContact>('contacts', matchedContact.id, {
+            name: cleanName,
+            position: cleanPos || (!isBlankMobileContact(matchedContact.position) ? matchedContact.position : '현장담당자'),
+            contact: cleanPhone,
+            email: cleanEmail || matchedContact.email || '미상',
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          db.insertRow<CustomerContact>('contacts', {
+            customerId: selectedCustomerId,
+            name: cleanName,
+            position: cleanPos || '현장담당자',
+            contact: cleanPhone,
+            email: cleanEmail || '미상',
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      showToast(`[${selectedSite.name}] 현장담당자 정보(${cleanName} / ${cleanPhone})가 업데이트되었습니다.`);
+    } catch (err: any) {
+      showToast(`현장담당자 업데이트 실패: ${err?.message || ''}`, 'error');
     }
   };
 
@@ -636,8 +782,13 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
       return;
     }
 
-    if (!siteContactPhone.trim()) {
-      showToast('현장 담당자 연락처를 입력해주세요.', 'error');
+    if (isBlankMobileContact(siteContactName)) {
+      showToast('현장 담당자 성명을 입력해주세요. (미입력 상태)', 'error');
+      return;
+    }
+
+    if (isBlankMobileContact(siteContactPhone) || siteContactPhone.replace(/[^0-9]/g, '').length < 9) {
+      showToast('현장 담당자 연락처를 정확히 입력해주세요.', 'error');
       return;
     }
 
@@ -649,6 +800,19 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
     setIsSubmitting(true);
     try {
+      // 🌟 기존 현장의 담당자 정보가 미입력/변경되었을 경우 회수·교환 모드에서도 현장담당자 정보 즉시 동기화
+      if (
+        selectedSite &&
+        dispatchMode !== 'DISPATCH' &&
+        (selectedSiteMissingFields.length > 0 ||
+          siteContactName.trim() !== selectedSiteRegContact.name ||
+          siteContactPhone.trim() !== selectedSiteRegContact.phone ||
+          siteContactPosition.trim() !== selectedSiteRegContact.position ||
+          siteContactEmail.trim() !== selectedSiteRegContact.email)
+      ) {
+        await handleUpdateMobileSiteContactNow();
+      }
+
       // 🔄 CASE 1: 회수의뢰
       if (dispatchMode === 'RETURN') {
         if (selectedReturnAssetIds.length === 0) {
@@ -821,25 +985,9 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
       }
 
       const equipmentsList: any[] = [];
-      // 헌장 2.2 준수: 표준 6대 규격 기본 단가 (19ft: 40만, 26ft: 50만, 32ft: 60만, 40ft: 90만, 46ft: 120만, 53ft: 150만)
-      const SPEC_DEFAULT_MONTHLY_RENT: Record<string, number> = {
-        '19ft': 400000,
-        '26ft': 500000,
-        '32ft': 600000,
-        '40ft': 900000,
-        '46ft': 1200000,
-        '53ft': 1500000,
-      };
-
-      const custContractIds = contracts.filter(c => c.customerId === selectedCustomerId).map(c => c.id);
-      const recentCa = contractAssets
-        .filter(ca => custContractIds.includes(ca.contractId) && ca.monthlyRentalFee > 0)
-        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
-
       orders.forEach(o => {
-        const standardRent = SPEC_DEFAULT_MONTHLY_RENT[o.ft] || 400000;
-        const assignedMonthly = recentCa?.monthlyRentalFee || standardRent;
-        const assignedDaily = Math.round(assignedMonthly / 30);
+        const assignedMonthly = Math.max(0, Number((o as any).monthlyRate ?? (o as any).monthlyRent ?? (o as any).monthlyRentalFee) || 0);
+        const assignedDaily = Math.max(0, Number((o as any).dailyRate ?? (o as any).dailyRent ?? (o as any).dailyRentalFee) || (assignedMonthly > 0 ? Math.round(assignedMonthly / 30) : 0));
         const safeCount = Math.max(1, Math.floor(o.count || 1));
 
         for (let i = 0; i < safeCount; i++) {
@@ -858,9 +1006,10 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         siteAddress: siteAddress.trim(),
         salespersonName: currentUser?.name || '영업담당',
         salespersonPhone: currentUser?.phone || '',
-        siteContactName: siteContactName.trim() || '현장소장',
+        siteContactName: siteContactName.trim(),
         siteContactPhone: siteContactPhone.trim(),
-        siteContactEmail: '',
+        siteContactPosition: siteContactPosition.trim(),
+        siteContactEmail: siteContactEmail.trim(),
         billingContactName: '',
         billingContactPhone: '',
         statementEmail: '',
@@ -1130,9 +1279,15 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                 required
               >
                 <option value="">현장을 선택하세요</option>
-                {filteredCustomerSites.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.address || '주소미상'})</option>
-                ))}
+                {filteredCustomerSites.map(s => {
+                  const reg = getMobileSiteRegContact(s);
+                  const isMissing = !reg.name || !reg.phone;
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.address || '주소미상'}){isMissing ? ' [담당자 미입력]' : ''}
+                    </option>
+                  );
+                })}
                 {dispatchMode === 'DISPATCH' && <option value="NEW">+ [신규 현장 직접 입력]</option>}
               </select>
             </div>
@@ -1180,25 +1335,52 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                 />
               </div>
 
+              {selectedSite && selectedSiteMissingFields.length > 0 && (
+                <div className="p-3 rounded-xl border border-amber-500/70 bg-amber-950/50 text-amber-100 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <span className="text-xs font-extrabold text-amber-300">
+                      ⚠️ 기존 현장담당자 부족 정보 입력 요청
+                    </span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/40 border border-amber-500/40">
+                      미입력: {selectedSiteMissingFields.join(', ')}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-100/90">
+                    기존 현장의 현장담당자 정보({selectedSiteMissingFields.join(', ')})가 공백입니다. 부족한 정보를 입력해 주시면 현장 및 고객 담당자 정보에 즉시 업데이트됩니다.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">현장 담당자</label>
+                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>현장 담당자 성명 *</span>
+                    {selectedSite && !selectedSiteRegContact.name && (
+                      <span className="text-[10px] font-bold text-rose-400">미입력</span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     value={siteContactName}
                     onChange={(e) => setSiteContactName(e.target.value)}
-                    placeholder="소장/반장명"
+                    placeholder="소장/반장 성명"
                     className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
                     style={{
                       backgroundColor: '#090d16',
                       color: '#f8fafc',
-                      border: '1px solid #334155',
+                      border: isBlankMobileContact(siteContactName) ? '1px solid #f43f5e' : '1px solid #334155',
                       colorScheme: 'dark'
                     }}
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400">현장 연락처 *</label>
+                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>현장 연락처 *</span>
+                    {selectedSite && !selectedSiteRegContact.phone && (
+                      <span className="text-[10px] font-bold text-rose-400">미입력</span>
+                    )}
+                  </label>
                   <input
                     type="tel"
                     value={siteContactPhone}
@@ -1208,13 +1390,65 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                     style={{
                       backgroundColor: '#090d16',
                       color: '#f8fafc',
-                      border: '1px solid #334155',
+                      border: isBlankMobileContact(siteContactPhone) ? '1px solid #f43f5e' : '1px solid #334155',
                       colorScheme: 'dark'
                     }}
                     required
                   />
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>현장 담당자 직책</span>
+                    {selectedSite && !selectedSiteRegContact.position && (
+                      <span className="text-[10px] font-bold text-amber-400">공백</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={siteContactPosition}
+                    onChange={(e) => setSiteContactPosition(e.target.value)}
+                    placeholder="예: 현장소장, 공무과장"
+                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
+                    style={{
+                      backgroundColor: '#090d16',
+                      color: '#f8fafc',
+                      border: '1px solid #334155',
+                      colorScheme: 'dark'
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>현장 담당자 이메일</span>
+                    {selectedSite && !selectedSiteRegContact.email && (
+                      <span className="text-[10px] font-bold text-amber-400">공백</span>
+                    )}
+                  </label>
+                  <input
+                    type="email"
+                    value={siteContactEmail}
+                    onChange={(e) => setSiteContactEmail(e.target.value)}
+                    placeholder="이메일 입력"
+                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
+                    style={{
+                      backgroundColor: '#090d16',
+                      color: '#f8fafc',
+                      border: '1px solid #334155',
+                      colorScheme: 'dark'
+                    }}
+                  />
+                </div>
               </div>
+
+              {selectedSite && (selectedSiteMissingFields.length > 0 || siteContactName.trim() !== selectedSiteRegContact.name || siteContactPhone.trim() !== selectedSiteRegContact.phone || siteContactPosition.trim() !== selectedSiteRegContact.position || siteContactEmail.trim() !== selectedSiteRegContact.email) && (
+                <button
+                  type="button"
+                  onClick={handleUpdateMobileSiteContactNow}
+                  className="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold border border-emerald-500/50 transition"
+                >
+                  현장담당자 정보 즉시 업데이트
+                </button>
+              )}
             </>
           )}
         </div>
