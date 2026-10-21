@@ -446,11 +446,23 @@ export const AssetInboundStaging: React.FC = () => {
                 const activeSiteMaster = siteMasters?.find(sm => sm.id === activeSite?.siteMasterId);
                 const activeDelivery = deliveries?.find(d => d.contractId === activeInspectionItem.contractId && d.type === 'OUTBOUND');
 
+                let cargoPaidOpt = '';
+                let cargoProt = '';
+                try {
+                  if (activeDelivery?.cargoItems) {
+                    const parsed = JSON.parse(activeDelivery.cargoItems);
+                    if (Array.isArray(parsed) && parsed[0]) {
+                      if (parsed[0].paidOptions) cargoPaidOpt = String(parsed[0].paidOptions).trim();
+                      if (parsed[0].requestMeta?.protection) cargoProt = String(parsed[0].requestMeta.protection).trim();
+                    }
+                  }
+                } catch {}
+
                 const optMatch = activeDelivery?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
                 const protMatch = activeDelivery?.closingMemo?.match(/보양:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
 
-                const paidOpt = activeSite?.paidOptions || activeSiteMaster?.paidOptions || activeCustomer?.defaultPaidOptions || (optMatch ? optMatch[1].trim() : '');
-                const prot = activeSite?.protection || activeSiteMaster?.protection || activeCustomer?.defaultProtection || (protMatch ? protMatch[1].trim() : '');
+                const paidOpt = activeSite?.paidOptions || activeSiteMaster?.paidOptions || activeCustomer?.defaultPaidOptions || cargoPaidOpt || (optMatch ? optMatch[1].trim() : '');
+                const prot = activeSite?.protection || activeSiteMaster?.protection || activeCustomer?.defaultProtection || cargoProt || (protMatch ? protMatch[1].trim() : '');
 
                 const hasPaidOpt = paidOpt && paidOpt !== '없음' && paidOpt !== 'NONE' && paidOpt !== '-';
                 const hasProt = prot && prot !== '없음' && prot !== 'NONE' && prot !== '-';

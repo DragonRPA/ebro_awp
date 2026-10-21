@@ -3345,8 +3345,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cargoItems,
       isCostSettled: false,
       rawText: (data as any).prompt || (data as any).rawText || data.note || '',
-      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | [옵션] ${dData.paidOptions || '없음'}${dData.protection && dData.protection !== 'NONE' ? ` / 보양: ${dData.protection}` : ''} | 특이사항: ${data.note || '없음'}`,
-      closingMemo: `[마감조건] 마감일: ${dData.closingDay || '-'} / 결제일: ${dData.paymentDay || '-'} | 유상옵션: ${dData.paidOptions || '없음'} | 보양: ${dData.protection || '없음'}`,
+      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
+      closingMemo: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -3964,16 +3964,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // closingMemo 및 memo 내 옵션 텍스트 동기화
+      // 레거시 closingMemo / memo에 옵션 태그가 이미 있던 경우에만 동기화 (신규 배차의 closingMemo에는 옵션을 주입하지 않음)
       let nextClosingMemo = targetDelivery.closingMemo || '';
-      if (params.paidOptions !== undefined || params.protection !== undefined) {
-        if (nextClosingMemo.includes('유상옵션:')) {
-          nextClosingMemo = nextClosingMemo
-            .replace(/유상옵션:\s*[^|]+/, `유상옵션: ${nextPaidOptions || '없음'} `)
-            .replace(/보양:\s*[^|]+/, `보양: ${nextProtection || '없음'}`);
-        } else {
-          nextClosingMemo = `[마감조건] 유상옵션: ${nextPaidOptions || '없음'} | 보양: ${nextProtection || '없음'}`;
-        }
+      if ((params.paidOptions !== undefined || params.protection !== undefined) && nextClosingMemo.includes('유상옵션:')) {
+        nextClosingMemo = nextClosingMemo
+          .replace(/유상옵션:\s*[^|]+/, `유상옵션: ${nextPaidOptions || '없음'} `)
+          .replace(/보양:\s*[^|]+/, `보양: ${nextProtection || '없음'}`);
       }
 
       let nextMemo = targetDelivery.memo || '';
@@ -4097,9 +4093,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         returnAssets.forEach(a => {
           modelCountsMap[a.modelName] = (modelCountsMap[a.modelName] || 0) + 1;
         });
-        const cargoItems = JSON.stringify(Object.entries(modelCountsMap).map(([modelName, count]) => ({ modelName, count })));
-
-        // 🌟 [전사 표준 헌장 2.2 자동 상속 및 무누락/무잡음 원칙] 출고 시 장착 옵션 및 보양 정확 상속
+        // 🌟 [전사 표준 헌장 2.2 자동 상속 및 무누락/무잡음 원칙] 출고 시 장착 옵션 및 보양은 cargoItems 메타데이터로 보존하고, 배차 특이사항(closingMemo) 및 원문(memo)에는 옵션을 주입하지 않음
         const outboundDelivery = db.deliveries.find(d => d.contractId === contract.id && d.type === 'OUTBOUND');
 
         let rawPaidOptions = (data as any).paidOptions;
@@ -4124,15 +4118,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         const cleanProtection = (rawProtection && rawProtection !== '없음' && rawProtection !== 'NONE') ? String(rawProtection).trim() : 'NONE';
 
-        // 잡음 방지: 불필요한 옵션이 없으면 해당 태그 자체를 생성하지 않음
-        const optionMemoParts: string[] = [];
-        if (cleanPaidOptions) {
-          optionMemoParts.push(`[회수옵션] ${cleanPaidOptions}`);
-        }
-        if (cleanProtection !== 'NONE') {
-          optionMemoParts.push(`[무상옵션] ${cleanProtection}`);
-        }
-        const optionMemoStr = optionMemoParts.length > 0 ? `${optionMemoParts.join(' | ')} | ` : '';
+        const cargoItems = JSON.stringify(
+          Object.entries(modelCountsMap).map(([modelName, count], idx) => ({
+            modelName,
+            count,
+            ...(cleanPaidOptions ? { paidOptions: cleanPaidOptions } : {}),
+            ...(idx === 0 && cleanProtection !== 'NONE' ? { requestMeta: { protection: cleanProtection } } : {})
+          }))
+        );
 
         const createdReturnDelivery = db.insertRow<Delivery>('deliveries', {
           contractId: data.contractId,
@@ -4159,8 +4152,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           reconciliationStatus: 'PENDING',
           cargoItems,
           isCostSettled: false,
-          memo: `${contactInfoMemo}${optionMemoStr}${data.note || ''}`.trim(),
-          closingMemo: `[회수조건] 유상옵션: ${cleanPaidOptions || '없음'} | 보양: ${cleanProtection}`,
+          memo: `${contactInfoMemo}${data.note || ''}`.trim(),
+          closingMemo: '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });

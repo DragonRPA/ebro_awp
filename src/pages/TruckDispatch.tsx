@@ -17,7 +17,14 @@ import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
-import { buildDispatchSmsText, launchDispatchSms, buildDispatchKakaoTalkText, copyToClipboard } from '../utils/nativeLauncher';
+import {
+  buildDispatchSmsText,
+  launchDispatchSms,
+  buildDispatchKakaoTalkText,
+  copyToClipboard,
+  sanitizeDispatcherSpecialNote,
+  stripOptionsFromDispatchRawText
+} from '../utils/nativeLauncher';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { jobNotificationService } from '../services/jobNotificationService';
@@ -2849,7 +2856,7 @@ export const TruckDispatch: React.FC = () => {
       setUnloadingCustomTime('');
     }
 
-    setClosingMemo(d.closingMemo || '');
+    setClosingMemo(sanitizeDispatcherSpecialNote(d.closingMemo));
     setScheduledDate(d.scheduledDate || todayStr);
     setOriginAddress(d.originAddress || '당사 보관소');
 
@@ -2958,7 +2965,8 @@ export const TruckDispatch: React.FC = () => {
       originAddress: originAddress || targetDelivery.originAddress,
       loadingDate: loadingDate || targetDelivery.loadingDate,
       loadingTimeSlot: (loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot) || targetDelivery.loadingTimeSlot,
-      memo: closingMemo || targetDelivery.memo
+      closingMemo: sanitizeDispatcherSpecialNote(closingMemo || targetDelivery.closingMemo),
+      memo: targetDelivery.memo
     };
 
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
@@ -3050,6 +3058,10 @@ export const TruckDispatch: React.FC = () => {
     // 현재 폼에 선택된 배차와 같으면 폼에 수정/입력 중인 최신 값을 우선 반영
     const isSelected = selectedDelivery?.id === targetDelivery.id;
     const currentVehType = assignedVehicles.length > 0 ? assignedVehicles[0].vehicleType : undefined;
+    const effectiveDispatcherNote = isSelected
+      ? sanitizeDispatcherSpecialNote(closingMemo)
+      : sanitizeDispatcherSpecialNote(targetDelivery.closingMemo);
+
     const dObj = {
       ...targetDelivery,
       type: targetDelivery.type,
@@ -3061,7 +3073,8 @@ export const TruckDispatch: React.FC = () => {
       loadingTimeSlot: isSelected ? ((loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot) || targetDelivery.loadingTimeSlot) : targetDelivery.loadingTimeSlot,
       unloadingDate: isSelected ? (unloadingDate || targetDelivery.unloadingDate) : targetDelivery.unloadingDate,
       unloadingTimeSlot: isSelected ? ((unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot) || targetDelivery.unloadingTimeSlot) : targetDelivery.unloadingTimeSlot,
-      memo: isSelected ? (closingMemo || targetDelivery.memo) : targetDelivery.memo
+      closingMemo: effectiveDispatcherNote,
+      memo: targetDelivery.memo
     };
 
     // 장비 종류 포맷팅 (모델명*수량 / 모델명*수량)
@@ -3132,7 +3145,8 @@ export const TruckDispatch: React.FC = () => {
       hqYardAddress,
       hqYardPhone,
       hqYardContactPerson,
-      cargoFormattedString: cargoFormatted
+      cargoFormattedString: cargoFormatted,
+      dispatcherNote: effectiveDispatcherNote
     });
 
     // 1. 클립보드에 선제 복사
@@ -3224,7 +3238,14 @@ export const TruckDispatch: React.FC = () => {
         finalCost: totalFinalCost,
         deliveryCost: totalFinalCost || totalExpectedCost,
         vehicles: JSON.stringify(sanitizedVehicles),
-        closingMemo: closingMemo,
+        closingMemo: (() => {
+          const cleanDispatcherNote = sanitizeDispatcherSpecialNote(closingMemo);
+          const proofMatch = (selectedDelivery.closingMemo || '').match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s|]+)/);
+          if (proofMatch) {
+            return cleanDispatcherNote ? `${cleanDispatcherNote} | ${proofMatch[0]}` : proofMatch[0];
+          }
+          return cleanDispatcherNote;
+        })(),
         memo: selectedDelivery.memo || '',
         updatedAt: new Date().toISOString()
       };
@@ -4084,7 +4105,7 @@ export const TruckDispatch: React.FC = () => {
                         {/* 화물/자산 정보 표시 */}
                         {(d.type === 'INBOUND' || d.type === 'RETURN' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
                           const returnAssetsList = getReturnAssets(d);
-                          const specialNoteText = (d.closingMemo || d.memo || '').trim();
+                          const specialNoteText = sanitizeDispatcherSpecialNote(d.closingMemo);
                           const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
                           return (
                             // 회수 배차: 계약/회수 자산 목록 표시 (수동 배차인 경우 특기사항 텍스트 표시)
@@ -4110,7 +4131,7 @@ export const TruckDispatch: React.FC = () => {
                           // 출고/이동/정비 배차: 계약 화물 cargoItems 또는 수동 배차 특기사항 표시
                           <div style={{ padding: '6px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                             📦 화물: {!d.contractId
-                              ? ((d.closingMemo || d.memo || '').trim() || '특기사항 없음')
+                              ? (sanitizeDispatcherSpecialNote(d.closingMemo) || stripOptionsFromDispatchRawText(d.memo) || '특기사항 없음')
                               : cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ')}
                           </div>
                         )}
@@ -4650,7 +4671,7 @@ export const TruckDispatch: React.FC = () => {
 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>배차 특이사항 및 마감 메모</label>
   {(() => {
-    const match = closingMemo.match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s]+)/);
+    const match = (selectedDelivery.closingMemo || closingMemo).match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s]+)/);
     const receiptUrl = match ? match[2] : null;
     if (receiptUrl) {
       return (
@@ -4685,7 +4706,7 @@ export const TruckDispatch: React.FC = () => {
                       <MessageSquare size={16} /> 💬 출고 요청 자연어 원본 텍스트 (배차 판단 참고용)
                     </div>
                     <div style={{ fontSize: '12.5px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontFamily: 'Consolas, Monaco, monospace', backgroundColor: 'var(--bg-card)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      {selectedDelivery.rawText || selectedDelivery.memo || '요청된 자연어 원문이 없습니다.'}
+                      {stripOptionsFromDispatchRawText(selectedDelivery.rawText || selectedDelivery.memo) || '요청된 자연어 원문이 없습니다.'}
                     </div>
                   </div>
 

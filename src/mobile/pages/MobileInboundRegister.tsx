@@ -178,10 +178,21 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
 
   const inheritedOptionsInfo = useMemo(() => {
     if (!currentAsset) return null;
+    let cargoPaidOpt = '';
+    let cargoProt = '';
+    try {
+      if (currentOutboundDelivery?.cargoItems) {
+        const parsed = JSON.parse(currentOutboundDelivery.cargoItems);
+        if (Array.isArray(parsed) && parsed[0]) {
+          if (parsed[0].paidOptions) cargoPaidOpt = String(parsed[0].paidOptions).trim();
+          if (parsed[0].requestMeta?.protection) cargoProt = String(parsed[0].requestMeta.protection).trim();
+        }
+      }
+    } catch {}
     const optMatch = currentOutboundDelivery?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || currentOutboundDelivery?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
     const protMatch = currentOutboundDelivery?.closingMemo?.match(/보양:\s*([^\|]+)/) || currentOutboundDelivery?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
-    const rawOpt = currentSiteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '') || '';
-    const rawProt = currentSiteMaster?.protection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
+    const rawOpt = currentSiteMaster?.paidOptions || cargoPaidOpt || (optMatch ? optMatch[1].trim() : '') || '';
+    const rawProt = currentSiteMaster?.protection || cargoProt || (protMatch ? protMatch[1].trim() : '') || 'NONE';
 
     const cleanOpt = (rawOpt && rawOpt !== '없음' && rawOpt !== 'NONE') ? rawOpt : '';
     const cleanProt = (rawProt && rawProt !== '없음' && rawProt !== 'NONE') ? rawProt : '';

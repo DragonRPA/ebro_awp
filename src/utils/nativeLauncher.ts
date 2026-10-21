@@ -319,6 +319,79 @@ export function resolveSiteDetailedAddress(params: {
 }
 
 /**
+ * 🧹 배차 특이사항 정제 헬퍼
+ * - 시스템이 자동 기록했던 [마감조건], [회수조건], 유상옵션:, 무상옵션:, 보양:, 부착물:, 마감일/결제일, 납품증 링크 등
+ *   장비·옵션·정산 메타데이터를 100% 제거하고, 오직 배차 직원이 직접 입력한 순수 특이사항만 추출한다.
+ */
+export function sanitizeDispatcherSpecialNote(rawNote?: string | null): string {
+  if (!rawNote || !rawNote.trim()) return '';
+
+  const segments = rawNote
+    .split('|')
+    .map(seg => seg.trim())
+    .filter(Boolean);
+
+  const kept: string[] = [];
+  for (const seg of segments) {
+    // [마감조건] 또는 [회수조건] 접두 제거 후 판별
+    const stripped = seg
+      .replace(/^\[(?:마감조건|회수조건)\]\s*/g, '')
+      .trim();
+
+    if (!stripped) continue;
+
+    // 옵션·정산·시스템 자동 생성 조각은 전면 배제
+    if (
+      /^(?:마감일|결제일)\s*:/.test(stripped) ||
+      /^(?:유상옵션|무상옵션|회수옵션|출고옵션|보양|부착물|현장요구사양)\s*:/.test(stripped) ||
+      /^\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|정산일정|차종|하차일정|현장상세주소)\]/.test(stripped) ||
+      /^\[(?:납품증 사진|전자 서명)\]\s*:/.test(stripped) ||
+      stripped === '출고 파이프라인 자동 지시건' ||
+      stripped === '없음' ||
+      stripped === 'NONE' ||
+      stripped === '-'
+    ) {
+      continue;
+    }
+
+    kept.push(stripped);
+  }
+
+  return kept.join(' | ').trim();
+}
+
+/**
+ * 🧹 배차 화면 참고용 원문 텍스트에서 불필요한 장비 옵션/보양 목록 제거 헬퍼
+ */
+export function stripOptionsFromDispatchRawText(rawText?: string | null): string {
+  if (!rawText || !rawText.trim()) return '';
+
+  // [고객담당자: ...] 뒤에 바로 붙은 [회수옵션] 등을 분리하기 위해 먼저 태그 앞을 구분
+  const normalized = rawText
+    .replace(/\]\s*\[(?=(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업)\])/g, '] | [');
+
+  const segments = normalized
+    .split('|')
+    .map(seg => seg.trim())
+    .filter(Boolean);
+
+  const kept: string[] = [];
+  for (const seg of segments) {
+    const cleaned = seg
+      .replace(/\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업)\]\s*[^|]*/g, '')
+      .replace(/(?:유상옵션|무상옵션|회수옵션|출고옵션|보양)\s*:\s*[^|]*/g, '')
+      .trim();
+
+    if (!cleaned || cleaned === '-' || cleaned === '특이사항:' || cleaned === '특이사항: 없음') {
+      continue;
+    }
+    kept.push(cleaned);
+  }
+
+  return kept.join(' | ').trim();
+}
+
+/**
  * 🚚 화물 기사 배차 안내 문자 포맷팅 파라미터
  */
 export interface DispatchSmsParams {
@@ -449,12 +522,9 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
     lines.push(``, `※ [교환 배차 주의사항]`, `- 신규 장비 하차 후, 현장 회수 장비를 상차하여 ${defaultYardName}(으)로 복귀하는 왕복 배차입니다.`);
   }
 
-  if (delivery.memo && delivery.memo.trim()) {
-    lines.push(``, `[특이사항]`, `- ${delivery.memo.trim()}`);
-  }
-
-  if (delivery.closingMemo && delivery.closingMemo.trim()) {
-    lines.push(``, `[유상 및 무상옵션]`, `- ${delivery.closingMemo.trim()}`);
+  const specialNote = sanitizeDispatcherSpecialNote(delivery.closingMemo);
+  if (specialNote) {
+    lines.push(``, `[특이사항]`, `- ${specialNote}`);
   }
 
   lines.push(``, `※ 현장 도착 30분 전 인수자에게 사전 연락 부탁드립니다.`);
@@ -591,6 +661,7 @@ export interface DispatchKakaoParams {
   hqYardPhone?: string;
   hqYardContactPerson?: string;
   cargoFormattedString?: string;
+  dispatcherNote?: string;
   isSelfCar?: boolean;
 }
 
@@ -739,7 +810,15 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
     lines.push(`담당자 : ${siteContactFull}`);
   }
 
-  
+  // 9. 배차직원이 직접 입력한 특이사항만 전달 (출고/회수 장비 옵션은 화물차 기사에게 전달하지 않음)
+  const dispatcherSpecialNote = sanitizeDispatcherSpecialNote(
+    params.dispatcherNote !== undefined ? params.dispatcherNote : delivery.closingMemo
+  );
+  if (dispatcherSpecialNote) {
+    lines.push(``);
+    lines.push(`특이사항 : ${dispatcherSpecialNote}`);
+  }
+
   // 기사용 모바일 포털 링크 추가
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
   lines.push('');
