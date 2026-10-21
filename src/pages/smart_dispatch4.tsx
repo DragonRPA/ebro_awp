@@ -102,7 +102,7 @@ interface DraftOrder {
 }
 
 type ActiveTab = 'NEW' | 'QUEUE' | 'HISTORY';
-type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST';
+type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST' | 'FREIGHT_STANDARD';
 
 const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',   label: '신규고객 출고',   color: '#7c3aed' },
@@ -709,7 +709,7 @@ export const SmartDispatch4: React.FC = () => {
   });
   const openSingleBlock = (id: BlockId) => setOpenBlocks(prev => new Set(prev).add(id));
   const setOpenBlock = openSingleBlock;
-  const toggleAllBlocks = () => setOpenBlocks(prev => prev.size === 5 ? new Set() : new Set<BlockId>(['CUSTOMER', 'SITE', 'EQUIPMENT', 'SCHEDULE', 'SAFETY_COST']));
+  const toggleAllBlocks = () => setOpenBlocks(prev => prev.size === 6 ? new Set() : new Set<BlockId>(['CUSTOMER', 'SITE', 'EQUIPMENT', 'SCHEDULE', 'SAFETY_COST', 'FREIGHT_STANDARD']));
 
   // ── 1. 거래처 (고객사) ─────────────────────────────────────────────────────
   const [customerQuery, setCustomerQuery] = useState('');
@@ -3266,7 +3266,7 @@ export const SmartDispatch4: React.FC = () => {
           {/* 블록 제어 바 */}
           <div className="flex items-center justify-between px-1 py-0.5 text-xs text-slate-400">
             <span className="text-[11px] font-semibold text-slate-400">
-              5단계 요청 서식 ({openBlocks.size}/5 블록 열림)
+              6단계 요청 서식 ({openBlocks.size}/6 블록 열림)
             </span>
             <button
               data-mid="dispatch4-btn-toggle-blocks"
@@ -3274,7 +3274,7 @@ export const SmartDispatch4: React.FC = () => {
               onClick={toggleAllBlocks}
               className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-850 hover:bg-slate-750 text-slate-300 hover:text-white transition border border-slate-750 shadow-sm"
             >
-              {openBlocks.size === 5 ? '전체 블록 접기' : '전체 블록 펼치기'}
+              {openBlocks.size === 6 ? '전체 블록 접기' : '전체 블록 펼치기'}
             </button>
           </div>
 
@@ -3344,63 +3344,28 @@ export const SmartDispatch4: React.FC = () => {
             )}
           </div>
 
-          {/* 업무 유형 선택 버튼군 & 운송료 청구기준 (단일 선택 강제 & 건조한 명사 단일 표준) */}
-          <div data-mid="dispatch4-context-types" className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-300">업무 유형</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {CONTEXT_OPTIONS.map(opt => {
-                    const active = selectedContext === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleSelectContext(opt.id)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
-                          active
-                            ? 'border-blue-500 bg-blue-600/40 text-blue-200 shadow-sm font-black'
-                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 hover:text-slate-200'
-                        }`}
-                      >
-                        {active && <span className="mr-1">✓</span>}
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 🌟 운송료 청구기준 라디오버튼 그룹 (2/4 vs 3/5, 기본값 3/5) */}
-              <div data-mid="dispatch4-freight-billing-standard" className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-300 whitespace-nowrap">운송료 청구기준</label>
-                <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1">
-                  {(['2/4', '3/5'] as const).map(std => {
-                    const checked = freightBillingStandard === std;
-                    return (
-                      <label
-                        key={std}
-                        onClick={() => setFreightBillingStandard(std)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
-                          checked
-                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
-                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="freightBillingStandardTop"
-                          value={std}
-                          checked={checked}
-                          onChange={() => setFreightBillingStandard(std)}
-                          className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
-                        />
-                        <span>{std}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+          {/* 업무 유형 선택 버튼군 (단일 선택 강제 & 건조한 명사 단일 표준) */}
+          <div data-mid="dispatch4-context-types" className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm flex flex-col gap-1">
+            <label className="text-xs font-bold text-slate-300">업무 유형</label>
+            <div className="flex flex-wrap gap-1.5">
+              {CONTEXT_OPTIONS.map(opt => {
+                const active = selectedContext === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleSelectContext(opt.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border ${
+                      active
+                        ? 'border-blue-500 bg-blue-600/40 text-blue-200 shadow-sm font-black'
+                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                    }`}
+                  >
+                    {active && <span className="mr-1">✓</span>}
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -4810,44 +4775,6 @@ export const SmartDispatch4: React.FC = () => {
                     onChange={e => setStaggeredMemo(e.target.value)}
                   />
                 </div>
-
-                {/* 🌟 운송료 청구기준 라디오버튼 그룹 (2/4 vs 3/5, 기본값 3/5) */}
-                <div className="p-2.5 bg-slate-950/80 border border-emerald-500/40 rounded-xl flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <label className="text-xs font-bold text-emerald-300">운송료 청구기준</label>
-                    <span className="text-[11px] text-slate-300">
-                      {freightBillingStandard === '2/4'
-                        ? '■ 2개월 이하: 왕복 임차인 부담 · 4개월 이하: 편도 임차인 부담 · 4개월 초과: 왕복 임대인 부담'
-                        : '■ 3개월 이하: 왕복 임차인 부담 · 5개월 이하: 편도 임차인 부담 · 5개월 초과: 왕복 임대인 부담'}
-                    </span>
-                  </div>
-                  <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2">
-                    {(['2/4', '3/5'] as const).map(std => {
-                      const checked = freightBillingStandard === std;
-                      return (
-                        <label
-                          key={std}
-                          onClick={() => setFreightBillingStandard(std)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
-                            checked
-                              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="freightBillingStandardBlock4"
-                            value={std}
-                            checked={checked}
-                            onChange={() => setFreightBillingStandard(std)}
-                            className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
-                          />
-                          <span>{std}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
             )}
           </div>
@@ -4954,44 +4881,6 @@ export const SmartDispatch4: React.FC = () => {
                     )}
                   </div>
                 )}
-
-                {/* 2. 운송료 청구기준 라디오버튼 그룹 */}
-                <div className="p-2.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <label className="text-[11px] font-bold text-slate-200">운송료 청구기준</label>
-                    <span className="text-[10.5px] text-slate-400">
-                      {freightBillingStandard === '2/4'
-                        ? '■ 2개월 이하: 왕복 임차인 부담 · 4개월 이하: 편도 임차인 부담 · 4개월 초과: 왕복 임대인 부담'
-                        : '■ 3개월 이하: 왕복 임차인 부담 · 5개월 이하: 편도 임차인 부담 · 5개월 초과: 왕복 임대인 부담'}
-                    </span>
-                  </div>
-                  <div role="radiogroup" aria-label="운송료 청구기준" className="flex items-center gap-2">
-                    {(['2/4', '3/5'] as const).map(std => {
-                      const checked = freightBillingStandard === std;
-                      return (
-                        <label
-                          key={std}
-                          onClick={() => setFreightBillingStandard(std)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold cursor-pointer select-none transition border whitespace-nowrap ${
-                            checked
-                              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 font-black shadow-sm'
-                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="freightBillingStandardBlock5"
-                            value={std}
-                            checked={checked}
-                            onChange={() => setFreightBillingStandard(std)}
-                            className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
-                          />
-                          <span>{std}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
 
                 {/* 2. 고객 요청 옵션 및 작업 요구사항 */}
                 <div data-mid="dispatch4-safety-options" className="flex flex-col gap-2">
@@ -5399,6 +5288,81 @@ export const SmartDispatch4: React.FC = () => {
                       </div>
                     );
                   })()}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 6. 운송료 청구기준 */}
+          <div data-mid="dispatch4-block-freight-standard" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+            <div
+              className={`dispatch4-block-header ${
+                openBlocks.has('FREIGHT_STANDARD') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
+              }`}
+              onClick={() => toggleBlock('FREIGHT_STANDARD')}
+            >
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
+                <Truck className="w-4 h-4 text-emerald-400" />
+                <span>6. 운송료 청구기준</span>
+                <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
+                  ✓ {freightBillingStandard} 기준 ({freightBillingStandard === '2/4' ? '2개월 이하 왕복 · 4개월 이하 편도' : '3개월 이하 왕복 · 5개월 이하 편도'})
+                </span>
+              </div>
+              {openBlocks.has('FREIGHT_STANDARD') ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </div>
+
+            {openBlocks.has('FREIGHT_STANDARD') && (
+              <div className="dispatch4-block-body">
+                <div role="radiogroup" aria-label="운송료 청구기준" className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {([
+                    {
+                      id: '3/5' as const,
+                      title: '3/5 기준 (기본)',
+                      desc: '3개월 이하: 왕복 임차인 부담 · 5개월 이하: 편도 임차인 부담 · 5개월 초과: 왕복 임대인 부담',
+                    },
+                    {
+                      id: '2/4' as const,
+                      title: '2/4 기준',
+                      desc: '2개월 이하: 왕복 임차인 부담 · 4개월 이하: 편도 임차인 부담 · 4개월 초과: 왕복 임대인 부담',
+                    },
+                  ]).map(item => {
+                    const checked = freightBillingStandard === item.id;
+                    return (
+                      <label
+                        key={item.id}
+                        onClick={() => setFreightBillingStandard(item.id)}
+                        className={`p-3 rounded-xl border cursor-pointer select-none transition flex flex-col gap-1.5 ${
+                          checked
+                            ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-sm'
+                            : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-900 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="freightBillingStandardBlock6"
+                              value={item.id}
+                              checked={checked}
+                              onChange={() => setFreightBillingStandard(item.id)}
+                              className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                            />
+                            <span className={`text-xs font-extrabold ${checked ? 'text-emerald-300' : 'text-slate-200'}`}>
+                              {item.title}
+                            </span>
+                          </div>
+                          {checked && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-900/80 text-emerald-200 border border-emerald-500/40">
+                              선택됨
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-300 leading-relaxed pl-6">
+                          {item.desc}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}
