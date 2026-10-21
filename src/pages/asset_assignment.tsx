@@ -8,7 +8,7 @@ import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const AssetAssignment: React.FC = () => {
-  const { hasPermission, contractAssets, contracts, customers, assets, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
+  const { hasPermission, contractAssets, contracts, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
   
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   
@@ -36,12 +36,37 @@ export const AssetAssignment: React.FC = () => {
   const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
   const contractMap = useMemo(() => new Map((contracts || []).map(c => [c.id, c])), [contracts]);
   const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
   const availablePool = useMemo(() => (assets || []).filter(a => a.status === 'AVAILABLE'), [assets]);
+
+  // 이미 출고검수 승인 완료(COMPLETED)된 슬롯 ID 집합 (헌장 1.3: 기출고 대여중 장비는 할당 작업대에서 제외)
+  const completedInspectionCaIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (outboundInspections || []).forEach(ins => {
+      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
+        set.add((ins as any).contractAssetId);
+      }
+    });
+    return set;
+  }, [outboundInspections]);
 
   const contractAssetsByContractMap = useMemo(() => {
     const map = new Map<string, typeof contractAssets>();
     (contractAssets || []).forEach(ca => {
       if (!ca.contractId) return;
+      if (ca.status === 'RETURNED' || ca.status === 'SOLD') return;
+
+      // 이미 실물 장비가 배정되어 출고검수 승인을 거쳐 현장 대여중(RENTED)인 과거 기존 자산은
+      // 신규/추가 출고 요청의 장비 할당 대상 슬롯에서 제외 (오직 미할당 슬롯 + 이번 출고대기(ASSIGNED) 슬롯만 포함)
+      if (ca.assetId) {
+        const assignedAsset = assetMap.get(ca.assetId);
+        const isAlreadyRented =
+          ca.status === 'RENTED' ||
+          assignedAsset?.status === 'RENTED' ||
+          completedInspectionCaIdSet.has(ca.id);
+        if (isAlreadyRented) return;
+      }
+
       let list = map.get(ca.contractId);
       if (!list) {
         list = [];
@@ -50,7 +75,7 @@ export const AssetAssignment: React.FC = () => {
       list.push(ca);
     });
     return map;
-  }, [contractAssets]);
+  }, [contractAssets, assetMap, completedInspectionCaIdSet]);
 
   const exchangeHistoryByContractMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -473,7 +498,7 @@ export const AssetAssignment: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '800', marginBottom: '4px', fontSize: '18px', letterSpacing: '-0.5px' }}>장비 할당</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            계약의 모델명 × 수량별 요구 슬롯에 가용 장비를 다중 선택 및 관리번호 입력으로 일괄 매핑합니다.
+            계약의 모델명 × 수량별 요구 슬롯에 가용 장비를 다중 선택 및 자산번호 입력으로 일괄 매핑합니다.
           </p>
         </div>
         <button
@@ -499,7 +524,7 @@ export const AssetAssignment: React.FC = () => {
               <strong style={{ fontSize: '15px', color: totalPendingSlots > 0 ? '#d97706' : 'var(--text-muted)' }}>{totalPendingSlots}대</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>대차 우선 할당 대기</span>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>교환 우선 할당 대기</span>
               <strong style={{ fontSize: '15px', color: exchangeSlots > 0 ? '#c2410c' : 'var(--text-muted)' }}>{exchangeSlots}대</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -510,16 +535,16 @@ export const AssetAssignment: React.FC = () => {
         );
       })()}
 
-      {/* 대차 교체 출고할당 대기 (최우선 표출) */}
+      {/* 교환 출고할당 대기 (최우선 표출) */}
       {exchangePendingContracts.length > 0 && (
         <div style={{ backgroundColor: 'var(--warning-light)', padding: '14px', borderRadius: '10px', border: '2px solid var(--warning)' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--warning)' }}>
-            <AlertTriangle size={14} /> 대차 교체 출고할당 대기 ({exchangePendingContracts.length}건)
-            <span style={{ fontSize: '11px', fontWeight: '500', color: '#9a3412', marginLeft: '4px' }}>— 영업사원 대차 의뢰 접수 건</span>
+            <AlertTriangle size={14} /> 교환 출고할당 대기 ({exchangePendingContracts.length}건)
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
             {exchangePendingContracts.map(contract => {
               const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
+              const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
               const cas = contractAssetsByContractMap.get(contract.id) || [];
               const isSelected = selectedContractId === contract.id;
               const excHistory = exchangeHistoryByContractMap.get(contract.id);
@@ -535,13 +560,18 @@ export const AssetAssignment: React.FC = () => {
                   className="hover-lift"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '13px' }}>{cust?.name || '미상 고객'}</div>
-                    <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: '#f97316', color: '#fff', padding: '2px 6px', borderRadius: '4px' }}>대차할당대기</span>
+                    <div>
+                      <div style={{ fontWeight: '800', fontSize: '13px' }}>{cust?.name || '미상 고객'}</div>
+                      {site?.name && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '2px' }}>{site.name}</div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '10px', fontWeight: '700', backgroundColor: '#f97316', color: '#fff', padding: '2px 6px', borderRadius: '4px' }}>교환할당대기</span>
                   </div>
                   <div style={{ fontSize: '11px', color: '#7c2d12', marginBottom: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <div>계약번호: <strong>{contract.contractNo}</strong></div>
                     <div>요구 모델: <strong>{cas.map(ca => ca.expectedModel || '미지정').join(', ')}</strong></div>
-                    <div style={{ fontSize: '10px', color: '#9a3412', marginTop: '2px' }}>사유: {excHistory?.description?.substring(excHistory.description.indexOf('사유:') + 3, excHistory.description.indexOf('사유:') + 30) || '대차 요청'}</div>
+                    <div style={{ fontSize: '10px', color: '#9a3412', marginTop: '2px' }}>사유: {excHistory?.description?.substring(excHistory.description.indexOf('사유:') + 3, excHistory.description.indexOf('사유:') + 30) || '교환 요청'}</div>
                   </div>
                   {isSelected && <div style={{ color: '#f97316', fontWeight: '700', fontSize: '11px' }}>▶ 할당 진행 중</div>}
                 </div>
@@ -563,6 +593,7 @@ export const AssetAssignment: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
             {pendingContracts.map(contract => {
               const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
+              const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
               const cas = contractAssetsByContractMap.get(contract.id) || [];
               const totalCount = cas.length;
               const assignedCount = cas.filter(ca => ca.assetId).length;
@@ -600,8 +631,15 @@ export const AssetAssignment: React.FC = () => {
                   className="hover-lift"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '13px', color: 'var(--text-main)' }}>
-                      {cust?.name || '미상 고객'}
+                    <div>
+                      <div style={{ fontWeight: '800', fontSize: '13px', color: 'var(--text-main)' }}>
+                        {cust?.name || '미상 고객'}
+                      </div>
+                      {site?.name && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '2px' }}>
+                          {site.name}
+                        </div>
+                      )}
                     </div>
                     <span className="badge badge-warning" style={{ fontSize: '10px', padding: '2px 4px' }}>대기중</span>
                   </div>
@@ -765,7 +803,7 @@ export const AssetAssignment: React.FC = () => {
                                   gap: '6px'
                                 }}
                               >
-                                <span>{a?.assetNo || '장비'} ({a?.serialNo || 'S/N미상'})</span>
+                                <span>{a?.assetNo || '장비'} ({a?.serialNo || '제조번호미상'})</span>
                                 <button
                                   type="button"
                                   title="할당 취소 (임대가능 재고로 복원)"
@@ -802,7 +840,7 @@ export const AssetAssignment: React.FC = () => {
             </div>
           </div>
 
-          {/* 2-B: 가용 장비 선택 풀 (멀티셀렉트 & 관리번호 입력) */}
+          {/* 2-B: 가용 장비 선택 풀 (멀티셀렉트 & 자산번호 입력) */}
           <div className="card" style={{ height: '540px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', border: '2px solid var(--success-light)' }}>
             
             {/* 가용 장비 헤더 & 일괄 할당 버튼 */}
@@ -841,10 +879,10 @@ export const AssetAssignment: React.FC = () => {
               )}
             </div>
 
-            {/* ⌨️ 관리번호 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력) */}
+            {/* ⌨️ 자산번호 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력) */}
             <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                관리번호 입력 (쉼표 또는 엔터로 다중 연속 입력)
+                자산번호 입력 (쉼표 또는 엔터로 다중 연속 입력)
               </label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
@@ -911,7 +949,7 @@ export const AssetAssignment: React.FC = () => {
               <Search size={13} color="var(--text-muted)" />
               <input
                 type="text"
-                placeholder="목록 내 검색 (관리번호, 모델명, S/N...)"
+                placeholder="목록 내 검색 (자산번호, 모델명, 제조번호...)"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
@@ -1013,7 +1051,7 @@ export const AssetAssignment: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingContracts.length + exchangePendingContracts.length}건 계약)</span>
           <span>|</span>
-          <span>대차 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingContracts.length}건</strong></span>
+          <span>교환 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingContracts.length}건</strong></span>
           <span>|</span>
           <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {availablePool.length}대</strong></span>
           <span>|</span>

@@ -5672,6 +5672,49 @@ export const SmartDispatch4: React.FC = () => {
             unassignedCount
           });
         });
+      } else if (d.contractId) {
+        const allContractCas = contractAssets.filter(
+          ca => ca.contractId === d.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+        );
+        const pendingOrAssignedCas = allContractCas.filter(ca => {
+          if (!ca.assetId) return true;
+          const a = assets.find(as => as.id === ca.assetId);
+          return ca.status === 'ASSIGNED' || a?.status === 'ASSIGNED';
+        });
+        const fallbackCas = pendingOrAssignedCas.length > 0 ? pendingOrAssignedCas : allContractCas;
+        const groupedMap = new Map<string, typeof fallbackCas>();
+        fallbackCas.forEach(ca => {
+          const modelKey = (ca.expectedModel || '미지정').trim();
+          const arr = groupedMap.get(modelKey) || [];
+          arr.push(ca);
+          groupedMap.set(modelKey, arr);
+        });
+        groupedMap.forEach((casForModel, modelName) => {
+          const caIds = casForModel.map(c => c.id);
+          allCaIds.push(...caIds);
+          const firstCa = casForModel[0];
+          const monthlyRate = Number(firstCa?.monthlyRentalFee || 0);
+          const dailyRate = Number(firstCa?.dailyRentalFee || (monthlyRate ? Math.round(monthlyRate / 30) : 0));
+          const assignedAssets: string[] = [];
+          let unassignedCount = 0;
+          casForModel.forEach(ca => {
+            if (ca.assetId) {
+              const a = assets.find(as => as.id === ca.assetId);
+              assignedAssets.push(a?.assetNo || (a as any)?.managementNo || ca.assetId);
+            } else {
+              unassignedCount++;
+            }
+          });
+          equipmentItems.push({
+            contractAssetIds: caIds,
+            modelName: modelName || '-',
+            qty: casForModel.length,
+            monthlyRate,
+            dailyRate,
+            assignedAssets,
+            unassignedCount
+          });
+        });
       }
 
       const totalQty = equipmentItems.reduce((sum, eq) => sum + eq.qty, 0);

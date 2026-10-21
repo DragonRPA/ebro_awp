@@ -1186,7 +1186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'voice_dispatch':       ['customers', 'sites', 'siteMasters', 'standardOptions', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
     'smart_return':         ['deliveries', 'contracts', 'assets', 'sites', 'siteMasters', 'standardOptions', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
     'asset_inout_history':  ['assetInOutLogs', 'assets', 'customers'],
-    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'customers', 'sites', 'siteMasters', 'standardOptions', 'contractHistory'],
+    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'deliveries', 'customers', 'sites', 'siteMasters', 'standardOptions', 'contractHistory'],
     'outbound_inspections': ['outboundInspections', 'contracts', 'contractAssets', 'assets', 'customers', 'sites', 'siteMasters', 'standardOptions', 'deliveries'],
     'bank_matching':        ['bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'paymentDepositLinks', 'payments', 'billings', 'customers', 'purchaseSettlements'],
     'vendors':              ['vendors'],
@@ -3746,6 +3746,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         db.outboundInspections
           .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
           .forEach(ins => allOriginalCaIds.add((ins as any).contractAssetId));
+        if (allOriginalCaIds.size === 0 && targetDelivery.contractId) {
+          db.contractAssets
+            .filter(ca => ca.contractId === targetDelivery.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && (!ca.assetId || ca.status === 'ASSIGNED'))
+            .forEach(ca => allOriginalCaIds.add(ca.id));
+        }
 
         const oldSummary = parsedCargo.map(ci => `${ci.modelName} ${ci.count || ci.qty || 1}대(월 ${(ci.monthlyRentalFee || 0).toLocaleString()}원)`).join(', ');
         const newSummary = mergedEqs.map(eq => `${eq.modelName} ${eq.qty}대(월 ${eq.monthlyRate.toLocaleString()}원)`).join(', ');
@@ -6830,17 +6835,35 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     const nowIso = new Date().toISOString();
+    const createdCargoMap = new Map<string, { modelName: string; count: number; contractAssetIds: string[]; monthlyRentalFee: number; dailyRentalFee: number }>();
+    const createdInspIdsForDelivery: string[] = [];
+
     assetsList.forEach(item => {
+      const resolvedModel = item.expectedModel || (item.assetId ? db.assets.find(a => a.id === item.assetId)?.modelName : undefined) || '미지정';
       const insertedCA = db.insertRow<ContractAsset>('contractAssets', {
         contractId: contract.id,
         assetId: item.assetId || undefined,
-        expectedModel: item.expectedModel || undefined,
+        status: 'ASSIGNED',
+        expectedModel: resolvedModel,
         monthlyRentalFee: item.monthlyRentalFee,
         dailyRentalFee: item.dailyRentalFee,
         startDate: contractData.startDate,
         endDate: contractData.endDate,
         createdAt: nowIso
       });
+
+      if (insertedCA?.id) {
+        const grp = createdCargoMap.get(resolvedModel) || {
+          modelName: resolvedModel,
+          count: 0,
+          contractAssetIds: [],
+          monthlyRentalFee: Number(item.monthlyRentalFee) || 0,
+          dailyRentalFee: Number(item.dailyRentalFee) || 0
+        };
+        grp.count += 1;
+        grp.contractAssetIds.push(insertedCA.id);
+        createdCargoMap.set(resolvedModel, grp);
+      }
 
       if (item.assetId) {
         db.updateRow<Asset>('assets', item.assetId, {
@@ -6855,7 +6878,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           updatedAt: nowIso
         });
         // ✅ 고아 레코드 방지: assetId가 있는 슬롯 생성 시 출고검수 의뢰 자동 연동 생성
-        db.insertRow<OutboundInspection>('outboundInspections', {
+        const createdInsp = db.insertRow<OutboundInspection>('outboundInspections', {
           contractId: contract.id,
           contractAssetId: insertedCA.id,
           assetId: item.assetId,
@@ -6863,6 +6886,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           createdAt: nowIso,
           updatedAt: nowIso
         });
+        if (createdInsp?.id) createdInspIdsForDelivery.push(createdInsp.id);
       }
     });
 
@@ -6876,15 +6900,19 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     });
 
     const today = new Date().toISOString().split('T')[0];
-    db.insertRow<Delivery>('deliveries', {
+    const targetStart = contractData.startDate || today;
+    const targetSite = contractData.siteId ? db.sites.find(s => s.id === contractData.siteId) : undefined;
+    const createdDelivery = db.insertRow<Delivery>('deliveries', {
       contractId: contract.id,
+      destinationAddress: targetSite?.address || customer?.address || undefined,
+      cargoItems: createdCargoMap.size > 0 ? JSON.stringify(Array.from(createdCargoMap.values())) : undefined,
       type: 'OUTBOUND',
       dispatchCategory: '출고',
       status: 'REQUESTED',
       requestDate: today,
-      loadingDate: today,
+      loadingDate: targetStart,
       loadingTimeSlot: '오전',
-      unloadingDate: today,
+      unloadingDate: targetStart,
       unloadingTimeSlot: '오전',
       deliveryCost: 0,
       isCostSettled: false,
@@ -6893,6 +6921,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    if (createdDelivery?.id && createdInspIdsForDelivery.length > 0) {
+      createdInspIdsForDelivery.forEach(inspId => {
+        db.updateRow<OutboundInspection>('outboundInspections', inspId, { deliveryId: createdDelivery.id });
+      });
+    }
 
     await db.awaitPendingWrites(); refreshAllData(); };
 
@@ -7631,6 +7664,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       // 1. ContractAsset 업데이트 (실물 장비 ID 할당, 기존 계약의 expectedModel 보존)
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: assetId,
+        status: 'ASSIGNED',
         expectedModel: origCa.expectedModel || origAsset?.modelName
       });
 
@@ -7747,6 +7781,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         // 2-1. contractAssets 업데이트 (기존 계약의 expectedModel 절대 보존)
         db.updateRow<ContractAsset>('contractAssets', origCa.id, {
           assetId: origAsset.id,
+          status: 'ASSIGNED',
           expectedModel: origCa.expectedModel || origAsset.modelName
         });
 
@@ -7868,7 +7903,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       // 1. ContractAsset 에서 assetId 명시적 NULL 제거 (Supabase DB 반영 보장)
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
-        assetId: null as any
+        assetId: null as any,
+        status: 'ASSIGNED'
       });
 
       // 2. Asset 상태를 임대가능 로 복원 및 계약 연결 명시적 NULL 해제
@@ -7963,7 +7999,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         if (origCa && origCa.assetId) {
           const origAssetId = origCa.assetId;
           db.updateRow<ContractAsset>('contractAssets', caId, {
-            assetId: null as any
+            assetId: null as any,
+            status: 'ASSIGNED'
           });
           db.updateRow<Asset>('assets', origAssetId, {
             status: 'AVAILABLE',
