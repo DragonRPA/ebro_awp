@@ -823,7 +823,9 @@ export const Deliveries: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      {d.status === 'COMPLETED' ? (
+                      {(d.transportCompany || '').trim() === '고객직접운송' ? (
+                        <span style={{ color: 'var(--text-muted)', fontWeight: '700', fontSize: '12px' }}>정산제외 (고객직접운송)</span>
+                      ) : d.status === 'COMPLETED' ? (
                         d.isCostSettled ? (
                           <span style={{ color: 'var(--success)', fontWeight: '700', fontSize: '12px' }}>정산완료(마감)</span>
                         ) : (

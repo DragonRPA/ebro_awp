@@ -103,9 +103,9 @@ export const SmartDispatch: React.FC = () => {
   }, [customers, customerName]);
 
   const currentMatchedSite = useMemo(() => {
-    if (!currentMatchedCustomer || !siteName) return null;
-    const cleanSite = siteName.replace(/\s/g, '');
-    return sites.find(s => s.customerId === currentMatchedCustomer.id && (s.name.replace(/\s/g, '') === cleanSite || s.name.includes(siteName) || siteName.includes(s.name))) || null;
+    if (!currentMatchedCustomer || !siteName.trim()) return null;
+    const trimmedSite = siteName.trim();
+    return sites.find(s => s.customerId === currentMatchedCustomer.id && s.name.trim() === trimmedSite) || null;
   }, [sites, currentMatchedCustomer, siteName]);
 
   const isOptionsDiff = useMemo(() => {
@@ -265,10 +265,9 @@ export const SmartDispatch: React.FC = () => {
       }
 
       // 2. 현장 정보 상속 (현장 전용 설정이 있다면 고객 기본값보다 우선 적용!)
-      const matchedSite = sites.find(
-        s => s.customerId === matchedCustomer.id &&
-        (sName ? (s.name.replace(/\s/g, '') === sName.replace(/\s/g, '') || s.name.includes(sName) || sName.includes(s.name)) : true)
-      );
+      const matchedSite = sName.trim()
+        ? sites.find(s => s.customerId === matchedCustomer.id && s.name.trim() === sName.trim())
+        : undefined;
 
       if (matchedSite) {
         const matchedSiteMaster = matchedSite.siteMasterId
@@ -884,7 +883,11 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
       showToast('연체 채권 경각심 통제: [수금 책임 인지] 확인 체크박스에 동의해야 출고의뢰를 발행할 수 있습니다.', 'error');
       return;
     }
-    const matchedSite = matchedCust ? sites.find(s => s.customerId === matchedCust.id && (s.name.replace(/\s/g, '') === siteName.replace(/\s/g, '') || s.name.includes(siteName) || siteName.includes(s.name))) : null;
+    const matchedSite = matchedCust ? sites.find(s => s.customerId === matchedCust.id && s.name.trim() === siteName.trim()) : null;
+    if (!matchedSite) {
+      showToast(`입력하신 현장명('${siteName.trim()}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록한 후 진행해 주십시오.`, 'error');
+      return;
+    }
 
     const finalAddress = siteAddress.trim() || (matchedSite?.address && matchedSite.address !== '미상' ? matchedSite.address : '');
     if (!finalAddress) {
@@ -952,17 +955,6 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     };
 
     let result = await saveSmartDispatch(data, false, onProgress);
-
-    if (result.requiresConfirm) {
-      showToast('신규 고객/현장을 자동 등록하고 출고 프로세스를 연속 진행합니다.');
-      setProgressLogs([]);
-      setProgressPercent(0);
-      setCurrentStepText('신규 고객/현장 등록 & 출고 프로세스 재가동 중...');
-      setIsProcessCompleted(false);
-      setIsProcessingModalOpen(true);
-
-      result = await saveSmartDispatch(data, true, onProgress);
-    }
 
     if (result.errorMessage) {
       setIsProcessingModalOpen(false);

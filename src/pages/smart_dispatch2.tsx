@@ -117,11 +117,9 @@ export const SmartDispatch2: React.FC = () => {
   , [customers, customerName]);
 
   const currentMatchedSite = useMemo(() => {
-    if (!currentMatchedCustomer || !siteName) return null;
-    const cleanSite = siteName.replace(/\s/g, '');
-    return sites.find(s => s.customerId === currentMatchedCustomer.id && (
-      s.name.replace(/\s/g, '') === cleanSite || s.name.includes(siteName) || siteName.includes(s.name)
-    )) || null;
+    if (!currentMatchedCustomer || !siteName.trim()) return null;
+    const trimmedSite = siteName.trim();
+    return sites.find(s => s.customerId === currentMatchedCustomer.id && s.name.trim() === trimmedSite) || null;
   }, [sites, currentMatchedCustomer, siteName]);
 
   const isOptionsDiff = useMemo(() =>
@@ -188,10 +186,9 @@ export const SmartDispatch2: React.FC = () => {
         if (any) inherited.push('요구사양(고객기본)');
       }
 
-      const matchedSite = sites.find(s =>
-        s.customerId === matchedCustomer.id &&
-        (sName ? (s.name.replace(/\s/g, '') === sName.replace(/\s/g, '') || s.name.includes(sName) || sName.includes(s.name)) : true)
-      );
+      const matchedSite = sName.trim()
+        ? sites.find(s => s.customerId === matchedCustomer.id && s.name.trim() === sName.trim())
+        : undefined;
       if (matchedSite) {
         if (!nextAddress && matchedSite.address && matchedSite.address !== '미상') {
           nextAddress = matchedSite.address; inherited.push('현장 상세 주소');
@@ -540,6 +537,11 @@ export const SmartDispatch2: React.FC = () => {
     if (!siteName.trim()) { showToast('현장명을 입력하세요.', 'error'); return; }
 
     const matchedCust = findCustomerByNormalizedName(customers, customerName);
+    const matchedSiteStrict = matchedCust ? sites.find(s => s.customerId === matchedCust.id && s.name.trim() === siteName.trim()) : null;
+    if (!matchedSiteStrict) {
+      showToast(`입력하신 현장명('${siteName.trim()}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록한 후 진행해 주십시오.`, 'error');
+      return;
+    }
     if (matchedCust?.transactionStatus === 'BLOCKED') {
       showToast('🚫 거래 불가 거래처입니다.', 'error'); return;
     }
@@ -590,13 +592,6 @@ export const SmartDispatch2: React.FC = () => {
       };
 
       let result = await saveSmartDispatch(data, false, onProgress);
-      if (result.requiresConfirm) {
-        showToast('신규 고객/현장 자동 등록 후 재진행합니다.');
-        setProgressLogs([]);
-        setProgressPercent(0);
-        setCurrentStepText('신규 등록 & 재가동 중...');
-        result = await saveSmartDispatch(data, true, onProgress);
-      }
       if (result.errorMessage) {
         setIsProcessingModalOpen(false);
         showErrorModal(result.errorMessage, '출고 요청 저장 오류');

@@ -1175,20 +1175,24 @@ export const VoiceDispatch: React.FC = () => {
       if (mc) {
         setSelectedCustomer(mc);
         if (ps) {
-          const cleanSite = ps.replace(/\s/g, '');
-          const ms = sites.find(s => s.customerId === mc.id &&
-            (s.name.replace(/\s/g, '') === cleanSite || s.name.includes(ps) || ps.includes(s.name)));
+          const trimmedSite = ps.trim();
+          const ms = sites.find(s => s.customerId === mc.id && s.name.trim() === trimmedSite);
           if (ms) {
             setSelectedSite(ms);
+            setIsRegisteringNewSite(false);
             setSelectedSiteAddress(paddr || ms.address || '');
             applyInheritance(mc, ms);
             loadSiteSafetyOptions(ms, mc);
           } else {
-            setIsRegisteringNewSite(true);
-            setNewSiteName(ps);
+            setSelectedSite(null);
+            setIsRegisteringNewSite(false);
+            setSiteQuery(trimmedSite);
+            setNewSiteName(trimmedSite);
             if (paddr) setNewSiteAddress(paddr);
             applyInheritance(mc, null);
             loadSiteSafetyOptions(null, mc);
+            setOpenBlock('SITE');
+            showToast(`입력된 현장명('${trimmedSite}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록하거나 정확한 현장을 선택해 주십시오.`, 'error');
           }
         } else {
           if (paddr) setSelectedSiteAddress(paddr);
@@ -1488,6 +1492,13 @@ export const VoiceDispatch: React.FC = () => {
         showToast('현장명이 누락되었습니다.', 'error');
         return;
       }
+      if (!isNewCustomerMode && !isRegisteringNewSite) {
+        if (!selectedSite || selectedSite.name.trim() !== effectiveSiteName) {
+          setOpenBlock('SITE');
+          showToast('선택된 현장이 없거나 등록된 현장명과 100% 일치하지 않습니다. 현장을 새로 등록하거나 정확한 현장을 선택해 주십시오.', 'error');
+          return;
+        }
+      }
       if (!effectiveAddress) {
         showToast('현장 상세주소가 누락되었습니다.', 'error');
         return;
@@ -1575,7 +1586,7 @@ export const VoiceDispatch: React.FC = () => {
         paymentDueDay,
       };
 
-      const res = await saveSmartDispatch(dispatchData as any, true);
+      const res = await saveSmartDispatch(dispatchData as any, isNewCustomerMode || isRegisteringNewSite);
 
       if (res && res.success) {
         // 초안에서 가져와 작성 완료한 경우 초안 상태 SUBMITTED 갱신
@@ -1721,9 +1732,10 @@ export const VoiceDispatch: React.FC = () => {
       }
     }
 
-    // 3. 현장 및 담당자
+    // 3. 현장 및 담당자 (100% 정확히 일치하는 현장명 === 매칭만 허용)
     if (draft.siteName?.value) {
-      const ms = sites.find(s => s.name === draft.siteName.value);
+      const trimmedDraftSite = draft.siteName.value.trim();
+      const ms = sites.find(s => (!matchedCustomer || s.customerId === matchedCustomer.id) && s.name.trim() === trimmedDraftSite);
       if (ms) {
         setSelectedSite(ms);
         setSelectedSiteAddress(draft.siteAddress || ms.address || '');
@@ -1733,12 +1745,15 @@ export const VoiceDispatch: React.FC = () => {
       } else {
         setSelectedSite(null);
         setSelectedSiteAddress('');
-        setIsRegisteringNewSite(true);
-        setNewSiteName(draft.siteName.value);
+        setIsRegisteringNewSite(false);
+        setSiteQuery(trimmedDraftSite);
+        setNewSiteName(trimmedDraftSite);
         setNewSiteAddress(draft.siteAddress || '');
         if (matchedCustomer) {
           loadSiteSafetyOptions(null, matchedCustomer);
         }
+        setOpenBlock('SITE');
+        showToast(`입력된 현장명('${trimmedDraftSite}')이 등록된 현장과 100% 일치하지 않습니다. [신규현장 등록]을 눌러 현장을 새로 등록해 주십시오.`, 'error');
       }
     } else {
       setSelectedSite(null);
@@ -1861,9 +1876,14 @@ export const VoiceDispatch: React.FC = () => {
       return;
     }
 
-    // 🛡️ [현장 상세 주소 복원/해결]
-    const custObj = customers.find(c => c.name === draft.customerName.value);
-    const siteObj = custObj ? sites.find(s => s.customerId === custObj.id && (s.name === draft.siteName.value || s.name.includes(draft.siteName.value))) : null;
+    // 🛡️ [현장 100% 일치(===) 검증 및 상세 주소 복원/해결]
+    const custObj = customers.find(c => c.name === draft.customerName.value) || findCustomerByNormalizedName(customers, draft.customerName.value);
+    const trimmedDraftSite = (draft.siteName?.value || '').trim();
+    const siteObj = custObj ? sites.find(s => s.customerId === custObj.id && s.name.trim() === trimmedDraftSite) : null;
+    if (!siteObj) {
+      showToast(`현장명('${trimmedDraftSite}')이 등록된 현장과 100% 일치하지 않습니다. [새 요청 작성으로 가져오기] 후 현장을 새로 등록해 주십시오.`, 'error');
+      return;
+    }
     const resolvedAddress = (draft.siteAddress || siteObj?.address || '').trim();
 
     if (!resolvedAddress) {
@@ -1911,7 +1931,7 @@ export const VoiceDispatch: React.FC = () => {
         statementClosingDay: draft.statementClosingDay,
         paymentDay: draft.paymentDueDay,
         paymentDueDay: draft.paymentDueDay,
-      } as any, true);
+      } as any, false);
 
       if (res && res.success) {
         // 초안 상태 업데이트

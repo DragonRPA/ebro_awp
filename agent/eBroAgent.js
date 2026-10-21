@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.21';
-const CORE_HASH = '853c999d1891';
+const VERSION = 'v2.0.0.Build.22';
+const CORE_HASH = '02a19f972f08';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -974,12 +974,11 @@ async function executeContractBundleInternal(payload) {
       }),
       ...paidOptions.map(opt => {
         const qty = Math.max(1, Number(opt.quantity) || 1);
-        const unit = String(opt.unit || '대').trim();
         const uPrice = Number(opt.unitPrice) || 0;
         const sTotal = opt.subTotal !== undefined ? Number(opt.subTotal) : uPrice * qty;
         return {
           col1: psEscape(opt.name || ''),
-          col3: psEscape(`${qty} / ${unit}`),
+          col3: psEscape(String(qty)),
           col4: '',
           hasNewline: false,
           col5: psEscape(uPrice.toLocaleString()),
@@ -1096,6 +1095,7 @@ $wsContract.Range("C57").Value2 = ""
 ${remarksText ? `Replace-Tag $wsContract "{특이사항}" "${psEscape(remarksText)}"` : `Replace-Tag $wsContract "{특이사항} " ""\nReplace-Tag $wsContract "{특이사항}" ""`}
 Replace-Tag $wsContract "(유상옵션)" ""
 Replace-Tag $wsContract "(수량) / {단위}" ""
+Replace-Tag $wsContract "(수량)" ""
 Replace-Tag $wsContract "{단가}" ""
 Replace-Tag $wsContract "{제조번호}" ""
 

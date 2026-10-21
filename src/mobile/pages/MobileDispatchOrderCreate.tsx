@@ -882,7 +882,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         applyToAllSites: false
       };
 
-      const res = await saveSmartDispatch(payload as any, true);
+      const res = await saveSmartDispatch(payload as any, selectedSiteId === 'NEW');
       if (res && res.success) {
         clearVoiceOrderDraft();
         setCreatedResult({

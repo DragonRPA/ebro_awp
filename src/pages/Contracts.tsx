@@ -2961,8 +2961,11 @@ export const Contracts: React.FC = () => {
                   } catch { parsed = []; }
                   const batchQty = parsed.reduce((s, ci) => s + (Number(ci?.count) || 1), 0) || 1;
                   const equipText = parsed.map(ci => `${ci?.modelName || '장비'}×${ci?.count || 1}대`).join(', ');
+                  const snapMeta = parsed[0]?.requestMeta;
                   let paidStr = parsed[0]?.paidOptions || '';
-                  const priceMap: Record<string, number> = parsed[0]?.paidOptionPrices || {};
+                  const priceMap: Record<string, number> = parsed[0]?.paidOptionPrices || snapMeta?.paidOptionPrices || {};
+                  const unitMap: Record<string, string> = parsed[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
+                  const qtyMap: Record<string, number> = parsed[0]?.paidOptionQtys || snapMeta?.paidOptionQtys || {};
                   if (!paidStr && d.closingMemo) {
                     const mOpt = d.closingMemo.match(/유상옵션:\s*([^\|]+)/);
                     if (mOpt && mOpt[1].trim() !== '없음') paidStr = mOpt[1].trim();
@@ -2975,8 +2978,10 @@ export const Contracts: React.FC = () => {
                       if (!isPaidCat) return null;
                       const customP = priceMap[optName];
                       const unitPrice = customP !== undefined ? Number(customP) : Number(masterOpt?.defaultPrice || 0);
-                      const unit = (masterOpt?.unit || '월').trim();
-                      const mult = unit === '건' ? 1 : batchQty;
+                      const rawUnit = (unitMap[optName] || masterOpt?.unit || '월').trim();
+                      const unit = rawUnit === '건' ? '건' : rawUnit === '대' ? '대' : '월';
+                      const perUnitQty = unit === '대' ? Math.max(1, Number(qtyMap[optName] ?? (masterOpt as any)?.defaultQtyPerUnit) || 1) : 1;
+                      const mult = unit === '건' ? 1 : unit === '대' ? batchQty * perUnitQty : batchQty;
                       return {
                         name: optName,
                         unit,

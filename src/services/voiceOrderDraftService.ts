@@ -328,10 +328,8 @@ export function mergeVoiceFragmentToDraft(
   const siteKeyword = siteWordMatch ? siteWordMatch[1].replace(/\s/g, '') : '';
 
   for (const s of sitePool) {
-    const simpleSite = s.name.replace(/\s/g, '');
-    const isDirectMatch = simpleSite.length >= 2 && cleanText.replace(/\s/g, '').includes(simpleSite);
-    const isKeywordMatch = siteKeyword.length >= 2 && simpleSite.includes(siteKeyword);
-    if (isDirectMatch || isKeywordMatch) {
+    const trimmedName = s.name.trim();
+    if (trimmedName.length >= 2 && (cleanText.trim() === trimmedName || cleanText.includes(trimmedName))) {
       matchedSite = s;
       break;
     }
@@ -1365,25 +1363,10 @@ export function parseSiteVoiceInput(
 
   const targetSites = customerId ? sites.filter(s => s.customerId === customerId) : sites;
 
-  // 5. 기존 현장 완성형 매칭
-  const cleanForMatch = (cleanCandidate || rawText).replace(/\s/g, '').toLowerCase();
+  // 5. 기존 현장 100% 일치(===) 매칭만 허용 (동일하지 않으면 신규 현장 등록 유도)
+  const trimmedCandidate = (cleanCandidate || rawText).trim();
   for (const s of targetSites) {
-    const sName = s.name.replace(/\s/g, '').toLowerCase();
-    if (sName === cleanForMatch || cleanForMatch.includes(sName) || sName.includes(cleanForMatch)) {
-      return {
-        site: s,
-        isNew: false,
-        extractedAddress: extractedAddress || s.address,
-        extractedContactName: extractedContactName || (s as any).contactName,
-        extractedContactPhone: extractedContactPhone || (s as any).contact
-      };
-    }
-  }
-
-  // 5-2. 기존 현장 초성 매칭 (예: 'ㅍㅌ' -> '평택고덕', 'ㅍㄱ' -> '판교 R&D 센터 현장')
-  for (const s of targetSites) {
-    const sName = s.name.replace(/\s/g, '');
-    if (matchHangul(sName, cleanForMatch)) {
+    if (s.name.trim() === trimmedCandidate) {
       return {
         site: s,
         isNew: false,

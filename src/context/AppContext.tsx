@@ -370,6 +370,7 @@ interface AppContextType {
     checkedSpecs?: Record<string, boolean>;
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+    paidOptionQtys?: Record<string, number>;
     reason?: string;
   }) => Promise<{ success: boolean; errorMessage?: string }>;
   saveSmartReturn: (data: SmartReturnData) => Promise<any>;
@@ -3270,6 +3271,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dData.paidOptionUnits && typeof dData.paidOptionUnits === 'object' && Object.keys(dData.paidOptionUnits).length > 0
         ? dData.paidOptionUnits
         : undefined;
+    const effectivePaidOptionQtysForDelivery: Record<string, number> | undefined =
+      dData.paidOptionQtys && typeof dData.paidOptionQtys === 'object' && Object.keys(dData.paidOptionQtys).length > 0
+        ? dData.paidOptionQtys
+        : undefined;
     const cargoItemsPayload: {
       modelName: string;
       count: number;
@@ -3277,6 +3282,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       paidOptions: string;
       paidOptionPrices?: Record<string, number>;
       paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+      paidOptionQtys?: Record<string, number>;
       monthlyRentalFee?: number;
       dailyRentalFee?: number;
       requestMeta?: {
@@ -3302,6 +3308,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paymentDueDay?: number | string;
         userNote?: string;
         fullNote?: string;
+        paidOptionPrices?: Record<string, number>;
+        paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+        paidOptionQtys?: Record<string, number>;
       };
     }[] = [];
 
@@ -3327,7 +3336,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       statementClosingDay: contractStatementClosingDay,
       paymentDueDay: contractPaymentDueDay,
       userNote: dData.userNote !== undefined ? dData.userNote : (data.note || ''),
-      fullNote: data.note || ''
+      fullNote: data.note || '',
+      ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {}),
+      ...(effectivePaidOptionUnitsForDelivery ? { paidOptionUnits: effectivePaidOptionUnitsForDelivery } : {}),
+      ...(effectivePaidOptionQtysForDelivery ? { paidOptionQtys: effectivePaidOptionQtysForDelivery } : {})
     };
 
     data.equipments.forEach((eq) => {
@@ -3393,6 +3405,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paidOptions: effectivePaidOptionsForDelivery,
         ...(effectivePaidOptionPricesForDelivery ? { paidOptionPrices: effectivePaidOptionPricesForDelivery } : {}),
         ...(effectivePaidOptionUnitsForDelivery ? { paidOptionUnits: effectivePaidOptionUnitsForDelivery } : {}),
+        ...(effectivePaidOptionQtysForDelivery ? { paidOptionQtys: effectivePaidOptionQtysForDelivery } : {}),
         monthlyRentalFee: determinedMonthly,
         dailyRentalFee: determinedDaily,
         ...(cargoItemsPayload.length === 0 ? { requestMeta: requestSnapshotMeta } : {})
@@ -3908,6 +3921,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checkedSpecs?: Record<string, boolean>;
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+    paidOptionQtys?: Record<string, number>;
     reason?: string;
   }): Promise<{ success: boolean; errorMessage?: string }> => {
     const targetDelivery = db.deliveries.find(d => d.id === params.deliveryId);
@@ -3943,6 +3957,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const origPaidOptions = parsedCargo[0]?.paidOptions ?? '';
       const origPrices: Record<string, number> = parsedCargo[0]?.paidOptionPrices || baseMeta?.paidOptionPrices || {};
       const origUnits: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || baseMeta?.paidOptionUnits || {};
+      const origQtys: Record<string, number> = parsedCargo[0]?.paidOptionQtys || baseMeta?.paidOptionQtys || {};
 
       const nextPaidOptions = params.paidOptions !== undefined ? params.paidOptions : origPaidOptions;
       const nextProtection = params.protection !== undefined ? params.protection : (baseMeta?.protection ?? '');
@@ -3954,6 +3969,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nextUnits: Record<string, '월' | '대' | '건'> = params.paidOptionUnits !== undefined
         ? { ...origUnits, ...params.paidOptionUnits }
         : origUnits;
+      const nextQtys: Record<string, number> = params.paidOptionQtys !== undefined
+        ? { ...origQtys, ...params.paidOptionQtys }
+        : origQtys;
 
       if (params.paidOptions !== undefined && params.paidOptions !== origPaidOptions) {
         changeLogs.push(`유상옵션: [${origPaidOptions || '없음'}]➔[${params.paidOptions || '없음'}]`);
@@ -3969,6 +3987,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const oldUnit = origUnits[optName];
           if (oldUnit !== newUnit) {
             changeLogs.push(`유상옵션(${optName}) 청구조건: ${oldUnit || '기본'}➔${newUnit}`);
+          }
+        });
+      }
+      if (params.paidOptionQtys) {
+        Object.entries(params.paidOptionQtys).forEach(([optName, newQty]) => {
+          const oldQty = origQtys[optName] || 1;
+          if (oldQty !== newQty) {
+            changeLogs.push(`유상옵션(${optName}) 1대당 수량: ${oldQty}개➔${newQty}개`);
           }
         });
       }
@@ -4148,7 +4174,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             attachments: nextAttachments,
             ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
             ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
-            ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {})
+            ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {}),
+            ...(Object.keys(nextQtys).length > 0 ? { paidOptionQtys: nextQtys } : {})
           };
 
           updatedCargo.push({
@@ -4158,6 +4185,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             paidOptions: nextPaidOptions,
             ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
             ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {}),
+            ...(Object.keys(nextQtys).length > 0 ? { paidOptionQtys: nextQtys } : {}),
             monthlyRentalFee: eq.monthlyRate,
             dailyRentalFee: eq.dailyRate,
             ...(idx === 0 ? { requestMeta: updatedMeta } : {})
@@ -4228,6 +4256,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (Object.keys(nextUnits).length > 0) {
             nextCi.paidOptionUnits = nextUnits;
           }
+          if (Object.keys(nextQtys).length > 0) {
+            nextCi.paidOptionQtys = nextQtys;
+          }
           if (idx === 0 || nextCi.requestMeta) {
             nextCi.requestMeta = {
               ...(nextCi.requestMeta || baseMeta),
@@ -4235,7 +4266,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               attachments: nextAttachments,
               ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
               ...(Object.keys(nextPrices).length > 0 ? { paidOptionPrices: nextPrices } : {}),
-              ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {})
+              ...(Object.keys(nextUnits).length > 0 ? { paidOptionUnits: nextUnits } : {}),
+              ...(Object.keys(nextQtys).length > 0 ? { paidOptionQtys: nextQtys } : {})
             };
           }
 
@@ -11794,8 +11826,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     let consumableCount = 0;
     let leaseCount = 0;
 
-    // ① 운송료 집계 — 당월 DELIVERED 배차 중 미정산 건
+    // ① 운송료 집계 — 당월 DELIVERED 배차 중 미정산 건 (고객직접운송 0원 건 제외)
     const deliveriesOfMonth = db.deliveries.filter(d => {
+      if ((d.transportCompany || '').trim() === '고객직접운송') return false;
       const dateStr = d.unloadingDate || d.scheduledDate || d.requestDate;
       return dateStr?.startsWith(ym) &&
         d.status === 'DELIVERED' &&
@@ -12158,12 +12191,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   const convertReconciledDeliveriesToSettlement = async (settlementYm: string, transportCompanyId?: string): Promise<number> => {
     try {
       const targetDeliveries = db.deliveries.filter(d => {
+        if ((d.transportCompany || '').trim() === '고객직접운송') return false;
         const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];
         const matchYm = dDate.startsWith(settlementYm);
         const matchStatus = d.reconciliationStatus === 'RECONCILED' || d.reconciliationStatus === 'MATCHED';
         const tcObj = transportCompanyId ? db.transportCompanies.find(c => c.id === transportCompanyId) : null;
         const matchComp = !transportCompanyId || d.transportCompany === tcObj?.name || d.transportCompany === transportCompanyId; // 💡 FIX: d.transportCompany가 name이거나 id일 수 있으므로 모두 허용 (논리 충돌 버그 수정)
-        return matchYm && matchStatus;
+        return matchYm && matchStatus && matchComp;
       });
 
       if (targetDeliveries.length === 0) return 0;

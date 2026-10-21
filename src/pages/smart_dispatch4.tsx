@@ -289,6 +289,7 @@ export const SmartDispatch4: React.FC = () => {
   const [editHistoryEqRates, setEditHistoryEqRates] = useState<Record<string, { monthlyRate: number; dailyRate: number }>>({});
   const [editHistoryOptPrices, setEditHistoryOptPrices] = useState<Record<string, number>>({});
   const [editHistoryOptUnits, setEditHistoryOptUnits] = useState<Record<string, '월' | '대' | '건'>>({});
+  const [editHistoryOptQtys, setEditHistoryOptQtys] = useState<Record<string, number>>({});
   const [editHistoryPriceReason, setEditHistoryPriceReason] = useState<string>('');
   const [isSavingHistoryPrices, setIsSavingHistoryPrices] = useState<boolean>(false);
   
@@ -1043,9 +1044,10 @@ export const SmartDispatch4: React.FC = () => {
   const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
   const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true);
   const [confirmNoSafetyOptions, setConfirmNoSafetyOptions] = useState<boolean>(false);
-  // 🌟 이번 출고 건 전용 유상옵션 1회성 단가 및 청구조건 변경 상태 (현장 기본 옵션은 마스터 기본값 유지)
+  // 🌟 이번 출고 건 전용 유상옵션 1회성 단가, 청구조건 및 1대당 수량 변경 상태 (현장 기본 옵션은 마스터 기본값 유지)
   const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
   const [paidOptionUnits, setPaidOptionUnits] = useState<Record<string, '월' | '대' | '건'>>({});
+  const [paidOptionQtys, setPaidOptionQtys] = useState<Record<string, number>>({});
 
   // 선택된 옵션 중 유상옵션 마스터 매핑 및 기본단가 자동 초기화 (오름차순 정렬)
   const selectedPaidMasterOptions = useMemo(() => {
@@ -1078,6 +1080,14 @@ export const SmartDispatch4: React.FC = () => {
         const defU = (opt.unit || '월').trim();
         const normU: '월' | '대' | '건' = defU === '건' ? '건' : defU === '대' ? '대' : '월';
         next[opt.name] = prev[opt.name] !== undefined ? prev[opt.name] : normU;
+      });
+      return next;
+    });
+    setPaidOptionQtys(prev => {
+      const next: Record<string, number> = {};
+      selectedPaidMasterOptions.forEach(opt => {
+        const defQ = Math.max(1, Number((opt as any).defaultQtyPerUnit) || 1);
+        next[opt.name] = prev[opt.name] !== undefined && prev[opt.name] >= 1 ? prev[opt.name] : defQ;
       });
       return next;
     });
@@ -1952,6 +1962,7 @@ export const SmartDispatch4: React.FC = () => {
         paidOptions: effPaidOptStr,
         paidOptionPrices,
         paidOptionUnits,
+        paidOptionQtys,
         saveOptionsToSite: saveToSite,
         protection: effProtOptStr,
         attachments: effAttOptStr,
@@ -4458,14 +4469,24 @@ export const SmartDispatch4: React.FC = () => {
                           const defUnitRaw = (opt.unit || '월').trim();
                           const defUnit: '월' | '대' | '건' = defUnitRaw === '건' ? '건' : defUnitRaw === '대' ? '대' : '월';
                           const currentUnit: '월' | '대' | '건' = paidOptionUnits[opt.name] || defUnit;
-                          const expectedSupply = currentUnit === '건' ? currentPrice : currentPrice * Math.max(1, totalQty);
+                          const defQtyPerUnit = Math.max(1, Number((opt as any).defaultQtyPerUnit) || 1);
+                          const currentPerUnitQty = paidOptionQtys[opt.name] !== undefined && paidOptionQtys[opt.name] >= 1
+                            ? paidOptionQtys[opt.name]
+                            : defQtyPerUnit;
+                          const effectiveMachineQty = Math.max(1, totalQty);
+                          const calculatedQty = currentUnit === '건'
+                            ? 1
+                            : currentUnit === '대'
+                              ? effectiveMachineQty * currentPerUnitQty
+                              : effectiveMachineQty;
+                          const expectedSupply = currentPrice * calculatedQty;
 
                           return (
                             <div
                               key={opt.id}
                               className="grid grid-cols-12 gap-2 items-center bg-slate-900/90 px-2.5 py-1.5 rounded border border-slate-800 text-xs"
                             >
-                              <div className="col-span-5 flex items-center gap-1.5 min-w-0">
+                              <div className="col-span-5 flex items-center gap-1.5 flex-wrap min-w-0">
                                 <span className="font-bold text-white truncate whitespace-nowrap">{opt.name}</span>
                                 <select
                                   value={currentUnit}
@@ -4474,12 +4495,32 @@ export const SmartDispatch4: React.FC = () => {
                                     setPaidOptionUnits(prev => ({ ...prev, [opt.name]: val }));
                                   }}
                                   className="text-[10.5px] px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 border border-slate-700 font-bold cursor-pointer flex-shrink-0"
-                                  title="청구조건 선택 (월별 / 대당 1회 / 건당 1회)"
+                                  title="청구조건 선택 (월별 / 1대당 1회 / 건당 1회)"
                                 >
                                   <option value="월">월 (매월×{totalQty}대)</option>
-                                  <option value="대">대 (1회×{totalQty}대)</option>
+                                  <option value="대">1대당 (1회×{totalQty}대)</option>
                                   <option value="건">건 (1회)</option>
                                 </select>
+                                {currentUnit === '대' && (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">1대당 수량</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      value={currentPerUnitQty}
+                                      onChange={e => {
+                                        const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
+                                        setPaidOptionQtys(prev => ({ ...prev, [opt.name]: num }));
+                                      }}
+                                      className="w-16 bg-slate-950 border border-amber-500/60 rounded px-2 py-0.5 text-center font-mono text-xs font-bold text-amber-300 focus:outline-none focus:border-blue-500"
+                                      title="1대당 기본수량 (기본 1개, 필요 시 2 이상 수정)"
+                                    />
+                                    <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                                      개 (계산수량: <strong className="text-amber-300">{calculatedQty}</strong>)
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                               <div className="col-span-4 flex items-center gap-1.5">
                                 <input
@@ -4517,7 +4558,7 @@ export const SmartDispatch4: React.FC = () => {
                                 )}
                               </div>
                               <div className="col-span-3 text-right font-mono text-[11px] text-slate-300 whitespace-nowrap">
-                                청구예상: <strong className="text-amber-300">{expectedSupply.toLocaleString()}원</strong>
+                                수량: <strong className="text-slate-200">{calculatedQty}</strong> · 청구예상: <strong className="text-amber-300">{expectedSupply.toLocaleString()}원</strong>
                               </div>
                             </div>
                           );
@@ -5760,10 +5801,11 @@ export const SmartDispatch4: React.FC = () => {
       const totalAssignedCount = equipmentItems.reduce((sum, eq) => sum + eq.assignedAssets.length, 0);
       const totalUnassignedCount = equipmentItems.reduce((sum, eq) => sum + eq.unassignedCount, 0);
 
-      // 유상옵션 및 적용 단가·청구조건 복원
+      // 유상옵션 및 적용 단가·청구조건·1대당수량 복원
       let paidOptionsStr = parsedCargo[0]?.paidOptions || '';
       const paidOptionPricesMap: Record<string, number> = parsedCargo[0]?.paidOptionPrices || snapMeta?.paidOptionPrices || {};
       const paidOptionUnitsMap: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
+      const paidOptionQtysMap: Record<string, number> = parsedCargo[0]?.paidOptionQtys || snapMeta?.paidOptionQtys || {};
       if (!paidOptionsStr && d.closingMemo) {
         const mOpt = d.closingMemo.match(/유상옵션:\s*([^\|]+)/);
         if (mOpt && mOpt[1].trim() !== '없음') paidOptionsStr = mOpt[1].trim();
@@ -5773,17 +5815,21 @@ export const SmartDispatch4: React.FC = () => {
         .map(optName => {
           const customPrice = paidOptionPricesMap[optName];
           const customUnit = paidOptionUnitsMap[optName];
+          const customPerUnitQty = paidOptionQtysMap[optName];
           const masterOpt = (standardOptions || []).find(so => so.name === optName);
           const unitPrice = customPrice !== undefined ? Number(customPrice) : (masterOpt?.defaultPrice || 0);
           const rawDefUnit = (masterOpt?.unit || '월').trim();
           const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
           const unitLabel: '월' | '대' | '건' = customUnit === '건' || customUnit === '대' || customUnit === '월' ? customUnit : defUnit;
+          const defQtyPerUnit = Math.max(1, Number((masterOpt as any)?.defaultQtyPerUnit) || 1);
+          const perUnitQty = customPerUnitQty !== undefined && Number(customPerUnitQty) >= 1 ? Number(customPerUnitQty) : defQtyPerUnit;
           return {
             name: optName,
             price: unitPrice,
             isCustomPrice: customPrice !== undefined && masterOpt?.defaultPrice !== undefined && Number(customPrice) !== Number(masterOpt.defaultPrice),
             isCustomUnit: customUnit !== undefined && customUnit !== defUnit,
-            unitLabel
+            unitLabel,
+            perUnitQty
           };
         });
 
@@ -6552,13 +6598,16 @@ export const SmartDispatch4: React.FC = () => {
 
                               const optPriceInit: Record<string, number> = {};
                               const optUnitInit: Record<string, '월' | '대' | '건'> = {};
+                              const optQtyInit: Record<string, number> = {};
                               selectedRow.paidOptionItems.forEach(o => {
                                 optPriceInit[o.name] = o.price;
                                 const u = (o.unitLabel || '월').trim();
                                 optUnitInit[o.name] = u === '건' ? '건' : u === '대' ? '대' : '월';
+                                optQtyInit[o.name] = Math.max(1, Number((o as any).perUnitQty) || 1);
                               });
                               setEditHistoryOptPrices(optPriceInit);
                               setEditHistoryOptUnits(optUnitInit);
+                              setEditHistoryOptQtys(optQtyInit);
                               setEditHistoryPriceReason('');
                               setIsEditingHistoryPrices(true);
                             }}
@@ -6602,6 +6651,7 @@ export const SmartDispatch4: React.FC = () => {
                                       checkedSpecs: nextSpecsObj,
                                       paidOptionPrices: editHistoryOptPrices,
                                       paidOptionUnits: editHistoryOptUnits,
+                                      paidOptionQtys: editHistoryOptQtys,
                                       reason: editHistoryPriceReason
                                     });
                                     if (res.success) {
@@ -6619,6 +6669,7 @@ export const SmartDispatch4: React.FC = () => {
                                       equipmentRates: eqList,
                                       paidOptionPrices: editHistoryOptPrices,
                                       paidOptionUnits: editHistoryOptUnits,
+                                      paidOptionQtys: editHistoryOptQtys,
                                       reason: editHistoryPriceReason
                                     });
                                     if (res.success) {
@@ -6991,17 +7042,21 @@ export const SmartDispatch4: React.FC = () => {
                                 const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
                                 const curPrice = editHistoryOptPrices[optName] !== undefined ? editHistoryOptPrices[optName] : defPrice;
                                 const curUnit: '월' | '대' | '건' = editHistoryOptUnits[optName] || defUnit;
-                                const mult = curUnit === '건' ? 1 : editTotalQty;
+                                const defPerUnitQty = Math.max(1, Number((masterOpt as any)?.defaultQtyPerUnit) || 1);
+                                const curPerUnitQty = editHistoryOptQtys[optName] !== undefined && editHistoryOptQtys[optName] >= 1
+                                  ? editHistoryOptQtys[optName]
+                                  : defPerUnitQty;
+                                const mult = curUnit === '건' ? 1 : curUnit === '대' ? editTotalQty * curPerUnitQty : editTotalQty;
 
                                 return (
                                   <div key={optName} className="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded p-2">
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="font-bold text-rose-200">{optName}</span>
                                       <span className="text-[10.5px] font-mono text-amber-300 font-bold">
-                                        합계({mult}{curUnit}): {(curPrice * mult).toLocaleString()}원
+                                        수량 {mult} · 합계: {(curPrice * mult).toLocaleString()}원
                                       </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className={`grid ${curUnit === '대' ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                                       <div className="flex flex-col gap-0.5">
                                         <span className="text-[10px] text-slate-400">청구조건</span>
                                         <select
@@ -7013,10 +7068,26 @@ export const SmartDispatch4: React.FC = () => {
                                           className="h-7 px-2 rounded bg-slate-900 border border-amber-500/60 text-amber-300 font-bold text-xs cursor-pointer"
                                         >
                                           <option value="월">월 (매월×{editTotalQty}대)</option>
-                                          <option value="대">대 (1회×{editTotalQty}대)</option>
+                                          <option value="대">1대당 (1회×{editTotalQty}대)</option>
                                           <option value="건">건 (1회)</option>
                                         </select>
                                       </div>
+                                      {curUnit === '대' && (
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="text-[10px] text-slate-400">1대당 수량</span>
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            value={curPerUnitQty}
+                                            onChange={e => {
+                                              const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
+                                              setEditHistoryOptQtys(prev => ({ ...prev, [optName]: num }));
+                                            }}
+                                            className="h-7 px-2 rounded bg-slate-900 border border-amber-500/60 text-center font-mono text-xs font-bold text-amber-300"
+                                          />
+                                        </div>
+                                      )}
                                       <div className="flex flex-col gap-0.5">
                                         <span className="text-[10px] text-slate-400">단가 (원)</span>
                                         <input
@@ -7125,12 +7196,16 @@ export const SmartDispatch4: React.FC = () => {
                                   const rawDefU = (opt.unitLabel || '월').trim();
                                   const defU: '월' | '대' | '건' = rawDefU === '건' ? '건' : rawDefU === '대' ? '대' : '월';
                                   const curU: '월' | '대' | '건' = editHistoryOptUnits[opt.name] || defU;
-                                  const mult = curU === '건' ? 1 : Math.max(1, selectedRow.totalQty || 1);
+                                  const curPerUnitQ = editHistoryOptQtys[opt.name] !== undefined && editHistoryOptQtys[opt.name] >= 1
+                                    ? editHistoryOptQtys[opt.name]
+                                    : Math.max(1, Number((opt as any).perUnitQty) || 1);
+                                  const machineCount = Math.max(1, selectedRow.totalQty || 1);
+                                  const mult = curU === '건' ? 1 : curU === '대' ? machineCount * curPerUnitQ : machineCount;
                                   return (
                                     <div key={idx} className="flex items-center justify-between gap-2 bg-slate-900 border border-rose-800/60 rounded-lg p-2">
                                       <div className="flex flex-col gap-1">
                                         <span className="font-bold text-rose-300">{opt.name}</span>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                           <select
                                             value={curU}
                                             onChange={e => {
@@ -7140,11 +7215,28 @@ export const SmartDispatch4: React.FC = () => {
                                             className="h-6 px-1.5 rounded bg-slate-950 border border-amber-500/60 text-amber-300 text-[10.5px] font-bold cursor-pointer"
                                           >
                                             <option value="월">월 단위</option>
-                                            <option value="대">대 단위</option>
+                                            <option value="대">1대당</option>
                                             <option value="건">건 단위</option>
                                           </select>
+                                          {curU === '대' && (
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[10px] text-slate-300">1대당</span>
+                                              <input
+                                                type="number"
+                                                min={1}
+                                                step={1}
+                                                value={curPerUnitQ}
+                                                onChange={e => {
+                                                  const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
+                                                  setEditHistoryOptQtys(prev => ({ ...prev, [opt.name]: num }));
+                                                }}
+                                                className="w-12 h-6 px-1 rounded bg-slate-950 border border-amber-500/60 text-center font-mono text-[10.5px] font-bold text-amber-300"
+                                              />
+                                              <span className="text-[10px] text-slate-400">개</span>
+                                            </div>
+                                          )}
                                           <span className="text-[10px] text-slate-400 font-mono">
-                                            합계({mult}{curU}): {(curP * mult).toLocaleString()}원
+                                            수량 {mult} · 합계: {(curP * mult).toLocaleString()}원
                                           </span>
                                         </div>
                                       </div>
@@ -7169,7 +7261,9 @@ export const SmartDispatch4: React.FC = () => {
                               <div className="flex flex-col gap-1">
                                 {selectedRow.paidOptionItems.map((opt, idx) => {
                                   const rawUnit = (opt.unitLabel || '월').trim();
-                                  const mult = rawUnit === '건' ? 1 : Math.max(1, selectedRow.totalQty || 1);
+                                  const perUnitQ = Math.max(1, Number((opt as any).perUnitQty) || 1);
+                                  const machineCount = Math.max(1, selectedRow.totalQty || 1);
+                                  const mult = rawUnit === '건' ? 1 : rawUnit === '대' ? machineCount * perUnitQ : machineCount;
                                   const subTotal = (Number(opt.price) || 0) * mult;
                                   return (
                                     <div
@@ -7178,10 +7272,10 @@ export const SmartDispatch4: React.FC = () => {
                                     >
                                       <span>
                                         <span className="px-1.5 py-0.2 mr-1.5 rounded bg-rose-600 text-white text-[10px]">유상</span>
-                                        {opt.name} ({opt.price.toLocaleString()}원/{opt.unitLabel}{opt.isCustomPrice || (opt as any).isCustomUnit ? ' · 조건변경' : ''})
+                                        {opt.name} ({opt.price.toLocaleString()}원/{opt.unitLabel}{rawUnit === '대' && perUnitQ > 1 ? ` · 1대당 ${perUnitQ}개` : ''}{opt.isCustomPrice || (opt as any).isCustomUnit ? ' · 조건변경' : ''})
                                       </span>
                                       <span className="text-rose-300 whitespace-nowrap">
-                                        청구합계: {subTotal.toLocaleString()}원
+                                        수량 {mult} · 청구합계: {subTotal.toLocaleString()}원
                                       </span>
                                     </div>
                                   );

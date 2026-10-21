@@ -40,6 +40,23 @@ import { useSpecialFeature, SpecialFeatureGuard } from '../utils/specialFeatureG
 
 export { VEHICLE_TYPE_OPTIONS };
 
+export const CUSTOMER_DIRECT_TRANSPORT = '고객직접운송';
+
+export const isCustomerDirectTransport = (d?: Delivery | null): boolean => {
+  if (!d) return false;
+  if ((d.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT) return true;
+  if (Array.isArray(d.assignedVehicles) && d.assignedVehicles.some((v: any) => (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT)) return true;
+  if (d.vehicles) {
+    try {
+      const parsed = typeof d.vehicles === 'string' ? JSON.parse(d.vehicles) : d.vehicles;
+      if (Array.isArray(parsed) && parsed.some((v: any) => (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT)) {
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+};
+
 interface VehicleReq {
   vehicleType: string;
   count: number;
@@ -1652,6 +1669,7 @@ export const TruckDispatch: React.FC = () => {
   const unpaidStatsByCompany = useMemo(() => {
     const inPeriodDeliveries = deliveries.filter(d => {
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
+      if (isCustomerDirectTransport(d)) return false;
       const dDate = d.loadingDate || d.requestDate || d.scheduledDate || d.createdAt?.substring(0, 10);
       if (reconStartDate && dDate && dDate < reconStartDate) return false;
       if (reconEndDate && dDate && dDate > reconEndDate) return false;
@@ -1701,8 +1719,9 @@ export const TruckDispatch: React.FC = () => {
     const compFilterLower = selectedReconCompany !== 'ALL' ? selectedReconCompany.toLowerCase() : '';
 
     return deliveries.filter(d => {
-      // 1. 운송 완료건만 대상
+      // 1. 운송 완료건만 대상 (고객직접운송 건은 월말 정산에서 제외)
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
+      if (isCustomerDirectTransport(d)) return false;
 
       // 2. 💡 [사장님 지시] 지급/정산 상태 필터 (기본: 지급 미완료 건만 대사 대상)
       const isPaid = (d as any).reconciliationStatus === 'PAYMENT_REQUESTED' || (d as any).reconciliationStatus === 'SETTLED' || d.isCostSettled === true;
@@ -2899,6 +2918,16 @@ export const TruckDispatch: React.FC = () => {
       }
       updated[index] = { ...updated[index], [field]: sanitizedValue };
 
+      // 고객직접운송 선택 시 운송료 0원 자동 고정 및 기사명 미입력 시 '고객직접운송' 기본 세팅
+      if (field === 'transportCompany' && String(value || '').trim() === CUSTOMER_DIRECT_TRANSPORT) {
+        updated[index].expectedCost = 0;
+        updated[index].finalCost = 0;
+        updated[index].deliveryCost = 0;
+        if (!updated[index].driverName || updated[index].driverName.trim() === '') {
+          updated[index].driverName = CUSTOMER_DIRECT_TRANSPORT;
+        }
+      }
+
       // 기사 선택 시 연락처, 차량번호, 차종(톤수) 및 운송사 자동 매핑
       if (field === 'driverName' && value) {
         const driverMatch = transportDrivers.find(d => d.driverName.trim() === value.trim());
@@ -3174,9 +3203,9 @@ export const TruckDispatch: React.FC = () => {
       return;
     }
 
-    const validDrivers = assignedVehicles.filter(v => (v.driverName || '').trim() !== '');
+    const validDrivers = assignedVehicles.filter(v => (v.driverName || '').trim() !== '' || (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT);
     if (validDrivers.length === 0) {
-      showErrorModal('배차 기사를 최소 1명 이상 입력해 주십시오. 기사 성명 없이는 배차 완료로 전환할 수 없습니다.', '배차 기사 미입력');
+      showErrorModal('배차 기사를 최소 1명 이상 입력하거나 운송거래처에서 [고객직접운송]을 선택해 주십시오.', '배차 기사 미입력');
       return;
     }
 
@@ -3207,14 +3236,19 @@ export const TruckDispatch: React.FC = () => {
     try {
       const finalLoadingSlot = loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot;
       const finalUnloadingSlot = unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot;
-      const sanitizedVehicles = assignedVehicles.map(v => ({
-        ...v,
-        expectedCost: Math.max(0, Number(v.expectedCost) || 0),
-        finalCost: Math.max(0, Number(v.finalCost) || 0),
-        deliveryCost: Math.max(0, Number(v.deliveryCost) || Number(v.finalCost) || Number(v.expectedCost) || 0)
-      }));
+      const sanitizedVehicles = assignedVehicles.map(v => {
+        const isCustDirect = (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT;
+        return {
+          ...v,
+          driverName: isCustDirect && !(v.driverName || '').trim() ? CUSTOMER_DIRECT_TRANSPORT : v.driverName,
+          expectedCost: isCustDirect ? 0 : Math.max(0, Number(v.expectedCost) || 0),
+          finalCost: isCustDirect ? 0 : Math.max(0, Number(v.finalCost) || 0),
+          deliveryCost: isCustDirect ? 0 : Math.max(0, Number(v.deliveryCost) || Number(v.finalCost) || Number(v.expectedCost) || 0)
+        };
+      });
       const totalExpectedCost = sanitizedVehicles.reduce((sum, v) => sum + (Number(v.expectedCost) || 0), 0);
       const totalFinalCost = sanitizedVehicles.reduce((sum, v) => sum + (Number(v.finalCost) || 0), 0);
+      const isAllCustDirect = sanitizedVehicles.length > 0 && sanitizedVehicles.every(v => (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT);
 
       const mainVeh = sanitizedVehicles[0] || {};
       const payload: Partial<Delivery> = {
@@ -3234,9 +3268,12 @@ export const TruckDispatch: React.FC = () => {
         vehicleNo: mainVeh.vehicleNo || '',
         driverName: mainVeh.driverName || '',
         driverContact: mainVeh.driverContact || '',
-        expectedCost: totalExpectedCost,
-        finalCost: totalFinalCost,
-        deliveryCost: totalFinalCost || totalExpectedCost,
+        expectedCost: isAllCustDirect ? 0 : totalExpectedCost,
+        finalCost: isAllCustDirect ? 0 : totalFinalCost,
+        deliveryCost: isAllCustDirect ? 0 : (totalFinalCost || totalExpectedCost),
+        deliveryCostConfirmed: isAllCustDirect ? 0 : undefined,
+        isCostSettled: isAllCustDirect ? true : selectedDelivery.isCostSettled,
+        reconciliationStatus: isAllCustDirect ? ('SETTLED' as any) : selectedDelivery.reconciliationStatus,
         vehicles: JSON.stringify(sanitizedVehicles),
         closingMemo: (() => {
           const cleanDispatcherNote = sanitizeDispatcherSpecialNote(closingMemo);
@@ -4607,6 +4644,7 @@ export const TruckDispatch: React.FC = () => {
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {assignedVehicles.map((veh, idx) => {
+                              const isCustDirect = (veh.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT;
                               const matchedComp = transportCompanies.find(c => c.name.trim() === veh.transportCompany.trim());
                               const filteredDrivers = matchedComp
                                 ? transportDrivers.filter(d => d.companyId === matchedComp.id)
@@ -4623,7 +4661,8 @@ export const TruckDispatch: React.FC = () => {
                                     style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '11.5px', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                   >
                                     <option value="">-- 운송사 선택 --</option>
-                                    {veh.transportCompany && !transportCompanies.some(c => c.name.trim() === veh.transportCompany.trim()) && (
+                                    <option value={CUSTOMER_DIRECT_TRANSPORT}>{CUSTOMER_DIRECT_TRANSPORT} (운송료 0원)</option>
+                                    {veh.transportCompany && veh.transportCompany.trim() !== CUSTOMER_DIRECT_TRANSPORT && !transportCompanies.some(c => c.name.trim() === veh.transportCompany.trim()) && (
                                       <option value={veh.transportCompany}>{veh.transportCompany}</option>
                                     )}
                                     {transportCompanies.map(c => (
@@ -4641,7 +4680,10 @@ export const TruckDispatch: React.FC = () => {
                                     style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '11.5px', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                   >
                                     <option value="">-- 기사 선택 --</option>
-                                    {veh.driverName && !filteredDrivers.some(d => d.driverName.trim() === veh.driverName.trim()) && (
+                                    {isCustDirect && (
+                                      <option value={CUSTOMER_DIRECT_TRANSPORT}>{CUSTOMER_DIRECT_TRANSPORT}</option>
+                                    )}
+                                    {veh.driverName && veh.driverName.trim() !== CUSTOMER_DIRECT_TRANSPORT && !filteredDrivers.some(d => d.driverName.trim() === veh.driverName.trim()) && (
                                       <option value={veh.driverName}>{veh.driverName} ({veh.vehicleNo || '차량미상'})</option>
                                     )}
                                     {filteredDrivers.map(drv => (
@@ -4690,14 +4732,14 @@ export const TruckDispatch: React.FC = () => {
                                     type="number"
                                     min={0}
                                     placeholder="예상 운송비"
-                                    value={veh.expectedCost !== undefined ? veh.expectedCost : ''}
-                                    disabled={isFormDisabled}
+                                    value={isCustDirect ? 0 : (veh.expectedCost !== undefined ? veh.expectedCost : '')}
+                                    disabled={isFormDisabled || isCustDirect}
                                     onChange={e => {
-                                      const val = Math.max(0, Number(e.target.value) || 0);
+                                      const val = isCustDirect ? 0 : Math.max(0, Number(e.target.value) || 0);
                                       handleVehicleFieldChange(idx, 'expectedCost', val);
                                       handleVehicleFieldChange(idx, 'deliveryCost', val);
                                     }}
-                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: (isFormDisabled || isCustDirect) ? 'var(--bg-card)' : 'var(--bg-card)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: (isFormDisabled || isCustDirect) ? 0.65 : 1, cursor: (isFormDisabled || isCustDirect) ? 'not-allowed' : 'default' }}
                                   />
 
                                   {/* 6. 💵 실제 운송비 (선택 - 알면 금액 입력, 모르면 기본값 0 유지) */}
@@ -4705,13 +4747,13 @@ export const TruckDispatch: React.FC = () => {
                                     type="number"
                                     min={0}
                                     placeholder="0 (알면 입력)"
-                                    value={veh.finalCost !== undefined && veh.finalCost !== null ? veh.finalCost : 0}
-                                    disabled={isFormDisabled}
+                                    value={isCustDirect ? 0 : (veh.finalCost !== undefined && veh.finalCost !== null ? veh.finalCost : 0)}
+                                    disabled={isFormDisabled || isCustDirect}
                                     onChange={e => {
-                                      const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0);
+                                      const val = isCustDirect ? 0 : (e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0));
                                       handleVehicleFieldChange(idx, 'finalCost', val);
                                     }}
-                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: (isFormDisabled || isCustDirect) ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: (isFormDisabled || isCustDirect) ? 0.65 : 1, cursor: (isFormDisabled || isCustDirect) ? 'not-allowed' : 'default' }}
                                   />
 
                                   {!isFormDisabled && (

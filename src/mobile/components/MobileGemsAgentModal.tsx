@@ -222,7 +222,7 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
       if (name === 'submitDispatchOrder') {
         // 출고의뢰 생성
         const matchedCust = customers.find(c => c.name.includes(args.customerName) || args.customerName.includes(c.name));
-        const matchedSite = sites.find(s => s.name.includes(args.siteName) || args.siteName.includes(s.name));
+        const matchedSite = sites.find(s => (!matchedCust || s.customerId === matchedCust.id) && s.name.trim() === (args.siteName || '').trim());
 
         const orderData = {
           customerId: matchedCust?.id || `TEMP-CUST-${Date.now()}`,
@@ -237,14 +237,17 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
           requesterName: currentUser?.name || '영업담당'
         };
 
-        await saveSmartDispatch(orderData as any, true);
+        if (!matchedSite) {
+          throw new Error(`입력된 현장명('${args.siteName || ''}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록한 후 진행해 주십시오.`);
+        }
+        await saveSmartDispatch(orderData as any, false);
         orderSummary = `[출고의뢰 접수] ${args.customerName} ${args.siteName} (${args.deliveryDate} 08:00)`;
         if (onOrderCreated) onOrderCreated('DISPATCH', orderData);
 
       } else if (name === 'submitExchangeOrder') {
         // 교환의뢰 생성 (단일 EXCHANGE 배차 1건 발행 - 헌장 2.3)
         const matchedCust = customers.find(c => c.name.includes(args.customerName || '') || (args.customerName || '').includes(c.name));
-        const matchedSite = sites.find(s => s.name.includes(args.siteName) || args.siteName.includes(s.name));
+        const matchedSite = sites.find(s => (!matchedCust || s.customerId === matchedCust.id) && s.name.trim() === (args.siteName || '').trim());
 
         const orderData = {
           customerId: matchedCust?.id || `TEMP-CUST-${Date.now()}`,
@@ -259,13 +262,17 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
           requesterName: currentUser?.name || '영업담당'
         };
 
-        await saveSmartDispatch(orderData as any, true);
+        if (!matchedSite) {
+          throw new Error(`입력된 현장명('${args.siteName || ''}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록한 후 진행해 주십시오.`);
+        }
+        await saveSmartDispatch(orderData as any, false);
         orderSummary = `[교환의뢰 접수] ${args.siteName} (회수: ${args.oldAssetNo} ➔ 투입: ${args.newEquipmentModel})`;
         if (onOrderCreated) onOrderCreated('EXCHANGE', orderData);
 
       } else if (name === 'submitReturnOrder') {
         // 회수의뢰 생성
-        const matchedSite = sites.find(s => s.name.includes(args.siteName) || args.siteName.includes(s.name));
+        const matchedCust = customers.find(c => c.name.includes(args.customerName || '') || (args.customerName || '').includes(c.name));
+        const matchedSite = sites.find(s => (!matchedCust || s.customerId === matchedCust.id) && s.name.trim() === (args.siteName || '').trim());
         const orderData = {
           customerId: `TEMP-CUST-${Date.now()}`,
           customerName: args.customerName || '고객사',
@@ -279,7 +286,10 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
           requesterName: currentUser?.name || '영업담당'
         };
 
-        await saveSmartDispatch(orderData as any, true);
+        if (!matchedSite) {
+          throw new Error(`입력된 현장명('${args.siteName || ''}')이 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록한 후 진행해 주십시오.`);
+        }
+        await saveSmartDispatch(orderData as any, false);
         orderSummary = `[회수의뢰 접수] ${args.siteName} (대상: ${(args.targetAssetNos || []).join(', ')})`;
         if (onOrderCreated) onOrderCreated('RETURN', orderData);
 

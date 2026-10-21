@@ -346,11 +346,14 @@ export const SmartDispatch3: React.FC = () => {
       if (mc) {
         setSelectedCustomer(mc); setCustomerSource('parsed');
         if (ps) {
-          const cleanSite = ps.replace(/\s/g, '');
-          const ms = sites.find(s => s.customerId === mc.id &&
-            (s.name.replace(/\s/g,'') === cleanSite || s.name.includes(ps) || ps.includes(s.name)));
+          const trimmedSite = ps.trim();
+          const ms = sites.find(s => s.customerId === mc.id && s.name.trim() === trimmedSite);
           if (ms) { setSelectedSite(ms); setSiteSource('parsed'); applyInheritance(mc, ms); }
-          else { applyInheritance(mc, null); }
+          else {
+            setSelectedSite(null);
+            applyInheritance(mc, null);
+            showToast(`현장명 "${trimmedSite}"이(가) 등록된 현장과 100% 일치하지 않습니다. 현장을 새로 등록해 주십시오.`, 'error');
+          }
         } else { applyInheritance(mc, null); }
       } else {
         showToast(`고객사 "${pc}"는 DB에 없습니다. 직접 선택하세요.`, 'error');
@@ -421,7 +424,7 @@ export const SmartDispatch3: React.FC = () => {
     if (isSubmitting) return;
     if (!canSave) { showToast('저장 권한이 없습니다.', 'error'); return; }
     if (!selectedCustomer) { showToast('고객사를 선택하세요.', 'error'); setOpenBlock('WHO'); return; }
-    if (!selectedSite && !siteAddress) { showToast('현장을 선택하거나 주소를 입력하세요.', 'error'); setOpenBlock('WHERE'); return; }
+    if (!selectedSite) { showToast('등록된 현장과 100% 일치하는 현장을 선택해야 합니다. 미등록 현장은 먼저 현장을 새로 등록해 주십시오.', 'error'); setOpenBlock('WHERE'); return; }
     if (selectedCustomer.transactionStatus === 'BLOCKED') { showToast('🚫 거래 불가 거래처입니다.', 'error'); return; }
     if (matchedOverdue && matchedOverdue.sum > 0 && !overdueAck) { showToast('연체 확인 체크박스에 동의하세요.', 'error'); return; }
     if (!siteAddress.trim()) { showToast('현장 주소를 입력하세요.', 'error'); setOpenBlock('DETAILS'); return; }
@@ -464,10 +467,6 @@ export const SmartDispatch3: React.FC = () => {
       };
 
       let result = await saveSmartDispatch(data, false, onProgress);
-      if (result.requiresConfirm) {
-        setProgressLogs([]); setProgressPct(0);
-        result = await saveSmartDispatch(data, true, onProgress);
-      }
       if (result.errorMessage) { setProcessingOpen(false); showErrorModal(result.errorMessage, '오류'); return; }
       if (result.success) { setProcessCompleted(true); if (result.contractNo) setSavedContractNo(result.contractNo); }
     } catch (err: any) { console.error(err); }

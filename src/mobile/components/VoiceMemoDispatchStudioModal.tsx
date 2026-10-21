@@ -316,7 +316,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
         applyToAllSites: false
       };
 
-      const res = await saveSmartDispatch(payload as any, true);
+      const res = await saveSmartDispatch(payload as any, draft.siteId === 'NEW');
 
       if (res && res.success) {
         clearVoiceOrderDraft();

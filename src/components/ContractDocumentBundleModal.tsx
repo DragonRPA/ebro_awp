@@ -559,6 +559,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       let paidStr = parsed[0]?.paidOptions || '';
       const priceMap: Record<string, number> = parsed[0]?.paidOptionPrices || snapMeta?.paidOptionPrices || {};
       const unitMap: Record<string, '월' | '대' | '건'> = parsed[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
+      const qtyMap: Record<string, number> = parsed[0]?.paidOptionQtys || snapMeta?.paidOptionQtys || {};
 
       if (!paidStr && d.closingMemo) {
         const mOpt = d.closingMemo.match(/유상옵션:\s*([^|]+)/);
@@ -580,7 +581,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
         const customUnit = unitMap[optName];
         const unit: '월' | '대' | '건' = (customUnit === '건' || customUnit === '대' || customUnit === '월') ? customUnit : defUnit;
-        const quantity = unit === '건' ? 1 : batchQty;
+        const customPerUnitQty = qtyMap[optName] !== undefined ? qtyMap[optName] : (masterOpt as any)?.defaultQtyPerUnit;
+        const perUnitQty = unit === '대' ? Math.max(1, Number(customPerUnitQty) || 1) : 1;
+        const quantity = unit === '건' ? 1 : unit === '대' ? batchQty * perUnitQty : batchQty;
         const subTotal = unitPrice * quantity;
 
         const existing = optAccumulator.get(optName);

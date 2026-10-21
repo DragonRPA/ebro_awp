@@ -457,6 +457,7 @@ export function calculatePaidOptionBillingItems(params: {
     let explicitPaidOptions: string | undefined = undefined;
     let explicitPaidOptionPrices: Record<string, number> = {};
     let explicitPaidOptionUnits: Record<string, string> = {};
+    let explicitPaidOptionQtys: Record<string, number> = {};
     let cargoTotalCount = 0;
 
     parsedCargo.forEach(item => {
@@ -487,6 +488,16 @@ export function calculatePaidOptionBillingItems(params: {
           if (uStr === '월' || uStr === '대' || uStr === '건') {
             explicitPaidOptionUnits[k] = uStr;
             explicitPaidOptionUnits[k.replace(/\s+/g, '')] = uStr;
+          }
+        });
+      }
+      const rawQtys = item?.paidOptionQtys || item?.requestMeta?.paidOptionQtys;
+      if (rawQtys && typeof rawQtys === 'object') {
+        Object.entries(rawQtys).forEach(([k, v]) => {
+          const numQty = Math.floor(Number(v));
+          if (!isNaN(numQty) && numQty >= 1) {
+            explicitPaidOptionQtys[k] = numQty;
+            explicitPaidOptionQtys[k.replace(/\s+/g, '')] = numQty;
           }
         });
       }
@@ -598,11 +609,20 @@ export function calculatePaidOptionBillingItems(params: {
         const marker = `[OPT:대:${d.id}:${stdOpt.id}]`;
         if (isMarkerAlreadyBilled(marker)) continue;
 
-        // 해당 출고 건에서 출고된 대수만 산정 (기존 계약 보유 대수 합산 절대 금지)
-        const qty = targetLinkedAssets.length > 0
+        // 해당 출고 건에서 출고된 대수 × 1대당 수량 산정 (기존 계약 보유 대수 합산 절대 금지)
+        const baseMachineQty = targetLinkedAssets.length > 0
           ? targetLinkedAssets.length
           : (cargoTotalCount > 0 ? cargoTotalCount : 1);
-        if (qty <= 0) continue;
+        if (baseMachineQty <= 0) continue;
+
+        const overridePerUnitQty =
+          explicitPaidOptionQtys[stdOpt.name] !== undefined
+            ? explicitPaidOptionQtys[stdOpt.name]
+            : explicitPaidOptionQtys[cleanTarget] !== undefined
+              ? explicitPaidOptionQtys[cleanTarget]
+              : explicitPaidOptionQtys[stdOpt.id];
+        const perUnitQty = Math.max(1, Number(overridePerUnitQty || (stdOpt as any).defaultQtyPerUnit || 1));
+        const qty = baseMachineQty * perUnitQty;
 
         const amount = unitPrice * qty;
         results.push({
@@ -615,8 +635,8 @@ export function calculatePaidOptionBillingItems(params: {
           quantity: qty,
           unitPrice,
           amount,
-          itemName: `[유상옵션] ${stdOpt.name} (${qty}대)`,
-          description: `출고 유상옵션 1회 청구 (대당 × ${qty}대) ${marker}`,
+          itemName: `[유상옵션] ${stdOpt.name} (${qty})`,
+          description: `출고 유상옵션 1회 청구 (1대당 ${perUnitQty}개 × ${baseMachineQty}대 = ${qty}) ${marker}`,
         });
       } else {
         // unit === '월' (매월 가동 중인 해당 출고 자산 대수 × 월단가)
