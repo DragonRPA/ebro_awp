@@ -384,8 +384,11 @@ export const SmartReturn: React.FC = () => {
     );
   };
 
-  const filteredContractAssets = useMemo(() => {
-    if (salesAssetSearchTokens.length === 0) return activeContractAssets;
+  const selectedAssetIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
+
+  // 현재 검색어에 직접 매칭되는 계약 자산 목록
+  const searchMatchedContractAssets = useMemo(() => {
+    if (salesAssetSearchTokens.length === 0) return [];
     return activeContractAssets.filter(ca => {
       const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
       if (!asset) return false;
@@ -393,7 +396,38 @@ export const SmartReturn: React.FC = () => {
     });
   }, [activeContractAssets, salesAssetSearchTokens, assetMap]);
 
-  const selectedAssetIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
+  // 화면 표시용 자산 목록:
+  // - 검색어 입력 중일 때: [검색 일치 자산] 최상단 + [기존 선택된 자산] 함께 유지 노출
+  // - 평상시(또는 엔터 누적선택 직후): 중간중간 흩어져 있던 [선택된 자산]을 최상단으로 우선 재정렬 + [미선택 자산] 하단 배치
+  const filteredContractAssets = useMemo(() => {
+    const selectedOrderMap = new Map<string, number>();
+    selectedAssetIds.forEach((id, idx) => selectedOrderMap.set(id, idx));
+
+    if (salesAssetSearchTokens.length === 0) {
+      return activeContractAssets.slice().sort((a, b) => {
+        const aSelected = a.assetId ? selectedAssetIdSet.has(a.assetId) : false;
+        const bSelected = b.assetId ? selectedAssetIdSet.has(b.assetId) : false;
+        if (aSelected !== bSelected) return aSelected ? -1 : 1;
+        if (aSelected && bSelected && a.assetId && b.assetId) {
+          return (selectedOrderMap.get(a.assetId) ?? 0) - (selectedOrderMap.get(b.assetId) ?? 0);
+        }
+        return 0;
+      });
+    }
+
+    const matchedSet = new Set(searchMatchedContractAssets.map(ca => ca.id));
+    return activeContractAssets
+      .filter(ca => matchedSet.has(ca.id) || (ca.assetId ? selectedAssetIdSet.has(ca.assetId) : false))
+      .sort((a, b) => {
+        const aMatch = matchedSet.has(a.id);
+        const bMatch = matchedSet.has(b.id);
+        if (aMatch !== bMatch) return aMatch ? -1 : 1;
+        const aSelected = a.assetId ? selectedAssetIdSet.has(a.assetId) : false;
+        const bSelected = b.assetId ? selectedAssetIdSet.has(b.assetId) : false;
+        if (aSelected !== bSelected) return aSelected ? -1 : 1;
+        return 0;
+      });
+  }, [activeContractAssets, salesAssetSearchTokens, searchMatchedContractAssets, selectedAssetIdSet, selectedAssetIds]);
 
   const handleSalesAssetCheckboxChange = (assetId: string) => {
     if (selectedAssetIdSet.has(assetId)) {
@@ -412,7 +446,7 @@ export const SmartReturn: React.FC = () => {
     }
   };
 
-  // 여러 자산번호 입력 시 일치하는 자산 동시 선택 핸들러
+  // 여러 번 나누어 자산번호 입력 시 기존 선택을 유지한 채 누적 다중 선택 + 입력창 자동 비우기
   const handleBatchSelectSalesAssetsByQuery = () => {
     if (salesAssetSearchTokens.length === 0) return;
     const matchedIds = new Set<string>(selectedAssetIds);
@@ -457,9 +491,11 @@ export const SmartReturn: React.FC = () => {
     if (totalMatchedCount > 0) {
       setSelectedAssetIds(Array.from(matchedIds));
       if (unmatchedTokens.length > 0) {
-        showToast(`일치 자산 ${totalMatchedCount}대 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
+        setAssetSearchQuery(unmatchedTokens.join(', '));
+        showToast(`일치 자산 ${totalMatchedCount}대 누적 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
       } else {
-        showToast(`검색된 자산 ${totalMatchedCount}대가 동시 선택되었습니다.${newlyAddedCount > 0 ? ` (+${newlyAddedCount}대 추가)` : ''}`);
+        setAssetSearchQuery('');
+        showToast(`입력 자산 ${totalMatchedCount}대 누적 선택 완료 (총 ${matchedIds.size}대 선택 · 상단 정렬됨)`);
       }
     } else {
       showToast(`입력하신 번호(${salesAssetSearchTokens.join(', ')})와 일치하는 현장 대여 자산이 없습니다.`, 'error');
@@ -781,8 +817,10 @@ export const SmartReturn: React.FC = () => {
     [maintAssetSearchQuery]
   );
 
-  const filteredRepairsAtSelectedVendor = useMemo(() => {
-    if (maintAssetSearchTokens.length === 0) return repairsAtSelectedVendor;
+  const selectedRepairIdSet = useMemo(() => new Set(selectedRepairIds), [selectedRepairIds]);
+
+  const searchMatchedRepairsAtVendor = useMemo(() => {
+    if (maintAssetSearchTokens.length === 0) return [];
     return repairsAtSelectedVendor.filter(r => {
       const asset = r.assetId ? assetMap.get(r.assetId) : undefined;
       if (!asset) return false;
@@ -790,7 +828,33 @@ export const SmartReturn: React.FC = () => {
     });
   }, [repairsAtSelectedVendor, maintAssetSearchTokens, assetMap]);
 
-  const selectedRepairIdSet = useMemo(() => new Set(selectedRepairIds), [selectedRepairIds]);
+  const filteredRepairsAtSelectedVendor = useMemo(() => {
+    const selectedOrderMap = new Map<string, number>();
+    selectedRepairIds.forEach((id, idx) => selectedOrderMap.set(id, idx));
+
+    if (maintAssetSearchTokens.length === 0) {
+      return repairsAtSelectedVendor.slice().sort((a, b) => {
+        const aSel = selectedRepairIdSet.has(a.id);
+        const bSel = selectedRepairIdSet.has(b.id);
+        if (aSel !== bSel) return aSel ? -1 : 1;
+        if (aSel && bSel) return (selectedOrderMap.get(a.id) ?? 0) - (selectedOrderMap.get(b.id) ?? 0);
+        return 0;
+      });
+    }
+
+    const matchedSet = new Set(searchMatchedRepairsAtVendor.map(r => r.id));
+    return repairsAtSelectedVendor
+      .filter(r => matchedSet.has(r.id) || selectedRepairIdSet.has(r.id))
+      .sort((a, b) => {
+        const aMatch = matchedSet.has(a.id);
+        const bMatch = matchedSet.has(b.id);
+        if (aMatch !== bMatch) return aMatch ? -1 : 1;
+        const aSel = selectedRepairIdSet.has(a.id);
+        const bSel = selectedRepairIdSet.has(b.id);
+        if (aSel !== bSel) return aSel ? -1 : 1;
+        return 0;
+      });
+  }, [repairsAtSelectedVendor, maintAssetSearchTokens, searchMatchedRepairsAtVendor, selectedRepairIdSet, selectedRepairIds]);
 
   const handleMaintAssetCheckboxChange = (repairId: string) => {
     if (selectedRepairIdSet.has(repairId)) {
@@ -837,9 +901,11 @@ export const SmartReturn: React.FC = () => {
     if (totalMatchedCount > 0) {
       setSelectedRepairIds(Array.from(matchedRepairIds));
       if (unmatchedTokens.length > 0) {
-        showToast(`일치 자산 ${totalMatchedCount}대 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
+        setMaintAssetSearchQuery(unmatchedTokens.join(', '));
+        showToast(`일치 자산 ${totalMatchedCount}대 누적 선택 완료 (미일치: ${unmatchedTokens.join(', ')})`, 'error');
       } else {
-        showToast(`검색된 자산 ${totalMatchedCount}대가 동시 선택되었습니다.`);
+        setMaintAssetSearchQuery('');
+        showToast(`입력 자산 ${totalMatchedCount}대 누적 선택 완료 (총 ${matchedRepairIds.size}대 선택 · 상단 정렬됨)`);
       }
     } else {
       showToast(`입력하신 번호(${maintAssetSearchTokens.join(', ')})와 일치하는 정비 자산이 없습니다.`, 'error');
@@ -1392,7 +1458,7 @@ export const SmartReturn: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleBatchSelectSalesAssetsByQuery}
-                        disabled={salesAssetSearchTokens.length === 0 || filteredContractAssets.length === 0}
+                        disabled={salesAssetSearchTokens.length === 0 || searchMatchedContractAssets.length === 0}
                         className="btn-primary"
                         style={{
                           padding: '6px 12px',
@@ -1400,11 +1466,11 @@ export const SmartReturn: React.FC = () => {
                           fontWeight: 700,
                           borderRadius: '5px',
                           whiteSpace: 'nowrap',
-                          cursor: salesAssetSearchTokens.length > 0 && filteredContractAssets.length > 0 ? 'pointer' : 'not-allowed',
-                          opacity: salesAssetSearchTokens.length > 0 && filteredContractAssets.length > 0 ? 1 : 0.55
+                          cursor: salesAssetSearchTokens.length > 0 && searchMatchedContractAssets.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: salesAssetSearchTokens.length > 0 && searchMatchedContractAssets.length > 0 ? 1 : 0.55
                         }}
                       >
-                        검색결과 동시선택 ({salesAssetSearchTokens.length > 0 ? filteredContractAssets.length : 0}대)
+                        누적 동시선택 ({salesAssetSearchTokens.length > 0 ? searchMatchedContractAssets.length : 0}대)
                       </button>
                     </div>
                   </div>
@@ -1456,59 +1522,104 @@ export const SmartReturn: React.FC = () => {
                       <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', textAlign: 'center', padding: '10px' }}>
                         대여 중인 자산 정보가 없습니다.
                       </div>
-                    ) : filteredContractAssets.length === 0 ? (
+                    ) : salesAssetSearchTokens.length > 0 && searchMatchedContractAssets.length === 0 ? (
                       <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', textAlign: 'center', padding: '14px' }}>
                         검색어("{assetSearchQuery}")와 일치하는 자산이 없습니다.
                       </div>
                     ) : (
-                      filteredContractAssets.map(ca => {
+                      filteredContractAssets.map((ca, idx) => {
                         const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
                         if (!asset) return null;
                         const isChecked = selectedAssetIdSet.has(asset.id);
+                        const prevCa = idx > 0 ? filteredContractAssets[idx - 1] : undefined;
+                        const prevChecked = prevCa?.assetId ? selectedAssetIdSet.has(prevCa.assetId) : false;
+                        const showSelectedHeader = salesAssetSearchTokens.length === 0 && idx === 0 && isChecked;
+                        const showUnselectedDivider = salesAssetSearchTokens.length === 0 && !isChecked && prevChecked;
+
                         return (
-                          <label
-                            key={ca.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '10px',
-                              fontSize: '12.5px',
-                              cursor: 'pointer',
-                              padding: '7px 10px',
-                              borderRadius: '6px',
-                              border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: isChecked ? 'var(--primary-light)' : 'var(--bg-card)',
-                              transition: 'all 0.15s ease',
-                              margin: 0
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleSalesAssetCheckboxChange(asset.id)}
-                            />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <strong style={{ color: 'var(--primary)' }}>{asset.assetNo}</strong>
-                              <span style={{ fontWeight: 600 }}>{asset.modelName}</span>
-                              {asset.serialNo && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>(제조번호: {asset.serialNo})</span>}
-                              {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR' && (
-                                <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700, backgroundColor: 'rgba(220, 38, 38, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
-                                  🚨 원사협착봉 (탈거금지)
+                          <React.Fragment key={ca.id}>
+                            {showSelectedHeader && (
+                              <div style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: 'var(--primary)',
+                                padding: '2px 4px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <span>선택된 자산 ({selectedAssetIds.length}대 · 상단 우선 정렬)</span>
+                              </div>
+                            )}
+                            {showUnselectedDivider && (
+                              <div style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: 'var(--text-muted)',
+                                padding: '6px 4px 2px 4px',
+                                borderTop: '1px dashed var(--border-color)',
+                                marginTop: '2px'
+                              }}>
+                                미선택 자산 ({ Math.max(0, activeContractAssets.length - selectedAssetIds.length) }대)
+                              </div>
+                            )}
+                            <label
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                fontSize: '12.5px',
+                                cursor: 'pointer',
+                                padding: '7px 10px',
+                                borderRadius: '6px',
+                                border: isChecked ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                                backgroundColor: isChecked ? 'var(--primary-light)' : 'var(--bg-card)',
+                                transition: 'all 0.15s ease',
+                                margin: 0
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleSalesAssetCheckboxChange(asset.id)}
+                              />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <strong style={{ color: 'var(--primary)' }}>{asset.assetNo}</strong>
+                                <span style={{ fontWeight: 600 }}>{asset.modelName}</span>
+                                {asset.serialNo && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>(제조번호: {asset.serialNo})</span>}
+                                {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR' && (
+                                  <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700, backgroundColor: 'rgba(220, 38, 38, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
+                                    🚨 원사협착봉 (탈거금지)
+                                  </span>
+                                )}
+                                {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'OURS' && (
+                                  <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.25)', whiteSpace: 'nowrap' }}>
+                                    🔧 당사협착봉 (회수)
+                                  </span>
+                                )}
+                              </div>
+                              {isChecked && (
+                                <span style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'var(--primary)',
+                                  color: '#ffffff',
+                                  whiteSpace: 'nowrap',
+                                  flexShrink: 0
+                                }}>
+                                  선택됨
                                 </span>
                               )}
-                              {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'OURS' && (
-                                <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.25)', whiteSpace: 'nowrap' }}>
-                                  🔧 당사협착봉 (회수)
-                                </span>
-                              )}
-                            </div>
-                          </label>
+                            </label>
+                          </React.Fragment>
                         );
                       })
                     )}
                   </div>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                    * 여러 대를 선택할 때는 검색창에 자산번호들을 쉼표(,)나 공백으로 구분해 입력한 뒤 엔터 또는 [검색결과 동시선택]을 누르세요.
+                    * 여러 번 나누어 자산번호를 입력 후 엔터 또는 [누적 동시선택]을 누르면 기존 선택에 누적 추가되며, 선택된 자산들이 목록 최상단으로 자동 정렬됩니다.
                   </div>
                 </div>
 
