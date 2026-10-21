@@ -481,16 +481,16 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   }
 
   // 상차지와 하차지 분기
-  let origin = delivery.originAddress || hqAddress;
-  let destination = siteAddress;
+  let origin = formatAddressWithCompanyYard(delivery.originAddress || hqAddress, hqAddress);
+  let destination = formatAddressWithCompanyYard(siteAddress, hqAddress);
   let originContact = hqPhone;
   let destContact = [contactName, contactPhone].filter(Boolean).join(' ');
 
   // 회수인 경우: 상차지가 현장, 하차지가 주기장
   if (type === 'RETURN' || type === 'INBOUND') {
-    origin = siteAddress;
+    origin = formatAddressWithCompanyYard(siteAddress, hqAddress);
     originContact = [contactName, contactPhone].filter(Boolean).join(' ');
-    destination = hqAddress;
+    destination = formatAddressWithCompanyYard(delivery.destinationAddress || '당사 보관소', hqAddress);
     destContact = hqPhone;
   }
 
@@ -622,6 +622,49 @@ export function formatKakaoTimeSlot(timeSlot?: string, defaultPrefix = '오전')
   let t = timeSlot.trim();
   t = t.replace(/(상차|하차)$/, '').trim();
   return t || defaultPrefix;
+}
+
+/**
+ * 💬 상차지/하차지가 '당사 보관소'(또는 '본사 주기장'/'당사 주기장')인 경우 당사 주소를 함께 표시하는 헬퍼
+ */
+export function formatAddressWithCompanyYard(rawAddr: string | undefined, hqAddress?: string): string {
+  const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
+  const fallbackHq =
+    defaultYard?.address ||
+    db.currentTenant?.mainYardAddress ||
+    db.currentTenant?.businessAddress ||
+    '경기 용인시 처인구 모현읍 갈담리 176-1';
+  const cleanHq =
+    hqAddress && hqAddress.trim() && hqAddress.trim() !== '당사 보관소' && hqAddress.trim() !== '본사 주기장'
+      ? hqAddress.trim()
+      : fallbackHq;
+
+  const trimmed = (rawAddr || '').trim();
+  if (!trimmed) {
+    return `당사 보관소 (${cleanHq})`;
+  }
+
+  const normalized = trimmed.replace(/\s+/g, '');
+  if (
+    normalized === '당사보관소' ||
+    normalized === '본사보관소' ||
+    normalized === '당사주기장' ||
+    normalized === '본사주기장'
+  ) {
+    return `${trimmed} (${cleanHq})`;
+  }
+
+  if (
+    (trimmed.includes('당사 보관소') ||
+      trimmed.includes('당사보관소') ||
+      trimmed.includes('본사 주기장') ||
+      trimmed.includes('당사 주기장')) &&
+    !trimmed.includes(cleanHq)
+  ) {
+    return `${trimmed} (${cleanHq})`;
+  }
+
+  return trimmed;
 }
 
 /**
@@ -761,51 +804,63 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
     // ═══════════════════════════════════════════════
     // [유형 1: 반납/회수 배차] (현장 상차 -> 당사 주기장 하차)
     // ═══════════════════════════════════════════════
+    const returnOrigin = formatAddressWithCompanyYard(delivery.originAddress || siteAddress, hqAddress);
+    const returnDest = formatAddressWithCompanyYard(delivery.destinationAddress || '당사 보관소', hqAddress);
     lines.push(``);
     lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
     lines.push(`업체명 : ${customerName}`);
     lines.push(`현장명 : ${siteName}`);
-    lines.push(`상차지 : ${delivery.originAddress || siteAddress}`);
+    lines.push(`상차지 : ${returnOrigin}`);
     lines.push(`담당자 : ${siteContactFull}`);
     lines.push(`장비종류 : ${cargoStr}`);
     lines.push(``);
     lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
-    lines.push(`하차지: ${delivery.destinationAddress || hqAddress}`);
+    lines.push(`하차지: ${returnDest}`);
     lines.push(`담당자: ${hqContact}`);
 
   } else if (isExchange) {
     // ═══════════════════════════════════════════════
     // [유형 3: 교환 배차] (당사 출고 상차 -> 현장 교환 -> 당사 회수 입고)
     // ═══════════════════════════════════════════════
+    const exOrigin = formatAddressWithCompanyYard(delivery.originAddress || '당사 보관소', hqAddress);
+    const exSiteAddr = formatAddressWithCompanyYard(siteAddress, hqAddress);
+    const exReturnDest = formatAddressWithCompanyYard(
+      delivery.destinationAddress && delivery.destinationAddress.includes('보관소')
+        ? delivery.destinationAddress
+        : '당사 보관소',
+      hqAddress
+    );
     lines.push(``);
     lines.push(`[교환배차]`);
     lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
-    lines.push(`상차지 : ${delivery.originAddress || hqAddress}`);
+    lines.push(`상차지 : ${exOrigin}`);
     lines.push(`담당자 : ${hqContact}`);
     lines.push(`출고장비 : ${cargoStr}`);
     lines.push(``);
     lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
     lines.push(`현장명 : ${siteName}`);
-    lines.push(`현장 상세 : ${siteAddress}`);
+    lines.push(`현장 상세 : ${exSiteAddr}`);
     lines.push(`업체명 : ${customerName}`);
     lines.push(`담당자 : ${siteContactFull}`);
     lines.push(`회수장비 : ${cargoStr} (회수)`);
     lines.push(``);
-    lines.push(`하차지: ${delivery.destinationAddress || hqAddress}`);
+    lines.push(`하차지: ${exReturnDest}`);
     lines.push(`담당자: ${hqContact}`);
 
   } else {
     // ═══════════════════════════════════════════════
     // [유형 2: 출고 배차 (기본)] (당사 상차 -> 고객 현장 하차)
     // ═══════════════════════════════════════════════
+    const outOrigin = formatAddressWithCompanyYard(delivery.originAddress || '당사 보관소', hqAddress);
+    const outDest = formatAddressWithCompanyYard(delivery.destinationAddress || siteAddress, hqAddress);
     lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
-    lines.push(`상차지: ${delivery.originAddress || hqAddress}`);
+    lines.push(`상차지: ${outOrigin}`);
     lines.push(`담당자: ${hqContact}`);
     lines.push(`장비종류 : ${cargoStr}`);
     lines.push(``);
     lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
     lines.push(`현장명 : ${siteName}`);
-    lines.push(`현장 상세 : ${delivery.destinationAddress || siteAddress}`);
+    lines.push(`현장 상세 : ${outDest}`);
     lines.push(`업체명 : ${customerName}`);
     lines.push(`담당자 : ${siteContactFull}`);
   }
