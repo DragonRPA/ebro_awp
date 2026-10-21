@@ -280,7 +280,16 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
 
   const site = useMemo(() => {
     if (!selectedContract) return null;
-    return sites?.find(s => s.id === selectedContract.siteId);
+    return (
+      sites?.find(s => s.id === selectedContract.siteId) ||
+      sites?.find(
+        s =>
+          s.customerId === selectedContract.customerId &&
+          s.name &&
+          s.name.trim() === ((selectedContract as any).siteName || '').trim()
+      ) ||
+      null
+    );
   }, [sites, selectedContract]);
 
   // 해당 계약의 출고 배차 조회 (선택된 출고 요청 건 최우선 -> 투입일자 매칭 -> 최근 활성 출고/교환 배차 순)
@@ -616,64 +625,83 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     return models.length > 0 ? models : ['GS-2646'];
   }, [mappedAssets]);
 
-  // 해당 고객사에 연결된 전체 인물 풀 (고객 담당자 + 현장 담당자)
+  // 등록된 현장(CustomerSite)에 저장된 수신인 풀만 수집 (타 현장 및 고객사 전체 담당자 유입 차단)
   const availableCustomerContacts = useMemo(() => {
-    if (!customer) return [];
-    const list: { id: string; name: string; position: string; email: string; typeLabel: string }[] = [];
+    if (!site) return [];
+    const list: { id: string; name: string; position: string; email: string; typeLabel: string; roleLabel: string }[] = [];
+
+    const buildRoleLabel = (typeLabel: string, position?: string) => {
+      const cleanPos = (position || '').trim();
+      if (!cleanPos || cleanPos === typeLabel || cleanPos === '담당자' || cleanPos === '담당') {
+        return typeLabel;
+      }
+      return `${typeLabel} · ${cleanPos}`;
+    };
 
     const pushEmails = (baseId: string, name: string, position: string, rawEmail: string | undefined, typeLabel: string) => {
       if (!rawEmail) return;
       const parts = String(rawEmail).split(/[\s,;/]+/).map(e => e.trim()).filter(Boolean);
       parts.forEach((em, i) => {
         if (em.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+          const roleLabel = buildRoleLabel(typeLabel, position);
           list.push({
             id: parts.length > 1 ? `${baseId}-${i}` : baseId,
-            name,
-            position,
+            name: (name || '').trim() || typeLabel,
+            position: (position || '').trim() || typeLabel,
             email: em,
-            typeLabel
+            typeLabel,
+            roleLabel
           });
         }
       });
     };
 
-    // 1) 현재 계약 현장 담당자 최우선 배치
-    const custSites = (sites || []).filter(s => s.customerId === customer.id);
-    const orderedSites = [...custSites].sort((a, b) => (a.id === selectedContract?.siteId ? -1 : b.id === selectedContract?.siteId ? 1 : 0));
-    orderedSites.forEach(s => {
-      if (s.contacts && s.contacts.length > 0) {
-        s.contacts.filter(sc => sc.isActive !== false && sc.email).forEach((sc, idx) => {
-          pushEmails(
-            `site-${s.id}-c-${sc.id || idx}`,
-            sc.name || s.contactName || s.name || '현장담당자',
-            sc.position ? `${s.name} ${sc.position}` : `${s.name} 현장`,
-            sc.email,
-            sc.isPrimary ? '현장대표' : '현장담당'
-          );
-        });
-      }
-      if (s.email && s.email.trim()) {
+    // 1) 등록된 현장의 contacts 배열 내 수신인 (장비담당 / 마감담당 / 안전담당 / 추가담당)
+    if (site.contacts && site.contacts.length > 0) {
+      site.contacts.filter(sc => sc.isActive !== false && sc.email).forEach((sc, idx) => {
+        const typeLabel =
+          sc.contactType === 'EQUIPMENT' ? '장비담당' :
+          sc.contactType === 'CLOSING' ? '마감담당' :
+          sc.contactType === 'SAFETY' ? '안전담당' :
+          sc.isPrimary ? '현장대표' : '현장담당';
         pushEmails(
-          `site-${s.id}`,
-          s.contactName || s.name || '현장담당자',
-          s.name ? `${s.name} 현장` : '현장담당',
-          s.email,
-          '현장담당'
+          `site-${site.id}-c-${sc.id || idx}`,
+          sc.name || site.contactName || site.name || typeLabel,
+          sc.position || typeLabel,
+          sc.email,
+          typeLabel
         );
-      }
-    });
+      });
+    }
 
-    // 2) 고객 실무 담당자
-    const custContacts = (contacts || []).filter(c => c.customerId === customer.id && c.email);
-    custContacts.forEach(c => {
+    // 2) 등록된 현장의 기본/마감/안전 이메일 플랫 필드 보완 (contacts 배열과 중복 시 아래 uniqueMap에서 자동 병합)
+    if (site.email && site.email.trim()) {
       pushEmails(
-        `contact-${c.id}`,
-        c.name || '담당자',
-        c.position || '고객담당',
-        c.email,
-        '고객담당'
+        `site-${site.id}-eq`,
+        site.contactName || site.name || '장비담당',
+        '장비담당',
+        site.email,
+        '장비담당'
       );
-    });
+    }
+    if (site.billingContactEmail && site.billingContactEmail.trim()) {
+      pushEmails(
+        `site-${site.id}-cl`,
+        site.billingContactName || site.name || '마감담당',
+        '마감담당',
+        site.billingContactEmail,
+        '마감담당'
+      );
+    }
+    if (site.safetyContactEmail && site.safetyContactEmail.trim()) {
+      pushEmails(
+        `site-${site.id}-sf`,
+        site.safetyContactName || site.name || '안전담당',
+        '안전담당',
+        site.safetyContactEmail,
+        '안전담당'
+      );
+    }
 
     // 이메일 기준 중복 제거
     const uniqueMap = new Map<string, typeof list[0]>();
@@ -684,79 +712,19 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     });
 
     return Array.from(uniqueMap.values());
-  }, [customer, contacts, sites, selectedContract?.siteId]);
+  }, [site]);
 
-  // ── 계약 변경 시 실무 담당자(계약/현장/출고의뢰) 기반 기본 수신인 자동 추출 (고객사 대표 제외) ──
+  // ── 계약 변경 시 등록된 현장(CustomerSite)에 저장된 수신인만 자동 지정 ──
   useEffect(() => {
     if (!selectedContract || !isOpen) return;
 
-    const initialList: RecipientItem[] = [];
-    const seenEmails = new Set<string>();
-
-    const addRecipient = (rawEmail: string | undefined, name?: string, roleLabel?: string, source?: RecipientItem['source']) => {
-      if (!rawEmail) return;
-      const emails = String(rawEmail).split(/[\s,;/]+/).map(e => e.trim()).filter(Boolean);
-      emails.forEach(cleanEmail => {
-        const lower = cleanEmail.toLowerCase();
-        // 유효한 이메일 형식 체크
-        if (!lower.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) return;
-        if (seenEmails.has(lower)) return;
-        seenEmails.add(lower);
-
-        initialList.push({
-          id: `recip-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          email: cleanEmail,
-          name: name || '',
-          roleLabel: roleLabel || '기본수신',
-          source: source || 'CONTACT'
-        });
-      });
-    };
-
-    // 1. 현장 담당자 (해당 계약 현장 담당자 최우선)
-    if (site?.contacts && site.contacts.length > 0) {
-      site.contacts.filter(sc => sc.isActive !== false && sc.email).forEach(sc => {
-        addRecipient(sc.email, sc.name || site.contactName || site.name, `현장담당 (${sc.position || site.name})`, 'SITE');
-      });
-    }
-    if (site?.email) {
-      addRecipient(site.email, site.contactName || site.name, `현장담당 (${site.name})`, 'SITE');
-    }
-
-    // 2. 고객 실무 담당자 (계약 지정 담당자 및 기타 실무 담당자 — 고객사 대표 제외)
-    const custContacts = (contacts || []).filter(c => c.customerId === selectedContract.customerId);
-    const contractContact = custContacts.find(c => c.id === selectedContract.contactId);
-    if (contractContact?.email) {
-      addRecipient(contractContact.email, contractContact.name, `계약담당 (${contractContact.position || '담당'})`, 'CONTACT');
-    }
-    custContacts.forEach(c => {
-      if (c.email && c.id !== selectedContract.contactId) {
-        addRecipient(c.email, c.name, `담당자 (${c.position || '담당'})`, 'CONTACT');
-      }
-    });
-
-    // 3. 출고의뢰(배차) 본문 및 필드 내 이메일 추출
-    const contractDeliveries = (deliveries || []).filter(d => d.contractId === selectedContract.id);
-    contractDeliveries.forEach(d => {
-      // 3-1. statementEmail
-      if ((d as any).statementEmail) {
-        addRecipient(String((d as any).statementEmail), '출고의뢰 명세서', '출고의뢰', 'DELIVERY');
-      }
-      // 3-2. rawText 자연어 본문 내 이메일 정규식 탐색
-      if (d.rawText) {
-        const found = d.rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-        if (found) {
-          found.forEach(em => addRecipient(em, '출고요청 본문', '출고의뢰', 'DELIVERY'));
-        }
-      }
-      // 3-3. memo 내 이메일 탐색
-      if (d.memo) {
-        const found = d.memo.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-        if (found) {
-          found.forEach(em => addRecipient(em, '배차 메모', '출고의뢰', 'DELIVERY'));
-        }
-      }
-    });
+    const initialList: RecipientItem[] = availableCustomerContacts.map((c, idx) => ({
+      id: `recip-site-${site?.id || 'default'}-${idx}`,
+      email: c.email,
+      name: c.name,
+      roleLabel: c.roleLabel,
+      source: 'SITE'
+    }));
 
     setRecipients(initialList);
 
@@ -764,7 +732,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setGeneratedResult(null);
     setErrorMessage(null);
     setEmailSentSuccess(false);
-  }, [selectedContractId, isOpen, currentTenant]);
+  }, [selectedContractId, site?.id, isOpen, currentTenant, availableCustomerContacts]);
 
   // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
   useEffect(() => {
@@ -819,7 +787,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setManualInputName('');
   };
 
-  const handleToggleContactRecipient = (contactItem: { name: string; position: string; email: string; typeLabel: string }) => {
+  const handleToggleContactRecipient = (contactItem: { name: string; position: string; email: string; typeLabel: string; roleLabel: string }) => {
     const exists = recipients.some(r => r.email.toLowerCase() === contactItem.email.toLowerCase());
     if (exists) {
       setRecipients(prev => prev.filter(r => r.email.toLowerCase() !== contactItem.email.toLowerCase()));
@@ -830,8 +798,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
           id: `recip-quick-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           email: contactItem.email,
           name: contactItem.name,
-          roleLabel: `${contactItem.typeLabel} (${contactItem.position})`,
-          source: 'CONTACT'
+          roleLabel: contactItem.roleLabel,
+          source: 'SITE'
         }
       ]);
     }
@@ -1507,7 +1475,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                 이메일 수신인 ({recipients.length}명 지정됨)
               </label>
               <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                * 계약/현장/출고의뢰 기본 수신인 자동 지정됨 (임의 추가 및 삭제 가능)
+                * 등록된 현장에 저장된 수신인 자동 지정됨 (임의 추가 및 삭제 가능)
               </span>
             </div>
 
@@ -1626,12 +1594,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* 3-3. 👥 고객사 연결 인물 추가 헬퍼 */}
+            {/* 3-3. 등록된 현장 수신인 추가/제외 헬퍼 */}
             {availableCustomerContacts.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
                 <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Users size={12} color="var(--primary)" />
-                  고객사 연결 인물 선택 (클릭하여 추가/제외):
+                  등록된 현장 수신인 선택 (클릭하여 추가/제외):
                 </span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                   {availableCustomerContacts.map(c => {
@@ -1657,7 +1625,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                         }}
                       >
                         {isAdded ? <Check size={11} /> : <Plus size={11} />}
-                        <span>{c.name} ({c.position})</span>
+                        <span>{c.name} ({c.roleLabel})</span>
                         <span style={{ opacity: 0.7, fontSize: '10.5px' }}>&lt;{c.email}&gt;</span>
                       </button>
                     );
