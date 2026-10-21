@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.17';
-const CORE_HASH = 'b04cb1e18148';
+const VERSION = 'v2.0.0.Build.18';
+const CORE_HASH = 'fb7aaf0cfe52';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -419,7 +419,8 @@ async function checkAndApplyUpdate(force = false) {
       updateState.targetCoreHash = remoteCoreHash;
 
       const hasNewVersion = isNewerVersion(remoteVersion, VERSION);
-      const hasHashChanged = Boolean(remoteCoreHash && CORE_HASH && remoteCoreHash !== CORE_HASH);
+      const isRemoteOlder = isNewerVersion(VERSION, remoteVersion);
+      const hasHashChanged = !isRemoteOlder && Boolean(remoteCoreHash && CORE_HASH && remoteCoreHash !== CORE_HASH);
       if (remoteVersion && (hasNewVersion || hasHashChanged || force)) {
         agentLog('UPDATE', `코어 업데이트 감지: ${VERSION}(${CORE_HASH}) -> ${remoteVersion}(${remoteCoreHash || 'N/A'})`);
         updateState.status = 'downloading';
