@@ -37,6 +37,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialContractId?: string;
+  initialDeliveryId?: string;
+  initialContractAssetIds?: string[];
 }
 
 export interface RecipientItem {
@@ -47,7 +49,13 @@ export interface RecipientItem {
   source: 'CUSTOMER' | 'CONTACT' | 'SITE' | 'DELIVERY' | 'MANUAL';
 }
 
-export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, initialContractId }) => {
+export const ContractDocumentBundleModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  initialContractId,
+  initialDeliveryId,
+  initialContractAssetIds
+}) => {
   const { 
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, officialMailConfigs, currentUser,
@@ -121,49 +129,122 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     const dates = Array.from(new Set(caList.map(ca => ca.startDate).filter(Boolean)));
     return dates.sort();
   }, [selectedContractId, contractAssets]);
+
+  // 해당 계약에 연결된 개별 출고/교환 요청 건(Delivery) 목록 및 각 요청 건별 체결자산 ID 역추적
+  const contractOutboundDeliveries = useMemo(() => {
+    if (!selectedContractId) return [];
+    const caList = contractAssets.filter(
+      ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+    );
+    return (deliveries || [])
+      .filter(d => d.contractId === selectedContractId && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
+      .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)))
+      .map(d => {
+        const caIds: string[] = [];
+        let modelSummary = '';
+        let totalCount = 0;
+        let reqSiteContactName = '';
+        let reqSiteContactPhone = '';
+        try {
+          if (d.cargoItems) {
+            const parsed = JSON.parse(d.cargoItems);
+            if (Array.isArray(parsed)) {
+              const snapMeta = parsed.find((ci: any) => ci?.requestMeta)?.requestMeta;
+              if (snapMeta?.siteContactName) reqSiteContactName = String(snapMeta.siteContactName).trim();
+              if (snapMeta?.siteContactPhone) reqSiteContactPhone = String(snapMeta.siteContactPhone).trim();
+              parsed.forEach((ci: any) => {
+                if (Array.isArray(ci?.contractAssetIds)) {
+                  ci.contractAssetIds.forEach((id: string) => {
+                    if (id && !caIds.includes(id)) caIds.push(id);
+                  });
+                }
+              });
+              modelSummary = parsed.map((ci: any) => `${ci.modelName || '장비'}×${Number(ci.count) || 1}대`).join(', ');
+              totalCount = parsed.reduce((s: number, ci: any) => s + (Number(ci?.count) || 1), 0);
+            }
+          }
+        } catch {}
+        if (!reqSiteContactName && d.memo) {
+          const mContact = d.memo.match(/현장담당:\s*([^(\|]+?)(?:\s*\(([^)]+)\))?(?:\s*\||$)/);
+          if (mContact) {
+            const n = (mContact[1] || '').trim();
+            const p = (mContact[2] || '').trim();
+            if (n && n !== '-') reqSiteContactName = n;
+            if (p && p !== '-') reqSiteContactPhone = p;
+          }
+        }
+        if (caIds.length === 0 && outboundInspections) {
+          outboundInspections
+            .filter(ins => ins.deliveryId === d.id)
+            .forEach(ins => {
+              const caId = (ins as any).contractAssetId;
+              if (caId && !caIds.includes(caId)) caIds.push(caId);
+            });
+        }
+        if (caIds.length === 0 && d.loadingDate) {
+          caList
+            .filter(ca => ca.startDate === d.loadingDate)
+            .forEach(ca => {
+              if (!caIds.includes(ca.id)) caIds.push(ca.id);
+            });
+        }
+        const matchedCas = caIds.map(id => caList.find(c => c.id === id)).filter(Boolean);
+        const assignedCount = matchedCas.filter(ca => Boolean(ca?.assetId)).length;
+        const effectiveCount = matchedCas.length || totalCount || 0;
+        if (!modelSummary && matchedCas.length > 0) {
+          const mMap = new Map<string, number>();
+          matchedCas.forEach(ca => {
+            const m = ca?.expectedModel || '장비';
+            mMap.set(m, (mMap.get(m) || 0) + 1);
+          });
+          modelSummary = Array.from(mMap.entries()).map(([m, cnt]) => `${m}×${cnt}대`).join(', ');
+        }
+        const dateLabel = d.loadingDate || d.unloadingDate || d.scheduledDate || (d.createdAt ? d.createdAt.slice(0, 10) : '-');
+        return {
+          delivery: d,
+          id: d.id,
+          dateLabel,
+          caIds,
+          effectiveCount,
+          assignedCount,
+          modelSummary: modelSummary || `${effectiveCount}대`,
+          siteContactName: reqSiteContactName,
+          siteContactPhone: reqSiteContactPhone
+        };
+      });
+  }, [selectedContractId, deliveries, contractAssets, outboundInspections]);
   
   useEffect(() => {
-    // 계약 변경 시 최근 출고 배차에 매핑된 투입일자가 복수 투입일 중 존재하면 해당 투입일자를 우선 선택, 단일 투입일이면 ALL 유지
     if (!selectedContractId) {
       setFilterDate('ALL');
       return;
     }
-    const caList = contractAssets.filter(
-      ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
-    );
-    const dates = Array.from(new Set(caList.map(ca => ca.startDate).filter(Boolean))).sort();
-    if (dates.length > 1) {
-      const contractOutbounds = (deliveries || [])
-        .filter(d => d.contractId === selectedContractId && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
-        .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
-      const latestDel = contractOutbounds[0];
-      let matchedDate = '';
-      if (latestDel?.cargoItems) {
-        try {
-          const parsed = JSON.parse(latestDel.cargoItems);
-          if (Array.isArray(parsed)) {
-            const caIds = new Set(parsed.flatMap((ci: any) => Array.isArray(ci?.contractAssetIds) ? ci.contractAssetIds : []));
-            const matchedCa = caList.find(ca => caIds.has(ca.id) && ca.startDate);
-            if (matchedCa?.startDate && dates.includes(matchedCa.startDate)) {
-              matchedDate = matchedCa.startDate;
-            }
-          }
-        } catch {}
-      }
-      if (!matchedDate && latestDel?.loadingDate && dates.includes(latestDel.loadingDate)) {
-        matchedDate = latestDel.loadingDate;
-      }
-      setFilterDate(matchedDate || 'ALL');
+    // 1순위: 출고 요청 내역에서 특정 출고 요청(initialDeliveryId)을 지정해 모달을 호출한 경우 해당 출고 요청 건으로 즉시 고정
+    if (initialDeliveryId && (!initialContractId || selectedContractId === initialContractId)) {
+      setFilterDate(`DELIVERY:${initialDeliveryId}`);
+      return;
+    }
+    // 2순위: 계약에 복수의 출고 요청 건 또는 복수의 투입일이 존재하는 경우 가장 최근 출고 요청 건을 기본 선택하여 대량 페이지 일괄 생성을 방지
+    if (contractOutboundDeliveries.length > 0 && (contractOutboundDeliveries.length > 1 || availableStartDates.length > 1)) {
+      setFilterDate(`DELIVERY:${contractOutboundDeliveries[0].id}`);
+      return;
+    }
+    if (availableStartDates.length > 1) {
+      setFilterDate(availableStartDates[availableStartDates.length - 1]);
     } else {
       setFilterDate('ALL');
     }
-  }, [selectedContractId]);
+  }, [selectedContractId, initialDeliveryId, initialContractId, contractOutboundDeliveries.length, availableStartDates.length]);
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedContractId(initialContractId || contracts[0]?.id || '');
+      const nextContractId = initialContractId || contracts[0]?.id || '';
+      setSelectedContractId(nextContractId);
+      if (initialDeliveryId) {
+        setFilterDate(`DELIVERY:${initialDeliveryId}`);
+      }
     }
-  }, [isOpen, initialContractId, contracts]);
+  }, [isOpen, initialContractId, initialDeliveryId, contracts]);
 
   // 생성 진행 상태
   const [isGenerating, setIsGenerating] = useState(false);
@@ -202,12 +283,17 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     return sites?.find(s => s.id === selectedContract.siteId);
   }, [sites, selectedContract]);
 
-  // 해당 계약의 출고 배차 조회 (최근 활성 출고/교환 배차 우선)
+  // 해당 계약의 출고 배차 조회 (선택된 출고 요청 건 최우선 -> 투입일자 매칭 -> 최근 활성 출고/교환 배차 순)
   const outboundDelivery = useMemo(() => {
     if (!selectedContract) return null;
     const candidates = (deliveries || [])
       .filter(d => d.contractId === selectedContract.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
       .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
+    if (filterDate.startsWith('DELIVERY:')) {
+      const targetDelId = filterDate.slice('DELIVERY:'.length);
+      const exactDel = candidates.find(d => d.id === targetDelId);
+      if (exactDel) return exactDel;
+    }
     if (filterDate !== 'ALL') {
       const byDate = candidates.find(d =>
         d.loadingDate === filterDate ||
@@ -222,6 +308,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
   // 기준 배차일 (배차일이 있으면 배차일, 없으면 선택된 투입일 또는 계약 시작일)
   const baseDeliveryDate = useMemo(() => {
+    if (filterDate.startsWith('DELIVERY:')) {
+      return outboundDelivery?.loadingDate || outboundDelivery?.scheduledDate || outboundDelivery?.unloadingDate || selectedContract?.startDate || new Date().toISOString().split('T')[0];
+    }
     if (filterDate !== 'ALL') {
       return outboundDelivery?.loadingDate || outboundDelivery?.scheduledDate || outboundDelivery?.unloadingDate || filterDate;
     }
@@ -265,7 +354,19 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       ca => ca.contractId === selectedContract.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
     );
     
-    if (filterDate !== 'ALL') {
+    if (filterDate.startsWith('DELIVERY:')) {
+      const targetDelId = filterDate.slice('DELIVERY:'.length);
+      const delEntry = contractOutboundDeliveries.find(x => x.id === targetDelId);
+      const targetCaIds = new Set<string>([
+        ...(delEntry?.caIds || []),
+        ...(initialDeliveryId === targetDelId && Array.isArray(initialContractAssetIds) ? initialContractAssetIds : [])
+      ]);
+      if (targetCaIds.size > 0) {
+        caList = caList.filter(ca => targetCaIds.has(ca.id));
+      } else if (delEntry?.delivery?.loadingDate) {
+        caList = caList.filter(ca => ca.startDate === delEntry.delivery.loadingDate);
+      }
+    } else if (filterDate !== 'ALL') {
       caList = caList.filter(ca => ca.startDate === filterDate);
     }
 
@@ -337,7 +438,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       if (mCmp !== 0) return mCmp;
       return String(a.assetNo || '').localeCompare(String(b.assetNo || ''), 'ko');
     });
-  }, [selectedContract, contractAssets, assets, products, filterDate, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
+  }, [selectedContract, contractAssets, assets, products, filterDate, contractOutboundDeliveries, initialDeliveryId, initialContractAssetIds, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
 
   // 💡 계약서 품목 테이블에 표기할 유상옵션 목록 산출 (오직 유상옵션(PAID)만 표기, 무상옵션·부착물·현장요구사양 제외)
   const mappedPaidOptions = useMemo(() => {
@@ -347,20 +448,22 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       .filter(d => d.contractId === selectedContract.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
       .sort((a, b) => String(a.createdAt || a.id).localeCompare(String(b.createdAt || b.id)));
 
-    const matchedDeliveries = filterDate !== 'ALL'
-      ? contractOutbounds.filter(d => {
-          if (d.loadingDate === filterDate || d.unloadingDate === filterDate || d.scheduledDate === filterDate) return true;
-          if (d.cargoItems) {
-            try {
-              const parsed = JSON.parse(d.cargoItems);
-              if (Array.isArray(parsed)) {
-                return parsed.some((ci: any) => Array.isArray(ci?.contractAssetIds) && ci.contractAssetIds.some((id: string) => activeCaIds.has(id)));
-              }
-            } catch {}
-          }
-          return false;
-        })
-      : contractOutbounds;
+    const matchedDeliveries = filterDate.startsWith('DELIVERY:')
+      ? contractOutbounds.filter(d => d.id === filterDate.slice('DELIVERY:'.length))
+      : filterDate !== 'ALL'
+        ? contractOutbounds.filter(d => {
+            if (d.loadingDate === filterDate || d.unloadingDate === filterDate || d.scheduledDate === filterDate) return true;
+            if (d.cargoItems) {
+              try {
+                const parsed = JSON.parse(d.cargoItems);
+                if (Array.isArray(parsed)) {
+                  return parsed.some((ci: any) => Array.isArray(ci?.contractAssetIds) && ci.contractAssetIds.some((id: string) => activeCaIds.has(id)));
+                }
+              } catch {}
+            }
+            return false;
+          })
+        : contractOutbounds;
 
     const targetDeliveries = matchedDeliveries.length > 0 ? matchedDeliveries : contractOutbounds;
     const allMasters = (standardOptions && standardOptions.length > 0) ? standardOptions : (db.standardOptions || []);
@@ -579,7 +682,15 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
     setRecipients(initialList);
 
-    // 제목 및 본문 기본값 세팅
+    // 생성 결과 초기화
+    setGeneratedResult(null);
+    setErrorMessage(null);
+    setEmailSentSuccess(false);
+  }, [selectedContractId, isOpen, currentTenant]);
+
+  // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
+  useEffect(() => {
+    if (!selectedContract || !isOpen) return;
     const custName = customer?.name || '고객사';
     const siteName = site?.name || '현장';
     const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
@@ -595,15 +706,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       mappedAssetsCount: mappedAssets.length,
       uniqueModelList
     });
-    
     setEmailSubject(emailResult.subject);
     setEmailBody(emailResult.body);
-
-    // 생성 결과 초기화
-    setGeneratedResult(null);
-    setErrorMessage(null);
-    setEmailSentSuccess(false);
-  }, [selectedContractId, isOpen, currentTenant]);
+  }, [selectedContractId, filterDate, mappedAssets.length, uniqueModelList.join(','), isOpen, currentTenant]);
 
   // ── 수신인 추가 / 제거 핸들러 ──
   const handleRemoveRecipient = (id: string) => {
@@ -703,8 +808,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         accountHolder: primaryAccount?.accountHolder || '',
         bizRegNo: customer?.bizRegNo || '118-81-00241',
         ceoName: customer?.representative || '대표자',
-        contractDate: filterDate !== 'ALL' ? filterDate : selectedContract.startDate,
-        contractStartDate: filterDate !== 'ALL' ? filterDate : selectedContract.startDate,
+        contractDate: filterDate.startsWith('DELIVERY:') ? baseDeliveryDate : (filterDate !== 'ALL' ? filterDate : selectedContract.startDate),
+        contractStartDate: filterDate.startsWith('DELIVERY:') ? baseDeliveryDate : (filterDate !== 'ALL' ? filterDate : selectedContract.startDate),
         contractEndDate: selectedContract.endDate,
         deliveryDate: baseDeliveryDate,
         inspectionDate: customInspectionDate || defaultInspectionDate,
@@ -715,6 +820,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         managerName: customer?.representative || '계약담당자',
         managerPhone: customer?.repContact || '010-0000-0000',
         siteManagerName: (() => {
+          if (filterDate.startsWith('DELIVERY:')) {
+            const targetDelId = filterDate.slice('DELIVERY:'.length);
+            const delEntry = contractOutboundDeliveries.find(x => x.id === targetDelId);
+            if (delEntry?.siteContactName && delEntry.siteContactName !== '-') {
+              return delEntry.siteContactName;
+            }
+          }
           const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
           if (actContacts.length > 0) {
             return actContacts.map(c => c.position ? `${c.name}(${c.position})` : c.name).join(', ');
@@ -722,6 +834,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
           return site?.contactName || '현장소장';
         })(),
         siteManagerPhone: (() => {
+          if (filterDate.startsWith('DELIVERY:')) {
+            const targetDelId = filterDate.slice('DELIVERY:'.length);
+            const delEntry = contractOutboundDeliveries.find(x => x.id === targetDelId);
+            if (delEntry?.siteContactPhone && delEntry.siteContactPhone !== '-') {
+              return delEntry.siteContactPhone;
+            }
+          }
           const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
           if (actContacts.length > 0) {
             return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
@@ -1120,31 +1239,55 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             </select>
           </div>
 
-          {/* 투입일 기준 분할 출력 필터 */}
-            {availableStartDates.length > 0 && (
+          {/* 출고 요청 건별 / 투입일별 분할 출력 필터 */}
+            {(contractOutboundDeliveries.length > 0 || availableStartDates.length > 0) && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-body)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Filter size={14} color="var(--primary)" /> 계약서 패키지 분할 발행 (대상 장비 그룹화)
+                <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Filter size={14} color="var(--primary)" /> 계약서패키지 분할 발행 (출고 요청 건별 / 투입일별)
+                  </span>
+                  {filterDate.startsWith('DELIVERY:') && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: 'var(--primary)', fontWeight: 700 }}>
+                      출고 요청 지정됨 ({mappedAssets.length}대)
+                    </span>
+                  )}
                 </label>
                 <select
                   className="form-input"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
-                  style={{ width: '100%', fontSize: '13px' }}
+                  style={{ width: '100%', fontSize: '13px', fontWeight: 600 }}
                   disabled={isGenerating || emailSentSuccess}
                 >
-                  <option value="ALL">전체 투입 장비 일괄 생성 ({contractAssets.filter(ca => ca.contractId === selectedContractId).length}대)</option>
-                  {availableStartDates.map(date => {
-                    const count = contractAssets.filter(ca => ca.contractId === selectedContractId && ca.startDate === date).length;
-                    return (
-                      <option key={date} value={date}>
-                        {date} 단일 투입건 분리 생성 ({count}대)
-                      </option>
-                    );
-                  })}
+                  {contractOutboundDeliveries.length > 0 && (
+                    <optgroup label="출고 요청 건별 분리 생성 (권장)">
+                      {contractOutboundDeliveries.map(item => (
+                        <option key={`DELIVERY:${item.id}`} value={`DELIVERY:${item.id}`}>
+                          [출고 요청] {item.dateLabel} 상차 · {item.id} ({item.modelSummary} — 총 {item.effectiveCount}대 / 할당 {item.assignedCount}대)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {availableStartDates.length > 0 && (
+                    <optgroup label="투입일자별 분리 생성">
+                      {availableStartDates.map(date => {
+                        const count = contractAssets.filter(ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && ca.startDate === date).length;
+                        return (
+                          <option key={date} value={date}>
+                            [투입일자] {date} 투입 장비 분리 생성 ({count}대)
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  )}
+                  <optgroup label="계약 전체">
+                    <option value="ALL">
+                      전체 체결 자산 일괄 생성 ({contractAssets.filter(ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD').length}대)
+                    </option>
+                  </optgroup>
                 </select>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  * 단일 현장에 여러 날짜에 걸쳐 출고된 경우, 투입일자별로 서류를 분리하여 생성하고 개별 서명을 받을 수 있습니다.
+                  * 대형 현장에 누적 출고된 계약은 개별 출고 요청 건을 선택하여 당일 출고 장비만 계약서패키지로 신속하게 생성·발송할 수 있습니다.
                 </span>
               </div>
             )}

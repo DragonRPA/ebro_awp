@@ -32,9 +32,10 @@ import {
   UploadCloud, ShieldCheck, ShieldAlert,
   AlertTriangle, Check, AlertCircle, RotateCcw,
   Truck, Wrench, Shield, RefreshCw, Save, X, Search, Layers,
-  FolderOpen, Zap, Phone, Terminal, Activity, Printer
+  FolderOpen, Zap, Phone, Terminal, Activity, Printer, FileText
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
+import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { canViewFinancials } from '../utils/privacyMasking';
 import { extractCategorizedSiteOptions, stripOptionPrice, splitMasterAwareOptions } from '../types/siteOption';
 import './smart_dispatch4.css';
@@ -256,6 +257,11 @@ export const SmartDispatch4: React.FC = () => {
   } | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState<string>('');
   const [isCancellingRequest, setIsCancellingRequest] = useState<boolean>(false);
+  const [bundleModalTarget, setBundleModalTarget] = useState<{
+    contractId: string;
+    deliveryId: string;
+    contractAssetIds: string[];
+  } | null>(null);
 
   // 💰 출고 요청 내역 우측 상세: 미완료 출고 요청 전체 내역(모델/수량/삭제/추가, 옵션, 유상옵션 청구조건·단가) 및 렌탈료 수정 상태
   const [isEditingHistoryPrices, setIsEditingHistoryPrices] = useState<boolean>(false);
@@ -6041,6 +6047,7 @@ export const SmartDispatch4: React.FC = () => {
                 <thead>
                   <tr>
                     <th style={{ width: 68, textAlign: 'center' }}>상세</th>
+                    <th style={{ width: 92, textAlign: 'center' }}>계약서발송</th>
                     <th style={{ width: 84, textAlign: 'center' }}>배차상태</th>
                     <th style={{ width: 105, textAlign: 'center' }}>장비할당</th>
                     <th style={{ width: 88, textAlign: 'center' }}>출고검수</th>
@@ -6061,7 +6068,7 @@ export const SmartDispatch4: React.FC = () => {
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={hasFinancialAccess ? 16 : 15} className="text-center py-10 text-slate-400">
+                      <td colSpan={hasFinancialAccess ? 17 : 16} className="text-center py-10 text-slate-400">
                         조회 조건에 해당하는 출고 요청 내역이 없습니다.
                       </td>
                     </tr>
@@ -6107,6 +6114,39 @@ export const SmartDispatch4: React.FC = () => {
                             >
                               상세 ➔
                             </button>
+                          </td>
+                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                            {row.dispatchStatus === 'CANCELLED' ? (
+                              <span className="text-[11px] text-slate-500 font-bold whitespace-nowrap">-</span>
+                            ) : row.totalAssignedCount === 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => showToast('장비 할당이 완료된 후 해당 출고 건의 계약서패키지를 생성·발송할 수 있습니다.', 'error')}
+                                className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-900 text-slate-500 border border-slate-800 whitespace-nowrap cursor-not-allowed"
+                                title="장비 할당 완료 후 계약서패키지 발송 가능"
+                              >
+                                할당대기
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!row.contractId) {
+                                    showToast('연결된 계약 정보를 찾을 수 없습니다.', 'error');
+                                    return;
+                                  }
+                                  setBundleModalTarget({
+                                    contractId: row.contractId,
+                                    deliveryId: row.id,
+                                    contractAssetIds: row.equipmentItems.flatMap(e => e.contractAssetIds || [])
+                                  });
+                                }}
+                                className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-indigo-950/90 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/80 transition whitespace-nowrap cursor-pointer"
+                                title="이 출고 요청 건의 할당 장비 목록만 계약서패키지로 생성·발송"
+                              >
+                                계약서 발송
+                              </button>
+                            )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border whitespace-nowrap ${
@@ -7153,6 +7193,52 @@ export const SmartDispatch4: React.FC = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* 우하단 최종 액션: 출고요청서 인쇄 및 출고 요청 건별 계약서패키지 발송 */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handlePrintHistoryRow(selectedRow)}
+                      disabled={isAgentPrinting}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-slate-300" />
+                      <span>출고요청서 인쇄</span>
+                    </button>
+                    {selectedRow.dispatchStatus !== 'CANCELLED' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!selectedRow.contractId) {
+                            showToast('연결된 계약 정보를 찾을 수 없습니다.', 'error');
+                            return;
+                          }
+                          if (selectedRow.totalAssignedCount === 0) {
+                            showToast('장비 할당이 완료된 후 계약서패키지를 생성·발송할 수 있습니다.', 'error');
+                            return;
+                          }
+                          setBundleModalTarget({
+                            contractId: selectedRow.contractId,
+                            deliveryId: selectedRow.id,
+                            contractAssetIds: selectedRow.equipmentItems.flatMap(e => e.contractAssetIds || [])
+                          });
+                        }}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                          selectedRow.totalAssignedCount > 0
+                            ? 'bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 shadow-sm'
+                            : 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed'
+                        }`}
+                        title={
+                          selectedRow.totalAssignedCount > 0
+                            ? `이 출고 요청(${selectedRow.id})의 장비 ${selectedRow.totalAssignedCount}대만 계약서패키지로 생성·발송`
+                            : '장비 할당 완료 후 계약서패키지 발송 가능'
+                        }
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>계약서패키지 발송 ({selectedRow.totalAssignedCount}대)</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </>
             ) : (
@@ -7532,6 +7618,15 @@ export const SmartDispatch4: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 📄 [출고 요청 건별 계약서패키지 생성 및 발송 모달] */}
+      <ContractDocumentBundleModal
+        isOpen={Boolean(bundleModalTarget)}
+        onClose={() => setBundleModalTarget(null)}
+        initialContractId={bundleModalTarget?.contractId}
+        initialDeliveryId={bundleModalTarget?.deliveryId}
+        initialContractAssetIds={bundleModalTarget?.contractAssetIds}
+      />
 
       {/* 토스트 */}
       {toast && (
