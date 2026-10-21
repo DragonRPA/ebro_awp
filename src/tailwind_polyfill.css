@@ -402,3 +402,32 @@ button.bg-blue-600 span, button.bg-blue-800 span, button.bg-indigo-600 span, but
 .text-neutral-400 { color: var(--text-secondary); }
 .text-neutral-500 { color: var(--text-secondary); }
 
+
+/* Compact Form & Control Sizing Utilities */
+.px-1 { padding-left: 4px !important; padding-right: 4px !important; }
+.px-1\.5 { padding-left: 6px !important; padding-right: 6px !important; }
+.px-3 { padding-left: 12px !important; padding-right: 12px !important; }
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.w-6 { width: 24px !important; }
+.w-7 { width: 28px !important; }
+.w-8 { width: 32px !important; }
+.w-10 { width: 40px !important; }
+.w-11 { width: 44px !important; }
+.w-12 { width: 48px !important; }
+.w-14 { width: 56px !important; }
+.w-16 { width: 64px !important; }
+.w-20 { width: 80px !important; }
+.w-24 { width: 96px !important; }
+.h-6 { height: 24px !important; }
+.h-7 { height: 28px !important; }
+.h-8 { height: 32px !important; }
+.h-9 { height: 36px !important; }
+input.h-6, select.h-6, button.h-6,
+input.h-7, select.h-7, button.h-7,
+input.h-8, select.h-8, button.h-8,
+input.h-9, select.h-9, button.h-9 {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}

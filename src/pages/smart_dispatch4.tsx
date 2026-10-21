@@ -7068,12 +7068,13 @@ export const SmartDispatch4: React.FC = () => {
                               setEditHistoryPriceReason('');
                               setIsEditingHistoryPrices(true);
                             }}
-                            className="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
+                            className="rounded bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 font-bold transition whitespace-nowrap cursor-pointer"
+                            style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                           >
                             {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '단가 수정'}
                           </button>
                         ) : (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
                             <button
                               type="button"
                               disabled={isSavingHistoryPrices}
@@ -7138,7 +7139,8 @@ export const SmartDispatch4: React.FC = () => {
                                   setIsSavingHistoryPrices(false);
                                 }
                               }}
-                              className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
+                              className="rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition whitespace-nowrap cursor-pointer"
+                              style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                             >
                               {isSavingHistoryPrices ? '저장중...' : '수정 저장'}
                             </button>
@@ -7146,7 +7148,8 @@ export const SmartDispatch4: React.FC = () => {
                               type="button"
                               disabled={isSavingHistoryPrices}
                               onClick={() => setIsEditingHistoryPrices(false)}
-                              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10.5px] font-bold border border-slate-700 transition whitespace-nowrap cursor-pointer"
+                              className="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-slate-700 transition whitespace-nowrap cursor-pointer"
+                              style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                             >
                               취소
                             </button>
@@ -7157,12 +7160,13 @@ export const SmartDispatch4: React.FC = () => {
 
                     {/* 편집 모드 A: 미완료 출고 요청 전체 장비(모델 수정, 수량 변경, 모델 삭제, 신규 모델 추가) 편집 */}
                     {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2.5">
                         {editHistoryEquipments.map((eq, i) => (
-                          <div key={i} className="bg-slate-900 border border-blue-800/70 rounded-lg p-2.5 flex flex-col gap-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                <span className="text-[10px] font-bold text-blue-300 whitespace-nowrap">모델</span>
+                          <div key={i} className="bg-slate-900 border border-blue-800/70 rounded-lg p-3 flex flex-col gap-2.5">
+                            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+                              {/* 좌측: 모델 선택 (상하 세로 스택, 가변 폭) */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '160px' }}>
+                                <span className="text-[10.5px] font-bold text-blue-300 whitespace-nowrap">요청 모델</span>
                                 <select
                                   value={eq.modelName}
                                   onChange={e => {
@@ -7180,7 +7184,15 @@ export const SmartDispatch4: React.FC = () => {
                                       return next;
                                     });
                                   }}
-                                  className="h-7 px-2 rounded bg-slate-950 border border-blue-500/70 text-white font-mono text-xs font-bold flex-1 min-w-0 cursor-pointer"
+                                  className="rounded bg-slate-950 border border-blue-500/70 text-white font-mono font-bold cursor-pointer"
+                                  style={{
+                                    width: '100%',
+                                    height: '32px',
+                                    padding: '0 8px',
+                                    fontSize: '12px',
+                                    lineHeight: '30px',
+                                    boxSizing: 'border-box',
+                                  }}
                                 >
                                   {!catalogModels.some(m => m.modelName === eq.modelName) && (
                                     <option value={eq.modelName}>{eq.modelName}</option>
@@ -7193,71 +7205,86 @@ export const SmartDispatch4: React.FC = () => {
                                 </select>
                               </div>
 
-                              {/* 수량 변경 컨트롤 */}
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditHistoryEquipments(prev => {
-                                      const next = [...prev];
-                                      const nextQty = Math.max(1, (Number(next[i].qty) || 1) - 1);
-                                      next[i] = { ...next[i], qty: nextQty };
-                                      return next;
-                                    });
-                                  }}
-                                  className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 cursor-pointer"
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={eq.qty}
-                                  onChange={e => {
-                                    const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
-                                    setEditHistoryEquipments(prev => {
-                                      const next = [...prev];
-                                      next[i] = { ...next[i], qty: num };
-                                      return next;
-                                    });
-                                  }}
-                                  className="w-10 h-7 px-1 rounded bg-slate-950 border border-slate-700 text-center font-mono text-xs font-bold text-white"
-                                />
-                                <span className="text-[11px] text-slate-300 font-bold">대</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditHistoryEquipments(prev => {
-                                      const next = [...prev];
-                                      next[i] = { ...next[i], qty: (Number(next[i].qty) || 1) + 1 };
-                                      return next;
-                                    });
-                                  }}
-                                  className="w-6 h-7 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 cursor-pointer"
-                                >
-                                  +
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (editHistoryEquipments.length <= 1) {
-                                      showToast('최소 1개 이상의 요청 모델이 남아있어야 합니다.', 'error');
-                                      return;
-                                    }
-                                    setEditHistoryEquipments(prev => prev.filter((_, idx) => idx !== i));
-                                  }}
-                                  className="ml-1 px-2 h-7 rounded bg-rose-950/90 hover:bg-rose-700 text-rose-300 hover:text-white border border-rose-700 text-[10.5px] font-bold transition whitespace-nowrap cursor-pointer"
-                                  title="이 모델 행 삭제"
-                                >
-                                  삭제
-                                </button>
+                              {/* 우측: 요청 수량 및 삭제 (상하 세로 스택, 고정 폭) */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                                <span className="text-[10.5px] font-bold text-slate-300 whitespace-nowrap">요청 수량</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditHistoryEquipments(prev => {
+                                        const next = [...prev];
+                                        const nextQty = Math.max(1, (Number(next[i].qty) || 1) - 1);
+                                        next[i] = { ...next[i], qty: nextQty };
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 cursor-pointer"
+                                    style={{ width: '28px', height: '32px', padding: 0, fontSize: '14px', flexShrink: 0 }}
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={eq.qty}
+                                    onChange={e => {
+                                      const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
+                                      setEditHistoryEquipments(prev => {
+                                        const next = [...prev];
+                                        next[i] = { ...next[i], qty: num };
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded bg-slate-950 border border-slate-700 font-mono font-bold text-white"
+                                    style={{
+                                      width: '46px',
+                                      height: '32px',
+                                      padding: '0 4px',
+                                      fontSize: '12.5px',
+                                      textAlign: 'center',
+                                      flexShrink: 0,
+                                      boxSizing: 'border-box',
+                                    }}
+                                  />
+                                  <span className="text-[11.5px] text-slate-300 font-bold whitespace-nowrap" style={{ flexShrink: 0 }}>대</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditHistoryEquipments(prev => {
+                                        const next = [...prev];
+                                        next[i] = { ...next[i], qty: (Number(next[i].qty) || 1) + 1 };
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 cursor-pointer"
+                                    style={{ width: '28px', height: '32px', padding: 0, fontSize: '14px', flexShrink: 0 }}
+                                  >
+                                    +
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (editHistoryEquipments.length <= 1) {
+                                        showToast('최소 1개 이상의 요청 모델이 남아있어야 합니다.', 'error');
+                                        return;
+                                      }
+                                      setEditHistoryEquipments(prev => prev.filter((_, idx) => idx !== i));
+                                    }}
+                                    className="rounded bg-rose-950/90 hover:bg-rose-700 text-rose-300 hover:text-white border border-rose-700 font-bold transition whitespace-nowrap cursor-pointer"
+                                    style={{ height: '32px', padding: '0 10px', marginLeft: '2px', fontSize: '11.5px', flexShrink: 0 }}
+                                    title="이 모델 행 삭제"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
                               </div>
                             </div>
 
                             {hasFinancialAccess && (
-                              <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-800">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-[10px] text-slate-400">월 렌탈료 (1대당)</span>
+                              <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-800">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">월 렌탈료 (1대당)</span>
                                   <input
                                     type="text"
                                     inputMode="numeric"
@@ -7274,11 +7301,19 @@ export const SmartDispatch4: React.FC = () => {
                                         return next;
                                       });
                                     }}
-                                    className="h-7 px-2 rounded bg-slate-950 border border-emerald-500/60 text-right font-mono text-xs font-bold text-emerald-300"
+                                    className="rounded bg-slate-950 border border-emerald-500/60 font-mono font-bold text-emerald-300"
+                                    style={{
+                                      width: '100%',
+                                      height: '32px',
+                                      padding: '0 10px',
+                                      fontSize: '12.5px',
+                                      textAlign: 'right',
+                                      boxSizing: 'border-box',
+                                    }}
                                   />
                                 </div>
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-[10px] text-slate-400">일 렌탈료 (1대당)</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">일 렌탈료 (1대당)</span>
                                   <input
                                     type="text"
                                     inputMode="numeric"
@@ -7291,7 +7326,15 @@ export const SmartDispatch4: React.FC = () => {
                                         return next;
                                       });
                                     }}
-                                    className="h-7 px-2 rounded bg-slate-950 border border-slate-700 text-right font-mono text-xs font-bold text-white"
+                                    className="rounded bg-slate-950 border border-slate-700 font-mono font-bold text-white"
+                                    style={{
+                                      width: '100%',
+                                      height: '32px',
+                                      padding: '0 10px',
+                                      fontSize: '12.5px',
+                                      textAlign: 'right',
+                                      boxSizing: 'border-box',
+                                    }}
                                   />
                                 </div>
                               </div>
@@ -7300,13 +7343,22 @@ export const SmartDispatch4: React.FC = () => {
                         ))}
 
                         {/* 새 모델 및 수량 추가 바 */}
-                        <div className="bg-slate-900/70 border border-dashed border-emerald-600/60 rounded-lg p-2.5 flex flex-col gap-2">
-                          <span className="text-[10.5px] font-bold text-emerald-300">새 모델 및 수량 추가</span>
-                          <div className="flex items-center gap-1.5">
+                        <div className="bg-slate-900/70 border border-dashed border-emerald-600/60 rounded-lg p-3 flex flex-col gap-2">
+                          <span className="text-[10.5px] font-bold text-emerald-300 whitespace-nowrap">새 모델 및 수량 추가</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <select
                               value={editHistoryAddModelName}
                               onChange={e => setEditHistoryAddModelName(e.target.value)}
-                              className="h-7 px-2 rounded bg-slate-950 border border-slate-700 text-white font-mono text-xs font-bold flex-1 min-w-0 cursor-pointer"
+                              className="rounded bg-slate-950 border border-slate-700 text-white font-mono font-bold cursor-pointer"
+                              style={{
+                                flex: 1,
+                                minWidth: '150px',
+                                height: '32px',
+                                padding: '0 8px',
+                                fontSize: '12px',
+                                lineHeight: '30px',
+                                boxSizing: 'border-box',
+                              }}
                             >
                               {catalogModels.map(m => (
                                 <option key={m.modelName} value={m.modelName}>
@@ -7322,9 +7374,18 @@ export const SmartDispatch4: React.FC = () => {
                                 const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
                                 setEditHistoryAddModelQty(num);
                               }}
-                              className="w-11 h-7 px-1 rounded bg-slate-950 border border-slate-700 text-center font-mono text-xs font-bold text-white flex-shrink-0"
+                              className="rounded bg-slate-950 border border-slate-700 font-mono font-bold text-white"
+                              style={{
+                                width: '52px',
+                                height: '32px',
+                                padding: '0 6px',
+                                fontSize: '12.5px',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                                boxSizing: 'border-box',
+                              }}
                             />
-                            <span className="text-[11px] text-slate-300 font-bold flex-shrink-0">대</span>
+                            <span className="text-[11.5px] text-slate-300 font-bold whitespace-nowrap" style={{ flexShrink: 0 }}>대</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -7358,7 +7419,8 @@ export const SmartDispatch4: React.FC = () => {
                                 });
                                 setEditHistoryAddModelQty(1);
                               }}
-                              className="px-2.5 h-7 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap cursor-pointer flex-shrink-0"
+                              className="rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold whitespace-nowrap cursor-pointer"
+                              style={{ height: '32px', padding: '0 12px', fontSize: '12px', flexShrink: 0 }}
                             >
                               + 모델 추가
                             </button>
@@ -7381,9 +7443,9 @@ export const SmartDispatch4: React.FC = () => {
                                 )}
                               </div>
                               {hasFinancialAccess && isEditingHistoryPrices && (
-                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-[10px] text-slate-400">월 렌탈료 (1대당)</span>
+                                <div className="grid grid-cols-2 gap-2.5 pt-1.5 border-t border-slate-800">
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">월 렌탈료 (1대당)</span>
                                     <input
                                       type="text"
                                       inputMode="numeric"
@@ -7395,11 +7457,19 @@ export const SmartDispatch4: React.FC = () => {
                                           [eq.modelName]: { monthlyRate: num, dailyRate: num > 0 ? Math.round(num / 30) : 0 }
                                         }));
                                       }}
-                                      className="h-7 px-2 rounded bg-slate-950 border border-emerald-500/60 text-right font-mono text-xs font-bold text-emerald-300"
+                                      className="rounded bg-slate-950 border border-emerald-500/60 font-mono font-bold text-emerald-300"
+                                      style={{
+                                        width: '100%',
+                                        height: '32px',
+                                        padding: '0 10px',
+                                        fontSize: '12.5px',
+                                        textAlign: 'right',
+                                        boxSizing: 'border-box',
+                                      }}
                                     />
                                   </div>
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-[10px] text-slate-400">일 렌탈료 (1대당)</span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">일 렌탈료 (1대당)</span>
                                     <input
                                       type="text"
                                       inputMode="numeric"
@@ -7411,7 +7481,15 @@ export const SmartDispatch4: React.FC = () => {
                                           [eq.modelName]: { ...editVal, dailyRate: num }
                                         }));
                                       }}
-                                      className="h-7 px-2 rounded bg-slate-950 border border-slate-700 text-right font-mono text-xs font-bold text-white"
+                                      className="rounded bg-slate-950 border border-slate-700 font-mono font-bold text-white"
+                                      style={{
+                                        width: '100%',
+                                        height: '32px',
+                                        padding: '0 10px',
+                                        fontSize: '12.5px',
+                                        textAlign: 'right',
+                                        boxSizing: 'border-box',
+                                      }}
                                     />
                                   </div>
                                 </div>
@@ -7439,7 +7517,7 @@ export const SmartDispatch4: React.FC = () => {
                     {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
                       <div className="flex flex-col gap-2.5">
                         {/* 현재 선택된 요청 옵션 칩 목록 (클릭 시 삭제) */}
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1.5">
                           <span className="text-[10.5px] font-bold text-slate-300">
                             선택된 요청 옵션 ({editHistorySelectedOptions.size}개 · 클릭하여 삭제)
                           </span>
@@ -7460,7 +7538,8 @@ export const SmartDispatch4: React.FC = () => {
                                         return next;
                                       });
                                     }}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-600 text-white text-[11px] font-bold transition cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 hover:bg-rose-950/80 border border-slate-700 hover:border-rose-600 text-white font-bold transition cursor-pointer"
+                                    style={{ height: '28px', padding: '0 8px', fontSize: '11.5px' }}
                                     title="클릭하여 옵션 제거"
                                   >
                                     <span className={`px-1 py-0.2 rounded text-[9.5px] font-bold ${meta.badgeClass}`}>
@@ -7486,7 +7565,7 @@ export const SmartDispatch4: React.FC = () => {
                           );
                           if (activePaidOpts.length === 0) return null;
                           return (
-                            <div className="flex flex-col gap-1.5 p-2 bg-slate-900/90 rounded-lg border border-rose-800/60">
+                            <div className="flex flex-col gap-2 p-2.5 bg-slate-900/90 rounded-lg border border-rose-800/60">
                               <span className="text-[10.5px] font-bold text-rose-300">
                                 유상옵션 청구조건 및 단가 변경 (기준 수량: {editTotalQty}대)
                               </span>
@@ -7504,7 +7583,7 @@ export const SmartDispatch4: React.FC = () => {
                                 const mult = curUnit === '건' ? 1 : curUnit === '대' ? editTotalQty * curPerUnitQty : editTotalQty;
 
                                 return (
-                                  <div key={optName} className="flex flex-col gap-1.5 bg-slate-950 border border-slate-800 rounded p-2">
+                                  <div key={optName} className="flex flex-col gap-2 bg-slate-950 border border-slate-800 rounded p-2.5">
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="font-bold text-rose-200">{optName}</span>
                                       <span className="text-[10.5px] font-mono text-amber-300 font-bold">
@@ -7512,8 +7591,8 @@ export const SmartDispatch4: React.FC = () => {
                                       </span>
                                     </div>
                                     <div className={`grid ${curUnit === '대' ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] text-slate-400">청구조건</span>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">청구조건</span>
                                         <select
                                           value={curUnit}
                                           onChange={e => {
@@ -7521,7 +7600,14 @@ export const SmartDispatch4: React.FC = () => {
                                             setEditHistoryOptUnits(prev => ({ ...prev, [optName]: val }));
                                           }}
                                           className="rounded bg-slate-900 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
-                                          style={{ height: '28px', padding: '2px 8px', fontSize: '11.5px' }}
+                                          style={{
+                                            width: '100%',
+                                            height: '32px',
+                                            padding: '0 8px',
+                                            fontSize: '12px',
+                                            lineHeight: '30px',
+                                            boxSizing: 'border-box',
+                                          }}
                                         >
                                           <option value="월">월 (매월×{editTotalQty}대)</option>
                                           <option value="대">1대당 (1회×{editTotalQty}대)</option>
@@ -7529,8 +7615,8 @@ export const SmartDispatch4: React.FC = () => {
                                         </select>
                                       </div>
                                       {curUnit === '대' && (
-                                        <div className="flex flex-col gap-0.5">
-                                          <span className="text-[10px] text-slate-400">1대당 수량</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                          <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">1대당 수량</span>
                                           <input
                                             type="number"
                                             min={1}
@@ -7540,13 +7626,20 @@ export const SmartDispatch4: React.FC = () => {
                                               const num = Math.max(1, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 1);
                                               setEditHistoryOptQtys(prev => ({ ...prev, [optName]: num }));
                                             }}
-                                            className="rounded bg-slate-900 border border-amber-500/60 text-center font-mono font-bold text-amber-300"
-                                            style={{ height: '28px', padding: '2px 6px', fontSize: '12px', textAlign: 'center' }}
+                                            className="rounded bg-slate-900 border border-amber-500/60 font-mono font-bold text-amber-300"
+                                            style={{
+                                              width: '100%',
+                                              height: '32px',
+                                              padding: '0 6px',
+                                              fontSize: '12px',
+                                              textAlign: 'center',
+                                              boxSizing: 'border-box',
+                                            }}
                                           />
                                         </div>
                                       )}
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="text-[10px] text-slate-400">단가 (원)</span>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">단가 (원)</span>
                                         <input
                                           type="text"
                                           inputMode="numeric"
@@ -7555,8 +7648,15 @@ export const SmartDispatch4: React.FC = () => {
                                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
                                             setEditHistoryOptPrices(prev => ({ ...prev, [optName]: num }));
                                           }}
-                                          className="rounded bg-slate-900 border border-rose-500/70 text-right font-mono font-bold text-rose-200"
-                                          style={{ height: '28px', padding: '2px 8px', fontSize: '12px', textAlign: 'right' }}
+                                          className="rounded bg-slate-900 border border-rose-500/70 font-mono font-bold text-rose-200"
+                                          style={{
+                                            width: '100%',
+                                            height: '32px',
+                                            padding: '0 8px',
+                                            fontSize: '12px',
+                                            textAlign: 'right',
+                                            boxSizing: 'border-box',
+                                          }}
                                         />
                                       </div>
                                     </div>
@@ -7568,9 +7668,9 @@ export const SmartDispatch4: React.FC = () => {
                         })()}
 
                         {/* 미선택 추천 옵션 추가 풀 + 직접 입력 추가 */}
-                        <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-800">
+                        <div className="flex flex-col gap-1.5 pt-1.5 border-t border-slate-800">
                           <span className="text-[10.5px] font-bold text-slate-400">옵션 클릭하여 추가</span>
-                          <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1.5 bg-slate-900/60 rounded border border-slate-800 dispatch4-scrollbar">
+                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-900/60 rounded border border-slate-800 dispatch4-scrollbar">
                             {availableOptionSuggestions
                               .filter(tag => !editHistorySelectedOptions.has(tag))
                               .map(tag => {
@@ -7599,7 +7699,8 @@ export const SmartDispatch4: React.FC = () => {
                                         }));
                                       }
                                     }}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 text-[10.5px] font-bold transition cursor-pointer"
+                                    className="inline-flex items-center gap-1 rounded bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 font-bold transition cursor-pointer"
+                                    style={{ height: '26px', padding: '0 8px', fontSize: '11px' }}
                                   >
                                     <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${meta.badgeClass}`}>
                                       {meta.badgeText}
@@ -7609,7 +7710,7 @@ export const SmartDispatch4: React.FC = () => {
                                 );
                               })}
                           </div>
-                          <div className="flex items-center gap-1.5 pt-1">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '4px' }}>
                             <input
                               type="text"
                               value={editHistoryCustomOptInput}
@@ -7624,7 +7725,15 @@ export const SmartDispatch4: React.FC = () => {
                                 }
                               }}
                               placeholder="직접 입력 옵션명"
-                              className="h-7 px-2 rounded bg-slate-900 border border-slate-700 text-xs text-white flex-1 min-w-0"
+                              className="rounded bg-slate-900 border border-slate-700 text-white"
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                height: '32px',
+                                padding: '0 10px',
+                                fontSize: '12px',
+                                boxSizing: 'border-box',
+                              }}
                             />
                             <button
                               type="button"
@@ -7634,7 +7743,8 @@ export const SmartDispatch4: React.FC = () => {
                                 setEditHistorySelectedOptions(prev => new Set(prev).add(val));
                                 setEditHistoryCustomOptInput('');
                               }}
-                              className="px-2.5 h-7 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold whitespace-nowrap cursor-pointer"
+                              className="rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold whitespace-nowrap cursor-pointer"
+                              style={{ height: '32px', padding: '0 12px', fontSize: '12px', flexShrink: 0 }}
                             >
                               + 직접 추가
                             </button>
@@ -7660,8 +7770,8 @@ export const SmartDispatch4: React.FC = () => {
                                   const machineCount = Math.max(1, selectedRow.totalQty || 1);
                                   const mult = curU === '건' ? 1 : curU === '대' ? machineCount * curPerUnitQ : machineCount;
                                   return (
-                                    <div key={idx} className="flex items-center justify-between gap-2 bg-slate-900 border border-rose-800/60 rounded-lg p-2">
-                                      <div className="flex flex-col gap-1">
+                                    <div key={idx} className="flex items-center justify-between gap-2 bg-slate-900 border border-rose-800/60 rounded-lg p-2.5">
+                                      <div className="flex flex-col gap-1.5">
                                         <span className="font-bold text-rose-300">{opt.name}</span>
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <select
@@ -7671,7 +7781,7 @@ export const SmartDispatch4: React.FC = () => {
                                               setEditHistoryOptUnits(prev => ({ ...prev, [opt.name]: val }));
                                             }}
                                             className="rounded bg-slate-950 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
-                                            style={{ width: '92px', height: '26px', padding: '2px 6px', fontSize: '11px', flexShrink: 0 }}
+                                            style={{ width: '98px', height: '30px', padding: '0 6px', fontSize: '11.5px', lineHeight: '28px', flexShrink: 0, boxSizing: 'border-box' }}
                                           >
                                             <option value="월">월 단위</option>
                                             <option value="대">1대당</option>
@@ -7679,7 +7789,7 @@ export const SmartDispatch4: React.FC = () => {
                                           </select>
                                           {curU === '대' && (
                                             <div className="flex items-center gap-1">
-                                              <span className="text-[10px] text-slate-300">1대당</span>
+                                              <span className="text-[10.5px] text-slate-300">1대당</span>
                                               <input
                                                 type="number"
                                                 min={1}
@@ -7690,12 +7800,12 @@ export const SmartDispatch4: React.FC = () => {
                                                   setEditHistoryOptQtys(prev => ({ ...prev, [opt.name]: num }));
                                                 }}
                                                 className="rounded bg-slate-950 border border-amber-500/60 text-center font-mono font-bold text-amber-300"
-                                                style={{ width: '48px', height: '26px', padding: '2px 4px', fontSize: '11px', textAlign: 'center', flexShrink: 0 }}
+                                                style={{ width: '50px', height: '30px', padding: '0 4px', fontSize: '11.5px', textAlign: 'center', flexShrink: 0, boxSizing: 'border-box' }}
                                               />
-                                              <span className="text-[10px] text-slate-400">개</span>
+                                              <span className="text-[10.5px] text-slate-400">개</span>
                                             </div>
                                           )}
-                                          <span className="text-[10px] text-slate-400 font-mono">
+                                          <span className="text-[10.5px] text-slate-400 font-mono">
                                             수량 {mult} · 합계: {(curP * mult).toLocaleString()}원
                                           </span>
                                         </div>
@@ -7710,7 +7820,7 @@ export const SmartDispatch4: React.FC = () => {
                                             setEditHistoryOptPrices(prev => ({ ...prev, [opt.name]: num }));
                                           }}
                                           className="rounded bg-slate-950 border border-rose-500 text-right font-mono font-bold text-rose-200"
-                                          style={{ width: '100px', height: '28px', padding: '2px 8px', fontSize: '12px', textAlign: 'right', flexShrink: 0 }}
+                                          style={{ width: '104px', height: '30px', padding: '0 8px', fontSize: '12px', textAlign: 'right', flexShrink: 0, boxSizing: 'border-box' }}
                                         />
                                         <span className="text-[11px] text-slate-400">원</span>
                                       </div>
