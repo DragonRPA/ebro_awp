@@ -12,6 +12,7 @@ import { clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { fetchWithAgentFallback, launchLocalAgentFromBrowser, isAgentOnlineGlobal, subscribeAgentStatus, setGlobalAgentStatus } from '../services/agentService';
 import { getCanonicalModelKey } from '../utils/modelUtils';
 import { PRESET_PRODUCT_SPECS } from '../data/presetProductSpecs';
+import { splitMasterAwareOptions } from '../types/siteOption';
 
 // 안전인증서 파일명/URL에서 안전인증일(일자) 자동 추출 헬퍼
 const extractCertDateFromText = (raw?: string | null): string | null => {
@@ -50,7 +51,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   const { 
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, officialMailConfigs, currentUser,
-    currentTenant, showErrorModal, hasPermission, users, outboundInspections
+    currentTenant, showErrorModal, hasPermission, users, outboundInspections, standardOptions
   } = useApp();
 
   // 계약서 패키지 생성 권한: 계약 저장/열람 권한 또는 에이전트 권한 보유자
@@ -114,14 +115,48 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
   const availableStartDates = useMemo(() => {
     if (!selectedContractId) return [];
-    const caList = contractAssets.filter(ca => ca.contractId === selectedContractId);
+    const caList = contractAssets.filter(
+      ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+    );
     const dates = Array.from(new Set(caList.map(ca => ca.startDate).filter(Boolean)));
     return dates.sort();
   }, [selectedContractId, contractAssets]);
   
   useEffect(() => {
-    // Reset filter when contract changes
-    setFilterDate('ALL');
+    // 계약 변경 시 최근 출고 배차에 매핑된 투입일자가 복수 투입일 중 존재하면 해당 투입일자를 우선 선택, 단일 투입일이면 ALL 유지
+    if (!selectedContractId) {
+      setFilterDate('ALL');
+      return;
+    }
+    const caList = contractAssets.filter(
+      ca => ca.contractId === selectedContractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+    );
+    const dates = Array.from(new Set(caList.map(ca => ca.startDate).filter(Boolean))).sort();
+    if (dates.length > 1) {
+      const contractOutbounds = (deliveries || [])
+        .filter(d => d.contractId === selectedContractId && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
+        .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
+      const latestDel = contractOutbounds[0];
+      let matchedDate = '';
+      if (latestDel?.cargoItems) {
+        try {
+          const parsed = JSON.parse(latestDel.cargoItems);
+          if (Array.isArray(parsed)) {
+            const caIds = new Set(parsed.flatMap((ci: any) => Array.isArray(ci?.contractAssetIds) ? ci.contractAssetIds : []));
+            const matchedCa = caList.find(ca => caIds.has(ca.id) && ca.startDate);
+            if (matchedCa?.startDate && dates.includes(matchedCa.startDate)) {
+              matchedDate = matchedCa.startDate;
+            }
+          }
+        } catch {}
+      }
+      if (!matchedDate && latestDel?.loadingDate && dates.includes(latestDel.loadingDate)) {
+        matchedDate = latestDel.loadingDate;
+      }
+      setFilterDate(matchedDate || 'ALL');
+    } else {
+      setFilterDate('ALL');
+    }
   }, [selectedContractId]);
 
   useEffect(() => {
@@ -167,16 +202,31 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     return sites?.find(s => s.id === selectedContract.siteId);
   }, [sites, selectedContract]);
 
-  // 해당 계약의 출고 배차 조회
+  // 해당 계약의 출고 배차 조회 (최근 활성 출고/교환 배차 우선)
   const outboundDelivery = useMemo(() => {
     if (!selectedContract) return null;
-    return deliveries.find(d => d.contractId === selectedContract.id && d.type === 'OUTBOUND');
-  }, [deliveries, selectedContract]);
+    const candidates = (deliveries || [])
+      .filter(d => d.contractId === selectedContract.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
+      .sort((a, b) => String(b.createdAt || b.id).localeCompare(String(a.createdAt || a.id)));
+    if (filterDate !== 'ALL') {
+      const byDate = candidates.find(d =>
+        d.loadingDate === filterDate ||
+        d.unloadingDate === filterDate ||
+        d.scheduledDate === filterDate ||
+        (d.cargoItems && contractAssets.some(ca => ca.contractId === selectedContract.id && ca.startDate === filterDate && d.cargoItems!.includes(ca.id)))
+      );
+      if (byDate) return byDate;
+    }
+    return candidates[0] || null;
+  }, [deliveries, selectedContract, filterDate, contractAssets]);
 
-  // 기준 배차일 (배차일이 있으면 배차일, 없으면 계약 시작일)
+  // 기준 배차일 (배차일이 있으면 배차일, 없으면 선택된 투입일 또는 계약 시작일)
   const baseDeliveryDate = useMemo(() => {
+    if (filterDate !== 'ALL') {
+      return outboundDelivery?.loadingDate || outboundDelivery?.scheduledDate || outboundDelivery?.unloadingDate || filterDate;
+    }
     return outboundDelivery?.scheduledDate || outboundDelivery?.loadingDate || outboundDelivery?.unloadingDate || selectedContract?.startDate || new Date().toISOString().split('T')[0];
-  }, [outboundDelivery, selectedContract]);
+  }, [outboundDelivery, selectedContract, filterDate]);
 
   // 배차일 기준 2일 전 자동 계산
   const defaultInspectionDate = useMemo(() => {
@@ -203,15 +253,23 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     setCustomInspectorName(defaultInspectorName);
   }, [defaultInspectorName]);
 
+  useEffect(() => {
+    setGeneratedResult(null);
+    setEmailSentSuccess(false);
+    setErrorMessage(null);
+  }, [selectedContractId, filterDate, customInspectionDate, customInspectorName]);
+
   const mappedAssets = useMemo(() => {
     if (!selectedContract) return [];
-    let caList = contractAssets.filter(ca => ca.contractId === selectedContract.id);
+    let caList = contractAssets.filter(
+      ca => ca.contractId === selectedContract.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+    );
     
     if (filterDate !== 'ALL') {
       caList = caList.filter(ca => ca.startDate === filterDate);
     }
-    
-    return caList.map(ca => {
+
+    const mapped = caList.map(ca => {
       const a = assets.find(ast => ast.id === ca.assetId) || db.assets.find(ast => ast.id === ca.assetId);
       const rawModel = a?.modelName || ca.expectedModel || 'GS-2646';
       const upperModel = rawModel.trim().toUpperCase();
@@ -253,6 +311,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
       return {
         // [자산별 정보]
+        caId: ca.id,
         assetNo: a?.assetNo || '-',
         sn: a?.serialNo || '',
         manufactureYear: resolvedManufactureYear,
@@ -272,7 +331,98 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         certDate: resolvedCertDate
       };
     });
+
+    return mapped.sort((a, b) => {
+      const mCmp = String(a.modelName || '').localeCompare(String(b.modelName || ''), 'ko');
+      if (mCmp !== 0) return mCmp;
+      return String(a.assetNo || '').localeCompare(String(b.assetNo || ''), 'ko');
+    });
   }, [selectedContract, contractAssets, assets, products, filterDate, customInspectorName, customInspectionDate, defaultInspectorName, defaultInspectionDate]);
+
+  // 💡 계약서 품목 테이블에 표기할 유상옵션 목록 산출 (오직 유상옵션(PAID)만 표기, 무상옵션·부착물·현장요구사양 제외)
+  const mappedPaidOptions = useMemo(() => {
+    if (!selectedContract) return [];
+    const activeCaIds = new Set(mappedAssets.map(a => a.caId));
+    const contractOutbounds = (deliveries || [])
+      .filter(d => d.contractId === selectedContract.id && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'))
+      .sort((a, b) => String(a.createdAt || a.id).localeCompare(String(b.createdAt || b.id)));
+
+    const matchedDeliveries = filterDate !== 'ALL'
+      ? contractOutbounds.filter(d => {
+          if (d.loadingDate === filterDate || d.unloadingDate === filterDate || d.scheduledDate === filterDate) return true;
+          if (d.cargoItems) {
+            try {
+              const parsed = JSON.parse(d.cargoItems);
+              if (Array.isArray(parsed)) {
+                return parsed.some((ci: any) => Array.isArray(ci?.contractAssetIds) && ci.contractAssetIds.some((id: string) => activeCaIds.has(id)));
+              }
+            } catch {}
+          }
+          return false;
+        })
+      : contractOutbounds;
+
+    const targetDeliveries = matchedDeliveries.length > 0 ? matchedDeliveries : contractOutbounds;
+    const allMasters = (standardOptions && standardOptions.length > 0) ? standardOptions : (db.standardOptions || []);
+
+    const optAccumulator = new Map<string, { name: string; quantity: number; unit: '월' | '대' | '건'; unitPrice: number; subTotal: number }>();
+
+    for (const d of targetDeliveries) {
+      let parsed: any[] = [];
+      try {
+        if (d.cargoItems) {
+          const r = JSON.parse(d.cargoItems);
+          if (Array.isArray(r)) parsed = r;
+        }
+      } catch { parsed = []; }
+
+      const batchQty = parsed.reduce((s, ci) => s + (Number(ci?.count) || 1), 0) || mappedAssets.length || 1;
+      const snapMeta = parsed[0]?.requestMeta;
+      let paidStr = parsed[0]?.paidOptions || '';
+      const priceMap: Record<string, number> = parsed[0]?.paidOptionPrices || snapMeta?.paidOptionPrices || {};
+      const unitMap: Record<string, '월' | '대' | '건'> = parsed[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
+
+      if (!paidStr && d.closingMemo) {
+        const mOpt = d.closingMemo.match(/유상옵션:\s*([^|]+)/);
+        if (mOpt && mOpt[1].trim() !== '없음') paidStr = mOpt[1].trim();
+      }
+
+      const optNames = splitMasterAwareOptions(paidStr, allMasters, { onlyMasterOptions: false, stripPrice: true })
+        .filter(o => o && o !== '없음' && o !== 'NONE');
+
+      for (const optName of optNames) {
+        const cleanTarget = optName.replace(/\s+/g, '');
+        const masterOpt = allMasters.find(so => so && so.name && so.name.replace(/\s+/g, '') === cleanTarget);
+        // 유상옵션(PAID) 카테고리만 허용 (무상옵션/부착물/현장요구사양 제외)
+        if (masterOpt && masterOpt.category !== 'PAID') continue;
+
+        const customPrice = priceMap[optName];
+        const unitPrice = customPrice !== undefined ? Number(customPrice) : Number(masterOpt?.defaultPrice || 0);
+        const rawDefUnit = (masterOpt?.unit || '월').trim();
+        const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
+        const customUnit = unitMap[optName];
+        const unit: '월' | '대' | '건' = (customUnit === '건' || customUnit === '대' || customUnit === '월') ? customUnit : defUnit;
+        const quantity = unit === '건' ? 1 : batchQty;
+        const subTotal = unitPrice * quantity;
+
+        const existing = optAccumulator.get(optName);
+        if (existing) {
+          existing.quantity += quantity;
+          existing.subTotal += subTotal;
+        } else {
+          optAccumulator.set(optName, {
+            name: optName,
+            quantity,
+            unit,
+            unitPrice,
+            subTotal
+          });
+        }
+      }
+    }
+
+    return Array.from(optAccumulator.values());
+  }, [selectedContract, deliveries, mappedAssets, filterDate, standardOptions]);
 
   // 고유 모델 목록
   const uniqueModelList = useMemo(() => {
@@ -553,8 +703,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         accountHolder: primaryAccount?.accountHolder || '',
         bizRegNo: customer?.bizRegNo || '118-81-00241',
         ceoName: customer?.representative || '대표자',
-        contractDate: selectedContract.startDate,
-        contractStartDate: selectedContract.startDate,
+        contractDate: filterDate !== 'ALL' ? filterDate : selectedContract.startDate,
+        contractStartDate: filterDate !== 'ALL' ? filterDate : selectedContract.startDate,
         contractEndDate: selectedContract.endDate,
         deliveryDate: baseDeliveryDate,
         inspectionDate: customInspectionDate || defaultInspectionDate,
@@ -580,7 +730,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         })(),
         salesRepName: dynamicSalesRepName,
         salesRepPhone: dynamicSalesRepPhone,
-        optionsText: (selectedContract as any).optionsText || (selectedContract as any).remarks || '옵션 협착난간대, 튜브소화기 외',
+        optionsText: '',
+        paidOptions: mappedPaidOptions,
         assets: mappedAssets.length > 0 ? mappedAssets : undefined,
         r2Config: config ? {
           accountId: config.r2AccountId,
@@ -1392,7 +1543,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--success)" />
-                <span><strong>2. 자산별 반입 전 CHECK LIST</strong> ({mappedAssets.length}대)</span>
+                <span><strong>2. 자산별 반입전 체크리스트</strong> ({mappedAssets.length}대)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--success)" />
@@ -1400,7 +1551,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />
-                <span><strong>4. 모델별 R2 정규문서 일체</strong> ({uniqueModelList.join(', ')})</span>
+                <span><strong>4. 모델별 정규문서 일체</strong> ({uniqueModelList.join(', ')})</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />
@@ -1408,11 +1559,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />
-                <span><strong>6. 사업자등록증</strong> (CF R2 원본)</span>
+                <span><strong>6. 사업자등록증</strong> (원본)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />
-                <span><strong>7. 통장사본</strong> (CF R2 원본)</span>
+                <span><strong>7. 통장사본</strong> (원본)</span>
               </div>
             </div>
           </div>

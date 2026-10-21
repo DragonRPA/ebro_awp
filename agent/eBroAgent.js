@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.19';
-const CORE_HASH = 'e514daca9a1e';
+const VERSION = 'v2.0.0.Build.20';
+const CORE_HASH = '3ebc08b45db6';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -809,7 +809,8 @@ async function executeContractBundleInternal(payload) {
     const siteAddress = payload.siteAddress || '';
     const managerName = payload.managerName || '현장담당자';
     const managerPhone = payload.managerPhone || '010-0000-0000';
-    const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
+    const paidOptions = Array.isArray(payload.paidOptions) ? payload.paidOptions : [];
+    const optionsText = ''; // 기존 {옵션} 칸 표기 삭제 (아무 옵션도 표시하지 말 것)
     const remarksText = payload.remarksText || '안전발판 지급';
     const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
     let inspectionDate = payload.inspectionDate;
@@ -945,6 +946,48 @@ async function executeContractBundleInternal(payload) {
 
     const primaryAsset = assets[0];
     const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
+    const totalPaidOptionsFee = paidOptions.reduce((sum, o) => {
+      const sub = o.subTotal !== undefined ? Number(o.subTotal) : (Number(o.unitPrice) || 0) * (Number(o.quantity) || 1);
+      return sum + (Number(sub) || 0);
+    }, 0);
+    const grandTotalFee = totalRentalFee + totalPaidOptionsFee;
+
+    const psEscape = (val) => String(val ?? '')
+      .replace(/`/g, '``')
+      .replace(/"/g, '""')
+      .replace(/\$/g, '`$');
+
+    const contractItems = [
+      ...assets.map(ast => {
+        const aNo = (ast.assetNo && ast.assetNo !== '-') ? String(ast.assetNo).trim() : '';
+        const aSn = (ast.sn && ast.sn !== '-') ? String(ast.sn).trim() : '';
+        const col4 = (aNo && aSn) ? `${psEscape(aNo)}\`n${psEscape(aSn)}` : psEscape(aNo || aSn || '');
+        const feeStr = (Number(ast.rentalFee) || 480000).toLocaleString();
+        return {
+          col1: psEscape(ast.modelName || 'GS-2646'),
+          col3: '1',
+          col4,
+          hasNewline: Boolean(aNo && aSn),
+          col5: psEscape(feeStr),
+          col7: psEscape(feeStr)
+        };
+      }),
+      ...paidOptions.map(opt => {
+        const qty = Math.max(1, Number(opt.quantity) || 1);
+        const unit = String(opt.unit || '대').trim();
+        const uPrice = Number(opt.unitPrice) || 0;
+        const sTotal = opt.subTotal !== undefined ? Number(opt.subTotal) : uPrice * qty;
+        return {
+          col1: psEscape(opt.name || ''),
+          col3: psEscape(`${qty} / ${unit}`),
+          col4: '',
+          hasNewline: false,
+          col5: psEscape(uPrice.toLocaleString()),
+          col7: psEscape(sTotal.toLocaleString())
+        };
+      })
+    ];
+    const totalItemRows = Math.max(12, contractItems.length);
 
     const psScript = `\ufeff
 $ErrorActionPreference = 'Stop'
@@ -1030,55 +1073,53 @@ $wsChecklistBase = Get-SheetByKeyword $wb "반입전|체크리스트" 2
 $wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
 
 # --- 2. 계약서 데이터 주입 (Sheet 1) ---
-Replace-Tag $wsContract "{Today}" "${contractDate}"
-Replace-Tag $wsContract "(주)기연리프트" "${tenantCorp}"
-Replace-Tag $wsContract "주식회사 기연리프트" "${tenantCorp}"
-Replace-Tag $wsContract "{테넌트}" "${tenantCorp}"
-${tenantBizNo ? `Replace-Tag $wsContract "138-81-83251" "${tenantBizNo}"` : ''}
-${tenantRepName ? `Replace-Tag $wsContract "이수용" "${tenantRepName}"` : ''}
-${tenantBankAccount ? `Replace-Tag $wsContract "{입금계좌}" "${tenantBankAccount}"` : ''}
-Replace-Tag $wsContract "{사업자등록번호}" "${bizRegNo}"
-Replace-Tag $wsContract "{고객명}" "${custName}"
-Replace-Tag $wsContract "{대표자}" "${ceoName}"
-Replace-Tag $wsContract "{현장명}" "${siteName}"
-Replace-Tag $wsContract "{하차일시}" "${contractDate}"
-Replace-Tag $wsContract "{현장주소}" "${siteAddress}"
-Replace-Tag $wsContract "{현장담당자}" "${managerName}"
-Replace-Tag $wsContract "{현장담당자연락처}" "${managerPhone}"
+Replace-Tag $wsContract "{Today}" "${psEscape(contractDate)}"
+Replace-Tag $wsContract "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $wsContract "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $wsContract "{테넌트}" "${psEscape(tenantCorp)}"
+${tenantBizNo ? `Replace-Tag $wsContract "138-81-83251" "${psEscape(tenantBizNo)}"` : ''}
+${tenantRepName ? `Replace-Tag $wsContract "이수용" "${psEscape(tenantRepName)}"` : ''}
+${tenantBankAccount ? `Replace-Tag $wsContract "{입금계좌}" "${psEscape(tenantBankAccount)}"` : ''}
+Replace-Tag $wsContract "{사업자등록번호}" "${psEscape(bizRegNo)}"
+Replace-Tag $wsContract "{고객명}" "${psEscape(custName)}"
+Replace-Tag $wsContract "{대표자}" "${psEscape(ceoName)}"
+Replace-Tag $wsContract "{현장명}" "${psEscape(siteName)}"
+Replace-Tag $wsContract "{하차일시}" "${psEscape(contractDate)}"
+Replace-Tag $wsContract "{현장주소}" "${psEscape(siteAddress)}"
+Replace-Tag $wsContract "{현장담당자}" "${psEscape(managerName)}"
+Replace-Tag $wsContract "{현장담당자연락처}" "${psEscape(managerPhone)}"
 Replace-Tag $wsContract "{영업담당자}" "${salesRepName}"
 Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
-Replace-Tag $wsContract "{모델명}" "${primaryAsset.modelName}"
-Replace-Tag $wsContract "{수량}" "${assets.length}"
-Replace-Tag $wsContract "{SN}" "${primaryAsset.sn}"
-Replace-Tag $wsContract "{관리번호}" "${primaryAsset.assetNo}"
-Replace-Tag $wsContract "{임대료}" "${(primaryAsset.rentalFee || 390000).toLocaleString()}"
-Replace-Tag $wsContract "{소계}" "${totalRentalFee.toLocaleString()}"
-Replace-Tag $wsContract "{합계}" "₩${totalRentalFee.toLocaleString()}"
-Replace-Tag $wsContract "{옵션}" "${optionsText}"
-Replace-Tag $wsContract "{특이사항}" "${remarksText}"
+Replace-Tag $wsContract "{합계}" "₩${grandTotalFee.toLocaleString()}"
+Replace-Tag $wsContract "{옵션}" ""
+$wsContract.Range("C57").Value2 = ""
+Replace-Tag $wsContract "{특이사항}" "${psEscape(remarksText)}"
+Replace-Tag $wsContract "(유상옵션)" ""
+Replace-Tag $wsContract "(수량) / {단위}" ""
+Replace-Tag $wsContract "{단가}" ""
+Replace-Tag $wsContract "{제조번호}" ""
 
-if (${assets.length} -gt 12) {
-    $extraRows = ${assets.length} - 12
+if (${contractItems.length} -gt 12) {
+    $extraRows = ${contractItems.length} - 12
     for ($k = 0; $k -lt $extraRows; $k++) {
         $wsContract.Rows.Item(54).Copy()
-        $null = $wsContract.Rows.Item(55).Insert(-4167)
+        $null = $wsContract.Rows.Item(55).Insert(-4121)
     }
 }
 
-` + assets.map((ast, idx) => {
+` + Array.from({ length: totalItemRows }, (_, idx) => {
   const row = 44 + idx;
-  const aModel = ast.modelName || 'GS-2646';
-  const aNo = ast.assetNo || '';
-  const aFee = (ast.rentalFee || 480000).toLocaleString();
-  return `
-$wsContract.Cells.Item(${row}, 1).Value2 = "${aModel}"
-$wsContract.Cells.Item(${row}, 3).Value2 = "1"
-$wsContract.Cells.Item(${row}, 4).Value2 = "${aNo}"
-$wsContract.Cells.Item(${row}, 5).Value2 = "${aFee}"
-$wsContract.Cells.Item(${row}, 7).Value2 = "${aFee}"
+  const item = contractItems[idx];
+  if (item) {
+    return `
+$wsContract.Cells.Item(${row}, 1).Value2 = "${item.col1}"
+$wsContract.Cells.Item(${row}, 3).Value2 = "${item.col3}"
+$wsContract.Cells.Item(${row}, 4).Value2 = "${item.col4}"
+$wsContract.Cells.Item(${row}, 4).WrapText = $${item.hasNewline ? 'true' : 'false'}
+$wsContract.Cells.Item(${row}, 5).Value2 = "${item.col5}"
+$wsContract.Cells.Item(${row}, 7).Value2 = "${item.col7}"
 `;
-}).join('') + (assets.length < 12 ? Array.from({ length: 12 - assets.length }, (_, k) => {
-  const row = 44 + assets.length + k;
+  }
   return `
 $wsContract.Cells.Item(${row}, 1).Value2 = ""
 $wsContract.Cells.Item(${row}, 3).Value2 = ""
@@ -1086,101 +1127,107 @@ $wsContract.Cells.Item(${row}, 4).Value2 = ""
 $wsContract.Cells.Item(${row}, 5).Value2 = ""
 $wsContract.Cells.Item(${row}, 7).Value2 = ""
 `;
-}).join('') : '') + `
+}).join('') + `
 
 $wsContract.PageSetup.PaperSize = 9
 $wsContract.PageSetup.Orientation = 1
 $wsContract.PageSetup.Zoom = $false
 $wsContract.PageSetup.FitToPagesWide = 1
-if (${assets.length} -le 12) {
+if (${contractItems.length} -le 12) {
   $wsContract.PageSetup.PrintArea = "A26:K78"
   $wsContract.PageSetup.FitToPagesTall = 1
 } else {
-  $endRow = 78 + (${assets.length} - 12)
+  $endRow = 78 + (${contractItems.length} - 12)
   $wsContract.PageSetup.PrintArea = "A26:K$endRow"
   $wsContract.PageSetup.FitToPagesTall = $false
 }
 
-$assetsJson = '${JSON.stringify(assets).replace(/'/g, "''")}' | ConvertFrom-Json
-
-for ($i = 0; $i -lt $assetsJson.Count; $i++) {
-    $asset = $assetsJson[$i]
-    
-    if ($i -eq 0) {
-        $curChecklist = $wsChecklistBase
-        $curSafety = $wsSafetyBase
-    } else {
-        $wsChecklistBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
-        $curChecklist = $wb.Sheets.Item($wb.Sheets.Count)
-        $wsSafetyBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))
-        $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
-    }
-    
-    $assetInspDate = "${inspectionDate}"
-    $assetInspName = if ($asset.inspectorName) { "$($asset.inspectorName)" } else { "${inspectorName}" }
-
-    Replace-Tag $curChecklist "(주)기연리프트" "${tenantCorp}"
-    Replace-Tag $curChecklist "주식회사 기연리프트" "${tenantCorp}"
-    Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
-    Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
-    Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
-    Replace-Tag $curChecklist "{점검일시}" "$assetInspDate"
-    Replace-Tag $curChecklist "{안전점검일시}" "$assetInspDate"
-    Replace-Tag $curChecklist "{{배차일)-2} 또는 {지정}" "$assetInspDate"
-    Replace-Tag $curChecklist "{(배차일)-2} 또는 {지정}" "$assetInspDate"
-    Replace-Tag $curChecklist "{(배차일)-2}" "$assetInspDate"
-    Replace-Tag $curChecklist "{Today}" "$assetInspDate"
-    Replace-Tag $curChecklist "{점검자}" "$assetInspName"
-    Replace-Tag $curChecklist "{점점자}" "$assetInspName"
-    Replace-Tag $curChecklist "김관주" "$assetInspName"
-    $curChecklist.PageSetup.Orientation = 1
-    $curChecklist.PageSetup.Zoom = $false
-    $curChecklist.PageSetup.FitToPagesWide = 1
-    $curChecklist.PageSetup.FitToPagesTall = 1
-
-    $assetModel = if ($asset.modelName) { "$($asset.modelName)" } else { "-" }
-    $assetNo = if ($asset.assetNo) { "$($asset.assetNo)" } else { "-" }
-    $assetSn = if ($asset.sn -and "$($asset.sn)" -ne "-") { "$($asset.sn)" } else { "" }
-    $assetVehicleNo = if ($assetSn) { "$assetNo ($assetSn)" } else { "$assetNo" }
-    $assetMfg = if ($asset.manufacturer -and "$($asset.manufacturer)" -ne "-") { "$($asset.manufacturer)" } else { "-" }
-    $assetPower = if ($asset.powerSource -and "$($asset.powerSource)" -ne "-") { "$($asset.powerSource)" } else { "배터리" }
-    $assetWeight = if ($asset.weight -and "$($asset.weight)" -ne "-") { "$($asset.weight)" } else { "-" }
-    $assetSpeed = if ($asset.speed -and "$($asset.speed)" -ne "-") { "$($asset.speed)" } else { "-" }
-    $assetWorkingHeight = if ($asset.workingHeight -and "$($asset.workingHeight)" -ne "-") { "$($asset.workingHeight)" } else { "-" }
-    $assetCapacity = if ($asset.capacityPreExt -and "$($asset.capacityPreExt)" -ne "-") { "$($asset.capacityPreExt)" } else { "-" }
-    $assetMfgYear = if ($asset.manufactureYear -and "$($asset.manufactureYear)" -ne "-") { "$($asset.manufactureYear)" } else { "-" }
-    $assetCertDate = if ($asset.safetyCertDate -and "$($asset.safetyCertDate)" -ne "-") { "$($asset.safetyCertDate)" } elseif ($asset.certDate -and "$($asset.certDate)" -ne "-") { "$($asset.certDate)" } else { "-" }
-
-    Replace-Tag $curSafety "{사업장명}" "${siteName}"
-    Replace-Tag $curSafety "{형식}" "자주식 시저형"
-    Replace-Tag $curSafety "{제조사}" "$assetMfg"
-    Replace-Tag $curSafety "(주)기연리프트" "${tenantCorp}"
-    Replace-Tag $curSafety "주식회사 기연리프트" "${tenantCorp}"
-    Replace-Tag $curSafety "{테넌트}" "${tenantCorp}"
-    Replace-Tag $curSafety "{고객명}" "${custName}"
-    Replace-Tag $curSafety "{동력방식}" "$assetPower"
-    Replace-Tag $curSafety "{모델명}" "$assetModel"
-    Replace-Tag $curSafety "{중량}" "$assetWeight"
-    Replace-Tag $curSafety "{운행속도}" "$assetSpeed"
-    Replace-Tag $curSafety "{작업높이}" "$assetWorkingHeight"
-    Replace-Tag $curSafety "{적재}" "$assetCapacity"
-    Replace-Tag $curSafety "{차량번호}" "$assetVehicleNo"
-    Replace-Tag $curSafety "{제조연도}" "$assetMfgYear"
-    Replace-Tag $curSafety "{안전인증일}" "$assetCertDate"
-    Replace-Tag $curSafety "{Today}" "$assetInspDate"
-    Replace-Tag $curSafety "{점검일시}" "$assetInspDate"
-    Replace-Tag $curSafety "{안전점검일시}" "$assetInspDate"
-    Replace-Tag $curSafety "{{배차일)-2} 또는 {지정}" "$assetInspDate"
-    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "$assetInspDate"
-    Replace-Tag $curSafety "{(배차일)-2}" "$assetInspDate"
-    Replace-Tag $curSafety "{점검자}" "$assetInspName"
-    Replace-Tag $curSafety "{점점자}" "$assetInspName"
-    Replace-Tag $curSafety "김관주" "$assetInspName"
-    $curSafety.PageSetup.Orientation = 1
-    $curSafety.PageSetup.Zoom = $false
-    $curSafety.PageSetup.FitToPagesWide = 1
-    $curSafety.PageSetup.FitToPagesTall = 1
+# --- 3. 자산별 반입전체크리스트 & 안전점검결과서 순회 생성 ---
+# 원본 시트($wsChecklistBase, $wsSafetyBase)의 태그가 치환되기 전에 먼저 자산 대수만큼 시트를 복제하여 배열에 보관
+$checkSheets = @($wsChecklistBase)
+$safetySheets = @($wsSafetyBase)
+for ($cIdx = 1; $cIdx -lt ${assets.length}; $cIdx++) {
+    $wsChecklistBase.Copy([Type]::Missing, $checkSheets[$cIdx - 1])
+    $copiedCheck = $wb.Sheets.Item($checkSheets[$cIdx - 1].Index + 1)
+    try { $copiedCheck.Name = "반입전체크리스트_$($cIdx + 1)" } catch {}
+    $checkSheets += $copiedCheck
 }
+for ($sIdx = 1; $sIdx -lt ${assets.length}; $sIdx++) {
+    $wsSafetyBase.Copy([Type]::Missing, $safetySheets[$sIdx - 1])
+    $copiedSafety = $wb.Sheets.Item($safetySheets[$sIdx - 1].Index + 1)
+    try { $copiedSafety.Name = "안전점검결과서_$($sIdx + 1)" } catch {}
+    $safetySheets += $copiedSafety
+}
+
+` + assets.map((ast, idx) => {
+  const astInspDate = psEscape(ast.inspectionDate || inspectionDate);
+  const astInspName = psEscape(ast.inspectorName || inspectorName);
+  const astModel = psEscape(ast.modelName || '-');
+  const astNo = psEscape(ast.assetNo || '-');
+  const astMfg = psEscape((ast.manufacturer && ast.manufacturer !== '-') ? ast.manufacturer : '-');
+  const astPower = psEscape((ast.powerSource && ast.powerSource !== '-') ? ast.powerSource : '배터리');
+  const astWeight = psEscape((ast.weight && ast.weight !== '-') ? ast.weight : '-');
+  const astSpeed = psEscape((ast.speed && ast.speed !== '-') ? ast.speed : '-');
+  const astWorkingHeight = psEscape((ast.workingHeight && ast.workingHeight !== '-') ? ast.workingHeight : '-');
+  const astCapacity = psEscape((ast.capacityPreExt && ast.capacityPreExt !== '-') ? ast.capacityPreExt : '-');
+  const astMfgYear = psEscape((ast.manufactureYear && ast.manufactureYear !== '-') ? ast.manufactureYear : '-');
+  const astCertDate = psEscape((ast.safetyCertDate && ast.safetyCertDate !== '-') ? ast.safetyCertDate : ((ast.certDate && ast.certDate !== '-') ? ast.certDate : '-'));
+
+  return `
+$curChecklist = $checkSheets[${idx}]
+$curSafety = $safetySheets[${idx}]
+
+Replace-Tag $curChecklist "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "{테넌트}" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "{모델명}" "${astModel}"
+Replace-Tag $curChecklist "{관리번호}" "${astNo}"
+Replace-Tag $curChecklist "{점검일시}" "${astInspDate}"
+Replace-Tag $curChecklist "{안전점검일시}" "${astInspDate}"
+Replace-Tag $curChecklist "{{배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curChecklist "{(배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curChecklist "{(배차일)-2}" "${astInspDate}"
+Replace-Tag $curChecklist "{Today}" "${astInspDate}"
+Replace-Tag $curChecklist "{점검자}" "${astInspName}"
+Replace-Tag $curChecklist "{점점자}" "${astInspName}"
+Replace-Tag $curChecklist "김관주" "${astInspName}"
+$curChecklist.PageSetup.Orientation = 1
+$curChecklist.PageSetup.Zoom = $false
+$curChecklist.PageSetup.FitToPagesWide = 1
+$curChecklist.PageSetup.FitToPagesTall = 1
+
+Replace-Tag $curSafety "{사업장명}" "${psEscape(siteName)}"
+Replace-Tag $curSafety "{형식}" "자주식 시저형"
+Replace-Tag $curSafety "{제조사}" "${astMfg}"
+Replace-Tag $curSafety "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "{테넌트}" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "{고객명}" "${psEscape(custName)}"
+Replace-Tag $curSafety "{동력방식}" "${astPower}"
+Replace-Tag $curSafety "{모델명}" "${astModel}"
+Replace-Tag $curSafety "{중량}" "${astWeight}"
+Replace-Tag $curSafety "{운행속도}" "${astSpeed}"
+Replace-Tag $curSafety "{작업높이}" "${astWorkingHeight}"
+Replace-Tag $curSafety "{적재}" "${astCapacity}"
+Replace-Tag $curSafety "{관리번호}" "${astNo}"
+Replace-Tag $curSafety "{차량번호}" "${astNo}"
+Replace-Tag $curSafety "{제조연도}" "${astMfgYear}"
+Replace-Tag $curSafety "{안전인증일}" "${astCertDate}"
+Replace-Tag $curSafety "{Today}" "${astInspDate}"
+Replace-Tag $curSafety "{점검일시}" "${astInspDate}"
+Replace-Tag $curSafety "{안전점검일시}" "${astInspDate}"
+Replace-Tag $curSafety "{{배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curSafety "{(배차일)-2}" "${astInspDate}"
+Replace-Tag $curSafety "{점검자}" "${astInspName}"
+Replace-Tag $curSafety "{점점자}" "${astInspName}"
+Replace-Tag $curSafety "김관주" "${astInspName}"
+$curSafety.PageSetup.Orientation = 1
+$curSafety.PageSetup.Zoom = $false
+$curSafety.PageSetup.FitToPagesWide = 1
+$curSafety.PageSetup.FitToPagesTall = 1
+`;
+}).join('\n') + `
 
 $wb.ExportAsFixedFormat(0, $masterPdf)
 $wb.Close($false)
