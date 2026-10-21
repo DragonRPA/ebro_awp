@@ -938,15 +938,10 @@ export const SmartDispatch4: React.FC = () => {
   }, [ftCountMap]);
 
   const addModel = (modelName: string) => {
-    // 모델 기준 단가 조회 (기본 단가 자동 제안, O(1))
-    const prod = productByModelMap.get(modelName);
-    const defMonthly = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || 0;
-    const defDaily = defMonthly > 0 ? Math.round(defMonthly / 30) : 0;
-
     setEquipments(prev => {
       const idx = prev.findIndex(e => e.modelName === modelName);
       if (idx >= 0) { const u = [...prev]; u[idx] = { ...u[idx], qty: u[idx].qty + 1 }; return u; }
-      return [...prev, { modelName, qty: 1, monthlyRate: defMonthly, dailyRate: defDaily }];
+      return [...prev, { modelName, qty: 1, monthlyRate: 0, dailyRate: 0 }];
     });
   };
   const changeQty = (index: number, delta: number) => {
@@ -5990,8 +5985,8 @@ export const SmartDispatch4: React.FC = () => {
       let cancelBlockBadge = '취소불가';
       let cancelBlockTooltip = '출고 검수가 완료되어 취소할 수 없습니다';
       if (d.status === 'DELIVERED' || d.status === 'COMPLETED') {
-        cancelBlockBadge = '운송취소 필요';
-        cancelBlockTooltip = '[배차/운송 관리]에서 운송완료 취소를 먼저 수행해야 합니다';
+        cancelBlockBadge = '취소/수정 불가';
+        cancelBlockTooltip = '운송이 완료된 건은 더이상 취소하거나 수정할 수 없습니다';
       } else if (isInspectionCompleted) {
         cancelBlockBadge = '검수취소 필요';
         cancelBlockTooltip = '[출고 검수]에서 출고 승인 취소(검수 롤백)를 먼저 수행해야 합니다';
@@ -6330,7 +6325,9 @@ export const SmartDispatch4: React.FC = () => {
                       );
                       const totalPaidOptionAmount = row.paidOptionItems.reduce((sum, o) => {
                         const rawUnit = (o.unitLabel || '월').trim();
-                        const mult = rawUnit === '건' ? 1 : Math.max(1, row.totalQty || 1);
+                        const perUnitQ = Math.max(1, Number((o as any).perUnitQty) || 1);
+                        const machineCount = Math.max(1, row.totalQty || 1);
+                        const mult = rawUnit === '건' ? 1 : rawUnit === '대' ? machineCount * perUnitQ : machineCount;
                         return sum + (Number(o.price) || 0) * mult;
                       }, 0);
                       const optSummary = row.paidOptionItems.length > 0
@@ -6470,7 +6467,11 @@ export const SmartDispatch4: React.FC = () => {
                               <span className="text-[10.5px] text-rose-400 font-bold whitespace-nowrap">취소완료</span>
                             ) : (
                               <span
-                                className="text-[10.5px] text-amber-400 font-bold whitespace-nowrap"
+                                className={`text-[10.5px] font-bold whitespace-nowrap ${
+                                  row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
+                                    ? 'text-slate-400'
+                                    : 'text-amber-400'
+                                }`}
                                 title={row.cancelBlockTooltip}
                               >
                                 {row.cancelBlockBadge}
@@ -6644,7 +6645,11 @@ export const SmartDispatch4: React.FC = () => {
                       <span className="text-[11px] font-bold text-emerald-400">
                         2. 요청 장비 및 단가 명세 (총 {isEditingHistoryPrices && selectedRow.canEditPreInspection ? editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0) : selectedRow.totalQty}대)
                       </span>
-                      {canSave && selectedRow.dispatchStatus !== 'CANCELLED' && (selectedRow.canEditPreInspection || hasFinancialAccess) && (
+                      {canSave &&
+                        selectedRow.dispatchStatus !== 'CANCELLED' &&
+                        selectedRow.dispatchStatus !== 'DELIVERED' &&
+                        selectedRow.dispatchStatus !== 'COMPLETED' &&
+                        (selectedRow.canEditPreInspection || hasFinancialAccess) && (
                         !isEditingHistoryPrices ? (
                           <button
                             type="button"
@@ -6804,9 +6809,8 @@ export const SmartDispatch4: React.FC = () => {
                                   value={eq.modelName}
                                   onChange={e => {
                                     const newModel = e.target.value;
-                                    const prod = productByModelMap.get(newModel);
-                                    const defM = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || eq.monthlyRate || 0;
-                                    const defD = defM > 0 ? Math.round(defM / 30) : eq.dailyRate || 0;
+                                    const defM = eq.monthlyRate || 0;
+                                    const defD = eq.dailyRate || (defM > 0 ? Math.round(defM / 30) : 0);
                                     setEditHistoryEquipments(prev => {
                                       const next = [...prev];
                                       next[i] = {
@@ -6969,9 +6973,8 @@ export const SmartDispatch4: React.FC = () => {
                                 const targetModel = editHistoryAddModelName || catalogModels[0]?.modelName;
                                 if (!targetModel) return;
                                 const addQty = Math.max(1, Number(editHistoryAddModelQty) || 1);
-                                const prod = productByModelMap.get(targetModel);
-                                const defM = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || 0;
-                                const defD = defM > 0 ? Math.round(defM / 30) : 0;
+                                const defM = 0;
+                                const defD = 0;
 
                                 setEditHistoryEquipments(prev => {
                                   const existingIdx = prev.findIndex(e => e.modelName === targetModel);
@@ -7480,7 +7483,11 @@ export const SmartDispatch4: React.FC = () => {
                       </span>
                     ) : (
                       <span
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-950/70 border border-amber-700 text-amber-300 text-xs font-bold whitespace-nowrap"
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${
+                          selectedRow.dispatchStatus === 'DELIVERED' || selectedRow.dispatchStatus === 'COMPLETED'
+                            ? 'bg-slate-900 border border-slate-700 text-slate-400'
+                            : 'bg-amber-950/70 border border-amber-700 text-amber-300'
+                        }`}
                         title={selectedRow.cancelBlockTooltip}
                       >
                         {selectedRow.cancelBlockBadge}

@@ -3346,41 +3346,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const eqData = eq as any;
       const count = Math.max(1, Math.floor(Number(eq.qty) || 1));
 
-      // 1. 명시된 단가 확인 (출고 요청 화면 monthlyRate/dailyRate 및 모바일 발주 monthlyRent/monthlyRentalFee 등)
-      let determinedMonthly = Number(eqData.monthlyRate || eqData.monthlyRent || eqData.monthlyRentalFee) || 0;
-      let determinedDaily = Number(eqData.dailyRate || eqData.dailyRent || eqData.dailyRentalFee) || (determinedMonthly > 0 ? Math.round(determinedMonthly / 30) : 0);
-
-      // 2. 미입력 시 고객사의 동일 모델 최근 계약 단가 자동 상속 (헌장 2.2)
-      if (!determinedMonthly && finalCustomer?.id) {
-        const recentCustCA = db.contractAssets
-          .filter(ca => custContractIds.includes(ca.contractId) && ca.expectedModel === eq.modelName && ca.monthlyRentalFee > 0)
-          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
-        if (recentCustCA) {
-          determinedMonthly = recentCustCA.monthlyRentalFee;
-          determinedDaily = recentCustCA.dailyRentalFee || Math.round(determinedMonthly / 30);
-        }
-      }
-
-      // 3. 미입력 시 자산 마스터 동일 모델의 표준 월 렌탈료 상속
-      if (!determinedMonthly) {
-        const peerAsset = db.assets.find(a => a.modelName === eq.modelName && (a.monthlyRentalFee || a.dailyRentalFee));
-        if (peerAsset) {
-          determinedMonthly = peerAsset.monthlyRentalFee || 0;
-          determinedDaily = peerAsset.dailyRentalFee || (determinedMonthly ? Math.round(determinedMonthly / 30) : 0);
-        }
-      }
-
-      // 4. 모델명 규격 기반 표준 단가 추정
-      if (!determinedMonthly) {
-        const m = (eq.modelName || '').toUpperCase();
-        if (m.includes('53') || m.includes('1614')) determinedMonthly = 1500000;
-        else if (m.includes('46') || m.includes('1412')) determinedMonthly = 1200000;
-        else if (m.includes('40') || m.includes('1212')) determinedMonthly = 900000;
-        else if (m.includes('32') || m.includes('1012')) determinedMonthly = 600000;
-        else if (m.includes('26') || m.includes('0812')) determinedMonthly = 500000;
-        else determinedMonthly = 400000;
-        determinedDaily = Math.round(determinedMonthly / 30);
-      }
+      // 영업사원이 입력한 단가를 그대로 적용 (미입력/0원 입력 시에도 임의의 과거 계약 단가나 하드코딩된 추정 단가로 덮어쓰지 않고 0원 유지)
+      const rawMonthly = eqData.monthlyRate ?? eqData.monthlyRent ?? eqData.monthlyRentalFee ?? 0;
+      const rawDaily = eqData.dailyRate ?? eqData.dailyRent ?? eqData.dailyRentalFee;
+      const determinedMonthly = Math.max(0, Number(rawMonthly) || 0);
+      const determinedDaily = rawDaily !== undefined && rawDaily !== null && String(rawDaily).trim() !== ''
+        ? Math.max(0, Number(rawDaily) || 0)
+        : (determinedMonthly > 0 ? Math.round(determinedMonthly / 30) : 0);
 
       const eqCreatedCaIds: string[] = [];
       for(let i=0; i<count; i++) {
@@ -3440,7 +3412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : '';
 
     const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
-    const defaultYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '당사 보관소';
+    const defaultYardAddress = currentTenant?.businessAddress || defaultYard?.address || currentTenant?.mainYardAddress || '당사 보관소';
 
     const resolvedSiteMasterId = finalSite?.siteMasterId || data.siteMasterId || (
       finalSite?.name ? db.siteMasters.find(m => m.name && m.name.replace(/\s/g, '') === finalSite.name.replace(/\s/g, ''))?.id : undefined
@@ -3598,8 +3570,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (targetDelivery.status === 'DELIVERED' || targetDelivery.status === 'COMPLETED') {
-      const msg = '운송완료 처리된 출고 요청은 바로 취소할 수 없습니다.\n먼저 [배차/운송 관리]에서 [운송완료 취소] 및 [배차 취소]를 수행해 주십시오.';
-      showErrorModal(msg, '출고 요청 취소 불가 (운송완료 상태)');
+      const msg = '운송이 완료된 건은 더이상 취소하거나 수정할 수 없습니다.';
+      showErrorModal(msg, '취소/수정 불가');
       return { success: false, errorMessage: msg };
     }
 
@@ -3928,6 +3900,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!targetDelivery) {
       showErrorModal('수정할 출고 요청을 찾을 수 없습니다.');
       return { success: false, errorMessage: '출고 요청을 찾을 수 없습니다.' };
+    }
+    if (targetDelivery.status === 'DELIVERED' || targetDelivery.status === 'COMPLETED') {
+      const msg = '운송이 완료된 건은 더이상 취소하거나 수정할 수 없습니다.';
+      showErrorModal(msg, '취소/수정 불가');
+      return { success: false, errorMessage: msg };
     }
 
     let parsedCargo: any[] = [];
@@ -7789,10 +7766,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const nowIso = new Date().toISOString();
 
-    // 1. 단가 자동 상속: 해당 계약 내 동일 장비의 이전 슬롯 단가 또는 자산 기본 단가
+    // 1. 단가 자동 상속: 해당 계약 내 동일 장비의 이전 슬롯 단가 (미지정 시 0원 유지, 하드코딩 단가 금지)
     const prevCA = db.contractAssets.find(ca => ca.contractId === contractId && ca.assetId === assetId);
-    const feeMonth = monthlyRentalFee !== undefined ? monthlyRentalFee : (prevCA?.monthlyRentalFee || 600000);
-    const feeDay = dailyRentalFee !== undefined ? dailyRentalFee : (prevCA?.dailyRentalFee || Math.round(feeMonth / 30));
+    const feeMonth = monthlyRentalFee !== undefined ? monthlyRentalFee : (prevCA?.monthlyRentalFee ?? 0);
+    const feeDay = dailyRentalFee !== undefined ? dailyRentalFee : (prevCA?.dailyRentalFee ?? (feeMonth > 0 ? Math.round(feeMonth / 30) : 0));
 
     // 2. 만료일 결정 (부모 계약 만료일 또는 전달받은 종료일)
     const finalEndDate = expectedEndDate || contract.endDate || '';
