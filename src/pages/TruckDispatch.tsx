@@ -7086,13 +7086,23 @@ export const TruckDispatch: React.FC = () => {
       {/* 수동 배차 모달 */}
       {showManualModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 16px 0' }}>수동 배차 신규 생성</h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
               <div>
                 <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>배차 구분</label>
-                <select value={manualCategory} onChange={e => setManualCategory(e.target.value as any)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }}>
+                <select
+                  value={manualCategory}
+                  onChange={e => {
+                    const nextCat = e.target.value as any;
+                    setManualCategory(nextCat);
+                    if (nextCat !== '반납') {
+                      setManualReturnAssetIds([]);
+                    }
+                  }}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }}
+                >
                   <option value="출고">출고</option>
                   <option value="입고">입고</option>
                   <option value="교환">교환</option>
@@ -7107,13 +7117,121 @@ export const TruckDispatch: React.FC = () => {
                   type="date"
                   value={manualLoadingDate}
                   onChange={e => {
-                    setManualLoadingDate(e.target.value);
-                    setManualUnloadingDate(e.target.value);
+                    const nextLoadDate = e.target.value;
+                    setManualLoadingDate(nextLoadDate);
+                    if (!manualUnloadingDate || manualUnloadingDate < nextLoadDate) {
+                      setManualUnloadingDate(nextLoadDate);
+                    }
                   }}
                   style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
                 />
               </div>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', color: manualCategory === '반납' ? '#e11d48' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  {manualCategory === '반납' ? '하차일자 (반납일자)' : '하차일자'}
+                </label>
+                <input
+                  type="date"
+                  value={manualUnloadingDate}
+                  onChange={e => setManualUnloadingDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: manualCategory === '반납' ? '1.5px solid #e11d48' : '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
+
+            {/* 🔄 [배차구분 === "반납" 전용] 임대가능 임차자산 버튼 선택 영역 */}
+            {manualCategory === '반납' && (
+              <div style={{
+                marginBottom: '12px',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: '1.5px solid rgba(225, 29, 72, 0.35)',
+                backgroundColor: 'rgba(225, 29, 72, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#e11d48', whiteSpace: 'nowrap' }}>
+                    🔄 반납 대상 임차자산 선택 (자산상태: 임대가능)
+                  </span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    반납일자(하차일): <strong style={{ color: '#e11d48' }}>{manualUnloadingDate || manualLoadingDate}</strong>
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setManualReturnAssetIds([])}
+                    style={{
+                      padding: '6px 11px',
+                      borderRadius: '6px',
+                      fontSize: '11.5px',
+                      fontWeight: manualReturnAssetIds.length === 0 ? 800 : 600,
+                      border: manualReturnAssetIds.length === 0 ? '2px solid #475569' : '1px solid var(--border-color)',
+                      backgroundColor: manualReturnAssetIds.length === 0 ? 'rgba(71, 85, 105, 0.14)' : 'var(--bg-body)',
+                      color: manualReturnAssetIds.length === 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {manualReturnAssetIds.length === 0 ? '✓ ' : ''}미결정 · 선택 안 함 (배차 먼저 등록)
+                  </button>
+
+                  {manualAvailableReturnSubleaseAssets.length === 0 ? (
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', padding: '4px' }}>
+                      임대가능 상태인 임차자산이 없습니다.
+                    </span>
+                  ) : (
+                    manualAvailableReturnSubleaseAssets.map(asset => {
+                      const isSel = manualReturnAssetIds.includes(asset.id);
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          onClick={() => {
+                            setManualReturnAssetIds(prev => {
+                              const exists = prev.includes(asset.id);
+                              const next = exists ? prev.filter(id => id !== asset.id) : [...prev, asset.id];
+                              if (!exists && !manualDestination && asset.renter) {
+                                setManualDestination(asset.renter);
+                              }
+                              return next;
+                            });
+                          }}
+                          style={{
+                            padding: '6px 11px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: isSel ? 800 : 600,
+                            border: isSel ? '2px solid #e11d48' : '1px solid var(--border-color)',
+                            backgroundColor: isSel ? 'rgba(225, 29, 72, 0.14)' : 'var(--bg-body)',
+                            color: isSel ? '#e11d48' : 'var(--text-primary)',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <span>{isSel ? '✓' : '◻'}</span>
+                          <span style={{ fontWeight: 800 }}>{asset.assetNo}</span>
+                          <span>· {asset.modelName}</span>
+                          {asset.renter && <span style={{ fontSize: '11px', color: isSel ? '#be123c' : 'var(--text-secondary)' }}>({asset.renter})</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  {manualReturnAssetIds.length > 0
+                    ? `선택된 임차자산 ${manualReturnAssetIds.length}대는 배차 생성 저장 즉시 하차일(${manualUnloadingDate || manualLoadingDate}) 기준으로 반납 처리됩니다.`
+                    : '무엇을 반납할지 아직 결정하지 못한 경우, 임차자산을 선택하지 않고 반납 배차를 먼저 등록한 뒤 배차 상세에서 선택할 수 있습니다.'}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
               <div>
@@ -7121,8 +7239,16 @@ export const TruckDispatch: React.FC = () => {
                 <input type="text" value={manualOrigin} onChange={e => setManualOrigin(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>도착지 (하차지)</label>
-                <input type="text" value={manualDestination} onChange={e => setManualDestination(e.target.value)} placeholder="고객사명 또는 하차지 입력" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block', whiteSpace: 'nowrap' }}>
+                  {manualCategory === '반납' ? '도착지 (하차지 · 임차처)' : '도착지 (하차지)'}
+                </label>
+                <input
+                  type="text"
+                  value={manualDestination}
+                  onChange={e => setManualDestination(e.target.value)}
+                  placeholder={manualCategory === '반납' ? '임차처명 또는 하차지 입력 (미입력 시 자동 지정)' : '고객사명 또는 하차지 입력'}
+                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
               </div>
             </div>
 
@@ -7142,7 +7268,11 @@ export const TruckDispatch: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button onClick={() => setShowManualModal(false)} className="btn-secondary">취소</button>
-              <button data-hs-trigger="Save" onClick={handleSaveManualDispatch} className="btn-primary" style={{ fontWeight: 800 }}>배차 생성 저장</button>
+              <button data-hs-trigger="Save" onClick={handleSaveManualDispatch} className="btn-primary" style={{ fontWeight: 800 }}>
+                {manualCategory === '반납'
+                  ? (manualReturnAssetIds.length > 0 ? `반납 배차 생성 및 임차자산 ${manualReturnAssetIds.length}대 반납 처리` : '반납 배차 등록 (임차자산 미선택)')
+                  : '배차 생성 저장'}
+              </button>
             </div>
           </div>
         </div>
