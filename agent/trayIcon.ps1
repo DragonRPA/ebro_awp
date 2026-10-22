@@ -1,4 +1,4 @@
-# agent/trayIcon.ps1
+﻿# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
@@ -104,6 +104,29 @@ if ($script:aiEnabled) {
     $notify.Text = "eBro Agent - 업무 지원 모드 (Port: $Port)"
 }
 $notify.Visible = $true
+
+# 📌 Windows 11 작업표시줄 숨김 트레이(^) 자동 수납 방지: 시계 옆 항상 표시(IsPromoted=1) 자동 등록
+function Ensure-TrayIconPromoted {
+    $promotedAny = $false
+    try {
+        $regBase = "HKCU:\Control Panel\NotifyIconSettings"
+        if (Test-Path -LiteralPath $regBase) {
+            Get-ChildItem -LiteralPath $regBase -ErrorAction SilentlyContinue | ForEach-Object {
+                try {
+                    $prop = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
+                    if ($prop -and ($prop.InitialTooltip -like "*eBro*" -or $prop.ExecutablePath -like "*powershell.exe*" -or $prop.ExecutablePath -like "*eBroAgent*")) {
+                        if ($prop.IsPromoted -ne 1) {
+                            Set-ItemProperty -LiteralPath $_.PSPath -Name "IsPromoted" -Value 1 -Type DWord -ErrorAction SilentlyContinue
+                            $promotedAny = $true
+                        }
+                    }
+                } catch {}
+            }
+        }
+    } catch {}
+    return $promotedAny
+}
+Ensure-TrayIconPromoted | Out-Null
 
 function Open-Studio {
     $studioHwnd = [StudioWindowManager]::FindStudioWindow()
@@ -223,10 +246,11 @@ $timer.Interval = 350
 $timer.add_Tick({
     if ($script:userRequestedExit) { return }
 
-    # 0. 테넌트 정책(agentAiEnabled) 변경 실시간 감지 (약 2초 주기)
+    # 0. 테넌트 정책(agentAiEnabled) 변경 실시간 감지 및 Windows 11 트레이 고정(IsPromoted=1) 보장 (약 2초 주기)
     $script:policyCheckTick++
     if ($script:policyCheckTick -ge 6) {
         $script:policyCheckTick = 0
+        Ensure-TrayIconPromoted | Out-Null
         if (Test-Path -LiteralPath $policyPath) {
             try {
                 $pJson = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json

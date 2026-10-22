@@ -644,36 +644,43 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
       if (agentRes.queued && agentRes.jobId) {
         const jobId = agentRes.jobId;
         let nullJobCount = 0;
+        let pollAttempts = 0;
         while (true) {
+          pollAttempts++;
+          if (pollAttempts > 150) {
+            throw new Error(`거래명세서 PDF 생성 작업(${jobId}) 대기 시간이 초과되었습니다(2분 30초).`);
+          }
           await new Promise(r => setTimeout(r, 1000));
+          let pollData: any = null;
           try {
             const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
               method: 'GET',
               skipPrecheck: true
             });
             if (pollResp.ok) {
-              const pollData = await pollResp.json();
-              const job = pollData.job;
-              if (job) {
-                nullJobCount = 0;
-                if (job.status === 'COMPLETED' && job.result) {
-                  agentRes = job.result;
-                  break;
-                } else if (job.status === 'FAILED') {
-                  throw new Error(job.error || '거래명세서 PDF 생성 작업 실패');
-                }
-              } else {
-                nullJobCount++;
-                if (nullJobCount >= 10) {
-                  throw new Error(`에이전트 작업 큐에서 거래명세서 생성 작업(${jobId})을 찾을 수 없습니다.`);
-                }
+              pollData = await pollResp.json();
+            }
+          } catch {
+            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
+            continue;
+          }
+
+          if (pollData) {
+            const job = pollData.job;
+            if (job) {
+              nullJobCount = 0;
+              if (job.status === 'COMPLETED' && job.result) {
+                agentRes = job.result;
+                break;
+              } else if (job.status === 'FAILED') {
+                throw new Error(job.error || '거래명세서 PDF 생성 작업 실패');
+              }
+            } else {
+              nullJobCount++;
+              if (nullJobCount >= 10) {
+                throw new Error(`에이전트 작업 큐에서 거래명세서 생성 작업(${jobId})을 찾을 수 없습니다.`);
               }
             }
-          } catch (pollErr: any) {
-            if (pollErr?.message?.includes('작업 실패') || pollErr?.message?.includes('찾을 수 없습니다')) {
-              throw pollErr;
-            }
-            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
         }
       }

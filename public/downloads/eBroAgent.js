@@ -1,0 +1,3183 @@
+/**
+ * =========================================================================
+ *  e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
+ * =========================================================================
+ * - 역할: CF R2 파일 로컬 미러링, 로컬 문서고 아카이빙, 프런트 실시간 통신 대행
+ * - 통신: 로컬 HTTP (http://127.0.0.1:5175)
+ * - 의존성: Node.js 내장 모듈만 사용 (외부 npm 패키지 Zero)
+ * =========================================================================
+ */
+
+const http = require('http');
+const https = require('https');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { pipeline } = require('stream');
+const { spawn, exec, execSync } = require('child_process');
+const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, isAiEnabled, handleWebSocketConnection } = require('./studioEngine');
+const { WebSocketServer } = require('ws');
+const AdmZip = require('adm-zip');
+
+// 🚀 Windows EcoQoS(효율 모드) 절전 스로틀링 원천 차단: 프로세스 우선순위 AboveNormal 격상
+try {
+  os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL);
+} catch (e) {}
+
+//  Windows GUI 서브시스템(무음 백그라운드) 환경 콘솔 크래시 원천 차단
+if (process.platform === 'win32') {
+  const noop = () => {};
+  if (process.stdout && process.stdout.on) process.stdout.on('error', noop);
+  if (process.stderr && process.stderr.on) process.stderr.on('error', noop);
+  try {
+    const origLog = console.log;
+    console.log = (...args) => { try { origLog(...args); } catch (e) {} };
+    const origErr = console.error;
+    console.error = (...args) => { try { origErr(...args); } catch (e) {} };
+    const origWarn = console.warn;
+    console.warn = (...args) => { try { origWarn(...args); } catch (e) {} };
+  } catch (e) {}
+}
+
+//  비정상 크래시 원천 차단: 처리되지 않은 예외/거부 포착 가드
+process.on('uncaughtException', (err) => {
+  agentLog('ERROR', '비정상 예외 포착: ' + (err ? (err.stack || err.message) : err));
+});
+process.on('unhandledRejection', (reason) => {
+  agentLog('ERROR', '비정상 거부 포착: ' + reason);
+});
+
+// ── 실시간 에이전트 로그 디스패처 (UI 스트림 및 표준출력 동시 브로드캐스트) ──
+function agentLog(type, message) {
+  const cleanType = String(type || 'INFO').toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  const cleanMsg = String(message || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const formattedLine = `[${timeStr}] [${cleanType}] ${cleanMsg}`;
+
+  try {
+    if (typeof broadcastStudioLog === 'function') {
+      broadcastStudioLog(cleanType, cleanMsg);
+    }
+  } catch (e) {}
+
+  try {
+    if (cleanType === 'ERROR') {
+      console.error(formattedLine);
+    } else if (cleanType === 'WARN') {
+      console.warn(formattedLine);
+    } else {
+      console.log(formattedLine);
+    }
+  } catch (e) {}
+
+  try {
+    const logExisted = fs.existsSync('C:\\eBroAgent\\agent.log');
+    fs.appendFileSync('C:\\eBroAgent\\agent.log', formattedLine + '\r\n', 'utf8');
+    if (!logExisted && process.platform === 'win32') {
+      exec('attrib +h "C:\\eBroAgent\\agent.log"', { windowsHide: true });
+    }
+  } catch (e) {}
+}
+
+
+const VERSION = 'v2.0.0.Build.25';
+const CORE_HASH = 'eeab34f334a0';
+const PORT = process.env.PORT || 5175;
+const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
+const MACHINE_NAME = os.hostname();
+const TENANT_CODE = process.env.AGENT_TENANT || 'GIYEONLIFT';
+
+//  전사 표준 절대경로: C:\eBroAgent\ 및 하위 문서고
+const AGENT_HOME = 'C:\\eBroAgent';
+const TARGET_EXE_PATH = path.join(AGENT_HOME, 'eBroAgent.exe');
+const ARCHIVE_ROOT = path.join(AGENT_HOME, '문서고');
+const DRIVE_MIRROR_DIR = path.join(AGENT_HOME, 'drive_mirror');
+const HOMETAX_INVOICES_DIR = path.join(AGENT_HOME, 'hometax_invoices');
+const STATION_CONFIG_FILE = path.join(AGENT_HOME, 'station_config.json');
+
+try {
+  if (!fs.existsSync(HOMETAX_INVOICES_DIR)) {
+    fs.mkdirSync(HOMETAX_INVOICES_DIR, { recursive: true });
+  }
+} catch (e) {}
+
+let activeStationConfig = null;
+try {
+  if (fs.existsSync(STATION_CONFIG_FILE)) {
+    activeStationConfig = JSON.parse(fs.readFileSync(STATION_CONFIG_FILE, 'utf8'));
+  }
+} catch (e) {}
+
+// =========================================================================
+//  [스마트 자가 자동 설치 & 구버전 자동 교체(Auto-Kill & Takeover) 엔진]
+// 사용자가 다운로드 폴더나 바탕화면에서 eBroAgent.exe를 실행한 경우,
+// 1) 기존에 돌고 있던 구버전 eBroAgent 프로세스를 조용히 자동 종료!
+// 2) C:\eBroAgent\eBroAgent.exe 를 최신 바이너리로 안전 덮어쓰기!
+// 3) 표준 위치에서 최신 에이전트를 백그라운드로 즉시 바통 터치 기동!
+// =========================================================================
+const currentExePath = process.execPath;
+const currentPid = process.pid;
+const isExe = currentExePath.toLowerCase().endsWith('.exe') && !currentExePath.toLowerCase().includes('node.exe');
+
+
+// 1. 다른 경로에서 실행된 경우 (설치/업그레이드 모드)
+if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_EXE_PATH).toLowerCase()) {
+  try {
+    if (!fs.existsSync(AGENT_HOME)) fs.mkdirSync(AGENT_HOME, { recursive: true });
+    if (!fs.existsSync(ARCHIVE_ROOT)) fs.mkdirSync(ARCHIVE_ROOT, { recursive: true });
+    if (!fs.existsSync(DRIVE_MIRROR_DIR)) fs.mkdirSync(DRIVE_MIRROR_DIR, { recursive: true });
+
+    agentLog('UPDATE', '에이전트 최신 버전(' + VERSION + ') 자가 교체/설치 진행');
+    try {
+      agentLog('SYSTEM', '기존 구버전 프로세스 자동 정리');
+      execSync('powershell -NoProfile -Command "Get-Process -Name eBroAgent -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ' + currentPid + ' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
+    } catch (kErr) {}
+
+    setTimeout(() => {
+      try {
+        fs.copyFileSync(currentExePath, TARGET_EXE_PATH);
+        const assetFiles = ['trayIcon.ps1', 'eBroAgent.ico', 'eBroAgent.png', 'favicon.ico', 'icon-16.png', 'icon-32.png', 'icon-48.png', 'icon-192.png'];
+        for (const fname of assetFiles) {
+          const src = path.join(path.dirname(currentExePath), fname);
+          const dest = path.join(AGENT_HOME, fname);
+          if (fs.existsSync(src)) {
+            try {
+              if (fs.existsSync(dest)) fs.unlinkSync(dest);
+              fs.copyFileSync(src, dest);
+              exec(`attrib +h "${dest}"`, { windowsHide: true });
+            } catch (e) {}
+          }
+        }
+        agentLog('UPDATE', '바이너리 교체 완료, 최신 엔진 기동');
+        const child = spawn(TARGET_EXE_PATH, [], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.unref();
+        agentLog('UPDATE', '업그레이드 완료');
+        setTimeout(() => { process.exit(0); }, 2000);
+      } catch (copyErr) {
+        agentLog('ERROR', '파일 복사 실패: ' + copyErr.message);
+      }
+    }, 600);
+    return;
+  } catch (err) {
+    agentLog('ERROR', '자가 설치 오류: ' + err.message);
+  }
+}
+
+// 디렉토리 자동 생성 및 불필요 파일 정리 / 시스템 파일 숨김(Hidden) 정책 집행
+try {
+  if (!fs.existsSync(AGENT_HOME)) fs.mkdirSync(AGENT_HOME, { recursive: true });
+  if (!fs.existsSync(ARCHIVE_ROOT)) fs.mkdirSync(ARCHIVE_ROOT, { recursive: true });
+  if (!fs.existsSync(DRIVE_MIRROR_DIR)) fs.mkdirSync(DRIVE_MIRROR_DIR, { recursive: true });
+
+  if (process.platform === 'win32') {
+    const obsoleteEntries = ['eBroAgent.js', 'studioEngine.js', 'BroAgent.js', 'agent.js', 'SumatraPDF-settings.txt', 'tray.log'];
+    if (fs.existsSync(path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'))) {
+      obsoleteEntries.push('SumatraPDF.exe');
+    }
+    for (const obs of obsoleteEntries) {
+      const obsPath = path.join(AGENT_HOME, obs);
+      if (fs.existsSync(obsPath)) {
+        try { fs.unlinkSync(obsPath); } catch (e) {}
+      }
+    }
+    const entries = fs.readdirSync(AGENT_HOME);
+    const VISIBLE_ALLOWLIST = new Set(['ebroagent.exe', '문서고', 'drive_mirror']);
+    for (const entryName of entries) {
+      const lower = entryName.toLowerCase();
+      const fullPath = path.join(AGENT_HOME, entryName);
+      if (/^(print_temp_|test_).+\.(html|pdf)$/i.test(entryName)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+        continue;
+      }
+      if (VISIBLE_ALLOWLIST.has(lower) || entryName === '문서고') {
+        exec(`attrib -h "${fullPath}"`, { windowsHide: true });
+      } else {
+        exec(`attrib +h "${fullPath}"`, { windowsHide: true });
+      }
+    }
+  }
+} catch (e) {
+  agentLog('WARN', '디렉토리 생성 경고: ' + e.message);
+}
+
+console.log('====================================================');
+console.log(` [eBroAgent] 로컬 사이드카 에이전트 가동 (${VERSION})`);
+console.log(` 콜사인(Callsign): ${CALLSIGN}`);
+console.log(` 컴퓨터 이름: ${MACHINE_NAME}`);
+console.log(` 에이전트 홈 경로: ${AGENT_HOME}`);
+console.log(` 문서 영구 보관소: ${ARCHIVE_ROOT}`);
+console.log(` 로컬 통신 포트: http://127.0.0.1:${PORT}`);
+console.log('====================================================');
+
+// ──  글로벌 CDN 기반 스마트 자가 업데이트 (Auto-Update) 엔진 ──
+const PRIMARY_VERSION_URL = 'https://ebro.run/downloads/version.json';
+const FALLBACK_VERSION_URL = 'https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/version.json';
+
+let updateState = {
+  status: 'idle', // 'idle' | 'checking' | 'downloading' | 'installing' | 'completed' | 'error'
+  currentVersion: VERSION,
+  currentCoreHash: CORE_HASH,
+  targetVersion: null,
+  targetCoreHash: null,
+  message: '',
+  lastChecked: null
+};
+
+function appendCacheBust(urlStr) {
+  if (!urlStr) return urlStr;
+  const sep = urlStr.includes('?') ? '&' : '?';
+  return `${urlStr}${sep}_cb=${Date.now()}`;
+}
+
+function fetchTextWithRedirects(url, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    function attempt(currentUrl, redirectsLeft) {
+      if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
+      const client = currentUrl.startsWith('https') ? https : http;
+      const req = client.get(currentUrl, {
+        timeout: 8000,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'User-Agent': `eBroAgent/${VERSION}`
+        }
+      }, (res) => {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+          const loc = res.headers.location;
+          if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
+          res.resume();
+          const nextUrl = new URL(loc, currentUrl).href;
+          return attempt(nextUrl, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return resolve({ ok: false, statusCode: res.statusCode });
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve({ ok: true, body: data }));
+      });
+      req.on('timeout', () => { req.destroy(); reject(new Error('버전 정보 조회 타임아웃')); });
+      req.on('error', reject);
+    }
+    attempt(url, maxRedirects);
+  });
+}
+
+function downloadFileWithRedirects(url, destPath, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    function attempt(currentUrl, redirectsLeft) {
+      if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
+      const client = currentUrl.startsWith('https') ? https : http;
+      const req = client.get(currentUrl, {
+        timeout: 30000,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'User-Agent': `eBroAgent/${VERSION}`
+        }
+      }, (res) => {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+          const loc = res.headers.location;
+          if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
+          res.resume();
+          const nextUrl = new URL(loc, currentUrl).href;
+          return attempt(nextUrl, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`다운로드 실패 HTTP ${res.statusCode}`));
+        }
+        const fileStream = fs.createWriteStream(destPath);
+        pipeline(res, fileStream, (err) => {
+          if (err) {
+            try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+            return reject(err);
+          }
+          resolve();
+        });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+        reject(new Error('다운로드 연결 타임아웃'));
+      });
+      req.on('error', (err) => {
+        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+        reject(err);
+      });
+    }
+    attempt(url, maxRedirects);
+  });
+}
+
+function httpRequestJson(url, options = {}, postData = null) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === 'https:';
+      const client = isHttps ? https : http;
+      const reqOptions = {
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        timeout: options.timeout || 5000
+      };
+
+      const req = client.request(reqOptions, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          let json = null;
+          try { json = data ? JSON.parse(data) : null; } catch (e) {}
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: json, raw: data });
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('네트워크 타임아웃'));
+      });
+
+      req.on('error', (err) => {
+        reject(err);
+      });
+
+      if (postData) {
+        req.write(typeof postData === 'string' ? postData : JSON.stringify(postData));
+      }
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+function parseVersion(verStr) {
+  if (!verStr) return [0, 0, 0, 0];
+  const cleaned = verStr.replace(/^v/, '');
+  const parts = cleaned.split('.Build.');
+  const semver = (parts[0] || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const build = parts[1] ? (parseInt(parts[1], 10) || 0) : 0;
+  return [semver[0] || 0, semver[1] || 0, semver[2] || 0, build];
+}
+
+function isNewerVersion(remoteVer, currentVer) {
+  const r = parseVersion(remoteVer);
+  const c = parseVersion(currentVer);
+  for (let i = 0; i < 4; i++) {
+    if (r[i] > c[i]) return true;
+    if (r[i] < c[i]) return false;
+  }
+  return false;
+}
+
+async function checkAndApplyUpdate(force = false) {
+  if (updateState.status === 'downloading' || updateState.status === 'installing') {
+    return { status: updateState.status, message: '업데이트 작업 진행 중' };
+  }
+
+  updateState.status = 'checking';
+  updateState.message = '원격 버전 확인 중...';
+  updateState.lastChecked = new Date().toISOString();
+
+  try {
+    // PRIMARY(웹 배포본)와 FALLBACK(GitHub main 즉시 반영본)을 캐시 무효화 쿼리와 함께 동시 조회하여 더 최신이거나 해시가 변경된 메타데이터 채택
+    const [primaryRes, fallbackRes] = await Promise.all([
+      fetchTextWithRedirects(appendCacheBust(PRIMARY_VERSION_URL)).catch(() => null),
+      fetchTextWithRedirects(appendCacheBust(FALLBACK_VERSION_URL)).catch(() => null)
+    ]);
+
+    const candidates = [];
+    for (const r of [fallbackRes, primaryRes]) {
+      if (r && r.ok && r.body) {
+        try {
+          const parsed = JSON.parse(r.body);
+          if (parsed && parsed.version) candidates.push(parsed);
+        } catch (e) {}
+      }
+    }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => {
+        if (isNewerVersion(a.version, b.version)) return -1;
+        if (isNewerVersion(b.version, a.version)) return 1;
+        return String(b.buildTime || '').localeCompare(String(a.buildTime || ''));
+      });
+      const info = candidates[0];
+      const remoteVersion = info.version;
+      const remoteCoreHash = info.coreHash || null;
+      const coreUrl = info.coreUrl;
+      const installerUrl = info.installerUrl;
+      const downloadUrl = info.downloadUrl;
+
+      updateState.targetVersion = remoteVersion;
+      updateState.targetCoreHash = remoteCoreHash;
+
+      const hasNewVersion = isNewerVersion(remoteVersion, VERSION);
+      const isRemoteOlder = isNewerVersion(VERSION, remoteVersion);
+      const hasHashChanged = !isRemoteOlder && Boolean(remoteCoreHash && CORE_HASH && remoteCoreHash !== CORE_HASH);
+      // 🛡️ 구버전 브라우저 탭이 force=true를 호출하더라도, 원격 버전이 현재보다 낮거나 버전·해시가 이미 동일하면 절대 재설치/재기동하지 않음
+      if (remoteVersion && !isRemoteOlder && (hasNewVersion || hasHashChanged)) {
+        agentLog('UPDATE', `코어 업데이트 감지: ${VERSION}(${CORE_HASH}) -> ${remoteVersion}(${remoteCoreHash || 'N/A'})`);
+        updateState.status = 'downloading';
+        updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
+
+        // 🚀 [1순위] 초경량 암호화 코어(engine.dat, ~2.2MB) 핫패치 다운로드 (캐시 무효화 적용)
+        if (coreUrl) {
+          const coreDir = path.join(AGENT_HOME, 'core');
+          if (!fs.existsSync(coreDir)) fs.mkdirSync(coreDir, { recursive: true });
+          const coreDownloadPath = path.join(coreDir, 'engine.dat.download');
+          const coreFinalPath = path.join(coreDir, 'engine.dat');
+
+          downloadFileWithRedirects(appendCacheBust(coreUrl), coreDownloadPath)
+            .then(() => {
+              try {
+                const testBuf = fs.readFileSync(coreDownloadPath);
+                if (testBuf.length < 28) throw new Error('파일 크기 미달');
+                if (fs.existsSync(coreFinalPath)) {
+                  try {
+                    const curBuf = fs.readFileSync(coreFinalPath);
+                    if (curBuf.equals(testBuf)) {
+                      try { fs.unlinkSync(coreDownloadPath); } catch (e) {}
+                      updateState.status = 'idle';
+                      updateState.message = '최신 버전을 사용 중입니다.';
+                      return;
+                    }
+                    fs.unlinkSync(coreFinalPath);
+                  } catch (e) {}
+                }
+                fs.renameSync(coreDownloadPath, coreFinalPath);
+                agentLog('UPDATE', '초경량 코어(engine.dat) 핫패치 완료: 무소음 재기동');
+                updateState.status = 'installing';
+                updateState.message = '새 코어로 무소음 재기동 중...';
+
+                const hostExe = process.execPath;
+                try {
+                  const psDetach = `Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList '"${hostExe}" --daemon'`;
+                  execSync(`powershell.exe -NoProfile -WindowStyle Hidden -Command "${psDetach}"`, { stdio: 'ignore', windowsHide: true });
+                } catch (e) {
+                  const child = spawn(hostExe, process.argv.slice(1), {
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                  });
+                  child.unref();
+                }
+
+                setTimeout(() => { process.exit(0); }, 800);
+              } catch (vErr) {
+                agentLog('ERROR', '코어 무결성 검증 실패: ' + vErr.message);
+                try { fs.unlinkSync(coreDownloadPath); } catch (e) {}
+                updateState.status = 'error';
+                updateState.message = `코어 검증 실패: ${vErr.message}`;
+              }
+            })
+            .catch((err) => {
+              updateState.status = 'error';
+              updateState.message = `코어 다운로드 오류: ${err.message}`;
+              agentLog('WARN', '코어 다운로드 오류: ' + err.message);
+            });
+
+          return { status: 'updating', currentVersion: VERSION, targetVersion: remoteVersion, mode: 'hotpatch' };
+        }
+
+        // 📦 [2순위] 호스트 인스톨러 전체 교체 (CoreUrl 미제공 시 Fallback)
+        const targetUrl = installerUrl || downloadUrl;
+        if (!targetUrl) {
+          updateState.status = 'error';
+          updateState.message = '다운로드 URL 정보 없음';
+          return { status: 'error', message: updateState.message };
+        }
+
+        const isInstaller = targetUrl.toLowerCase().includes('setup');
+        const updateFilePath = path.join(AGENT_HOME, isInstaller ? 'eBroAgent_Setup_Update.exe' : 'update_staging.exe');
+
+        downloadFileWithRedirects(targetUrl, updateFilePath)
+          .then(() => {
+            setTimeout(() => {
+              try {
+                agentLog('UPDATE', '다운로드 완료: 신규 버전으로 교체 기동');
+                updateState.status = 'installing';
+                updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
+
+                if (isInstaller) {
+                  const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
+                    detached: true,
+                    stdio: 'ignore'
+                  });
+                  child.unref();
+                } else {
+                  const child = spawn(updateFilePath, [], {
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                  });
+                  child.unref();
+                }
+
+                setTimeout(() => {
+                  process.exit(0);
+                }, 1500);
+              } catch (spawnErr) {
+                agentLog('ERROR', '업데이트 실행 오류: ' + spawnErr.message);
+                updateState.status = 'error';
+                updateState.message = `실행 오류: ${spawnErr.message}`;
+              }
+            }, 1200);
+          })
+          .catch((err) => {
+            updateState.status = 'error';
+            updateState.message = `다운로드 오류: ${err.message}`;
+            agentLog('WARN', '업데이트 다운로드 오류: ' + err.message);
+          });
+
+        return { status: 'updating', currentVersion: VERSION, targetVersion: remoteVersion };
+      } else {
+        updateState.status = 'idle';
+        updateState.message = '최신 버전을 사용 중입니다.';
+        return { status: 'latest', currentVersion: VERSION };
+      }
+    }
+    updateState.status = 'error';
+    updateState.message = '원격 버전 정보 응답 오류';
+    return { status: 'error', message: updateState.message };
+  } catch (err) {
+    updateState.status = 'error';
+    updateState.message = err.message;
+    return { status: 'error', message: err.message };
+  }
+}
+
+// 백그라운드 자동 업데이트 점검 (기동 후 즉시 점검 + 부팅 직후 네트워크 지연 대비 다단계 재시도 + 3분 주기 상시 점검)
+[4000, 15000, 35000, 65000].forEach((delayMs) => {
+  setTimeout(() => {
+    if (updateState.status === 'idle' || updateState.status === 'error') {
+      checkAndApplyUpdate().catch(() => {});
+    }
+  }, delayMs);
+});
+setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 3 * 60 * 1000);
+
+// ── 비동기 자식 프로세스 실행 헬퍼 (Node.js 단일 이벤트 루프 블로킹 원천 방지 & 인위적 타임아웃 없음) ──
+function runCommandAsync(cmd, options = {}) {
+  return new Promise((resolve, reject) => {
+    exec(cmd, {
+      cwd: options.cwd,
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 50 * 1024 * 1024
+    }, (err, stdout, stderr) => {
+      if (err) {
+        return reject(new Error(stderr?.trim() || err.message || '프로세스 실행 오류'));
+      }
+      resolve(stdout || '');
+    });
+  });
+}
+
+// ── 하드웨어 다이렉트 프린터 출력 엔진 (Edge Headless PDF + 64비트 Sumatra 무인 스풀 — 100% 비동기 Non-blocking) ──
+async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리프트_출력물') {
+  if (!htmlContent) {
+    throw new Error('인쇄할 HTML 내용이 비어 있습니다.');
+  }
+
+  const ts = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const tempPrintHtml = path.join(AGENT_HOME, `print_temp_${ts}.html`);
+  const tempPrintPdf = path.join(AGENT_HOME, `print_temp_${ts}.pdf`);
+
+  const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
+    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
+    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
+    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
+    @media print {
+      @page { margin: 10mm; size: A4 portrait; }
+    }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+  fs.writeFileSync(tempPrintHtml, fullHtml, 'utf8');
+
+  // 1. Edge 브라우저 헤드리스 엔진을 통한 고해상도 PDF 변환
+  let edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+  if (!fs.existsSync(edgePath)) {
+    if (fs.existsSync('C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe')) {
+      edgePath = 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe';
+    } else if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
+      edgePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    } else {
+      edgePath = 'msedge.exe';
+    }
+  }
+
+  agentLog('PRINT', `문서 렌더링 시작: 대상 프린터 [${printerName}], 제목: ${title}`);
+  const userProfDir = path.join(AGENT_HOME, 'edge_prof');
+  if (!fs.existsSync(userProfDir)) {
+    try {
+      fs.mkdirSync(userProfDir, { recursive: true });
+      if (process.platform === 'win32') exec(`attrib +h "${userProfDir}"`, { windowsHide: true });
+    } catch (e) {}
+  }
+
+  const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${userProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
+  try {
+    await runCommandAsync(edgeCmd);
+  } catch (cmdErr) {
+    agentLog('WARN', 'Edge 변환 프로세스 경고 (비동기 완료 대기 진입): ' + cmdErr.message);
+  }
+
+  // PDF 파일 생성 및 디스크 기록 완결 대기 (비동기 폴링 — 이벤트 루프 블로킹 없음)
+  const startWait = Date.now();
+  let pdfReady = false;
+  while (Date.now() - startWait < 30000) {
+    if (fs.existsSync(tempPrintPdf) && fs.statSync(tempPrintPdf).size > 0) {
+      pdfReady = true;
+      break;
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  if (!pdfReady || !fs.existsSync(tempPrintPdf) || fs.statSync(tempPrintPdf).size === 0) {
+    throw new Error('PDF 변환 실패: 임시 인쇄 파일 생성 불가');
+  }
+
+  // 2. 64비트 하드웨어 스풀러(SumatraPDF)를 통한 실물 프린터 무인 다이렉트 전송
+  const sumatraCandidates = [
+    path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'),
+    path.join(AGENT_HOME, 'SumatraPDF.exe'),
+    path.join(__dirname, 'bin', 'SumatraPDF.exe'),
+    path.join(__dirname, 'SumatraPDF.exe')
+  ];
+
+  let sumatraExe = null;
+  for (const cand of sumatraCandidates) {
+    if (fs.existsSync(cand)) {
+      sumatraExe = cand;
+      break;
+    }
+  }
+
+  if (sumatraExe) {
+    agentLog('PRINT', `하드웨어 스풀러 전송 [SumatraPDF 64bit -> ${printerName}]`);
+    const sumatraCmd = `"${sumatraExe}" -print-to "${printerName}" -silent "${tempPrintPdf}"`;
+    await runCommandAsync(sumatraCmd);
+  } else {
+    agentLog('WARN', `SumatraPDF 부재로 OS 기본 스풀러 시도 -> [${printerName}]`);
+    const psCmd = `Start-Process -FilePath "${tempPrintPdf}" -Verb PrintTo -ArgumentList '"${printerName}"' -NoNewWindow`;
+    await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`);
+  }
+
+  agentLog('PRINT', `물리 프린터 스풀 전송 완료: [${printerName}]`);
+
+  // 임시 파일 비동기 정리
+  setTimeout(() => {
+    try {
+      if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml);
+      if (fs.existsSync(tempPrintPdf)) fs.unlinkSync(tempPrintPdf);
+    } catch (e) {}
+  }, 15000);
+
+  return true;
+}
+
+// ── HTTP 요청 핸들러 ──
+let activeCallsign = CALLSIGN;
+
+// ── [백그라운드 시스템 작업 큐 (Excel COM 조립 / 이메일 발송 비동기 완수 워커) - 모듈 전역 스코프 유지] ──
+const systemJobQueue = [];
+let isSystemJobWorkerRunning = false;
+
+async function executeSendEmailInternal(payload) {
+  const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
+
+  if (!to || !subject || !body) {
+    throw new Error('수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.');
+  }
+
+  const cleanEmail = String(googleEmail || '').trim();
+  const cleanPass = String(gmailAppPassword || '').replace(/\s+/g, '').trim();
+
+  if (!cleanEmail || !cleanPass) {
+    throw new Error('발송 계정 이메일과 앱 비밀번호가 필요합니다.');
+  }
+
+  const nodemailer = require('nodemailer');
+
+  let resolvedHost = smtpHost;
+  let resolvedPort = Number(smtpPort) || 465;
+  const emailLower = cleanEmail.toLowerCase();
+
+  if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
+    const provider = (smtpProvider || '').toUpperCase();
+    if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
+      resolvedHost = 'smtp.naver.com';
+      resolvedPort = resolvedPort || 465;
+    } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
+      resolvedHost = 'smtp.daum.net';
+      resolvedPort = resolvedPort || 465;
+    } else {
+      resolvedHost = 'smtp.gmail.com';
+      resolvedPort = resolvedPort || 465;
+    }
+  }
+
+  const isSecure = resolvedPort === 465;
+
+  agentLog('SMTP', `메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail} -> To=${to}${cc ? ` (CC: ${cc})` : ''}`);
+
+  const transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: resolvedPort,
+    secure: isSecure,
+    auth: { user: cleanEmail, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000
+  });
+
+  const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+    if (att.localPath) {
+      if (fs.existsSync(att.localPath)) {
+        return {
+          filename: att.filename || path.basename(att.localPath),
+          path: att.localPath,
+          contentType: att.contentType || 'application/pdf'
+        };
+      }
+    }
+    const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
+    return {
+      filename: att.filename || '계약서.pdf',
+      content: Buffer.from(base64Data, 'base64'),
+      contentType: att.contentType || 'application/pdf'
+    };
+  }) : undefined;
+
+  const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
+
+  const extractEmails = (raw) => {
+    if (!raw) return [];
+    const text = Array.isArray(raw) ? raw.join(', ') : String(raw);
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const seen = new Set();
+    const out = [];
+    for (const m of matches) {
+      const clean = m.trim();
+      const lower = clean.toLowerCase();
+      if (clean && !seen.has(lower)) {
+        seen.add(lower);
+        out.push(clean);
+      }
+    }
+    return out;
+  };
+
+  const toEmails = extractEmails(to);
+  const toLowerSet = new Set(toEmails.map(e => e.toLowerCase()));
+  const ccEmails = extractEmails(cc).filter(e => !toLowerSet.has(e.toLowerCase()));
+  const normalizedTo = toEmails.length > 0 ? toEmails.join(', ') : String(to).trim();
+  const normalizedCc = ccEmails.length > 0 ? ccEmails.join(', ') : undefined;
+
+  const info = await transporter.sendMail({
+    from: `"${senderDisplayName}" <${cleanEmail}>`,
+    to: normalizedTo,
+    cc: normalizedCc,
+    subject: String(subject).trim(),
+    text: String(body),
+    attachments: parsedAttachments
+  });
+
+  agentLog('SMTP', `메일 발송 완료: To=${to} (MessageId: ${info.messageId})`);
+  return { success: true, messageId: info.messageId, accepted: info.accepted };
+}
+
+async function executeContractBundleInternal(payload) {
+  const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+  try {
+    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const masterXlsxPath = path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx');
+    if (!fs.existsSync(masterXlsxPath)) {
+      agentLog('SYNC', '마스터 엑셀 파일 부재 감지 -> Cloudflare R2 즉시 동기화 실행');
+      try { await autoSyncFromCloudflare(); } catch (e) {}
+    }
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const tenantName = payload.tenantName || payload.corporateName || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
+    const tenantCorp = payload.corporateName || payload.tenantName || policy.corporateName || tenantName;
+    const tenantBizNo = payload.businessNumber || policy.businessNumber || '';
+    const tenantRepName = payload.representativeName || policy.representativeName || '';
+    const tenantTel = payload.salesRepPhone || payload.tel || policy.salesPhone || policy.tel || '';
+    const salesRepName = String(payload.salesRepName || payload.salespersonName || tenantRepName || '영업담당자').replace(/`/g, '``').replace(/"/g, '""').replace(/\$/g, '`$');
+    const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || tenantTel || '010-0000-0000').replace(/`/g, '``').replace(/"/g, '""').replace(/\$/g, '`$');
+    const tenantBankAccount = payload.bankAccount || (policy.bankAccounts?.[0] ? `${policy.bankAccounts[0].bankName} ${policy.bankAccounts[0].accountNumber} (${policy.bankAccounts[0].accountHolder})` : '');
+    const inspectorName = payload.inspectorName || '김관주';
+
+    const custName = payload.customerName || '고객사';
+    const bizRegNo = payload.bizRegNo || '등록번호미지정';
+    const ceoName = payload.ceoName || '대표자';
+    const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
+    const siteName = payload.siteName || '현장미지정';
+    const siteAddress = payload.siteAddress || '';
+    const managerName = payload.siteManagerName || payload.managerName || '';
+    const managerPhone = payload.siteManagerPhone || payload.managerPhone || '';
+    const paidOptions = Array.isArray(payload.paidOptions) ? payload.paidOptions : [];
+    const optionsText = ''; // 기존 {옵션} 칸 표기 삭제 (아무 옵션도 표시하지 말 것)
+    const remarksText = String(payload.remarksText || '').replace(/안전발판\s*지급/g, '').trim();
+    const freightStd = payload.freightBillingStandard === '2/4' ? '2/4' : '3/5';
+    const minPeriod = String(payload.minRentalMonths || (freightStd === '2/4' ? '2' : '3'));
+    const basePeriod = String(payload.baseRentalMonths || (freightStd === '2/4' ? '4' : '5'));
+    const deliveryDate = payload.deliveryDate || payload.unloadingDate || payload.contractStartDate || contractDate;
+    let inspectionDate = payload.inspectionDate;
+    if (!inspectionDate) {
+      try {
+        const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
+        const d = new Date(cleanD);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() - 2);
+          inspectionDate = d.toISOString().split('T')[0];
+        } else {
+          inspectionDate = contractDate;
+        }
+      } catch (e) {
+        inspectionDate = contractDate;
+      }
+    }
+
+    const rawAssets = payload.assets && payload.assets.length > 0 ? payload.assets : [
+      { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
+    ];
+
+    const MODEL_SAFETY_CERT_DATES = {
+      '1230ES': '2019-05-07', '1414EPLUS': '2023-06-20', '1532R': '2018-03-30', '1930ES': '2015-06-10',
+      '4069LE': '2018-04-04', 'ES1330L': '2020-01-17', 'ES2646': '2022-06-30', 'GS1330M': '2019-03-19',
+      'GS1432': '2021-04-08', 'GS1930': '2010-07-07', 'GS1930EDRIVE': '2021-02-09', 'GS2632': '2011-06-13',
+      'GS2632EDRIVE': '2021-11-16', 'GS2646': '2010-12-29', 'GS2646EDRIVE': '2021-02-09', 'GS3246': '2010-09-06',
+      'GS3246EDRIVE': '2021-02-09', 'GS4046': '2021-07-08', 'GS4047': '2013-03-11', 'GS4069DC': '2013-07-09',
+      'GS4655': '2020-06-18', 'GS4655EDRIVE': '2020-06-18', 'GS5390RT': '2010-09-29', 'GS5390': '2010-09-29',
+      'GTBZ16AE': '2022-07-12', 'GTJZ0608ME': '2023-06-20', 'GTJZ0808E': '2023-06-20', 'GTJZ0812E': '2024-10-02',
+      'GTJZ1012E': '2023-06-20', 'GTJZ1212E': '2023-06-20', 'JCPT0607DCS': '2016-04-25', 'JCPT0807AC': '2021-07-29',
+      'JCPT1008AC': '2021-07-29', 'JCPT1012AC': '2021-07-29', 'JCPT1212AC': '2021-07-29', 'JCPT1412AC': '2021-07-29',
+      'JCPT1614ACZ': '2023-06-28', 'MS104': '2009-06-03', 'MS10.4': '2009-06-03', 'MS118': '2014-04-03', 'MS11.8': '2014-04-03',
+      'OPTIMUM8': '2017-09-21', 'R1532I': '2020-11-12', 'S0807AC+': '2024-09-24', 'S0808E': '2023-12-14',
+      'S0812E': '2023-12-14', 'S1008AC+': '2025-04-15', 'S1012AC+': '2025-04-15', 'S1012E': '2023-11-14',
+      'S1212AC+': '2025-04-15', 'S1212E': '2023-11-14', 'S1412AC+': '2025-04-22', 'S1413E': '2023-11-28',
+      'S1612AC+': '2025-04-15', 'S1614AC+': '2025-03-13', 'SJ12': '2010-09-14', 'SJ3215': '2023-04-28',
+      'SJ3219': '2023-04-28', 'SJ3226': '2009-09-18', 'SR1623E': '2024-07-30', 'STAR6': '2017-09-21',
+      'Z3422DC': '2010-03-19', 'Z4525J': '2009-09-14'
+    };
+
+    const normKey = (s) => String(s || '').replace(/[\s\-_/]/g, '').toUpperCase();
+
+    const resolveEqDocModelDir = (modelName) => {
+      if (!modelName) return null;
+      const eqRoot = path.join(DRIVE_MIRROR_DIR, 'Eq_doc');
+      if (!fs.existsSync(eqRoot)) return null;
+      const exactPath = path.join(eqRoot, String(modelName).replace(/[\\/:*?"<>|]/g, ' '));
+      if (fs.existsSync(exactPath) && fs.statSync(exactPath).isDirectory()) return exactPath;
+      const targetNorm = normKey(modelName);
+      const dirs = fs.readdirSync(eqRoot);
+      for (const d of dirs) {
+        const full = path.join(eqRoot, d);
+        if (!fs.statSync(full).isDirectory()) continue;
+        const dNorm = normKey(d);
+        if (dNorm === targetNorm || (targetNorm === 'GS4655' && dNorm === 'GS4655EDRIVE') || (targetNorm === 'GS5390RT' && dNorm === 'GS5390')) {
+          return full;
+        }
+      }
+      return null;
+    };
+
+    const extractDateFromCertFiles = (modelName) => {
+      const dir = resolveEqDocModelDir(modelName);
+      if (dir && fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir).filter(f => f.startsWith('5.') || f.includes('인증'));
+        for (const f of files) {
+          const kr = f.match(/(20\d{2}|\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+          if (kr) {
+            const yr = kr[1].length === 2 ? `20${kr[1]}` : kr[1];
+            return `${yr}-${kr[2].padStart(2, '0')}-${kr[3].padStart(2, '0')}`;
+          }
+          const dot = f.match(/(20\d{2})[.\-](\d{1,2})[.\-](\d{1,2})/);
+          if (dot) {
+            return `${dot[1]}-${dot[2].padStart(2, '0')}-${dot[3].padStart(2, '0')}`;
+          }
+        }
+      }
+      return MODEL_SAFETY_CERT_DATES[normKey(modelName)] || null;
+    };
+
+    const PRESET_SPECS = (() => {
+      try { return require('../src/data/presetProductSpecs.json'); } catch (e) { return {}; }
+    })();
+
+    const findPresetSpec = (modelName) => {
+      if (!modelName) return null;
+      const upper = String(modelName).trim().toUpperCase();
+      if (PRESET_SPECS[modelName]) return PRESET_SPECS[modelName];
+      if (PRESET_SPECS[upper]) return PRESET_SPECS[upper];
+      const targetNorm = normKey(modelName);
+      for (const [k, v] of Object.entries(PRESET_SPECS)) {
+        if (normKey(k) === targetNorm || (v.shortName && normKey(v.shortName) === targetNorm)) {
+          return v;
+        }
+      }
+      return null;
+    };
+
+    const assets = rawAssets.map(a => {
+      const mName = a.modelName || 'GTJZ0608ME';
+      const preset = findPresetSpec(mName);
+      const certFromFiles = extractDateFromCertFiles(mName) || (preset && preset.safetyCertDate) || null;
+      // 구버전 프론트엔드가 비-GS-2646 모델에 하드코딩 기본값 '2010-12-29'를 보낸 경우 모델 실제 인증일로 우선 교정
+      const incomingCert = (a.safetyCertDate && a.safetyCertDate !== '-')
+        ? a.safetyCertDate
+        : ((a.certDate && a.certDate !== '-' && !(a.certDate === '2010-12-29' && normKey(mName) !== 'GS2646')) ? a.certDate : null);
+      const resolvedCert = incomingCert || certFromFiles || '-';
+
+      // 제조연도: '2025' (4자리 숫자만 있는 경우) -> '2025년', '2025년' 또는 '2026년7월' -> 그대로 유지 ('년월년' 방지)
+      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
+      const resolvedYr = rawYr && rawYr !== '-'
+        ? (/^\d{4}$/.test(rawYr) ? `${rawYr}년` : rawYr)
+        : '-';
+
+      const pickSpec = (val, fallbackVal) => (val && val !== '-') ? val : (fallbackVal || '-');
+
+      return {
+        ...a,
+        modelName: (preset && preset.modelName) || mName,
+        manufacturer: pickSpec(a.manufacturer, preset && preset.manufacturer),
+        powerSource: pickSpec(a.powerSource, (preset && preset.powerSource) || '배터리'),
+        weight: pickSpec(a.weight, preset && preset.weight),
+        speed: pickSpec(a.speed, preset && preset.speed),
+        workingHeight: pickSpec(a.workingHeight, preset && preset.workingHeight),
+        platformHeight: pickSpec(a.platformHeight, preset && preset.platformHeight),
+        capacityPreExt: pickSpec(a.capacityPreExt, preset && preset.capacityPreExt),
+        manufactureYear: resolvedYr,
+        safetyCertDate: resolvedCert,
+        certDate: resolvedCert
+      };
+    });
+
+    const primaryAsset = assets[0];
+    const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
+    const totalPaidOptionsFee = paidOptions.reduce((sum, o) => {
+      const sub = o.subTotal !== undefined ? Number(o.subTotal) : (Number(o.unitPrice) || 0) * (Number(o.quantity) || 1);
+      return sum + (Number(sub) || 0);
+    }, 0);
+    const grandTotalFee = totalRentalFee + totalPaidOptionsFee;
+
+    const psEscape = (val) => String(val ?? '')
+      .replace(/`/g, '``')
+      .replace(/"/g, '""')
+      .replace(/\$/g, '`$');
+
+    const contractItems = [
+      ...assets.map(ast => {
+        const aNo = (ast.assetNo && ast.assetNo !== '-') ? String(ast.assetNo).trim() : '';
+        const aSn = (ast.sn && ast.sn !== '-') ? String(ast.sn).trim() : '';
+        const col4 = (aNo && aSn) ? `${psEscape(aNo)}\`n${psEscape(aSn)}` : psEscape(aNo || aSn || '');
+        const feeStr = (Number(ast.rentalFee) || 480000).toLocaleString();
+        return {
+          col1: psEscape(ast.modelName || 'GS-2646'),
+          col3: '1',
+          col4,
+          hasNewline: Boolean(aNo && aSn),
+          col5: psEscape(feeStr),
+          col7: psEscape(feeStr)
+        };
+      }),
+      ...paidOptions.map(opt => {
+        const qty = Math.max(1, Number(opt.quantity) || 1);
+        const uPrice = Number(opt.unitPrice) || 0;
+        const sTotal = opt.subTotal !== undefined ? Number(opt.subTotal) : uPrice * qty;
+        return {
+          col1: psEscape(opt.name || ''),
+          col3: psEscape(String(qty)),
+          col4: '',
+          hasNewline: false,
+          col5: psEscape(uPrice.toLocaleString()),
+          col7: psEscape(sTotal.toLocaleString())
+        };
+      })
+    ];
+    const totalItemRows = Math.max(12, contractItems.length);
+
+    const psScript = `\ufeff
+$ErrorActionPreference = 'Stop'
+
+$excel = $null
+$wb = $null
+try {
+$excel = New-Object -ComObject Excel.Application
+try { $excel.Visible = $false } catch {}
+try { $excel.DisplayAlerts = $false } catch {}
+try { $excel.ScreenUpdating = $false } catch {}
+try { $excel.EnableEvents = $false } catch {}
+try { $excel.Interactive = $false } catch {}
+
+function Replace-Tag($targetWs, $tag, $val) {
+  $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
+}
+
+# --- 1. 마스터 파일 복사 및 열기 (02.반입전체크리스트.xlsx 및 03.안전점검결과서.xlsx 최신 시트 실시간 결합) ---
+$masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\01.계약서패키지_마스터.xlsx'
+$checkIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\02.반입전체크리스트.xlsx'
+$safetyIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\03.안전점검결과서.xlsx'
+$masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.마스터_작업용.xlsx'
+$masterPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약서패키지.pdf'
+Copy-Item $masterIn $masterWork -Force
+$wb = $excel.Workbooks.Open($masterWork)
+
+function Get-SheetByKeyword($workbook, $keyword, $fallbackIndex) {
+    foreach ($sheet in $workbook.Sheets) {
+        if ($sheet.Name -match $keyword) {
+            return $sheet
+        }
+    }
+    return $workbook.Sheets.Item($fallbackIndex)
+}
+
+if (Test-Path $checkIn) {
+    try {
+        $excel.DisplayAlerts = $false
+        $wbCheck = $excel.Workbooks.Open($checkIn, 0, $true)
+        $oldCheck = Get-SheetByKeyword $wb "반입전|체크리스트" 2
+        try { $oldCheck.Name = "__OLD_CHECK__" } catch {}
+        $wbCheck.Sheets.Item(1).Copy($oldCheck)
+        $newCheck = $wb.Sheets.Item($oldCheck.Index - 1)
+        try { $newCheck.Name = "반입전체크리스트" } catch {}
+        $excel.DisplayAlerts = $false
+        try { $oldCheck.Delete() } catch {}
+        if ($oldCheck.Name -eq "__OLD_CHECK__") {
+            try { $oldCheck.Visible = 0 } catch {}
+        }
+        $wbCheck.Close($false)
+    } catch {}
+}
+
+if (Test-Path $safetyIn) {
+    try {
+        $excel.DisplayAlerts = $false
+        $wbSafety = $excel.Workbooks.Open($safetyIn, 0, $true)
+        $oldSafety = Get-SheetByKeyword $wb "안전점검|결과서" 3
+        try { $oldSafety.Name = "__OLD_SAFETY__" } catch {}
+        $wbSafety.Sheets.Item(1).Copy($oldSafety)
+        $newSafety = $wb.Sheets.Item($oldSafety.Index - 1)
+        try { $newSafety.Name = "안전점검결과서" } catch {}
+        $excel.DisplayAlerts = $false
+        try { $oldSafety.Delete() } catch {}
+        if ($oldSafety.Name -eq "__OLD_SAFETY__") {
+            try { $oldSafety.Visible = 0 } catch {}
+        }
+        $wbSafety.Close($false)
+    } catch {}
+}
+
+# 불필요한 잔여 임시 시트(__OLD_*, Sheet*) 정리
+for ($sIdx = $wb.Sheets.Count; $sIdx -ge 1; $sIdx--) {
+    try {
+        $sItem = $wb.Sheets.Item($sIdx)
+        if ($sItem.Name -match "^(__OLD_|Sheet\d+)") {
+            $excel.DisplayAlerts = $false
+            $sItem.Delete()
+        }
+    } catch {}
+}
+
+$wsContract = Get-SheetByKeyword $wb "계약서" 1
+$wsChecklistBase = Get-SheetByKeyword $wb "반입전|체크리스트" 2
+$wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
+
+# --- 2. 계약서 데이터 주입 (Sheet 1) ---
+Replace-Tag $wsContract "{Today}" "${psEscape(contractDate)}"
+Replace-Tag $wsContract "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $wsContract "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $wsContract "{테넌트}" "${psEscape(tenantCorp)}"
+${tenantBizNo ? `Replace-Tag $wsContract "138-81-83251" "${psEscape(tenantBizNo)}"` : ''}
+${tenantRepName ? `Replace-Tag $wsContract "이수용" "${psEscape(tenantRepName)}"` : ''}
+${tenantBankAccount ? `Replace-Tag $wsContract "{입금계좌}" "${psEscape(tenantBankAccount)}"` : ''}
+Replace-Tag $wsContract "{사업자등록번호}" "${psEscape(bizRegNo)}"
+Replace-Tag $wsContract "{고객명}" "${psEscape(custName)}"
+Replace-Tag $wsContract "{대표자}" "${psEscape(ceoName)}"
+Replace-Tag $wsContract "{현장명}" "${psEscape(siteName)}"
+Replace-Tag $wsContract "{하차일시}" "${psEscape(deliveryDate)}"
+Replace-Tag $wsContract "{현장주소}" "${psEscape(siteAddress)}"
+Replace-Tag $wsContract "{현장담당자}" "${psEscape(managerName)}"
+Replace-Tag $wsContract "{현장담당자연락처}" "${psEscape(managerPhone)}"
+Replace-Tag $wsContract "{영업담당자}" "${salesRepName}"
+Replace-Tag $wsContract "{영업담당자연락처}" "${salesRepPhone}"
+Replace-Tag $wsContract "{최소기간}" "${psEscape(minPeriod)}"
+Replace-Tag $wsContract "{최고기간}" "${psEscape(minPeriod)}"
+Replace-Tag $wsContract "{기준기간}" "${psEscape(basePeriod)}"
+Replace-Tag $wsContract "■ 3개월 이하: 왕복 운반비 임차인 부담 ■ 5개월 이하: 편도 운반비 임차인 부담 ■ 5개월 초과 : 왕복 운반비 임대인 부담" "■ ${psEscape(minPeriod)}개월 이하: 왕복 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 이하: 편도 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 초과 : 왕복 운반비 임대인 부담"
+$wsContract.Range("C56").Value2 = "■ ${psEscape(minPeriod)}개월 이하: 왕복 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 이하: 편도 운반비 임차인 부담 ■ ${psEscape(basePeriod)}개월 초과 : 왕복 운반비 임대인 부담 "
+Replace-Tag $wsContract "{합계}" "₩${grandTotalFee.toLocaleString()}"
+Replace-Tag $wsContract "{옵션}" ""
+$wsContract.Range("C57").Value2 = ""
+${remarksText ? `Replace-Tag $wsContract "{특이사항}" "${psEscape(remarksText)}"` : `Replace-Tag $wsContract "{특이사항} " ""\nReplace-Tag $wsContract "{특이사항}" ""`}
+Replace-Tag $wsContract "(유상옵션)" ""
+Replace-Tag $wsContract "(수량) / {단위}" ""
+Replace-Tag $wsContract "(수량)" ""
+Replace-Tag $wsContract "{단가}" ""
+Replace-Tag $wsContract "{제조번호}" ""
+
+if (${contractItems.length} -gt 12) {
+    $extraRows = ${contractItems.length} - 12
+    for ($k = 0; $k -lt $extraRows; $k++) {
+        $wsContract.Rows.Item(54).Copy()
+        $null = $wsContract.Rows.Item(55).Insert(-4121)
+    }
+}
+
+` + Array.from({ length: totalItemRows }, (_, idx) => {
+  const row = 44 + idx;
+  const item = contractItems[idx];
+  if (item) {
+    return `
+$wsContract.Cells.Item(${row}, 1).Value2 = "${item.col1}"
+$wsContract.Cells.Item(${row}, 3).Value2 = "${item.col3}"
+$wsContract.Cells.Item(${row}, 4).Value2 = "${item.col4}"
+$wsContract.Cells.Item(${row}, 4).WrapText = $${item.hasNewline ? 'true' : 'false'}
+$wsContract.Cells.Item(${row}, 5).Value2 = "${item.col5}"
+$wsContract.Cells.Item(${row}, 7).Value2 = "${item.col7}"
+`;
+  }
+  return `
+$wsContract.Cells.Item(${row}, 1).Value2 = ""
+$wsContract.Cells.Item(${row}, 3).Value2 = ""
+$wsContract.Cells.Item(${row}, 4).Value2 = ""
+$wsContract.Cells.Item(${row}, 5).Value2 = ""
+$wsContract.Cells.Item(${row}, 7).Value2 = ""
+`;
+}).join('') + `
+
+try {
+  $wsContract.PageSetup.PaperSize = 9
+  $wsContract.PageSetup.Orientation = 1
+  $wsContract.PageSetup.Zoom = $false
+  $wsContract.PageSetup.FitToPagesWide = 1
+  if (${contractItems.length} -le 12) {
+    $wsContract.PageSetup.PrintArea = "A26:K78"
+    $wsContract.PageSetup.FitToPagesTall = 1
+  } else {
+    $endRow = 78 + (${contractItems.length} - 12)
+    $wsContract.PageSetup.PrintArea = "A26:K$endRow"
+    $wsContract.PageSetup.FitToPagesTall = $false
+  }
+} catch {}
+
+# --- 3. 자산별 반입전체크리스트 & 안전점검결과서 순회 생성 ---
+# 원본 시트($wsChecklistBase, $wsSafetyBase)의 태그가 치환되기 전에 먼저 자산 대수만큼 시트를 복제하여 배열에 보관
+$checkSheets = @($wsChecklistBase)
+$safetySheets = @($wsSafetyBase)
+for ($cIdx = 1; $cIdx -lt ${assets.length}; $cIdx++) {
+    $wsChecklistBase.Copy([Type]::Missing, $checkSheets[$cIdx - 1])
+    $copiedCheck = $wb.Sheets.Item($checkSheets[$cIdx - 1].Index + 1)
+    try { $copiedCheck.Name = "반입전체크리스트_$($cIdx + 1)" } catch {}
+    $checkSheets += $copiedCheck
+}
+for ($sIdx = 1; $sIdx -lt ${assets.length}; $sIdx++) {
+    $wsSafetyBase.Copy([Type]::Missing, $safetySheets[$sIdx - 1])
+    $copiedSafety = $wb.Sheets.Item($safetySheets[$sIdx - 1].Index + 1)
+    try { $copiedSafety.Name = "안전점검결과서_$($sIdx + 1)" } catch {}
+    $safetySheets += $copiedSafety
+}
+
+` + assets.map((ast, idx) => {
+  const astInspDate = psEscape(ast.inspectionDate || inspectionDate);
+  const astInspName = psEscape(ast.inspectorName || inspectorName);
+  const astModel = psEscape(ast.modelName || '-');
+  const astNo = psEscape(ast.assetNo || '-');
+  const astMfg = psEscape((ast.manufacturer && ast.manufacturer !== '-') ? ast.manufacturer : '-');
+  const astPower = psEscape((ast.powerSource && ast.powerSource !== '-') ? ast.powerSource : '배터리');
+  const astWeight = psEscape((ast.weight && ast.weight !== '-') ? ast.weight : '-');
+  const astSpeed = psEscape((ast.speed && ast.speed !== '-') ? ast.speed : '-');
+  const astWorkingHeight = psEscape((ast.workingHeight && ast.workingHeight !== '-') ? ast.workingHeight : '-');
+  const astCapacity = psEscape((ast.capacityPreExt && ast.capacityPreExt !== '-') ? ast.capacityPreExt : '-');
+  const astMfgYear = psEscape((ast.manufactureYear && ast.manufactureYear !== '-') ? ast.manufactureYear : '-');
+  const astCertDate = psEscape((ast.safetyCertDate && ast.safetyCertDate !== '-') ? ast.safetyCertDate : ((ast.certDate && ast.certDate !== '-') ? ast.certDate : '-'));
+
+  return `
+$curChecklist = $checkSheets[${idx}]
+$curSafety = $safetySheets[${idx}]
+
+Replace-Tag $curChecklist "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "{테넌트}" "${psEscape(tenantCorp)}"
+Replace-Tag $curChecklist "{모델명}" "${astModel}"
+Replace-Tag $curChecklist "{관리번호}" "${astNo}"
+Replace-Tag $curChecklist "{점검일시}" "${astInspDate}"
+Replace-Tag $curChecklist "{안전점검일시}" "${astInspDate}"
+Replace-Tag $curChecklist "{{배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curChecklist "{(배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curChecklist "{(배차일)-2}" "${astInspDate}"
+Replace-Tag $curChecklist "{Today}" "${astInspDate}"
+Replace-Tag $curChecklist "{점검자}" "${astInspName}"
+Replace-Tag $curChecklist "{점점자}" "${astInspName}"
+Replace-Tag $curChecklist "김관주" "${astInspName}"
+try {
+  $curChecklist.PageSetup.Orientation = 1
+  $curChecklist.PageSetup.Zoom = $false
+  $curChecklist.PageSetup.FitToPagesWide = 1
+  $curChecklist.PageSetup.FitToPagesTall = 1
+} catch {}
+
+Replace-Tag $curSafety "{사업장명}" "${psEscape(siteName)}"
+Replace-Tag $curSafety "{형식}" "자주식 시저형"
+Replace-Tag $curSafety "{제조사}" "${astMfg}"
+Replace-Tag $curSafety "(주)기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "주식회사 기연리프트" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "{테넌트}" "${psEscape(tenantCorp)}"
+Replace-Tag $curSafety "{고객명}" "${psEscape(custName)}"
+Replace-Tag $curSafety "{동력방식}" "${astPower}"
+Replace-Tag $curSafety "{모델명}" "${astModel}"
+Replace-Tag $curSafety "{중량}" "${astWeight}"
+Replace-Tag $curSafety "{운행속도}" "${astSpeed}"
+Replace-Tag $curSafety "{작업높이}" "${astWorkingHeight}"
+Replace-Tag $curSafety "{적재}" "${astCapacity}"
+Replace-Tag $curSafety "{관리번호}" "${astNo}"
+Replace-Tag $curSafety "{차량번호}" "${astNo}"
+Replace-Tag $curSafety "{제조연도}" "${astMfgYear}"
+Replace-Tag $curSafety "{안전인증일}" "${astCertDate}"
+Replace-Tag $curSafety "{Today}" "${astInspDate}"
+Replace-Tag $curSafety "{점검일시}" "${astInspDate}"
+Replace-Tag $curSafety "{안전점검일시}" "${astInspDate}"
+Replace-Tag $curSafety "{{배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${astInspDate}"
+Replace-Tag $curSafety "{(배차일)-2}" "${astInspDate}"
+Replace-Tag $curSafety "{점검자}" "${astInspName}"
+Replace-Tag $curSafety "{점점자}" "${astInspName}"
+Replace-Tag $curSafety "김관주" "${astInspName}"
+try {
+  $curSafety.PageSetup.Orientation = 1
+  $curSafety.PageSetup.Zoom = $false
+  $curSafety.PageSetup.FitToPagesWide = 1
+  $curSafety.PageSetup.FitToPagesTall = 1
+} catch {}
+`;
+}).join('\n') + `
+
+$wb.ExportAsFixedFormat(0, $masterPdf)
+} finally {
+  if ($wb) { try { $wb.Close($false) } catch {} }
+  if ($excel) {
+    try { $excel.Quit() } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null } catch {}
+  }
+}
+`;
+
+    const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
+    fs.writeFileSync(psFile, psScript, 'utf8');
+
+    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+
+    const { PDFDocument } = require('pdf-lib');
+
+    const mergedPdf = await PDFDocument.create();
+    const pdfSources = [
+      path.join(tempBuildDir, '01.계약서패키지.pdf')
+    ];
+
+    const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
+    
+    for (const model of uniqueModels) {
+      const eqDocDir = resolveEqDocModelDir(model) || path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
+      if (fs.existsSync(eqDocDir)) {
+        const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
+        files.sort();
+        for (const f of files) {
+          pdfSources.push(path.join(eqDocDir, f));
+        }
+      }
+    }
+
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
+
+    for (const p of pdfSources) {
+      if (fs.existsSync(p)) {
+        const bytes = fs.readFileSync(p);
+        const doc = await PDFDocument.load(bytes);
+        const copied = await mergedPdf.copyPages(doc, doc.getPageIndices());
+        copied.forEach(page => mergedPdf.addPage(page));
+      }
+    }
+
+    const finalPdfBytes = await mergedPdf.save();
+    const pageCount = mergedPdf.getPageCount();
+    const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
+    const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
+    const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+    const fileName = `[${cleanTenantPrefix}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
+
+    const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
+    const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    const localSavePath = path.join(archiveDir, fileName);
+    fs.writeFileSync(localSavePath, finalPdfBytes);
+
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+
+    agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
+    return {
+      success: true,
+      fileName,
+      pageCount,
+      localPath: localSavePath,
+      message: `100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
+    };
+  } catch (bundleErr) {
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+    throw bundleErr;
+  }
+}
+
+async function executeGenerateStatementInternal(payload) {
+  const tempBuildDir = path.join(AGENT_HOME, 'temp_statement_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+  try {
+    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const statementMasterPath = path.join(DRIVE_MIRROR_DIR, '00.거래명세서양식.xlsx');
+    if (!fs.existsSync(statementMasterPath)) {
+      agentLog('SYNC', '거래명세서 양식 파일 부재 감지 -> Cloudflare R2 즉시 동기화 실행');
+      try { await autoSyncFromCloudflare(); } catch (e) {}
+    }
+
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const tenantName = payload.tenantName || payload.lessorName || policy.tenantName || policy.corporateName || TENANT_CODE || '(주)기연리프트';
+    const lessorName = (payload.lessorName || policy.tenantName || policy.corporateName || tenantName).replace(/"/g, '""');
+    const lessorBizNo = (payload.lessorBizNo || policy.businessNumber || '138-81-83251').replace(/"/g, '""');
+    const lessorCeo = (payload.lessorCeo || policy.representativeName || '이수용').replace(/"/g, '""');
+    const lessorAddress = (payload.lessorAddress || policy.businessAddress || '').replace(/"/g, '""');
+    const lessorBizType = (payload.lessorBizType || policy.businessCategory || '사업지원및임대서비스업').replace(/"/g, '""');
+    const lessorBizItem = (payload.lessorBizItem || policy.businessItem || '고소장비임대업').replace(/"/g, '""');
+    const lessorTel = (payload.billingManagerPhone || payload.lessorTel || policy.tel || '031-334-5295').replace(/"/g, '""');
+    const lessorEmail = (payload.lessorEmail || policy.taxEmail || policy.email || 'giyeonlift@naver.com').replace(/"/g, '""');
+
+    let defaultBank = '기업은행 123-456789-01-011 ((주)기연리프트)';
+    if (Array.isArray(policy.bankAccounts) && policy.bankAccounts.length > 0) {
+      const b0 = policy.bankAccounts[0];
+      if (typeof b0 === 'object' && b0.bankName) {
+        defaultBank = `${b0.bankName} ${b0.accountNumber || ''} (${b0.accountHolder || b0.holder || lessorName})`;
+      }
+    }
+    const bankAccount = (payload.bankAccount || defaultBank).replace(/"/g, '""');
+
+    const custName = (payload.customerName || '고객사').replace(/"/g, '""');
+    const bizRegNo = (payload.customerBizNo || payload.bizRegNo || '-').replace(/"/g, '""');
+    const ceoName = (payload.customerCeo || '-').replace(/"/g, '""');
+    const billingDate = (payload.billingDate || new Date().toISOString().split('T')[0]).replace(/"/g, '""');
+    const siteName = (payload.siteName || '현장').replace(/"/g, '""');
+    const siteAddress = (payload.customerAddress || payload.siteAddress || payload.address || '-').replace(/"/g, '""');
+    const siteManagerName = (payload.siteManagerName || '-').replace(/"/g, '""');
+    const siteManagerPhone = (payload.siteManagerPhone || '-').replace(/"/g, '""');
+    const custBillingName = (payload.custBillingManagerName || payload.customerBillingManagerName || '-').replace(/"/g, '""');
+    const custBillingPhone = (payload.custBillingManagerPhone || payload.customerBillingManagerPhone || '-').replace(/"/g, '""');
+    const custBillingEmail = (payload.custBillingEmail || payload.customerBillingEmail || '-').replace(/"/g, '""');
+    const custBizType = (payload.customerBizType || '-').replace(/"/g, '""');
+    const custBizItem = (payload.customerBizItem || '-').replace(/"/g, '""');
+
+    const salespersonName = (payload.salespersonName || lessorCeo || '영업담당자').replace(/"/g, '""');
+    const salespersonPhone = (payload.salespersonPhone || payload.lessorTel || policy.salesPhone || policy.tel || '-').replace(/"/g, '""');
+    const billingManagerName = (payload.billingManagerName || '정수아').replace(/"/g, '""');
+    const billingManagerPhone = (payload.billingManagerPhone || lessorTel).replace(/"/g, '""');
+    const yyyyMm = (payload.billingYm || (payload.billingDate ? payload.billingDate.substring(0, 7) : new Date().toISOString().substring(0, 7))).replace(/[\\/:*?"<>|]/g, '');
+
+    const items = payload.items || [];
+
+    // 13개 단위 분할 (Row 16 ~ Row 28: 다중 페이지 거래명세서 엔진)
+    const chunkSize = 13;
+    const chunks = [];
+    for (let i = 0; i < items.length; i += chunkSize) {
+      chunks.push(items.slice(i, i + chunkSize));
+    }
+    if (chunks.length === 0) chunks.push([]);
+    const totalPages = chunks.length;
+
+    const psScript = `\ufeff
+$ErrorActionPreference = 'Stop'
+
+$excel = $null
+$wb = $null
+try {
+$excel = New-Object -ComObject Excel.Application
+try { $excel.Visible = $false } catch {}
+try { $excel.DisplayAlerts = $false } catch {}
+try { $excel.ScreenUpdating = $false } catch {}
+try { $excel.EnableEvents = $false } catch {}
+try { $excel.Interactive = $false } catch {}
+
+function Replace-Tag($targetWs, $tag, $val) {
+  $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
+}
+
+function Setup-Sheet-Page($targetWs) {
+  try {
+    $targetWs.PageSetup.PaperSize = 9
+    $targetWs.PageSetup.Orientation = 1
+    $targetWs.PageSetup.PrintArea = "B1:AA30"
+    $targetWs.PageSetup.Zoom = $false
+    $targetWs.PageSetup.FitToPagesWide = 1
+    $targetWs.PageSetup.FitToPagesTall = 1
+    $targetWs.PageSetup.CenterHorizontally = $true
+    $targetWs.PageSetup.LeftMargin = $excel.InchesToPoints(0.15)
+    $targetWs.PageSetup.RightMargin = $excel.InchesToPoints(0.15)
+    $targetWs.PageSetup.TopMargin = $excel.InchesToPoints(0.2)
+    $targetWs.PageSetup.BottomMargin = $excel.InchesToPoints(0.2)
+  } catch {}
+}
+
+# --- 1. 거래명세서 마스터 템플릿 복사 및 열기 ---
+$masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\00.거래명세서양식.xlsx'
+$statementWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\거래명세서_작업용.xlsx'
+$statementPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\거래명세서.pdf'
+
+Copy-Item $masterIn $statementWork -Force
+$wb = $excel.Workbooks.Open($statementWork)
+$wsBase = $wb.Sheets.Item(1)
+
+` + chunks.map((chunk, pageIdx) => {
+      const pageNum = pageIdx + 1;
+      const pageTag = totalPages > 1 ? ` ( ${pageNum} / ${totalPages} 쪽 )` : '';
+      const isFirst = pageIdx === 0;
+      const startGlobalIdx = pageIdx * chunkSize;
+
+      let s = '';
+      if (isFirst) {
+        if (totalPages > 1) {
+          // 다중 페이지일 때는 1페이지 수정 전에 원본 템플릿 시트를 필요한 만큼 미리 복제해 둔다
+          for (let p = 2; p <= totalPages; p++) {
+            s += `$wsBase.Copy([Type]::Missing, $wb.Sheets.Item($wb.Sheets.Count))\n`;
+            s += `$wb.Sheets.Item($wb.Sheets.Count).Name = "거래명세서_${p}"\n`;
+          }
+          s += `$wsBase.Name = "거래명세서_1"\n`;
+        }
+        s += `\n$curWs = $wsBase\n`;
+      } else {
+        s += `\n$curWs = $wb.Sheets.Item(${pageNum})\n`;
+      }
+
+      s += `
+# 페이지 ${pageNum} 공급자(테넌트) 및 공급받는자(고객사) {} 태그 치환
+Replace-Tag $curWs "{테넌트사업자등록번호}" "${lessorBizNo}"
+Replace-Tag $curWs "{테넌트상호}" "${lessorName}"
+Replace-Tag $curWs "{테넌트대표}" "${lessorCeo}"
+Replace-Tag $curWs "{테넌트주소}" "${lessorAddress}"
+Replace-Tag $curWs "{테넌트업태}" "${lessorBizType}"
+Replace-Tag $curWs "{테넌트종목}" "${lessorBizItem}"
+Replace-Tag $curWs "{영업담당자}" "${salespersonName}"
+Replace-Tag $curWs "{영업담당자연락처}" "${salespersonPhone}"
+Replace-Tag $curWs "{테넌트계산서담당자}" "${billingManagerName}"
+Replace-Tag $curWs "{테넌트전화}" "${billingManagerPhone}"
+Replace-Tag $curWs "{테넌트세금계산서메일}" "${lessorEmail}"
+Replace-Tag $curWs "{테넌트계좌}" "${bankAccount}"
+
+Replace-Tag $curWs "{고객사업자등록증번호}" "${bizRegNo}"
+Replace-Tag $curWs "{고객상호}" "${custName}"
+Replace-Tag $curWs "{고객대표}" "${ceoName}"
+Replace-Tag $curWs "{고객주소}" "${siteAddress}"
+Replace-Tag $curWs "{고객업태}" "${custBizType}"
+Replace-Tag $curWs "{고객종목}" "${custBizItem}"
+Replace-Tag $curWs "{현장담당자}" "${siteManagerName}"
+Replace-Tag $curWs "{현장담당자연락처}" "${siteManagerPhone}"
+Replace-Tag $curWs "{계산서담당자}" "${custBillingName}"
+Replace-Tag $curWs "{계산서담당자연락처}" "${custBillingPhone}"
+Replace-Tag $curWs "{계산서메일}" "${custBillingEmail}"
+Replace-Tag $curWs "{현장명}" "${siteName}${pageTag}"
+Replace-Tag $curWs "{작성일자}" "${billingDate}${pageTag}"
+`;
+
+      // 품목 기입 (Row 16 ~ Row 28, 최대 13행)
+      for (let r = 0; r < 13; r++) {
+        const item = chunk[r];
+        const rowNum = 16 + r;
+        if (item) {
+          const globalNo = startGlobalIdx + r + 1;
+          let m = item.month !== undefined && item.month !== null ? item.month : '';
+          let d = item.day !== undefined && item.day !== null ? item.day : '';
+          if ((!m || !d) && (item.billingDate || item.date || item.transactionDate || billingDate)) {
+            const dtParts = String(item.billingDate || item.date || item.transactionDate || billingDate).split('-');
+            if (dtParts.length === 3) {
+              if (!m) m = parseInt(dtParts[1], 10);
+              if (!d) d = parseInt(dtParts[2], 10);
+            }
+          }
+
+          let model = String(item.modelName || item.model || '').trim();
+          let height = String(item.workingHeight || item.height || '').trim();
+          let assetNo = String(item.assetNo || '').trim();
+          let siteEntryDate = String(item.siteEntryDate || '').trim();
+          let periodStart = String(item.periodStart || '').trim();
+          let periodEnd = String(item.periodEnd || '').trim();
+          let billingCategory = String(item.billingCategory || '').trim();
+          const rawDesc = String(item.itemDescription || item.description || item.itemName || '').trim();
+
+          if (!model && rawDesc) {
+            const parts = rawDesc.split('_');
+            if (parts.length >= 3 && parts[parts.length - 1].includes('~')) {
+              model = parts[0];
+              if (!assetNo) assetNo = parts[1];
+              const [ps, pe] = parts[parts.length - 1].split('~');
+              if (!periodStart && ps) periodStart = ps.trim();
+              if (!periodEnd && pe) periodEnd = pe.trim();
+            } else {
+              model = rawDesc;
+            }
+          }
+          const modelAndHeight = (item.modelAndHeight || (height ? `${model} / ${height}` : (model || rawDesc || '-'))).replace(/"/g, '""');
+          const safeAssetNo = (assetNo || '-').replace(/"/g, '""');
+          const safeSiteEntry = (siteEntryDate || periodStart || '-').replace(/"/g, '""');
+          const safePStart = (periodStart || '-').replace(/"/g, '""');
+          const safePEnd = (periodEnd || '-').replace(/"/g, '""');
+          const safeTilde = (safePStart !== '-' || safePEnd !== '-') ? '~' : '';
+          const safeCategory = (billingCategory || '임대료').replace(/"/g, '""');
+
+          const qty = Number(item.quantity || item.qty || 1);
+          const priceNum = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
+          const supplyNum = item.supplyAmount !== undefined ? Number(item.supplyAmount) : (item.amount !== undefined ? Number(item.amount) : (priceNum * qty));
+          const vatNum = item.vatAmount !== undefined ? Number(item.vatAmount) : (item.vat !== undefined ? Number(item.vat) : Math.round(supplyNum * 0.1));
+          const notes = String(item.notes || item.remarks || item.memo || '').replace(/"/g, '""');
+
+          s += `
+$curWs.Range("Y${rowNum}:AA${rowNum}").Merge()
+$curWs.Cells.Item(${rowNum}, 2).Value2 = ${globalNo}
+$curWs.Cells.Item(${rowNum}, 3).Value2 = "${m}"
+$curWs.Cells.Item(${rowNum}, 4).Value2 = "${d}"
+$curWs.Cells.Item(${rowNum}, 5).Value2 = "${modelAndHeight}"
+$curWs.Cells.Item(${rowNum}, 8).Value2 = "${safeAssetNo}"
+$curWs.Cells.Item(${rowNum}, 11).Value2 = "${safeSiteEntry}"
+$curWs.Cells.Item(${rowNum}, 12).Value2 = "${safePStart}"
+$curWs.Cells.Item(${rowNum}, 13).Value2 = "${safeTilde}"
+$curWs.Cells.Item(${rowNum}, 14).Value2 = "${safePEnd}"
+$curWs.Cells.Item(${rowNum}, 15).Value2 = "${safeCategory}"
+$curWs.Cells.Item(${rowNum}, 17).Value2 = ${qty}
+$curWs.Cells.Item(${rowNum}, 18).Value2 = ${priceNum}
+$curWs.Cells.Item(${rowNum}, 20).Value2 = ${supplyNum}
+$curWs.Cells.Item(${rowNum}, 23).Value2 = ${vatNum}
+$curWs.Cells.Item(${rowNum}, 25).Value2 = "${notes}"
+`;
+        } else {
+          s += `
+$curWs.Range("Y${rowNum}:AA${rowNum}").Merge()
+$curWs.Cells.Item(${rowNum}, 2).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 3).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 4).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 5).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 8).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 11).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 12).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 13).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 14).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 15).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 17).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 18).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 20).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 23).Value2 = $null
+$curWs.Cells.Item(${rowNum}, 25).Value2 = $null
+`;
+        }
+      }
+
+      s += `
+$curWs.Calculate()
+Setup-Sheet-Page $curWs
+`;
+
+      return s;
+    }).join('\n') + `
+$wb.Save()
+
+# --- 5. 전체 워크북 1회 Export (모든 시트가 1개의 단일 다중 페이지 PDF로) ---
+$wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.Missing]::Value, [System.Reflection.Missing]::Value, $false)
+} finally {
+  if ($wb) { try { $wb.Close($false) } catch {} }
+  if ($excel) {
+    try { $excel.Quit() } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null } catch {}
+  }
+  [System.GC]::Collect()
+  [System.GC]::WaitForPendingFinalizers()
+}
+`;
+
+    const psFile = path.join(tempBuildDir, 'generate_statement.ps1');
+    fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
+
+    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
+      cwd: tempBuildDir
+    });
+
+    const statementPdfPath = path.join(tempBuildDir, '거래명세서.pdf');
+    if (!fs.existsSync(statementPdfPath)) {
+      throw new Error('거래명세서 정품 PDF 생성 실패: 결과 파일 없음');
+    }
+
+    const pdfBuffer = fs.readFileSync(statementPdfPath);
+    const b64 = pdfBuffer.toString('base64');
+    const safeCustName = (custName || '고객사').replace(/[\\/:*?"<>|]/g, '');
+    const safeSiteName = String(siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+    const fileName = `[${cleanTenantPrefix}]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
+
+    const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    const localSavePath = path.join(archiveDir, fileName);
+    fs.writeFileSync(localSavePath, pdfBuffer);
+
+    const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
+    if (fs.existsSync(xlsxWorkFile)) {
+      const xlsxFileName = `[${cleanTenantPrefix}]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
+      fs.copyFileSync(xlsxWorkFile, path.join(archiveDir, xlsxFileName));
+    }
+
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+
+    agentLog('JOB', `거래명세서 PDF 조립 완료: ${localSavePath} (${chunks.length || 1}p)`);
+    return {
+      success: true,
+      fileName,
+      localPath: localSavePath,
+      pageCount: chunks.length || 1,
+      base64Content: b64,
+      message: '100% 정품 엑셀 기반 거래명세서 PDF 생성 및 로컬 문서고 영구 아카이빙 완료'
+    };
+  } catch (statementErr) {
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+    throw statementErr;
+  }
+}
+
+function processSystemJobQueue() {
+  if (isSystemJobWorkerRunning) return;
+  // FIFO 순서 보장: 가장 먼저 들어온 PENDING 작업부터 순차 처리
+  const nextJob = systemJobQueue.slice().reverse().find(j => j.status === 'PENDING');
+  if (!nextJob) return;
+
+  isSystemJobWorkerRunning = true;
+  (async () => {
+    try {
+      nextJob.status = 'RUNNING';
+      nextJob.startedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
+
+      if (nextJob.jobType === 'SEND_EMAIL') {
+        nextJob.result = await executeSendEmailInternal(nextJob.payload);
+      } else if (nextJob.jobType === 'CONTRACT_BUNDLE_EMAIL') {
+        const { bundleOptions, emailPayload } = nextJob.payload;
+        let pdfFilePath = emailPayload?.localPath;
+        let pdfFileName = emailPayload?.fileName;
+        let pageCount = emailPayload?.pageCount || 0;
+        if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
+          const bundleRes = await executeContractBundleInternal(bundleOptions);
+          pdfFilePath = bundleRes.localPath;
+          pdfFileName = bundleRes.fileName;
+          pageCount = bundleRes.pageCount;
+        }
+        const finalEmailPayload = {
+          ...emailPayload,
+          attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
+        };
+        const mailRes = await executeSendEmailInternal(finalEmailPayload);
+        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName, pageCount };
+      } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
+        const bundleRes = await executeContractBundleInternal(nextJob.payload);
+        if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
+          exec(`cmd /c start "" "${bundleRes.localPath}"`, { windowsHide: true });
+        }
+        nextJob.result = {
+          success: true,
+          fileName: bundleRes.fileName,
+          pageCount: bundleRes.pageCount,
+          localPath: bundleRes.localPath
+        };
+      } else if (nextJob.jobType === 'GENERATE_STATEMENT') {
+        const stmtRes = await executeGenerateStatementInternal(nextJob.payload);
+        if (nextJob.payload?.openAfterComplete && stmtRes.localPath && fs.existsSync(stmtRes.localPath)) {
+          exec(`cmd /c start "" "${stmtRes.localPath}"`, { windowsHide: true });
+        }
+        nextJob.result = stmtRes;
+      }
+      nextJob.status = 'COMPLETED';
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
+    } catch (err) {
+      nextJob.status = 'FAILED';
+      nextJob.error = err.message || String(err);
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
+    } finally {
+      isSystemJobWorkerRunning = false;
+      setTimeout(processSystemJobQueue, 200);
+    }
+  })();
+}
+
+function enqueueSystemJob(jobType, payload) {
+  const job = {
+    id: `JOB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
+    jobType,
+    payload,
+    status: 'PENDING',
+    createdAt: new Date().toISOString()
+  };
+  systemJobQueue.unshift(job);
+  if (systemJobQueue.length > 30) systemJobQueue.pop();
+  processSystemJobQueue();
+  return job;
+}
+
+const server = http.createServer(async (req, res) => {
+  // CORS 및 W3C Private Network Access (PNA) 헤더 전사 허용 (헌장 1.1, 5.2)
+  const reqOrigin = req.headers.origin;
+  if (reqOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  const reqHeaders = req.headers['access-control-request-headers'];
+  if (reqHeaders) {
+    res.setHeader('Access-Control-Allow-Headers', `${reqHeaders}, Content-Type, Authorization, X-Requested-With, Range, Accept, Origin, Cache-Control, Pragma, Access-Control-Request-Private-Network, *`);
+  } else {
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Range, Accept, Origin, Cache-Control, Pragma, Access-Control-Request-Private-Network, *');
+  }
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const rawUrl = req.url || '';
+  const pathname = rawUrl.split('?')[0];
+  const queryIndex = rawUrl.indexOf('?');
+  const queryString = queryIndex !== -1 ? rawUrl.substring(queryIndex + 1) : '';
+  const searchParams = new URLSearchParams(queryString);
+
+  //  eBro AI Agent 지시 스튜디오 및 큐 API 처리
+  const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION, TENANT_CODE);
+  if (isStudioHandled) return;
+
+  // 1. 헬스체크 및 동적 콜사인 바인딩 API
+  if (req.method === 'GET' && pathname === '/health') {
+    const queryCallsign = searchParams.get('callsign');
+    if (queryCallsign && queryCallsign.trim()) {
+      activeCallsign = queryCallsign.trim();
+    }
+
+    let macAddresses = [];
+    try {
+      const ifaces = os.networkInterfaces();
+      const rawMacs = Object.values(ifaces)
+        .flat()
+        .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
+        .map(i => i.mac.toUpperCase().replace(/:/g, '-'));
+      macAddresses = [...new Set(rawMacs)];
+    } catch (e) {}
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      status: 'ONLINE',
+      version: VERSION,
+      coreHash: CORE_HASH,
+      callsign: activeCallsign,
+      machineName: MACHINE_NAME,
+      macAddresses: macAddresses,
+      archiveRoot: ARCHIVE_ROOT,
+      driveMirrorDir: DRIVE_MIRROR_DIR,
+      uptimeSeconds: Math.floor(process.uptime()),
+      updateState: updateState,
+      policy: getAgentPolicy(),
+      isAiEnabled: isAiEnabled(),
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
+  // 1-1. 로컬 물리 단말기 네트워크 MAC 주소 직접 수집 API
+  if (req.method === 'GET' && pathname === '/api/device/physical-mac') {
+    try {
+      const ifaces = os.networkInterfaces();
+      const rawMacs = Object.values(ifaces)
+        .flat()
+        .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
+        .map(i => i.mac.toUpperCase().replace(/:/g, '-'));
+      const uniqueMacs = [...new Set(rawMacs)];
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        macAddresses: uniqueMacs,
+        hostname: MACHINE_NAME,
+        platform: os.platform()
+      }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return;
+  }
+
+  // 1-2. 에이전트 자가 자동 업데이트 즉시 검사 및 실행 API
+  if ((req.method === 'POST' || req.method === 'GET') && pathname === '/api/check-update') {
+    const isForce = searchParams.get('force') === 'true' || searchParams.get('force') === '1';
+    checkAndApplyUpdate(isForce).then((result) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, result, updateState }));
+    }).catch(err => {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message, updateState }));
+    });
+    return;
+  }
+
+  // 1-3. 에이전트 업데이트 진행 상태 조회 API
+  if (req.method === 'GET' && pathname === '/api/update-status') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, updateState }));
+    return;
+  }
+
+  // 2. 에이전트 원클릭 핫 재시작 (Restart) API (/api/restart 및 /restart 별칭 지원)
+  if (req.method === 'POST' && (pathname === '/api/restart' || pathname === '/restart')) {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, message: '에이전트를 1초 후 자동 재시작합니다.' }));
+    setTimeout(() => {
+      try {
+        // WMI Win32_Process.Create를 통해 부모 Job Object와 완전히 분리된 독립 데몬으로 기동
+        const psDetach = `Invoke-WmiMethod -Class Win32_Process -Name Create -ArgumentList '"${TARGET_EXE_PATH}" --daemon'`;
+        execSync(`powershell.exe -NoProfile -WindowStyle Hidden -Command "${psDetach}"`, { stdio: 'ignore', windowsHide: true });
+      } catch (e) {
+        const child = spawn(TARGET_EXE_PATH, ['--daemon'], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.unref();
+      }
+      process.exit(0);
+    }, 400);
+    return;
+  }
+
+  // 3. 에이전트 원클릭 셧다운 (Shutdown) API
+  if (req.method === 'POST' && pathname === '/api/shutdown') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, message: '에이전트를 안전하게 종료합니다.' }));
+    setTimeout(() => { process.exit(0); }, 500);
+    return;
+  }
+
+  // 3-2. Cloudflare R2 원본 실시간 강제 재동기화 API
+  if (req.method === 'POST' && pathname === '/api/trigger-sync') {
+    autoSyncFromCloudflare().then((syncRes) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(syncRes || {
+        success: true,
+        message: 'Cloudflare R2 실시간 버킷 동기화가 완료되었습니다.'
+      }));
+    }).catch(err => {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    });
+    return;
+  }
+
+  // 3-2-0. 로컬 미러링 폴더 파일 현황 조회 API (/api/mirror-status) 및 직접 미러링 업로드 API (/api/sync-drive)
+  if (req.method === 'GET' && pathname === '/api/mirror-status') {
+    try {
+      const files = [];
+      const walkMirror = (dir, prefix = '') => {
+        if (!fs.existsSync(dir)) return;
+        for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+          const rel = prefix ? `${prefix}/${ent.name}` : ent.name;
+          const full = path.join(dir, ent.name);
+          if (ent.isDirectory()) {
+            walkMirror(full, rel);
+          } else {
+            const st = fs.statSync(full);
+            files.push({ name: rel, size: st.size, modifiedTime: st.mtime.toISOString() });
+          }
+        }
+      };
+      walkMirror(DRIVE_MIRROR_DIR);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, files, mirrorPath: DRIVE_MIRROR_DIR }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, files: [], error: err.message }));
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/sync-drive') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        const files = Array.isArray(payload.files) ? payload.files : [];
+        const syncedFiles = [];
+        for (const f of files) {
+          if (!f || !f.name) continue;
+          const targetPath = path.join(DRIVE_MIRROR_DIR, f.name);
+          if (f.name.endsWith('/')) {
+            if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
+            continue;
+          }
+          const dir = path.dirname(targetPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          const buf = Buffer.from(f.base64Content || '', 'base64');
+          fs.writeFileSync(targetPath, buf);
+          syncedFiles.push({ name: f.name, size: buf.length });
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, syncedCount: syncedFiles.length, syncedFiles }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 3-2-1.  국세청 홈택스 매입세금계산서 로컬 자동 수집 API (/api/hometax/purchase-invoices)
+  if (req.method === 'GET' && pathname === '/api/hometax/purchase-invoices') {
+    try {
+      if (!fs.existsSync(HOMETAX_INVOICES_DIR)) {
+        fs.mkdirSync(HOMETAX_INVOICES_DIR, { recursive: true });
+      }
+
+      const files = fs.readdirSync(HOMETAX_INVOICES_DIR)
+        .filter(f => /\.(xlsx|xls|xml)$/i.test(f))
+        .map(f => {
+          const filePath = path.join(HOMETAX_INVOICES_DIR, f);
+          const stat = fs.statSync(filePath);
+          return { name: f, path: filePath, mtime: stat.mtime.getTime() };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+
+      if (files.length === 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          message: `폴더(${HOMETAX_INVOICES_DIR})에 홈택스 엑셀 또는 XML 파일이 존재하지 않습니다. 파일을 해당 폴더에 저장해 주십시오.`,
+          items: []
+        }));
+        return;
+      }
+
+      const latestFile = files[0];
+      let items = [];
+
+      if (/\.xml$/i.test(latestFile.name)) {
+        // XML 파싱
+        const content = fs.readFileSync(latestFile.path, 'utf8');
+        const getTagVal = (tag) => {
+          const m = content.match(new RegExp(`<${tag}[^>]*>([^<]+)<\/${tag}>`, 'i'));
+          return m ? m[1].trim() : '';
+        };
+
+        const issueId = getTagVal('IssueID') || getTagVal('TaxInvoiceDocumentId');
+        const supplierBizNo = getTagVal('ID').replace(/[^0-9]/g, '');
+        const supplierName = getTagVal('NameText');
+        const writeDate = (getTagVal('CalculatedDateTime') || getTagVal('IssueDateTime') || '').slice(0, 10);
+        const supplyAmt = parseInt(getTagVal('ChargeTotalAmount') || '0', 10);
+        const vatAmt = parseInt(getTagVal('TaxTotalAmount') || '0', 10);
+        const totalAmt = parseInt(getTagVal('GrandTotalAmount') || String(supplyAmt + vatAmt), 10);
+
+        items.push({
+          taxInvoiceNo: issueId || `XML-${Date.now()}`,
+          writeDate: writeDate || new Date().toISOString().slice(0, 10),
+          supplierBizNo,
+          formattedSupplierBizNo: supplierBizNo.length === 10 ? `${supplierBizNo.slice(0,3)}-${supplierBizNo.slice(3,5)}-${supplierBizNo.slice(5)}` : supplierBizNo,
+          supplierName: supplierName || '공급자',
+          supplyAmount: supplyAmt,
+          vatAmount: vatAmt,
+          totalAmount: totalAmt,
+          itemName: getTagVal('DescriptionText') || undefined
+        });
+      } else {
+        // 엑셀 파싱 시도 (xlsx 모듈 필요 시 동적 require)
+        try {
+          const XLSX = require('xlsx');
+          const workbook = XLSX.readFile(latestFile.path);
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+          let headerIdx = -1;
+          let colMap = {};
+          for (let r = 0; r < Math.min(rawData.length, 15); r++) {
+            const rowStr = (rawData[r] || []).map(c => String(c).trim()).join(' ');
+            if (rowStr.includes('승인번호') || rowStr.includes('작성일자') || rowStr.includes('공급자')) {
+              headerIdx = r;
+              rawData[r].forEach((c, idx) => {
+                const s = String(c || '').replace(/\s/g, '');
+                if (s.includes('승인번호')) colMap['taxInvoiceNo'] = idx;
+                if (s.includes('작성일')) colMap['writeDate'] = idx;
+                if (s.includes('등록번호') || s.includes('사업자')) colMap['supplierBizNo'] = idx;
+                if (s.includes('상호')) colMap['supplierName'] = idx;
+                if (s.includes('공급가')) colMap['supplyAmount'] = idx;
+                if (s.includes('세액')) colMap['vatAmount'] = idx;
+                if (s.includes('합계')) colMap['totalAmount'] = idx;
+              });
+              break;
+            }
+          }
+
+          if (headerIdx !== -1) {
+            for (let r = headerIdx + 1; r < rawData.length; r++) {
+              const row = rawData[r];
+              if (!row) continue;
+              const bNo = colMap['supplierBizNo'] !== undefined ? String(row[colMap['supplierBizNo']]).replace(/[^0-9]/g, '') : '';
+              const invNo = colMap['taxInvoiceNo'] !== undefined ? String(row[colMap['taxInvoiceNo']]).trim() : '';
+              const name = colMap['supplierName'] !== undefined ? String(row[colMap['supplierName']]).trim() : '';
+              if (!bNo && !invNo && !name) continue;
+              if (name.includes('합계')) continue;
+
+              const sAmt = colMap['supplyAmount'] !== undefined ? (parseFloat(String(row[colMap['supplyAmount']]).replace(/,/g, '')) || 0) : 0;
+              const vAmt = colMap['vatAmount'] !== undefined ? (parseFloat(String(row[colMap['vatAmount']]).replace(/,/g, '')) || 0) : 0;
+              const tAmt = colMap['totalAmount'] !== undefined ? (parseFloat(String(row[colMap['totalAmount']]).replace(/,/g, '')) || (sAmt + vAmt)) : (sAmt + vAmt);
+
+              items.push({
+                taxInvoiceNo: invNo || `EXCEL-${r}`,
+                writeDate: colMap['writeDate'] !== undefined ? String(row[colMap['writeDate']]).replace(/[^0-9]/g, '').slice(0, 8) : '',
+                supplierBizNo: bNo,
+                formattedSupplierBizNo: bNo.length === 10 ? `${bNo.slice(0,3)}-${bNo.slice(3,5)}-${bNo.slice(5)}` : bNo,
+                supplierName: name || '공급자',
+                supplyAmount: Math.round(sAmt),
+                vatAmount: Math.round(vAmt),
+                totalAmount: Math.round(tAmt)
+              });
+            }
+          }
+        } catch (excelErr) {
+          agentLog('WARN', '엑셀 파싱 오류: ' + (excelErr.message || excelErr));
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        fileName: latestFile.name,
+        filePath: latestFile.path,
+        items
+      }));
+    } catch (err) {
+      agentLog('ERROR', '홈택스 수집 오류: ' + (err.message || err));
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // 3-2-1-B. 로컬 파일/폴더 즉시 열기 API (/api/open-local-file) 및 엑셀 바이너리 저장 후 열기 (/api/open-excel-binary)
+  if (req.method === 'POST' && pathname === '/api/open-local-file') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        const targetPath = payload.filePath || payload.localPath;
+        if (!targetPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: '열기 대상 파일 경로(filePath)가 지정되지 않았습니다.' }));
+          return;
+        }
+        if (!fs.existsSync(targetPath)) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: `로컬 파일을 찾을 수 없습니다: ${targetPath}` }));
+          return;
+        }
+        exec(`cmd /c start "" "${targetPath}"`, { windowsHide: true });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, filePath: targetPath }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/open-excel-binary') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        const safeName = String(payload.fileName || `문서_${Date.now()}.xlsx`).replace(/[\\/:*?"<>|]/g, '_');
+        const yyyyMm = new Date().toISOString().substring(0, 7);
+        const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+        const targetPath = path.join(archiveDir, safeName);
+        const buf = Buffer.from(payload.fileContent || '', 'base64');
+        fs.writeFileSync(targetPath, buf);
+        exec(`cmd /c start "" "${targetPath}"`, { windowsHide: true });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, filePath: targetPath }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 3-2-1-C. 백그라운드 시스템 작업 큐 등록 및 조회 API (/api/job-queue)
+  if (pathname === '/api/job-queue') {
+    if (req.method === 'GET') {
+      const jobId = searchParams.get('jobId');
+      const target = jobId ? systemJobQueue.find(j => j.id === jobId) : null;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        job: target,
+        jobs: systemJobQueue.slice(0, 30).map(j => ({
+          id: j.id,
+          jobType: j.jobType,
+          status: j.status,
+          createdAt: j.createdAt,
+          completedAt: j.completedAt,
+          error: j.error,
+          result: j.result
+        }))
+      }));
+      return;
+    }
+    if (req.method === 'POST') {
+      let bodyData = '';
+      req.on('data', chunk => { bodyData += chunk; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(bodyData || '{}');
+          const job = enqueueSystemJob(payload.jobType || 'GENERAL', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            queued: true,
+            jobId: job.id,
+            status: job.status,
+            message: '작업이 로컬 에이전트 큐에 등록되어 백그라운드에서 실행됩니다.'
+          }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+  }
+
+  // 3-2-2. 실시간 SMTP 이메일 발송 API (/api/send-email) — 동기 및 큐(asyncQueue) 지원
+  if (req.method === 'POST' && pathname === '/api/send-email') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('SEND_EMAIL', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const info = await executeSendEmailInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(info));
+      } catch (err) {
+        agentLog('ERROR', '메일 전송 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message || '이메일 발송에 실패했습니다.' }));
+      }
+    });
+    return;
+  }
+
+  // 3-3. 정품 엑셀 원본 기반 7종 통합 계약 서류팩 PDF 생성 엔진 (Excel COM + pdf-lib)
+  if (req.method === 'POST' && pathname === '/api/generate-contract-bundle') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('GENERATE_BUNDLE', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const bundleRes = await executeContractBundleInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(bundleRes));
+      } catch (bundleErr) {
+        agentLog('ERROR', '서류팩 생성 실패: ' + (bundleErr.message || bundleErr));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: bundleErr.message }));
+      }
+    });
+    return;
+  }
+
+  // 3-4. 정품 엑셀 원본 기반 거래명세서 A4 PDF 생성 엔진 (Excel COM & 다중 페이지 자동 분할 — 동기 및 큐(asyncQueue) 지원)
+  if (req.method === 'POST' && pathname === '/api/generate-statement') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('GENERATE_STATEMENT', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const stmtRes = await executeGenerateStatementInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(stmtRes));
+      } catch (statementErr) {
+        agentLog('ERROR', '거래명세서 생성 실패: ' + (statementErr.message || statementErr));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: statementErr.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/get-file') {
+    const fileId = searchParams.get('fileId');
+    const fileName = searchParams.get('fileName') || (fileId ? `${fileId}.pdf` : '');
+    if (!fileId && !fileName) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: 'fileId or fileName is required' }));
+      return;
+    }
+
+    (async () => {
+      try {
+        const ext = path.extname(fileName).toLowerCase();
+        const mimeTypes = {
+          '.pdf': 'application/pdf',
+          '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '.xls': 'application/vnd.ms-excel',
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.txt': 'text/plain',
+          '.json': 'application/json'
+        };
+        const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+        // 0순위: fileName이 C:\eBroAgent 하위 절대 경로로 전달된 경우 즉시 반환
+        if (path.isAbsolute(fileName) && fs.existsSync(fileName) && fs.statSync(fileName).isFile()) {
+          const fileBuf = fs.readFileSync(fileName);
+          res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'LOCAL_ABSOLUTE' });
+          res.end(fileBuf);
+          return;
+        }
+
+        // 1순위: 로컬 미러링 폴더(C:\eBroAgent\drive_mirror\)에서 파일 확인
+        let localFilePath = path.join(DRIVE_MIRROR_DIR, fileName);
+        if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
+          const fileBuf = fs.readFileSync(localFilePath);
+          res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'LOCAL_MIRROR' });
+          res.end(fileBuf);
+          return;
+        }
+
+        // 2순위: 하위 폴더 탐색 (fileName이 서브 디렉토리 없이 전달된 경우 대비)
+        const findFileRecursively = (dir, targetName) => {
+          if (!fs.existsSync(dir)) return null;
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const ent of entries) {
+            if (ent.name.startsWith('.') || ent.name === 'archive') continue;
+            const full = path.join(dir, ent.name);
+            if (ent.isDirectory()) {
+              const found = findFileRecursively(full, targetName);
+              if (found) return found;
+            } else if (ent.name.toLowerCase() === targetName.toLowerCase()) {
+              return full;
+            }
+          }
+          return null;
+        };
+
+        const foundPath = findFileRecursively(DRIVE_MIRROR_DIR, path.basename(fileName));
+        if (foundPath && fs.existsSync(foundPath)) {
+          const fileBuf = fs.readFileSync(foundPath);
+          res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'LOCAL_MIRROR_RECURSIVE' });
+          res.end(fileBuf);
+          return;
+        }
+
+        // 3순위: R2 공개 URL 또는 기본 CF R2 도메인에서 자동 다운로드 후 로컬 캐싱
+        const directUrl = searchParams.get('url') || (fileName ? `https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/${fileName.split('/').map(encodeURIComponent).join('/')}` : null);
+        if (directUrl && directUrl.startsWith('http')) {
+          try {
+            const targetDir = path.dirname(localFilePath);
+            if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+            await downloadFileWithRedirects(directUrl, localFilePath);
+            if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).size > 100) {
+              const fileBuf = fs.readFileSync(localFilePath);
+              res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'R2_URL_DOWNLOADED' });
+              res.end(fileBuf);
+              return;
+            }
+          } catch (urlErr) {}
+        }
+
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: `파일을 찾을 수 없습니다: ${fileName}` }));
+      } catch (err) {
+        agentLog('ERROR', '파일 요청 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    })();
+    return;
+  }
+  // 4. 계약 서류 팩 무손실 생산 및 로컬 문서고 보관 API
+  if (req.method === 'POST' && pathname === '/api/execute-job') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        agentLog('JOB', `작업 수신: ${payload.jobType || 'CONTRACT_BUNDLE'} (계약: ${payload.contractNo || 'N/A'}, 작업자: ${activeCallsign})`);
+
+        // 로컬 문서고에 날짜별 자동 분류 폴더 생성
+        const today = new Date().toISOString().split('T')[0];
+        const monthDir = path.join(ARCHIVE_ROOT, today.substring(0, 7));
+        if (!fs.existsSync(monthDir)) fs.mkdirSync(monthDir, { recursive: true });
+
+        const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+        const cleanTenantPrefix = String(payload.tenantName || policy.tenantName || policy.corporateName || TENANT_CODE || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+        const safeCustName = (payload.customerName || '고객사').replace(/[/\\?%*:|"<>]/g, '_');
+        const fileName = `[${cleanTenantPrefix}]_${payload.contractNo || '계약'}_${safeCustName}_${today}.pdf`;
+        const localSavePath = path.join(monthDir, fileName);
+
+        if (payload.base64Content) {
+          const pdfBuffer = Buffer.from(payload.base64Content, 'base64');
+          fs.writeFileSync(localSavePath, pdfBuffer);
+        }
+
+        // 결과 응답
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          callsign: activeCallsign,
+          localFilePath: localSavePath,
+          message: ` 로컬 에이전트(${activeCallsign})가 정품 문서를 생산하여 로컬 문서고(${localSavePath})에 안전 보관했습니다.`
+        }));
+      } catch (err) {
+        agentLog('ERROR', '작업 처리 실패: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 6. 로컬 설치 프린터 목록 조회 API (비동기 Non-blocking)
+  if (req.method === 'GET' && pathname === '/api/printers') {
+    (async () => {
+      try {
+        const psCmd = 'Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default | ConvertTo-Json';
+        const output = (await runCommandAsync(`powershell -NoProfile -Command "${psCmd}"`)).trim();
+        let printerData = [];
+        try {
+          const parsed = JSON.parse(output || '[]');
+          printerData = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          printerData = [];
+        }
+
+        const printers = printerData.map(p => p.Name).filter(Boolean);
+        const defaultPrinterObj = printerData.find(p => p.Default);
+        const defaultPrinter = defaultPrinterObj ? defaultPrinterObj.Name : (printers[0] || '');
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          printers,
+          defaultPrinter,
+          count: printers.length
+        }));
+      } catch (err) {
+        agentLog('ERROR', '프린터 목록 조회 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message, printers: [], defaultPrinter: '' }));
+      }
+    })();
+    return;
+  }
+
+  // 7. 출고요청서 및 다이렉트 즉시 인쇄 API (/api/print-dispatch, /api/print-direct)
+  if (req.method === 'POST' && (pathname === '/api/print-dispatch' || pathname === '/api/print-direct')) {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+        const cleanTenantPrefix = String(payload.tenantName || policy.tenantName || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+        const printerName = payload.printerName || (activeStationConfig ? activeStationConfig.localPrinterName : 'Apeos C2060');
+        const htmlContent = payload.htmlContent || '';
+        const title = payload.title || `${cleanTenantPrefix}_출고요청서`;
+
+        if (!htmlContent) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: 'htmlContent is required' }));
+          return;
+        }
+
+        await sendHtmlToPhysicalPrinter(htmlContent, printerName, title);
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          printer: printerName,
+          message: `전용 프린터 [${printerName}] 로 출고요청서가 즉시 전송되었습니다.`
+        }));
+      } catch (err) {
+        agentLog('ERROR', '인쇄 요청 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 8. 로컬 인쇄 스테이션 설정 조회 API
+  if (req.method === 'GET' && pathname === '/api/station-config') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      success: true,
+      config: activeStationConfig || {
+        stationId: '',
+        stationName: '',
+        localPrinterName: '',
+        docTypeDefault: 'ALL',
+        machineName: MACHINE_NAME
+      }
+    }));
+    return;
+  }
+
+  // 9. 로컬 인쇄 스테이션 설정 저장 API
+  if (req.method === 'POST' && pathname === '/api/station-config') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        activeStationConfig = {
+          stationId: payload.stationId || '',
+          stationName: payload.stationName || '',
+          localPrinterName: payload.localPrinterName || '',
+          docTypeDefault: payload.docTypeDefault || 'ALL',
+          machineName: payload.machineName || MACHINE_NAME,
+          updatedAt: new Date().toISOString()
+        };
+        if (fs.existsSync(STATION_CONFIG_FILE)) {
+          try { fs.unlinkSync(STATION_CONFIG_FILE); } catch (e) {}
+        }
+        fs.writeFileSync(STATION_CONFIG_FILE, JSON.stringify(activeStationConfig, null, 2), 'utf8');
+        if (process.platform === 'win32') exec(`attrib +h "${STATION_CONFIG_FILE}"`, { windowsHide: true });
+        agentLog('SYSTEM', `스테이션 설정 저장: ${activeStationConfig.stationName} -> [${activeStationConfig.localPrinterName}]`);
+
+        // 즉시 중앙 DB 하트비트 전송 및 인쇄 대기열 감시 활성화
+        if (activeStationConfig.stationId) {
+          sendStationHeartbeat().catch(() => {});
+          scheduleNextPrintQueueCheck(1000);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, config: activeStationConfig }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('Not Found');
+});
+
+const wss = new WebSocketServer({ noServer: true });
+
+server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+wss.on('connection', (ws, request) => {
+  handleWebSocketConnection(ws, request);
+});
+
+// ── 운영체제 기본 브라우저로 대상 URL 실행 (온디맨드/기동 시) ──
+function openDefaultBrowser(url) {
+  try {
+    if (process.platform === 'win32') {
+      const psCmd = `Start-Process '${url}'`;
+      exec(`powershell.exe -NoProfile -Command "${psCmd}"`, { windowsHide: true }, (err) => {
+        if (err) {
+          exec(`start "" "${url}"`, { windowsHide: true });
+        }
+      });
+    } else {
+      exec(`xdg-open "${url}"`);
+    }
+    agentLog('SYSTEM', `기본 브라우저 웹페이지 호출: ${url}`);
+  } catch (e) {
+    agentLog('WARN', '기본 브라우저 호출 오류: ' + e.message);
+  }
+}
+
+// ── 포트 선점 프로세스 강제 정리 및 Windows 시스템 트레이 워커 관리 ──
+function freePortIfOccupied(port) {
+  try {
+    const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
+    const lines = netstatOut.split('\n');
+    for (const line of lines) {
+      if (line.includes(`:${port}`) && (line.includes('LISTENING') || line.includes('듣는 중'))) {
+        const parts = line.trim().split(/\s+/);
+        const pidStr = parts[parts.length - 1];
+        const targetPid = parseInt(pidStr, 10);
+        if (targetPid && targetPid !== process.pid && targetPid !== 0 && targetPid !== 4) {
+          agentLog('WARN', `포트 ${port} 점유 프로세스(PID: ${targetPid}) 강제 정리`);
+          try { process.kill(targetPid, 'SIGKILL'); } catch (k) {
+            try { execSync(`taskkill /F /PID ${targetPid}`, { stdio: 'ignore', windowsHide: true }); } catch (t) {}
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+let activeTrayChild = null;
+let hasBootstrappedTray = false;
+let EMBEDDED_TRAY_PS1 = '';
+try {
+  EMBEDDED_TRAY_PS1 = require('./trayIcon.ps1');
+} catch (e) {}
+
+function startTrayWorker() {
+  if (activeTrayChild && activeTrayChild.exitCode === null && !activeTrayChild.killed) {
+    return;
+  }
+
+  const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+  const trayScriptInHome = path.join(AGENT_HOME, 'trayIcon.ps1');
+  const trayScriptInDir = path.join(__dirname, 'trayIcon.ps1');
+
+  try {
+    // 최초 기동 시 구버전/비고정(IsPromoted 미적용) trayIcon.ps1 프로세스가 있으면 1회 정리 후 최신 UTF-8 BOM 스크립트 강제 동기화
+    if (!hasBootstrappedTray) {
+      hasBootstrappedTray = true;
+      try {
+        execSync(`"${psExe}" -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.ProcessId -ne $PID -and $_.CommandLine -notlike '*-Command*' -and $_.CommandLine -like ('*' + 'trayIcon' + '.ps1*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, { stdio: 'ignore', windowsHide: true });
+      } catch (e) {}
+
+      if (EMBEDDED_TRAY_PS1 && typeof EMBEDDED_TRAY_PS1 === 'string') {
+        try {
+          if (fs.existsSync(trayScriptInHome)) {
+            try { fs.unlinkSync(trayScriptInHome); } catch (e) {}
+          }
+          const cleanStr = EMBEDDED_TRAY_PS1.replace(/^\uFEFF/, '');
+          const bomBuf = Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(cleanStr, 'utf8')]);
+          fs.writeFileSync(trayScriptInHome, bomBuf);
+          if (process.platform === 'win32') exec(`attrib +h "${trayScriptInHome}"`, { windowsHide: true });
+        } catch (wErr) {}
+      }
+    } else {
+      // 이미 실행 중인 trayIcon.ps1 프로세스가 있는지 정확히 확인 (-Command 검사 프로세스 자기 자신 오탐 원천 차단)
+      try {
+        const runningTray = execSync(`"${psExe}" -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.ProcessId -ne $PID -and $_.CommandLine -notlike '*-Command*' -and $_.CommandLine -like ('*' + 'trayIcon' + '.ps1*') }).ProcessId"`, { encoding: 'utf8', windowsHide: true }).trim();
+        if (runningTray) {
+          return;
+        }
+      } catch (chkErr) {}
+    }
+
+    const targetScript = fs.existsSync(trayScriptInHome) ? trayScriptInHome : (fs.existsSync(trayScriptInDir) ? trayScriptInDir : null);
+    if (!targetScript) return;
+
+    // 💡 Windows PowerShell 5.1 한글 파싱 오류 방지를 위해 UTF-8 BOM(0xEF,0xBB,0xBF) 강제 보장
+    try {
+      const rawBuf = fs.readFileSync(targetScript);
+      if (rawBuf.length >= 3 && !(rawBuf[0] === 0xEF && rawBuf[1] === 0xBB && rawBuf[2] === 0xBF)) {
+        try { fs.unlinkSync(targetScript); } catch (e) {}
+        fs.writeFileSync(targetScript, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), rawBuf]));
+        if (process.platform === 'win32') exec(`attrib +h "${targetScript}"`, { windowsHide: true });
+      }
+    } catch (bomErr) {}
+
+    const ps = spawn(psExe, [
+      '-STA',
+      '-NoProfile',
+      '-WindowStyle', 'Hidden',
+      '-ExecutionPolicy', 'Bypass',
+      '-File', targetScript,
+      String(process.pid),
+      String(PORT)
+    ], {
+      windowsHide: true,
+      stdio: 'ignore'
+    });
+    activeTrayChild = ps;
+    ps.on('exit', () => {
+      if (activeTrayChild === ps) activeTrayChild = null;
+    });
+    ps.unref();
+    agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${ps.pid})`);
+  } catch (e) {
+    agentLog('WARN', '트레이 아이콘 워커 실행 오류: ' + e.message);
+  }
+}
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    agentLog('WARN', `포트 ${PORT} 사용 중, 정리 후 재시도`);
+    freePortIfOccupied(PORT);
+    setTimeout(() => {
+      try { server.close(); } catch (e) {}
+      server.listen(PORT, '127.0.0.1', () => {
+        agentLog('INFO', `로컬 서비스 리스닝: http://127.0.0.1:${PORT}`);
+        startTrayWorker();
+      });
+    }, 1000);
+  } else {
+    agentLog('ERROR', '서버 에러: ' + (err.message || err));
+  }
+});
+
+// ── 0. Cloudflare R2 실시간 버킷 동적 스캔 및 자동 미러링 엔진 (Zero-Dependency SigV4) ──
+const CF_ACCOUNT_ID = '35014a2514680107d74e1e68d96e6c32';
+const CF_BUCKET_NAME = 'giyeon-storage';
+const CF_ACCESS_KEY = '03cdb7560d37242de608a5db2a976030';
+const CF_SECRET_KEY = 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+const CF_PUBLIC_URL = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
+
+function hmac(key, str) {
+  return crypto.createHmac('sha256', key).update(str, 'utf8').digest();
+}
+function hash(str) {
+  return crypto.createHash('sha256').update(str, 'utf8').digest('hex');
+}
+
+async function fetchR2BucketAllObjects() {
+  const host = CF_ACCOUNT_ID + '.r2.cloudflarestorage.com';
+  const region = 'auto';
+  const service = 's3';
+  let isTruncated = true;
+  let nextContinuationToken = null;
+  const allObjects = [];
+
+  while (isTruncated) {
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateStamp = amzDate.substring(0, 8);
+    const canonicalUri = '/' + CF_BUCKET_NAME;
+    let canonicalQuery = 'list-type=2';
+    if (nextContinuationToken) {
+      canonicalQuery += '&continuation-token=' + encodeURIComponent(nextContinuationToken);
+    }
+    const payloadHash = hash('');
+    const canonicalHeaders = 'host:' + host + '\nx-amz-content-sha256:' + payloadHash + '\nx-amz-date:' + amzDate + '\n';
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    const canonicalRequest = 'GET\n' + canonicalUri + '\n' + canonicalQuery + '\n' + canonicalHeaders + '\n' + signedHeaders + '\n' + payloadHash;
+    const credentialScope = dateStamp + '/' + region + '/' + service + '/aws4_request';
+    const stringToSign = 'AWS4-HMAC-SHA256\n' + amzDate + '\n' + credentialScope + '\n' + hash(canonicalRequest);
+
+    const kDate = hmac('AWS4' + CF_SECRET_KEY, dateStamp);
+    const kRegion = hmac(kDate, region);
+    const kService = hmac(kRegion, service);
+    const kSigning = hmac(kService, 'aws4_request');
+    const signature = crypto.createHmac('sha256', kSigning).update(stringToSign, 'utf8').digest('hex');
+
+    const authHeader = 'AWS4-HMAC-SHA256 Credential=' + CF_ACCESS_KEY + '/' + credentialScope + ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+
+    const xmlData = await new Promise((resolve, reject) => {
+      const req = https.request({
+        hostname: host,
+        port: 443,
+        path: canonicalUri + '?' + canonicalQuery,
+        method: 'GET',
+        headers: {
+          'Host': host,
+          'x-amz-date': amzDate,
+          'x-amz-content-sha256': payloadHash,
+          'Authorization': authHeader
+        }
+      }, res => {
+        const chunks = [];
+        res.on('data', c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        res.on('end', () => {
+          const d = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode === 200) resolve(d);
+          else reject(new Error('HTTP ' + res.statusCode + ': ' + d));
+        });
+      });
+      req.on('error', reject);
+      req.end();
+    });
+
+    const isTruncatedMatch = /<IsTruncated>(true|false)<\/IsTruncated>/.exec(xmlData);
+    isTruncated = isTruncatedMatch ? isTruncatedMatch[1] === 'true' : false;
+
+    const tokenMatch = /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(xmlData);
+    nextContinuationToken = tokenMatch ? tokenMatch[1] : null;
+
+    const contentBlockRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
+    let blockMatch;
+    while ((blockMatch = contentBlockRegex.exec(xmlData)) !== null) {
+      const block = blockMatch[1];
+      const keyMatch = /<Key>([^<]+)<\/Key>/.exec(block);
+      const sizeMatch = /<Size>(\d+)<\/Size>/.exec(block);
+      const etagMatch = /<ETag>([^<]+)<\/ETag>/.exec(block);
+      const lastModMatch = /<LastModified>([^<]+)<\/LastModified>/.exec(block);
+      if (!keyMatch || !sizeMatch) continue;
+
+      const key = keyMatch[1]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+      const size = parseInt(sizeMatch[1], 10);
+      const etag = etagMatch ? etagMatch[1].replace(/&quot;|"/g, '').trim().toLowerCase() : '';
+      const lastModified = lastModMatch ? lastModMatch[1].trim() : '';
+      const isDirectory = key.endsWith('/');
+      allObjects.push({ key, size, etag, lastModified, isDirectory });
+    }
+  }
+
+  return allObjects;
+}
+
+function computeFileMd5(filePath) {
+  try {
+    const buf = fs.readFileSync(filePath);
+    return crypto.createHash('md5').update(buf).digest('hex').toLowerCase();
+  } catch (e) {
+    return '';
+  }
+}
+
+let isR2SyncRunning = false;
+
+async function autoSyncFromCloudflare() {
+  if (isR2SyncRunning) {
+    return { success: true, message: 'Cloudflare R2 동기화가 이미 진행 중입니다.' };
+  }
+  isR2SyncRunning = true;
+  agentLog('SYNC', 'Cloudflare R2 원본 저장소 동기화 시작');
+  try {
+    const objects = await fetchR2BucketAllObjects();
+    const fileCount = objects.filter(o => !o.isDirectory).length;
+    const folderCount = objects.filter(o => o.isDirectory).length;
+    agentLog('SYNC', `파일 목록 확인: 파일 ${fileCount}개, 폴더 ${folderCount}개`);
+    let downloaded = 0;
+    let skipped = 0;
+    let foldersCreated = 0;
+
+    for (const obj of objects) {
+      // 빈 폴더 또는 디렉토리 마커 처리
+      if (obj.isDirectory) {
+        const targetDir = path.join(DRIVE_MIRROR_DIR, obj.key);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+          agentLog('SYNC', `빈 폴더 생성: ${obj.key}`);
+          foldersCreated++;
+        }
+        continue;
+      }
+
+      // 일반 파일 다운로드 및 무결성 대조 (1. 파일크기 Size + 2. 내용 해시 ETag/MD5 + 3. 수정시각 LastModified)
+      const targetFile = path.join(DRIVE_MIRROR_DIR, obj.key);
+      const targetDir = path.dirname(targetFile);
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+      if (fs.existsSync(targetFile)) {
+        const st = fs.statSync(targetFile);
+        if (st.isDirectory()) {
+          fs.rmSync(targetFile, { recursive: true, force: true });
+        } else if (st.size === obj.size && st.size > 0) {
+          let isSameContent = true;
+          if (obj.etag && !obj.etag.includes('-')) {
+            const localMd5 = computeFileMd5(targetFile);
+            if (localMd5 && localMd5 !== obj.etag) {
+              isSameContent = false;
+              agentLog('SYNC', `파일 내용 변경 감지 (MD5 불일치): ${obj.key}`);
+            }
+          } else if (obj.lastModified) {
+            const remoteTime = new Date(obj.lastModified).getTime();
+            if (!isNaN(remoteTime) && Math.abs(remoteTime - st.mtimeMs) > 2000 && remoteTime > st.mtimeMs) {
+              isSameContent = false;
+              agentLog('SYNC', `원본 최신 수정 시각 감지: ${obj.key}`);
+            }
+          }
+          if (isSameContent) {
+            skipped++;
+            continue;
+          }
+        }
+      }
+
+      const tempFile = `${targetFile}.download`;
+      try {
+        const encKey = obj.key.split('/').map(encodeURIComponent).join('/');
+        const cacheBustVer = encodeURIComponent(obj.etag || obj.lastModified || Date.now());
+        const dlUrl = `${CF_PUBLIC_URL}/${encKey}?v=${cacheBustVer}`;
+        await downloadFileWithRedirects(dlUrl, tempFile);
+        if (fs.existsSync(tempFile) && fs.statSync(tempFile).size > 0) {
+          fs.copyFileSync(tempFile, targetFile);
+          try { fs.unlinkSync(tempFile); } catch (e) {}
+          if (obj.lastModified) {
+            const remoteDate = new Date(obj.lastModified);
+            if (!isNaN(remoteDate.getTime())) {
+              try { fs.utimesSync(targetFile, remoteDate, remoteDate); } catch (uErr) {}
+            }
+          }
+          downloaded++;
+          agentLog('SYNC', `파일 동기화 완료: ${obj.key}`);
+        } else {
+          try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (e) {}
+        }
+      } catch (dlErr) {
+        try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (e) {}
+        agentLog('ERROR', `다운로드 실패: ${obj.key} (${dlErr.message})`);
+      }
+    }
+
+    if (downloaded > 0 || foldersCreated > 0) {
+      agentLog('SYNC', `동기화 완료: 갱신 ${downloaded}개, 생성 ${foldersCreated}개, 최신 ${skipped}개`);
+    } else {
+      agentLog('SYNC', `동기화 완료: 모든 파일(${fileCount}개) 최신 상태 유지`);
+    }
+
+    return {
+      success: true,
+      downloaded,
+      skipped,
+      foldersCreated,
+      totalFiles: fileCount,
+      message: ` Cloudflare R2 동기화 완료 (갱신: ${downloaded}개, 최신 유지: ${skipped}개)`
+    };
+  } catch (err) {
+    agentLog('ERROR', 'CF R2 버킷 조회 오류: ' + err.message);
+    return {
+      success: false,
+      error: err.message,
+      message: ` Cloudflare R2 버킷 스캔 오류: ${err.message}`
+    };
+  } finally {
+    isR2SyncRunning = false;
+  }
+}
+
+// =========================================================================
+//  [분산 원격 인쇄 큐 워커 엔진 (Headless Distributed Queue Worker)]
+// =========================================================================
+const SUPABASE_REST_URL = 'https://wywgkikkjgbnlljkkmnz.supabase.co/rest/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU';
+const CENTRAL_SUPABASE_REST_URL = 'https://nyfashwbdcepncpdwpdb.supabase.co/rest/v1';
+const CENTRAL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
+
+
+let isQueueProcessing = false;
+let printQueuePollTimer = null;
+
+function scheduleNextPrintQueueCheck(delayMs) {
+  if (printQueuePollTimer) clearTimeout(printQueuePollTimer);
+  printQueuePollTimer = setTimeout(runPrintQueueLoop, delayMs);
+}
+
+async function runPrintQueueLoop() {
+  let delay = 3000;
+  try {
+    const processed = await checkAndProcessPrintQueue();
+    delay = processed ? 1000 : 3000;
+  } catch (e) {
+    agentLog('ERROR', '인쇄 큐 루프 오류: ' + (e.stack || e.message || e));
+    delay = 10000;
+  }
+  scheduleNextPrintQueueCheck(delay);
+}
+
+async function checkAndProcessPrintQueue() {
+  if (isQueueProcessing) return false;
+
+  // 스테이션 설정이 메모리에 없으면 파일에서 즉시 동기 로드
+  if (!activeStationConfig && fs.existsSync(STATION_CONFIG_FILE)) {
+    try {
+      activeStationConfig = JSON.parse(fs.readFileSync(STATION_CONFIG_FILE, 'utf8'));
+    } catch (e) {}
+  }
+
+  if (!activeStationConfig || !activeStationConfig.stationId || !activeStationConfig.localPrinterName) {
+    return false;
+  }
+
+  isQueueProcessing = true;
+  let job = null;
+  try {
+    const stationId = encodeURIComponent(activeStationConfig.stationId);
+    const queryUrl = `${SUPABASE_REST_URL}/print_queue?stationId=eq.${stationId}&status=eq.PENDING&order=requestedAt.asc&limit=1`;
+
+    const res = await httpRequestJson(queryUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000
+    });
+
+    if (!res.ok || !Array.isArray(res.data) || res.data.length === 0) {
+      return false;
+    }
+
+    job = res.data[0];
+    agentLog('PRINT', `원격 인쇄 작업 수신: [${job.id}] ${job.title}`);
+
+    // 1. 작업 상태를 PRINTING으로 선점 잠금 (중복 실행 방지)
+    try {
+      await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        timeout: 4000
+      }, { status: 'PRINTING', updatedAt: new Date().toISOString() });
+    } catch (lockErr) {}
+
+    // 2. 인쇄용 임시 HTML 작성 및 다이렉트 무인 출력 실행
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const cleanTenantPrefix = String(policy.tenantName || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+    const printerName = activeStationConfig.localPrinterName || 'Apeos C2060';
+    const title = job.title || `${cleanTenantPrefix}_출력물`;
+
+    agentLog('PRINT', `원격 인쇄 작업 처리 시작: 프린터 [${printerName}], 작업: ${job.id}`);
+    await sendHtmlToPhysicalPrinter(job.documentHtml, printerName, title);
+
+    // 3. 완료 상태 업데이트
+    await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      timeout: 4000
+    }, {
+      status: 'COMPLETED',
+      printedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    agentLog('PRINT', `인쇄 완료 보고 완료: 작업 ${job.id}`);
+    return true;
+  } catch (printErr) {
+    if (job) {
+      agentLog('ERROR', `원격 인쇄 작업 [${job.id}] 실패: ${printErr.message || printErr}`);
+      try {
+        await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          timeout: 4000
+        }, {
+          status: 'FAILED',
+          errorMessage: String(printErr.message || printErr),
+          updatedAt: new Date().toISOString()
+        });
+      } catch (e) {}
+    } else {
+      agentLog('ERROR', `인쇄 큐 조회 실패: ${printErr.message || printErr}`);
+    }
+    return false;
+  } finally {
+    isQueueProcessing = false;
+  }
+}
+
+async function sendAgentHeartbeat() {
+  try {
+    const pcName = os.hostname();
+    const deviceId = `DEV-${pcName}`;
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const activeCode = policy.tenantCode || TENANT_CODE || 'GIYEONLIFT';
+    const tenantId = (activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeun' : activeCode.toLowerCase();
+    const id = `HEARTBEAT-${tenantId}-${deviceId}`;
+    
+    const netInterfaces = os.networkInterfaces();
+    let ipAddress = '127.0.0.1';
+    for (const dev of Object.keys(netInterfaces)) {
+      for (const details of netInterfaces[dev]) {
+        if (details.family === 'IPv4' && !details.internal) {
+          ipAddress = details.address;
+          break;
+        }
+      }
+    }
+    
+    const payload = {
+      id: id,
+      tenant_id: tenantId,
+      device_id: deviceId,
+      pc_name: pcName,
+      user_id: activeCallsign || CALLSIGN,
+      user_name: '사용자',
+      ip_address: ipAddress,
+      engine_version: VERSION,
+      status: 'ONLINE',
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    await httpRequestJson(`${SUPABASE_REST_URL}/agent_heartbeats`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      timeout: 4000
+    }, payload);
+  } catch (e) {}
+}
+
+async function sendStationHeartbeat() {
+  if (!activeStationConfig || !activeStationConfig.stationId) return;
+  try {
+    const stationId = encodeURIComponent(activeStationConfig.stationId);
+    await httpRequestJson(`${SUPABASE_REST_URL}/print_stations?id=eq.${stationId}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      timeout: 4000
+    }, {
+      status: 'ONLINE',
+      lastHeartbeat: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  } catch (e) {}
+}
+
+// 기동 전 포트 5175 선점 프로세스(좀비) 사전 청정 정리
+freePortIfOccupied(PORT);
+
+// ── 바탕화면 바로가기 아이콘 단일화 보장 ──
+function ensureDesktopShortcut() {
+  try {
+    const icoPath = path.join(AGENT_HOME, 'eBroAgent.ico');
+    const exePath = TARGET_EXE_PATH;
+    if (!fs.existsSync(icoPath) || !fs.existsSync(exePath)) return;
+
+    const psCmd = `
+      $sh = New-Object -ComObject WScript.Shell;
+      $deskPaths = @([Environment]::GetFolderPath('Desktop'), (Join-Path $env:USERPROFILE 'OneDrive\\Desktop'), (Join-Path $env:PUBLIC 'Desktop'));
+      foreach ($dp in $deskPaths) {
+        if (Test-Path $dp) {
+          $linkPath = Join-Path $dp 'eBro AI Agent.lnk';
+          if (Test-Path $linkPath) {
+            $link = $sh.CreateShortcut($linkPath);
+            $link.TargetPath = '${exePath.replace(/\\/g, '\\\\')}';
+            $link.WorkingDirectory = '${AGENT_HOME.replace(/\\/g, '\\\\')}';
+            $link.IconLocation = '${icoPath.replace(/\\/g, '\\\\')},0';
+            $link.Save();
+          }
+        }
+      }
+    `.replace(/\r?\n\s*/g, ' ');
+    exec(`powershell -NoProfile -Command "${psCmd}"`, { windowsHide: true }, () => {});
+  } catch (e) {}
+}
+
+server.listen(PORT, '127.0.0.1', () => {
+  agentLog('INFO', `로컬 서비스 리스닝: http://127.0.0.1:${PORT}`);
+
+  //  윈도우 시스템 트레이(알림 영역) 아이콘 워커 가동 (상시 유지 + 10초 주기 자동 복구 Watchdog)
+  startTrayWorker();
+  setInterval(() => {
+    try { startTrayWorker(); } catch (e) {}
+  }, 10000);
+
+  //  바탕화면 바로가기 아이콘 단일화 보장
+  ensureDesktopShortcut();
+
+  //  분산 인쇄 큐 워커 가동
+  agentLog('PRINT', `인쇄 큐 워커 가동: 스테이션 [${activeStationConfig?.stationName || '미설정'}] (${activeStationConfig?.stationId || '없음'}), 프린터 [${activeStationConfig?.localPrinterName || '없음'}]`);
+  scheduleNextPrintQueueCheck(1500);
+  setInterval(() => { sendStationHeartbeat().catch(() => {}); }, 30000);
+  
+  setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
+  sendAgentHeartbeat();
+
+  //  Cloudflare R2 원본 저장소 기동 즉시 동기화 (부팅 초기 DNS 지연 대비 자동 재시도 포함) 및 5분 주기 자동 미러링
+  let initialR2Synced = false;
+  [1500, 15000, 40000].forEach((delayMs) => {
+    setTimeout(() => {
+      if (!initialR2Synced) {
+        autoSyncFromCloudflare().then((res) => {
+          if (res && res.success) initialR2Synced = true;
+        }).catch(() => {});
+      }
+    }, delayMs);
+  });
+  setInterval(() => { autoSyncFromCloudflare().catch(() => {}); }, 5 * 60 * 1000);
+
+  // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
+  const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
+  if (!isDaemon) {
+    setTimeout(() => {
+      const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+      const activeCode = policy.tenantCode || TENANT_CODE || 'GIYEONLIFT';
+      let rawSub = policy.subdomain || ((activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeon' : activeCode.toLowerCase());
+      if (String(rawSub).toLowerCase() === 'giyeonlift' || String(rawSub).toLowerCase() === 'giyeun') rawSub = 'giyeon';
+      const loginUrl = `https://${rawSub}.ebro.run`;
+      openDefaultBrowser(loginUrl);
+    }, 600);
+  }
+});
+
+
+

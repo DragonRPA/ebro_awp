@@ -106,8 +106,10 @@ Write-Host "6. Compiling Inno Setup Installer package..." -ForegroundColor Yello
 $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 if (Test-Path $isccPath) {
     & $isccPath (Join-Path $scriptDir "eBroAgent.iss")
-    $setupExe = Join-Path $publicDownloadsDir "eBroAgent_Setup.exe"
+    $setupExe = Join-Path $publicDownloadsDir "eBroAgent_Setup_GIYEONLIFT.exe"
     if (Test-Path $setupExe) {
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup.exe") -Force
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_v2.0.0.exe") -Force
         Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_GIYEUN.exe") -Force
         Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_HANSOL.exe") -Force
         Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_EBRO.exe") -Force

@@ -1226,38 +1226,45 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         setProgressPercent(50);
 
         let nullJobCount = 0;
+        let pollAttempts = 0;
         while (true) {
+          pollAttempts++;
+          if (pollAttempts > 150) {
+            throw new Error(`에이전트 작업(${jobId}) 대기 시간이 초과되었습니다. PC에서 엑셀 프로그램이 정상 실행 가능한지 확인해 주세요.`);
+          }
           await new Promise(r => setTimeout(r, 1200));
+          let pollData: any = null;
           try {
             const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
               method: 'GET',
               skipPrecheck: true
             });
             if (pollResp.ok) {
-              const pollData = await pollResp.json();
-              const job = pollData.job;
-              if (job) {
-                nullJobCount = 0;
-                if (job.status === 'COMPLETED' && job.result) {
-                  agentRes = job.result;
-                  break;
-                } else if (job.status === 'FAILED') {
-                  throw new Error(job.error || '에이전트 큐 작업 중 오류가 발생했습니다.');
-                } else {
-                  setProgressPercent(prev => Math.min(88, prev + 6));
-                }
+              pollData = await pollResp.json();
+            }
+          } catch {
+            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
+            continue;
+          }
+
+          if (pollData) {
+            const job = pollData.job;
+            if (job) {
+              nullJobCount = 0;
+              if (job.status === 'COMPLETED' && job.result) {
+                agentRes = job.result;
+                break;
+              } else if (job.status === 'FAILED') {
+                throw new Error(job.error || '에이전트 큐 작업 중 오류가 발생했습니다.');
               } else {
-                nullJobCount++;
-                if (nullJobCount >= 10) {
-                  throw new Error(`에이전트 작업 큐에서 작업(${jobId})을 찾을 수 없습니다. 에이전트가 재시작되었거나 구버전일 수 있습니다.`);
-                }
+                setProgressPercent(prev => Math.min(88, prev + 6));
+              }
+            } else {
+              nullJobCount++;
+              if (nullJobCount >= 10) {
+                throw new Error(`에이전트 작업 큐에서 작업(${jobId})을 찾을 수 없습니다. 에이전트가 재시작되었거나 구버전일 수 있습니다.`);
               }
             }
-          } catch (pollErr: any) {
-            if (pollErr?.message?.includes('큐 작업 중 오류') || pollErr?.message?.includes('찾을 수 없습니다')) {
-              throw pollErr;
-            }
-            // 일시적 루프백 지연 시 다음 폴링 주기로 안전 재시도
           }
         }
       }

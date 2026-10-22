@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.24
+AppVersion=v2.0.0.Build.25
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
@@ -132,7 +132,7 @@ var
   ResultCode: Integer;
 begin
   Exec('taskkill.exe', '/F /IM eBroAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ''*trayIcon.ps1*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq ''powershell.exe'' -and $_.ProcessId -ne $PID -and $_.CommandLine -notlike ''*-Command*'' -and $_.CommandLine -like ''*trayIcon.ps1*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;
 

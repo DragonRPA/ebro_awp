@@ -41,7 +41,7 @@ function isVerNewer(a, b) {
   return false;
 }
 
-// 1. 코어 소스코드(eBroAgent.js + studioEngine.js)의 결정론적 SHA-256 해시 산출 (VERSION/CORE_HASH 상수 라인 제외)
+// 1. 코어 소스코드(eBroAgent.js + studioEngine.js + trayIcon.ps1)의 결정론적 SHA-256 해시 산출 (VERSION/CORE_HASH 상수 라인 제외)
 function computeCoreSourceHash() {
   const normalize = (src) =>
     String(src || '')
@@ -49,9 +49,11 @@ function computeCoreSourceHash() {
       .replace(/const VERSION = ['"][^'"]+['"];/g, 'const VERSION = "__VER__";')
       .replace(/const CORE_HASH = ['"][^'"]+['"];/g, 'const CORE_HASH = "__HASH__";');
 
+  const trayFile = path.join(AGENT_DIR, 'trayIcon.ps1');
   const agentSrc = fs.existsSync(ENTRY_FILE) ? normalize(fs.readFileSync(ENTRY_FILE, 'utf8')) : '';
   const studioSrc = fs.existsSync(STUDIO_FILE) ? normalize(fs.readFileSync(STUDIO_FILE, 'utf8')) : '';
-  return crypto.createHash('sha256').update(agentSrc + '\n===STUDIO===\n' + studioSrc, 'utf8').digest('hex').slice(0, 12);
+  const traySrc = fs.existsSync(trayFile) ? normalize(fs.readFileSync(trayFile, 'utf8')) : '';
+  return crypto.createHash('sha256').update(agentSrc + '\n===STUDIO===\n' + studioSrc + '\n===TRAY===\n' + traySrc, 'utf8').digest('hex').slice(0, 12);
 }
 
 const computedHash = computeCoreSourceHash();
@@ -160,7 +162,7 @@ if (!fs.existsSync(CORE_DIR)) {
 }
 
 console.log('[1/4] esbuild 번들링 중 (외부 npm 라이브러리 및 UI 인라인 통합)...');
-execSync(`npx esbuild "${ENTRY_FILE}" --bundle --platform=node --target=node18 --minify --outfile="${BUNDLE_TEMP}"`, {
+execSync(`npx esbuild "${ENTRY_FILE}" --bundle --platform=node --target=node18 --loader:.ps1=text --minify --outfile="${BUNDLE_TEMP}"`, {
   cwd: ROOT_DIR,
   stdio: 'inherit'
 });

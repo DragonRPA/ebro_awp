@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.24';
-const CORE_HASH = '79f44cfd5607';
+const VERSION = 'v2.0.0.Build.25';
+const CORE_HASH = 'eeab34f334a0';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -813,14 +813,19 @@ async function executeContractBundleInternal(payload) {
   const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
   try {
     if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const masterXlsxPath = path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx');
+    if (!fs.existsSync(masterXlsxPath)) {
+      agentLog('SYNC', '마스터 엑셀 파일 부재 감지 -> Cloudflare R2 즉시 동기화 실행');
+      try { await autoSyncFromCloudflare(); } catch (e) {}
+    }
     const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
     const tenantName = payload.tenantName || payload.corporateName || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
     const tenantCorp = payload.corporateName || payload.tenantName || policy.corporateName || tenantName;
     const tenantBizNo = payload.businessNumber || policy.businessNumber || '';
     const tenantRepName = payload.representativeName || policy.representativeName || '';
     const tenantTel = payload.salesRepPhone || payload.tel || policy.salesPhone || policy.tel || '';
-    const salesRepName = String(payload.salesRepName || payload.salespersonName || tenantRepName || '영업담당자').replace(/"/g, '""');
-    const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || tenantTel || '010-0000-0000').replace(/"/g, '""');
+    const salesRepName = String(payload.salesRepName || payload.salespersonName || tenantRepName || '영업담당자').replace(/`/g, '``').replace(/"/g, '""').replace(/\$/g, '`$');
+    const salesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || tenantTel || '010-0000-0000').replace(/`/g, '``').replace(/"/g, '""').replace(/\$/g, '`$');
     const tenantBankAccount = payload.bankAccount || (policy.bankAccounts?.[0] ? `${policy.bankAccounts[0].bankName} ${policy.bankAccounts[0].accountNumber} (${policy.bankAccounts[0].accountHolder})` : '');
     const inspectorName = payload.inspectorName || '김관주';
 
@@ -1017,12 +1022,15 @@ async function executeContractBundleInternal(payload) {
     const psScript = `\ufeff
 $ErrorActionPreference = 'Stop'
 
+$excel = $null
+$wb = $null
+try {
 $excel = New-Object -ComObject Excel.Application
-$excel.Visible = $false
-$excel.DisplayAlerts = $false
-$excel.ScreenUpdating = $false
-$excel.EnableEvents = $false
-$excel.Interactive = $false
+try { $excel.Visible = $false } catch {}
+try { $excel.DisplayAlerts = $false } catch {}
+try { $excel.ScreenUpdating = $false } catch {}
+try { $excel.EnableEvents = $false } catch {}
+try { $excel.Interactive = $false } catch {}
 
 function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
@@ -1160,18 +1168,20 @@ $wsContract.Cells.Item(${row}, 7).Value2 = ""
 `;
 }).join('') + `
 
-$wsContract.PageSetup.PaperSize = 9
-$wsContract.PageSetup.Orientation = 1
-$wsContract.PageSetup.Zoom = $false
-$wsContract.PageSetup.FitToPagesWide = 1
-if (${contractItems.length} -le 12) {
-  $wsContract.PageSetup.PrintArea = "A26:K78"
-  $wsContract.PageSetup.FitToPagesTall = 1
-} else {
-  $endRow = 78 + (${contractItems.length} - 12)
-  $wsContract.PageSetup.PrintArea = "A26:K$endRow"
-  $wsContract.PageSetup.FitToPagesTall = $false
-}
+try {
+  $wsContract.PageSetup.PaperSize = 9
+  $wsContract.PageSetup.Orientation = 1
+  $wsContract.PageSetup.Zoom = $false
+  $wsContract.PageSetup.FitToPagesWide = 1
+  if (${contractItems.length} -le 12) {
+    $wsContract.PageSetup.PrintArea = "A26:K78"
+    $wsContract.PageSetup.FitToPagesTall = 1
+  } else {
+    $endRow = 78 + (${contractItems.length} - 12)
+    $wsContract.PageSetup.PrintArea = "A26:K$endRow"
+    $wsContract.PageSetup.FitToPagesTall = $false
+  }
+} catch {}
 
 # --- 3. 자산별 반입전체크리스트 & 안전점검결과서 순회 생성 ---
 # 원본 시트($wsChecklistBase, $wsSafetyBase)의 태그가 치환되기 전에 먼저 자산 대수만큼 시트를 복제하여 배열에 보관
@@ -1222,10 +1232,12 @@ Replace-Tag $curChecklist "{Today}" "${astInspDate}"
 Replace-Tag $curChecklist "{점검자}" "${astInspName}"
 Replace-Tag $curChecklist "{점점자}" "${astInspName}"
 Replace-Tag $curChecklist "김관주" "${astInspName}"
-$curChecklist.PageSetup.Orientation = 1
-$curChecklist.PageSetup.Zoom = $false
-$curChecklist.PageSetup.FitToPagesWide = 1
-$curChecklist.PageSetup.FitToPagesTall = 1
+try {
+  $curChecklist.PageSetup.Orientation = 1
+  $curChecklist.PageSetup.Zoom = $false
+  $curChecklist.PageSetup.FitToPagesWide = 1
+  $curChecklist.PageSetup.FitToPagesTall = 1
+} catch {}
 
 Replace-Tag $curSafety "{사업장명}" "${psEscape(siteName)}"
 Replace-Tag $curSafety "{형식}" "자주식 시저형"
@@ -1253,24 +1265,30 @@ Replace-Tag $curSafety "{(배차일)-2}" "${astInspDate}"
 Replace-Tag $curSafety "{점검자}" "${astInspName}"
 Replace-Tag $curSafety "{점점자}" "${astInspName}"
 Replace-Tag $curSafety "김관주" "${astInspName}"
-$curSafety.PageSetup.Orientation = 1
-$curSafety.PageSetup.Zoom = $false
-$curSafety.PageSetup.FitToPagesWide = 1
-$curSafety.PageSetup.FitToPagesTall = 1
+try {
+  $curSafety.PageSetup.Orientation = 1
+  $curSafety.PageSetup.Zoom = $false
+  $curSafety.PageSetup.FitToPagesWide = 1
+  $curSafety.PageSetup.FitToPagesTall = 1
+} catch {}
 `;
 }).join('\n') + `
 
 $wb.ExportAsFixedFormat(0, $masterPdf)
-$wb.Close($false)
-
-$excel.Quit()
-[System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+} finally {
+  if ($wb) { try { $wb.Close($false) } catch {} }
+  if ($excel) {
+    try { $excel.Quit() } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null } catch {}
+  }
+}
 `;
 
     const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
     fs.writeFileSync(psFile, psScript, 'utf8');
 
-    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
 
     const { PDFDocument } = require('pdf-lib');
 
@@ -1339,6 +1357,11 @@ async function executeGenerateStatementInternal(payload) {
   const tempBuildDir = path.join(AGENT_HOME, 'temp_statement_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
   try {
     if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const statementMasterPath = path.join(DRIVE_MIRROR_DIR, '00.거래명세서양식.xlsx');
+    if (!fs.existsSync(statementMasterPath)) {
+      agentLog('SYNC', '거래명세서 양식 파일 부재 감지 -> Cloudflare R2 즉시 동기화 실행');
+      try { await autoSyncFromCloudflare(); } catch (e) {}
+    }
 
     const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
     const tenantName = payload.tenantName || payload.lessorName || policy.tenantName || policy.corporateName || TENANT_CODE || '(주)기연리프트';
@@ -1394,29 +1417,34 @@ async function executeGenerateStatementInternal(payload) {
     const psScript = `\ufeff
 $ErrorActionPreference = 'Stop'
 
+$excel = $null
+$wb = $null
+try {
 $excel = New-Object -ComObject Excel.Application
-$excel.Visible = $false
-$excel.DisplayAlerts = $false
-$excel.ScreenUpdating = $false
-$excel.EnableEvents = $false
-$excel.Interactive = $false
+try { $excel.Visible = $false } catch {}
+try { $excel.DisplayAlerts = $false } catch {}
+try { $excel.ScreenUpdating = $false } catch {}
+try { $excel.EnableEvents = $false } catch {}
+try { $excel.Interactive = $false } catch {}
 
 function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
 }
 
 function Setup-Sheet-Page($targetWs) {
-  $targetWs.PageSetup.PaperSize = 9
-  $targetWs.PageSetup.Orientation = 1
-  $targetWs.PageSetup.PrintArea = "B1:AA30"
-  $targetWs.PageSetup.Zoom = $false
-  $targetWs.PageSetup.FitToPagesWide = 1
-  $targetWs.PageSetup.FitToPagesTall = 1
-  $targetWs.PageSetup.CenterHorizontally = $true
-  $targetWs.PageSetup.LeftMargin = $excel.InchesToPoints(0.15)
-  $targetWs.PageSetup.RightMargin = $excel.InchesToPoints(0.15)
-  $targetWs.PageSetup.TopMargin = $excel.InchesToPoints(0.2)
-  $targetWs.PageSetup.BottomMargin = $excel.InchesToPoints(0.2)
+  try {
+    $targetWs.PageSetup.PaperSize = 9
+    $targetWs.PageSetup.Orientation = 1
+    $targetWs.PageSetup.PrintArea = "B1:AA30"
+    $targetWs.PageSetup.Zoom = $false
+    $targetWs.PageSetup.FitToPagesWide = 1
+    $targetWs.PageSetup.FitToPagesTall = 1
+    $targetWs.PageSetup.CenterHorizontally = $true
+    $targetWs.PageSetup.LeftMargin = $excel.InchesToPoints(0.15)
+    $targetWs.PageSetup.RightMargin = $excel.InchesToPoints(0.15)
+    $targetWs.PageSetup.TopMargin = $excel.InchesToPoints(0.2)
+    $targetWs.PageSetup.BottomMargin = $excel.InchesToPoints(0.2)
+  } catch {}
 }
 
 # --- 1. 거래명세서 마스터 템플릿 복사 및 열기 ---
@@ -1581,18 +1609,22 @@ $wb.Save()
 
 # --- 5. 전체 워크북 1회 Export (모든 시트가 1개의 단일 다중 페이지 PDF로) ---
 $wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.Missing]::Value, [System.Reflection.Missing]::Value, $false)
-
-$wb.Close($false)
-$excel.Quit()
-[System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
-[System.GC]::Collect()
-[System.GC]::WaitForPendingFinalizers()
+} finally {
+  if ($wb) { try { $wb.Close($false) } catch {} }
+  if ($excel) {
+    try { $excel.Quit() } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null } catch {}
+  }
+  [System.GC]::Collect()
+  [System.GC]::WaitForPendingFinalizers()
+}
 `;
 
     const psFile = path.join(tempBuildDir, 'generate_statement.ps1');
     fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
 
-    await runCommandAsync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
+    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
       cwd: tempBuildDir
     });
 
@@ -2545,50 +2577,84 @@ function freePortIfOccupied(port) {
   } catch (e) {}
 }
 
+let activeTrayChild = null;
+let hasBootstrappedTray = false;
+let EMBEDDED_TRAY_PS1 = '';
+try {
+  EMBEDDED_TRAY_PS1 = require('./trayIcon.ps1');
+} catch (e) {}
+
 function startTrayWorker() {
+  if (activeTrayChild && activeTrayChild.exitCode === null && !activeTrayChild.killed) {
+    return;
+  }
+
+  const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
   const trayScriptInHome = path.join(AGENT_HOME, 'trayIcon.ps1');
   const trayScriptInDir = path.join(__dirname, 'trayIcon.ps1');
-  const targetScript = fs.existsSync(trayScriptInHome) ? trayScriptInHome : (fs.existsSync(trayScriptInDir) ? trayScriptInDir : null);
 
-  if (targetScript) {
-    try {
-      // 이미 실행 중인 trayIcon.ps1 프로세스가 있으면 죽이지 않고 그대로 재사용 (트레이 아이콘 깜빡임 및 중복 알림 원천 차단)
+  try {
+    // 최초 기동 시 구버전/비고정(IsPromoted 미적용) trayIcon.ps1 프로세스가 있으면 1회 정리 후 최신 UTF-8 BOM 스크립트 강제 동기화
+    if (!hasBootstrappedTray) {
+      hasBootstrappedTray = true;
       try {
-        const runningTray = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' }).ProcessId"', { encoding: 'utf8', windowsHide: true }).trim();
+        execSync(`"${psExe}" -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.ProcessId -ne $PID -and $_.CommandLine -notlike '*-Command*' -and $_.CommandLine -like ('*' + 'trayIcon' + '.ps1*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`, { stdio: 'ignore', windowsHide: true });
+      } catch (e) {}
+
+      if (EMBEDDED_TRAY_PS1 && typeof EMBEDDED_TRAY_PS1 === 'string') {
+        try {
+          if (fs.existsSync(trayScriptInHome)) {
+            try { fs.unlinkSync(trayScriptInHome); } catch (e) {}
+          }
+          const cleanStr = EMBEDDED_TRAY_PS1.replace(/^\uFEFF/, '');
+          const bomBuf = Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), Buffer.from(cleanStr, 'utf8')]);
+          fs.writeFileSync(trayScriptInHome, bomBuf);
+          if (process.platform === 'win32') exec(`attrib +h "${trayScriptInHome}"`, { windowsHide: true });
+        } catch (wErr) {}
+      }
+    } else {
+      // 이미 실행 중인 trayIcon.ps1 프로세스가 있는지 정확히 확인 (-Command 검사 프로세스 자기 자신 오탐 원천 차단)
+      try {
+        const runningTray = execSync(`"${psExe}" -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and $_.ProcessId -ne $PID -and $_.CommandLine -notlike '*-Command*' -and $_.CommandLine -like ('*' + 'trayIcon' + '.ps1*') }).ProcessId"`, { encoding: 'utf8', windowsHide: true }).trim();
         if (runningTray) {
           return;
         }
       } catch (chkErr) {}
-
-      // 💡 Windows PowerShell 5.1 한글 파싱 오류 방지를 위해 UTF-8 BOM(0xEF,0xBB,0xBF) 강제 보장
-      try {
-        const rawBuf = fs.readFileSync(targetScript);
-        if (rawBuf.length >= 3 && !(rawBuf[0] === 0xEF && rawBuf[1] === 0xBB && rawBuf[2] === 0xBF)) {
-          try { fs.unlinkSync(targetScript); } catch (e) {}
-          fs.writeFileSync(targetScript, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), rawBuf]));
-          if (process.platform === 'win32') exec(`attrib +h "${targetScript}"`, { windowsHide: true });
-        }
-      } catch (bomErr) {}
-
-      const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
-      const ps = spawn(psExe, [
-        '-STA',
-        '-NoProfile',
-        '-WindowStyle', 'Hidden',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', targetScript,
-        String(process.pid),
-        String(PORT),
-        String(TENANT_CODE)
-      ], {
-        windowsHide: true,
-        stdio: 'ignore'
-      });
-      ps.unref();
-      agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${ps.pid})`);
-    } catch (e) {
-      agentLog('WARN', '트레이 아이콘 워커 실행 오류: ' + e.message);
     }
+
+    const targetScript = fs.existsSync(trayScriptInHome) ? trayScriptInHome : (fs.existsSync(trayScriptInDir) ? trayScriptInDir : null);
+    if (!targetScript) return;
+
+    // 💡 Windows PowerShell 5.1 한글 파싱 오류 방지를 위해 UTF-8 BOM(0xEF,0xBB,0xBF) 강제 보장
+    try {
+      const rawBuf = fs.readFileSync(targetScript);
+      if (rawBuf.length >= 3 && !(rawBuf[0] === 0xEF && rawBuf[1] === 0xBB && rawBuf[2] === 0xBF)) {
+        try { fs.unlinkSync(targetScript); } catch (e) {}
+        fs.writeFileSync(targetScript, Buffer.concat([Buffer.from([0xEF, 0xBB, 0xBF]), rawBuf]));
+        if (process.platform === 'win32') exec(`attrib +h "${targetScript}"`, { windowsHide: true });
+      }
+    } catch (bomErr) {}
+
+    const ps = spawn(psExe, [
+      '-STA',
+      '-NoProfile',
+      '-WindowStyle', 'Hidden',
+      '-ExecutionPolicy', 'Bypass',
+      '-File', targetScript,
+      String(process.pid),
+      String(PORT)
+    ], {
+      windowsHide: true,
+      stdio: 'ignore'
+    });
+    activeTrayChild = ps;
+    ps.on('exit', () => {
+      if (activeTrayChild === ps) activeTrayChild = null;
+    });
+    ps.unref();
+    agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${ps.pid})`);
+  } catch (e) {
+    agentLog('WARN', '트레이 아이콘 워커 실행 오류: ' + e.message);
   }
 }
 
@@ -3069,8 +3135,11 @@ function ensureDesktopShortcut() {
 server.listen(PORT, '127.0.0.1', () => {
   agentLog('INFO', `로컬 서비스 리스닝: http://127.0.0.1:${PORT}`);
 
-  //  윈도우 시스템 트레이(알림 영역) 아이콘 워커 가동 (상시 유지)
+  //  윈도우 시스템 트레이(알림 영역) 아이콘 워커 가동 (상시 유지 + 10초 주기 자동 복구 Watchdog)
   startTrayWorker();
+  setInterval(() => {
+    try { startTrayWorker(); } catch (e) {}
+  }, 10000);
 
   //  바탕화면 바로가기 아이콘 단일화 보장
   ensureDesktopShortcut();
