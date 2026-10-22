@@ -139,6 +139,7 @@ export interface TenantFeatures {
   publicDataApiKey?: string;      // 국토교통부 세움터 공공데이터포털 인증키 (서버/DB 보관)
   vworldApiKey?: string;          // V-World 공간정보 오픈플랫폼 인증키 (서버/DB 보관)
   agentAiEnabled?: boolean;       // eBro AI Agent 고유 기능 (텔레그램 명령 / 브라우저 확장 제어 / 데스크톱 AI Studio) 활성화 여부 (false 시 Silent Core 인쇄·문서 처리 모드)
+  allowContractTradeOutbound?: boolean; // 💡 렌탈 계약 상세에서 유통 출고 및 당월 청구 합산 기능 활성화 여부
   specialFeatures?: string[];     // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록
 }
 
@@ -318,6 +319,7 @@ export interface Tenant {
   updatedAt?: string;
   excelMappingRules?: TenantExcelMappingRules;
   allowCustomBillingStatement?: boolean; // 💡 특수 거래명세서(항목 임의수정 및 사유 기록) 기능 활성화 여부
+  allowContractTradeOutbound?: boolean;  // 💡 렌탈 계약 연동 유통 출고(당월 청구 합산) 기능 활성화 여부
   allowedPages?: string[];               // 📄 테넌트별 노출 허용 페이지 ID 목록 (빈 배열/미지정 시 전체 노출)
   hiddenPages?: string[];
   specialFeatures?: string[]; // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록 (예: ['tab:truck_dispatch:audit_settle'])                // 🚫 테넌트별 숨김/비노출 페이지 ID 목록
@@ -4362,7 +4364,8 @@ export const SEED_TENANTS: Tenant[] = [
     createdAt: '2013-04-03T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
     allowCustomBillingStatement: true,
-    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'], // 💡 특수 거래명세서 기능 활성화
+    allowContractTradeOutbound: true,
+    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'], // 💡 특수 거래명세서 기능 활성화
     excelMappingRules: {
       contractAssetsStartRow: 44,
       contractModelCol: 1,
@@ -4521,7 +4524,8 @@ export const SEED_TENANTS: Tenant[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
     allowCustomBillingStatement: true,
-    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'],
+    allowContractTradeOutbound: true,
+    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'],
     excelMappingRules: {
       contractAssetsStartRow: 44,
       contractModelCol: 1,
@@ -6728,6 +6732,17 @@ class LocalDB {
         if (!normalized.specialFeatures && normalized.features?.specialFeatures) {
           normalized.specialFeatures = normalized.features.specialFeatures;
         }
+        if (normalized.allowContractTradeOutbound === undefined) {
+          normalized.allowContractTradeOutbound = normalized.features?.allowContractTradeOutbound ?? true;
+        }
+        if (
+          normalized.allowContractTradeOutbound !== false &&
+          Array.isArray(normalized.specialFeatures) &&
+          !normalized.specialFeatures.includes('btn:contracts:trade_outbound') &&
+          normalized.features?.allowContractTradeOutbound !== false
+        ) {
+          normalized.specialFeatures = [...normalized.specialFeatures, 'btn:contracts:trade_outbound'];
+        }
         if (!normalized.excelMappingRules && normalized.features?.excelMappingRules) {
           normalized.excelMappingRules = normalized.features.excelMappingRules;
         }
@@ -7367,6 +7382,10 @@ class LocalDB {
 
       if (obj.specialFeatures !== undefined) {
         mergedFeatures.specialFeatures = obj.specialFeatures;
+        featuresTouched = true;
+      }
+      if (obj.allowContractTradeOutbound !== undefined) {
+        mergedFeatures.allowContractTradeOutbound = obj.allowContractTradeOutbound;
         featuresTouched = true;
       }
       if (obj.excelMappingRules !== undefined) {
@@ -8101,6 +8120,16 @@ export interface TradeInventoryLot {
 export interface TradeSalesOrder {
   id: string;
   customerId: string;
+  contractId?: string;
+  contractNo?: string;
+  siteId?: string;
+  siteName?: string;
+  billingMode?: 'RENTAL_MERGED' | 'STANDALONE';
+  targetBillingYm?: string;
+  linkedReceivableId?: string;
+  linkedBillingId?: string;
+  deliveryMethod?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
+  linkedRentalDeliveryId?: string;
   orderDate: string;
   status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED';
   totalSalesAmount: number;
@@ -8134,8 +8163,10 @@ export interface TradeSalesOrderLine {
 export interface TradeOutbound {
   id: string;
   orderId: string;
+  contractId?: string;
+  linkedRentalDeliveryId?: string;
   status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-  deliveryType?: 'COURIER' | 'DIRECT';
+  deliveryType?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
   courierName?: string;
   trackingNumber?: string;
   shippingCost?: number;

@@ -25,6 +25,20 @@ export function isSpecialFeatureGranted(featureId: string, tenant?: Tenant | nul
     return false;
   }
 
+  if (featureId === 'btn:contracts:trade_outbound') {
+    const explicitFlag = (targetTenant as any).allowContractTradeOutbound ?? (targetTenant.features as any)?.allowContractTradeOutbound;
+    if (typeof explicitFlag === 'boolean') {
+      return explicitFlag;
+    }
+    const sf = Array.isArray(targetTenant.specialFeatures)
+      ? targetTenant.specialFeatures
+      : (Array.isArray(targetTenant.features?.specialFeatures) ? targetTenant.features.specialFeatures : undefined);
+    if (sf && sf.includes('btn:contracts:trade_outbound')) {
+      return true;
+    }
+    return true;
+  }
+
   // 3. 테넌트의 인가 목록 확인 (top-level 및 features.specialFeatures 양방향 지원)
   const features = Array.isArray(targetTenant.specialFeatures)
     ? targetTenant.specialFeatures

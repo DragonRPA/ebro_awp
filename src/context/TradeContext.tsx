@@ -76,6 +76,16 @@ export interface TradeContextType {
       salespersonName?: string;
       memo?: string;
       status?: 'PENDING' | 'CONFIRMED';
+      contractId?: string;
+      contractNo?: string;
+      siteId?: string;
+      siteName?: string;
+      billingMode?: 'RENTAL_MERGED' | 'STANDALONE';
+      targetBillingYm?: string;
+      linkedReceivableId?: string;
+      linkedBillingId?: string;
+      deliveryMethod?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
+      linkedRentalDeliveryId?: string;
     }
   ) => Promise<TradeSalesOrder>;
   updateSalesOrder: (
@@ -112,7 +122,7 @@ export interface TradeContextType {
       destinationAddress?: string;
       receiverName?: string;
       receiverPhone?: string;
-      deliveryType?: 'COURIER' | 'DIRECT';
+      deliveryType?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
       closingMemo?: string;
     }
   ) => Promise<TradeOutbound>;
@@ -1002,10 +1012,24 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       salespersonName?: string;
       memo?: string;
       status?: 'PENDING' | 'CONFIRMED';
+      contractId?: string;
+      contractNo?: string;
+      siteId?: string;
+      siteName?: string;
+      billingMode?: 'RENTAL_MERGED' | 'STANDALONE';
+      targetBillingYm?: string;
+      linkedReceivableId?: string;
+      linkedBillingId?: string;
+      deliveryMethod?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
+      linkedRentalDeliveryId?: string;
     }
   ): Promise<TradeSalesOrder> => {
     if (!customerId || customerId.trim() === '') throw new Error('고객사 정보가 누락되었습니다.');
     if (items.length === 0) throw new Error('수주 품목이 1개 이상 존재해야 합니다.');
+
+    const now = new Date().toISOString();
+    const today = now.split('T')[0];
+    const autoReplenishedLots: TradeInventoryLot[] = [];
 
     for (const i of items) {
       const prod = products.find(p => p.id === i.productId);
@@ -1016,20 +1040,31 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .filter(l => l.productId === i.productId)
         .reduce((sum, l) => sum + l.remainingQty, 0);
       if (availableQty < i.qty) {
-        throw new Error(
-          `[${prod.name}] 가용 재고(${availableQty}개)가 부족하여 ${i.qty}개를 수주할 수 없습니다. (재고 보존 법칙 위배)`
-        );
+        if (options?.contractId) {
+          const shortfall = i.qty - availableQty;
+          autoReplenishedLots.push({
+            id: `LOT-AUTO-${uuidv4()}`,
+            purchaseId: `CONTRACT_AUTO_${options.contractId}`,
+            productId: i.productId,
+            initialQty: shortfall,
+            remainingQty: shortfall,
+            unitCost: prod.standardCost ?? Math.round((i.unitPrice || prod.standardPrice || 0) * 0.7),
+            createdAt: now
+          });
+        } else {
+          throw new Error(
+            `[${prod.name}] 가용 재고(${availableQty}개)가 부족하여 ${i.qty}개를 수주할 수 없습니다. (재고 보존 법칙 위배)`
+          );
+        }
       }
     }
 
-    const now = new Date().toISOString();
-    const today = now.split('T')[0];
     const oId = `SO-${uuidv4()}`;
     let totalSalesAmount = 0;
     let totalCogsAmount = 0;
     const newLines: TradeSalesOrderLine[] = [];
 
-    const updatedLots = inventoryLots
+    const updatedLots = [...inventoryLots, ...autoReplenishedLots]
       .map(l => ({ ...l }))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
@@ -1071,8 +1106,18 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newOrder: TradeSalesOrder = {
       id: oId,
       customerId,
+      contractId: options?.contractId,
+      contractNo: options?.contractNo,
+      siteId: options?.siteId,
+      siteName: options?.siteName,
+      billingMode: options?.billingMode,
+      targetBillingYm: options?.targetBillingYm,
+      linkedReceivableId: options?.linkedReceivableId,
+      linkedBillingId: options?.linkedBillingId,
+      deliveryMethod: options?.deliveryMethod,
+      linkedRentalDeliveryId: options?.linkedRentalDeliveryId,
       orderDate: options?.orderDate || today,
-      status: options?.status || 'PENDING',
+      status: options?.status || (options?.contractId ? 'CONFIRMED' : 'PENDING'),
       totalSalesAmount,
       totalCogsAmount,
       createdAt: now,
@@ -1092,14 +1137,22 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSalesOrderLines(prev => [...newLines, ...prev]);
 
     const outbId = `TOUT-${uuidv4()}`;
+    const isBundleWithRental = options?.deliveryMethod === 'BUNDLE_WITH_RENTAL';
     setOutbounds(prev => [
       {
         id: outbId,
         orderId: oId,
-        status: 'REQUESTED',
+        contractId: options?.contractId,
+        linkedRentalDeliveryId: options?.linkedRentalDeliveryId,
+        status: isBundleWithRental ? 'ALLOCATED' : 'REQUESTED',
+        allocatedAt: isBundleWithRental ? now : undefined,
+        deliveryType: options?.deliveryMethod || 'COURIER',
         destinationAddress: newOrder.deliveryLocation,
         receiverName: newOrder.receiverName,
         receiverPhone: newOrder.receiverPhone,
+        closingMemo: isBundleWithRental
+          ? `[렌탈 장비 동봉 출고] 계약: ${options?.contractNo || options?.contractId || '-'}${options?.linkedRentalDeliveryId ? ` / 배차: ${options.linkedRentalDeliveryId}` : ''}`
+          : (options?.contractNo ? `[렌탈계약 연동: ${options.contractNo}]` : undefined),
         createdAt: now,
         updatedAt: now
       },
@@ -1225,6 +1278,28 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOutbounds(prev =>
       prev.map(ob => (ob.orderId === id ? { ...ob, status: 'CANCELLED', updatedAt: now } : ob))
     );
+
+    // 렌탈 계약과 연동된 외상미수금 및 당월 청구 상세가 있는 경우 안전 롤백
+    const matchedRcvs = (db.receivables || []).filter(
+      r =>
+        r.id === order.linkedReceivableId ||
+        Boolean(r.internalDescription && r.internalDescription.includes(`[유통출고:${id}]`))
+    );
+    for (const rcv of matchedRcvs) {
+      const linkedBds = (db.billingDetails || []).filter(bd => bd.receivableId === rcv.id);
+      for (const bd of linkedBds) {
+        const parentBilling = (db.billings || []).find(b => b.id === bd.billingId);
+        if (parentBilling && parentBilling.status !== 'PAID' && parentBilling.status !== 'REJECTED') {
+          db.updateRow<any>('billings', parentBilling.id, {
+            totalAmount: Math.max(0, (parentBilling.totalAmount || 0) - (bd.amount || 0)),
+            updatedAt: now
+          });
+          db.deleteRow('billingDetails', bd.id);
+        }
+      }
+      db.deleteRow('receivables', rcv.id);
+    }
+
     await db.awaitPendingWrites();
   };
 
@@ -1348,7 +1423,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       destinationAddress?: string;
       receiverName?: string;
       receiverPhone?: string;
-      deliveryType?: 'COURIER' | 'DIRECT';
+      deliveryType?: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL';
       closingMemo?: string;
     }
   ): Promise<TradeOutbound> => {

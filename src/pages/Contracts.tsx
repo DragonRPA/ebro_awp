@@ -3,12 +3,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSortableData } from '../hooks/useSortableData';
 import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
+import { useTrade } from '../context/TradeContext';
+import { useSpecialFeature } from '../utils/specialFeatureGuard';
 import {
   Plus, Calendar, Search, Download, Edit3, Repeat, Clock, Wrench, ChevronLeft,
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
-  Truck, CheckCircle2, Network
+  Truck, CheckCircle2, Network, Package
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, Receivable, Billing, TradeSalesOrder, TradeProduct, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { splitMasterAwareOptions } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -20,10 +22,26 @@ export const Contracts: React.FC = () => {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
     createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
-    standardOptions, updateOutboundRequestPricing,
+    standardOptions, updateOutboundRequestPricing, linkReceivableToBilling,
+    currentTenant, toggleTenantContractTradeOutbound,
     navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, showErrorModal,
     setActiveTab: setGlobalActiveTab
   } = useApp();
+
+  const {
+    products: tradeProducts,
+    salesOrders: tradeSalesOrders,
+    salesOrderLines: tradeSalesOrderLines,
+    outbounds: tradeOutbounds,
+    getProductStock: getTradeProductStock,
+    createSalesOrder: createTradeSalesOrder,
+    updateSalesOrder: updateTradeSalesOrder,
+    cancelSalesOrder: cancelTradeSalesOrder,
+    addProduct: addTradeProduct
+  } = useTrade();
+
+  const canUseContractTradeOutbound = useSpecialFeature('btn:contracts:trade_outbound');
+  const isTenantTradeOutboundEnabled = currentTenant?.allowContractTradeOutbound !== false && currentTenant?.features?.allowContractTradeOutbound !== false;
 
   const canSave = hasPermission('contract', 'save');
   const canGeneratePackage = hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한
@@ -224,6 +242,25 @@ export const Contracts: React.FC = () => {
   const [relocateTransportCost, setRelocateTransportCost] = useState(0);
   const [relocatePaidBy, setRelocatePaidBy] = useState<'OURS' | 'CUSTOMER' | 'VENDOR'>('CUSTOMER');
   const [relocateReason, setRelocateReason] = useState('');
+
+  // Feature 7) 계약 연동 유통출고 및 당월 청구 반영 모달 state
+  const [showTradeOutboundModal, setShowTradeOutboundModal] = useState(false);
+  const [tradeSelectedItems, setTradeSelectedItems] = useState<{ productId: string; quantity: number; unitPrice: number }[]>([]);
+  const [tradeDeliveryMethod, setTradeDeliveryMethod] = useState<'PARCEL' | 'BUNDLE_WITH_RENTAL' | 'DIRECT_FREIGHT'>('PARCEL');
+  const [tradeLinkedRentalDeliveryId, setTradeLinkedRentalDeliveryId] = useState('');
+  const [tradeReceiverName, setTradeReceiverName] = useState('');
+  const [tradeReceiverPhone, setTradeReceiverPhone] = useState('');
+  const [tradeReceiverAddress, setTradeReceiverAddress] = useState('');
+  const [tradeBillingMode, setTradeBillingMode] = useState<'MERGE_CURRENT_MONTH' | 'SEPARATE_TRADE_BILLING'>('MERGE_CURRENT_MONTH');
+  const [tradeTargetBillingYm, setTradeTargetBillingYm] = useState(new Date().toISOString().slice(0, 7));
+  const [tradeMemo, setTradeMemo] = useState('');
+  const [isSubmittingTradeOutbound, setIsSubmittingTradeOutbound] = useState(false);
+  const [showQuickTradeProductForm, setShowQuickTradeProductForm] = useState(false);
+  const [newTradeProdName, setNewTradeProdName] = useState('');
+  const [newTradeProdCategory, setNewTradeProdCategory] = useState<'안전용품' | '장비옵션' | '소모품' | '기타'>('장비옵션');
+  const [newTradeProdSpec, setNewTradeProdSpec] = useState('');
+  const [newTradeProdUnit, setNewTradeProdUnit] = useState('개');
+  const [newTradeProdPrice, setNewTradeProdPrice] = useState(0);
 
   // ⚡ O(1) 조회용 인덱스 맵 사전 계산 (필터 변경 시 O(N*M) 중첩 탐색 방지)
   const customerMap = useMemo(() => {
@@ -894,6 +931,8 @@ export const Contracts: React.FC = () => {
       let historyTitle = '계약 이력';
       if (h.changeType === 'BILLING_CREATED' || h.description?.includes('소급 청구') || h.description?.includes('청구서 발행')) {
         historyTitle = '🧾 정기 청구 발행';
+      } else if (h.description?.includes('[유통출고')) {
+        historyTitle = '📦 유통출고 및 청구 반영';
       } else if (isExchange) {
         historyTitle = '🔄 자산 교환 이력';
       } else if (h.changeType === 'FEE_CHANGE' || h.description?.includes('단가')) {
@@ -1292,6 +1331,219 @@ export const Contracts: React.FC = () => {
       setRelocateCa(null);
     } catch (err: any) {
       showToast(`현장 이동 실패: ${err?.message || err}`, 'error');
+    }
+  };
+
+  // Feature 7) 계약 연동 유통출고 및 당월 청구 등록 핸들러
+  const handleOpenTradeOutboundModal = () => {
+    if (!activeContract) return;
+    const curSite = sites.find(s => s.id === activeContract.siteId);
+    const actContacts = (curSite?.contacts || []).filter(c => c.isActive !== false);
+    const primaryContact =
+      actContacts.find(c => c.contactType === 'SAFETY' || c.contactType === 'EQUIPMENT') ||
+      actContacts[0] ||
+      contacts.find(c => c.id === activeContract.contactId);
+
+    setTradeReceiverName(primaryContact?.name || curSite?.contactName || getCustName(activeContract.customerId));
+    setTradeReceiverPhone(primaryContact?.contact || curSite?.contact || '');
+    setTradeReceiverAddress(curSite?.address || customers.find(c => c.id === activeContract.customerId)?.address || '');
+
+    const pendingDeliveries = (deliveries || []).filter(
+      d =>
+        d.contractId === activeContract.id &&
+        d.status !== 'CANCELLED' &&
+        d.status !== 'COMPLETED' &&
+        (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
+    );
+
+    setTradeDeliveryMethod(pendingDeliveries.length > 0 ? 'BUNDLE_WITH_RENTAL' : 'PARCEL');
+    setTradeLinkedRentalDeliveryId(pendingDeliveries[0]?.id || '');
+    setTradeBillingMode('MERGE_CURRENT_MONTH');
+    setTradeTargetBillingYm(todayStr.slice(0, 7));
+    setTradeSelectedItems([]);
+    setTradeMemo('');
+    setShowQuickTradeProductForm(false);
+    setShowTradeOutboundModal(true);
+  };
+
+  const handleQuickAddTradeProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTradeProdName.trim()) {
+      showToast('품목명을 입력하십시오.', 'error');
+      return;
+    }
+    const unitSalesPrice = Math.max(0, Number(newTradeProdPrice) || 0);
+    const createdProd = await addTradeProduct({
+      name: newTradeProdName.trim(),
+      skuCode: '',
+      category: newTradeProdCategory,
+      spec: newTradeProdSpec.trim() || '표준규격',
+      unit: newTradeProdUnit.trim() || '개',
+      standardCost: Math.round(unitSalesPrice * 0.7),
+      standardPrice: unitSalesPrice,
+      cogsMethod: 'FIFO',
+      safetyStock: 5,
+      status: 'ACTIVE'
+    });
+    setTradeSelectedItems(prev => [
+      ...prev,
+      { productId: createdProd.id, quantity: 1, unitPrice: createdProd.standardPrice }
+    ]);
+    setNewTradeProdName('');
+    setNewTradeProdSpec('');
+    setNewTradeProdPrice(0);
+    setShowQuickTradeProductForm(false);
+    showToast(`유통 품목 [${createdProd.name}]이 등록되어 선택 목록에 추가되었습니다.`);
+  };
+
+  const handleSaveTradeOutbound = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingTradeOutbound || !activeContract) return;
+    if (tradeSelectedItems.length === 0) {
+      showToast('출고할 유통 품목을 1개 이상 선택하십시오.', 'error');
+      return;
+    }
+
+    setIsSubmittingTradeOutbound(true);
+    try {
+      const orderLinesInput = tradeSelectedItems.map(item => {
+        const unitPrice = Math.max(0, Number(item.unitPrice) || 0);
+        const qty = Math.max(1, Number(item.quantity) || 1);
+        return {
+          productId: item.productId,
+          qty,
+          unitPrice,
+          memo: tradeMemo || ''
+        };
+      });
+
+      const totalSalesAmount = orderLinesInput.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
+      const summaryText = orderLinesInput
+        .map(it => {
+          const prod = tradeProducts.find(p => p.id === it.productId);
+          return `${prod?.name || '유통 품목'} ${it.qty}${prod?.unit || '개'}`;
+        })
+        .join(', ');
+
+      const deliveryLabel =
+        tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL'
+          ? '출고 장비 동봉'
+          : tradeDeliveryMethod === 'DIRECT_FREIGHT'
+          ? '화물 직배'
+          : '택배 발송';
+
+      const mappedDeliveryMethod: 'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL' =
+        tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL'
+          ? 'BUNDLE_WITH_RENTAL'
+          : tradeDeliveryMethod === 'DIRECT_FREIGHT'
+          ? 'DIRECT'
+          : 'COURIER';
+
+      const mappedBillingMode: 'RENTAL_MERGED' | 'STANDALONE' =
+        tradeBillingMode === 'MERGE_CURRENT_MONTH' ? 'RENTAL_MERGED' : 'STANDALONE';
+
+      // 1) 유통 주문(TradeSalesOrder) 및 유통 출고(TradeOutbound) 동시 생성
+      const createdOrder = await createTradeSalesOrder(
+        activeContract.customerId,
+        orderLinesInput,
+        {
+          orderDate: todayStr,
+          status: 'CONFIRMED',
+          deliveryLocation: tradeReceiverAddress,
+          receiverName: tradeReceiverName,
+          receiverPhone: tradeReceiverPhone,
+          salespersonName: users.find(u => u.id === activeContract.salespersonId)?.name || currentUser?.name || '영업담당자',
+          memo: `[계약연동:${activeContract.contractNo}] (${deliveryLabel}) ${tradeMemo}`.trim(),
+          contractId: activeContract.id,
+          contractNo: activeContract.contractNo,
+          siteId: activeContract.siteId,
+          siteName: getSiteName(activeContract.siteId),
+          billingMode: mappedBillingMode,
+          targetBillingYm: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? tradeTargetBillingYm : undefined,
+          deliveryMethod: mappedDeliveryMethod,
+          linkedRentalDeliveryId: tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL' ? tradeLinkedRentalDeliveryId : undefined
+        }
+      );
+
+      // 2) 출고 장비 동봉 선택 시 해당 렌탈 배차(Delivery) 메모에 동봉 품목 자동 각인
+      if (tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL' && tradeLinkedRentalDeliveryId) {
+        const targetDel = deliveries.find(d => d.id === tradeLinkedRentalDeliveryId);
+        if (targetDel) {
+          const bundleTag = `[동봉 유통품목: ${summaryText}]`;
+          const nextMemo = targetDel.memo?.includes(bundleTag)
+            ? targetDel.memo
+            : `${targetDel.memo || ''} ${bundleTag}`.trim();
+          db.updateRow<Delivery>('deliveries', targetDel.id, {
+            memo: nextMemo,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      // 3) '당월 렌탈 청구에 합산' 선택 시 계약 귀속 외상미수금 생성 및 당월 청구서 즉시 주입
+      let billingResultDesc = '유통 별도 청구';
+      if (tradeBillingMode === 'MERGE_CURRENT_MONTH' && totalSalesAmount > 0) {
+        const targetYm = tradeTargetBillingYm || todayStr.slice(0, 7);
+        const displayTitle = `[유통출고] ${summaryText}`;
+        const internalDesc = `[유통출고:${createdOrder.id}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`;
+
+        const createdRcv = db.insertRow<Receivable>('receivables', {
+          customerId: activeContract.customerId,
+          contractId: activeContract.id,
+          type: 'OTHER',
+          occurredDate: todayStr,
+          totalAmount: totalSalesAmount,
+          billedAmount: 0,
+          status: 'PENDING',
+          internalDescription: internalDesc,
+          displayName: displayTitle,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        await db.awaitPendingWrites();
+
+        // 이미 생성된 당월(targetYm) 청구서가 존재하는 경우 즉시 세부항목(BillingDetail) 및 청구총액에 꽂아 넣음
+        const existingBilling = (billings || []).find(
+          b =>
+            b.contractId === activeContract.id &&
+            b.billingYm === targetYm &&
+            b.status !== 'REJECTED' &&
+            b.status !== 'PAID'
+        );
+
+        if (existingBilling) {
+          await linkReceivableToBilling(existingBilling.id, createdRcv.id, totalSalesAmount, displayTitle);
+          await updateTradeSalesOrder(createdOrder.id, {
+            linkedReceivableId: createdRcv.id,
+            linkedBillingId: existingBilling.id
+          });
+          billingResultDesc = `${targetYm}월 청구서(${existingBilling.id})에 즉시 합산 완료`;
+        } else {
+          await updateTradeSalesOrder(createdOrder.id, {
+            linkedReceivableId: createdRcv.id
+          });
+          billingResultDesc = `${targetYm}월 정기 청구 생성 시 자동 합산 대기`;
+        }
+      }
+
+      // 4) 계약 이력(ContractHistory) 기록
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: activeContract.id,
+        changeType: 'FEE_CHANGE',
+        changeDate: todayStr,
+        description: `[유통출고:${createdOrder.id}] ${summaryText} / 공급가 ₩${totalSalesAmount.toLocaleString()}원 (${deliveryLabel}) — ${billingResultDesc}`,
+        createdAt: new Date().toISOString()
+      });
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      setShowTradeOutboundModal(false);
+      showToast(`계약 연동 유통출고(${summaryText}) 등록 완료 — ${billingResultDesc}`);
+    } catch (err: any) {
+      showErrorModal(`유통출고 등록 중 오류가 발생했습니다:\n\n${err?.message || err}`, '유통출고 등록 오류');
+    } finally {
+      setIsSubmittingTradeOutbound(false);
     }
   };
 
@@ -1846,25 +2098,60 @@ export const Contracts: React.FC = () => {
           </div>
         </div>
 
-        {viewMode === 'LIST' && (
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {currentUser?.role === 'ADMIN' && currentTenant && (
             <button
-              className={activeTab === 'ALL_LIST' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setActiveTab('ALL_LIST')}
-              style={{ padding: '7px 14px', fontSize: '12px' }}
+              type="button"
+              onClick={async () => {
+                const nextEnabled = !isTenantTradeOutboundEnabled;
+                await toggleTenantContractTradeOutbound(currentTenant.id, nextEnabled);
+                const tName = currentTenant.displayName || currentTenant.corporateName || currentTenant.id;
+                showToast(
+                  nextEnabled
+                    ? `[${tName}] 계약 연동 유통출고 기능이 활성화되었습니다.`
+                    : `[${tName}] 계약 연동 유통출고 기능이 비활성화되었습니다.`
+                );
+              }}
+              style={{
+                padding: '6px 12px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: isTenantTradeOutboundEnabled ? '1px solid #0284c7' : '1px solid var(--border-color)',
+                backgroundColor: isTenantTradeOutboundEnabled ? 'rgba(2, 132, 199, 0.1)' : 'var(--bg-app)',
+                color: isTenantTradeOutboundEnabled ? '#0284c7' : 'var(--text-muted)'
+              }}
+              title="현재 테넌트의 계약 상세 유통출고 및 당월 청구 합산 기능 사용 여부를 즉시 전환합니다."
             >
-              계약 목록 ({filteredContracts.length})
+              <Package size={13} />
+              <span>계약 연동 유통출고: {isTenantTradeOutboundEnabled ? '사용중' : '미사용'}</span>
             </button>
-            <button
-              data-uia="btn-new-contract"
-              className={activeTab === 'CREATE' ? 'btn-primary' : 'btn-secondary'}
-              onClick={() => setActiveTab('CREATE')}
-              style={{ padding: '7px 14px', fontSize: '12px' }}
-            >
-              신규 계약 등록
-            </button>
-          </div>
-        )}
+          )}
+
+          {viewMode === 'LIST' && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className={activeTab === 'ALL_LIST' ? 'btn-primary' : 'btn-secondary'}
+                onClick={() => setActiveTab('ALL_LIST')}
+                style={{ padding: '7px 14px', fontSize: '12px' }}
+              >
+                계약 목록 ({filteredContracts.length})
+              </button>
+              <button
+                data-uia="btn-new-contract"
+                className={activeTab === 'CREATE' ? 'btn-primary' : 'btn-secondary'}
+                onClick={() => setActiveTab('CREATE')}
+                style={{ padding: '7px 14px', fontSize: '12px' }}
+              >
+                신규 계약 등록
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
@@ -3020,31 +3307,54 @@ export const Contracts: React.FC = () => {
 
             {/* 섹션 2: 체결 자산 목록 */}
             <div className="card" style={{ margin: 0, height: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                 <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Wrench size={16} /> 체결 자산 (운용 {activeContractAssets.filter(ca => ca.status !== 'RETURNED').length}대 / 누적 {activeContractAssets.length}대)
                 </h3>
-                {canSave && canModifyContract(activeContract) && activeContract.status !== 'COMPLETED' && (
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button 
-                      className="btn-secondary" 
-                      onClick={() => {
-                        setGlobalActiveTab('smart_as_request', {
-                          customerId: activeContract.customerId,
-                          siteId: activeContract.siteId,
-                          contractId: activeContract.id,
-                          category: '옵션장착',
-                          issueDescription: `현장 옵션 추가 장착 의뢰 (계약: ${activeContract.contractNo})`
-                        });
-                      }} 
-                      style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
-                      title="해당 계약 현장으로 옵션 추가장착(유상 AS) 접수 이동"
-                    >
-                      <Plus size={13} /> 옵션 장착 AS 의뢰
-                    </button>
-                    <button className="btn-secondary" onClick={() => handleOpenExchangeGlobal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Repeat size={13} /> 자산 교체/대차 의뢰
-                    </button>
+                {canSave && canModifyContract(activeContract) && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {canUseContractTradeOutbound && (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={handleOpenTradeOutboundModal}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: '11.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#0284c7',
+                          borderColor: '#0284c7'
+                        }}
+                        title="해당 계약(현장)에 안전용품/옵션/소모품 유통출고를 등록하고 당월 렌탈 청구에 자동 합산합니다."
+                      >
+                        <Package size={13} /> + 유통출고 등록
+                      </button>
+                    )}
+                    {activeContract.status !== 'COMPLETED' && (
+                      <>
+                        <button 
+                          className="btn-secondary" 
+                          onClick={() => {
+                            setGlobalActiveTab('smart_as_request', {
+                              customerId: activeContract.customerId,
+                              siteId: activeContract.siteId,
+                              contractId: activeContract.id,
+                              category: '옵션장착',
+                              issueDescription: `현장 옵션 추가 장착 의뢰 (계약: ${activeContract.contractNo})`
+                            });
+                          }} 
+                          style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                          title="해당 계약 현장으로 옵션 추가장착(유상 AS) 접수 이동"
+                        >
+                          <Plus size={13} /> 옵션 장착 AS 의뢰
+                        </button>
+                        <button className="btn-secondary" onClick={() => handleOpenExchangeGlobal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Repeat size={13} /> 자산 교체/대차 의뢰
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -3423,6 +3733,140 @@ export const Contracts: React.FC = () => {
                                     </div>
                                   );
                                 })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* 📦 계약 연동 유통출고 및 당월 청구 반영 내역 */}
+              {(() => {
+                const contractTradeOrders = (tradeSalesOrders || []).filter(
+                  so =>
+                    so.status !== 'CANCELLED' &&
+                    (so.contractId === activeContract.id ||
+                      (so.memo && so.memo.includes(`[계약연동:${activeContract.contractNo}]`)))
+                );
+
+                if (!canUseContractTradeOutbound && contractTradeOrders.length === 0) return null;
+
+                return (
+                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                      <strong style={{ fontSize: '12.5px', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Package size={14} />
+                        <span>계약 연동 유통출고 내역</span>
+                        <span className="badge" style={{ fontSize: '10px', backgroundColor: '#e0f2fe', color: '#0369a1' }}>
+                          {contractTradeOrders.length}건
+                        </span>
+                      </strong>
+                      {canUseContractTradeOutbound && canSave && canModifyContract(activeContract) && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={handleOpenTradeOutboundModal}
+                          style={{ padding: '2px 8px', fontSize: '11px', color: '#0284c7', borderColor: '#7dd3fc', fontWeight: 700 }}
+                        >
+                          + 유통출고 추가
+                        </button>
+                      )}
+                    </div>
+
+                    {contractTradeOrders.length === 0 ? (
+                      <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', fontSize: '12px' }}>
+                        이 계약에 연동된 유통출고 내역이 없습니다. 상단 [+ 유통출고 등록] 버튼으로 안전용품·소모품 출고 및 당월 청구 합산을 등록할 수 있습니다.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {contractTradeOrders.map(so => {
+                          const linkedOb = (tradeOutbounds || []).find(ob => ob.orderId === so.id);
+                          const linkedRcv = (receivables || []).find(
+                            r => r.id === so.linkedReceivableId || String(r.internalDescription || '').includes(`[유통출고:${so.id}]`)
+                          );
+                          const isBilled = Boolean(
+                            so.linkedBillingId ||
+                            (linkedRcv && (linkedRcv.status === 'CLEARED' || linkedRcv.billedAmount >= linkedRcv.totalAmount))
+                          );
+                          const soLines = (tradeSalesOrderLines || []).filter(l => l.orderId === so.id);
+                          const itemsText =
+                            soLines
+                              .map(l => {
+                                const prod = tradeProducts.find(p => p.id === l.productId);
+                                return `${prod?.name || '유통품목'}×${l.qty}`;
+                              })
+                              .join(', ') || so.memo || '유통품목';
+                          const deliveryBadgeText =
+                            so.deliveryMethod === 'BUNDLE_WITH_RENTAL' || linkedOb?.deliveryType === 'BUNDLE_WITH_RENTAL'
+                              ? '출고 장비 동봉'
+                              : so.deliveryMethod === 'DIRECT' || linkedOb?.deliveryType === 'DIRECT'
+                              ? '화물 직배'
+                              : '택배 발송';
+                          const obStatusText =
+                            linkedOb?.status === 'SHIPPED' || linkedOb?.status === 'DELIVERED'
+                              ? '출고완료'
+                              : linkedOb?.status === 'ALLOCATED'
+                              ? '동봉할당'
+                              : '출고대기';
+
+                          return (
+                            <div
+                              key={so.id}
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: 'var(--bg-app)',
+                                border: '1px solid rgba(2, 132, 199, 0.3)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: '8px',
+                                flexWrap: 'wrap',
+                                fontSize: '12px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <strong style={{ color: '#0284c7', fontFamily: 'monospace' }}>{so.id}</strong>
+                                <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '10.5px', fontWeight: 700 }}>
+                                  {deliveryBadgeText} · {obStatusText}
+                                </span>
+                                <strong>{itemsText}</strong>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>({so.orderDate})</span>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                                  ₩{(so.totalSalesAmount || 0).toLocaleString()}원
+                                </strong>
+                                {so.billingMode === 'STANDALONE' ? (
+                                  <span className="badge badge-secondary" style={{ fontSize: '10px' }}>유통 별도 청구</span>
+                                ) : isBilled ? (
+                                  <span className="badge badge-success" style={{ fontSize: '10px' }}>
+                                    ✓ {so.targetBillingYm || '당월'} 청구 합산됨
+                                  </span>
+                                ) : (
+                                  <span className="badge badge-info" style={{ fontSize: '10px' }}>
+                                    ⏳ {so.targetBillingYm || '당월'} 청구 자동합산 대기
+                                  </span>
+                                )}
+                                {canSave && canModifyContract(activeContract) && linkedOb?.status !== 'SHIPPED' && linkedOb?.status !== 'DELIVERED' && (
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={async () => {
+                                      if (!window.confirm(`유통출고 주문 [${so.id}] (${itemsText})을 취소하시겠습니까?\n연동된 청구 합산 항목도 함께 롤백됩니다.`)) return;
+                                      await cancelTradeSalesOrder(so.id);
+                                      refreshAllData();
+                                      showToast(`유통출고 주문 [${so.id}]이 취소되었습니다.`);
+                                    }}
+                                    style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--danger)' }}
+                                  >
+                                    취소
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -4728,6 +5172,519 @@ export const Contracts: React.FC = () => {
                     style={{ fontWeight: 800 }}
                   >
                     현장 이동 확정
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Feature 7: 계약 연동 유통출고 및 당월 청구 등록 모달 */}
+      {showTradeOutboundModal && activeContract && (() => {
+        const activeTradeProducts = (tradeProducts || []).filter(p => p.status !== 'DISCONTINUED');
+        const totalSupplyAmount = tradeSelectedItems.reduce(
+          (sum, it) => sum + (Math.max(1, Number(it.quantity) || 1) * Math.max(0, Number(it.unitPrice) || 0)),
+          0
+        );
+        const pendingRentalDeliveries = (deliveries || []).filter(
+          d =>
+            d.contractId === activeContract.id &&
+            d.status !== 'CANCELLED' &&
+            (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
+        );
+        const existingMonthBilling = (billings || []).find(
+          b =>
+            b.contractId === activeContract.id &&
+            b.billingYm === tradeTargetBillingYm &&
+            b.status !== 'REJECTED' &&
+            b.status !== 'PAID'
+        );
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              zIndex: 3100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={() => setShowTradeOutboundModal(false)}
+          >
+            <div
+              className="card"
+              style={{
+                width: '100%',
+                maxWidth: '680px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                backgroundColor: 'var(--bg-card)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+                padding: '22px'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#0284c7' }}>
+                  <Package size={18} color="#0284c7" /> 계약 연동 유통출고 및 당월 청구 등록
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowTradeOutboundModal(false)}
+                  style={{ border: 'none', background: 'none', color: 'var(--text-muted)', fontSize: '18px', cursor: 'pointer' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 1. 계약 컨텍스트 자동 상속 배너 */}
+              <div
+                style={{
+                  marginBottom: '14px',
+                  padding: '10px 14px',
+                  backgroundColor: 'rgba(2, 132, 199, 0.07)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(2, 132, 199, 0.25)',
+                  fontSize: '12.5px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '6px'
+                }}
+              >
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>고객사:</span>{' '}
+                  <strong>{getCustName(activeContract.customerId)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>현장명:</span>{' '}
+                  <strong>{getSiteName(activeContract.siteId)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>계약번호:</span>{' '}
+                  <strong style={{ color: '#0284c7', fontFamily: 'monospace' }}>{activeContract.contractNo}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>계산서 마감일:</span>{' '}
+                  <strong>매월 {activeContract.billingDay === 31 ? '말일' : `${activeContract.billingDay}일`}</strong>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveTradeOutbound} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* 2. 원클릭 품목 칩 선택 영역 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      1단계: 출고 품목 선택 (클릭 시 즉시 담기) *
+                    </label>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => setShowQuickTradeProductForm(prev => !prev)}
+                      style={{ padding: '3px 8px', fontSize: '11px', color: '#0284c7', borderColor: '#7dd3fc', fontWeight: 700 }}
+                    >
+                      {showQuickTradeProductForm ? '신규 품목 입력 닫기' : '+ 신규 유통품목 즉시 등록'}
+                    </button>
+                  </div>
+
+                  {/* 신규 유통품목 인라인 등록 폼 */}
+                  {showQuickTradeProductForm && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px dashed #0284c7',
+                        display: 'grid',
+                        gridTemplateColumns: '1.3fr 1fr 0.7fr 1fr auto',
+                        gap: '8px',
+                        alignItems: 'end'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700 }}>품목명 *</label>
+                        <input
+                          type="text"
+                          placeholder="예: 안전벨트, 유도봉"
+                          value={newTradeProdName}
+                          onChange={e => setNewTradeProdName(e.target.value)}
+                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700 }}>분류</label>
+                        <select
+                          value={newTradeProdCategory}
+                          onChange={e => setNewTradeProdCategory(e.target.value as any)}
+                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                        >
+                          <option value="장비옵션">장비옵션</option>
+                          <option value="안전용품">안전용품</option>
+                          <option value="소모품">소모품</option>
+                          <option value="기타">기타</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700 }}>단위</label>
+                        <input
+                          type="text"
+                          value={newTradeProdUnit}
+                          onChange={e => setNewTradeProdUnit(e.target.value)}
+                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700 }}>판매단가 (원)</label>
+                        <input
+                          type="number"
+                          value={newTradeProdPrice || ''}
+                          onChange={e => setNewTradeProdPrice(Number(e.target.value) || 0)}
+                          placeholder="0"
+                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={handleQuickAddTradeProduct}
+                        style={{ padding: '6px 10px', fontSize: '12px', height: '31px', whiteSpace: 'nowrap' }}
+                      >
+                        등록 및 담기
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 품목 칩 버튼 그리드 */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '6px',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--bg-app)',
+                      border: '1px solid var(--border-color)',
+                      maxHeight: '140px',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {activeTradeProducts.length === 0 ? (
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        등록된 유통 품목이 없습니다. 우측 상단 [+ 신규 유통품목 즉시 등록]을 눌러 품목을 추가하십시오.
+                      </span>
+                    ) : (
+                      activeTradeProducts.map(prod => {
+                        const selectedEntry = tradeSelectedItems.find(it => it.productId === prod.id);
+                        return (
+                          <button
+                            key={prod.id}
+                            type="button"
+                            onClick={() => {
+                              setTradeSelectedItems(prev => {
+                                const exists = prev.find(it => it.productId === prod.id);
+                                if (exists) {
+                                  return prev.map(it =>
+                                    it.productId === prod.id ? { ...it, quantity: it.quantity + 1 } : it
+                                  );
+                                }
+                                return [
+                                  ...prev,
+                                  { productId: prod.id, quantity: 1, unitPrice: prod.standardPrice || 0 }
+                                ];
+                              });
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: selectedEntry ? 700 : 500,
+                              cursor: 'pointer',
+                              border: selectedEntry ? '1px solid #0284c7' : '1px solid var(--border-color)',
+                              backgroundColor: selectedEntry ? 'rgba(2, 132, 199, 0.12)' : 'var(--bg-card)',
+                              color: selectedEntry ? '#0284c7' : 'var(--text-primary)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>+ {prod.name}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              (₩{(prod.standardPrice || 0).toLocaleString()} / 재고 {getTradeProductStock(prod.id).availableQty}{prod.unit})
+                            </span>
+                            {selectedEntry && (
+                              <span
+                                style={{
+                                  marginLeft: '2px',
+                                  padding: '1px 5px',
+                                  borderRadius: '999px',
+                                  backgroundColor: '#0284c7',
+                                  color: '#fff',
+                                  fontSize: '10px',
+                                  fontWeight: 800
+                                }}
+                              >
+                                {selectedEntry.quantity}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* 선택된 품목 수량·단가 인라인 편집 테이블 */}
+                  {tradeSelectedItems.length > 0 && (
+                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+                            <th style={{ padding: '6px 10px', textAlign: 'left' }}>품목명</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'center', width: '90px' }}>수량</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right', width: '130px' }}>판매단가 (원)</th>
+                            <th style={{ padding: '6px 10px', textAlign: 'right', width: '120px' }}>공급가액</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'center', width: '50px' }}>삭제</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tradeSelectedItems.map((it, idx) => {
+                            const prod = tradeProducts.find(p => p.id === it.productId);
+                            const rowAmt = (Number(it.quantity) || 1) * (Number(it.unitPrice) || 0);
+                            return (
+                              <tr key={it.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '6px 10px' }}>
+                                  <strong>{prod?.name || '품목'}</strong>
+                                  {prod?.spec && (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '6px' }}>
+                                      ({prod.spec})
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={it.quantity}
+                                    onChange={e => {
+                                      const nextQty = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                      setTradeSelectedItems(prev =>
+                                        prev.map((row, i) => (i === idx ? { ...row, quantity: nextQty } : row))
+                                      );
+                                    }}
+                                    style={{ width: '64px', padding: '4px 6px', textAlign: 'center', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={it.unitPrice}
+                                    onChange={e => {
+                                      const nextPrice = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                      setTradeSelectedItems(prev =>
+                                        prev.map((row, i) => (i === idx ? { ...row, unitPrice: nextPrice } : row))
+                                      );
+                                    }}
+                                    style={{ width: '110px', padding: '4px 6px', textAlign: 'right', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>
+                                  ₩{rowAmt.toLocaleString()}원
+                                </td>
+                                <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setTradeSelectedItems(prev => prev.filter((_, i) => i !== idx))}
+                                    style={{ border: 'none', background: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '14px' }}
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. 출고 방식 및 현장 수령 정보 (자동 상속) */}
+                <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    2단계: 출고 방식 및 현장 수령 정보
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {([
+                      { id: 'PARCEL', label: '택배 발송' },
+                      { id: 'BUNDLE_WITH_RENTAL', label: '출고 장비 동봉' },
+                      { id: 'DIRECT_FREIGHT', label: '화물 직배' }
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setTradeDeliveryMethod(opt.id)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: tradeDeliveryMethod === opt.id ? 700 : 500,
+                          cursor: 'pointer',
+                          border: tradeDeliveryMethod === opt.id ? '1px solid #0284c7' : '1px solid var(--border-color)',
+                          backgroundColor: tradeDeliveryMethod === opt.id ? '#0284c7' : 'var(--bg-card)',
+                          color: tradeDeliveryMethod === opt.id ? '#fff' : 'var(--text-primary)'
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        동봉할 렌탈 출고·교환 배차 선택 (선택 시 배차 메모에 동봉 품목 자동 각인)
+                      </label>
+                      <select
+                        value={tradeLinkedRentalDeliveryId}
+                        onChange={e => setTradeLinkedRentalDeliveryId(e.target.value)}
+                        style={{ padding: '7px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                      >
+                        <option value="">-- 배차 건 미지정 (현장 장비 동봉 출고) --</option>
+                        {pendingRentalDeliveries.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.id} ({d.dispatchCategory || d.type} · 상차일: {d.loadingDate || d.scheduledDate || d.requestDate || '-'} · 상태: {d.status === 'COMPLETED' ? '운송완료' : d.status === 'DISPATCHED' ? '배차완료' : '배차대기'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.6fr', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>현장 수령인</label>
+                      <input
+                        type="text"
+                        value={tradeReceiverName}
+                        onChange={e => setTradeReceiverName(e.target.value)}
+                        style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>수령인 연락처</label>
+                      <input
+                        type="text"
+                        value={tradeReceiverPhone}
+                        onChange={e => setTradeReceiverPhone(e.target.value)}
+                        style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>현장 배송지 주소</label>
+                      <input
+                        type="text"
+                        value={tradeReceiverAddress}
+                        onChange={e => setTradeReceiverAddress(e.target.value)}
+                        style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 청구 반영 방식 (당월 렌탈 청구에 합산 vs 유통 별도 청구) */}
+                <div style={{ padding: '12px', backgroundColor: 'rgba(2, 132, 199, 0.06)', borderRadius: '8px', border: '1px solid rgba(2, 132, 199, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, color: '#0369a1' }}>
+                    3단계: 당월 청구 반영 방식
+                  </label>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setTradeBillingMode('MERGE_CURRENT_MONTH')}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? 800 : 500,
+                        cursor: 'pointer',
+                        border: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? '1px solid #0284c7' : '1px solid var(--border-color)',
+                        backgroundColor: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? '#0284c7' : 'var(--bg-card)',
+                        color: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? '#fff' : 'var(--text-primary)'
+                      }}
+                    >
+                      ✓ 당월 렌탈 청구에 합산 (권장)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTradeBillingMode('SEPARATE_TRADE_BILLING')}
+                      style={{
+                        padding: '7px 14px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: tradeBillingMode === 'SEPARATE_TRADE_BILLING' ? 800 : 500,
+                        cursor: 'pointer',
+                        border: tradeBillingMode === 'SEPARATE_TRADE_BILLING' ? '1px solid #475569' : '1px solid var(--border-color)',
+                        backgroundColor: tradeBillingMode === 'SEPARATE_TRADE_BILLING' ? '#475569' : 'var(--bg-card)',
+                        color: tradeBillingMode === 'SEPARATE_TRADE_BILLING' ? '#fff' : 'var(--text-primary)'
+                      }}
+                    >
+                      유통 별도 청구
+                    </button>
+
+                    {tradeBillingMode === 'MERGE_CURRENT_MONTH' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1' }}>합산 귀속월:</label>
+                        <input
+                          type="month"
+                          value={tradeTargetBillingYm}
+                          onChange={e => setTradeTargetBillingYm(e.target.value)}
+                          style={{ padding: '5px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid #0284c7', fontWeight: 700 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {tradeBillingMode === 'MERGE_CURRENT_MONTH' && (
+                    <div style={{ fontSize: '11.5px', color: '#0369a1', fontWeight: 600 }}>
+                      {existingMonthBilling
+                        ? `• 현재 이 계약의 [${tradeTargetBillingYm}] 청구서(${existingMonthBilling.id})가 이미 생성되어 있으므로, 확정 즉시 해당 청구서 명세 및 청구 총액에 자동 합산됩니다.`
+                        : `• 이 계약의 [${tradeTargetBillingYm}] 정기 청구 생성 시(개별 마법사 및 일괄 청구 모두) 별도 수동 클릭 없이 당월 청구 명세에 100% 자동 합산됩니다.`}
+                    </div>
+                  )}
+                </div>
+
+                {/* 비고 메모 및 하단 합계 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="출고 특이사항 메모 (선택)"
+                    value={tradeMemo}
+                    onChange={e => setTradeMemo(e.target.value)}
+                    style={{ flex: 1, minWidth: '200px', padding: '8px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}
+                  />
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#0284c7' }}>
+                    출고 공급가 합계: ₩{totalSupplyAmount.toLocaleString()}원
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowTradeOutboundModal(false)}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmittingTradeOutbound || tradeSelectedItems.length === 0}
+                    style={{ backgroundColor: '#0284c7', borderColor: '#0284c7', fontWeight: 800, padding: '8px 16px' }}
+                  >
+                    {isSubmittingTradeOutbound ? '등록 중...' : '유통출고 및 당월 청구 등록 확정'}
                   </button>
                 </div>
               </form>

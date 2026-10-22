@@ -59,7 +59,7 @@ export const TradeOutboundPage: React.FC = () => {
   const [isOutboundModalOpen, setIsOutboundModalOpen] = useState(false);
   const [editingOutbound, setEditingOutbound] = useState<TradeOutbound | null>(null);
   const [formOrderId, setFormOrderId] = useState<string>('');
-  const [formDeliveryType, setFormDeliveryType] = useState<'COURIER' | 'DIRECT'>('COURIER');
+  const [formDeliveryType, setFormDeliveryType] = useState<'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL'>('COURIER');
   const [formDestinationAddress, setFormDestinationAddress] = useState<string>('');
   const [formReceiverName, setFormReceiverName] = useState<string>('');
   const [formReceiverPhone, setFormReceiverPhone] = useState<string>('');

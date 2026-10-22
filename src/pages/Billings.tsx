@@ -1984,15 +1984,26 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     );
   };
 
-  // 일괄 생성 가능 계약(외상미수금 없는 일반 계약) vs 수동 검토 계약(외상미수금 보유 계약) 분리
+  // 💡 계약 상세에서 '당월 렌탈 청구에 합산'으로 등록된 유통출고 채권인지 판별 (일괄/개별 청구 시 자동 합산 대상)
+  const isAutoLinkedTradeReceivable = (r: any) => {
+    const desc = String(r?.internalDescription || '');
+    const disp = String(r?.displayName || '');
+    return desc.startsWith('[유통출고') || disp.startsWith('[유통출고]');
+  };
+
+  // 일괄 생성 가능 계약(수동 검토 외상미수금 없는 계약 - 유통출고 자동합산분은 일괄 생성 허용) vs 수동 검토 계약 분리
   const contractsWithoutReceivables = useMemo(() => {
     if (activeTab !== 'WIZARD') return [];
-    return filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length === 0);
+    return filteredWizardContracts.filter(c =>
+      getUnbilledReceivablesForContract(c).filter(r => !isAutoLinkedTradeReceivable(r)).length === 0
+    );
   }, [activeTab, filteredWizardContracts, receivables]);
 
   const contractsWithReceivables = useMemo(() => {
     if (activeTab !== 'WIZARD') return [];
-    return filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length > 0);
+    return filteredWizardContracts.filter(c =>
+      getUnbilledReceivablesForContract(c).filter(r => !isAutoLinkedTradeReceivable(r)).length > 0
+    );
   }, [activeTab, filteredWizardContracts, receivables]);
 
   const handleBulkGenerateWizard = async () => {
@@ -2119,7 +2130,31 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
   const handleSelectContractForWizard = (c: any) => {
     setSelectedContractIdForWizard(c.id);
-    setExtraCharges([]);
+
+    // 💡 계약 상세에서 '당월 렌탈 청구에 합산'으로 등록된 미청구 유통출고 건은 클릭 즉시 자동 선택 및 합산 반영
+    const autoTradeRcvs = receivables.filter(r =>
+      r.status !== 'CLEARED' &&
+      ((r.totalAmount || 0) - (r.billedAmount || 0)) > 0 &&
+      r.contractId === c.id &&
+      isAutoLinkedTradeReceivable(r)
+    );
+    setSelectedReceivablesForWizard(autoTradeRcvs.map(rcv => ({
+      receivableId: rcv.id,
+      amount: Math.max(0, (rcv.totalAmount || 0) - (rcv.billedAmount || 0)),
+      displayName: rcv.displayName || rcv.internalDescription
+    })));
+    setExtraCharges(autoTradeRcvs.map(rcv => {
+      const remaining = Math.max(0, (rcv.totalAmount || 0) - (rcv.billedAmount || 0));
+      return {
+        id: `EXTRA-RCV-${rcv.id}`,
+        category: 'OTHER',
+        customName: rcv.displayName || rcv.internalDescription,
+        quantity: 1,
+        unitPrice: remaining,
+        description: rcv.internalDescription
+      };
+    }));
+
     setDismissedPaidOptionIdsForWizard([]);
     setSelectedRepairIdsForWizard([]);
     setSelectedDeliveryIdsForWizard([]);

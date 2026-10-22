@@ -50,6 +50,14 @@ export const SPECIAL_FEATURES_REGISTRY: SpecialFeatureDef[] = [
     menuName: '택배 배송 관리',
     name: '화물직배 배차 기사 배정 버튼',
     description: '외주 용달/화물 기사를 직접 지정 배정하고 하차지 및 인수자 정보를 확정하는 특수 배차 액션'
+  },
+  {
+    id: 'btn:contracts:trade_outbound',
+    type: 'BUTTON',
+    menuId: 'contracts',
+    menuName: '계약 관리',
+    name: '계약 상세 유통출고 및 당월 청구 반영 버튼',
+    description: '기존 렌탈 계약(고객현장) 상세 화면에서 안전용품·부품 등 유통상품을 출고 등록하고 당월 렌탈 청구에 자동 합산하는 기능'
   }
 ];
 

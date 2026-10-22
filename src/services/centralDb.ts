@@ -41,10 +41,18 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
 
     return (data || []).map(row => {
       const decrypted = decryptEntityPrivacyFields('tenants', row);
-      const specialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'] : undefined);
+      const rawSpecialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'] : undefined);
+      const explicitContractTrade = (decrypted as any).allowContractTradeOutbound ?? decrypted.features?.allowContractTradeOutbound;
+      const resolvedAllowContractTradeOutbound = typeof explicitContractTrade === 'boolean' ? explicitContractTrade : true;
+      const specialFeatures = Array.isArray(rawSpecialFeatures)
+        ? (resolvedAllowContractTradeOutbound && !rawSpecialFeatures.includes('btn:contracts:trade_outbound') && explicitContractTrade !== false
+            ? [...rawSpecialFeatures, 'btn:contracts:trade_outbound']
+            : rawSpecialFeatures)
+        : rawSpecialFeatures;
       const po = decrypted.privacyOfficer || decrypted.features?.privacyOfficer;
       return {
         ...decrypted,
+        allowContractTradeOutbound: resolvedAllowContractTradeOutbound,
         specialFeatures,
         excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,
         r2Config: (decrypted as any).r2Config || decrypted.features?.r2Config,
@@ -84,6 +92,10 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
 
     if (payload.specialFeatures !== undefined) {
       mergedFeatures.specialFeatures = payload.specialFeatures;
+      featuresTouched = true;
+    }
+    if (payload.allowContractTradeOutbound !== undefined) {
+      mergedFeatures.allowContractTradeOutbound = payload.allowContractTradeOutbound;
       featuresTouched = true;
     }
     if (payload.excelMappingRules !== undefined) {

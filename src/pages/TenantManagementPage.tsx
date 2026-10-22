@@ -123,6 +123,7 @@ export const TenantManagementPage: React.FC = () => {
     status: 'ACTIVE',
     isDefault: false,
     allowCustomBillingStatement: false,
+    allowContractTradeOutbound: true,
     allowedPages: [],
     hiddenPages: [],
     specialFeatures: [],
@@ -321,6 +322,7 @@ export const TenantManagementPage: React.FC = () => {
       setEditingTenant(tenant);
       setFormData({
         ...tenant,
+        allowContractTradeOutbound: tenant.allowContractTradeOutbound ?? tenant.features?.allowContractTradeOutbound ?? true,
         solutionType: tenant.solutionType || 'AWP',
         targetRepo: tenant.targetRepo || '',
         features: {
@@ -330,6 +332,7 @@ export const TenantManagementPage: React.FC = () => {
           autoTaxInvoice: tenant.features?.autoTaxInvoice ?? true,
           voiceAssistance: tenant.features?.voiceAssistance ?? true,
           agentAiEnabled: tenant.features?.agentAiEnabled ?? false,
+          allowContractTradeOutbound: tenant.allowContractTradeOutbound ?? tenant.features?.allowContractTradeOutbound ?? true,
           customDomain: tenant.features?.customDomain ?? '',
         },
         allowedPages: Array.isArray(tenant.allowedPages) ? [...tenant.allowedPages] : [],
@@ -402,6 +405,7 @@ export const TenantManagementPage: React.FC = () => {
         status: 'ACTIVE',
         isDefault: false,
         allowCustomBillingStatement: false,
+        allowContractTradeOutbound: true,
         allowedPages: allMenuIds,
         hiddenPages: [],
         specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id),
@@ -704,21 +708,40 @@ export const TenantManagementPage: React.FC = () => {
       const current = prev.specialFeatures || [];
       const exists = current.includes(featureId);
       const next = exists ? current.filter(id => id !== featureId) : [...current, featureId];
-      return { ...prev, specialFeatures: next };
+      const nextContractTrade = featureId === 'btn:contracts:trade_outbound' ? !exists : prev.allowContractTradeOutbound;
+      return {
+        ...prev,
+        specialFeatures: next,
+        allowContractTradeOutbound: nextContractTrade,
+        features: {
+          ...(prev.features || {}),
+          allowContractTradeOutbound: nextContractTrade
+        }
+      };
     });
   };
 
   const handleGrantAllSpecialFeatures = () => {
     setFormData(prev => ({
       ...prev,
-      specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id)
+      specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id),
+      allowContractTradeOutbound: true,
+      features: {
+        ...(prev.features || {}),
+        allowContractTradeOutbound: true
+      }
     }));
   };
 
   const handleRevokeAllSpecialFeatures = () => {
     setFormData(prev => ({
       ...prev,
-      specialFeatures: []
+      specialFeatures: [],
+      allowContractTradeOutbound: false,
+      features: {
+        ...(prev.features || {}),
+        allowContractTradeOutbound: false
+      }
     }));
   };
 
@@ -903,10 +926,12 @@ export const TenantManagementPage: React.FC = () => {
         r2Config: finalR2Config,
         features: {
           ...(formData.features || {}),
+          allowContractTradeOutbound: formData.allowContractTradeOutbound !== false,
           specialFeatures: formData.specialFeatures || [],
           r2Config: finalR2Config,
           officialMailConfig: finalOfficialMailConfig,
         } as any,
+        allowContractTradeOutbound: formData.allowContractTradeOutbound !== false,
         specialFeatures: formData.specialFeatures || [],
         updatedAt: nowIso,
       };
@@ -3159,6 +3184,60 @@ export const TenantManagementPage: React.FC = () => {
                     >
                       {formData.allowCustomBillingStatement ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                       <span>{formData.allowCustomBillingStatement ? '활성' : '비활성'}</span>
+                    </button>
+                  </div>
+
+                  {/* 렌탈 계약 연동 유통 출고(당월 청구 합산) 허용 */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        렌탈 계약 연동 유통 출고 허용
+                      </span>
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                        계약 상세 화면에서 유통 상품 출고 등록 및 당월 렌탈 청구 자동 합산 기능 활성화
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => {
+                        const nextVal = !(prev.allowContractTradeOutbound !== false);
+                        const curSf = prev.specialFeatures || [];
+                        const nextSf = nextVal
+                          ? (curSf.includes('btn:contracts:trade_outbound') ? curSf : [...curSf, 'btn:contracts:trade_outbound'])
+                          : curSf.filter(id => id !== 'btn:contracts:trade_outbound');
+                        return {
+                          ...prev,
+                          allowContractTradeOutbound: nextVal,
+                          specialFeatures: nextSf,
+                          features: {
+                            ...(prev.features || {}),
+                            allowContractTradeOutbound: nextVal
+                          }
+                        };
+                      })}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: formData.allowContractTradeOutbound !== false ? 'var(--primary)' : 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 700,
+                        fontSize: '13px'
+                      }}
+                    >
+                      {formData.allowContractTradeOutbound !== false ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                      <span>{formData.allowContractTradeOutbound !== false ? '활성' : '비활성'}</span>
                     </button>
                   </div>
                 </div>

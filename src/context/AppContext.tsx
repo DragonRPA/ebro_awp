@@ -401,6 +401,7 @@ interface AppContextType {
   saveCustomStatementForBilling: (billingId: string, data: { reason: string; items: CustomStatementItem[]; originalSummary?: string; approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; approvalRequestId?: string }) => Promise<void>;
   removeCustomStatementForBilling: (billingId: string) => Promise<void>;
   toggleTenantCustomBillingStatement: (tenantId: string, enabled: boolean) => Promise<void>;
+  toggleTenantContractTradeOutbound: (tenantId: string, enabled: boolean) => Promise<void>;
   splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<string>;
   approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
   cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
@@ -9527,7 +9528,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    if (detailsList.length === 0) return null;
+    const unbilledTradeReceivables = (db.receivables || []).filter(
+      r =>
+        r.contractId === c.id &&
+        r.status !== 'CLEARED' &&
+        (r.totalAmount || 0) - (r.billedAmount || 0) > 0 &&
+        Boolean(r.internalDescription && r.internalDescription.includes('[유통출고:'))
+    );
+
+    if (detailsList.length === 0 && unbilledTradeReceivables.length === 0) return null;
 
     // 4. 청구서 생성 — 초기 상태 UNPAID (F-2 원칙: 거래명세서 발송 후 REQUESTED로 전환)
     const newBilling = db.insertRow<Billing>('billings', {
@@ -9554,6 +9563,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     });
 
+    // 5. 계약 연동 유통출고 미청구분이 있으면 당월 청구에 즉시 자동 병합
+    for (const rcv of unbilledTradeReceivables) {
+      const rem = (rcv.totalAmount || 0) - (rcv.billedAmount || 0);
+      if (rem > 0) {
+        await linkReceivableToBilling(newBilling.id, rcv.id, rem, rcv.displayName || rcv.internalDescription);
+      }
+    }
+
     // 💡 계약 메타데이터 트리거 자동 갱신 (최근 청구 발행일, 시작일, 종료일, 청구건수)
     syncContractBillingMilestones(c.id);
 
@@ -9570,9 +9587,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const skippedContracts: { contractId: string; customerId: string; reason: string }[] = [];
 
       for (const item of dueContracts) {
-        // K-1: 미청구 외상미수금 존재 여부 체크 (일괄 청구 방어 로직)
+        // K-1: 미청구 외상미수금 존재 여부 체크 (일괄 청구 방어 로직 — 단, 계약 상세에서 당월 청구 합산으로 확정 등록된 [유통출고] 건은 자동 병합하므로 보류 대상에서 제외)
         const hasPendingReceivables = db.receivables.some(r => 
-          r.contractId === item.contract.id && r.status !== 'CLEARED'
+          r.contractId === item.contract.id &&
+          r.status !== 'CLEARED' &&
+          !(r.internalDescription && r.internalDescription.includes('[유통출고:'))
         );
 
         if (hasPendingReceivables) {
@@ -9880,6 +9899,28 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const target = tenants.find(t => t.id === tenantId) || currentTenant;
     if (!target) return;
     await saveTenant({ id: target.id, allowCustomBillingStatement: enabled });
+  };
+
+  // 💡 테넌트별 렌탈 계약 연동 유통 출고(당월 청구 합산) 기능 활성화/비활성화 제어
+  const toggleTenantContractTradeOutbound = async (tenantId: string, enabled: boolean) => {
+    const target = tenants.find(t => t.id === tenantId) || currentTenant;
+    if (!target) return;
+    const curSf = Array.isArray(target.specialFeatures)
+      ? target.specialFeatures
+      : (Array.isArray(target.features?.specialFeatures) ? target.features.specialFeatures : []);
+    const nextSf = enabled
+      ? (curSf.includes('btn:contracts:trade_outbound') ? curSf : [...curSf, 'btn:contracts:trade_outbound'])
+      : curSf.filter(id => id !== 'btn:contracts:trade_outbound');
+    await saveTenant({
+      id: target.id,
+      allowContractTradeOutbound: enabled,
+      specialFeatures: nextSf,
+      features: {
+        ...(target.features || {}),
+        allowContractTradeOutbound: enabled,
+        specialFeatures: nextSf
+      }
+    });
   };
 
   // v2: 복수 입금건 연동 수납 처리
@@ -13107,7 +13148,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
-      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
+      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, toggleTenantContractTradeOutbound, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,
       uploadBankTransactions, matchTransactionManual, batchAutoMatchTransactions, unmatchTransaction, saveMatchingRule, deleteMatchingRule,
       dispatchDelivery, settleDeliveryCost, completeDelivery, completeInboundDelivery,
