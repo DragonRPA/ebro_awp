@@ -766,6 +766,132 @@ export const Customers: React.FC = () => {
     showToast(`전체 고객현장 마감일 현황 (${excelData.length}개 현장) 엑셀이 다운로드되었습니다.`);
   };
 
+  const handleExportAllCustomerContacts = () => {
+    const sortedCusts = sortCustomersByName([...customers]);
+    const rows: Record<string, any>[] = [];
+    let seq = 1;
+
+    for (const cust of sortedCusts) {
+      const cName = cust.name || '-';
+      const cBizNo = cust.bizRegNo || '-';
+      const cCeo = cust.representative || '-';
+      const cSites = (sites || [])
+        .filter(st => st.customerId === cust.id)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ko'));
+      const cContacts = (contacts || []).filter(cc => cc.customerId === cust.id);
+      let pushedForCust = false;
+
+      for (const st of cSites) {
+        const sName = st.name || '-';
+        const sAddr = st.address || '-';
+        const stmtDay = st.statementClosingDay || cust.defaultStatementClosingDay || 25;
+        const billDay = st.billingDay || cust.defaultBillingDay || 30;
+        const stmtStr = `매월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`;
+        const billStr = `매월 ${billDay === 31 ? '말일' : `${billDay}일`}`;
+        const arr = Array.isArray(st.contacts) ? st.contacts : [];
+
+        if (arr.length > 0) {
+          for (const sc of arr) {
+            if (!sc) continue;
+            if (!sc.name && !sc.contact && !sc.email) continue;
+            const typeLabel =
+              sc.contactType === 'EQUIPMENT' ? '장비담당자' :
+              sc.contactType === 'CLOSING' ? '마감담당자' :
+              sc.contactType === 'SAFETY' ? '안전담당자' : '현장담당자';
+            rows.push({
+              '순번': seq++,
+              '고객사명': cName,
+              '사업자등록번호': cBizNo,
+              '대표자': cCeo,
+              '고객현장명': sName,
+              '현장주소': sAddr,
+              '담당구분': typeLabel,
+              '대표지정': sc.isPrimary ? '대표' : '',
+              '담당자 성명': sc.name || '-',
+              '직책/역할': sc.position || '-',
+              '전화번호(휴대폰)': sc.contact || '-',
+              '이메일주소': sc.email || '-',
+              '명세서 마감일': stmtStr,
+              '계산서 마감일': billStr,
+              '사용상태': sc.isActive !== false ? '사용중' : '미사용'
+            });
+            pushedForCust = true;
+          }
+        } else if (st.contactName || st.contact || st.email) {
+          rows.push({
+            '순번': seq++,
+            '고객사명': cName,
+            '사업자등록번호': cBizNo,
+            '대표자': cCeo,
+            '고객현장명': sName,
+            '현장주소': sAddr,
+            '담당구분': '장비담당자',
+            '대표지정': '대표',
+            '담당자 성명': st.contactName || '-',
+            '직책/역할': '-',
+            '전화번호(휴대폰)': st.contact || '-',
+            '이메일주소': st.email || '-',
+            '명세서 마감일': stmtStr,
+            '계산서 마감일': billStr,
+            '사용상태': st.isActive !== false ? '사용중' : '완공/종료'
+          });
+          pushedForCust = true;
+        }
+      }
+
+      for (const cc of cContacts) {
+        if (!cc.name && !cc.contact && !cc.email) continue;
+        const dup = rows.some(
+          r => r['고객사명'] === cName && r['담당자 성명'] === (cc.name || '-') && r['전화번호(휴대폰)'] === (cc.contact || '-')
+        );
+        if (dup) continue;
+        rows.push({
+          '순번': seq++,
+          '고객사명': cName,
+          '사업자등록번호': cBizNo,
+          '대표자': cCeo,
+          '고객현장명': '본사/공통',
+          '현장주소': cust.address || '-',
+          '담당구분': '고객사담당자',
+          '대표지정': (cc as any).isPrimary ? '대표' : '',
+          '담당자 성명': cc.name || '-',
+          '직책/역할': cc.position || '-',
+          '전화번호(휴대폰)': cc.contact || '-',
+          '이메일주소': cc.email || '-',
+          '명세서 마감일': `매월 ${(cust.defaultStatementClosingDay || 25) === 31 ? '말일' : `${cust.defaultStatementClosingDay || 25}일`}`,
+          '계산서 마감일': `매월 ${(cust.defaultBillingDay || 30) === 31 ? '말일' : `${cust.defaultBillingDay || 30}일`}`,
+          '사용상태': cc.isActive !== false ? '사용중' : '미사용'
+        });
+        pushedForCust = true;
+      }
+
+      if (!pushedForCust && (cust.repContact || cust.repEmail)) {
+        const repC = (cust.repContact || '').trim();
+        const isPhone = /[0-9]{2,4}-[0-9]{3,4}-[0-9]{4}/.test(repC);
+        rows.push({
+          '순번': seq++,
+          '고객사명': cName,
+          '사업자등록번호': cBizNo,
+          '대표자': cCeo,
+          '고객현장명': '본사/기본',
+          '현장주소': cust.address || '-',
+          '담당구분': '기본담당',
+          '대표지정': '대표',
+          '담당자 성명': !isPhone && repC ? repC : cCeo,
+          '직책/역할': '-',
+          '전화번호(휴대폰)': isPhone ? repC : '-',
+          '이메일주소': cust.repEmail || '-',
+          '명세서 마감일': `매월 ${(cust.defaultStatementClosingDay || 25) === 31 ? '말일' : `${cust.defaultStatementClosingDay || 25}일`}`,
+          '계산서 마감일': `매월 ${(cust.defaultBillingDay || 30) === 31 ? '말일' : `${cust.defaultBillingDay || 30}일`}`,
+          '사용상태': cust.isClosed ? '폐업' : '사용중'
+        });
+      }
+    }
+
+    exportToExcel(rows, `등록된_모든_고객_담당자_목록_${new Date().toISOString().split('T')[0]}`, '전체고객담당자목록');
+    showToast(`등록된 전체 고객 담당자 (${rows.length}명) 엑셀이 다운로드되었습니다.`);
+  };
+
   // 고객사 등록/수정 핸들러
   const handleOpenAddCust = () => {
     setEditingCust({ 
@@ -1636,6 +1762,13 @@ const handleDeleteAccount = async (accId: string) => {
               <FileSpreadsheet size={13} /> 엑셀 일괄 등록
             </button>
           )}
+          <button
+            className="btn-excel-download"
+            onClick={handleExportAllCustomerContacts}
+            title="등록된 모든 고객 및 고객현장 담당자(장비/마감/안전/본사) 전체 엑셀 다운로드"
+          >
+            <Download size={13} /> 전체 담당자 엑셀
+          </button>
           <button
             className="btn-excel-download"
             onClick={handleExportAllSitesClosingSchedule}
