@@ -440,8 +440,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       const fromEntry = checkDelivery(entry.delivery);
       if (fromEntry) return fromEntry;
     }
+    if (selectedContract?.freightBillingStandard === '2/4' || selectedContract?.freightBillingStandard === '3/5') {
+      return selectedContract.freightBillingStandard;
+    }
     return '3/5';
-  }, [outboundDelivery, contractOutboundDeliveries]);
+  }, [outboundDelivery, contractOutboundDeliveries, selectedContract]);
 
   useEffect(() => {
     setFreightBillingStandard(defaultFreightBillingStandard);

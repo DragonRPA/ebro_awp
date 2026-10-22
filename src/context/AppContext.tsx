@@ -3327,14 +3327,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let contract: Contract;
 
+    const resolvedFreightStd: '2/4' | '3/5' = rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5';
+
     if (existingActiveContract) {
       // 1) 기존 계약이 존재할 경우: 신규 계약을 파편화하여 생성하지 않고 기존 계약에 장비 편입!
-      if (existingActiveContract.status === 'COMPLETED') {
+      if (existingActiveContract.status === 'COMPLETED' || existingActiveContract.freightBillingStandard !== resolvedFreightStd) {
         const reactivated = db.updateRow<Contract>('contracts', existingActiveContract.id, {
           status: 'ACTIVE',
+          freightBillingStandard: resolvedFreightStd,
           updatedAt: new Date().toISOString(),
         });
-        contract = reactivated || { ...existingActiveContract, status: 'ACTIVE' };
+        contract = reactivated || { ...existingActiveContract, status: 'ACTIVE', freightBillingStandard: resolvedFreightStd };
       } else {
         contract = existingActiveContract;
       }
@@ -3366,6 +3369,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         endDate: '', 
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
+        freightBillingStandard: resolvedFreightStd,
         lateInterestRate: contractLateInterestRate,
         paymentDueDay: contractPaymentDueDay,
         salespersonId: validSalespersonId,

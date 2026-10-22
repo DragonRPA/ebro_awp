@@ -415,6 +415,30 @@ export const Contracts: React.FC = () => {
     return initialContractDateMap.get(c.id) || c.startDate || '-';
   };
 
+  // 💡 계약별 운송료 청구기준 산출 ('3/5' 기본 | '2/4')
+  const getContractFreightBillingStandard = (c?: Contract | null): '3/5' | '2/4' => {
+    if (!c) return '3/5';
+    if (c.freightBillingStandard === '2/4' || c.freightBillingStandard === '3/5') {
+      return c.freightBillingStandard;
+    }
+    const relDels = deliveriesByContractMap.get(c.id) || [];
+    for (const d of relDels) {
+      if (d.cargoItems) {
+        try {
+          const parsed = JSON.parse(d.cargoItems);
+          const metaStd = Array.isArray(parsed)
+            ? parsed.find((ci: any) => ci?.requestMeta?.freightBillingStandard)?.requestMeta?.freightBillingStandard
+            : undefined;
+          if (metaStd === '2/4' || metaStd === '3/5') return metaStd;
+        } catch {}
+      }
+      const txt = `${d.memo || ''} ${d.rawText || ''}`;
+      if (txt.includes('[운송료청구기준] 2/4') || txt.includes('운송료청구기준: 2/4')) return '2/4';
+      if (txt.includes('[운송료청구기준] 3/5') || txt.includes('운송료청구기준: 3/5')) return '3/5';
+    }
+    return '3/5';
+  };
+
   // 오늘 날짜 및 D-Day 계산
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -762,6 +786,10 @@ export const Contracts: React.FC = () => {
           case 'billingDay':
              aValue = a.billingDay || 0;
              bValue = b.billingDay || 0;
+             break;
+          case 'freightBillingStandard':
+             aValue = getContractFreightBillingStandard(a);
+             bValue = getContractFreightBillingStandard(b);
              break;
           case 'salesperson':
             aValue = (a.salespersonId ? userMap.get(a.salespersonId)?.name : '') || '';
@@ -1373,49 +1401,86 @@ export const Contracts: React.FC = () => {
   };
 
   const handleExportExcel = () => {
-    const excelData = filteredContracts.map((c, idx) => {
+    const excelData = sortedContracts.map((c) => {
       const cas = contractAssetsByContractMap.get(c.id) || [];
-      const totalMonthlyRent = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
-      const assetSummary = cas.map(ca => {
+      const totalFee = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
+      const dday = getDDayText(c.endDate);
+      const hasZeroFee = cas.some(ca => ca.monthlyRentalFee === 0);
+      const custObj = customerMap.get(c.customerId);
+      const initialDateStr = getInitialContractDate(c);
+      const freightStd = getContractFreightBillingStandard(c);
+
+      const modelCountMap: Record<string, number> = {};
+      cas.forEach(ca => {
         const a = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-        return a ? `${a.modelName} (${a.assetNo})` : (ca.expectedModel || '미배정');
-      }).join(', ');
+        const modelName = a?.modelName || ca.expectedModel || '미지정 모델';
+        modelCountMap[modelName] = (modelCountMap[modelName] || 0) + 1;
+      });
+      const models = Object.entries(modelCountMap);
+      let modelSummaryText = '';
+      if (models.length === 0) {
+        modelSummaryText = '미지정';
+      } else if (models.length === 1) {
+        modelSummaryText = `${models[0][0]} ${models[0][1]}대`;
+      } else {
+        const [firstModel, firstCount] = models[0];
+        const otherCount = cas.length - firstCount;
+        modelSummaryText = `${firstModel} 외 ${otherCount}대`;
+      }
 
-      return {
-        // ① 식별 및 계약
-        '순번': idx + 1,
-        '계약번호': c.contractNo,
-        '계약 상태': c.status === 'ACTIVE' ? '진행중' :
-                   c.status === 'EXTENDED' ? '연장됨' :
-                   c.status === 'SUCCEEDED' ? '승계됨' :
-                   c.status === 'SHORTENED' ? '단축종료' : '종료',
-
-        // ② 거래처 및 현장
-        '고객사명': getCustName(c.customerId),
+      const row: Record<string, any> = {
+        '계약번호': c.contractType === 'SALE' ? `${c.contractNo} [매각]` : c.contractNo,
+        '고객사명': custObj?.name || getCustName(c.customerId),
         '현장명': getSiteName(c.siteId),
-        '현장 담당자': getContactName(c.contactId),
-        '영업 담당자': (c.salespersonId ? userMap.get(c.salespersonId)?.name : undefined) || '-',
-
-        // ③ 체결 장비 요약
-        '체결 장비 수': `${cas.length}대`,
-        '체결 장비 목록': assetSummary || '-',
-
-        // ④ 계약 일정 및 청구 조건
-        '계약 시작일': c.startDate,
-        '계약 만료일': formatContractEndDate(c.endDate),
-        '계산서 마감일': `매월 ${c.billingDay === 31 ? '말일' : `${c.billingDay}일`}`,
-        '명세서 마감일': c.statementClosingDay ? `매월 ${c.statementClosingDay === 31 ? '말일' : `${c.statementClosingDay}일`}` : '-',
-        '납기일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
-        '월 임대료 합계(원)': totalMonthlyRent,
-
-        // ⑤ 승계 및 이력 연계
-        '전계약번호': c.predecessorContractNo || '-',
-        '전고객사명': c.predecessorCustomerName || '-',
-        '후계약 ID': c.successorContractId || '-',
-
-        // ⑥ 감사
-        '등록일자': c.createdAt ? c.createdAt.split('T')[0] : '-'
       };
+
+      if (showOutboundProgressCol) {
+        const m = getContractOutboundMilestones(c);
+        row['출고 진행 현황'] = m.isDelivered
+          ? '운송완료'
+          : c.status === 'COMPLETED'
+            ? '계약종료'
+            : [
+                m.isDispatched ? '✓ 배차완료' : '배차대기',
+                m.isAssigned ? '✓ 장비할당' : (m.unassignedCount > 0 ? `미할당 ${m.unassignedCount}대` : '장비미할당'),
+                m.isInspected ? '✓ 출고검수' : '검수대기',
+                m.isPackageSent ? '✓ 계약서발송' : '계약서미발송'
+              ].join(' / ');
+      }
+
+      row['체결 자산'] = `${modelSummaryText || '미지정'} (총 ${cas.length}대)`;
+      row['월 렌탈료'] = c.contractType === 'SALE'
+        ? `매각가 ₩${cas.reduce((s, ca) => s + (ca.salePrice || 0), 0).toLocaleString()}원`
+        : hasZeroFee
+          ? '0원 (미입력)'
+          : `${totalFee.toLocaleString()}원`;
+      row['최초개시일'] = initialDateStr;
+
+      if (showPeriodCol) {
+        row['계약 기간'] = `${initialDateStr} ~ ${formatContractEndDate(c.endDate)}`;
+      }
+
+      if (showLastBilledCol) {
+        row['최근 청구 기간'] = c.lastBilledPeriodStart && c.lastBilledPeriodEnd
+          ? `${c.lastBilledPeriodStart} ~ ${c.lastBilledPeriodEnd}${c.lastBillingDate ? ` (${c.lastBilledYm || ''}월분 / ${c.lastBillingDate} 발행)` : ''}`
+          : '- (미청구)';
+      }
+
+      if (showBillingCountCol) {
+        const cBillings = billingsByContractMap.get(c.id) || [];
+        const unpaidCount = cBillings.filter(b => b.status !== 'PAID').length;
+        row['청구 건수'] = cBillings.length === 0
+          ? '0건 (미청구)'
+          : `총 ${cBillings.length}건${unpaidCount > 0 ? ` (미수 ${unpaidCount})` : ''}`;
+      }
+
+      row['만료 잔여일'] = dday.text;
+      row['계산서 마감일'] = `매월 ${c.billingDay}일`;
+      row['운송료 청구기준'] = c.contractType === 'SALE' ? '-' : `${freightStd} 기준`;
+      row['영업담당'] = (c.salespersonId ? userMap.get(c.salespersonId)?.name : undefined) || '-';
+      row['상태'] = `${c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : '종료'}${c.approvalStatus === 'PENDING' ? ' (결재대기)' : ''}`;
+
+      return row;
     });
 
     exportToExcel(excelData, `계약대장_${todayStr}`, '계약목록');
@@ -2176,6 +2241,7 @@ export const Contracts: React.FC = () => {
                     {showBillingCountCol && <SortableTh label="청구 건수" sortKey="billingCount" currentSort={sortConfig} onSort={handleSort} align="center" />}
                     <SortableTh label="만료 잔여일" sortKey="dday" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="계산서 마감일" sortKey="billingDay" currentSort={sortConfig} onSort={handleSort} align="center" />
+                    <SortableTh label="운송료 청구기준" sortKey="freightBillingStandard" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="영업담당" sortKey="salesperson" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={handleSort} align="center" />
                   </tr>
@@ -2183,7 +2249,7 @@ export const Contracts: React.FC = () => {
                 <tbody style={{ whiteSpace: 'nowrap' }}>
                   {sortedContracts.length === 0 ? (
                     <tr>
-                      <td colSpan={11 + (showOutboundProgressCol ? 1 : 0) + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <td colSpan={12 + (showOutboundProgressCol ? 1 : 0) + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                         조회 결과가 없습니다.
                       </td>
                     </tr>
@@ -2338,6 +2404,30 @@ export const Contracts: React.FC = () => {
                             )}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>매월 {c.billingDay}일</td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            {c.contractType === 'SALE' ? (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>-</span>
+                            ) : (() => {
+                              const std = getContractFreightBillingStandard(c);
+                              return (
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    fontSize: '11.5px',
+                                    fontWeight: 700,
+                                    backgroundColor: std === '2/4' ? 'rgba(245, 158, 11, 0.14)' : 'var(--bg-app)',
+                                    color: std === '2/4' ? '#d97706' : 'var(--text-primary)',
+                                    border: `1px solid ${std === '2/4' ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}`
+                                  }}
+                                  title={std === '2/4' ? '2개월 이하 왕복 임차인 / 4개월 이하 편도 임차인 / 4개월 초과 임대인 부담' : '3개월 이하 왕복 임차인 / 5개월 이하 편도 임차인 / 5개월 초과 임대인 부담'}
+                                >
+                                  {std} 기준
+                                </span>
+                              );
+                            })()}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{(c.salespersonId ? userMap.get(c.salespersonId)?.name : undefined) || '-'}</td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2676,6 +2766,49 @@ export const Contracts: React.FC = () => {
                 </div>
                 
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계산서 마감일 / 명세서 마감일 / 납기일</label>매월 {activeContract.billingDay === 31 ? '말일' : `${activeContract.billingDay}일`} / {activeContract.statementClosingDay ? (activeContract.statementClosingDay === 31 ? '말일' : `${activeContract.statementClosingDay}일`) : '-'} (납기: {formatPaymentDueCondition(activeContract.paymentDueMonthOffset, activeContract.paymentDueDay)})</div>
+                {activeContract.contractType !== 'SALE' && (
+                  <div>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>운송료 청구기준</label>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      {(['3/5', '2/4'] as const).map(stdOpt => {
+                        const curStd = getContractFreightBillingStandard(activeContract);
+                        const isSelected = curStd === stdOpt;
+                        return (
+                          <button
+                            key={stdOpt}
+                            type="button"
+                            onClick={async () => {
+                              if (curStd === stdOpt) return;
+                              try {
+                                db.updateRow<Contract>('contracts', activeContract.id, {
+                                  freightBillingStandard: stdOpt,
+                                  updatedAt: new Date().toISOString()
+                                });
+                                await db.awaitPendingWrites();
+                                refreshAllData();
+                                showToast(`운송료 청구기준이 [${stdOpt} 기준]으로 변경되었습니다.`);
+                              } catch (err: any) {
+                                showToast(`운송료 청구기준 변경 실패: ${err?.message || err}`, 'error');
+                              }
+                            }}
+                            style={{
+                              padding: '3px 9px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                              backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-card)',
+                              color: isSelected ? '#fff' : 'var(--text-secondary)'
+                            }}
+                          >
+                            {stdOpt} 기준 ({stdOpt === '2/4' ? '2개월 왕복·4개월 편도' : '3개월 왕복·5개월 편도'})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>최초개시일 (현장 최초 투입일)</label><strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{getInitialContractDate(activeContract)}</strong></div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>당월 기산일 (개시일)</label><span>{activeContract.startDate}</span></div>
                 <div>

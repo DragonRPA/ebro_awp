@@ -112,7 +112,7 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'id', 'contractNo', 'customerId', 'salespersonId', 'contactId', 'siteId', 'billingDay', 'status', 'driveFolderId', 'startDate', 'endDate',
     'createdAt', 'updatedAt', 'successorContractId', 'predecessorContractId', 'predecessorContractNo', 'predecessorCustomerId', 'predecessorCustomerName',
     'lateInterestRate', 'paymentDueDay', 'lastBillingDate', 'lastBilledPeriodStart', 'lastBilledPeriodEnd', 'lastBilledYm', 'billingCount',
-    'tenant_id', 'contractType', 'statementClosingDay', 'customerName', 'salespersonName', 'saleTerms', 'paymentDueMonthOffset'
+    'tenant_id', 'contractType', 'statementClosingDay', 'customerName', 'salespersonName', 'saleTerms', 'paymentDueMonthOffset', 'freightBillingStandard'
   ],
   contract_history: [
     'id', 'contractId', 'changeType', 'changeDate', 'description', 'createdAt', 'updatedAt', 'prevEndDate', 'newEndDate', 'tenant_id'

@@ -1571,6 +1571,7 @@ export interface Contract {
   endDate: string;
   billingDay: number; // 계산서 마감일 (예: 25 → 매월 25일 발행, 청구기간: 전월26~당월25)
   statementClosingDay?: number; // 명세서 마감일
+  freightBillingStandard?: '3/5' | '2/4'; // 운송료 청구기준 ('3/5' 기본 | '2/4')
   lateInterestRate: number; // 연체이자율 (%), 기본값 0 = 미발생
   paymentDueDay?: number; // 납기일 (1~30, 31: 말일)
   paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월
