@@ -313,9 +313,12 @@ export async function checkAndIssuePackageResendTask(params: {
   const contract = db.contracts.find(c => c.id === params.contractId);
   if (!contract) return null;
 
-  // 1. 해당 계약에 고객 발송 이력이 존재하는지 확인
+  // 1. 해당 계약에 고객 발송 이력이 존재하는지 확인 (월간 안전점검 체크리스트 제외)
   const sentHistories = db.contractHistory.filter(
-    h => h.contractId === params.contractId && h.changeType === 'DOCUMENT_SENT'
+    h =>
+      h.contractId === params.contractId &&
+      h.changeType === 'DOCUMENT_SENT' &&
+      !(h.description && h.description.includes('월간 안전점검 체크리스트'))
   );
   if (sentHistories.length === 0) {
     // 발송된 적이 없으면 변경되어도 재발송 ToDo 불필요 (초기 출고 정상 진행)

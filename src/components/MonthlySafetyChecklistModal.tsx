@@ -871,7 +871,7 @@ ${tenantCorp} 드림 (대표전화: ${tenantTel})`
       db.insertRow<any>('contractHistory', {
         id: historyId,
         contractId: activeContract.id,
-        changeType: 'MONTHLY_CHECKLIST_SENT',
+        changeType: 'DOCUMENT_SENT',
         description: `[${targetMonth}] 월간 안전점검 체크리스트 이메일 발송 완료 (사용장비 ${siteActiveAssets.length}대 / 점검일: ${inspectionDate} / 점검자: ${inspectorName} / 수신: ${recipientSummary} / 발송자: ${senderName})`,
         changeDate: todayLocal,
         createdAt: new Date().toISOString()

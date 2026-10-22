@@ -335,7 +335,10 @@ export const Contracts: React.FC = () => {
   const packageSentContractIds = useMemo(() => {
     const set = new Set<string>();
     for (const h of (contractHistory || [])) {
-      if (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지'))) {
+      if (
+        (h.changeType === 'DOCUMENT_SENT' && !(h.description && h.description.includes('월간 안전점검 체크리스트'))) ||
+        (h.description && h.description.includes('계약서패키지'))
+      ) {
         set.add(h.contractId);
       }
     }
@@ -2884,7 +2887,8 @@ export const Contracts: React.FC = () => {
                 const isSentThisMonth = contractHistory.some(
                   h =>
                     siteContractIds.has(h.contractId) &&
-                    h.changeType === 'MONTHLY_CHECKLIST_SENT' &&
+                    (h.changeType === 'MONTHLY_CHECKLIST_SENT' ||
+                      (h.changeType === 'DOCUMENT_SENT' && (h.description || '').includes('월간 안전점검 체크리스트'))) &&
                     ((h.description || '').includes(`[${currentYm}]`) || (h.changeDate || '').startsWith(currentYm))
                 );
                 return (

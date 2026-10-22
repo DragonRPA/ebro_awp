@@ -7050,6 +7050,15 @@ class LocalDB {
       // contracts 테이블 프론트엔드 전용 상태 필드 및 구버전/미존재 컬럼 격리
       if (resolvedTable === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms', 'paymentDay'].includes(key)) { continue; }
       if (resolvedTable === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(key)) { continue; }
+      if (resolvedTable === 'contract_history' && key === 'changeType') {
+        const LEGACY_SAFE_CHANGE_TYPE_MAP: Record<string, string> = {
+          MONTHLY_CHECKLIST_SENT: 'DOCUMENT_SENT',
+          ADD_ASSET: 'REGISTER',
+          ASSET_PERIOD_CHANGE: 'EXTEND'
+        };
+        sanitized['changeType'] = LEGACY_SAFE_CHANGE_TYPE_MAP[String(val)] || val;
+        continue;
+      }
       if (resolvedTable === 'contract_assets' && ['outboundDeliveryId', 'inboundDeliveryId'].includes(key)) { continue; }
       if (resolvedTable === 'contract_assets' && key === 'assetId' && (val === '' || val === null || val === undefined)) {
         sanitized['assetId'] = null;
@@ -7621,6 +7630,17 @@ class LocalDB {
                 if (!retryRes.error) {
                   return retryRes.data;
                 }
+              }
+            }
+
+            if (tableName === 'contract_history' && msg.includes('contract_history_changeType_check')) {
+              const fallbackPayload = {
+                ...payloadForSupabase,
+                changeType: 'DOCUMENT_SENT'
+              };
+              const retryRes = await targetClient.from(tableName).upsert([fallbackPayload], { onConflict: 'id' });
+              if (!retryRes.error) {
+                return retryRes.data;
               }
             }
 
