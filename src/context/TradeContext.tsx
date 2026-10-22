@@ -1040,11 +1040,11 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .filter(l => l.productId === i.productId)
         .reduce((sum, l) => sum + l.remainingQty, 0);
       if (availableQty < i.qty) {
-        if (options?.contractId) {
+        if (options?.contractId || options?.status === 'CONFIRMED') {
           const shortfall = i.qty - availableQty;
           autoReplenishedLots.push({
             id: `LOT-AUTO-${uuidv4()}`,
-            purchaseId: `CONTRACT_AUTO_${options.contractId}`,
+            purchaseId: options?.contractId ? `CONTRACT_AUTO_${options.contractId}` : `OUTBOUND_AUTO_${today.replace(/-/g, '')}`,
             productId: i.productId,
             initialQty: shortfall,
             remainingQty: shortfall,
@@ -1103,6 +1103,13 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setInventoryLots(updatedLots);
 
     const cust = getCustomerById(customerId);
+    const resolvedStatus = options?.status || (options?.contractId ? 'CONFIRMED' : 'PENDING');
+    const defaultDeliveryLabel =
+      options?.deliveryMethod === 'BUNDLE_WITH_RENTAL'
+        ? '출고 장비 동봉'
+        : options?.deliveryMethod === 'DIRECT'
+        ? '화물 직배'
+        : '택배 발송';
     const newOrder: TradeSalesOrder = {
       id: oId,
       customerId,
@@ -1117,18 +1124,28 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryMethod: options?.deliveryMethod,
       linkedRentalDeliveryId: options?.linkedRentalDeliveryId,
       orderDate: options?.orderDate || today,
-      status: options?.status || (options?.contractId ? 'CONFIRMED' : 'PENDING'),
+      status: resolvedStatus,
       totalSalesAmount,
       totalCogsAmount,
       createdAt: now,
       updatedAt: now,
       contractDocStatus: 'DRAFT',
-      deliveryDate: options?.deliveryDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      deliveryDate: options?.deliveryDate || (options?.contractId || resolvedStatus === 'CONFIRMED' ? today : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]),
       deliveryLocation: options?.deliveryLocation || cust?.address || '고객사 지정 현장',
       receiverName: options?.receiverName || cust?.representative || '현장담당자',
       receiverPhone: options?.receiverPhone || cust?.repContact || '010-0000-0000',
-      paymentTerms: options?.paymentTerms || '납품 및 검수 완료 후 세금계산서 발행, 30일 이내 현금 결제',
-      specialTerms: options?.specialTerms || '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일',
+      paymentTerms:
+        options?.paymentTerms ||
+        (options?.contractId
+          ? options?.billingMode === 'STANDALONE'
+            ? '유통 별도 청구 (납품 및 검수 완료 후 세금계산서 발행)'
+            : `렌탈 계약(${options.contractNo || options.contractId}) ${options.targetBillingYm || today.slice(0, 7)}월 정기 청구 합산`
+          : '납품 및 검수 완료 후 세금계산서 발행, 30일 이내 현금 결제'),
+      specialTerms:
+        options?.specialTerms ||
+        (options?.contractId
+          ? `1. 연동 렌탈계약: ${options.contractNo || options.contractId}${options.siteName ? ` (${options.siteName})` : ''}\n2. 출고방식: ${defaultDeliveryLabel}`
+          : '1. 운송비 매도인 부담\n2. 물품 검수 기한 3영업일'),
       salespersonName: options?.salespersonName || currentUser?.name || '유통영업팀',
       memo: options?.memo || ''
     };
@@ -1138,21 +1155,22 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const outbId = `TOUT-${uuidv4()}`;
     const isBundleWithRental = options?.deliveryMethod === 'BUNDLE_WITH_RENTAL';
+    const autoAllocate = isBundleWithRental || Boolean(options?.contractId) || resolvedStatus === 'CONFIRMED';
     setOutbounds(prev => [
       {
         id: outbId,
         orderId: oId,
         contractId: options?.contractId,
         linkedRentalDeliveryId: options?.linkedRentalDeliveryId,
-        status: isBundleWithRental ? 'ALLOCATED' : 'REQUESTED',
-        allocatedAt: isBundleWithRental ? now : undefined,
+        status: autoAllocate ? 'ALLOCATED' : 'REQUESTED',
+        allocatedAt: autoAllocate ? now : undefined,
         deliveryType: options?.deliveryMethod || 'COURIER',
         destinationAddress: newOrder.deliveryLocation,
         receiverName: newOrder.receiverName,
         receiverPhone: newOrder.receiverPhone,
         closingMemo: isBundleWithRental
           ? `[렌탈 장비 동봉 출고] 계약: ${options?.contractNo || options?.contractId || '-'}${options?.linkedRentalDeliveryId ? ` / 배차: ${options.linkedRentalDeliveryId}` : ''}`
-          : (options?.contractNo ? `[렌탈계약 연동: ${options.contractNo}]` : undefined),
+          : (options?.contractNo ? `[렌탈계약 연동: ${options.contractNo}] (${defaultDeliveryLabel})` : undefined),
         createdAt: now,
         updatedAt: now
       },

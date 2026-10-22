@@ -1454,16 +1454,27 @@ export const Contracts: React.FC = () => {
       const mappedBillingMode: 'RENTAL_MERGED' | 'STANDALONE' =
         tradeBillingMode === 'MERGE_CURRENT_MONTH' ? 'RENTAL_MERGED' : 'STANDALONE';
 
-      // 1) 유통 주문(TradeSalesOrder) 및 유통 출고(TradeOutbound) 동시 생성
+      const curSite = sites.find(s => s.id === activeContract.siteId);
+      const curCust = customers.find(c => c.id === activeContract.customerId);
+      const paymentTermsDesc =
+        tradeBillingMode === 'MERGE_CURRENT_MONTH'
+          ? `렌탈 계약(${activeContract.contractNo}) ${tradeTargetBillingYm}월 정기 청구 합산 (매월 ${activeContract.billingDay === 31 ? '말일' : `${activeContract.billingDay}일`} 마감)`
+          : '유통 별도 청구 (납품 및 검수 완료 후 세금계산서 발행)';
+      const specialTermsDesc = `1. 연동 렌탈계약: ${activeContract.contractNo} (${getSiteName(activeContract.siteId)})\n2. 출고방식: ${deliveryLabel}`;
+
+      // 1) 유통 수주(TradeSalesOrder) 정보 자동 채움 및 유통 출고(TradeOutbound) 동시 확정 생성 (출고 = 수주 포함)
       const createdOrder = await createTradeSalesOrder(
         activeContract.customerId,
         orderLinesInput,
         {
           orderDate: todayStr,
+          deliveryDate: todayStr,
           status: 'CONFIRMED',
-          deliveryLocation: tradeReceiverAddress,
-          receiverName: tradeReceiverName,
-          receiverPhone: tradeReceiverPhone,
+          deliveryLocation: tradeReceiverAddress || curSite?.address || curCust?.address || '고객사 현장',
+          receiverName: tradeReceiverName || curSite?.contactName || curCust?.representative || '현장담당자',
+          receiverPhone: tradeReceiverPhone || curSite?.contact || curCust?.repContact || '',
+          paymentTerms: paymentTermsDesc,
+          specialTerms: specialTermsDesc,
           salespersonName: users.find(u => u.id === activeContract.salespersonId)?.name || currentUser?.name || '영업담당자',
           memo: `[계약연동:${activeContract.contractNo}] (${deliveryLabel}) ${tradeMemo}`.trim(),
           contractId: activeContract.id,
@@ -3869,9 +3880,9 @@ export const Contracts: React.FC = () => {
                           const obStatusText =
                             linkedOb?.status === 'SHIPPED' || linkedOb?.status === 'DELIVERED'
                               ? '출고완료'
-                              : linkedOb?.status === 'ALLOCATED'
-                              ? '동봉할당'
-                              : '출고대기';
+                              : linkedOb?.status === 'ALLOCATED' || linkedOb?.status === 'PACKED'
+                              ? (so.deliveryMethod === 'BUNDLE_WITH_RENTAL' ? '동봉할당' : '수주·출고확정')
+                              : '출고접수';
 
                           return (
                             <div

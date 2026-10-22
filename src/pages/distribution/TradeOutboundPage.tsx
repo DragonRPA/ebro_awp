@@ -11,7 +11,7 @@ import { exportToExcel } from '../../services/excel';
 import { createHangulMatcher } from '../../utils/hangulSearch';
 
 export const TradeOutboundPage: React.FC = () => {
-  const { customers, showErrorModal } = useApp();
+  const { customers, contracts, sites, contacts, currentUser, showErrorModal } = useApp();
   const {
     outbounds,
     salesOrders,
@@ -19,6 +19,8 @@ export const TradeOutboundPage: React.FC = () => {
     products,
     getCustomerName,
     getCustomerById,
+    getProductStock,
+    createSalesOrder,
     createOutboundManual,
     allocateOutbound,
     packOutbound,
@@ -58,7 +60,11 @@ export const TradeOutboundPage: React.FC = () => {
   // Create / Edit Outbound Modal
   const [isOutboundModalOpen, setIsOutboundModalOpen] = useState(false);
   const [editingOutbound, setEditingOutbound] = useState<TradeOutbound | null>(null);
+  const [formCreateMode, setFormCreateMode] = useState<'AUTO_ORDER' | 'EXISTING_ORDER'>('AUTO_ORDER');
   const [formOrderId, setFormOrderId] = useState<string>('');
+  const [formContractId, setFormContractId] = useState<string>('');
+  const [formCustomerId, setFormCustomerId] = useState<string>('');
+  const [formSelectedItems, setFormSelectedItems] = useState<{ productId: string; quantity: number; unitPrice: number }[]>([]);
   const [formDeliveryType, setFormDeliveryType] = useState<'COURIER' | 'DIRECT' | 'BUNDLE_WITH_RENTAL'>('COURIER');
   const [formDestinationAddress, setFormDestinationAddress] = useState<string>('');
   const [formReceiverName, setFormReceiverName] = useState<string>('');
@@ -180,20 +186,42 @@ export const TradeOutboundPage: React.FC = () => {
     }
   };
 
+  const applyCustomerAndContractInfo = (custId: string, contractId?: string) => {
+    const activeContract = contractId ? (contracts || []).find(c => c.id === contractId) : undefined;
+    const resolvedCustId = activeContract?.customerId || custId;
+    const cust = getCustomerById(resolvedCustId);
+    const curSite = activeContract?.siteId
+      ? (sites || []).find(s => s.id === activeContract.siteId)
+      : (sites || []).find(s => s.customerId === resolvedCustId && s.isActive !== false);
+    const actContacts = (curSite?.contacts || []).filter(c => c.isActive !== false);
+    const primaryContact =
+      actContacts.find(c => c.contactType === 'SAFETY' || c.contactType === 'EQUIPMENT') ||
+      actContacts[0] ||
+      (activeContract?.contactId ? (contacts || []).find(c => c.id === activeContract.contactId) : undefined);
+
+    setFormCustomerId(resolvedCustId);
+    setFormContractId(contractId || '');
+    setFormDestinationAddress(curSite?.address || cust?.address || '');
+    setFormReceiverName(primaryContact?.name || curSite?.contactName || cust?.representative || '');
+    setFormReceiverPhone(primaryContact?.contact || curSite?.contact || cust?.repContact || '');
+  };
+
   const openCreateModal = () => {
-    if (salesOrders.length === 0) {
-      showErrorModal('등록된 수주 계약이 없습니다. 먼저 [유통 계약 관리]에서 수주를 등록해 주세요.');
-      return;
-    }
-    const firstOrder = salesOrders[0];
-    const cust = getCustomerById(firstOrder.customerId);
+    const activeProducts = (products || []).filter(p => p.status !== 'DISCONTINUED');
+    const firstContract = (contracts || []).find(c => c.status === 'ACTIVE') || (contracts || [])[0];
+    const defaultCustId = firstContract?.customerId || customerOptions[0]?.id || '';
+
     setEditingOutbound(null);
-    setFormOrderId(firstOrder.id);
+    setFormCreateMode('AUTO_ORDER');
+    setFormOrderId(salesOrders[0]?.id || '');
+    setFormSelectedItems(
+      activeProducts[0]
+        ? [{ productId: activeProducts[0].id, quantity: 1, unitPrice: activeProducts[0].standardPrice || 0 }]
+        : []
+    );
     setFormDeliveryType('COURIER');
-    setFormDestinationAddress(firstOrder.deliveryLocation || cust?.address || '');
-    setFormReceiverName(firstOrder.receiverName || cust?.representative || '');
-    setFormReceiverPhone(firstOrder.receiverPhone || cust?.repContact || '');
     setFormClosingMemo('');
+    applyCustomerAndContractInfo(defaultCustId, firstContract?.id || '');
     setIsOutboundModalOpen(true);
   };
 
@@ -222,6 +250,37 @@ export const TradeOutboundPage: React.FC = () => {
           closingMemo: formClosingMemo
         });
         showToast(`출고요청 [${editingOutbound.id}] 배송지 및 수령인 정보가 수정되었습니다.`);
+      } else if (formCreateMode === 'AUTO_ORDER' || !formOrderId) {
+        if (!formCustomerId) {
+          showErrorModal('고객사를 선택해 주세요.');
+          return;
+        }
+        if (formSelectedItems.length === 0) {
+          showErrorModal('출고할 유통 품목을 1개 이상 선택해 주세요.');
+          return;
+        }
+        const linkedContract = formContractId ? (contracts || []).find(c => c.id === formContractId) : undefined;
+        const linkedSite = linkedContract?.siteId ? (sites || []).find(s => s.id === linkedContract.siteId) : undefined;
+        const orderLines = formSelectedItems.map(it => ({
+          productId: it.productId,
+          qty: Math.max(1, Number(it.quantity) || 1),
+          unitPrice: Math.max(0, Number(it.unitPrice) || 0),
+          memo: formClosingMemo || ''
+        }));
+        const createdOrder = await createSalesOrder(formCustomerId, orderLines, {
+          status: 'CONFIRMED',
+          deliveryLocation: formDestinationAddress,
+          receiverName: formReceiverName,
+          receiverPhone: formReceiverPhone,
+          deliveryMethod: formDeliveryType,
+          contractId: linkedContract?.id,
+          contractNo: linkedContract?.contractNo,
+          siteId: linkedSite?.id,
+          siteName: linkedSite?.name,
+          salespersonName: currentUser?.name || '유통영업팀',
+          memo: formClosingMemo
+        });
+        showToast(`수주 [${createdOrder.id}] 자동 생성 및 출고 지시가 등록되었습니다.`);
       } else {
         const created = await createOutboundManual(formOrderId, {
           deliveryType: formDeliveryType,
@@ -925,11 +984,11 @@ export const TradeOutboundPage: React.FC = () => {
 
       {/* 5. 출고 요청 등록 / 수정 모달 */}
       {isOutboundModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', width: '500px', maxWidth: '95vw', borderRadius: '10px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.25)', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '620px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', borderRadius: '10px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.25)' }}>
             <div style={{ padding: '14px 20px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
-                {editingOutbound ? `출고 지시 정보 수정 (${editingOutbound.id})` : '신규 출고 지시 등록'}
+                {editingOutbound ? `출고 지시 정보 수정 (${editingOutbound.id})` : '신규 유통 출고 등록 (수주 정보 자동 생성)'}
               </h3>
               <button type="button" onClick={() => setIsOutboundModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />
@@ -937,12 +996,225 @@ export const TradeOutboundPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveOutboundModal} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {!editingOutbound && (
+              {!editingOutbound && salesOrders.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setFormCreateMode('AUTO_ORDER')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: formCreateMode === 'AUTO_ORDER' ? 800 : 600,
+                      cursor: 'pointer',
+                      border: formCreateMode === 'AUTO_ORDER' ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: formCreateMode === 'AUTO_ORDER' ? 'var(--primary)' : 'var(--bg-app)',
+                      color: formCreateMode === 'AUTO_ORDER' ? '#fff' : 'var(--text-main)'
+                    }}
+                  >
+                    출고 + 수주 자동 생성
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormCreateMode('EXISTING_ORDER');
+                      const firstOrder = salesOrders.find(so => so.id === formOrderId) || salesOrders[0];
+                      if (firstOrder) {
+                        const cust = getCustomerById(firstOrder.customerId);
+                        setFormOrderId(firstOrder.id);
+                        setFormDestinationAddress(firstOrder.deliveryLocation || cust?.address || '');
+                        setFormReceiverName(firstOrder.receiverName || cust?.representative || '');
+                        setFormReceiverPhone(firstOrder.receiverPhone || cust?.repContact || '');
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: formCreateMode === 'EXISTING_ORDER' ? 800 : 600,
+                      cursor: 'pointer',
+                      border: formCreateMode === 'EXISTING_ORDER' ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: formCreateMode === 'EXISTING_ORDER' ? 'var(--primary)' : 'var(--bg-app)',
+                      color: formCreateMode === 'EXISTING_ORDER' ? '#fff' : 'var(--text-main)'
+                    }}
+                  >
+                    기존 수주 건에서 출고 지시
+                  </button>
+                </div>
+              )}
+
+              {!editingOutbound && (formCreateMode === 'AUTO_ORDER' || salesOrders.length === 0) && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>연동 렌탈 계약 선택 (선택 시 수주·현장 자동 입력)</label>
+                      <select
+                        value={formContractId}
+                        onChange={e => {
+                          const nextCid = e.target.value;
+                          const matchedContract = (contracts || []).find(c => c.id === nextCid);
+                          applyCustomerAndContractInfo(matchedContract?.customerId || formCustomerId, nextCid);
+                        }}
+                        style={{ padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                      >
+                        <option value="">-- 계약 미지정 (고객사 직접 선택) --</option>
+                        {(contracts || []).map(c => {
+                            const sName = (sites || []).find(s => s.id === c.siteId)?.name || '';
+                            return (
+                              <option key={c.id} value={c.id}>
+                                [{c.contractNo}] {getCustomerName(c.customerId)}{sName ? ` - ${sName}` : ''}
+                              </option>
+                            );
+                          })}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>고객사 *</label>
+                      <select
+                        value={formCustomerId}
+                        onChange={e => applyCustomerAndContractInfo(e.target.value, '')}
+                        style={{ padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                      >
+                        {customerOptions.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 출고 품목 원클릭 선택 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>출고 품목 선택 (클릭 시 담기) *</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', maxHeight: '120px', overflowY: 'auto' }}>
+                      {(products || []).filter(p => p.status !== 'DISCONTINUED').map(prod => {
+                        const sel = formSelectedItems.find(it => it.productId === prod.id);
+                        return (
+                          <button
+                            key={prod.id}
+                            type="button"
+                            onClick={() => {
+                              setFormSelectedItems(prev => {
+                                const exists = prev.find(it => it.productId === prod.id);
+                                if (exists) {
+                                  return prev.map(it => it.productId === prod.id ? { ...it, quantity: it.quantity + 1 } : it);
+                                }
+                                return [...prev, { productId: prod.id, quantity: 1, unitPrice: prod.standardPrice || 0 }];
+                              });
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              fontWeight: sel ? 700 : 500,
+                              cursor: 'pointer',
+                              border: sel ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                              backgroundColor: sel ? 'rgba(2, 132, 199, 0.12)' : 'var(--bg-card)',
+                              color: sel ? 'var(--primary)' : 'var(--text-main)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>+ {prod.name}</span>
+                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                              (₩{(prod.standardPrice || 0).toLocaleString()} / 재고 {getProductStock(prod.id).availableQty}{prod.unit})
+                            </span>
+                            {sel && (
+                              <span style={{ padding: '1px 5px', borderRadius: '999px', backgroundColor: 'var(--primary)', color: '#fff', fontSize: '10px', fontWeight: 800 }}>
+                                {sel.quantity}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {formSelectedItems.length > 0 && (
+                      <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+                              <th style={{ padding: '6px 8px', textAlign: 'left' }}>품목명</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'center', width: '80px' }}>수량</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', width: '110px' }}>판매단가 (원)</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', width: '100px' }}>공급가액</th>
+                              <th style={{ padding: '6px 6px', textAlign: 'center', width: '40px' }}>삭제</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {formSelectedItems.map((it, idx) => {
+                              const prod = products.find(p => p.id === it.productId);
+                              const rowAmt = (Number(it.quantity) || 1) * (Number(it.unitPrice) || 0);
+                              return (
+                                <tr key={it.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                  <td style={{ padding: '5px 8px', fontWeight: 700 }}>{prod?.name || '품목'}</td>
+                                  <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={it.quantity}
+                                      onChange={e => {
+                                        const nextQty = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                        setFormSelectedItems(prev => prev.map((row, i) => i === idx ? { ...row, quantity: nextQty } : row));
+                                      }}
+                                      style={{ width: '56px', padding: '3px 6px', textAlign: 'center', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={it.unitPrice}
+                                      onChange={e => {
+                                        const nextPrice = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                        setFormSelectedItems(prev => prev.map((row, i) => i === idx ? { ...row, unitPrice: nextPrice } : row));
+                                      }}
+                                      style={{ width: '96px', padding: '3px 6px', textAlign: 'right', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 700, fontFamily: 'monospace' }}>
+                                    ₩{rowAmt.toLocaleString()}원
+                                  </td>
+                                  <td style={{ padding: '5px 6px', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormSelectedItems(prev => prev.filter((_, i) => i !== idx))}
+                                      style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '13px' }}
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {!editingOutbound && formCreateMode === 'EXISTING_ORDER' && salesOrders.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>대상 수주 계약 선택 *</label>
                   <select
                     value={formOrderId}
-                    onChange={e => setFormOrderId(e.target.value)}
+                    onChange={e => {
+                      const nextOid = e.target.value;
+                      setFormOrderId(nextOid);
+                      const matchedOrder = salesOrders.find(so => so.id === nextOid);
+                      if (matchedOrder) {
+                        const cust = getCustomerById(matchedOrder.customerId);
+                        setFormDestinationAddress(matchedOrder.deliveryLocation || cust?.address || '');
+                        setFormReceiverName(matchedOrder.receiverName || cust?.representative || '');
+                        setFormReceiverPhone(matchedOrder.receiverPhone || cust?.repContact || '');
+                      }
+                    }}
                     style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
                     {salesOrders.map(so => (
@@ -961,8 +1233,9 @@ export const TradeOutboundPage: React.FC = () => {
                   onChange={e => setFormDeliveryType(e.target.value as any)}
                   style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                 >
-                  <option value="COURIER">택배 배송 (운송장 발송)</option>
-                  <option value="DIRECT">화물 직배 (전담 기사 배차)</option>
+                  <option value="COURIER">택배 발송</option>
+                  <option value="BUNDLE_WITH_RENTAL">출고 장비 동봉</option>
+                  <option value="DIRECT">화물 직배</option>
                 </select>
               </div>
 
@@ -1025,7 +1298,7 @@ export const TradeOutboundPage: React.FC = () => {
                   className="btn-primary"
                   style={{ padding: '8px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '6px', cursor: 'pointer' }}
                 >
-                  저장 확정
+                  {editingOutbound ? '수정 저장' : '수주 자동생성 및 출고 확정'}
                 </button>
               </div>
             </form>
