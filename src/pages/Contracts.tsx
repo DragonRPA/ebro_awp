@@ -8,12 +8,13 @@ import { useSpecialFeature } from '../utils/specialFeatureGuard';
 import {
   Plus, Calendar, Search, Download, Edit3, Repeat, Clock, Wrench, ChevronLeft,
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
-  Truck, CheckCircle2, Network, Package
+  Truck, CheckCircle2, Network, Package, ShieldCheck
 } from 'lucide-react';
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, Receivable, Billing, TradeSalesOrder, TradeProduct, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { splitMasterAwareOptions } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
+import { MonthlySafetyChecklistModal } from '../components/MonthlySafetyChecklistModal';
 import { matchHangul, createHangulMatcher, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 
@@ -57,6 +58,10 @@ export const Contracts: React.FC = () => {
   // 계약서패키지 모달 상태
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
+
+  // 월간 안전점검 체크리스트 이메일 발송 모달 상태
+  const [showMonthlyChecklistModal, setShowMonthlyChecklistModal] = useState(false);
+  const [monthlyChecklistContractId, setMonthlyChecklistContractId] = useState<string | undefined>(undefined);
 
   // 계약 변경 권한 검증 함수 (매각 계약은 1회성 완결 계약이므로 변경 불가)
   const canModifyContract = (contract: Contract) => {
@@ -931,6 +936,8 @@ export const Contracts: React.FC = () => {
       let historyTitle = '계약 이력';
       if (h.changeType === 'BILLING_CREATED' || h.description?.includes('소급 청구') || h.description?.includes('청구서 발행')) {
         historyTitle = '🧾 정기 청구 발행';
+      } else if (h.changeType === 'MONTHLY_CHECKLIST_SENT' || h.description?.includes('월간 안전점검 체크리스트')) {
+        historyTitle = '📋 월간 안전점검 체크리스트 발송';
       } else if (h.description?.includes('[유통출고')) {
         historyTitle = '📦 유통출고 및 청구 반영';
       } else if (isExchange) {
@@ -1334,6 +1341,44 @@ export const Contracts: React.FC = () => {
     }
   };
 
+  // 💡 계약의 청구/명세서 마감일 및 당월 청구 기발행 여부를 판정하여 유통출고 기본 합산 귀속월(당월 vs 익월) 산출
+  const resolveDefaultTradeBillingYm = (contract: Contract) => {
+    const [curY, curM, curD] = todayStr.split('-').map(Number);
+    const curYm = `${curY}-${String(curM).padStart(2, '0')}`;
+    const nextYm = curM === 12 ? `${curY + 1}-01` : `${curY}-${String(curM + 1).padStart(2, '0')}`;
+
+    const curSite = sites.find(s => s.id === contract.siteId);
+    const curCust = customers.find(cu => cu.id === contract.customerId);
+    const rawClosingDay =
+      curSite?.statementClosingDay ||
+      contract.statementClosingDay ||
+      curSite?.billingDay ||
+      contract.billingDay ||
+      curCust?.defaultStatementClosingDay ||
+      curCust?.defaultBillingDay ||
+      31;
+    const lastDayOfCurMonth = new Date(curY, curM, 0).getDate();
+    const effectiveClosingDay = Math.min(rawClosingDay, lastDayOfCurMonth);
+
+    const isPastClosingDay = curD > effectiveClosingDay;
+    const currentMonthBilling = (billings || []).find(
+      b => b.contractId === contract.id && b.billingYm === curYm && b.status !== 'REJECTED'
+    );
+    const isCurrentMonthAlreadyBilled =
+      Boolean(currentMonthBilling) || Boolean(contract.lastBilledYm && contract.lastBilledYm >= curYm);
+
+    const isRolledOverToNextMonth = isPastClosingDay || isCurrentMonthAlreadyBilled;
+    return {
+      defaultYm: isRolledOverToNextMonth ? nextYm : curYm,
+      isRolledOverToNextMonth,
+      isPastClosingDay,
+      isCurrentMonthAlreadyBilled,
+      effectiveClosingDay,
+      curYm,
+      nextYm
+    };
+  };
+
   // Feature 7) 계약 연동 유통출고 및 당월 청구 등록 핸들러
   const handleOpenTradeOutboundModal = () => {
     if (!activeContract) return;
@@ -1356,10 +1401,12 @@ export const Contracts: React.FC = () => {
         (d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')
     );
 
+    const { defaultYm } = resolveDefaultTradeBillingYm(activeContract);
+
     setTradeDeliveryMethod(pendingDeliveries.length > 0 ? 'BUNDLE_WITH_RENTAL' : 'PARCEL');
     setTradeLinkedRentalDeliveryId(pendingDeliveries[0]?.id || '');
     setTradeBillingMode('MERGE_CURRENT_MONTH');
-    setTradeTargetBillingYm(todayStr.slice(0, 7));
+    setTradeTargetBillingYm(defaultYm);
     setTradeSelectedItems([]);
     setTradeMemo('');
     setShowQuickTradeProductForm(false);
@@ -1480,12 +1527,13 @@ export const Contracts: React.FC = () => {
         }
       }
 
-      // 3) '당월 렌탈 청구에 합산' 선택 시 계약 귀속 외상미수금 생성 및 당월 청구서 즉시 주입
+      // 3) '당월 렌탈 청구에 합산' 선택 시 계약 귀속 외상미수금 생성 및 당월/익월 청구서 자동 반영
       let billingResultDesc = '유통 별도 청구';
       if (tradeBillingMode === 'MERGE_CURRENT_MONTH' && totalSalesAmount > 0) {
-        const targetYm = tradeTargetBillingYm || todayStr.slice(0, 7);
+        const { defaultYm } = resolveDefaultTradeBillingYm(activeContract);
+        const targetYm = tradeTargetBillingYm || defaultYm;
         const displayTitle = `[유통출고] ${summaryText}`;
-        const internalDesc = `[유통출고:${createdOrder.id}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`;
+        const internalDesc = `[유통출고:${createdOrder.id}][귀속월:${targetYm}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`;
 
         const createdRcv = db.insertRow<Receivable>('receivables', {
           customerId: activeContract.customerId,
@@ -1503,13 +1551,12 @@ export const Contracts: React.FC = () => {
 
         await db.awaitPendingWrites();
 
-        // 이미 생성된 당월(targetYm) 청구서가 존재하는 경우 즉시 세부항목(BillingDetail) 및 청구총액에 꽂아 넣음
+        // 해당 targetYm에 아직 발송/수납 마감되지 않은 미발송(UNPAID) 청구서가 존재하는 경우 즉시 세부항목(BillingDetail) 및 청구총액에 꽂아 넣음
         const existingBilling = (billings || []).find(
           b =>
             b.contractId === activeContract.id &&
             b.billingYm === targetYm &&
-            b.status !== 'REJECTED' &&
-            b.status !== 'PAID'
+            b.status === 'UNPAID'
         );
 
         if (existingBilling) {
@@ -2866,7 +2913,43 @@ export const Contracts: React.FC = () => {
             </div>
 
             {/* 실행 버튼 그룹 */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {(() => {
+                const currentYm = todayStr.slice(0, 7);
+                const siteContractIds = new Set(
+                  contracts.filter(c => c.siteId === activeContract.siteId && c.customerId === activeContract.customerId).map(c => c.id)
+                );
+                const isSentThisMonth = contractHistory.some(
+                  h =>
+                    siteContractIds.has(h.contractId) &&
+                    h.changeType === 'MONTHLY_CHECKLIST_SENT' &&
+                    ((h.description || '').includes(`[${currentYm}]`) || (h.changeDate || '').startsWith(currentYm))
+                );
+                return (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setMonthlyChecklistContractId(activeContract.id);
+                      setShowMonthlyChecklistModal(true);
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      color: isSentThisMonth ? '#059669' : '#d97706',
+                      borderColor: isSentThisMonth ? '#6ee7b7' : '#fcd34d',
+                      backgroundColor: isSentThisMonth ? '#ecfdf5' : '#fffbeb',
+                      fontWeight: 700
+                    }}
+                  >
+                    <ShieldCheck size={14} /> 월간 안전점검 체크리스트 이메일 ({isSentThisMonth ? '당월 발송완료' : '당월 미발송'})
+                  </button>
+                );
+              })()}
+
               <button
                 type="button"
                 className="btn-secondary"
@@ -2876,7 +2959,7 @@ export const Contracts: React.FC = () => {
                 }}
                 style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: 'bold' }}
               >
-                <Download size={14} /> 계약서패키지 PDF / 이메일
+                <Download size={14} /> 계약서패키지 파일 / 이메일
               </button>
 
               {canSave && canModifyContract(activeContract) && (
@@ -3282,6 +3365,18 @@ export const Contracts: React.FC = () => {
                         }}
                       />
                     </label>
+
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setMonthlyChecklistContractId(activeContract.id);
+                        setShowMonthlyChecklistModal(true);
+                      }}
+                      style={{ padding: '4px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', color: '#d97706', borderColor: '#fcd34d', fontWeight: 700 }}
+                    >
+                      <ShieldCheck size={12} /> 월간 안전점검 체크리스트 발송
+                    </button>
 
                     {canGeneratePackage ? (
                     <button
@@ -4921,6 +5016,14 @@ export const Contracts: React.FC = () => {
         initialContractId={bundleTargetContractId}
       />
 
+      {monthlyChecklistContractId && (
+        <MonthlySafetyChecklistModal
+          isOpen={showMonthlyChecklistModal}
+          onClose={() => setShowMonthlyChecklistModal(false)}
+          contractId={monthlyChecklistContractId}
+        />
+      )}
+
       {/* Feature 2: 동일 고객+현장 중복 계약 인터셉터 모달 */}
       {duplicateContractModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -5197,9 +5300,9 @@ export const Contracts: React.FC = () => {
           b =>
             b.contractId === activeContract.id &&
             b.billingYm === tradeTargetBillingYm &&
-            b.status !== 'REJECTED' &&
-            b.status !== 'PAID'
+            b.status === 'UNPAID'
         );
+        const billingYmDecision = resolveDefaultTradeBillingYm(activeContract);
 
         return (
           <div
@@ -5648,10 +5751,17 @@ export const Contracts: React.FC = () => {
                   </div>
 
                   {tradeBillingMode === 'MERGE_CURRENT_MONTH' && (
-                    <div style={{ fontSize: '11.5px', color: '#0369a1', fontWeight: 600 }}>
-                      {existingMonthBilling
-                        ? `• 현재 이 계약의 [${tradeTargetBillingYm}] 청구서(${existingMonthBilling.id})가 이미 생성되어 있으므로, 확정 즉시 해당 청구서 명세 및 청구 총액에 자동 합산됩니다.`
-                        : `• 이 계약의 [${tradeTargetBillingYm}] 정기 청구 생성 시(개별 마법사 및 일괄 청구 모두) 별도 수동 클릭 없이 당월 청구 명세에 100% 자동 합산됩니다.`}
+                    <div style={{ fontSize: '11.5px', color: '#0369a1', fontWeight: 600, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {billingYmDecision.isRolledOverToNextMonth && tradeTargetBillingYm === billingYmDecision.nextYm && (
+                        <div style={{ color: '#b45309', backgroundColor: '#fef3c7', padding: '5px 8px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                          • 금일({todayStr})이 이 계약의 청구/명세서 마감일(매월 {billingYmDecision.effectiveClosingDay}일) 이후이거나 당월({billingYmDecision.curYm}) 청구가 이미 발행되었으므로, 합산 귀속월이 <strong>다음 달({billingYmDecision.nextYm})</strong>로 자동 설정되었습니다.
+                        </div>
+                      )}
+                      <div>
+                        {existingMonthBilling
+                          ? `• 현재 이 계약의 [${tradeTargetBillingYm}] 미발송 청구서(${existingMonthBilling.id})가 생성되어 있으므로, 확정 즉시 해당 청구서 명세 및 청구 총액에 자동 합산됩니다.`
+                          : `• 이 계약의 [${tradeTargetBillingYm}] 정기 청구 생성 시(개별 마법사 및 일괄 청구 모두) 별도 수동 클릭 없이 청구 명세에 100% 자동 합산됩니다.`}
+                      </div>
                     </div>
                   )}
                 </div>

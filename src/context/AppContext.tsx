@@ -9528,13 +9528,22 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    const unbilledTradeReceivables = (db.receivables || []).filter(
-      r =>
-        r.contractId === c.id &&
-        r.status !== 'CLEARED' &&
-        (r.totalAmount || 0) - (r.billedAmount || 0) > 0 &&
-        Boolean(r.internalDescription && r.internalDescription.includes('[유통출고:'))
-    );
+    const unbilledTradeReceivables = (db.receivables || []).filter(r => {
+      if (
+        r.contractId !== c.id ||
+        r.status === 'CLEARED' ||
+        (r.totalAmount || 0) - (r.billedAmount || 0) <= 0 ||
+        !Boolean(r.internalDescription && r.internalDescription.includes('[유통출고:'))
+      ) {
+        return false;
+      }
+      const ymMatch = String(r.internalDescription || '').match(/(?:\[귀속월:|·\s*)(\d{4}-\d{2})/);
+      const rcvTargetYm = ymMatch ? ymMatch[1] : undefined;
+      if (rcvTargetYm && billingYm && rcvTargetYm > billingYm) {
+        return false;
+      }
+      return true;
+    });
 
     if (detailsList.length === 0 && unbilledTradeReceivables.length === 0) return null;
 

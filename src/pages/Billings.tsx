@@ -1991,6 +1991,18 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     return desc.startsWith('[유통출고') || disp.startsWith('[유통출고]');
   };
 
+  // 해당 청구 귀속월(targetBillingYm) 이하로 귀속 지정된 유통출고 미수금인지 판별 (청구일 이후 발생 건은 익월 청구에 포함)
+  const isTradeReceivableDueForYm = (r: any, ym?: string) => {
+    if (!isAutoLinkedTradeReceivable(r)) return false;
+    const desc = String(r?.internalDescription || '');
+    const ymMatch = desc.match(/(?:\[귀속월:|·\s*)(\d{4}-\d{2})/);
+    const rcvTargetYm = ymMatch ? ymMatch[1] : undefined;
+    if (rcvTargetYm && ym && rcvTargetYm > ym) {
+      return false;
+    }
+    return true;
+  };
+
   // 일괄 생성 가능 계약(수동 검토 외상미수금 없는 계약 - 유통출고 자동합산분은 일괄 생성 허용) vs 수동 검토 계약 분리
   const contractsWithoutReceivables = useMemo(() => {
     if (activeTab !== 'WIZARD') return [];
@@ -2126,17 +2138,57 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     
     setWizardStartDate(calcStart);
     setWizardEndDate(calcEnd);
-  }, [wizardBillingYm, selectedContractIdForWizard, contracts]);
+
+    // 💡 청구 귀속월(wizardBillingYm) 변경 시 해당 귀속월에 포함될 유통출고 합산분도 자동 재동기화
+    const dueTradeRcvs = receivables.filter(r =>
+      r.status !== 'CLEARED' &&
+      ((r.totalAmount || 0) - (r.billedAmount || 0)) > 0 &&
+      r.contractId === c.id &&
+      isTradeReceivableDueForYm(r, wizardBillingYm)
+    );
+    setSelectedReceivablesForWizard(prev => {
+      const nonTrade = prev.filter(item => {
+        const found = receivables.find(r => r.id === item.receivableId);
+        return found && !isAutoLinkedTradeReceivable(found);
+      });
+      const tradeEntries = dueTradeRcvs.map(rcv => ({
+        receivableId: rcv.id,
+        amount: Math.max(0, (rcv.totalAmount || 0) - (rcv.billedAmount || 0)),
+        displayName: rcv.displayName || rcv.internalDescription
+      }));
+      return [...tradeEntries, ...nonTrade];
+    });
+    setExtraCharges(prev => {
+      const nonTradeExtras = prev.filter(ec => {
+        if (!ec.id.startsWith('EXTRA-RCV-')) return true;
+        const rcvId = ec.id.replace('EXTRA-RCV-', '');
+        const found = receivables.find(r => r.id === rcvId);
+        return found && !isAutoLinkedTradeReceivable(found);
+      });
+      const tradeExtras = dueTradeRcvs.map(rcv => {
+        const remaining = Math.max(0, (rcv.totalAmount || 0) - (rcv.billedAmount || 0));
+        return {
+          id: `EXTRA-RCV-${rcv.id}`,
+          category: 'OTHER',
+          customName: rcv.displayName || rcv.internalDescription,
+          quantity: 1,
+          unitPrice: remaining,
+          description: rcv.internalDescription
+        };
+      });
+      return [...tradeExtras, ...nonTradeExtras];
+    });
+  }, [wizardBillingYm, selectedContractIdForWizard, contracts, receivables]);
 
   const handleSelectContractForWizard = (c: any) => {
     setSelectedContractIdForWizard(c.id);
 
-    // 💡 계약 상세에서 '당월 렌탈 청구에 합산'으로 등록된 미청구 유통출고 건은 클릭 즉시 자동 선택 및 합산 반영
+    // 💡 계약 상세에서 '당월 렌탈 청구에 합산'으로 등록된 미청구 유통출고 건(해당 귀속월 이하)은 클릭 즉시 자동 선택 및 합산 반영
     const autoTradeRcvs = receivables.filter(r =>
       r.status !== 'CLEARED' &&
       ((r.totalAmount || 0) - (r.billedAmount || 0)) > 0 &&
       r.contractId === c.id &&
-      isAutoLinkedTradeReceivable(r)
+      isTradeReceivableDueForYm(r, targetYm)
     );
     setSelectedReceivablesForWizard(autoTradeRcvs.map(rcv => ({
       receivableId: rcv.id,
