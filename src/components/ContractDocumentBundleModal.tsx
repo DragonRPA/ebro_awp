@@ -59,7 +59,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
   const { 
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, officialMailConfigs, currentUser,
-    currentTenant, showErrorModal, hasPermission, users, outboundInspections, standardOptions
+    currentTenant, showErrorModal, hasPermission, users, outboundInspections, standardOptions,
+    refreshAllData
   } = useApp();
 
   // 계약서 패키지 생성 권한: 계약 저장/열람 권한 또는 에이전트 권한 보유자
@@ -856,7 +857,23 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setGeneratedResult(null);
     setErrorMessage(null);
     setEmailSentSuccess(false);
-  }, [selectedContractId, site?.id, isOpen, currentTenant, availableCustomerContacts]);
+  }, [selectedContractId, site?.id, isOpen, currentTenant]);
+
+  // 현장에 담당자 이메일이 새로 등록된 경우(직접입력 후 자동 동기화 등) 현재 수신인이 비어 있으면 자동 채움
+  useEffect(() => {
+    if (!selectedContract || !isOpen) return;
+    if (recipients.length === 0 && availableCustomerContacts.length > 0) {
+      setRecipients(
+        availableCustomerContacts.map((c, idx) => ({
+          id: `recip-site-${site?.id || 'default'}-${idx}`,
+          email: c.email,
+          name: c.name,
+          roleLabel: c.roleLabel,
+          source: 'SITE'
+        }))
+      );
+    }
+  }, [availableCustomerContacts, selectedContract, isOpen, site?.id, recipients.length]);
 
   // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
   useEffect(() => {
@@ -900,18 +917,120 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       return;
     }
 
-    setRecipients(prev => [
-      ...prev,
-      ...newEmails.map((em, idx) => ({
-        id: `recip-manual-${Date.now()}-${idx}`,
-        email: em,
-        name: manualInputName.trim() || em.split('@')[0],
-        roleLabel: '직접입력',
-        source: 'MANUAL' as const
-      }))
-    ]);
+    const newRecipients: RecipientItem[] = newEmails.map((em, idx) => ({
+      id: `recip-manual-${Date.now()}-${idx}`,
+      email: em,
+      name: manualInputName.trim() || (site?.contactName || '').trim() || em.split('@')[0],
+      roleLabel: '직접입력',
+      source: 'MANUAL' as const
+    }));
+
+    setRecipients(prev => [...prev, ...newRecipients]);
     setManualInputEmail('');
     setManualInputName('');
+
+    // 🌟 [수신인 추가 즉시 고객현장(CustomerSite) 담당자 이메일 동기화]:
+    // 담당자 이메일이 비어 있던 현장에서 수신인 이메일을 추가하면 고객현장 담당자 정보에 즉시 저장
+    if (site) {
+      const normName = (raw?: string | null) =>
+        String(raw || '')
+          .replace(/\s+/g, '')
+          .replace(/(과장님|차장님|부장님|대리님|소장님|팀장님|대표님|기사님|선임님|책임님|주임님|사원님|님|과장|차장|부장|대리|소장|팀장|대표|이사|선임|책임|주임|사원|공무과장|공무차장|공무대리|공무|안전관리자|안전담당|현장소장|현장담당자|현장담당|마감담당|장비담당|담당자|담당)$/g, '')
+          .trim();
+
+      const updatedContacts = Array.isArray(site.contacts) ? site.contacts.map(c => ({ ...c })) : [];
+      let siteChanged = false;
+      let nextFlatEmail = (site.email || '').trim();
+      let nextFlatName = (site.contactName || '').trim();
+
+      if (updatedContacts.length === 0 && (nextFlatName || (site.contact && site.contact.trim()))) {
+        updatedContacts.push({
+          id: `SC-EQ-${site.id}`,
+          contactType: 'EQUIPMENT',
+          name: nextFlatName || '현장담당자',
+          position: '현장담당자',
+          contact: (site.contact || '').trim(),
+          email: nextFlatEmail,
+          isPrimary: true,
+          isActive: true,
+          memo: ''
+        });
+        siteChanged = true;
+      }
+
+      for (const r of newRecipients) {
+        const rEmail = (r.email || '').trim();
+        if (!rEmail || !rEmail.includes('@')) continue;
+        const rCleanName = normName(r.name);
+        const emailPrefix = rEmail.split('@')[0];
+        const isMeaningfulName = Boolean(r.name && r.name.trim() && r.name.trim() !== emailPrefix);
+
+        let matchedIdx = -1;
+        if (rCleanName) {
+          matchedIdx = updatedContacts.findIndex(c => c.isActive !== false && normName(c.name) === rCleanName);
+        }
+        if (matchedIdx === -1) {
+          matchedIdx = updatedContacts.findIndex(c => c.isActive !== false && !(c.email || '').trim());
+        }
+
+        if (matchedIdx >= 0) {
+          const targetContact = updatedContacts[matchedIdx];
+          if (!(targetContact.email || '').trim()) {
+            updatedContacts[matchedIdx] = {
+              ...targetContact,
+              email: rEmail,
+              name: targetContact.name || (isMeaningfulName ? r.name!.trim() : targetContact.name)
+            };
+            siteChanged = true;
+          }
+        } else {
+          const alreadyHasEmail = updatedContacts.some(c => (c.email || '').toLowerCase().includes(rEmail.toLowerCase()));
+          if (!alreadyHasEmail) {
+            const isFirst = updatedContacts.length === 0;
+            updatedContacts.push({
+              id: `SC-EQ-${site.id}-${Date.now()}`,
+              contactType: isFirst ? 'EQUIPMENT' : 'CLOSING',
+              name: isMeaningfulName ? r.name!.trim() : (nextFlatName || '현장담당자'),
+              position: isFirst ? '현장담당자' : '마감담당자',
+              contact: isFirst ? (site.contact || '').trim() : '',
+              email: rEmail,
+              isPrimary: isFirst,
+              isActive: true,
+              memo: ''
+            });
+            siteChanged = true;
+          }
+        }
+
+        if (!nextFlatEmail) {
+          nextFlatEmail = rEmail;
+          siteChanged = true;
+        }
+        if (!nextFlatName && isMeaningfulName) {
+          nextFlatName = r.name!.trim();
+          siteChanged = true;
+        }
+      }
+
+      if (siteChanged) {
+        const eqPrimary = updatedContacts.find(c => c.contactType === 'EQUIPMENT' && c.isActive !== false) || updatedContacts[0];
+        const clPrimary = updatedContacts.find(c => c.contactType === 'CLOSING' && c.isActive !== false);
+        const siteUpdatePayload: Record<string, any> = {
+          email: eqPrimary?.email || nextFlatEmail || site.email || null,
+          contactName: eqPrimary?.name || nextFlatName || site.contactName || null,
+          contacts: updatedContacts,
+          updatedAt: new Date().toISOString()
+        };
+        if (clPrimary?.email && !site.billingContactEmail) {
+          siteUpdatePayload.billingContactEmail = clPrimary.email;
+        }
+        if (clPrimary?.name && !site.billingContactName) {
+          siteUpdatePayload.billingContactName = clPrimary.name;
+        }
+        db.updateRow<any>('sites', site.id, siteUpdatePayload);
+        db.awaitPendingWrites().then(() => refreshAllData()).catch(console.error);
+      }
+    }
   };
 
   const handleToggleContactRecipient = (contactItem: { name: string; position: string; email: string; typeLabel: string; roleLabel: string }) => {
@@ -1264,6 +1383,112 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
           packageSentAt: new Date().toISOString()
         });
 
+        // 🌟 [고객현장(CustomerSite) 담당자 이메일 자동 역동기화]:
+        // 현장에 담당자 이메일이 비어 있거나 발송 시 직접 입력한 수신인 이메일이 있는 경우 고객현장(site) 담당자 정보에 자동 등록
+        if (site && recipients.length > 0) {
+          const normName = (raw?: string | null) =>
+            String(raw || '')
+              .replace(/\s+/g, '')
+              .replace(/(과장님|차장님|부장님|대리님|소장님|팀장님|대표님|기사님|선임님|책임님|주임님|사원님|님|과장|차장|부장|대리|소장|팀장|대표|이사|선임|책임|주임|사원|공무과장|공무차장|공무대리|공무|안전관리자|안전담당|현장소장|현장담당자|현장담당|마감담당|장비담당|담당자|담당)$/g, '')
+              .trim();
+
+          const updatedContacts = Array.isArray(site.contacts) ? site.contacts.map(c => ({ ...c })) : [];
+          let siteChanged = false;
+          let nextFlatEmail = (site.email || '').trim();
+          let nextFlatName = (site.contactName || '').trim();
+
+          // 기존 플랫 담당자(contactName/contact)는 있으나 contacts 배열이 비어 있는 경우 기본 장비담당자 슬롯 생성
+          if (updatedContacts.length === 0 && (nextFlatName || (site.contact && site.contact.trim()))) {
+            updatedContacts.push({
+              id: `SC-EQ-${site.id}`,
+              contactType: 'EQUIPMENT',
+              name: nextFlatName || '현장담당자',
+              position: '현장담당자',
+              contact: (site.contact || '').trim(),
+              email: nextFlatEmail,
+              isPrimary: true,
+              isActive: true,
+              memo: ''
+            });
+            siteChanged = true;
+          }
+
+          for (const r of recipients) {
+            const rEmail = (r.email || '').trim();
+            if (!rEmail || !rEmail.includes('@')) continue;
+            const rCleanName = normName(r.name);
+            const emailPrefix = rEmail.split('@')[0];
+            const isMeaningfulName = Boolean(r.name && r.name.trim() && r.name.trim() !== emailPrefix);
+
+            // 1) 이름 일치 담당자가 이메일이 비어 있으면 채움
+            let matchedIdx = -1;
+            if (rCleanName) {
+              matchedIdx = updatedContacts.findIndex(c => c.isActive !== false && normName(c.name) === rCleanName);
+            }
+            // 2) 이름 일치가 없고, 이메일이 비어 있는 활성 담당자가 있으면 첫 번째 미등록 담당자에 매핑
+            if (matchedIdx === -1) {
+              matchedIdx = updatedContacts.findIndex(c => c.isActive !== false && !(c.email || '').trim());
+            }
+
+            if (matchedIdx >= 0) {
+              const targetContact = updatedContacts[matchedIdx];
+              if (!(targetContact.email || '').trim()) {
+                updatedContacts[matchedIdx] = {
+                  ...targetContact,
+                  email: rEmail,
+                  name: targetContact.name || (isMeaningfulName ? r.name!.trim() : targetContact.name)
+                };
+                siteChanged = true;
+              }
+            } else {
+              // 3) 기존 contacts에 해당 이메일이 전혀 없으면 신규 현장담당자로 추가
+              const alreadyHasEmail = updatedContacts.some(c => (c.email || '').toLowerCase().includes(rEmail.toLowerCase()));
+              if (!alreadyHasEmail) {
+                const isFirst = updatedContacts.length === 0;
+                updatedContacts.push({
+                  id: `SC-EQ-${site.id}-${Date.now()}`,
+                  contactType: isFirst ? 'EQUIPMENT' : 'CLOSING',
+                  name: isMeaningfulName ? r.name!.trim() : (nextFlatName || '현장담당자'),
+                  position: isFirst ? '현장담당자' : '마감담당자',
+                  contact: isFirst ? (site.contact || '').trim() : '',
+                  email: rEmail,
+                  isPrimary: isFirst,
+                  isActive: true,
+                  memo: ''
+                });
+                siteChanged = true;
+              }
+            }
+
+            if (!nextFlatEmail) {
+              nextFlatEmail = rEmail;
+              siteChanged = true;
+            }
+            if (!nextFlatName && isMeaningfulName) {
+              nextFlatName = r.name!.trim();
+              siteChanged = true;
+            }
+          }
+
+          if (siteChanged) {
+            const eqPrimary = updatedContacts.find(c => c.contactType === 'EQUIPMENT' && c.isActive !== false) || updatedContacts[0];
+            const clPrimary = updatedContacts.find(c => c.contactType === 'CLOSING' && c.isActive !== false);
+            const siteUpdatePayload: Record<string, any> = {
+              email: eqPrimary?.email || nextFlatEmail || site.email || null,
+              contactName: eqPrimary?.name || nextFlatName || site.contactName || null,
+              contacts: updatedContacts,
+              updatedAt: new Date().toISOString()
+            };
+            if (clPrimary?.email && !site.billingContactEmail) {
+              siteUpdatePayload.billingContactEmail = clPrimary.email;
+            }
+            if (clPrimary?.name && !site.billingContactName) {
+              siteUpdatePayload.billingContactName = clPrimary.name;
+            }
+            db.updateRow<any>('sites', site.id, siteUpdatePayload);
+          }
+        }
+
         // 🌟 [ToDo 자동 상계]: 계약서패키지 재발송 ToDo가 존재했다면 원자적 자동 완료
         await clearHandoverTasks({
           entityType: 'CONTRACT',
@@ -1276,6 +1501,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         });
 
         await db.awaitPendingWrites();
+        refreshAllData();
       } catch (histErr: any) {
         historySaved = false;
         console.error('발송 이력 저장 실패:', histErr);
