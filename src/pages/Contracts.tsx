@@ -2165,12 +2165,12 @@ export const Contracts: React.FC = () => {
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                     <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '80px' }}>상세 보기</th>
                     <SortableTh label="계약번호" sortKey="contractNo" currentSort={sortConfig} onSort={handleSort} />
-                    <SortableTh label="최초개시일" sortKey="initialDate" currentSort={sortConfig} onSort={handleSort} align="center" />
                     <SortableTh label="고객사명" sortKey="customer" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="현장명" sortKey="site" currentSort={sortConfig} onSort={handleSort} />
                     {showOutboundProgressCol && <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>}
                     <SortableTh label="체결 자산" sortKey="assets" currentSort={sortConfig} onSort={handleSort} />
                     <SortableTh label="월 렌탈료" sortKey="rentalFee" currentSort={sortConfig} onSort={handleSort} align="right" />
+                    <SortableTh label="최초개시일" sortKey="initialDate" currentSort={sortConfig} onSort={handleSort} align="center" />
                     {showPeriodCol && <SortableTh label="계약 기간" sortKey="period" currentSort={sortConfig} onSort={handleSort} />}
                     {showLastBilledCol && <SortableTh label="최근 청구 기간" sortKey="billingPeriod" currentSort={sortConfig} onSort={handleSort} />}
                     {showBillingCountCol && <SortableTh label="청구 건수" sortKey="billingCount" currentSort={sortConfig} onSort={handleSort} align="center" />}
@@ -2245,9 +2245,6 @@ export const Contracts: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-                            {getInitialContractDate(c)}
-                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <strong>{custObj?.name || '-'}</strong>
@@ -2292,6 +2289,9 @@ export const Contracts: React.FC = () => {
                             ) : (
                               <span>{totalFee.toLocaleString()}원</span>
                             )}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                            {getInitialContractDate(c)}
                           </td>
                           {showPeriodCol && <td style={{ whiteSpace: 'nowrap' }}>{getInitialContractDate(c)} ~ {formatContractEndDate(c.endDate)}</td>}
                           {showLastBilledCol && (
