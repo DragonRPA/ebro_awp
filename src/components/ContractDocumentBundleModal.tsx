@@ -417,6 +417,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
   const [freightBillingStandard, setFreightBillingStandard] = useState<'2/4' | '3/5'>('3/5');
 
   const defaultFreightBillingStandard = useMemo<'2/4' | '3/5'>(() => {
+    if (selectedContract?.freightBillingStandard === '2/4' || selectedContract?.freightBillingStandard === '3/5') {
+      return selectedContract.freightBillingStandard;
+    }
+
     const checkDelivery = (del?: any): '2/4' | '3/5' | null => {
       if (!del) return null;
       if (del.cargoItems) {
@@ -440,9 +444,6 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     for (const entry of contractOutboundDeliveries) {
       const fromEntry = checkDelivery(entry.delivery);
       if (fromEntry) return fromEntry;
-    }
-    if (selectedContract?.freightBillingStandard === '2/4' || selectedContract?.freightBillingStandard === '3/5') {
-      return selectedContract.freightBillingStandard;
     }
     return '3/5';
   }, [outboundDelivery, contractOutboundDeliveries, selectedContract]);
