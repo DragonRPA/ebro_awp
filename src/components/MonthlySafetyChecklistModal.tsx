@@ -840,13 +840,14 @@ ${tenantCorp} 드림 (대표전화: ${tenantTel})`
       const primaryRecipient = allRecipientEmails[0];
       const ccRecipients = allRecipientEmails.slice(1).join(', ');
 
-      // PDF와 엑셀 원본을 함께 첨부
-      const attachments: { filename: string; localPath: string }[] = [
-        { filename: doc.fileName, localPath: doc.filePath }
-      ];
-      if (doc.xlsxFilePath && doc.xlsxFileName) {
-        attachments.push({ filename: doc.xlsxFileName, localPath: doc.xlsxFilePath });
+      if (!doc || !doc.filePath || doc.filePath.toLowerCase().endsWith('.xlsx')) {
+        throw new Error('체크리스트 PDF 파일이 준비되지 않았습니다. PDF 생성 완료 후 발송해 주세요.');
       }
+
+      // 고객 발송 이메일에는 엑셀(.xlsx) 원본을 제외하고 오직 PDF 파일만 첨부
+      const attachments: { filename: string; localPath: string }[] = [
+        { filename: doc.fileName.replace(/\.xlsx$/i, '.pdf'), localPath: doc.filePath }
+      ];
 
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || '(주)기연리프트';
       const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand;
