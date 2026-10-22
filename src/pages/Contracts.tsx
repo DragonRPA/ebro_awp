@@ -37,8 +37,7 @@ export const Contracts: React.FC = () => {
     getProductStock: getTradeProductStock,
     createSalesOrder: createTradeSalesOrder,
     updateSalesOrder: updateTradeSalesOrder,
-    cancelSalesOrder: cancelTradeSalesOrder,
-    addProduct: addTradeProduct
+    cancelSalesOrder: cancelTradeSalesOrder
   } = useTrade();
 
   const canUseContractTradeOutbound = useSpecialFeature('btn:contracts:trade_outbound');
@@ -260,12 +259,6 @@ export const Contracts: React.FC = () => {
   const [tradeTargetBillingYm, setTradeTargetBillingYm] = useState(new Date().toISOString().slice(0, 7));
   const [tradeMemo, setTradeMemo] = useState('');
   const [isSubmittingTradeOutbound, setIsSubmittingTradeOutbound] = useState(false);
-  const [showQuickTradeProductForm, setShowQuickTradeProductForm] = useState(false);
-  const [newTradeProdName, setNewTradeProdName] = useState('');
-  const [newTradeProdCategory, setNewTradeProdCategory] = useState<'안전용품' | '장비옵션' | '소모품' | '기타'>('장비옵션');
-  const [newTradeProdSpec, setNewTradeProdSpec] = useState('');
-  const [newTradeProdUnit, setNewTradeProdUnit] = useState('개');
-  const [newTradeProdPrice, setNewTradeProdPrice] = useState(0);
 
   // ⚡ O(1) 조회용 인덱스 맵 사전 계산 (필터 변경 시 O(N*M) 중첩 탐색 방지)
   const customerMap = useMemo(() => {
@@ -1403,44 +1396,13 @@ export const Contracts: React.FC = () => {
 
     const { defaultYm } = resolveDefaultTradeBillingYm(activeContract);
 
-    setTradeDeliveryMethod(pendingDeliveries.length > 0 ? 'BUNDLE_WITH_RENTAL' : 'PARCEL');
+    setTradeDeliveryMethod('PARCEL');
     setTradeLinkedRentalDeliveryId(pendingDeliveries[0]?.id || '');
     setTradeBillingMode('MERGE_CURRENT_MONTH');
     setTradeTargetBillingYm(defaultYm);
     setTradeSelectedItems([]);
     setTradeMemo('');
-    setShowQuickTradeProductForm(false);
     setShowTradeOutboundModal(true);
-  };
-
-  const handleQuickAddTradeProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTradeProdName.trim()) {
-      showToast('품목명을 입력하십시오.', 'error');
-      return;
-    }
-    const unitSalesPrice = Math.max(0, Number(newTradeProdPrice) || 0);
-    const createdProd = await addTradeProduct({
-      name: newTradeProdName.trim(),
-      skuCode: '',
-      category: newTradeProdCategory,
-      spec: newTradeProdSpec.trim() || '표준규격',
-      unit: newTradeProdUnit.trim() || '개',
-      standardCost: Math.round(unitSalesPrice * 0.7),
-      standardPrice: unitSalesPrice,
-      cogsMethod: 'FIFO',
-      safetyStock: 5,
-      status: 'ACTIVE'
-    });
-    setTradeSelectedItems(prev => [
-      ...prev,
-      { productId: createdProd.id, quantity: 1, unitPrice: createdProd.standardPrice }
-    ]);
-    setNewTradeProdName('');
-    setNewTradeProdSpec('');
-    setNewTradeProdPrice(0);
-    setShowQuickTradeProductForm(false);
-    showToast(`유통 품목 [${createdProd.name}]이 등록되어 선택 목록에 추가되었습니다.`);
   };
 
   const handleSaveTradeOutbound = async (e: React.FormEvent) => {
@@ -5383,82 +5345,7 @@ export const Contracts: React.FC = () => {
                     <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       1단계: 출고 품목 선택 (클릭 시 즉시 담기) *
                     </label>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setShowQuickTradeProductForm(prev => !prev)}
-                      style={{ padding: '3px 8px', fontSize: '11px', color: '#0284c7', borderColor: '#7dd3fc', fontWeight: 700 }}
-                    >
-                      {showQuickTradeProductForm ? '신규 품목 입력 닫기' : '+ 신규 유통품목 즉시 등록'}
-                    </button>
                   </div>
-
-                  {/* 신규 유통품목 인라인 등록 폼 */}
-                  {showQuickTradeProductForm && (
-                    <div
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-app)',
-                        border: '1px dashed #0284c7',
-                        display: 'grid',
-                        gridTemplateColumns: '1.3fr 1fr 0.7fr 1fr auto',
-                        gap: '8px',
-                        alignItems: 'end'
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700 }}>품목명 *</label>
-                        <input
-                          type="text"
-                          placeholder="예: 안전벨트, 유도봉"
-                          value={newTradeProdName}
-                          onChange={e => setNewTradeProdName(e.target.value)}
-                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700 }}>분류</label>
-                        <select
-                          value={newTradeProdCategory}
-                          onChange={e => setNewTradeProdCategory(e.target.value as any)}
-                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                        >
-                          <option value="장비옵션">장비옵션</option>
-                          <option value="안전용품">안전용품</option>
-                          <option value="소모품">소모품</option>
-                          <option value="기타">기타</option>
-                        </select>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700 }}>단위</label>
-                        <input
-                          type="text"
-                          value={newTradeProdUnit}
-                          onChange={e => setNewTradeProdUnit(e.target.value)}
-                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700 }}>판매단가 (원)</label>
-                        <input
-                          type="number"
-                          value={newTradeProdPrice || ''}
-                          onChange={e => setNewTradeProdPrice(Number(e.target.value) || 0)}
-                          placeholder="0"
-                          style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={handleQuickAddTradeProduct}
-                        style={{ padding: '6px 10px', fontSize: '12px', height: '31px', whiteSpace: 'nowrap' }}
-                      >
-                        등록 및 담기
-                      </button>
-                    </div>
-                  )}
 
                   {/* 품목 칩 버튼 그리드 */}
                   <div
@@ -5476,7 +5363,7 @@ export const Contracts: React.FC = () => {
                   >
                     {activeTradeProducts.length === 0 ? (
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        등록된 유통 품목이 없습니다. 우측 상단 [+ 신규 유통품목 즉시 등록]을 눌러 품목을 추가하십시오.
+                        등록된 유통 품목이 없습니다.
                       </span>
                     ) : (
                       activeTradeProducts.map(prod => {
@@ -5738,8 +5625,8 @@ export const Contracts: React.FC = () => {
                     </button>
 
                     {tradeBillingMode === 'MERGE_CURRENT_MONTH' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                        <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1' }}>합산 귀속월:</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', flexShrink: 0 }}>
+                        <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap', flexShrink: 0 }}>합산 귀속월:</label>
                         <input
                           type="month"
                           value={tradeTargetBillingYm}
