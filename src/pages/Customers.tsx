@@ -839,10 +839,16 @@ export const Customers: React.FC = () => {
         }
       }
 
+      const cleanContactPersonName = (str?: string) =>
+        String(str || '').replace(/\s+/g, '').replace(/(부장님|차장님|과장님|대리님|팀장님|소장님|사원님|주임님|대표님|상무님|이사님|책임님|선임님|관리부장|부장|차장|과장|대리|팀장|소장|사원|주임|대표|상무|이사|책임|선임|프로|실장|계장|공무|기사|직원|담당자|현장담당자|현장담당|님)$/g, '');
+
       for (const cc of cContacts) {
         if (!cc.name && !cc.contact && !cc.email) continue;
         const dup = rows.some(
-          r => r['고객사명'] === cName && r['담당자 성명'] === (cc.name || '-') && r['전화번호(휴대폰)'] === (cc.contact || '-')
+          r =>
+            r['고객사명'] === cName &&
+            cleanContactPersonName(r['담당자 성명']) === cleanContactPersonName(cc.name || '-') &&
+            r['전화번호(휴대폰)'] === (cc.contact || '-')
         );
         if (dup) continue;
         rows.push({
