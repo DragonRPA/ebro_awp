@@ -6437,9 +6437,10 @@ export const SmartDispatch4: React.FC = () => {
         }
       }
 
-      // 현장담당자 / 연락처 복원
+      // 현장담당자 / 연락처 / 이메일 복원
       let siteContactName = snapMeta?.siteContactName || '';
       let siteContactPhone = snapMeta?.siteContactPhone || '';
+      let siteContactEmail = (snapMeta?.siteContactEmail && snapMeta.siteContactEmail !== '미상' && snapMeta.siteContactEmail !== '-') ? snapMeta.siteContactEmail : '';
       if (!siteContactName && d.memo) {
         const mContact = d.memo.match(/현장담당:\s*([^\(\|]+?)(?:\s*\(([^\)]+)\))?(?:\s*\||$)/);
         if (mContact) {
@@ -6449,14 +6450,49 @@ export const SmartDispatch4: React.FC = () => {
           if (p && p !== '-') siteContactPhone = p;
         }
       }
-      if (!siteContactName && site) {
+      if (site) {
         const actContacts = ((site as any).contacts || []).filter((c: any) => c.isActive !== false && c.name && c.name !== '미상');
-        if (actContacts.length > 0) {
-          siteContactName = actContacts[0].name;
-          siteContactPhone = actContacts[0].contact || '';
-        } else if (site.contactName && site.contactName !== '미상') {
-          siteContactName = site.contactName;
-          siteContactPhone = site.contact || '';
+        if (!siteContactName) {
+          if (actContacts.length > 0) {
+            siteContactName = actContacts[0].name;
+            siteContactPhone = actContacts[0].contact || '';
+            if (!siteContactEmail && actContacts[0].email && actContacts[0].email !== '미상') {
+              siteContactEmail = actContacts[0].email;
+            }
+          } else if (site.contactName && site.contactName !== '미상') {
+            siteContactName = site.contactName;
+            siteContactPhone = site.contact || '';
+          }
+        }
+        if (!siteContactEmail) {
+          const cleanPhone = (siteContactPhone || '').replace(/[^0-9]/g, '');
+          const matchedSiteContact = actContacts.find((c: any) => {
+            if (!c.email || c.email === '미상') return false;
+            const cPhone = (c.contact || '').replace(/[^0-9]/g, '');
+            if (cleanPhone && cPhone && cleanPhone === cPhone) return true;
+            if (siteContactName && c.name && (siteContactName === c.name || siteContactName.startsWith(c.name))) return true;
+            return false;
+          }) || actContacts.find((c: any) => c.email && c.email !== '미상');
+          if (matchedSiteContact?.email) {
+            siteContactEmail = matchedSiteContact.email;
+          } else if ((site as any).email && (site as any).email !== '미상') {
+            siteContactEmail = (site as any).email;
+          }
+        }
+      }
+      if (!siteContactEmail && customer) {
+        const custContacts = (contacts || []).filter(c => c.customerId === customer.id && c.isActive !== false && c.email && c.email !== '미상');
+        const cleanPhone = (siteContactPhone || '').replace(/[^0-9]/g, '');
+        const matchedCustContact = custContacts.find(c => {
+          const cPhone = (c.contact || '').replace(/[^0-9]/g, '');
+          if (cleanPhone && cPhone && cleanPhone === cPhone) return true;
+          if (siteContactName && c.name && (siteContactName === c.name || siteContactName.startsWith(c.name))) return true;
+          return false;
+        }) || custContacts[0];
+        if (matchedCustContact?.email) {
+          siteContactEmail = matchedCustContact.email;
+        } else if ((customer as any).email && (customer as any).email !== '미상') {
+          siteContactEmail = (customer as any).email;
         }
       }
 
@@ -6695,6 +6731,7 @@ export const SmartDispatch4: React.FC = () => {
         siteAddress: siteAddress || '-',
         siteContactName: siteContactName || '-',
         siteContactPhone: siteContactPhone || '-',
+        siteContactEmail: siteContactEmail || '-',
         equipmentItems,
         totalQty,
         totalAssignedCount,
@@ -6765,6 +6802,7 @@ export const SmartDispatch4: React.FC = () => {
         matcher.test(r.siteAddress) ||
         matcher.test(r.requesterName) ||
         matcher.test(r.siteContactName) ||
+        matcher.test(r.siteContactEmail) ||
         matcher.test(equipStr) ||
         matcher.test(optStr)
       );
@@ -7317,6 +7355,10 @@ export const SmartDispatch4: React.FC = () => {
                         <span className="text-[10.5px] text-slate-400 block">담당자 연락처</span>
                         <span className="font-mono text-slate-200 break-words">{selectedRow.siteContactPhone}</span>
                       </div>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10.5px] text-slate-400 block">담당자 이메일</span>
+                      <span className="font-mono text-slate-200 break-words">{selectedRow.siteContactEmail}</span>
                     </div>
                   </div>
 

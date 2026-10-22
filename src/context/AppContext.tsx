@@ -3438,6 +3438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         siteAddress: string;
         siteContactName: string;
         siteContactPhone: string;
+        siteContactEmail?: string;
         loadingTime: string;
         unloadingTime: string;
         vehicleType: string;
@@ -3468,6 +3469,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       siteAddress: finalSite.address || data.siteAddress || '',
       siteContactName: data.siteContactName || finalSite.contactName || '',
       siteContactPhone: data.siteContactPhone || finalSite.contact || '',
+      siteContactEmail: (data.siteContactEmail && data.siteContactEmail !== '미상' ? data.siteContactEmail : '') || (finalSite.email && finalSite.email !== '미상' ? finalSite.email : '') || '',
       loadingTime: data.loadingTime || '',
       unloadingTime: data.unloadingTime || '',
       vehicleType: dData.vehicleType || '5T',
