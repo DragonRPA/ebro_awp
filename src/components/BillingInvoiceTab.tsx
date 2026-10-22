@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
-import { emailService } from '../services/email';
+import { emailService, normalizeEmailRecipientString } from '../services/email';
 import {
   generateInvoices,
   consolidateExistingBillings,
@@ -669,9 +669,11 @@ export const BillingInvoiceTab: React.FC = () => {
     }
 
     const custName = selectedCustomer?.name || '고객사';
-    const defaultEmail = selectedCustomer?.billingEmail || selectedCustomer?.email || '77.victor.lee@gmail.com';
-    const recipient = overrideRecipient || (typeof window !== 'undefined' ? window.prompt('통합 거래명세서 수신 이메일 주소를 입력해 주세요:', defaultEmail) : defaultEmail);
-    if (!recipient || !recipient.trim()) return;
+    const rawDefaultEmail = selectedCustomer?.billingEmail || selectedCustomer?.email || '77.victor.lee@gmail.com';
+    const defaultEmail = normalizeEmailRecipientString(rawDefaultEmail) || rawDefaultEmail;
+    const rawRecipient = overrideRecipient || (typeof window !== 'undefined' ? window.prompt('통합 거래명세서 수신 이메일 주소를 입력해 주세요:', defaultEmail) : defaultEmail);
+    const recipient = normalizeEmailRecipientString(rawRecipient);
+    if (!recipient) return;
 
     setIsSendingEmail(true);
     try {

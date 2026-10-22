@@ -5,7 +5,7 @@ import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
 import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload, TenantBankAccount, Tenant } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings, Scissors } from 'lucide-react';
-import { emailService } from '../services/email';
+import { emailService, extractValidEmails } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName, buildStatementItemFromDetail } from '../services/excel';
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
 import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
@@ -1039,30 +1039,27 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
     const contract = contracts.find(c => c.id === billing.contractId);
     const site = sites.find(s => s.id === contract?.siteId);
     
-    // 💡 수신인 후보군 자동 추출 (고객사 대표 이메일 + 해당 고객사 담당자 이메일 목록)
-    const emails: string[] = [];
+    // 💡 수신인 후보군 자동 추출 (고객사 대표 이메일 + 해당 고객사 담당자 이메일 목록 — 콤마/슬래시 다중 이메일 자동 분리 및 중복 제거)
+    const rawEmails: string[] = [];
     if (customer?.repEmail && customer.repEmail !== '미상') {
-      emails.push(customer.repEmail.trim());
+      rawEmails.push(customer.repEmail.trim());
     }
 
     const custContacts = contacts.filter(cc => cc.customerId === billing.customerId && cc.email && cc.email !== '미상' && cc.isActive !== false);
     custContacts.forEach(cc => {
-      if (!emails.includes(cc.email.trim())) {
-        emails.push(cc.email.trim());
-      }
+      rawEmails.push(cc.email.trim());
     });
 
     // 👥 현장 담당자 이메일 자동 포함 (동시 복수 담당자 지원)
     if (site?.contacts && site.contacts.length > 0) {
       site.contacts.filter(sc => sc.isActive !== false && sc.email && sc.email !== '미상').forEach(sc => {
-        if (!emails.includes(sc.email!.trim())) {
-          emails.push(sc.email!.trim());
-        }
+        rawEmails.push(sc.email!.trim());
       });
     }
-    if (site?.email && site.email !== '미상' && !emails.includes(site.email.trim())) {
-      emails.push(site.email.trim());
+    if (site?.email && site.email !== '미상') {
+      rawEmails.push(site.email.trim());
     }
+    const emails = extractValidEmails(rawEmails);
 
     const custName = customer?.name || '고객명';
     const siteName = site?.name || '현장명';
@@ -1451,8 +1448,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 ========================================================================================`;
 
     try {
-      const toList = mailTo.split(',').map(e => e.trim()).filter(Boolean);
-      const ccList = mailCc ? mailCc.split(',').map(e => e.trim()).filter(Boolean) : [];
+      const toList = extractValidEmails(mailTo);
+      const ccList = mailCc ? extractValidEmails(mailCc) : [];
 
       // 1. 거래명세서 정품 PDF 생성
       let attachments: { filename: string; content: string }[] = [];

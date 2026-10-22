@@ -773,10 +773,33 @@ async function executeSendEmailInternal(payload) {
   const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
   const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
 
+  const extractEmails = (raw) => {
+    if (!raw) return [];
+    const text = Array.isArray(raw) ? raw.join(', ') : String(raw);
+    const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+    const seen = new Set();
+    const out = [];
+    for (const m of matches) {
+      const clean = m.trim();
+      const lower = clean.toLowerCase();
+      if (clean && !seen.has(lower)) {
+        seen.add(lower);
+        out.push(clean);
+      }
+    }
+    return out;
+  };
+
+  const toEmails = extractEmails(to);
+  const toLowerSet = new Set(toEmails.map(e => e.toLowerCase()));
+  const ccEmails = extractEmails(cc).filter(e => !toLowerSet.has(e.toLowerCase()));
+  const normalizedTo = toEmails.length > 0 ? toEmails.join(', ') : String(to).trim();
+  const normalizedCc = ccEmails.length > 0 ? ccEmails.join(', ') : undefined;
+
   const info = await transporter.sendMail({
     from: `"${senderDisplayName}" <${cleanEmail}>`,
-    to: String(to).trim(),
-    cc: cc ? String(cc).trim() : undefined,
+    to: normalizedTo,
+    cc: normalizedCc,
     subject: String(subject).trim(),
     text: String(body),
     attachments: parsedAttachments

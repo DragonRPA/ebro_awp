@@ -537,10 +537,11 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--text-muted)' }}>수신인 이메일</label>
                 <input 
-                  type="email" 
+                  type="text" 
                   data-mid="trade_contract_modal-recipient_email"
                   value={recipientEmail} 
                   onChange={e => setRecipientEmail(e.target.value)} 
+                  placeholder="수신인 이메일 (콤마 또는 슬래시로 복수 입력 가능)"
                   style={{ padding: '6px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }} 
                 />
               </div>

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Mail, Send, Paperclip, CheckCircle2, AlertCircle, FileText, Building2, User, Phone, Check, RefreshCw, X, Eye } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { db, Customer, CustomerContact, CustomerSite } from '../services/db';
-import { emailService, SentEmail } from '../services/email';
+import { emailService, SentEmail, normalizeEmailRecipientString } from '../services/email';
 
 type TemplateType = 'COMPANY_PROFILE' | 'CATALOG_SPEC' | 'CONTRACT_BUNDLE' | 'CUSTOM';
 
@@ -138,7 +138,7 @@ export const OfficialMailPage: React.FC = () => {
     setSelectedSiteId('');
     const cust = customers.find(c => c.id === custId);
     if (cust) {
-      setRecipientEmail(cust.repEmail || '');
+      setRecipientEmail(normalizeEmailRecipientString(cust.repEmail) || cust.repEmail || '');
       setRecipientName(cust.name || '');
       setRecipientPhone(cust.repContact || '');
     } else {
@@ -153,7 +153,7 @@ export const OfficialMailPage: React.FC = () => {
     setSelectedContactId(contactId);
     const cnt = relatedContacts.find(c => c.id === contactId);
     if (cnt) {
-      if (cnt.email) setRecipientEmail(cnt.email);
+      if (cnt.email) setRecipientEmail(normalizeEmailRecipientString(cnt.email) || cnt.email);
       setRecipientName(cnt.name ? `${currentCustomer?.name || ''} ${cnt.name} ${cnt.position || '담당자'}` : recipientName);
       if (cnt.contact) setRecipientPhone(cnt.contact);
     }
@@ -535,10 +535,10 @@ export const OfficialMailPage: React.FC = () => {
                 <span>수신 이메일 주소 <span style={{ color: 'var(--danger)' }}>*</span></span>
               </label>
               <input
-                type="email"
+                type="text"
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
-                placeholder="recipient@company.com"
+                placeholder="recipient@company.com (콤마 또는 슬래시로 복수 입력 가능)"
                 style={{
                   width: '100%',
                   height: '36px',
@@ -559,10 +559,10 @@ export const OfficialMailPage: React.FC = () => {
                 참조 이메일
               </label>
               <input
-                type="email"
+                type="text"
                 value={ccEmail}
                 onChange={(e) => setCcEmail(e.target.value)}
-                placeholder="cc@company.com (선택 사항)"
+                placeholder="cc@company.com (선택 사항 / 복수 입력 가능)"
                 style={{
                   width: '100%',
                   height: '36px',

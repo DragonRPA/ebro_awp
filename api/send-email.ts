@@ -106,10 +106,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const senderBrand = fromName || tenantCorp || tenantBrand || process.env.VITE_TENANT_NAME || 'e-Bro ERP';
 
+    const extractEmails = (raw?: any): string[] => {
+      if (!raw) return [];
+      const text = Array.isArray(raw) ? raw.join(', ') : String(raw);
+      const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const m of matches) {
+        const clean = m.trim();
+        const lower = clean.toLowerCase();
+        if (clean && !seen.has(lower)) {
+          seen.add(lower);
+          out.push(clean);
+        }
+      }
+      return out;
+    };
+
+    const toEmails = extractEmails(to);
+    const toLowerSet = new Set(toEmails.map(e => e.toLowerCase()));
+    const ccEmails = extractEmails(cc).filter(e => !toLowerSet.has(e.toLowerCase()));
+    const normalizedTo = toEmails.length > 0 ? toEmails.join(', ') : String(to).trim();
+    const normalizedCc = ccEmails.length > 0 ? ccEmails.join(', ') : undefined;
+
     const mailOptions: nodemailer.SendMailOptions = {
       from: `"${senderBrand}" <${cleanEmail}>`,
-      to: String(to).trim(),
-      cc: cc ? String(cc).trim() : undefined,
+      to: normalizedTo,
+      cc: normalizedCc,
       subject: String(subject).trim(),
       text: String(body),
       html: html ? String(html) : undefined,

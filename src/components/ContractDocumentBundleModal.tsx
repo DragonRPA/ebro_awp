@@ -6,7 +6,7 @@ import {
   X, FileText, FolderOpen, CheckCircle2, AlertCircle, 
   RefreshCw, FileCheck, Mail, Send, Plus, Users, Check, Play, Filter
 } from 'lucide-react';
-import { emailService } from '../services/email';
+import { emailService, extractValidEmails } from '../services/email';
 import { db, formatContractEndDate } from '../services/db';
 import { clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { fetchWithAgentFallback, launchLocalAgentFromBrowser, isAgentOnlineGlobal, subscribeAgentStatus, setGlobalAgentStatus } from '../services/agentService';
@@ -716,21 +716,19 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       const roleLabel = buildRoleLabel(typeLabel, position);
 
       if (resolvedRawEmail) {
-        const parts = String(resolvedRawEmail).split(/[\s,;/]+/).map(e => e.trim()).filter(Boolean);
+        const parts = extractValidEmails(resolvedRawEmail);
         let pushedAny = false;
         parts.forEach((em, i) => {
-          if (em.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            pushedAny = true;
-            emailContacts.push({
-              id: parts.length > 1 ? `${baseId}-${i}` : baseId,
-              name: cleanName || typeLabel,
-              position: (position || '').trim() || typeLabel,
-              email: em,
-              phone: cleanPhone,
-              typeLabel,
-              roleLabel
-            });
-          }
+          pushedAny = true;
+          emailContacts.push({
+            id: parts.length > 1 ? `${baseId}-${i}` : baseId,
+            name: cleanName || typeLabel,
+            position: (position || '').trim() || typeLabel,
+            email: em,
+            phone: cleanPhone,
+            typeLabel,
+            roleLabel
+          });
         });
         if (pushedAny) return;
       }
@@ -890,24 +888,27 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
   const handleAddManualRecipient = () => {
     const cleanEmail = manualInputEmail.trim();
     if (!cleanEmail) return;
-    if (!cleanEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    const parsedEmails = extractValidEmails(cleanEmail);
+    if (parsedEmails.length === 0) {
       alert('올바른 이메일 주소 형식을 입력해 주세요.');
       return;
     }
-    if (recipients.some(r => r.email.toLowerCase() === cleanEmail.toLowerCase())) {
+    const existingLower = new Set(recipients.map(r => r.email.toLowerCase()));
+    const newEmails = parsedEmails.filter(e => !existingLower.has(e.toLowerCase()));
+    if (newEmails.length === 0) {
       alert('이미 추가된 이메일 주소입니다.');
       return;
     }
 
     setRecipients(prev => [
       ...prev,
-      {
-        id: `recip-manual-${Date.now()}`,
-        email: cleanEmail,
-        name: manualInputName.trim() || cleanEmail.split('@')[0],
+      ...newEmails.map((em, idx) => ({
+        id: `recip-manual-${Date.now()}-${idx}`,
+        email: em,
+        name: manualInputName.trim() || em.split('@')[0],
         roleLabel: '직접입력',
-        source: 'MANUAL'
-      }
+        source: 'MANUAL' as const
+      }))
     ]);
     setManualInputEmail('');
     setManualInputName('');
@@ -1214,9 +1215,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         pdf = await buildBundlePdf();
       }
 
-      // 2. 단일 메일에 복수 수신인(TO: 1번째, CC: 나머지) 바인딩
-      const primaryRecipient = recipients[0].email;
-      const ccRecipients = recipients.slice(1).map(r => r.email).join(', ');
+      // 2. 단일 메일에 복수 수신인(TO: 1번째, CC: 나머지) 바인딩 — 콤마/슬래시 다중 이메일 방어 처리
+      const allRecipientEmails = extractValidEmails(recipients.map(r => r.email));
+      if (allRecipientEmails.length === 0) {
+        throw new Error('유효한 수신자 이메일 주소가 없습니다. 이메일 주소를 확인해 주세요.');
+      }
+      const primaryRecipient = allRecipientEmails[0];
+      const ccRecipients = allRecipientEmails.slice(1).join(', ');
 
       if (!pdf || !pdf.filePath) {
         throw new Error('[증빙 부재 발송 차단] 계약서패키지 실물 PDF 조립 및 저장이 완료되지 않아 발송을 중단합니다. (증빙 없는 계약서 발송 금지)');

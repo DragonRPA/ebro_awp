@@ -15,6 +15,35 @@ export interface SentEmail {
   error?: string;
 }
 
+/**
+ * 콤마(,), 슬래시(/), 세미콜론(;), 앰퍼샌드(&), 공백 등으로 구분된 다중 이메일 문자열에서
+ * 유효한 이메일 주소만 추출하고 대소문자 구분 없이 중복을 제거합니다.
+ */
+export function extractValidEmails(raw?: string | string[] | null): string[] {
+  if (!raw) return [];
+  const text = Array.isArray(raw) ? raw.join(', ') : String(raw);
+  const matches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+  if (!matches) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const m of matches) {
+    const clean = m.trim();
+    const lower = clean.toLowerCase();
+    if (clean && !seen.has(lower)) {
+      seen.add(lower);
+      result.push(clean);
+    }
+  }
+  return result;
+}
+
+/**
+ * 다중 이메일 문자열을 표준 SMTP 수신자 형식("a@b.com, c@d.com")으로 정규화합니다.
+ */
+export function normalizeEmailRecipientString(raw?: string | string[] | null): string {
+  return extractValidEmails(raw).join(', ');
+}
+
 class RealGmailService {
   private getEmails(): SentEmail[] {
     const val = localStorage.getItem('sent_emails');
@@ -64,13 +93,23 @@ class RealGmailService {
    * 최신 계정 정보를 읽어와서 로컬 에이전트(1순위) 또는 Vercel(/api/send-email)로 전송
    */
   async sendEmail(
-    to: string,
+    rawTo: string,
     subject: string,
     body: string,
     attachments: { filename: string; content?: string; localPath?: string; contentType?: string }[] = [],
-    cc?: string,
+    rawCc?: string,
     fromName?: string
   ): Promise<SentEmail> {
+    const toList = extractValidEmails(rawTo);
+    const toLowerSet = new Set(toList.map(e => e.toLowerCase()));
+    const ccList = extractValidEmails(rawCc).filter(e => !toLowerSet.has(e.toLowerCase()));
+
+    const to = toList.length > 0 ? toList.join(', ') : String(rawTo || '').trim();
+    const cc = ccList.length > 0 ? ccList.join(', ') : undefined;
+
+    if (toList.length === 0 && to !== 'admin@ebro.co.kr' && !subject.includes('[테스트 격리 발송]')) {
+      throw new Error('유효한 수신자 이메일 주소가 없습니다. 이메일 주소 형식을 확인해 주세요.');
+    }
 
     // 1. 단일 진실의 원천: 현재 접속 테넌트 변수 기반으로 공식메일설정 조회
     const activeTenant = db.currentTenant;
