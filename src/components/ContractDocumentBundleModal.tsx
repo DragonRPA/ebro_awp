@@ -963,6 +963,75 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder})`
         : '';
 
+      // 💡 현장 담당자(장비담당자/대표담당자) 성명 및 휴대폰 번호 산출 (고객현장 CustomerSite SSOT 최우선, 대표자명·비전화번호 유입 원천 차단)
+      const isValidPhoneText = (raw?: string | null): boolean => {
+        if (!raw) return false;
+        const digits = String(raw).replace(/[^0-9]/g, '');
+        return digits.length >= 8 && digits.length <= 12;
+      };
+      const isGenericRoleTitle = (pos?: string | null): boolean => {
+        const clean = String(pos || '').trim();
+        return !clean || ['장비담당', '장비담당자', '현장담당', '현장담당자', '현장대표', '마감담당', '마감담당자', '안전담당', '안전담당자', '담당자', '담당'].includes(clean);
+      };
+      const activeSiteContacts = (site?.contacts || []).filter(
+        c => c && c.isActive !== false && (c.name || '').trim() && (c.name || '').trim() !== '-'
+      );
+      const targetDelEntry = filterDate.startsWith('DELIVERY:')
+        ? contractOutboundDeliveries.find(x => x.id === filterDate.slice('DELIVERY:'.length))
+        : (outboundDelivery ? contractOutboundDeliveries.find(x => x.id === outboundDelivery.id) : undefined);
+
+      const delContactName = (targetDelEntry?.siteContactName || '').trim();
+      const delContactPhone = (targetDelEntry?.siteContactPhone || '').trim();
+      const ceoNameTrimmed = (customer?.representative || '').trim();
+
+      const matchedByDelName = (delContactName && delContactName !== '-' && delContactName !== ceoNameTrimmed)
+        ? activeSiteContacts.find(c => (c.name || '').trim() === delContactName && c.contactType !== 'CLOSING')
+        : undefined;
+
+      const primarySiteContact =
+        matchedByDelName ||
+        activeSiteContacts.find(c => c.contactType === 'EQUIPMENT' && c.isPrimary) ||
+        activeSiteContacts.find(c => c.contactType === 'EQUIPMENT') ||
+        activeSiteContacts.find(c => c.isPrimary && c.contactType !== 'CLOSING') ||
+        activeSiteContacts.find(c => c.contactType !== 'CLOSING' && c.contactType !== 'SAFETY') ||
+        activeSiteContacts[0];
+
+      const resolvedSiteManagerName = (() => {
+        if (primarySiteContact?.name) {
+          const baseName = primarySiteContact.name.trim();
+          const pos = (primarySiteContact.position || '').trim();
+          if (pos && !isGenericRoleTitle(pos) && !baseName.endsWith(pos)) {
+            return `${baseName} ${pos}`;
+          }
+          return baseName;
+        }
+        const flatSiteName = (site?.contactName || '').trim();
+        if (flatSiteName && flatSiteName !== '-' && flatSiteName !== ceoNameTrimmed) {
+          return flatSiteName;
+        }
+        if (delContactName && delContactName !== '-' && delContactName !== ceoNameTrimmed) {
+          return delContactName;
+        }
+        return '';
+      })();
+
+      const resolvedSiteManagerPhone = (() => {
+        if (primarySiteContact?.contact && isValidPhoneText(primarySiteContact.contact)) {
+          return primarySiteContact.contact.trim();
+        }
+        if (site?.contact && isValidPhoneText(site.contact)) {
+          return site.contact.trim();
+        }
+        if (delContactPhone && isValidPhoneText(delContactPhone)) {
+          return delContactPhone;
+        }
+        const anyPhoneContact = activeSiteContacts.find(c => isValidPhoneText(c.contact));
+        if (anyPhoneContact?.contact) {
+          return anyPhoneContact.contact.trim();
+        }
+        return '';
+      })();
+
       const bundleOptions = {
         customerName: custName,
         tenantName: tenantCorp,
@@ -988,36 +1057,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         siteName: siteName,
         siteAddress: siteAddress,
         contractNo: selectedContract.id,
-        managerName: customer?.representative || '계약담당자',
-        managerPhone: customer?.repContact || '010-0000-0000',
-        siteManagerName: (() => {
-          if (filterDate.startsWith('DELIVERY:')) {
-            const targetDelId = filterDate.slice('DELIVERY:'.length);
-            const delEntry = contractOutboundDeliveries.find(x => x.id === targetDelId);
-            if (delEntry?.siteContactName && delEntry.siteContactName !== '-') {
-              return delEntry.siteContactName;
-            }
-          }
-          const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
-          if (actContacts.length > 0) {
-            return actContacts.map(c => c.position ? `${c.name}(${c.position})` : c.name).join(', ');
-          }
-          return site?.contactName || '현장소장';
-        })(),
-        siteManagerPhone: (() => {
-          if (filterDate.startsWith('DELIVERY:')) {
-            const targetDelId = filterDate.slice('DELIVERY:'.length);
-            const delEntry = contractOutboundDeliveries.find(x => x.id === targetDelId);
-            if (delEntry?.siteContactPhone && delEntry.siteContactPhone !== '-') {
-              return delEntry.siteContactPhone;
-            }
-          }
-          const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
-          if (actContacts.length > 0) {
-            return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
-          }
-          return site?.contact || '010-0000-0000';
-        })(),
+        managerName: resolvedSiteManagerName,
+        managerPhone: resolvedSiteManagerPhone,
+        siteManagerName: resolvedSiteManagerName,
+        siteManagerPhone: resolvedSiteManagerPhone,
         salesRepName: dynamicSalesRepName,
         salesRepPhone: dynamicSalesRepPhone,
         freightBillingStandard,

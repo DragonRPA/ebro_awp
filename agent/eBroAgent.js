@@ -807,8 +807,8 @@ async function executeContractBundleInternal(payload) {
     const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
     const siteName = payload.siteName || '현장미지정';
     const siteAddress = payload.siteAddress || '';
-    const managerName = payload.managerName || '현장담당자';
-    const managerPhone = payload.managerPhone || '010-0000-0000';
+    const managerName = payload.siteManagerName || payload.managerName || '';
+    const managerPhone = payload.siteManagerPhone || payload.managerPhone || '';
     const paidOptions = Array.isArray(payload.paidOptions) ? payload.paidOptions : [];
     const optionsText = ''; // 기존 {옵션} 칸 표기 삭제 (아무 옵션도 표시하지 말 것)
     const remarksText = String(payload.remarksText || '').replace(/안전발판\s*지급/g, '').trim();

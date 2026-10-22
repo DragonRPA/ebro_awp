@@ -1171,11 +1171,11 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         customerAddress: customer?.address || '-',
         customerBizType: customer?.bizType || '-',
         customerBizItem: customer?.bizItem || '-',
-        siteManagerName: (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || '-',
-        siteManagerPhone: (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || '-',
-        custBillingManagerName: (customer as any)?.billingManagerName || (customer as any)?.managerName || '-',
-        custBillingManagerPhone: (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
-        custBillingEmail: (customer as any)?.billingEmail || (customer as any)?.email || '-',
+        siteManagerName: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.name || site?.contactName || (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || '-',
+        siteManagerPhone: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.contact || site?.contact || (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || '-',
+        custBillingManagerName: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.name || site?.billingContactName || (customer as any)?.billingManagerName || (customer as any)?.managerName || '-',
+        custBillingManagerPhone: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.contact || site?.billingContactPhone || (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
+        custBillingEmail: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.email || site?.billingContactEmail || site?.email || customer?.repEmail || (customer as any)?.billingEmail || (customer as any)?.email || '-',
         siteName: site?.name || '-',
         bankAccount: formatTenantBankAccountForStatement(currentTenant),
 
@@ -1294,11 +1294,11 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         customerAddress: customer?.address || '-',
         customerBizType: customer?.bizType || '-',
         customerBizItem: customer?.bizItem || '-',
-        siteManagerName: (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || '-',
-        siteManagerPhone: (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || '-',
-        custBillingManagerName: (customer as any)?.billingManagerName || (customer as any)?.managerName || '-',
-        custBillingManagerPhone: (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
-        custBillingEmail: (customer as any)?.billingEmail || (customer as any)?.email || '-',
+        siteManagerName: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.name || site?.contactName || (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || '-',
+        siteManagerPhone: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.contact || site?.contact || (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || '-',
+        custBillingManagerName: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.name || site?.billingContactName || (customer as any)?.billingManagerName || (customer as any)?.managerName || '-',
+        custBillingManagerPhone: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.contact || site?.billingContactPhone || (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
+        custBillingEmail: (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.email || site?.billingContactEmail || site?.email || customer?.repEmail || (customer as any)?.billingEmail || (customer as any)?.email || '-',
         siteName: site?.name || '-',
         bankAccount: formatTenantBankAccountForStatement(currentTenant),
 
@@ -1399,11 +1399,11 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
 
     const spName = salesperson?.name || (contract as any)?.salespersonName || '-';
     const spPhone = (salesperson as any)?.mobile || salesperson?.phone || '-';
-    const siteManagerName = (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || (customer as any)?.contactPerson || '-';
-    const siteManagerPhone = (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || (customer as any)?.contactPhone || '-';
-    const billingManagerName = (customer as any)?.billingManagerName || (customer as any)?.managerName || (customer as any)?.contactPerson || '-';
-    const billingManagerPhone = (customer as any)?.billingManagerPhone || (customer as any)?.phone || (customer as any)?.contactPhone || '-';
-    const billingEmail = (customer as any)?.billingEmail || (customer as any)?.email || '-';
+    const siteManagerName = (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.name || site?.contactName || (site as any)?.managerName || (site as any)?.contactPerson || (customer as any)?.managerName || (customer as any)?.contactPerson || '-';
+    const siteManagerPhone = (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'EQUIPMENT')?.contact || site?.contact || (site as any)?.managerPhone || (site as any)?.contactPhone || (customer as any)?.phone || (customer as any)?.contactPhone || '-';
+    const billingManagerName = (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.name || site?.billingContactName || (customer as any)?.billingManagerName || (customer as any)?.managerName || (customer as any)?.contactPerson || '-';
+    const billingManagerPhone = (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.contact || site?.billingContactPhone || (customer as any)?.billingManagerPhone || (customer as any)?.phone || (customer as any)?.contactPhone || '-';
+    const billingEmail = (site?.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING')?.email || site?.billingContactEmail || site?.email || customer?.repEmail || (customer as any)?.billingEmail || (customer as any)?.email || '-';
 
     const body =
 `========================================================================================
