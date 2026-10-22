@@ -36,8 +36,7 @@ export const Contracts: React.FC = () => {
     outbounds: tradeOutbounds,
     getProductStock: getTradeProductStock,
     createSalesOrder: createTradeSalesOrder,
-    updateSalesOrder: updateTradeSalesOrder,
-    cancelSalesOrder: cancelTradeSalesOrder
+    deleteSalesOrder: deleteTradeSalesOrder
   } = useTrade();
 
   const canUseContractTradeOutbound = useSpecialFeature('btn:contracts:trade_outbound');
@@ -1462,7 +1461,52 @@ export const Contracts: React.FC = () => {
           : '유통 별도 청구 (납품 및 검수 완료 후 세금계산서 발행)';
       const specialTermsDesc = `1. 연동 렌탈계약: ${activeContract.contractNo} (${getSiteName(activeContract.siteId)})\n2. 출고방식: ${deliveryLabel}`;
 
-      // 1) 유통 수주(TradeSalesOrder) 정보 자동 채움 및 유통 출고(TradeOutbound) 동시 확정 생성 (출고 = 수주 포함)
+      // 1) '당월 렌탈 청구에 합산' 선택 시 계약 귀속 외상미수금 선행 생성 및 당월/익월 청구서 자동 반영
+      let billingResultDesc = '유통 별도 청구';
+      let linkedReceivableId: string | undefined;
+      let linkedBillingId: string | undefined;
+      const { defaultYm } = resolveDefaultTradeBillingYm(activeContract);
+      const targetYm = tradeTargetBillingYm || defaultYm;
+
+      if (tradeBillingMode === 'MERGE_CURRENT_MONTH' && totalSalesAmount > 0) {
+        const displayTitle = `[유통출고] ${summaryText}`;
+        const internalDesc = `[유통출고][귀속월:${targetYm}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`;
+
+        const createdRcv = db.insertRow<Receivable>('receivables', {
+          customerId: activeContract.customerId,
+          contractId: activeContract.id,
+          type: 'OTHER',
+          occurredDate: todayStr,
+          totalAmount: totalSalesAmount,
+          billedAmount: 0,
+          status: 'PENDING',
+          internalDescription: internalDesc,
+          displayName: displayTitle,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        await db.awaitPendingWrites();
+        linkedReceivableId = createdRcv.id;
+
+        // 해당 targetYm에 아직 발송/수납 마감되지 않은 미발송(UNPAID) 청구서가 존재하는 경우 즉시 세부항목(BillingDetail) 및 청구총액에 꽂아 넣음
+        const existingBilling = (billings || []).find(
+          b =>
+            b.contractId === activeContract.id &&
+            b.billingYm === targetYm &&
+            b.status === 'UNPAID'
+        );
+
+        if (existingBilling) {
+          await linkReceivableToBilling(existingBilling.id, createdRcv.id, totalSalesAmount, displayTitle);
+          linkedBillingId = existingBilling.id;
+          billingResultDesc = `${targetYm}월 청구서(${existingBilling.id})에 즉시 합산 완료`;
+        } else {
+          billingResultDesc = `${targetYm}월 정기 청구 생성 시 자동 합산 대기`;
+        }
+      }
+
+      // 2) 유통 출고 및 수주 정보 일괄 자동 생성
       const createdOrder = await createTradeSalesOrder(
         activeContract.customerId,
         orderLinesInput,
@@ -1482,13 +1526,22 @@ export const Contracts: React.FC = () => {
           siteId: activeContract.siteId,
           siteName: getSiteName(activeContract.siteId),
           billingMode: mappedBillingMode,
-          targetBillingYm: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? tradeTargetBillingYm : undefined,
+          targetBillingYm: tradeBillingMode === 'MERGE_CURRENT_MONTH' ? targetYm : undefined,
+          linkedReceivableId,
+          linkedBillingId,
           deliveryMethod: mappedDeliveryMethod,
           linkedRentalDeliveryId: tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL' ? tradeLinkedRentalDeliveryId : undefined
         }
       );
 
-      // 2) 출고 장비 동봉 선택 시 해당 렌탈 배차(Delivery) 메모에 동봉 품목 자동 각인
+      if (linkedReceivableId) {
+        db.updateRow<Receivable>('receivables', linkedReceivableId, {
+          internalDescription: `[유통출고:${createdOrder.id}][귀속월:${targetYm}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      // 3) 출고 장비 동봉 선택 시 해당 렌탈 배차(Delivery) 메모에 동봉 품목 자동 각인
       if (tradeDeliveryMethod === 'BUNDLE_WITH_RENTAL' && tradeLinkedRentalDeliveryId) {
         const targetDel = deliveries.find(d => d.id === tradeLinkedRentalDeliveryId);
         if (targetDel) {
@@ -1500,53 +1553,6 @@ export const Contracts: React.FC = () => {
             memo: nextMemo,
             updatedAt: new Date().toISOString()
           });
-        }
-      }
-
-      // 3) '당월 렌탈 청구에 합산' 선택 시 계약 귀속 외상미수금 생성 및 당월/익월 청구서 자동 반영
-      let billingResultDesc = '유통 별도 청구';
-      if (tradeBillingMode === 'MERGE_CURRENT_MONTH' && totalSalesAmount > 0) {
-        const { defaultYm } = resolveDefaultTradeBillingYm(activeContract);
-        const targetYm = tradeTargetBillingYm || defaultYm;
-        const displayTitle = `[유통출고] ${summaryText}`;
-        const internalDesc = `[유통출고:${createdOrder.id}][귀속월:${targetYm}] ${summaryText} (${deliveryLabel} · ${targetYm}월 청구 합산)`;
-
-        const createdRcv = db.insertRow<Receivable>('receivables', {
-          customerId: activeContract.customerId,
-          contractId: activeContract.id,
-          type: 'OTHER',
-          occurredDate: todayStr,
-          totalAmount: totalSalesAmount,
-          billedAmount: 0,
-          status: 'PENDING',
-          internalDescription: internalDesc,
-          displayName: displayTitle,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-
-        await db.awaitPendingWrites();
-
-        // 해당 targetYm에 아직 발송/수납 마감되지 않은 미발송(UNPAID) 청구서가 존재하는 경우 즉시 세부항목(BillingDetail) 및 청구총액에 꽂아 넣음
-        const existingBilling = (billings || []).find(
-          b =>
-            b.contractId === activeContract.id &&
-            b.billingYm === targetYm &&
-            b.status === 'UNPAID'
-        );
-
-        if (existingBilling) {
-          await linkReceivableToBilling(existingBilling.id, createdRcv.id, totalSalesAmount, displayTitle);
-          await updateTradeSalesOrder(createdOrder.id, {
-            linkedReceivableId: createdRcv.id,
-            linkedBillingId: existingBilling.id
-          });
-          billingResultDesc = `${targetYm}월 청구서(${existingBilling.id})에 즉시 합산 완료`;
-        } else {
-          await updateTradeSalesOrder(createdOrder.id, {
-            linkedReceivableId: createdRcv.id
-          });
-          billingResultDesc = `${targetYm}월 정기 청구 생성 시 자동 합산 대기`;
         }
       }
 
@@ -3929,10 +3935,10 @@ export const Contracts: React.FC = () => {
                                     type="button"
                                     className="btn-secondary"
                                     onClick={async () => {
-                                      if (!window.confirm(`유통출고 주문 [${so.id}] (${itemsText})을 취소하시겠습니까?\n연동된 청구 합산 항목도 함께 롤백됩니다.`)) return;
-                                      await cancelTradeSalesOrder(so.id);
+                                      if (!window.confirm(`유통출고 주문 [${so.id}] (${itemsText})을 취소하시겠습니까?\n연동된 청구 합산 항목과 유통계약 내역이 함께 롤백·삭제됩니다.`)) return;
+                                      await deleteTradeSalesOrder(so.id);
                                       refreshAllData();
-                                      showToast(`유통출고 주문 [${so.id}]이 취소되었습니다.`);
+                                      showToast(`유통출고 주문 [${so.id}]이 삭제되었습니다.`);
                                     }}
                                     style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--danger)' }}
                                   >

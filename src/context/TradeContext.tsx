@@ -391,25 +391,99 @@ function loadFromStorage<T>(key: string, fallback: T, allowEmpty = false): T {
   return fallback;
 }
 
+function purgeSku001TestTradeContractsOnce(): void {
+  const MIGRATION_KEY = 'ebro_purge_sku001_test_contracts_v1';
+  try {
+    if (localStorage.getItem(MIGRATION_KEY) === 'done') return;
+
+    const rawProducts = localStorage.getItem('ebro_trade_products');
+    const savedProducts: TradeProduct[] = rawProducts ? JSON.parse(rawProducts) : DEFAULT_PRODUCTS;
+    const targetProductIds = new Set<string>(['p1']);
+    for (const p of savedProducts) {
+      if (p.id === 'p1' || p.skuCode === 'SKU001' || p.name === '산업용 장갑') {
+        targetProductIds.add(p.id);
+      }
+    }
+
+    const rawLines = localStorage.getItem('ebro_trade_lines');
+    const lines: TradeSalesOrderLine[] = rawLines ? JSON.parse(rawLines) : [];
+    const targetOrderIds = new Set<string>();
+    for (const l of lines) {
+      if (targetProductIds.has(l.productId)) {
+        targetOrderIds.add(l.orderId);
+      }
+    }
+
+    const rawOrders = localStorage.getItem('ebro_trade_orders');
+    const orders: TradeSalesOrder[] = rawOrders ? JSON.parse(rawOrders) : [];
+    const remainingLines = lines.filter(l => !targetProductIds.has(l.productId) && !targetOrderIds.has(l.orderId));
+    const remainingOrderIdsWithLines = new Set(remainingLines.map(l => l.orderId));
+    const removedOrders = orders.filter(o => targetOrderIds.has(o.id) || !remainingOrderIdsWithLines.has(o.id));
+    for (const ro of removedOrders) {
+      targetOrderIds.add(ro.id);
+    }
+    const remainingOrders = orders.filter(o => !targetOrderIds.has(o.id));
+
+    const rawOutbounds = localStorage.getItem('ebro_trade_outbounds');
+    const outboundsList: TradeOutbound[] = rawOutbounds ? JSON.parse(rawOutbounds) : [];
+    const remainingOutbounds = outboundsList.filter(ob => !targetOrderIds.has(ob.orderId));
+
+    const rawBillings = localStorage.getItem('ebro_trade_billings');
+    const billingsList: TradeBilling[] = rawBillings ? JSON.parse(rawBillings) : [];
+    const remainingBillings = billingsList.filter(
+      b =>
+        (!b.orderId || !targetOrderIds.has(b.orderId)) &&
+        (!b.orderIds || !b.orderIds.some(oid => targetOrderIds.has(oid)))
+    );
+
+    const rawReturns = localStorage.getItem('ebro_trade_returns');
+    const returnsList: TradeReturn[] = rawReturns ? JSON.parse(rawReturns) : [];
+    const remainingReturns = returnsList.filter(r => !r.orderId || !targetOrderIds.has(r.orderId));
+
+    const rawLots = localStorage.getItem('ebro_trade_inventory');
+    if (rawLots) {
+      const lotsList: TradeInventoryLot[] = JSON.parse(rawLots);
+      const cleanedLots = lotsList
+        .filter(l => {
+          if (!targetProductIds.has(l.productId)) return true;
+          // 테스트 수주/취소로 인해 생성된 임시 로트 제거
+          if (
+            l.id.startsWith('LOT-AUTO-') ||
+            l.id.startsWith('LOT-RESTORE-') ||
+            l.id.startsWith('LOT-RET-') ||
+            String(l.purchaseId || '').startsWith('SO_CANCEL_') ||
+            String(l.purchaseId || '').startsWith('CONTRACT_AUTO_') ||
+            String(l.purchaseId || '').startsWith('OUTBOUND_AUTO_')
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .map(l => (l.id === 'lot-init-1' ? { ...l, remainingQty: l.initialQty } : l));
+      localStorage.setItem('ebro_trade_inventory', JSON.stringify(cleanedLots));
+    }
+
+    localStorage.setItem('ebro_trade_orders', JSON.stringify(remainingOrders));
+    localStorage.setItem('ebro_trade_lines', JSON.stringify(remainingLines));
+    localStorage.setItem('ebro_trade_outbounds', JSON.stringify(remainingOutbounds));
+    localStorage.setItem('ebro_trade_billings', JSON.stringify(remainingBillings));
+    localStorage.setItem('ebro_trade_returns', JSON.stringify(remainingReturns));
+    localStorage.setItem(MIGRATION_KEY, 'done');
+  } catch (e) {
+    console.warn('purgeSku001TestTradeContractsOnce failed:', e);
+  }
+}
+
 const TradeContext = createContext<TradeContextType | undefined>(undefined);
 
 export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { customers, vendors, currentUser } = useApp();
 
-  const [products, setProducts] = useState<TradeProduct[]>(() => {
-    const saved = loadFromStorage<TradeProduct[]>('ebro_trade_products', []);
-    if (saved.length > 0) {
-      // Ensure p1 and p2 exist in case older storage only had partial items
-      const merged = [...saved];
-      for (const dp of DEFAULT_PRODUCTS) {
-        if (!merged.some(m => m.id === dp.id || m.skuCode === dp.skuCode)) {
-          merged.push(dp);
-        }
-      }
-      return merged;
-    }
-    return DEFAULT_PRODUCTS;
-  });
+  purgeSku001TestTradeContractsOnce();
+
+  const [products, setProducts] = useState<TradeProduct[]>(() =>
+    loadFromStorage<TradeProduct[]>('ebro_trade_products', DEFAULT_PRODUCTS, true)
+  );
 
   const [purchases, setPurchases] = useState<TradePurchase[]>(() =>
     loadFromStorage<TradePurchase[]>('ebro_trade_purchases', DEFAULT_PURCHASES, true)
@@ -419,19 +493,9 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadFromStorage<TradePurchaseItem[]>('ebro_trade_purchase_items', DEFAULT_PURCHASE_ITEMS, true)
   );
 
-  const [inventoryLots, setInventoryLots] = useState<TradeInventoryLot[]>(() => {
-    const saved = loadFromStorage<TradeInventoryLot[]>('ebro_trade_inventory', []);
-    if (saved.length > 0) {
-      const merged = [...saved];
-      for (const dl of DEFAULT_LOTS) {
-        if (!merged.some(m => m.productId === dl.productId)) {
-          merged.push(dl);
-        }
-      }
-      return merged;
-    }
-    return DEFAULT_LOTS;
-  });
+  const [inventoryLots, setInventoryLots] = useState<TradeInventoryLot[]>(() =>
+    loadFromStorage<TradeInventoryLot[]>('ebro_trade_inventory', DEFAULT_LOTS, true)
+  );
 
   const [inventoryAdjustments, setInventoryAdjustments] = useState<TradeInventoryAdjustment[]>(() =>
     loadFromStorage<TradeInventoryAdjustment[]>('ebro_trade_adjustments', [])
@@ -483,6 +547,36 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     billings,
     returns
   ]);
+
+  // 테스트 유통계약 삭제 시 연동된 미수금/청구상세 잔여 데이터 자동 정리
+  useEffect(() => {
+    try {
+      const activeOrderIds = new Set(salesOrders.filter(o => o.status !== 'CANCELLED').map(o => o.id));
+      const orphanTradeRcvs = (db.receivables || []).filter(r => {
+        const desc = String(r.internalDescription || '');
+        const m = desc.match(/\[유통출고:(SO-[A-Z0-9-]+)\]/);
+        if (m && !activeOrderIds.has(m[1])) return true;
+        return false;
+      });
+      if (orphanTradeRcvs.length > 0) {
+        const now = new Date().toISOString();
+        for (const rcv of orphanTradeRcvs) {
+          const linkedBds = (db.billingDetails || []).filter(bd => bd.receivableId === rcv.id);
+          for (const bd of linkedBds) {
+            const parentBilling = (db.billings || []).find(b => b.id === bd.billingId);
+            if (parentBilling && parentBilling.status !== 'PAID' && parentBilling.status !== 'REJECTED') {
+              db.updateRow<any>('billings', parentBilling.id, {
+                totalAmount: Math.max(0, (parentBilling.totalAmount || 0) - (bd.amount || 0)),
+                updatedAt: now
+              });
+              db.deleteRow('billingDetails', bd.id);
+            }
+          }
+          db.deleteRow('receivables', rcv.id);
+        }
+      }
+    } catch (e) {}
+  }, [salesOrders]);
 
   // Cross-tab synchronization
   useEffect(() => {
@@ -607,9 +701,21 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteProduct = async (id: string) => {
-    const usedInOrders = salesOrderLines.some(l => l.productId === id);
-    if (usedInOrders) {
+    const usedInActiveOrders = salesOrderLines.some(l => {
+      if (l.productId !== id) return false;
+      const parentOrder = salesOrders.find(o => o.id === l.orderId);
+      return Boolean(parentOrder && parentOrder.status !== 'CANCELLED');
+    });
+    if (usedInActiveOrders) {
       throw new Error('이미 수주/출고 이력이 존재하는 상품은 삭제할 수 없습니다. 상태를 [단종]으로 변경해 주세요.');
+    }
+    const orphanOrCancelledOrderIds = new Set(
+      salesOrderLines.filter(l => l.productId === id).map(l => l.orderId)
+    );
+    if (orphanOrCancelledOrderIds.size > 0) {
+      setSalesOrderLines(prev => prev.filter(l => l.productId !== id));
+      setSalesOrders(prev => prev.filter(o => !orphanOrCancelledOrderIds.has(o.id) || o.status !== 'CANCELLED'));
+      setOutbounds(prev => prev.filter(ob => !orphanOrCancelledOrderIds.has(ob.orderId)));
     }
     setProducts(prev => prev.filter(p => p.id !== id));
     setInventoryLots(prev => prev.filter(l => l.productId !== id));
@@ -1186,35 +1292,34 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updates: Partial<TradeSalesOrder>,
     updatedLines?: { id?: string; productId: string; qty: number; unitPrice: number; memo?: string }[]
   ) => {
-    const order = salesOrders.find(o => o.id === id);
-    if (!order) throw new Error('수주 내역을 찾을 수 없습니다.');
-
     const now = new Date().toISOString();
-    let nextSalesAmount = updates.totalSalesAmount ?? order.totalSalesAmount;
-    let nextCogsAmount = updates.totalCogsAmount ?? order.totalCogsAmount;
+    let computedSalesAmount: number | undefined = updates.totalSalesAmount;
+    let computedCogsAmount: number | undefined = updates.totalCogsAmount;
 
     if (updatedLines && updatedLines.length > 0) {
-      const oldLines = salesOrderLines.filter(l => l.orderId === id);
-      const nextLines: TradeSalesOrderLine[] = updatedLines.map(ul => {
-        const matched = oldLines.find(ol => ol.id === ul.id || ol.productId === ul.productId);
-        const prod = products.find(p => p.id === ul.productId);
-        const unitCogs = matched?.unitCogs ?? prod?.standardCost ?? Math.round(ul.unitPrice * 0.7);
-        return {
-          id: matched?.id || `SOL-${uuidv4()}`,
-          orderId: id,
-          productId: ul.productId,
-          qty: ul.qty,
-          unitPrice: ul.unitPrice,
-          unitCogs,
-          memo: ul.memo ?? matched?.memo ?? '',
-          createdAt: matched?.createdAt || now
-        };
+      setSalesOrderLines(prev => {
+        const oldLines = prev.filter(l => l.orderId === id);
+        const nextLines: TradeSalesOrderLine[] = updatedLines.map(ul => {
+          const matched = oldLines.find(ol => ol.id === ul.id || ol.productId === ul.productId);
+          const prod = products.find(p => p.id === ul.productId);
+          const unitCogs = matched?.unitCogs ?? prod?.standardCost ?? Math.round(ul.unitPrice * 0.7);
+          return {
+            id: matched?.id || `SOL-${uuidv4()}`,
+            orderId: id,
+            productId: ul.productId,
+            qty: ul.qty,
+            unitPrice: ul.unitPrice,
+            unitCogs,
+            memo: ul.memo ?? matched?.memo ?? '',
+            createdAt: matched?.createdAt || now
+          };
+        });
+
+        computedSalesAmount = nextLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+        computedCogsAmount = nextLines.reduce((s, l) => s + l.qty * l.unitCogs, 0);
+
+        return [...prev.filter(l => l.orderId !== id), ...nextLines];
       });
-
-      nextSalesAmount = nextLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-      nextCogsAmount = nextLines.reduce((s, l) => s + l.qty * l.unitCogs, 0);
-
-      setSalesOrderLines(prev => [...prev.filter(l => l.orderId !== id), ...nextLines]);
     }
 
     setSalesOrders(prev =>
@@ -1223,8 +1328,8 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ? {
               ...o,
               ...updates,
-              totalSalesAmount: nextSalesAmount,
-              totalCogsAmount: nextCogsAmount,
+              totalSalesAmount: computedSalesAmount ?? o.totalSalesAmount,
+              totalCogsAmount: computedCogsAmount ?? o.totalCogsAmount,
               updatedAt: now
             }
           : o
@@ -1324,10 +1429,10 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteSalesOrder = async (id: string) => {
     const order = salesOrders.find(o => o.id === id);
     if (!order) return;
-    if (order.status !== 'CANCELLED' && order.status !== 'PENDING') {
+    if (order.status !== 'CANCELLED' && order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
       throw new Error('진행 중이거나 완료된 수주는 먼저 [수주 취소] 후 삭제할 수 있습니다.');
     }
-    if (order.status === 'PENDING') {
+    if (order.status !== 'CANCELLED') {
       await cancelSalesOrder(id, '수주 삭제에 따른 재고 환원');
     }
     setSalesOrders(prev => prev.filter(o => o.id !== id));
