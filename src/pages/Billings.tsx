@@ -1781,10 +1781,28 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       if (!isOverlapping) return false;
 
       // 3. 해당 대상 귀속월에 유효한 청구서가 이미 존재하는지 검사 (취소 REJECTED 제외)
+      // 💡 단, 계약 기간 연장 등으로 인해 직전 청구 종료일(lastBilledPeriodEnd)이 연장된 계약 종료일(normalEnd) 및
+      //    당월 마감일보다 이전에 멈춰 있어 추가 정산할 연장 기간이 남아있는 경우에는 청구 대상에 포함!
       const hasBillingForTargetMonth = billings.some(
         b => b.contractId === c.id && b.billingYm === targetYm && b.status !== 'REJECTED'
       );
-      if (hasBillingForTargetMonth) return false;
+      if (hasBillingForTargetMonth) {
+        const siteObj = c.siteId ? siteMap.get(c.siteId) : undefined;
+        const custObj = customerMap.get(c.customerId);
+        const rawClosingDay = siteObj?.billingDay || c.billingDay || custObj?.defaultBillingDay || 31;
+        const [ty, tm] = (targetYm || currentYm).split('-').map(Number);
+        const lastDayNum = new Date(ty, tm, 0).getDate();
+        const effClosingDay = Math.min(rawClosingDay, lastDayNum);
+        const closingDateStr = `${ty}-${String(tm).padStart(2, '0')}-${String(effClosingDay).padStart(2, '0')}`;
+        const expectedPeriodEnd = normalEnd < closingDateStr ? normalEnd : closingDateStr;
+
+        const hasUnbilledExtendedPeriod = Boolean(
+          c.lastBilledPeriodEnd &&
+          c.lastBilledPeriodEnd < expectedPeriodEnd &&
+          c.lastBilledPeriodEnd < (wizardSearchEndDate || todayStr)
+        );
+        if (!hasUnbilledExtendedPeriod) return false;
+      }
 
       // 4. 계약의 직전 청구 마감일이 이미 검색 기간 종료일 이상인지 검사 (이미 해당 기간까지 정산 마감 완료)
       if (c.lastBilledPeriodEnd && wizardSearchEndDate && c.lastBilledPeriodEnd >= wizardSearchEndDate) {
@@ -1798,7 +1816,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
       return true;
     });
-  }, [activeTab, contracts, billings, targetYm, wizardSearchStartDate, wizardSearchEndDate, todayStr]);
+  }, [activeTab, contracts, billings, targetYm, wizardSearchStartDate, wizardSearchEndDate, todayStr, siteMap, customerMap, currentYm]);
 
   // 💡 오늘 거래명세서 마감 건 우선 필터 토글 ('ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT')
   const [statementDueQuickFilter, setStatementDueQuickFilter] = useState<'ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT'>('ALL');
@@ -2219,10 +2237,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const calculateAssetFeeForWizard = (ca: any) => {
     if (!wizardStartDate || !wizardEndDate) return { amount: 0, days: 0, desc: '', active: false, isExchangeProRata: false };
 
-    // 계약 내 자산의 개별 유효 기간: 실제 입고일이 있으면 우선 종료일로 엄격 채택
+    // 계약 내 자산의 개별 유효 기간: 실제 입고일이 있으면 우선 종료일로 채택하되, 계약 기간 연장 시 연장된 만료일(endDate) 반영
     const caStart = ca.startDate || wizardStartDate;
     const caEffectiveEnd = (ca.actualReturnDate && ca.actualReturnDate.trim() !== '' && ca.actualReturnDate !== '미정')
-      ? ca.actualReturnDate
+      ? (ca.endDate && ca.endDate !== '미정' && ca.endDate > ca.actualReturnDate ? ca.endDate : ca.actualReturnDate)
       : (ca.endDate && ca.endDate !== '미정' ? ca.endDate : wizardEndDate);
     const caEnd = caEffectiveEnd;
 
@@ -2240,21 +2258,22 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const diff = Math.abs(d2.getTime() - d1.getTime());
     const days = isNaN(diff) ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
 
-    // 청구 기간 전체와 100% 일치하고 월정액 방식인 경우 (중도 입고 반납이 없는 경우)
-    const isFullPeriod = (effectiveStart === wizardStartDate && effectiveEnd === wizardEndDate) && !ca.actualReturnDate;
+    // 청구 기간 전체와 100% 일치하고 월정액 방식인 경우 (정산 종료일 이전 조기 반납이 아닌 경우)
+    const isEarlyReturnedBeforeWizardEnd = Boolean(ca.actualReturnDate && caEffectiveEnd < wizardEndDate);
+    const isFullPeriod = (effectiveStart === wizardStartDate && effectiveEnd === wizardEndDate) && !isEarlyReturnedBeforeWizardEnd;
     if (calcMethod === 'MONTHLY' && isFullPeriod) {
       return {
         amount: ca.monthlyRentalFee,
         days,
-        desc: `${wizardStartDate.substring(0, 7)} 정기 월렌탈료 (월단가 기준)`,
+        desc: `${effectiveStart} ~ ${effectiveEnd} 정기 월렌탈료 (월단가 기준)`,
         active: true,
         isExchangeProRata: false
       };
     } else {
-      // 대차 교체/중도 입고 반납되었거나 일할 정산인 경우 (실제 입고일까지 일할 계산)
+      // 대차 교체/중도 입고 반납되었거나 일할 정산인 경우 (유효 종료일까지 일할 계산)
       const daily = ca.dailyRentalFee > 0 ? ca.dailyRentalFee : Math.round(ca.monthlyRentalFee / 30);
       const amount = daily * days;
-      const inboundNote = ca.actualReturnDate ? ` (입고일: ${ca.actualReturnDate})` : '';
+      const inboundNote = ca.actualReturnDate ? ` (종료/입고일: ${caEffectiveEnd})` : '';
       return {
         amount,
         days,

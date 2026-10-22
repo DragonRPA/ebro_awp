@@ -321,18 +321,24 @@ const ApprovalInbox: React.FC = () => {
               const isShortened = toBe.status === 'SHORTENED';
               const targetAssetIds: string[] = toBe.targetAssetIds || [];
 
-              const allActiveCAs = contractAssets.filter(ca => ca.contractId === targetContract.id && ca.status !== 'RETURNED');
+              const allContractCAs = contractAssets.filter(ca => ca.contractId === targetContract.id && ca.status !== 'SOLD');
+              const nonReturnedCAs = allContractCAs.filter(ca => ca.status !== 'RETURNED');
+              const defaultTargetCAs = nonReturnedCAs.length > 0 ? nonReturnedCAs : allContractCAs;
               const targetCAssets = targetAssetIds.length > 0
-                ? allActiveCAs.filter(ca => targetAssetIds.includes(ca.id))
-                : allActiveCAs;
+                ? allContractCAs.filter(ca => targetAssetIds.includes(ca.id))
+                : defaultTargetCAs;
 
-              // 1. 대상 자산 만료일 자동 갱신
+              // 1. 대상 자산 만료일 자동 갱신 (반납완료 자산은 actualReturnDate 동기 갱신 및 물리 자산 마스터 보호)
               targetCAssets.forEach(ca => {
-                db.updateRow<ContractAsset>('contractAssets', ca.id, {
+                const caUpdates: Partial<ContractAsset> = {
                   endDate: targetEndDate,
                   updatedAt: new Date().toISOString()
-                });
-                if (ca.assetId) {
+                };
+                if (ca.status === 'RETURNED' && ca.actualReturnDate) {
+                  caUpdates.actualReturnDate = targetEndDate !== '미정' ? targetEndDate : '';
+                }
+                db.updateRow<ContractAsset>('contractAssets', ca.id, caUpdates);
+                if (ca.assetId && ca.status !== 'RETURNED') {
                   db.updateRow<Asset>('assets', ca.assetId, {
                     contractEnd: targetEndDate,
                     updatedAt: new Date().toISOString()
@@ -341,15 +347,22 @@ const ApprovalInbox: React.FC = () => {
               });
 
               // 2. 부모 계약 만료일 자동 보정
-              const untargetedCAs = allActiveCAs.filter(ca => !targetCAssets.some(t => t.id === ca.id));
-              const allEndDates = [targetEndDate, ...untargetedCAs.map(ca => ca.endDate).filter(Boolean)];
+              const untargetedCAs = allContractCAs.filter(ca => !targetCAssets.some(t => t.id === ca.id));
+              const allEndDates = [
+                targetEndDate,
+                ...untargetedCAs.map(ca => (ca.status === 'RETURNED' ? (ca.actualReturnDate || ca.endDate) : ca.endDate)).filter(Boolean) as string[]
+              ];
               const parentMaxEnd = allEndDates.includes('미정')
                 ? '미정'
                 : allEndDates.reduce((max, cur) => (cur > max ? cur : max), targetEndDate);
 
+              const nextContractStatus = (targetContract.status === 'COMPLETED' && nonReturnedCAs.length === 0)
+                ? 'COMPLETED'
+                : (isShortened ? 'SHORTENED' : 'EXTENDED');
+
               db.updateRow<Contract>('contracts', targetContract.id, {
                 endDate: parentMaxEnd,
-                status: isShortened ? 'SHORTENED' : 'EXTENDED',
+                status: nextContractStatus,
                 approvalStatus: 'APPROVED',
                 stagedExtend: undefined,
                 updatedAt: new Date().toISOString()

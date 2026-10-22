@@ -7377,17 +7377,26 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     const prevEnd = contract.endDate;
+    const allContractCAs = db.contractAssets.filter(ca => ca.contractId === contractId && ca.status !== 'SOLD');
+    const nonReturnedCAs = allContractCAs.filter(ca => ca.status !== 'RETURNED');
+    const cAssets = nonReturnedCAs.length > 0 ? nonReturnedCAs : allContractCAs;
 
     db.updateRow<Contract>('contracts', contractId, {
       endDate: newEndDate,
-      status: 'EXTENDED',
+      status: (contract.status === 'COMPLETED' && nonReturnedCAs.length === 0) ? 'COMPLETED' : 'EXTENDED',
       updatedAt: new Date().toISOString()
     });
 
-    const cAssets = db.contractAssets.filter(ca => ca.contractId === contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD');
-      cAssets.forEach(ca => {
-        db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: newEndDate });
-      if (ca.assetId) {
+    cAssets.forEach(ca => {
+      const caUpdates: Partial<ContractAsset> = {
+        endDate: newEndDate,
+        updatedAt: new Date().toISOString()
+      };
+      if (ca.status === 'RETURNED' && ca.actualReturnDate) {
+        caUpdates.actualReturnDate = newEndDate !== '미정' ? newEndDate : '';
+      }
+      db.updateRow<ContractAsset>('contractAssets', ca.id, caUpdates);
+      if (ca.assetId && ca.status !== 'RETURNED') {
         db.updateRow<Asset>('assets', ca.assetId, {
           contractEnd: newEndDate,
           updatedAt: new Date().toISOString()
@@ -8024,19 +8033,23 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       return;
     }
 
-    const prevEnd = ca.endDate;
+    const prevEnd = ca.status === 'RETURNED' ? (ca.actualReturnDate || ca.endDate) : ca.endDate;
     const isExtension = prevEnd && endDate > prevEnd;
     const isShortening = prevEnd && endDate < prevEnd;
 
-    // 1. 개별 계약 자산 슬롯 기간 갱신
-    db.updateRow<ContractAsset>('contractAssets', caId, {
+    // 1. 개별 계약 자산 슬롯 기간 갱신 (반납완료 자산인 경우 actualReturnDate도 함께 갱신하여 청구 반영 보장)
+    const caUpdates: Partial<ContractAsset> = {
       startDate,
       endDate,
       updatedAt: new Date().toISOString()
-    });
+    };
+    if (ca.status === 'RETURNED' && ca.actualReturnDate) {
+      caUpdates.actualReturnDate = endDate !== '미정' ? endDate : '';
+    }
+    db.updateRow<ContractAsset>('contractAssets', caId, caUpdates);
 
-    // 2. 자산 마스터의 contractEnd 동기화 (헌장 1.2: 자산 효과적 운용)
-    if (ca.assetId) {
+    // 2. 자산 마스터의 contractEnd 동기화 (헌장 1.2: 이미 반납완료된 물리 장비 마스터는 타 계약 운용 보호를 위해 제외)
+    if (ca.assetId && ca.status !== 'RETURNED') {
       db.updateRow<Asset>('assets', ca.assetId, {
         contractEnd: endDate,
         updatedAt: new Date().toISOString()
@@ -8046,16 +8059,27 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     // 3. 부모 계약의 전체 기간 및 상태 동기 보정 (제4원칙: 자산들의 합집합 구간 자동 확장)
     const parentContract = db.contracts.find(c => c.id === ca.contractId);
     if (parentContract) {
-      const siblingCAs = db.contractAssets.filter(item => item.contractId === ca.contractId && item.id !== caId);
-      const allEndDates = [endDate, ...siblingCAs.map(item => item.endDate).filter(Boolean)];
-      const maxEndDate = allEndDates.reduce((max, cur) => (cur > max ? cur : max), endDate);
+      const allContractCAs = db.contractAssets.filter(item => item.contractId === ca.contractId && item.status !== 'SOLD');
+      const nonReturnedCAs = allContractCAs.filter(item => item.status !== 'RETURNED');
+      const siblingCAs = allContractCAs.filter(item => item.id !== caId);
+      const allEndDates = [
+        endDate,
+        ...siblingCAs.map(item => (item.status === 'RETURNED' ? (item.actualReturnDate || item.endDate) : item.endDate)).filter(Boolean) as string[]
+      ];
+      const maxEndDate = allEndDates.includes('미정')
+        ? '미정'
+        : allEndDates.reduce((max, cur) => (cur > max ? cur : max), endDate);
       const allStartDates = [startDate, ...siblingCAs.map(item => item.startDate).filter(Boolean)];
       const minStartDate = allStartDates.reduce((min, cur) => (cur < min ? cur : min), startDate);
+
+      const nextStatus = (parentContract.status === 'COMPLETED' && nonReturnedCAs.length === 0)
+        ? 'COMPLETED'
+        : (isExtension ? 'EXTENDED' : isShortening ? 'SHORTENED' : parentContract.status);
 
       db.updateRow<Contract>('contracts', parentContract.id, {
         startDate: minStartDate,
         endDate: maxEndDate,
-        status: isExtension ? 'EXTENDED' : isShortening ? 'SHORTENED' : parentContract.status,
+        status: nextStatus,
         updatedAt: new Date().toISOString()
       });
     }
@@ -8790,11 +8814,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const endOfMonth = new Date(year, month, 0);
 
       // 해당 월에 활성 상태인 계약 전체 탐색 (계약 단위 독립 생성 - E-1 원칙, 매각 계약 원천 배제)
+      // 💡 종료(COMPLETED)된 계약이라도 기간 연장 등으로 인해 아직 최종 만료일(endDate)까지 청구가 완료되지 않은 경우 포함
       const activeContracts = db.contracts.filter(c => {
         if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // 🚫 자산 매각 계약 원천 배제
-        if (c.status === 'COMPLETED') return false;
+        if (c.status === 'COMPLETED' && c.lastBilledPeriodEnd && c.endDate && c.endDate !== '미정' && c.lastBilledPeriodEnd >= c.endDate) return false;
         const contractStart = new Date(c.startDate);
-        const contractEnd = c.endDate ? new Date(c.endDate) : null;
+        const contractEnd = c.endDate && c.endDate !== '미정' ? new Date(c.endDate) : null;
         if (contractStart > endOfMonth) return false;
         if (contractEnd && contractEnd < startOfMonth) return false;
         return true;
@@ -9121,10 +9146,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const liveContracts = db.contracts.filter(c => {
       if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; 
-      if (c.status === 'COMPLETED') return false;
+      if (c.status === 'COMPLETED' && c.lastBilledPeriodEnd && c.endDate && c.endDate !== '미정' && c.lastBilledPeriodEnd >= c.endDate) return false;
       const cStart = new Date(c.startDate);
       if (cStart > endOfMonth) return false;
-      if (c.endDate) {
+      if (c.endDate && c.endDate !== '미정') {
         const cEnd = new Date(c.endDate);
         if (cEnd < startOfMonth) return false;
       }
@@ -9278,7 +9303,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     targetContracts.forEach(c => {
       const activeBillings = db.billings
         .filter(b => b.contractId === c.id && b.status !== 'REJECTED' && (!b.billingType || b.billingType === 'RENTAL'))
-        .sort((a, b) => (b.billingYm || '').localeCompare(a.billingYm || ''));
+        .sort((a, b) => (b.billingYm || '').localeCompare(a.billingYm || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
 
       const count = activeBillings.length;
       if (count === 0) {
@@ -9294,16 +9319,33 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
 
       const latestBilling = activeBillings[0];
-      const billingDay = c.billingDay || 25;
-      const { actualStart, actualEnd } = calcBillingPeriod(
-        latestBilling.billingYm,
-        billingDay,
-        c.startDate,
-        c.endDate
-      );
+      const sameYmBillings = activeBillings.filter(b => b.billingYm === latestBilling.billingYm);
+      const sameYmBillingIds = new Set(sameYmBillings.map(b => b.id));
+      const sameYmRentalDetails = db.billingDetails.filter(bd => sameYmBillingIds.has(bd.billingId) && bd.contractAssetId);
 
-      const startIso = actualStart.toISOString().split('T')[0];
-      const endIso = actualEnd.toISOString().split('T')[0];
+      let parsedStart = '';
+      let parsedEnd = '';
+      sameYmRentalDetails.forEach(bd => {
+        const m = (bd.description || '').match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/);
+        if (m) {
+          if (!parsedStart || m[1] < parsedStart) parsedStart = m[1];
+          if (!parsedEnd || m[2] > parsedEnd) parsedEnd = m[2];
+        }
+      });
+
+      let startIso = parsedStart;
+      let endIso = parsedEnd;
+      if (!startIso || !endIso) {
+        const billingDay = c.billingDay || 25;
+        const { actualStart, actualEnd } = calcBillingPeriod(
+          latestBilling.billingYm,
+          billingDay,
+          c.startDate,
+          c.endDate
+        );
+        startIso = actualStart.toISOString().split('T')[0];
+        endIso = actualEnd.toISOString().split('T')[0];
+      }
 
       db.updateRow<Contract>('contracts', c.id, {
         lastBillingDate: latestBilling.billingDate || latestBilling.createdAt?.split('T')[0],
@@ -9324,11 +9366,18 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       throw new Error(`[계약 유형 오류] 계약 ${c.contractNo}는 자산 매각 계약입니다. 월 정기 렌탈료 청구 대상이 아닙니다.`);
     }
 
-    // 중복 발행 감지: 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구는 제외)
+    // 중복 발행 감지: 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구 또는 기간 연장 후 추가 정산 건은 제외)
     const existingActive = db.billings.find(
       b => b.contractId === c.id && b.billingYm === billingYm && b.status !== 'REJECTED' && !b.isPartial
     );
-    if (existingActive && !selectedContractAssetIds) {
+    const hasUnbilledExtension = Boolean(
+      existingActive &&
+      c.lastBilledPeriodEnd &&
+      c.endDate &&
+      c.endDate !== '미정' &&
+      c.lastBilledPeriodEnd < c.endDate
+    );
+    if (existingActive && !selectedContractAssetIds && !hasUnbilledExtension) {
       throw new Error(`[중복 경고] 계약 ${c.contractNo}의 ${billingYm} 청구서가 이미 존재합니다.\n상태: ${existingActive.status} / ID: ${existingActive.id}`);
     }
 
@@ -9344,13 +9393,28 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     let detailsList: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[] = [];
     let totalAmount = 0;
 
+    // 직전 청구 종료일 익일 계산 (동일 월 내 기간 연장 후 추가 정산 시 중복 청구 방지)
+    let nextDayAfterLastBilled = '';
+    if (hasUnbilledExtension && c.lastBilledPeriodEnd) {
+      const [py, pm, pd] = c.lastBilledPeriodEnd.slice(0, 10).split('-').map(Number);
+      const nextObj = new Date(Date.UTC(py, pm - 1, pd + 1));
+      nextDayAfterLastBilled = nextObj.toISOString().split('T')[0];
+    }
+
     // 1. 자산별 렌탈료 계산 (인터뷰 원칙 A, B, C 통합 적용)
     cAssets.forEach(ca => {
+      const effectiveCaStart = (nextDayAfterLastBilled && nextDayAfterLastBilled > ca.startDate)
+        ? nextDayAfterLastBilled
+        : ca.startDate;
+      const effectiveCaEnd = (ca.status === 'RETURNED' && ca.actualReturnDate && ca.actualReturnDate !== '미정')
+        ? (ca.endDate && ca.endDate !== '미정' && ca.endDate > ca.actualReturnDate ? ca.endDate : ca.actualReturnDate)
+        : (ca.endDate && ca.endDate !== '미정' ? ca.endDate : c.endDate);
+
       const { actualStart, actualEnd, isProRata } = calcBillingPeriod(
         billingYm,
         billingDay,
-        ca.startDate,
-        ca.endDate || c.endDate
+        effectiveCaStart,
+        effectiveCaEnd
       );
 
       if (actualStart > actualEnd) return; // 청구 기간 외 자산

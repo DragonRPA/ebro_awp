@@ -1031,7 +1031,15 @@ export const Contracts: React.FC = () => {
     setModIsOpen(isIndef);
     setModNewEndDate(!isIndef && activeContract.endDate ? activeContract.endDate : todayStr);
     setModDesc('');
-    setSelectedExtendAssetIds(new Set()); // 전체 선택 상태로 초기화
+    // 운용중(미반납) 자산과 반납완료 자산이 혼재된 계약은 운용중 자산을 우선 선택하고,
+    // 모든 자산이 입고되어 종료된 계약은 전체 자산을 기본 선택(빈 Set = 전체 적용)으로 초기화
+    const allContractCAs = contractAssets.filter(ca => ca.contractId === activeContract.id && ca.status !== 'SOLD');
+    const nonReturnedCAs = allContractCAs.filter(ca => ca.status !== 'RETURNED');
+    if (nonReturnedCAs.length > 0 && nonReturnedCAs.length < allContractCAs.length) {
+      setSelectedExtendAssetIds(new Set(nonReturnedCAs.map(ca => ca.id)));
+    } else {
+      setSelectedExtendAssetIds(new Set()); // 전체 선택 상태로 초기화
+    }
     setShowExtendModal(true);
   };
 
@@ -1058,11 +1066,13 @@ export const Contracts: React.FC = () => {
       const targetEndDate = modIsOpen ? '미정' : modNewEndDate;
       const prevEnd = activeContract.endDate;
 
-      const allActiveCAs = contractAssets.filter(ca => ca.contractId === activeContract.id && ca.status !== 'RETURNED');
-      const isPartial = selectedExtendAssetIds.size > 0 && selectedExtendAssetIds.size < allActiveCAs.length;
+      const allContractCAs = contractAssets.filter(ca => ca.contractId === activeContract.id && ca.status !== 'SOLD');
+      const nonReturnedCAs = allContractCAs.filter(ca => ca.status !== 'RETURNED');
+      const defaultTargetCAs = nonReturnedCAs.length > 0 ? nonReturnedCAs : allContractCAs;
       const targetCAssets = selectedExtendAssetIds.size > 0
-        ? allActiveCAs.filter(ca => selectedExtendAssetIds.has(ca.id))
-        : allActiveCAs;
+        ? allContractCAs.filter(ca => selectedExtendAssetIds.has(ca.id))
+        : defaultTargetCAs;
+      const isPartial = targetCAssets.length < allContractCAs.length;
 
       // 💡 결재선 규칙 조회 및 결재 상신 판정
       let ruleData: any = null;
@@ -1141,12 +1151,18 @@ export const Contracts: React.FC = () => {
 
       // ── 결재선 미적용 시 즉시 라이브 갱신 ──
       // 1. 대상 자산 슬롯 및 장비 마스터 만료일 갱신
+      // 💡 반납완료(RETURNED) 자산의 기간 연장/단축 시 actualReturnDate도 함께 갱신하여 청구(Billings)에 100% 반영 보장
+      // 단, 이미 반납 완료된 자산의 물리 장비 마스터(assets.contractEnd)는 타 계약 운용 보호를 위해 변경하지 않음
       targetCAssets.forEach(ca => {
-        db.updateRow<ContractAsset>('contractAssets', ca.id, {
+        const caUpdates: Partial<ContractAsset> = {
           endDate: targetEndDate,
           updatedAt: new Date().toISOString()
-        });
-        if (ca.assetId) {
+        };
+        if (ca.status === 'RETURNED' && ca.actualReturnDate) {
+          caUpdates.actualReturnDate = targetEndDate !== '미정' ? targetEndDate : '';
+        }
+        db.updateRow<ContractAsset>('contractAssets', ca.id, caUpdates);
+        if (ca.assetId && ca.status !== 'RETURNED') {
           db.updateRow<Asset>('assets', ca.assetId, {
             contractEnd: targetEndDate,
             updatedAt: new Date().toISOString()
@@ -1155,15 +1171,23 @@ export const Contracts: React.FC = () => {
       });
 
       // 2. 전체 자산 종료일 집합을 통해 부모 계약 만료일 자동 보정 (제4원칙)
-      const untargetedCAs = allActiveCAs.filter(ca => !targetCAssets.some(t => t.id === ca.id));
-      const allEndDates = [targetEndDate, ...untargetedCAs.map(ca => ca.endDate).filter(Boolean)];
+      const untargetedCAs = allContractCAs.filter(ca => !targetCAssets.some(t => t.id === ca.id));
+      const allEndDates = [
+        targetEndDate,
+        ...untargetedCAs.map(ca => (ca.status === 'RETURNED' ? (ca.actualReturnDate || ca.endDate) : ca.endDate)).filter(Boolean) as string[]
+      ];
       const parentMaxEnd = allEndDates.includes('미정')
         ? '미정'
         : allEndDates.reduce((max, cur) => (cur > max ? cur : max), targetEndDate);
 
+      // 모든 자산이 입고되어 종료(COMPLETED)된 계약은 계약 상태 'COMPLETED'를 유지하되 만료일만 갱신
+      const nextContractStatus = (activeContract.status === 'COMPLETED' && nonReturnedCAs.length === 0)
+        ? 'COMPLETED'
+        : (isShortened ? 'SHORTENED' : 'EXTENDED');
+
       db.updateRow<Contract>('contracts', activeContract.id, {
         endDate: parentMaxEnd,
-        status: isShortened ? 'SHORTENED' : 'EXTENDED',
+        status: nextContractStatus,
         approvalStatus: 'APPROVED',
         stagedExtend: undefined,
         updatedAt: new Date().toISOString()
@@ -3095,7 +3119,15 @@ export const Contracts: React.FC = () => {
                                 <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운용중</span>
                               )}
                               <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                                {(ca.firstStartDate || ca.startDate) ? (ca.firstStartDate || ca.startDate).slice(2).replace(/-/g, '.') : ''} ~ {ca.status === 'RETURNED' ? (ca.actualReturnDate ? ca.actualReturnDate.slice(2).replace(/-/g, '.') : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미상')) : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정')}
+                                {(ca.firstStartDate || ca.startDate) ? (ca.firstStartDate || ca.startDate).slice(2).replace(/-/g, '.') : ''} ~ {(() => {
+                                  if (ca.status === 'RETURNED') {
+                                    const retEnd = (ca.endDate && ca.actualReturnDate && ca.endDate > ca.actualReturnDate)
+                                      ? ca.endDate
+                                      : (ca.actualReturnDate || ca.endDate);
+                                    return retEnd ? retEnd.slice(2).replace(/-/g, '.') : '미상';
+                                  }
+                                  return ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정';
+                                })()}
                               </span>
                             </div>
                           </td>
@@ -3128,45 +3160,50 @@ export const Contracts: React.FC = () => {
                             )}
                           </td>
                           <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {ca.status === 'RETURNED' ? (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>조작불가</span>
+                            {canSave && canModifyContract(activeContract) ? (
+                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                <button className="btn-secondary" onClick={() => handleOpenFeeModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                                  <Edit3 size={11} /> 렌탈료 수정
+                                </button>
+                                <button className="btn-secondary" onClick={() => {
+                                  const effectiveEnd = ca.status === 'RETURNED'
+                                    ? (ca.endDate && ca.actualReturnDate && ca.endDate > ca.actualReturnDate ? ca.endDate : (ca.actualReturnDate || ca.endDate || ''))
+                                    : (ca.endDate || '');
+                                  setEditCaForPeriod(ca);
+                                  setCaPeriodStart(ca.startDate || '');
+                                  setCaPeriodEnd(effectiveEnd === '미정' ? '' : effectiveEnd);
+                                  setCaPeriodReason('');
+                                  setShowCaPeriodModal(true);
+                                }} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                                  <Edit3 size={11} /> 기간 수정
+                                </button>
+                                {ca.status !== 'RETURNED' && (
+                                  <>
+                                    <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
+                                      <Truck size={11} /> 현장 이동
+                                    </button>
+                                    <button 
+                                      className="btn-secondary" 
+                                      onClick={() => {
+                                        setGlobalActiveTab('smart_as_request', {
+                                          customerId: activeContract.customerId,
+                                          siteId: activeContract.siteId,
+                                          contractId: activeContract.id,
+                                          assetNo: asset?.assetNo,
+                                          category: '옵션장착',
+                                          issueDescription: `현장 옵션 추가 장착 의뢰 (장비: ${asset?.assetNo || '지정'}, 계약: ${activeContract.contractNo})`
+                                        });
+                                      }} 
+                                      style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--primary)' }} 
+                                      title="해당 장비로 옵션 추가장착(유상 AS) 접수 이동"
+                                    >
+                                      <Plus size={11} /> 옵션 장착 AS
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             ) : (
-                              canSave && canModifyContract(activeContract) && (
-                                <div style={{ display: 'flex', gap: '4px' }}>
-                                  <button className="btn-secondary" onClick={() => handleOpenFeeModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                                    <Edit3 size={11} /> 렌탈료 수정
-                                  </button>
-                                  <button className="btn-secondary" onClick={() => {
-                                    setEditCaForPeriod(ca);
-                                    setCaPeriodStart(ca.startDate || '');
-                                    setCaPeriodEnd(ca.endDate || '');
-                                    setCaPeriodReason('');
-                                    setShowCaPeriodModal(true);
-                                  }} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                                    <Edit3 size={11} /> 기간 수정
-                                  </button>
-                                  <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
-                                    <Truck size={11} /> 현장 이동
-                                  </button>
-                                  <button 
-                                    className="btn-secondary" 
-                                    onClick={() => {
-                                      setGlobalActiveTab('smart_as_request', {
-                                        customerId: activeContract.customerId,
-                                        siteId: activeContract.siteId,
-                                        contractId: activeContract.id,
-                                        assetNo: asset?.assetNo,
-                                        category: '옵션장착',
-                                        issueDescription: `현장 옵션 추가 장착 의뢰 (장비: ${asset?.assetNo || '지정'}, 계약: ${activeContract.contractNo})`
-                                      });
-                                    }} 
-                                    style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--primary)' }} 
-                                    title="해당 장비로 옵션 추가장착(유상 AS) 접수 이동"
-                                  >
-                                    <Plus size={11} /> 옵션 장착 AS
-                                  </button>
-                                </div>
-                              )
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>조작불가</span>
                             )}
                           </td>
                         </tr>
@@ -3796,7 +3833,10 @@ export const Contracts: React.FC = () => {
                       const asset = assets.find(a => a.id === ca.assetId);
                       const isSelected = selectedExtendAssetIds.size === 0 || selectedExtendAssetIds.has(ca.id);
                       const label = asset ? `${asset.assetNo} (${asset.modelName})` : (ca.expectedModel || '미지정');
-                      const currentEnd = ca.endDate || '미정';
+                      const effectiveCurrentEnd = ca.status === 'RETURNED'
+                        ? (ca.endDate && ca.actualReturnDate && ca.endDate > ca.actualReturnDate ? ca.endDate : (ca.actualReturnDate || ca.endDate || '미정'))
+                        : (ca.endDate || '미정');
+                      const currentEnd = ca.status === 'RETURNED' ? `${effectiveCurrentEnd} [반납완료]` : effectiveCurrentEnd;
                       return (
                         <label key={ca.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', padding: '2px 4px', borderRadius: '4px' }}>
                           <input
