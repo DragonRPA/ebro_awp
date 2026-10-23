@@ -6797,16 +6797,11 @@ export const SmartDispatch4: React.FC = () => {
       return trimmed.slice(0, 10);
     };
 
-    const filteredRows = reconstructedRows.filter(r => {
+    // 1단계: 날짜 범위 및 검색어가 적용된 기본 대상 행 (진행 상태 탭 숫자 집계 및 목록 필터링의 공통 기준)
+    const baseScopedRows = reconstructedRows.filter(r => {
       const datePart = toLocalDateStr(r.createdAt || r.delivery.requestDate || '');
       if (historyStartDate && datePart && datePart < historyStartDate) return false;
       if (historyEndDate && datePart && datePart > historyEndDate) return false;
-
-      if (historyStatusFilter === 'UNASSIGNED' && (r.totalUnassignedCount === 0 || r.dispatchStatus === 'CANCELLED')) return false;
-      if (historyStatusFilter === 'REQUESTED' && r.dispatchStatus !== 'REQUESTED' && r.dispatchStatus !== 'PENDING') return false;
-      if (historyStatusFilter === 'DISPATCHED' && r.dispatchStatus !== 'DISPATCHED') return false;
-      if (historyStatusFilter === 'DELIVERED' && r.dispatchStatus !== 'DELIVERED' && r.dispatchStatus !== 'COMPLETED') return false;
-      if (historyStatusFilter === 'CANCELLED' && r.dispatchStatus !== 'CANCELLED') return false;
 
       if (!matcher) return true;
       const equipStr = r.equipmentItems.map(e => `${e.modelName} ${e.assignedAssets.join(' ')}`).join(' ');
@@ -6824,6 +6819,25 @@ export const SmartDispatch4: React.FC = () => {
         matcher.test(optStr)
       );
     });
+
+    // 2단계: 진행 상태 필터 적용 (실제 테이블에 표시되는 데이터 목록)
+    const filteredRows = baseScopedRows.filter(r => {
+      if (historyStatusFilter === 'UNASSIGNED' && (r.totalUnassignedCount === 0 || r.dispatchStatus === 'CANCELLED')) return false;
+      if (historyStatusFilter === 'REQUESTED' && r.dispatchStatus !== 'REQUESTED' && r.dispatchStatus !== 'PENDING') return false;
+      if (historyStatusFilter === 'DISPATCHED' && r.dispatchStatus !== 'DISPATCHED') return false;
+      if (historyStatusFilter === 'DELIVERED' && r.dispatchStatus !== 'DELIVERED' && r.dispatchStatus !== 'COMPLETED') return false;
+      if (historyStatusFilter === 'CANCELLED' && r.dispatchStatus !== 'CANCELLED') return false;
+      return true;
+    });
+
+    const statusCounts = {
+      ALL: baseScopedRows.length,
+      UNASSIGNED: baseScopedRows.filter(r => r.totalUnassignedCount > 0 && r.dispatchStatus !== 'CANCELLED').length,
+      REQUESTED: baseScopedRows.filter(r => r.dispatchStatus === 'REQUESTED' || r.dispatchStatus === 'PENDING').length,
+      DISPATCHED: baseScopedRows.filter(r => r.dispatchStatus === 'DISPATCHED').length,
+      DELIVERED: baseScopedRows.filter(r => r.dispatchStatus === 'DELIVERED' || r.dispatchStatus === 'COMPLETED').length,
+      CANCELLED: baseScopedRows.filter(r => r.dispatchStatus === 'CANCELLED').length,
+    };
 
     const selectedRow = filteredRows.find(r => r.id === selectedHistoryDeliveryId) || filteredRows[0] || null;
 
@@ -6898,12 +6912,12 @@ export const SmartDispatch4: React.FC = () => {
               <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">진행 상태</label>
               <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 h-8">
                 {[
-                  { id: 'ALL', label: `전체 (${reconstructedRows.length})` },
-                  { id: 'UNASSIGNED', label: `장비미할당 (${reconstructedRows.filter(r => r.totalUnassignedCount > 0 && r.dispatchStatus !== 'CANCELLED').length})` },
-                  { id: 'REQUESTED', label: '배차대기' },
-                  { id: 'DISPATCHED', label: '배차완료' },
-                  { id: 'DELIVERED', label: '운송완료' },
-                  { id: 'CANCELLED', label: `취소 (${reconstructedRows.filter(r => r.dispatchStatus === 'CANCELLED').length})` },
+                  { id: 'ALL', label: `전체 (${statusCounts.ALL})` },
+                  { id: 'UNASSIGNED', label: `장비미할당 (${statusCounts.UNASSIGNED})` },
+                  { id: 'REQUESTED', label: `배차대기 (${statusCounts.REQUESTED})` },
+                  { id: 'DISPATCHED', label: `배차완료 (${statusCounts.DISPATCHED})` },
+                  { id: 'DELIVERED', label: `운송완료 (${statusCounts.DELIVERED})` },
+                  { id: 'CANCELLED', label: `취소 (${statusCounts.CANCELLED})` },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -6935,7 +6949,7 @@ export const SmartDispatch4: React.FC = () => {
             {/* 취소한 요청 삭제 버튼 (검색어 우측 배치) */}
             {(() => {
               const allCancelledIds = reconstructedRows.filter(r => r.dispatchStatus === 'CANCELLED').map(r => r.id);
-              const filteredCancelledIds = filteredRows.filter(r => r.dispatchStatus === 'CANCELLED').map(r => r.id);
+              const scopedCancelledIds = baseScopedRows.filter(r => r.dispatchStatus === 'CANCELLED').map(r => r.id);
               return (
                 <button
                   type="button"
@@ -6945,19 +6959,19 @@ export const SmartDispatch4: React.FC = () => {
                       return;
                     }
                     setDeleteCancelledConfirmTarget({
-                      filteredIds: filteredCancelledIds,
+                      filteredIds: scopedCancelledIds,
                       allIds: allCancelledIds
                     });
                   }}
                   className={`h-8 px-3 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                    allCancelledIds.length > 0
+                    scopedCancelledIds.length > 0
                       ? 'bg-rose-950/90 hover:bg-rose-700 border-rose-700/80 text-rose-300 hover:text-white'
                       : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
                   }`}
                   title="취소 완료(출고취소) 상태인 출고 요청을 삭제합니다"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>취소한 요청 삭제{allCancelledIds.length > 0 ? ` (${allCancelledIds.length})` : ''}</span>
+                  <span>취소한 요청 삭제{scopedCancelledIds.length > 0 ? ` (${scopedCancelledIds.length})` : ''}</span>
                 </button>
               );
             })()}
@@ -8408,10 +8422,27 @@ export const SmartDispatch4: React.FC = () => {
   // 최종 전체 페이지 렌더
   // ─────────────────────────────────────────────────────────────────────────
   const outboundHistoryCount = useMemo(() => {
-    return (deliveries || []).filter(
-      d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환'
-    ).length;
-  }, [deliveries]);
+    const toLocalDateStr = (raw: string): string => {
+      if (!raw) return '';
+      const trimmed = raw.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+      }
+      return trimmed.slice(0, 10);
+    };
+
+    return (deliveries || []).filter(d => {
+      if (!(d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환')) {
+        return false;
+      }
+      const datePart = toLocalDateStr(d.createdAt || d.requestDate || '');
+      if (historyStartDate && datePart && datePart < historyStartDate) return false;
+      if (historyEndDate && datePart && datePart > historyEndDate) return false;
+      return true;
+    }).length;
+  }, [deliveries, historyStartDate, historyEndDate]);
 
   return (
     <div className="dispatch4-container">
