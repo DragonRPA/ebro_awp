@@ -12,6 +12,7 @@ import {
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
+import { syncTenantPolicyToAgent, triggerAgentLocalBackupNow, openAgentLocalBackupFolder, getAgentLocalBackupStatus, LocalBackupStatus } from '../services/agentService';
 import { useSortableData } from '../hooks/useSortableData';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig, normalizeMenuId } from '../config/menu_config';
 
@@ -74,6 +75,23 @@ export const UsersPermissions: React.FC = () => {
   const [filterRole, setFilterRole] = useState('ALL');
   const [previewUser, setPreviewUser] = useState<User | null>(null);
   const [showGhostModal, setShowGhostModal] = useState(false);
+  const [isRunningManualBackup, setIsRunningManualBackup] = useState(false);
+  const [localBackupStatus, setLocalBackupStatus] = useState<LocalBackupStatus | null>(null);
+
+  const refreshLocalBackupStatus = async () => {
+    try {
+      const status = await getAgentLocalBackupStatus();
+      if (status && status.success) {
+        setLocalBackupStatus(status);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'USERS') {
+      refreshLocalBackupStatus();
+    }
+  }, [activeTab]);
 
   // 권한 및 부서 테이블 로드 연동
   useEffect(() => {
@@ -470,6 +488,105 @@ export const UsersPermissions: React.FC = () => {
     }
   };
 
+  const isSystemDeveloperUserLike = (u: any) => u?.id === 'u-1' || u?.id === 'sys-admin' || u?.loginId === 'admin';
+
+  // ── [액션 9: 직원별 로컬 DB 자동백업 권한 설정 (09:00)] ──
+  const handleToggleUserAutoBackup = async (user: User, nextEnabled: boolean) => {
+    if (!canSave) return;
+    try {
+      const nextTime = user.autoBackupTime || '09:00';
+      const nextRetention = user.autoBackupRetentionDays || 30;
+      await saveUser({
+        ...user,
+        autoBackupEnabled: nextEnabled,
+        autoBackupTime: nextTime,
+        autoBackupRetentionDays: nextRetention
+      });
+      await db.awaitPendingWrites();
+
+      if (currentUser && (currentUser.id === user.id || (currentUser.loginId && currentUser.loginId === user.loginId))) {
+        await syncTenantPolicyToAgent(currentTenant, {
+          autoBackupEnabled: nextEnabled,
+          autoBackupTime: nextTime,
+          autoBackupRetentionDays: nextRetention,
+          backupUserId: user.id,
+          backupUserName: user.name
+        });
+        await refreshLocalBackupStatus();
+      }
+
+      showToast(
+        nextEnabled
+          ? `${user.name} 님에게 로컬 DB 자동백업 권한 (${nextTime})이 부여되었습니다.`
+          : `${user.name} 님의 로컬 DB 자동백업 권한이 해제되었습니다.`
+      );
+    } catch (err: any) {
+      showErrorModal(`자동백업 권한 변경 실패: ${err?.message || err}`);
+    }
+  };
+
+  const handleChangeUserBackupTime = async (user: User, newTime: string) => {
+    if (!canSave) return;
+    try {
+      const nextRetention = user.autoBackupRetentionDays || 30;
+      await saveUser({
+        ...user,
+        autoBackupEnabled: true,
+        autoBackupTime: newTime,
+        autoBackupRetentionDays: nextRetention
+      });
+      await db.awaitPendingWrites();
+
+      if (currentUser && (currentUser.id === user.id || (currentUser.loginId && currentUser.loginId === user.loginId))) {
+        await syncTenantPolicyToAgent(currentTenant, {
+          autoBackupEnabled: true,
+          autoBackupTime: newTime,
+          autoBackupRetentionDays: nextRetention,
+          backupUserId: user.id,
+          backupUserName: user.name
+        });
+        await refreshLocalBackupStatus();
+      }
+
+      showToast(`${user.name} 님의 자동백업 시각이 [${newTime}] (으)로 변경되었습니다.`);
+    } catch (err: any) {
+      showErrorModal(`자동백업 시각 변경 실패: ${err?.message || err}`);
+    }
+  };
+
+  const handleRunManualLocalBackup = async (targetUser?: User) => {
+    if (isRunningManualBackup) return;
+    setIsRunningManualBackup(true);
+    try {
+      const refUser = targetUser || users.find(u => u.id === currentUser?.id) || currentUser;
+      const res = await triggerAgentLocalBackupNow(
+        refUser
+          ? {
+              autoBackupEnabled: Boolean(refUser.autoBackupEnabled),
+              autoBackupTime: refUser.autoBackupTime || '09:00',
+              autoBackupRetentionDays: refUser.autoBackupRetentionDays || 30,
+              backupUserId: refUser.id,
+              backupUserName: refUser.name
+            }
+          : undefined
+      );
+      if (res.success) {
+        if (refUser && res.completedAt && !isSystemDeveloperUserLike(refUser)) {
+          await saveUser({ ...refUser, lastAutoBackupAt: res.completedAt });
+          await db.awaitPendingWrites();
+        }
+        await refreshLocalBackupStatus();
+        showToast(res.message || '로컬 DB 전체 백업이 완료되었습니다.');
+      } else {
+        showErrorModal(res.message || res.error || '로컬 에이전트 백업 실행에 실패했습니다. 에이전트 실행 상태를 확인해 주십시오.');
+      }
+    } catch (err: any) {
+      showErrorModal(`즉시 백업 실행 오류: ${err?.message || err}`);
+    } finally {
+      setIsRunningManualBackup(false);
+    }
+  };
+
   // 실제 임직원들이 속한 부서 목록 (필터 드롭다운용)
   const availableDeptNames = useMemo(() => {
     const set = new Set<string>();
@@ -568,6 +685,8 @@ export const UsersPermissions: React.FC = () => {
         '직책': u.duty || '-',
         '시스템등급': u.role,
         '상속권한명칭': roleObj?.name || '미지정',
+        '로컬DB자동백업': u.autoBackupEnabled ? `허용 (${u.autoBackupTime || '09:00'})` : '미사용',
+        '최근자동백업일시': u.lastAutoBackupAt ? u.lastAutoBackupAt.replace('T', ' ').slice(0, 16) : '-',
         '허용메뉴수': summary.total,
         '주요허용메뉴': summary.preview
       };
@@ -1295,9 +1414,50 @@ export const UsersPermissions: React.FC = () => {
 
             {/* 우측 통계 및 엑셀 다운로드 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #475569)' }}>
-                총 <strong>{filteredUsers.length}</strong>명 / 상속 완료 <strong>{activeUsers.filter(u => u.customRoleId).length}</strong>명
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary, #475569)', whiteSpace: 'nowrap' }}>
+                총 <strong>{filteredUsers.length}</strong>명 / 상속 완료 <strong>{activeUsers.filter(u => u.customRoleId).length}</strong>명 / 자동백업 지정 <strong style={{ color: 'var(--primary)' }}>{activeUsers.filter(u => u.autoBackupEnabled).length}</strong>명
               </span>
+              <button
+                type="button"
+                disabled={isRunningManualBackup}
+                onClick={() => handleRunManualLocalBackup()}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: '1px solid var(--primary)',
+                  backgroundColor: 'var(--primary-light, #eff6ff)',
+                  color: 'var(--primary)',
+                  cursor: isRunningManualBackup ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isRunningManualBackup ? '백업 진행 중...' : '즉시 백업 실행'}
+              </button>
+              <button
+                type="button"
+                onClick={() => openAgentLocalBackupFolder()}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-main, #0f172a)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                백업 폴더 열기
+              </button>
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -1348,13 +1508,14 @@ export const UsersPermissions: React.FC = () => {
                   <SortableTh label="시스템 등급" sortKey="role" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} align="center" />
                   <SortableTh label="상속 권한 명칭" sortKey="customRoleId" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>상속 권한 메뉴 요약</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', width: '210px' }}>로컬 DB 자동백업 (09:00)</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '80px' }}>상세 확인</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                    <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       조회된 임직원이 없습니다.
                     </td>
                   </tr>
@@ -1501,6 +1662,68 @@ export const UsersPermissions: React.FC = () => {
                           <span style={{ marginLeft: '8px', color: 'var(--text-muted, #64748b)' }}>
                             ({summary.preview})
                           </span>
+                        </td>
+
+                        {/* 로컬 DB 자동백업 (09:00) 권한 제어 */}
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <label
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                cursor: canSave ? 'pointer' : 'not-allowed',
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                border: user.autoBackupEnabled ? '1px solid #059669' : '1px solid var(--border-color)',
+                                backgroundColor: user.autoBackupEnabled ? '#ecfdf5' : 'var(--bg-secondary)',
+                                color: user.autoBackupEnabled ? '#047857' : 'var(--text-muted)',
+                                fontWeight: user.autoBackupEnabled ? 700 : 500,
+                                fontSize: '11px',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={Boolean(user.autoBackupEnabled)}
+                                disabled={!canSave}
+                                onChange={(e) => handleToggleUserAutoBackup(user, e.target.checked)}
+                                style={{ margin: 0, cursor: canSave ? 'pointer' : 'not-allowed', accentColor: '#059669' }}
+                              />
+                              <span>{user.autoBackupEnabled ? '자동백업 켜짐' : '꺼짐'}</span>
+                            </label>
+                            {user.autoBackupEnabled && (
+                              <select
+                                value={user.autoBackupTime || '09:00'}
+                                disabled={!canSave}
+                                onChange={(e) => handleChangeUserBackupTime(user, e.target.value)}
+                                style={{
+                                  padding: '3px 5px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  borderRadius: '4px',
+                                  border: '1px solid #059669',
+                                  backgroundColor: '#ffffff',
+                                  color: '#047857',
+                                  outline: 'none',
+                                  cursor: canSave ? 'pointer' : 'not-allowed'
+                                }}
+                              >
+                                <option value="09:00">09:00</option>
+                                <option value="10:00">10:00</option>
+                                <option value="12:00">12:00</option>
+                                <option value="18:00">18:00</option>
+                              </select>
+                            )}
+                            {user.lastAutoBackupAt && (
+                              <span
+                                style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'monospace' }}
+                                title={`최근 백업 완료: ${user.lastAutoBackupAt.replace('T', ' ').slice(0, 19)}`}
+                              >
+                                ({user.lastAutoBackupAt.slice(5, 10)} 완료)
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* 상세 보기 액션 */}

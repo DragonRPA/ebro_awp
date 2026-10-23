@@ -314,6 +314,12 @@ const POLICY_FILE = path.join(AGENT_HOME, 'tenant_policy.json');
 let agentPolicy = {
   agentAiEnabled: false,
   tenantCode: 'GIYEONLIFT',
+  autoBackupEnabled: false,
+  autoBackupTime: '09:00',
+  autoBackupRetentionDays: 30,
+  backupUserId: '',
+  backupUserName: '',
+  lastAutoBackupAt: '',
   updatedAt: new Date().toISOString()
 };
 
@@ -360,7 +366,7 @@ function updateAgentPolicy(newPolicy) {
       updatedAt: new Date().toISOString()
     };
     savePolicy();
-    broadcastStudioLog('POLICY', `테넌트 정책 동기화 완료: AI기능=${agentPolicy.agentAiEnabled ? '활성화(FULL_AI)' : '비활성화(SILENT_CORE)'}, 테넌트=${agentPolicy.tenantCode || '-'}`);
+    broadcastStudioLog('POLICY', `테넌트 정책 동기화 완료: AI기능=${agentPolicy.agentAiEnabled ? '활성화(FULL_AI)' : '비활성화(SILENT_CORE)'}, 테넌트=${agentPolicy.tenantCode || '-'}, 자동백업=${agentPolicy.autoBackupEnabled ? `활성화(${agentPolicy.autoBackupTime || '09:00'}, 담당:${agentPolicy.backupUserName || '-'})` : '비활성화'}`);
   }
   if (!agentPolicy.agentAiEnabled) {
     if (typeof stopTelegramBot === 'function') {

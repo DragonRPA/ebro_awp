@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 
 
-const VERSION = 'v2.0.0.Build.27';
+const VERSION = 'v2.0.0.Build.28';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();

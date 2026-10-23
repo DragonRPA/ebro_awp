@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
-  const { officialMailConfigs, hasPermission, currentTenant } = useApp();
+  const { officialMailConfigs, hasPermission, currentTenant, users, currentUser: appCurrentUser } = useApp();
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentVersion, setAgentVersion] = useState<string>('');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
@@ -75,12 +75,47 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     };
   }, [currentUser]);
 
-  // ── 접속 테넌트 변경 또는 에이전트 온라인 전환 시 현재 테넌트 정체성 자동 핫 동기화 ──
+  // ── 접속 테넌트 변경, 로그인 직원 변경, 백업 권한 변경 또는 에이전트 온라인 전환 시 정책 자동 핫 동기화 ──
+  const liveUserRecord = React.useMemo(() => {
+    const uid = appCurrentUser?.id || (currentUser as any)?.id;
+    const lid = appCurrentUser?.loginId || currentUser?.loginId;
+    if (!uid && !lid) return null;
+    return (users || []).find(u => (uid && u.id === uid) || (lid && u.loginId === lid)) || appCurrentUser || null;
+  }, [users, appCurrentUser, currentUser]);
+
   useEffect(() => {
-    if (agentStatus === 'ONLINE' && currentTenant) {
-      syncTenantPolicyToAgent(currentTenant).catch(() => {});
+    if (agentStatus === 'ONLINE' && (currentTenant || liveUserRecord)) {
+      syncTenantPolicyToAgent(
+        currentTenant,
+        liveUserRecord
+          ? {
+              autoBackupEnabled: Boolean(liveUserRecord.autoBackupEnabled),
+              autoBackupTime: liveUserRecord.autoBackupTime || '09:00',
+              autoBackupRetentionDays: liveUserRecord.autoBackupRetentionDays || 30,
+              backupUserId: liveUserRecord.id || '',
+              backupUserName: liveUserRecord.name || ''
+            }
+          : {
+              autoBackupEnabled: false,
+              autoBackupTime: '09:00',
+              autoBackupRetentionDays: 30,
+              backupUserId: '',
+              backupUserName: ''
+            }
+      ).catch(() => {});
     }
-  }, [agentStatus, currentTenant?.id, currentTenant?.tenantCode, currentTenant?.displayName, currentTenant?.corporateName, currentTenant?.features?.agentAiEnabled]);
+  }, [
+    agentStatus,
+    currentTenant?.id,
+    currentTenant?.tenantCode,
+    currentTenant?.displayName,
+    currentTenant?.corporateName,
+    currentTenant?.features?.agentAiEnabled,
+    liveUserRecord?.id,
+    liveUserRecord?.autoBackupEnabled,
+    liveUserRecord?.autoBackupTime,
+    liveUserRecord?.autoBackupRetentionDays
+  ]);
 
   // 외부 클릭 시 메뉴 닫기
   useEffect(() => {

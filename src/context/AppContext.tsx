@@ -17,6 +17,7 @@ import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSession
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
 import { calculatePaidOptionBillingItems } from '../types/siteOption';
 import { isDemoMode } from '../services/demoMode';
+import { syncTenantPolicyToAgent } from '../services/agentService';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -13336,6 +13337,42 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     await db.awaitPendingWrites();
     setErrorReports([...db.errorReports]);
   };
+
+  // 🛡️ [권한 기반 로컬 DB 매일 09:00 자동 백업 정책 동기화]
+  // 로그인한 직원의 백업 권한(autoBackupEnabled, autoBackupTime)을 로컬 에이전트(C:\eBroAgent)에 실시간 핫 동기화
+  useEffect(() => {
+    if (!currentUser && !currentTenant) return;
+    const matchedUser = currentUser
+      ? (users.find(u => u.id === currentUser.id || (currentUser.loginId && u.loginId === currentUser.loginId)) || currentUser)
+      : null;
+
+    syncTenantPolicyToAgent(
+      currentTenant,
+      matchedUser
+        ? {
+            autoBackupEnabled: Boolean(matchedUser.autoBackupEnabled),
+            autoBackupTime: matchedUser.autoBackupTime || '09:00',
+            autoBackupRetentionDays: matchedUser.autoBackupRetentionDays || 30,
+            backupUserId: matchedUser.id || '',
+            backupUserName: matchedUser.name || ''
+          }
+        : {
+            autoBackupEnabled: false,
+            autoBackupTime: '09:00',
+            autoBackupRetentionDays: 30,
+            backupUserId: '',
+            backupUserName: ''
+          }
+    ).catch(() => {});
+  }, [
+    currentUser?.id,
+    currentUser?.loginId,
+    currentUser?.autoBackupEnabled,
+    currentUser?.autoBackupTime,
+    users,
+    currentTenant?.id,
+    currentTenant?.tenantCode
+  ]);
 
   const contextValue: AppContextType = {
     db,

@@ -201,7 +201,8 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   users: [
     'id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'status', 'role',
     'joinDate', 'retireDate', 'birthDate', 'address', 'phone', 'email', 'profileImageUrl', 'createdAt', 'updatedAt',
-    'baseSalary', 'department', 'tenant_id', 'customRoleId', 'duty'
+    'baseSalary', 'department', 'tenant_id', 'customRoleId', 'duty',
+    'autoBackupEnabled', 'autoBackupTime', 'autoBackupRetentionDays', 'lastAutoBackupAt'
   ],
   standard_options: [
     'id', 'category', 'name', 'defaultPrice', 'unit', 'description', 'isActive', 'sortOrder', 'createdAt', 'updatedAt', 'tenant_id'

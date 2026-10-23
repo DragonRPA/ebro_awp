@@ -16,7 +16,7 @@ const path = require('path');
 const os = require('os');
 const { pipeline } = require('stream');
 const { spawn, exec, execSync } = require('child_process');
-const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, isAiEnabled, handleWebSocketConnection } = require('./studioEngine');
+const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, updateAgentPolicy, isAiEnabled, handleWebSocketConnection } = require('./studioEngine');
 const { WebSocketServer } = require('ws');
 const AdmZip = require('adm-zip');
 
@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.27';
-const CORE_HASH = 'ae59bc622b93';
+const VERSION = 'v2.0.0.Build.28';
+const CORE_HASH = 'c567132099d6';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -1944,7 +1944,12 @@ const server = http.createServer(async (req, res) => {
 
   //  eBro AI Agent 지시 스튜디오 및 큐 API 처리
   const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION, TENANT_CODE);
-  if (isStudioHandled) return;
+  if (isStudioHandled) {
+    if (pathname === '/api/policy/sync') {
+      setTimeout(() => { checkAndRunScheduledDailyBackup().catch(() => {}); }, 2000);
+    }
+    return;
+  }
 
   // 1. 헬스체크 및 동적 콜사인 바인딩 API
   if (req.method === 'GET' && pathname === '/health') {
@@ -2710,6 +2715,56 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 10. 로컬 DB 백업 현황 및 정책 상태 조회 API (/api/backup/status)
+  if (req.method === 'GET' && pathname === '/api/backup/status') {
+    try {
+      const statusInfo = getLocalBackupStatusInfo();
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, ...statusInfo }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // 11. 로컬 DB 즉시 수동 백업 실행 API (/api/backup/run-now)
+  if (req.method === 'POST' && pathname === '/api/backup/run-now') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        let payload = {};
+        try { payload = JSON.parse(body || '{}'); } catch (e) {}
+        if (payload && typeof payload === 'object' && Object.keys(payload).length > 0 && typeof updateAgentPolicy === 'function') {
+          updateAgentPolicy(payload);
+        }
+        const result = await executeLocalDatabaseBackup('MANUAL');
+        res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 12. 로컬 DB 백업 폴더 열기 API (/api/backup/open-folder)
+  if (req.method === 'POST' && pathname === '/api/backup/open-folder') {
+    try {
+      const backupDir = path.join(ARCHIVE_ROOT, 'DB백업');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      exec(`explorer.exe "${backupDir}"`);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, folderPath: backupDir }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('Not Found');
 });
@@ -3291,6 +3346,343 @@ async function sendStationHeartbeat() {
   } catch (e) {}
 }
 
+// =========================================================================
+// 🛡️ [권한 기반 로컬 DB 매일 09:00 자동 백업 엔진 (Local DB Auto-Backup Engine)]
+// - 권한이 부여된 임직원 PC에서만 매일 09:00 자동 백업 실행 (C:\eBroAgent\문서고\DB백업)
+// - 09:00에 PC가 꺼져 있었더라도, 당일 부팅 시 당일 백업본이 없으면 즉시 보충 백업 수행
+// =========================================================================
+const DB_BACKUP_DIR = path.join(ARCHIVE_ROOT, 'DB백업');
+const CENTRAL_BACKUP_TABLES = new Set([
+  'tenants',
+  'equipment_manuals',
+  'system_manuals',
+  'manual_annotations',
+  'apk_releases'
+]);
+
+const BACKUP_ALL_TABLES = [
+  'tenants',
+  'departments',
+  'users',
+  'permissions',
+  'custom_roles',
+  'role_permissions',
+  'annual_leave_quotas',
+  'leave_usages',
+  'overtime_records',
+  'payroll_closings',
+  'vendors',
+  'customers',
+  'customer_contacts',
+  'customer_sites',
+  'site_masters',
+  'products',
+  'assets',
+  'consumables',
+  'consumable_purchases',
+  'mechanic_consumable_stocks',
+  'transport_companies',
+  'transport_drivers',
+  'contracts',
+  'contract_assets',
+  'external_leases',
+  'contract_history',
+  'deliveries',
+  'outbound_inspections',
+  'asset_inout_logs',
+  'inspection_checklist_items',
+  'repairs',
+  'repair_consumables',
+  'consumable_logs',
+  'standard_options',
+  'billings',
+  'billing_details',
+  'billing_invoices',
+  'receivables',
+  'payments',
+  'bank_transactions',
+  'payment_deposit_links',
+  'bank_matching_rules',
+  'bank_initial_balances',
+  'purchase_settlements',
+  'purchase_settlement_items',
+  'settlement_payment_logs',
+  'cash_flow_snapshots',
+  'prepaid_transactions',
+  'delinquency_action_logs',
+  'legal_notice_logs',
+  'legal_notice_templates',
+  'depreciation_logs',
+  'todos',
+  'corporate_vehicles',
+  'vehicle_operation_logs',
+  'vehicle_fuel_logs',
+  'equipment_manuals',
+  'system_manuals',
+  'manual_annotations',
+  'apk_releases',
+  'print_stations',
+  'print_queue',
+  'privacy_access_logs',
+  'stocktaking_audits',
+  'stocktaking_audit_items',
+  'collected_parts',
+  'approval_tier_configs',
+  'approval_rules',
+  'approval_requests',
+  'approval_steps',
+  'rule_consensus',
+  'user_work_status',
+  'walkie_channels',
+  'call_uploads',
+  'call_pipeline_logs',
+  'draft_dispatch_orders'
+];
+
+let isLocalBackupRunning = false;
+let lastBackupError = null;
+
+function getLocalDateYmd(d = new Date()) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function getLocalTimeHm(d = new Date()) {
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${min}`;
+}
+
+function getLocalBackupStatusInfo() {
+  try {
+    if (!fs.existsSync(DB_BACKUP_DIR)) {
+      fs.mkdirSync(DB_BACKUP_DIR, { recursive: true });
+    }
+  } catch (e) {}
+
+  const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+  const todayYmd = getLocalDateYmd();
+  const todayFileName = `eBro_DB_Backup_${todayYmd}.json`;
+  const todayFilePath = path.join(DB_BACKUP_DIR, todayFileName);
+  const hasTodayBackup = fs.existsSync(todayFilePath) && fs.statSync(todayFilePath).size > 100;
+
+  let backupFiles = [];
+  try {
+    if (fs.existsSync(DB_BACKUP_DIR)) {
+      backupFiles = fs.readdirSync(DB_BACKUP_DIR)
+        .filter(f => f.endsWith('.json') && f.startsWith('eBro_DB_Backup_'))
+        .map(f => {
+          const full = path.join(DB_BACKUP_DIR, f);
+          const st = fs.statSync(full);
+          return {
+            fileName: f,
+            filePath: full,
+            sizeBytes: st.size,
+            modifiedAt: st.mtime.toISOString()
+          };
+        })
+        .sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt));
+    }
+  } catch (e) {}
+
+  return {
+    autoBackupEnabled: Boolean(policy.autoBackupEnabled),
+    autoBackupTime: policy.autoBackupTime || '09:00',
+    autoBackupRetentionDays: Number(policy.autoBackupRetentionDays) || 30,
+    backupUserId: policy.backupUserId || '',
+    backupUserName: policy.backupUserName || '',
+    lastAutoBackupAt: policy.lastAutoBackupAt || (backupFiles[0]?.modifiedAt || null),
+    hasTodayBackup,
+    isRunning: isLocalBackupRunning,
+    lastError: lastBackupError,
+    backupDir: DB_BACKUP_DIR,
+    backupCount: backupFiles.length,
+    recentBackups: backupFiles.slice(0, 10)
+  };
+}
+
+async function fetchAllRowsFromSupabaseTable(table) {
+  const isCentral = CENTRAL_BACKUP_TABLES.has(table);
+  const baseUrl = isCentral ? CENTRAL_SUPABASE_REST_URL : SUPABASE_REST_URL;
+  const apiKey = isCentral ? CENTRAL_SUPABASE_ANON_KEY : SUPABASE_ANON_KEY;
+
+  let allRows = [];
+  let from = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const to = from + pageSize - 1;
+    const res = await httpRequestJson(`${baseUrl}/${table}?select=*`, {
+      method: 'GET',
+      headers: {
+        'apikey': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
+        'Range-Unit': 'items',
+        'Range': `${from}-${to}`
+      },
+      timeout: 15000
+    });
+
+    if (!res.ok) {
+      // 테이블이 아직 생성되지 않았거나 조회 불가 시 빈 배열로 안전 처리
+      break;
+    }
+
+    const rows = Array.isArray(res.data) ? res.data : [];
+    if (rows.length > 0) {
+      allRows = allRows.concat(rows);
+      from += pageSize;
+      if (rows.length < pageSize) {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allRows;
+}
+
+async function executeLocalDatabaseBackup(triggerType = 'SCHEDULED_0900') {
+  if (isLocalBackupRunning) {
+    return { success: false, message: '현재 로컬 DB 백업이 이미 진행 중입니다.' };
+  }
+
+  isLocalBackupRunning = true;
+  lastBackupError = null;
+  const startTime = Date.now();
+
+  try {
+    if (!fs.existsSync(DB_BACKUP_DIR)) {
+      fs.mkdirSync(DB_BACKUP_DIR, { recursive: true });
+    }
+
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const todayYmd = getLocalDateYmd();
+    const nowIso = new Date().toISOString();
+    agentLog('BACKUP', `로컬 DB 전체 백업 시작 (사유: ${triggerType}, 담당자: ${policy.backupUserName || activeCallsign || '지정담당자'})`);
+
+    const backupData = {};
+    let totalRowsCount = 0;
+    let successTableCount = 0;
+
+    for (const table of BACKUP_ALL_TABLES) {
+      try {
+        const rows = await fetchAllRowsFromSupabaseTable(table);
+        backupData[table] = rows;
+        totalRowsCount += rows.length;
+        successTableCount++;
+      } catch (tblErr) {
+        backupData[table] = [];
+      }
+    }
+
+    const fileName = `eBro_DB_Backup_${todayYmd}.json`;
+    const targetFilePath = path.join(DB_BACKUP_DIR, fileName);
+    const tempFilePath = `${targetFilePath}.tmp`;
+
+    fs.writeFileSync(tempFilePath, JSON.stringify(backupData, null, 2), 'utf8');
+    if (fs.existsSync(targetFilePath)) {
+      try { fs.unlinkSync(targetFilePath); } catch (e) {}
+    }
+    fs.renameSync(tempFilePath, targetFilePath);
+
+    // 보존 기간(기본 30일) 경과된 오래된 백업 파일 자동 정리
+    const retentionDays = Math.max(7, Number(policy.autoBackupRetentionDays) || 30);
+    const cutoffMs = Date.now() - (retentionDays * 24 * 60 * 60 * 1000);
+    let prunedCount = 0;
+    try {
+      const files = fs.readdirSync(DB_BACKUP_DIR);
+      for (const f of files) {
+        if (!f.startsWith('eBro_DB_Backup_') || !f.endsWith('.json')) continue;
+        const full = path.join(DB_BACKUP_DIR, f);
+        const st = fs.statSync(full);
+        if (st.mtimeMs < cutoffMs) {
+          fs.unlinkSync(full);
+          prunedCount++;
+        }
+      }
+    } catch (pruneErr) {}
+
+    // 로컬 정책에 마지막 백업 완료 시각 기록
+    if (typeof updateAgentPolicy === 'function') {
+      updateAgentPolicy({ lastAutoBackupAt: nowIso });
+    }
+
+    // Supabase users 테이블에 해당 직원의 마지막 백업 시각(lastAutoBackupAt) 업데이트
+    const targetUserId = policy.backupUserId;
+    if (targetUserId) {
+      try {
+        await httpRequestJson(`${SUPABASE_REST_URL}/users?id=eq.${encodeURIComponent(targetUserId)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          timeout: 5000
+        }, {
+          lastAutoBackupAt: nowIso,
+          updatedAt: nowIso
+        });
+      } catch (uErr) {}
+    }
+
+    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+    const fileSizeMb = (fs.statSync(targetFilePath).size / (1024 * 1024)).toFixed(2);
+    agentLog('BACKUP', `로컬 DB 전체 백업 완료: ${targetFilePath} (테이블 ${successTableCount}개, 레코드 ${totalRowsCount.toLocaleString()}건, 용량 ${fileSizeMb}MB, 소요 ${elapsedSec}초)`);
+
+    return {
+      success: true,
+      fileName,
+      filePath: targetFilePath,
+      tableCount: successTableCount,
+      totalRowsCount,
+      fileSizeMb: Number(fileSizeMb),
+      prunedCount,
+      completedAt: nowIso,
+      message: `로컬 DB 백업 완료 (${fileName}, 총 ${totalRowsCount.toLocaleString()}건, ${fileSizeMb}MB)`
+    };
+  } catch (err) {
+    lastBackupError = err.message || String(err);
+    agentLog('ERROR', `로컬 DB 자동백업 오류: ${lastBackupError}`);
+    return {
+      success: false,
+      error: lastBackupError,
+      message: `로컬 DB 백업 실패: ${lastBackupError}`
+    };
+  } finally {
+    isLocalBackupRunning = false;
+  }
+}
+
+async function checkAndRunScheduledDailyBackup() {
+  if (isLocalBackupRunning) return;
+  try {
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    // 권한 관리에서 로컬 DB 자동백업 설정이 켜진 직원의 PC에서만 수행
+    if (!policy.autoBackupEnabled) return;
+
+    const scheduledTime = String(policy.autoBackupTime || '09:00').trim();
+    const currentHm = getLocalTimeHm();
+
+    // 지정 시각(기본 09:00) 이후인지 확인 (09:00 이후 부팅한 경우에도 즉시 감지하여 당일 백업 수행)
+    if (currentHm < scheduledTime) return;
+
+    const todayYmd = getLocalDateYmd();
+    const todayFilePath = path.join(DB_BACKUP_DIR, `eBro_DB_Backup_${todayYmd}.json`);
+    if (fs.existsSync(todayFilePath) && fs.statSync(todayFilePath).size > 100) {
+      return; // 오늘자 백업이 이미 완료되어 있으면 중복 실행하지 않음
+    }
+
+    await executeLocalDatabaseBackup(`DAILY_SCHEDULE_${scheduledTime}`);
+  } catch (e) {}
+}
+
 // 기동 전 포트 5175 선점 프로세스(좀비) 사전 청정 정리
 freePortIfOccupied(PORT);
 
@@ -3340,6 +3732,10 @@ server.listen(PORT, '127.0.0.1', () => {
   
   setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
   sendAgentHeartbeat();
+
+  // 🛡️ 매일 09:00 권한 기반 로컬 DB 자동백업 스케줄러 가동 (기동 8초 후 1차 점검 + 매 60초 정밀 감시)
+  setTimeout(() => { checkAndRunScheduledDailyBackup().catch(() => {}); }, 8000);
+  setInterval(() => { checkAndRunScheduledDailyBackup().catch(() => {}); }, 60 * 1000);
 
   //  Cloudflare R2 원본 저장소 기동 즉시 동기화 (부팅 초기 DNS 지연 대비 자동 재시도 포함) 및 5분 주기 자동 미러링
   let initialR2Synced = false;
