@@ -48,7 +48,7 @@ export const formatTenantBankAccountsForEmail = (tenant?: Tenant | null): string
 
 export const Billings: React.FC = () => {
   const {
-    billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, users, officialMailConfigs,
+    billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, siteMasters, users, officialMailConfigs,
     generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract, splitBillingAbsoluteAmount, syncContractBillingMilestones,
     receivePayment, cancelPayment, cancelAllPaymentsForBilling, hasPermission, currentUser, approveBilling, cancelBilling,
     refreshAllData, showErrorModal, bankTransactions, paymentDepositLinks, payments,
@@ -2274,6 +2274,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       billings,
       billingDetails,
       selectedContractAssetIds: wizardSelectedCaIds,
+      sites,
+      siteMasters,
+      customers,
     }).filter(opt => !dismissedPaidOptionIdsForWizard.includes(opt.id));
 
     setExtraCharges(prev => {

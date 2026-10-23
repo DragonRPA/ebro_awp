@@ -15,7 +15,7 @@ import { getDomainMode } from '../utils/domainRouter';
 import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
 import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, parseSessionUser, safeJsonParse, maskSalaryForRole } from '../utils/cryptoVault';
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
-import { calculatePaidOptionBillingItems } from '../types/siteOption';
+import { calculatePaidOptionBillingItems, mergeOptionPricesIntoSpecs } from '../types/siteOption';
 import { isDemoMode } from '../services/demoMode';
 import { syncTenantPolicyToAgent } from '../services/agentService';
 
@@ -64,7 +64,7 @@ export interface SmartDispatchData {
   paidOptionUnits?: Record<string, '월' | '대' | '건'>; // 🌟 출고 요청 시 1회성 변경 유상옵션 청구조건
   protection?: string;
   attachments?: string;
-  checkedSpecs?: Record<string, boolean>;
+  checkedSpecs?: Record<string, any>;
   saveOptionsToSite?: boolean; // 🌟 옵션 변경 시 현장 마스터 저장 여부 (false: 이번 출고만 1회성 적용, true: 현장 마스터 갱신)
   isSetAsCustomerDefault?: boolean;
   applyToAllSites?: boolean;
@@ -370,7 +370,7 @@ interface AppContextType {
     paidOptions?: string;
     protection?: string;
     attachments?: string;
-    checkedSpecs?: Record<string, boolean>;
+    checkedSpecs?: Record<string, any>;
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     paidOptionQtys?: Record<string, number>;
@@ -3177,12 +3177,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         paidOptions: data.paidOptions !== undefined ? data.paidOptions : (selectedOptionGroup?.paidOptions || finalCustomer.defaultPaidOptions || ''),
         protection: data.protection !== undefined ? data.protection : (selectedOptionGroup?.protection || finalCustomer.defaultProtection || 'NONE'),
         attachments: data.attachments !== undefined ? data.attachments : (selectedOptionGroup?.attachments || finalCustomer.defaultAttachments || ''),
-        checkedSpecs: {
-          ...((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
-            ? data.checkedSpecs
-            : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {})),
-          __freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5'
-        },
+        checkedSpecs: mergeOptionPricesIntoSpecs(
+          {
+            ...((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+              ? data.checkedSpecs
+              : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {})),
+            __freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5'
+          },
+          db.standardOptions,
+          data.paidOptionPrices
+        ),
         createdAt: new Date().toISOString()
       });
     } else {
@@ -3281,11 +3285,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (data.attachments !== undefined && data.attachments !== site.attachments) {
           siteUpdates.attachments = data.attachments;
         }
-        if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) {
-          siteUpdates.checkedSpecs = {
-            ...data.checkedSpecs,
-            ...(siteUpdates.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: siteUpdates.checkedSpecs.__freightBillingStandard } : (site.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: site.checkedSpecs.__freightBillingStandard } : {}))
-          };
+        if ((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) || (data.paidOptionPrices && Object.keys(data.paidOptionPrices).length > 0)) {
+          const baseSpecsForUpdate = (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+            ? {
+                ...(site.checkedSpecs?.__optionMeta && typeof site.checkedSpecs.__optionMeta === 'object' ? { __optionMeta: site.checkedSpecs.__optionMeta } : {}),
+                ...data.checkedSpecs,
+                ...(siteUpdates.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: siteUpdates.checkedSpecs.__freightBillingStandard } : (site.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: site.checkedSpecs.__freightBillingStandard } : {}))
+              }
+            : {
+                ...(site.checkedSpecs || {}),
+                ...(siteUpdates.checkedSpecs || {})
+              };
+          siteUpdates.checkedSpecs = mergeOptionPricesIntoSpecs(
+            baseSpecsForUpdate,
+            db.standardOptions,
+            data.paidOptionPrices
+          );
         }
       }
       if (Object.keys(siteUpdates).length > 0) {
@@ -3317,8 +3332,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (data.isSetAsCustomerDefault || (!finalCustomer.defaultAttachments && data.attachments)) {
         if (data.attachments) custOptionUpdates.defaultAttachments = data.attachments;
       }
-      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultCheckedSpecs && data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
-        if (data.checkedSpecs) custOptionUpdates.defaultCheckedSpecs = data.checkedSpecs;
+      if (data.isSetAsCustomerDefault || (!finalCustomer.defaultCheckedSpecs && ((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) || (data.paidOptionPrices && Object.keys(data.paidOptionPrices).length > 0)))) {
+        const baseCustSpecs = (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+          ? {
+              ...(finalCustomer.defaultCheckedSpecs?.__optionMeta && typeof finalCustomer.defaultCheckedSpecs.__optionMeta === 'object' ? { __optionMeta: finalCustomer.defaultCheckedSpecs.__optionMeta } : {}),
+              ...data.checkedSpecs
+            }
+          : (finalCustomer.defaultCheckedSpecs || {});
+        custOptionUpdates.defaultCheckedSpecs = mergeOptionPricesIntoSpecs(baseCustSpecs, db.standardOptions, data.paidOptionPrices);
       }
     }
     if (Object.keys(custOptionUpdates).length > 0) {
@@ -3329,11 +3350,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (data.applyToAllSites) {
       const allSites = db.sites.filter(s => s.customerId === finalCustomer.id);
       for (const s of allSites) {
+        const baseSiteSpecs = (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+          ? {
+              ...(s.checkedSpecs?.__optionMeta && typeof s.checkedSpecs.__optionMeta === 'object' ? { __optionMeta: s.checkedSpecs.__optionMeta } : {}),
+              ...data.checkedSpecs
+            }
+          : (s.checkedSpecs || {});
         db.updateRow<CustomerSite>('sites', s.id, {
           paidOptions: data.paidOptions !== undefined ? data.paidOptions : s.paidOptions,
           protection: data.protection !== undefined ? data.protection : s.protection,
           attachments: data.attachments !== undefined ? data.attachments : s.attachments,
-          checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) ? data.checkedSpecs : s.checkedSpecs,
+          checkedSpecs: mergeOptionPricesIntoSpecs(baseSiteSpecs, db.standardOptions, data.paidOptionPrices),
           updatedAt: new Date().toISOString()
         });
       }
@@ -4130,7 +4157,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paidOptions?: string;
     protection?: string;
     attachments?: string;
-    checkedSpecs?: Record<string, boolean>;
+    checkedSpecs?: Record<string, any>;
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     paidOptionQtys?: Record<string, number>;
@@ -4231,10 +4258,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nextPaidOptions = params.paidOptions !== undefined ? params.paidOptions : origPaidOptions;
       const nextProtection = params.protection !== undefined ? params.protection : (baseMeta?.protection ?? '');
       const nextAttachments = params.attachments !== undefined ? params.attachments : (baseMeta?.attachments ?? '');
-      const nextCheckedSpecs = params.checkedSpecs !== undefined ? params.checkedSpecs : baseMeta?.checkedSpecs;
       const nextPrices: Record<string, number> = params.paidOptionPrices !== undefined
         ? { ...origPrices, ...params.paidOptionPrices }
         : origPrices;
+      const rawNextCheckedSpecs = params.checkedSpecs !== undefined ? params.checkedSpecs : baseMeta?.checkedSpecs;
+      const nextCheckedSpecs = (rawNextCheckedSpecs !== undefined || Object.keys(nextPrices).length > 0)
+        ? mergeOptionPricesIntoSpecs(
+            {
+              ...(baseMeta?.checkedSpecs?.__optionMeta && typeof baseMeta.checkedSpecs.__optionMeta === 'object' ? { __optionMeta: baseMeta.checkedSpecs.__optionMeta } : {}),
+              ...(rawNextCheckedSpecs || {})
+            },
+            db.standardOptions,
+            nextPrices
+          )
+        : undefined;
       const nextUnits: Record<string, '월' | '대' | '건'> = params.paidOptionUnits !== undefined
         ? { ...origUnits, ...params.paidOptionUnits }
         : origUnits;
@@ -9754,6 +9791,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       billings: db.billings,
       billingDetails: db.billingDetails,
       selectedContractAssetIds,
+      sites: db.sites,
+      siteMasters: db.siteMasters,
+      customers: db.customers,
     });
 
     paidOptionItems.forEach(optItem => {

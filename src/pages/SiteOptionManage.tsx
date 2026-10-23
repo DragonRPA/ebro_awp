@@ -272,11 +272,15 @@ export const SiteOptionManage: React.FC = () => {
     const optionMeta: Record<string, { appliedPrice?: number; isRequired?: boolean; note?: string }> = {};
     items.forEach(item => {
       if (item.isEnabled || item.appliedPrice !== item.defaultPrice || item.isRequired || (item.note && item.note.trim())) {
-        optionMeta[item.optionId] = {
+        const metaEntry = {
           appliedPrice: Number(item.appliedPrice || 0),
           isRequired: Boolean(item.isRequired),
           note: (item.note || '').trim()
         };
+        optionMeta[item.optionId] = metaEntry;
+        if (item.name && item.name !== item.optionId) {
+          optionMeta[item.name] = metaEntry;
+        }
       }
     });
     if (Object.keys(optionMeta).length > 0) {
@@ -334,7 +338,6 @@ export const SiteOptionManage: React.FC = () => {
       );
       setShowQuickSiteModal(false);
       setQuickSiteForm({ name: '', copyFromMasterId: '' });
-      await fullRefreshFromServer();
     } catch (err: any) {
       showErrorModal(`옵션 그룹 등록 오류: ${err?.message || err}`);
     }
@@ -409,7 +412,6 @@ export const SiteOptionManage: React.FC = () => {
       }
       setShowCopySiteMasterModal(false);
       showToast(`[${sourceMaster.name}] 옵션을 통째 복사하여 [${rawName}] 그룹으로 등록했습니다.`);
-      await fullRefreshFromServer();
     } catch (err: any) {
       showErrorModal(`옵션 그룹 복사 오류: ${err?.message || err}`);
     }
@@ -661,7 +663,6 @@ export const SiteOptionManage: React.FC = () => {
           ? `[${activeSite.name}] 옵션 그룹 저장 및 연결된 고객현장 ${linkedCount}곳에 옵션이 일괄 반영되었습니다.`
           : `[${activeSite.name}] 옵션 그룹 설정이 저장되었습니다.`
       );
-      await fullRefreshFromServer();
     } catch (err: any) {
       showErrorModal(`옵션 그룹 저장 실패: ${err?.message || err}`);
     } finally {
@@ -719,7 +720,6 @@ export const SiteOptionManage: React.FC = () => {
       setShowMasterModal(false);
       setEditingMasterOption(null);
       showToast('옵션 품목 마스터가 저장되었습니다.');
-      await fullRefreshFromServer();
     } catch (err: any) {
       showErrorModal(`옵션 마스터 저장 오류: ${err?.message || err}`);
     }
@@ -2128,7 +2128,6 @@ export const SiteOptionManage: React.FC = () => {
                             await deleteStandardOption(editingMasterOption.id!);
                             setShowMasterModal(false);
                             setEditingMasterOption(null);
-                            await fullRefreshFromServer();
                           } catch (err: any) {
                             showErrorModal(`삭제 실패: ${err.message}`);
                           }

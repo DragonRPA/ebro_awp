@@ -162,11 +162,12 @@ export function inheritOptionsFromMaster(
       isEnabled = Boolean(currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name]));
     }
 
+    const cleanOptKey = opt.name.replace(/\s+/g, '');
     const rawMeta = currentSpecs && typeof currentSpecs.__optionMeta === 'object' && currentSpecs.__optionMeta !== null
-      ? (currentSpecs.__optionMeta[opt.id] || currentSpecs.__optionMeta[opt.name] || null)
+      ? (currentSpecs.__optionMeta[opt.id] || currentSpecs.__optionMeta[opt.name] || currentSpecs.__optionMeta[cleanOptKey] || null)
       : null;
-    const savedAppliedPrice = rawMeta && typeof rawMeta.appliedPrice === 'number' && !Number.isNaN(rawMeta.appliedPrice)
-      ? rawMeta.appliedPrice
+    const savedAppliedPrice = rawMeta && rawMeta.appliedPrice !== undefined && !Number.isNaN(Number(rawMeta.appliedPrice))
+      ? Number(rawMeta.appliedPrice)
       : (opt.defaultPrice || 0);
     const savedIsRequired = rawMeta && typeof rawMeta.isRequired === 'boolean'
       ? rawMeta.isRequired
@@ -189,6 +190,95 @@ export function inheritOptionsFromMaster(
       note: savedNote
     };
   });
+}
+
+/**
+ * checkedSpecs.__optionMeta (현장 또는 옵션그룹에 저장된 특약단가 메타데이터)에서
+ * 유상옵션별 적용단가(appliedPrice) 맵(옵션명 -> 단가)을 추출하는 SSOT 헬퍼.
+ * 앞에 전달된 specs 객체가 우선순위를 가집니다 (예: site.checkedSpecs ➔ siteMaster.checkedSpecs ➔ customer.defaultCheckedSpecs).
+ */
+export function extractAppliedPricesFromSpecs(
+  standardOptions: StandardOption[],
+  ...specsList: (Record<string, any> | undefined | null)[]
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  const paidOpts = (standardOptions || []).filter(o => o && o.category === 'PAID');
+
+  for (const specs of specsList) {
+    if (!specs || typeof specs !== 'object') continue;
+    const metaMap = specs.__optionMeta;
+    if (!metaMap || typeof metaMap !== 'object') continue;
+
+    for (const opt of paidOpts) {
+      if (result[opt.name] !== undefined) continue;
+      const cleanName = opt.name.replace(/\s+/g, '');
+      const entry = metaMap[opt.id] || metaMap[opt.name] || metaMap[cleanName];
+      if (entry && entry.appliedPrice !== undefined && !Number.isNaN(Number(entry.appliedPrice))) {
+        const numPrice = Math.max(0, Number(entry.appliedPrice));
+        result[opt.name] = numPrice;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * checkedSpecs 객체 내부의 __optionMeta에 유상옵션 특약단가(paidOptionPrices)를 병합하여 반환하는 SSOT 헬퍼
+ */
+export function mergeOptionPricesIntoSpecs(
+  baseSpecs: Record<string, any> | undefined | null,
+  standardOptions: StandardOption[],
+  paidOptionPrices?: Record<string, number>
+): Record<string, any> {
+  const nextSpecs: Record<string, any> = {};
+  if (baseSpecs && typeof baseSpecs === 'object' && !Array.isArray(baseSpecs)) {
+    Object.entries(baseSpecs).forEach(([k, v]) => {
+      if (v !== undefined) {
+        nextSpecs[k] = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v;
+      }
+    });
+  }
+
+  if (!paidOptionPrices || typeof paidOptionPrices !== 'object' || Object.keys(paidOptionPrices).length === 0) {
+    return nextSpecs;
+  }
+
+  const prevOptionMeta: Record<string, any> =
+    (nextSpecs.__optionMeta && typeof nextSpecs.__optionMeta === 'object' && !Array.isArray(nextSpecs.__optionMeta))
+      ? { ...nextSpecs.__optionMeta }
+      : {};
+
+  const paidOpts = (standardOptions || []).filter(o => o && o.category === 'PAID');
+
+  Object.entries(paidOptionPrices).forEach(([rawKey, rawPrice]) => {
+    const numPrice = Number(rawPrice);
+    if (Number.isNaN(numPrice) || numPrice < 0) return;
+    const cleanKey = rawKey.replace(/\s+/g, '');
+    const matchedOpt = paidOpts.find(
+      o => o.id === rawKey || o.name === rawKey || o.name.replace(/\s+/g, '') === cleanKey
+    );
+    const metaKey = matchedOpt ? matchedOpt.id : rawKey;
+    const prevEntry = (prevOptionMeta[metaKey] && typeof prevOptionMeta[metaKey] === 'object')
+      ? prevOptionMeta[metaKey]
+      : {};
+    prevOptionMeta[metaKey] = {
+      ...prevEntry,
+      appliedPrice: numPrice,
+    };
+    if (matchedOpt && matchedOpt.name !== metaKey) {
+      prevOptionMeta[matchedOpt.name] = {
+        ...(prevOptionMeta[matchedOpt.name] && typeof prevOptionMeta[matchedOpt.name] === 'object' ? prevOptionMeta[matchedOpt.name] : {}),
+        appliedPrice: numPrice,
+      };
+    }
+  });
+
+  if (Object.keys(prevOptionMeta).length > 0) {
+    nextSpecs.__optionMeta = prevOptionMeta;
+  }
+
+  return nextSpecs;
 }
 
 /**
@@ -395,6 +485,9 @@ export function calculatePaidOptionBillingItems(params: {
   billings: any[];
   billingDetails: any[];
   selectedContractAssetIds?: string[] | Set<string>;
+  sites?: any[];
+  siteMasters?: any[];
+  customers?: any[];
 }): PaidOptionBillingItem[] {
   const {
     contract,
@@ -407,6 +500,9 @@ export function calculatePaidOptionBillingItems(params: {
     billings = [],
     billingDetails = [],
     selectedContractAssetIds,
+    sites = [],
+    siteMasters = [],
+    customers = [],
   } = params;
 
   if (!contract || !billingYm || !periodStart || !periodEnd) return [];
@@ -415,6 +511,20 @@ export function calculatePaidOptionBillingItems(params: {
     o => o && o.isActive !== false && o.category === 'PAID'
   );
   if (paidMasterOptions.length === 0) return [];
+
+  const contractSite = contract.siteId ? (sites || []).find(s => s && s.id === contract.siteId) : undefined;
+  const contractSiteMaster = contractSite?.siteMasterId
+    ? (siteMasters || []).find(sm => sm && sm.id === contractSite.siteMasterId)
+    : undefined;
+  const contractCustomer = contract.customerId
+    ? (customers || []).find(cu => cu && cu.id === contract.customerId)
+    : undefined;
+  const fallbackSpecsPrices = extractAppliedPricesFromSpecs(
+    standardOptions,
+    contractSite?.checkedSpecs,
+    contractSiteMaster?.checkedSpecs,
+    contractCustomer?.defaultCheckedSpecs
+  );
 
   const selectedCaSet: Set<string> | null = selectedContractAssetIds
     ? (selectedContractAssetIds instanceof Set
@@ -491,6 +601,16 @@ export function calculatePaidOptionBillingItems(params: {
           if (!isNaN(numVal) && numVal >= 0) {
             explicitPaidOptionPrices[k] = numVal;
             explicitPaidOptionPrices[k.replace(/\s+/g, '')] = numVal;
+          }
+        });
+      }
+      const cargoCheckedSpecs = item?.requestMeta?.checkedSpecs || item?.checkedSpecs;
+      if (cargoCheckedSpecs && typeof cargoCheckedSpecs === 'object') {
+        const cargoMetaPrices = extractAppliedPricesFromSpecs(standardOptions, cargoCheckedSpecs);
+        Object.entries(cargoMetaPrices).forEach(([k, v]) => {
+          if (explicitPaidOptionPrices[k] === undefined) {
+            explicitPaidOptionPrices[k] = v;
+            explicitPaidOptionPrices[k.replace(/\s+/g, '')] = v;
           }
         });
       }
@@ -584,7 +704,9 @@ export function calculatePaidOptionBillingItems(params: {
           ? explicitPaidOptionPrices[stdOpt.name]
           : explicitPaidOptionPrices[cleanTarget] !== undefined
             ? explicitPaidOptionPrices[cleanTarget]
-            : explicitPaidOptionPrices[stdOpt.id];
+            : explicitPaidOptionPrices[stdOpt.id] !== undefined
+              ? explicitPaidOptionPrices[stdOpt.id]
+              : fallbackSpecsPrices[stdOpt.name];
 
       const unitPrice = overridePrice !== undefined ? Number(overridePrice) : Number(stdOpt.defaultPrice || 0);
       if (unitPrice <= 0) continue;

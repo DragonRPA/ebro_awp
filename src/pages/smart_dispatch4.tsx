@@ -37,7 +37,13 @@ import {
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { canViewFinancials } from '../utils/privacyMasking';
-import { extractCategorizedSiteOptions, stripOptionPrice, splitMasterAwareOptions } from '../types/siteOption';
+import {
+  extractCategorizedSiteOptions,
+  stripOptionPrice,
+  splitMasterAwareOptions,
+  extractAppliedPricesFromSpecs,
+  mergeOptionPricesIntoSpecs,
+} from '../types/siteOption';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -607,11 +613,13 @@ export const SmartDispatch4: React.FC = () => {
     return groups;
   }, [getOptionGroupMeta]);
 
-  const buildCheckedSpecsFromLabels = useCallback((labels: string[], baseSpecs?: Record<string, any>): Record<string, boolean> => {
-    const nextSpecs: Record<string, boolean> = {};
-    if (baseSpecs && typeof baseSpecs === 'object') {
+  const buildCheckedSpecsFromLabels = useCallback((labels: string[], baseSpecs?: Record<string, any>, customPrices?: Record<string, number>): Record<string, any> => {
+    const nextSpecs: Record<string, any> = {};
+    if (baseSpecs && typeof baseSpecs === 'object' && !Array.isArray(baseSpecs)) {
       Object.entries(baseSpecs).forEach(([k, v]) => {
-        if (k.startsWith('__') && v) nextSpecs[k] = Boolean(v);
+        if (k.startsWith('__') && v !== undefined && v !== null) {
+          nextSpecs[k] = (typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : v;
+        }
       });
     }
     labels.forEach(label => {
@@ -624,16 +632,16 @@ export const SmartDispatch4: React.FC = () => {
         nextSpecs[clean] = true;
       }
     });
-    return nextSpecs;
+    return customPrices ? mergeOptionPricesIntoSpecs(nextSpecs, standardOptions || [], customPrices) : nextSpecs;
   }, [isSpecOption, standardOptions]);
 
   // 🌟 [현장 마스터 + 연결된 옵션 그룹에서 등록된 옵션 마스터 항목만 자동 로드]
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
     const inherited = new Set<string>();
+    const sm = site?.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
 
     // ── 1순위: 선택된 고객현장 직접 등록 옵션 + 연결된 옵션 그룹 ──
     if (site) {
-      const sm = site.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
       const effPaid = site.paidOptions || sm?.paidOptions;
       const effProt = (site.protection && site.protection !== 'NONE' && site.protection !== '-') ? site.protection : sm?.protection;
       const effAtt = site.attachments || sm?.attachments;
@@ -676,6 +684,15 @@ export const SmartDispatch4: React.FC = () => {
         });
       }
     }
+
+    // 🌟 [특약단가 상속 복원] 현장 ➔ 옵션그룹 ➔ 고객사 checkedSpecs.__optionMeta에 저장된 특약단가를 paidOptionPrices에 반영
+    const savedPrices = extractAppliedPricesFromSpecs(
+      standardOptions || [],
+      site?.checkedSpecs,
+      sm?.checkedSpecs,
+      (cust as any)?.defaultCheckedSpecs
+    );
+    setPaidOptionPrices(savedPrices);
 
     setSelectedSafetyOptions(new Set(inherited));
     setInitialSiteOptions(new Set(inherited));
@@ -1228,13 +1245,19 @@ export const SmartDispatch4: React.FC = () => {
       });
     }
     setSelectedSafetyOptions(opts);
+    const savedPrices = extractAppliedPricesFromSpecs(standardOptions || [], sm.checkedSpecs, selectedSite?.checkedSpecs);
+    setPaidOptionPrices(savedPrices);
 
     if (autoSaveToSite && selectedSite) {
       const optionLabels = Array.from(opts);
       const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
       const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
       const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
-      const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
+      const mergedBaseSpecs = {
+        ...(selectedSite.checkedSpecs || {}),
+        ...(sm.checkedSpecs || {}),
+      };
+      const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, mergedBaseSpecs, savedPrices);
       try {
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           siteMasterId: smId,
@@ -1296,7 +1319,7 @@ export const SmartDispatch4: React.FC = () => {
     const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
     const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
     const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
-    const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
+    const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs, paidOptionPrices);
 
     try {
       db.updateRow<CustomerSite>('sites', selectedSite.id, {
@@ -1325,15 +1348,27 @@ export const SmartDispatch4: React.FC = () => {
     }
   };
 
-  // 첨삭(변경) 발생 여부 계산: 현장 기존 옵션과 달라진 경우 true
+  // 첨삭(변경) 발생 여부 계산: 현장 기존 옵션 또는 특약단가가 달라진 경우 true
   const isOptionsModified = useMemo(() => {
     if (!selectedSite || selectedContext !== 'ADDITIONAL') return false;
     if (selectedSafetyOptions.size !== initialSiteOptions.size) return true;
     for (const opt of selectedSafetyOptions) {
       if (!initialSiteOptions.has(opt)) return true;
     }
+    const sm = selectedSite.siteMasterId ? (siteMasters || []).find(m => m.id === selectedSite.siteMasterId) : undefined;
+    const savedPrices = extractAppliedPricesFromSpecs(
+      standardOptions || [],
+      selectedSite.checkedSpecs,
+      sm?.checkedSpecs,
+      (selectedCustomer as any)?.defaultCheckedSpecs
+    );
+    for (const opt of selectedPaidMasterOptions) {
+      const currentPrice = paidOptionPrices[opt.name] !== undefined ? Number(paidOptionPrices[opt.name]) : (opt.defaultPrice || 0);
+      const baselinePrice = savedPrices[opt.name] !== undefined ? Number(savedPrices[opt.name]) : (opt.defaultPrice || 0);
+      if (currentPrice !== baselinePrice) return true;
+    }
     return false;
-  }, [selectedContext, selectedSite, selectedSafetyOptions, initialSiteOptions]);
+  }, [selectedContext, selectedSite, selectedSafetyOptions, initialSiteOptions, siteMasters, standardOptions, selectedCustomer, selectedPaidMasterOptions, paidOptionPrices]);
 
   // ── 🌟 [다수 장비 시차 출고 메모] ───────────────────────────────────────
   const [staggeredMemo, setStaggeredMemo] = useState('');
@@ -2163,7 +2198,7 @@ export const SmartDispatch4: React.FC = () => {
         const paidOpts = optionLabels.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
         const protOpts = optionLabels.filter(label => isProtectionOption(label)).join(', ') || 'NONE';
         const attOpts = optionLabels.filter(label => isAttachmentOption(label)).join(', ');
-        const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs);
+        const nextSpecs = buildCheckedSpecsFromLabels(optionLabels, selectedSite.checkedSpecs, paidOptionPrices);
 
         db.updateRow<CustomerSite>('sites', selectedSite.id, {
           paidOptions: paidOpts,
@@ -2273,6 +2308,12 @@ export const SmartDispatch4: React.FC = () => {
       const effPaidOptStr = allSelOpts.filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)).join(', ');
       const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
       const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
+      const selectedMasterForSpecs = effectiveSmId ? (siteMasters || []).find(s => s.id === effectiveSmId) : undefined;
+      const effCheckedSpecs = buildCheckedSpecsFromLabels(
+        allSelOpts,
+        selectedSite?.checkedSpecs || selectedMasterForSpecs?.checkedSpecs,
+        paidOptionPrices
+      );
 
       const editingDraftObj = editingDraftId ? queue.find(d => d.id === editingDraftId) : undefined;
       const initialRequesterId = (editingDraftObj?.ownerId && users.some(u => u.id === editingDraftObj.ownerId))
@@ -2317,6 +2358,7 @@ export const SmartDispatch4: React.FC = () => {
         paidOptionPrices,
         paidOptionUnits,
         paidOptionQtys,
+        checkedSpecs: effCheckedSpecs,
         saveOptionsToSite: saveToSite,
         protection: effProtOptStr,
         attachments: effAttOptStr,
@@ -3644,12 +3686,20 @@ export const SmartDispatch4: React.FC = () => {
                             setSelectedSiteMasterId(smId);
                             if (smId) {
                               const sm = (siteMasters || []).find(s => s.id === smId);
-                              if (sm && (sm.paidOptions || sm.protection || sm.attachments)) {
+                              if (sm) {
                                 const opts = new Set<string>();
-                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(stripOptionPrice(o.trim())));
-                                if (sm.protection && sm.protection !== 'NONE') sm.protection.split(',').forEach(o => o.trim() && opts.add(o.trim()));
-                                if (sm.attachments && sm.attachments !== 'NONE') sm.attachments.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                if (sm.paidOptions) parseOptionString(sm.paidOptions).forEach(o => opts.add(o));
+                                if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection).forEach(o => opts.add(o));
+                                if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments).forEach(o => opts.add(o));
+                                if (sm.checkedSpecs && typeof sm.checkedSpecs === 'object') {
+                                  Object.entries(sm.checkedSpecs).forEach(([k, v]) => {
+                                    if (!v || k.startsWith('__')) return;
+                                    const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+                                    if (matched && matched.name) opts.add(matched.name);
+                                  });
+                                }
                                 setSelectedSafetyOptions(opts);
+                                setPaidOptionPrices(extractAppliedPricesFromSpecs(standardOptions || [], sm.checkedSpecs));
                               }
                             }
                           }}
@@ -3836,12 +3886,20 @@ export const SmartDispatch4: React.FC = () => {
                             setSelectedSiteMasterId(smId);
                             if (smId) {
                               const sm = (siteMasters || []).find(s => s.id === smId);
-                              if (sm && (sm.paidOptions || sm.protection || sm.attachments)) {
+                              if (sm) {
                                 const opts = new Set<string>();
-                                if (sm.paidOptions) sm.paidOptions.split(',').forEach(o => o.trim() && opts.add(stripOptionPrice(o.trim())));
-                                if (sm.protection && sm.protection !== 'NONE') sm.protection.split(',').forEach(o => o.trim() && opts.add(o.trim()));
-                                if (sm.attachments && sm.attachments !== 'NONE') sm.attachments.split(',').forEach(o => o.trim() && opts.add(o.trim()));
+                                if (sm.paidOptions) parseOptionString(sm.paidOptions).forEach(o => opts.add(o));
+                                if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection).forEach(o => opts.add(o));
+                                if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments).forEach(o => opts.add(o));
+                                if (sm.checkedSpecs && typeof sm.checkedSpecs === 'object') {
+                                  Object.entries(sm.checkedSpecs).forEach(([k, v]) => {
+                                    if (!v || k.startsWith('__')) return;
+                                    const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+                                    if (matched && matched.name) opts.add(matched.name);
+                                  });
+                                }
                                 setSelectedSafetyOptions(opts);
+                                setPaidOptionPrices(extractAppliedPricesFromSpecs(standardOptions || [], sm.checkedSpecs));
                               }
                             }
                           }}
@@ -6723,6 +6781,13 @@ export const SmartDispatch4: React.FC = () => {
       // 유상옵션 및 적용 단가·청구조건·1대당수량 복원
       let paidOptionsStr = parsedCargo[0]?.paidOptions || '';
       const paidOptionPricesMap: Record<string, number> = parsedCargo[0]?.paidOptionPrices || snapMeta?.paidOptionPrices || {};
+      const fallbackSpecsPricesMap = extractAppliedPricesFromSpecs(
+        standardOptions || [],
+        snapMeta?.checkedSpecs,
+        site?.checkedSpecs,
+        sm?.checkedSpecs,
+        (customer as any)?.defaultCheckedSpecs
+      );
       const paidOptionUnitsMap: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
       const paidOptionQtysMap: Record<string, number> = parsedCargo[0]?.paidOptionQtys || snapMeta?.paidOptionQtys || {};
       if (!paidOptionsStr && d.closingMemo) {
@@ -6732,7 +6797,9 @@ export const SmartDispatch4: React.FC = () => {
       const paidOptionItems = splitMasterAwareOptions(paidOptionsStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
         .filter(o => o && o !== '없음' && o !== 'NONE' && !isProtectionOption(o) && !isAttachmentOption(o) && !isSpecOption(o))
         .map(optName => {
-          const customPrice = paidOptionPricesMap[optName];
+          const customPrice = paidOptionPricesMap[optName] !== undefined
+            ? paidOptionPricesMap[optName]
+            : fallbackSpecsPricesMap[optName];
           const customUnit = paidOptionUnitsMap[optName];
           const customPerUnitQty = paidOptionQtysMap[optName];
           const masterOpt = (standardOptions || []).find(so => so.name === optName);
