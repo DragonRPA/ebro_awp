@@ -941,7 +941,7 @@ export const DailyInOutStatus: React.FC = () => {
           </div>
         </div>
 
-        {/* 당일 입출고 모델 합계 배지 바 */}
+        {/* 당일 입출고 합계 배지 바 */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{
             padding: '2px 8px',
@@ -950,12 +950,9 @@ export const DailyInOutStatus: React.FC = () => {
             color: isDark ? '#ffffff' : '#1e3a8a',
             fontSize: '11px',
             fontWeight: 800,
-            whiteSpace: 'nowrap',
-            maxWidth: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }} title={selectedDateData.inModelSummary}>
-            🔵 입고 확정 <strong style={{ color: isDark ? '#fde047' : '#1e3a8a' }}>{selectedDateData.totalIn}대</strong> ({selectedDateData.inModelSummary})
+            whiteSpace: 'nowrap'
+          }}>
+            🔵 입고 확정 <strong style={{ color: isDark ? '#fde047' : '#1e3a8a' }}>{selectedDateData.totalIn}대</strong>
           </span>
           <span style={{
             padding: '2px 8px',
@@ -964,12 +961,9 @@ export const DailyInOutStatus: React.FC = () => {
             color: isDark ? '#ffffff' : '#111827',
             fontSize: '11px',
             fontWeight: 800,
-            whiteSpace: 'nowrap',
-            maxWidth: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }} title={selectedDateData.outModelSummary}>
-            🔴 출고 확정 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong> ({selectedDateData.outModelSummary})
+            whiteSpace: 'nowrap'
+          }}>
+            🔴 출고 확정 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong>
           </span>
         </div>
       </div>
