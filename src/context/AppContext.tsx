@@ -3490,6 +3490,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...(effectivePaidOptionQtysForDelivery ? { paidOptionQtys: effectivePaidOptionQtysForDelivery } : {})
     };
 
+    // 다중 PC 동시 출고 요청 시 CAST- / DLV- 채번 충돌 방지를 위해 최신 슬롯 및 배차 테이블을 원격 DB에서 선행 동기화
+    if (db.isSupabaseConnected()) {
+      try {
+        await Promise.all([
+          db.pullTableFromSupabase('contractAssets'),
+          db.pullTableFromSupabase('deliveries'),
+          db.pullTableFromSupabase('outboundInspections')
+        ]);
+      } catch (pullErr) {
+        console.warn('saveSmartDispatch pre-insert sync warning:', pullErr);
+      }
+    }
+
     data.equipments.forEach((eq) => {
       const eqData = eq as any;
       const count = Math.max(1, Math.floor(Number(eq.qty) || 1));
@@ -4046,6 +4059,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paidOptionQtys?: Record<string, number>;
     reason?: string;
   }): Promise<{ success: boolean; errorMessage?: string }> => {
+    if (db.isSupabaseConnected()) {
+      try {
+        await Promise.all([
+          db.pullTableFromSupabase('contractAssets'),
+          db.pullTableFromSupabase('deliveries'),
+          db.pullTableFromSupabase('outboundInspections')
+        ]);
+      } catch (pullErr) {
+        console.warn('updateOutboundRequestPricing pre-sync warning:', pullErr);
+      }
+    }
+
     const targetDelivery = db.deliveries.find(d => d.id === params.deliveryId);
     if (!targetDelivery) {
       showErrorModal('수정할 출고 요청을 찾을 수 없습니다.');
@@ -4221,7 +4246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         mergedEqs.forEach((eq, idx) => {
           const existingCas = eq.contractAssetIds
-            .map(id => db.contractAssets.find(c => c.id === id))
+            .map(id => db.contractAssets.find(c => c.id === id && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId)))
             .filter((c): c is ContractAsset => Boolean(c));
 
           // 모델이 변경된 경우 이미 할당된 장비가 새 모델과 다르면 할당 해제
@@ -4320,10 +4345,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
         });
 
-        // 삭제된 모델 또는 수량 감소로 인해 제외된 기존 ContractAsset 슬롯 정리
+        // 삭제된 모델 또는 수량 감소로 인해 제외된 기존 ContractAsset 슬롯 정리 (타 계약 슬롯 절대 건드리지 않음)
         allOriginalCaIds.forEach(origCaId => {
           if (!keptCaIds.has(origCaId)) {
-            const caObj = db.contractAssets.find(c => c.id === origCaId);
+            const caObj = db.contractAssets.find(c => c.id === origCaId && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId));
             if (caObj) {
               releaseAssignedAssetOnCa(caObj);
               deletedCas.push({ ...caObj });
@@ -4356,14 +4381,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
                   .forEach(ins => {
                     const caId = (ins as any).contractAssetId;
-                    const caObj = db.contractAssets.find(c => c.id === caId);
+                    const caObj = db.contractAssets.find(c => c.id === caId && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId));
                     if (caObj && (!ci.modelName || caObj.expectedModel === ci.modelName) && !caIds.includes(caId)) {
                       caIds.push(caId);
                     }
                   });
               }
               caIds.forEach(caId => {
-                const caObj = db.contractAssets.find(c => c.id === caId);
+                const caObj = db.contractAssets.find(c => c.id === caId && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId));
                 if (caObj) {
                   if (!caSnapshots.some(s => s.id === caObj.id)) {
                     caSnapshots.push({ ...caObj });
@@ -8159,6 +8184,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const matchedDelivery = db.deliveries.find(d =>
         d.status !== 'CANCELLED' &&
         (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        (!d.contractId || d.contractId === origCa.contractId) &&
         extractCaIdsFromDeliv(d).includes(origCa.id)
       ) || db.deliveries.find(d =>
         d.status !== 'CANCELLED' &&
@@ -8276,6 +8302,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const matchedDelivery = db.deliveries.find(d =>
         d.status !== 'CANCELLED' &&
         (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+        (!d.contractId || d.contractId === origCa.contractId) &&
         extractCaIdsFromDeliv(d).includes(origCa.id)
       ) || db.deliveries.find(d =>
         d.status !== 'CANCELLED' &&

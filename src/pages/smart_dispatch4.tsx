@@ -6537,6 +6537,10 @@ export const SmartDispatch4: React.FC = () => {
                 unassignedCount++;
               }
             });
+            const requestedQty = Number(ci.count) || 1;
+            if (assignedAssets.length + unassignedCount < requestedQty) {
+              unassignedCount = Math.max(0, requestedQty - assignedAssets.length);
+            }
           } else {
             unassignedCount = Number(ci.count) || 1;
           }

@@ -6368,6 +6368,7 @@ class LocalDB {
       const { data, error } = await supabase
         .from(tableName)
         .select('*')
+        .order('id', { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
         
       if (error) {
@@ -6786,6 +6787,7 @@ class LocalDB {
       const { data, error } = await targetClient
         .from(tableName)
         .select('*')
+        .order('id', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
 
       if (error) {
@@ -7001,7 +7003,8 @@ class LocalDB {
     if (key === 'contractAssets') {
       (this.deliveries || []).forEach((d: any) => {
         if (!d?.cargoItems) return;
-        const matches = String(d.cargoItems).match(/CAST-(\d+)/gi);
+        const cargoRaw = typeof d.cargoItems === 'string' ? d.cargoItems : JSON.stringify(d.cargoItems);
+        const matches = cargoRaw.match(/CAST-(\d+)/gi);
         if (matches) {
           matches.forEach(m => {
             const num = parseInt(m.replace(/^CAST-/i, ''), 10);
