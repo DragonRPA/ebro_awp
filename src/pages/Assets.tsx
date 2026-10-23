@@ -52,7 +52,13 @@ export const Assets: React.FC = () => {
   const productByModelMap = useMemo(() => {
     const map = new Map<string, any>();
     (products || []).forEach(p => {
-      if (p.modelName) map.set(p.modelName, p);
+      if (p.modelName) {
+        map.set(p.modelName, p);
+        map.set(p.modelName.replace(/[\s\-_]/g, '').toUpperCase(), p);
+      }
+      if (p.shortName) {
+        map.set(p.shortName.replace(/[\s\-_]/g, '').toUpperCase(), p);
+      }
     });
     return map;
   }, [products]);
@@ -137,6 +143,15 @@ export const Assets: React.FC = () => {
     return m ? `${m[1]} ft` : '-';
   };
 
+  // 헬퍼: 모델별 제조사 조회 (자산 manufacturer 미입력 시 제품정보 SSOT 자동 매칭)
+  const getAssetManufacturer = (a: Asset): string => {
+    const prod = productByModelMap.get(a.modelName) || (a.modelName ? productByModelMap.get(a.modelName.replace(/[\s\-_]/g, '').toUpperCase()) : undefined);
+    if (prod?.manufacturer && String(prod.manufacturer).trim()) {
+      return String(prod.manufacturer).trim();
+    }
+    return (a.manufacturer && String(a.manufacturer).trim()) || '-';
+  };
+
   const getCustomerName = (id?: string) => {
     if (!id) return '-';
     return customerMap.get(id) || '-';
@@ -155,8 +170,8 @@ export const Assets: React.FC = () => {
 
   // 고유 제조사 목록
   const uniqueManufacturers = useMemo(
-    () => Array.from(new Set(assets.map(a => a.manufacturer).filter(Boolean))) as string[],
-    [assets]
+    () => Array.from(new Set(assets.map(a => getAssetManufacturer(a)).filter(m => Boolean(m) && m !== '-'))) as string[],
+    [assets, productByModelMap]
   );
 
   // 고유 규격(피트) 목록 (숫자 오름차순 정렬)
@@ -411,7 +426,8 @@ export const Assets: React.FC = () => {
         if (natureFilter === 'PHYSICAL' && isVirt) return false;
       }
       if (feetFilter !== 'ALL' && getAssetFeet(a) !== feetFilter) return false;
-      if (manufacturerFilter !== 'ALL' && a.manufacturer !== manufacturerFilter) return false;
+      const mfgName = getAssetManufacturer(a);
+      if (manufacturerFilter !== 'ALL' && mfgName !== manufacturerFilter) return false;
       if (customerFilter !== 'ALL' && a.currentCustomerId !== customerFilter) return false;
 
       if (tokenMatchers.length === 0) return true;
@@ -434,7 +450,7 @@ export const Assets: React.FC = () => {
         matcher.test(a.modelName) ||
         matcher.test(assetProduct?.shortName) ||
         matcher.test(a.serialNo) ||
-        matcher.test(a.manufacturer) ||
+        matcher.test(mfgName) ||
         matcher.test(renterName) ||
         matcher.test(supplierName)
       );
@@ -559,7 +575,7 @@ export const Assets: React.FC = () => {
         case 'assetNo': return a.assetNo;
         case 'modelName': return a.modelName;
         case 'feet': return getAssetFeet(a);
-        case 'manufacturer': return a.manufacturer || '';
+        case 'manufacturer': return getAssetManufacturer(a);
         case 'serialNo': return a.serialNo || '';
         case 'manufacturingYear': return a.manufactureYear || 0;
         case 'ownerType': return a.ownerType;
@@ -650,7 +666,16 @@ export const Assets: React.FC = () => {
 
   const ef = (field: keyof Asset) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const val = e.target.type === 'number' ? (e.target.value === '' ? undefined : Number(e.target.value)) : e.target.value;
-    setEditForm(prev => ({ ...prev, [field]: val }));
+    setEditForm(prev => {
+      const next: Partial<Asset> = { ...prev, [field]: val };
+      if (field === 'modelName' && typeof val === 'string') {
+        const matchedProd = productByModelMap.get(val) || productByModelMap.get(val.replace(/[\s\-_]/g, '').toUpperCase());
+        if (matchedProd?.manufacturer) {
+          next.manufacturer = matchedProd.manufacturer;
+        }
+      }
+      return next;
+    });
   };
 
   const handleExport = () => {
@@ -667,7 +692,7 @@ export const Assets: React.FC = () => {
         '관리번호': a.assetNo || '-',
         '모델명': a.modelName || '-',
         '규격(피트)': getAssetFeet(a),
-        '제조사': a.manufacturer || '-',
+        '제조사': getAssetManufacturer(a),
         '제조번호': a.serialNo || '-',
         '연식': a.manufactureYear || '-',
         '소유구분': a.ownerType === 'OWNED' ? '당사자산' : '외부임차',
@@ -1151,7 +1176,7 @@ export const Assets: React.FC = () => {
                       </td>
 
                       {/* 5. 제조사 */}
-                      <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{a.manufacturer || '-'}</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{getAssetManufacturer(a)}</td>
 
                       {/* 6. 제조번호 */}
                       <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -1538,7 +1563,7 @@ export const Assets: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
                     <div><span style={{ color: 'var(--text-secondary)' }}>관리번호:</span> <strong>{selectedAsset.assetNo}</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{selectedAsset.modelName}</strong></div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {selectedAsset.manufacturer || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {getAssetManufacturer(selectedAsset)}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {selectedAsset.serialNo || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {selectedAsset.manufactureYear || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>소유구분:</span> {selectedAsset.ownerType === 'OWNED' ? '당사자산' : `임차자산 (${selectedAsset.renter || '임차처'})`}</div>

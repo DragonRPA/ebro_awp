@@ -7698,6 +7698,24 @@ class LocalDB {
     return list.find(item => item && item.id === id) || null;
   }
 
+  // 모델명 기준 제품정보(products)의 제조사(manufacturer) 자동 매칭 헬퍼 (SSOT 보장)
+  public resolveAssetManufacturer(modelName?: string, rawManufacturer?: string): string {
+    const cleanModel = (modelName || '').trim();
+    const normModel = cleanModel.replace(/[\s\-_]/g, '').toUpperCase();
+    if (normModel && Array.isArray(this.products)) {
+      const matched = this.products.find(p => {
+        if (!p) return false;
+        const pm = (p.modelName || '').replace(/[\s\-_]/g, '').toUpperCase();
+        const ps = (p.shortName || '').replace(/[\s\-_]/g, '').toUpperCase();
+        return pm === normModel || (ps !== '' && ps === normModel);
+      });
+      if (matched && matched.manufacturer && String(matched.manufacturer).trim()) {
+        return String(matched.manufacturer).trim();
+      }
+    }
+    return (rawManufacturer || '').trim();
+  }
+
   // 헬퍼 메소드들 - CRUD 시뮬레이션 및 백그라운드 Supabase 업로드
   addRow<T extends { id: string }>(key: keyof LocalDB | string, row: Omit<T, 'id'> & { id?: string }): T {
     return this.insertRow<T>(key, row);
@@ -7708,12 +7726,18 @@ class LocalDB {
     const list = ((this[tableKey] || []) as unknown) as T[];
     const newId = row.id || this.generateNextId(tableKey as string, list as any, row);
     const nowIso = new Date().toISOString();
-    const formattedRow = {
+    const formattedRow: any = {
       createdAt: nowIso,
       updatedAt: nowIso,
       ...(row as any),
       id: newId
     };
+    if (tableKey === 'assets' && formattedRow.modelName) {
+      const autoMfg = this.resolveAssetManufacturer(formattedRow.modelName, formattedRow.manufacturer);
+      if (autoMfg) {
+        formattedRow.manufacturer = autoMfg;
+      }
+    }
     const newRow = formattedRow as unknown as T;
     const existingIdx = list.findIndex(item => item && item.id === newId);
     if (existingIdx > -1) {
@@ -7788,11 +7812,19 @@ class LocalDB {
     if (index === -1) return null;
     const originalItem = list[index];
     const nowIso = new Date().toISOString();
-    const updatedPayload = {
+    const updatedPayload: any = {
       ...updates,
       updatedAt: nowIso
     };
-    const updated = { ...list[index], ...updatedPayload } as unknown as T;
+    const mergedItem: any = { ...list[index], ...updatedPayload };
+    if (tableKey === 'assets' && mergedItem.modelName) {
+      const autoMfg = this.resolveAssetManufacturer(mergedItem.modelName, mergedItem.manufacturer);
+      if (autoMfg) {
+        updatedPayload.manufacturer = autoMfg;
+        mergedItem.manufacturer = autoMfg;
+      }
+    }
+    const updated = mergedItem as unknown as T;
     list[index] = updated;
     this.set(tableKey, list);
 

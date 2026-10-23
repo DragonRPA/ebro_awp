@@ -2726,9 +2726,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let result;
     const existingAsset = asset.id ? db.assets.find(a => a.id === asset.id) : null;
     const isNew = !existingAsset;
+    const resolvedMfg = db.resolveAssetManufacturer(asset.modelName || existingAsset?.modelName, asset.manufacturer || existingAsset?.manufacturer);
+    const normalizedAsset = {
+      ...asset,
+      manufacturer: resolvedMfg
+    };
 
     if (existingAsset) {
-      result = db.updateRow<Asset>('assets', existingAsset.id, asset as Asset);
+      result = db.updateRow<Asset>('assets', existingAsset.id, normalizedAsset as Asset);
     } else {
       // 🛡️ [수량 한도 제한 인터셉터]
       const maxAssets = currentTenant?.subscription?.maxAssets;
@@ -2741,7 +2746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       result = db.insertRow<Asset>('assets', {
-        ...asset,
+        ...normalizedAsset,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       } as Omit<Asset, 'id'>);
@@ -5201,11 +5206,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const resolvedOwnership = cleanAssetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
     const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
     const targetModelName = (cleanAssetData.modelName || existing?.modelName || '').trim();
-    const matchedProduct = db.products.find(p =>
-      (p.modelName || '').trim().toLowerCase() === targetModelName.toLowerCase() ||
-      (p.shortName && p.shortName.trim().toLowerCase() === targetModelName.toLowerCase())
-    );
-    const resolvedManufacturer = cleanAssetData.manufacturer || matchedProduct?.manufacturer || existing?.manufacturer || '';
+    const resolvedManufacturer = db.resolveAssetManufacturer(targetModelName, cleanAssetData.manufacturer || existing?.manufacturer);
     const resolvedManufactureYear = cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '';
 
     if (existing) {

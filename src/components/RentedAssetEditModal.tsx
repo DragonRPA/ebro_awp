@@ -38,13 +38,14 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
 
   const findProductManufacturer = (modelName?: string): string => {
     if (!modelName) return '';
-    const norm = modelName.trim().toLowerCase();
-    const matched = products.find(
-      p =>
-        (p.modelName || '').trim().toLowerCase() === norm ||
-        (p.shortName && p.shortName.trim().toLowerCase() === norm)
-    );
-    return matched?.manufacturer || '';
+    const norm = modelName.replace(/[\s\-_]/g, '').toUpperCase();
+    const matched = products.find(p => {
+      if (!p) return false;
+      const pm = (p.modelName || '').replace(/[\s\-_]/g, '').toUpperCase();
+      const ps = (p.shortName || '').replace(/[\s\-_]/g, '').toUpperCase();
+      return pm === norm || (ps !== '' && ps === norm);
+    });
+    return matched?.manufacturer ? String(matched.manufacturer).trim() : '';
   };
 
   useEffect(() => {
@@ -58,9 +59,9 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!formData.manufacturer && formData.modelName) {
+    if (formData.modelName) {
       const autoMfg = findProductManufacturer(formData.modelName);
-      if (autoMfg) {
+      if (autoMfg && formData.manufacturer !== autoMfg) {
         setFormData(prev => ({ ...prev, manufacturer: autoMfg }));
       }
     }
