@@ -502,6 +502,36 @@ export function stripOptionsFromDispatchRawText(rawText?: string | null): string
 /**
  * 🚚 화물 기사 배차 안내 문자 포맷팅 파라미터
  */
+export interface DispatchBundleStopParam {
+  order: number;
+  delivery: {
+    id?: string;
+    type?: string;
+    dispatchCategory?: string;
+    originalDispatchCategory?: string | null;
+    loadingDate?: string;
+    loadingTimeSlot?: string;
+    unloadingDate?: string;
+    unloadingTimeSlot?: string;
+    scheduledDate?: string;
+    requestDate?: string;
+    originAddress?: string;
+    destinationAddress?: string;
+    cargoItems?: string;
+    memo?: string;
+    closingMemo?: string;
+  };
+  originalCategoryLabel?: string;
+  siteName?: string;
+  siteAddress?: string;
+  siteContactName?: string;
+  siteContactPhone?: string;
+  siteContactPosition?: string;
+  customerName?: string;
+  cargoFormattedString?: string;
+  dispatcherNote?: string;
+}
+
 export interface DispatchSmsParams {
   delivery: {
     id?: string;
@@ -534,6 +564,7 @@ export interface DispatchSmsParams {
   hqYardAddress?: string;
   hqYardPhone?: string;
   hqYardContactPerson?: string;
+  bundleStops?: DispatchBundleStopParam[];
 }
 
 /**
@@ -609,6 +640,80 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   }
 
   const headerTitle = `[${companyName} 배차안내]`;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
+
+  // 🔗 [경유/합짐 묶음 배차] 2건 이상 묶인 경우 처리 순서대로 안내문 조립
+  if (params.bundleStops && params.bundleStops.length >= 2) {
+    const sortedStops = [...params.bundleStops].sort((a, b) => a.order - b.order);
+    const bundleLines: string[] = [
+      headerTitle,
+      `■ 배차유형: 🔗 [경유/합짐 배차 (총 ${sortedStops.length}건)]`,
+      `■ 배정기사: ${driver} (${vehicle})`,
+      `■ 확정운송료: ${costStr}`,
+      `※ 아래 처리 순서(1 ➔ ${sortedStops.length})대로 상·하차를 진행해 주십시오.`
+    ];
+
+    sortedStops.forEach((stop, idx) => {
+      const sDeliv = stop.delivery;
+      const sType = (sDeliv.type || '').toUpperCase();
+      const sOrigCat = stop.originalCategoryLabel || sDeliv.originalDispatchCategory || (
+        sType === 'EXCHANGE' ? '교환' : sType === 'RETURN' ? '반납' : sType === 'INBOUND' ? '회수' : '출고'
+      );
+      const sLoadingDate = sDeliv.loadingDate || sDeliv.scheduledDate || sDeliv.requestDate || loadingDate;
+      const sLoadingTime = sDeliv.loadingTimeSlot || '오전';
+      const sUnloadingDate = sDeliv.unloadingDate || sLoadingDate;
+      const sUnloadingTime = sDeliv.unloadingTimeSlot || '';
+      const sSiteName = stop.siteName || stop.customerName || '현장';
+      const sSiteAddr = stop.siteAddress || sDeliv.destinationAddress || '주소 확인요망';
+      const sSiteContact = [stop.siteContactName, stop.siteContactPhone].filter(Boolean).join(' ') || '도착 전 확인';
+      const sCargo = stop.cargoFormattedString || sDeliv.cargoItems || '고소작업대';
+
+      const isStopReturn = sOrigCat === '입고' || sOrigCat === '회수' || (sType === 'INBOUND' && sOrigCat !== '반납');
+      let sOrigin = formatAddressWithCompanyYard(sDeliv.originAddress || hqAddress, hqAddress);
+      let sDest = formatAddressWithCompanyYard(sSiteAddr, hqAddress);
+      let sOriginContact = hqContactFull;
+      let sDestContact = sSiteContact;
+
+      if (isStopReturn) {
+        sOrigin = formatAddressWithCompanyYard(sSiteAddr, hqAddress);
+        sOriginContact = sSiteContact;
+        sDest = formatAddressWithCompanyYard(sDeliv.destinationAddress || '당사 보관소', hqAddress);
+        sDestContact = hqContactFull;
+      }
+
+      bundleLines.push(
+        ``,
+        `━━━━━━━━━━━━━━`,
+        `[순서 ${idx + 1} : ${sOrigCat}] ${stop.customerName || ''} (${sSiteName})`.trim(),
+        `- 상차일시: ${sLoadingDate} ${sLoadingTime}`,
+        `- 상차위치: ${sOrigin} (${sOriginContact})`,
+        `- 하차일시: ${sUnloadingDate} ${sUnloadingTime}`.trim(),
+        `- 하차위치: ${sDest} (${sDestContact})`,
+        `- 적재장비: ${sCargo}`
+      );
+      if (sOrigCat === '교환' || sType === 'EXCHANGE') {
+        bundleLines.push(`- 교환안내: 신규 장비 하차 후 현장 회수 장비 상차 (${defaultYardName} 입고)`);
+      }
+      const stopNote = sanitizeDispatcherSpecialNote(stop.dispatcherNote ?? sDeliv.closingMemo);
+      if (stopNote) {
+        bundleLines.push(`- 특이사항: ${stopNote}`);
+      }
+    });
+
+    bundleLines.push(``, `※ 현장 도착 30분 전 각 현장 인수자에게 사전 연락 부탁드립니다.`);
+    bundleLines.push(``);
+    bundleLines.push(`──────────────`);
+    bundleLines.push(`▶ 기사용 운송/납품 완료 ◀`);
+    bundleLines.push(`아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.`);
+    sortedStops.forEach((stop, idx) => {
+      if (stop.delivery.id) {
+        bundleLines.push(`[순서 ${idx + 1}] ${stop.customerName || stop.siteName || '현장'}: ${baseUrl}/driver-portal/${stop.delivery.id}`);
+      }
+    });
+
+    return bundleLines.join('\n');
+  }
+
   const lines = [
     headerTitle,
     `■ 배차유형: ${typeLabel} (${category})`,
@@ -643,9 +748,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
 
   lines.push(``, `※ 현장 도착 30분 전 인수자에게 사전 연락 부탁드립니다.`);
 
-  
   // 기사용 모바일 포털 링크 추가
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
   lines.push('');
   lines.push('──────────────');
   lines.push('▶ 기사용 운송/납품 완료 ◀');
@@ -822,6 +925,7 @@ export interface DispatchKakaoParams {
   cargoFormattedString?: string;
   dispatcherNote?: string;
   isSelfCar?: boolean;
+  bundleStops?: DispatchBundleStopParam[];
 }
 
 /**
@@ -916,6 +1020,172 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
   }
 
   lines.push(`차량톤수:${vehicleTon}`);
+
+  // ───────────────────────────────────────────────
+  // 🔗 [경유/합짐 묶음 배차] 2건 이상 묶인 경우 처리 순서대로 안내문 조립
+  // ───────────────────────────────────────────────
+  if (params.bundleStops && params.bundleStops.length >= 2) {
+    const sortedStops = [...params.bundleStops].sort((a, b) => a.order - b.order);
+    lines.push(``);
+    lines.push(`[경유/합짐 배차 (총 ${sortedStops.length}건)]`);
+    lines.push(`※ 아래 처리 순서(1 ➔ ${sortedStops.length})대로 상·하차를 진행해 주십시오.`);
+
+    const notesList: string[] = [];
+
+    sortedStops.forEach((stop, idx) => {
+      const sDeliv = stop.delivery;
+      const sRawType = (sDeliv.type || '').toUpperCase();
+      const sOrigCat = (
+        stop.originalCategoryLabel ||
+        sDeliv.originalDispatchCategory ||
+        (sDeliv.dispatchCategory && sDeliv.dispatchCategory !== '경유/합짐' ? sDeliv.dispatchCategory : '') ||
+        (sRawType === 'EXCHANGE' ? '교환' : sRawType === 'RETURN' ? '반납' : sRawType === 'INBOUND' ? '입고' : '출고')
+      ).trim();
+
+      const sIsExchange = sRawType === 'EXCHANGE' || sOrigCat === '교환';
+      const sIsSubleaseReturn = sRawType === 'RETURN' || sOrigCat === '반납';
+      const sIsReturn = sIsSubleaseReturn || sRawType === 'INBOUND' || sOrigCat === '입고' || sOrigCat === '회수';
+
+      const sLoadDateStr = sDeliv.loadingDate || sDeliv.scheduledDate || sDeliv.requestDate || baseLoadingDateStr;
+      const sUnloadDateStr = sDeliv.unloadingDate || sLoadDateStr;
+      const sUnloadDateInfo = formatKakaoDate(sUnloadDateStr);
+      const sLoadTime = formatKakaoTimeSlot(sDeliv.loadingTimeSlot, '오전');
+      const sUnloadTime = formatKakaoTimeSlot(sDeliv.unloadingTimeSlot, '오후');
+
+      let sCargo = stop.cargoFormattedString;
+      if (!sCargo && sDeliv.cargoItems) {
+        try {
+          if (typeof sDeliv.cargoItems === 'string' && sDeliv.cargoItems.startsWith('[')) {
+            const parsed = JSON.parse(sDeliv.cargoItems);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              sCargo = parsed.map((p: any) => `${p.modelName || '장비'}*${p.count || 1}`).join(' / ');
+            }
+          }
+        } catch {}
+      }
+      if (!sCargo) sCargo = sDeliv.cargoItems || '고소작업대*1';
+
+      const sCustName = stop.customerName || '고객사';
+      const sSiteName = stop.siteName || '현장';
+      const sSiteAddr = stop.siteAddress || sDeliv.destinationAddress || '현장 주소 확인요망';
+
+      const sContactParts: string[] = [];
+      if (stop.siteContactName) sContactParts.push(stop.siteContactName);
+      if (stop.siteContactPosition && !stop.siteContactName?.includes(stop.siteContactPosition)) {
+        sContactParts.push(stop.siteContactPosition);
+      }
+      if (stop.siteContactPhone) sContactParts.push(stop.siteContactPhone);
+      const sSiteContactFull = sContactParts.join(' ') || '현장담당자 확인요망';
+
+      const displayCatLabel = sOrigCat === '입고' ? '회수' : sOrigCat;
+
+      lines.push(``);
+      lines.push(`━━━━━━━━━━━━━━`);
+      lines.push(`[순서 ${idx + 1} : ${displayCatLabel}]`);
+
+      if (sIsReturn) {
+        const sRawOrigin = (sDeliv.originAddress || '').trim();
+        const sIsOriginHq = !sRawOrigin || sRawOrigin.includes('당사 보관소') || sRawOrigin.includes('주기장') || sRawOrigin === hqAddress;
+        if (sIsSubleaseReturn && sIsOriginHq) {
+          const subOrigin = formatAddressWithCompanyYard(sDeliv.originAddress || '당사 보관소', hqAddress);
+          const subDest = formatAddressWithCompanyYard(sSiteAddr || sDeliv.destinationAddress || '임차처', hqAddress);
+          lines.push(`상차시간 : ${sLoadTime} 상차`);
+          lines.push(`상차지 : ${subOrigin}`);
+          lines.push(`담당자 : ${hqContact}`);
+          lines.push(`장비종류 : ${sCargo}`);
+          lines.push(``);
+          lines.push(`하차시간 : ${sUnloadDateInfo.formatted} ${sUnloadTime} 하차`);
+          lines.push(`업체명 : ${sCustName}`);
+          lines.push(`하차지 : ${subDest}`);
+          lines.push(`담당자 : ${sSiteContactFull}`);
+        } else {
+          const retOrigin = formatAddressWithCompanyYard(sDeliv.originAddress || sSiteAddr, hqAddress);
+          const retDest = formatAddressWithCompanyYard(sDeliv.destinationAddress || '당사 보관소', hqAddress);
+          lines.push(`상차시간 : ${sLoadTime} 상차`);
+          lines.push(`업체명 : ${sCustName}`);
+          lines.push(`현장명 : ${sSiteName}`);
+          lines.push(`상차지 : ${retOrigin}`);
+          lines.push(`담당자 : ${sSiteContactFull}`);
+          lines.push(`장비종류 : ${sCargo}`);
+          lines.push(``);
+          lines.push(`하차시간 : ${sUnloadDateInfo.formatted} ${sUnloadTime} 하차`);
+          lines.push(`하차지: ${retDest}`);
+          lines.push(`담당자: ${hqContact}`);
+        }
+      } else if (sIsExchange) {
+        const exOrigin = formatAddressWithCompanyYard(sDeliv.originAddress || '당사 보관소', hqAddress);
+        const exSiteAddr = formatAddressWithCompanyYard(sSiteAddr, hqAddress);
+        const exReturnDest = formatAddressWithCompanyYard(
+          sDeliv.destinationAddress && sDeliv.destinationAddress.includes('보관소')
+            ? sDeliv.destinationAddress
+            : '당사 보관소',
+          hqAddress
+        );
+        lines.push(`상차시간 : ${sLoadTime} 상차`);
+        lines.push(`상차지 : ${exOrigin}`);
+        lines.push(`담당자 : ${hqContact}`);
+        lines.push(`출고장비 : ${sCargo}`);
+        lines.push(``);
+        lines.push(`하차시간 : ${sUnloadDateInfo.formatted} ${sUnloadTime} 하차`);
+        lines.push(`현장명 : ${sSiteName}`);
+        lines.push(`현장 상세 : ${exSiteAddr}`);
+        lines.push(`업체명 : ${sCustName}`);
+        lines.push(`담당자 : ${sSiteContactFull}`);
+        lines.push(`회수장비 : ${sCargo} (회수)`);
+        lines.push(``);
+        lines.push(`하차지: ${exReturnDest}`);
+        lines.push(`담당자: ${hqContact}`);
+      } else {
+        const outOrigin = formatAddressWithCompanyYard(sDeliv.originAddress || '당사 보관소', hqAddress);
+        const outDest = formatAddressWithCompanyYard(sDeliv.destinationAddress || sSiteAddr, hqAddress);
+        lines.push(`상차시간 : ${sLoadTime} 상차`);
+        lines.push(`상차지: ${outOrigin}`);
+        lines.push(`담당자: ${hqContact}`);
+        lines.push(`장비종류 : ${sCargo}`);
+        lines.push(``);
+        lines.push(`하차시간 : ${sUnloadDateInfo.formatted} ${sUnloadTime} 하차`);
+        lines.push(`현장명 : ${sSiteName}`);
+        lines.push(`현장 상세 : ${outDest}`);
+        lines.push(`업체명 : ${sCustName}`);
+        lines.push(`담당자 : ${sSiteContactFull}`);
+      }
+
+      const stopNote = sanitizeDispatcherSpecialNote(
+        stop.dispatcherNote !== undefined ? stop.dispatcherNote : sDeliv.closingMemo
+      );
+      if (stopNote) {
+        notesList.push(`[순서 ${idx + 1}] ${stopNote}`);
+      }
+    });
+
+    lines.push(`━━━━━━━━━━━━━━`);
+
+    if (notesList.length > 0) {
+      lines.push(``);
+      lines.push(`특이사항 : ${notesList.join(' / ')}`);
+    } else {
+      const fallbackNote = sanitizeDispatcherSpecialNote(
+        params.dispatcherNote !== undefined ? params.dispatcherNote : delivery.closingMemo
+      );
+      if (fallbackNote) {
+        lines.push(``);
+        lines.push(`특이사항 : ${fallbackNote}`);
+      }
+    }
+
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
+    lines.push('');
+    lines.push('──────────────');
+    lines.push('▶ 기사용 운송/납품 완료 ◀');
+    lines.push('아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.');
+    sortedStops.forEach((stop, idx) => {
+      if (stop.delivery.id) {
+        lines.push(`[순서 ${idx + 1}] ${stop.customerName || stop.siteName || '현장'}: ${baseUrl}/driver-portal/${stop.delivery.id}`);
+      }
+    });
+
+    return lines.join('\n');
+  }
 
   // ───────────────────────────────────────────────
   // 본문: 유형별 분기

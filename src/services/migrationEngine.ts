@@ -134,7 +134,8 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'requestDate', 'rawText', 'memo', 'closingMemo', 'createdAt', 'updatedAt', 'reconciliationStatus', 'confirmedCost', 'scheduledDate',
     'paymentRequestedAt', 'paymentCompletedAt', 'reconciledAt', 'statementFileUrl', 'billableToCustomer', 'tenant_id', 'costAdjustmentReason',
     'billableCustomerId', 'billableAmount', 'billingId', 'isWaived', 'waivedAmount', 'waivedBy', 'waivedReason', 'waivedAt',
-    'vehicleRequirements', 'cargoItems', 'vehicles', 'siteId', 'siteMasterId', 'customerId', 'paidBy', 'orderNo', 'purpose'
+    'vehicleRequirements', 'cargoItems', 'vehicles', 'siteId', 'siteMasterId', 'customerId', 'paidBy', 'orderNo', 'purpose',
+    'bundleGroupId', 'bundleOrder', 'originalDispatchCategory'
   ],
   outbound_inspections: [
     'id', 'contractId', 'contractAssetId', 'assetId', 'status', 'specsJson', 'inspectorId', 'inspectedAt', 'note',

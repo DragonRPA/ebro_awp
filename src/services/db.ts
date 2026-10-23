@@ -1808,7 +1808,10 @@ export interface Delivery {
   siteMasterId?: string; // 🏛️ 헌장 1.5 Strict N:M 물리 현장 단일 진실 원천 ID
   assetIds?: string; // 대상 장비 ID 목록 (콤마 구분)
   type: 'OUTBOUND' | 'INBOUND' | 'EXCHANGE' | 'MOVEMENT' | 'RETURN'; // OUTBOUND: 출고, INBOUND: 회수, EXCHANGE: 단일 교환(왕복) 배차
-  dispatchCategory?: '출고' | '입고' | '반납' | '정비' | '이동' | '교환'; // 배차 세부 유형
+  dispatchCategory?: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' | '경유/합짐'; // 배차 세부 유형
+  bundleGroupId?: string | null; // 🔗 경유/합짐 묶음 배차 그룹 ID
+  bundleOrder?: number | null; // 🔢 묶음 내 처리(방문) 순서 (1, 2, 3...)
+  originalDispatchCategory?: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' | null; // 묶기 전 원래 배차구분 백업
   status: DeliveryStatus; // 배차 4단계 진행상태 (PENDING: 배차전, DISPATCHED: 배차완료, DELIVERED: 운송완료, CANCELLED: 배차취소)
   requestDate: string;
   scheduledDate?: string;

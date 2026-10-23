@@ -7,7 +7,8 @@ import {
   Calendar, RotateCcw, ShieldCheck, CheckSquare, XCircle, Search, Save,
   MessageSquare, User, Edit2, Upload, Download, FileSpreadsheet,
   CheckCircle2, AlertTriangle, Filter, DollarSign, Send, Sun, MapPin, Printer,
-  UserCheck, FileAudio, Volume2, Sparkles, UploadCloud, Loader2
+  UserCheck, FileAudio, Volume2, Sparkles, UploadCloud, Loader2,
+  ArrowUp, ArrowDown, Link2, Unlink
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
@@ -21,6 +22,7 @@ import {
   buildDispatchSmsText,
   launchDispatchSms,
   buildDispatchKakaoTalkText,
+  DispatchBundleStopParam,
   copyToClipboard,
   sanitizeDispatcherSpecialNote,
   stripOptionsFromDispatchRawText,
@@ -195,7 +197,9 @@ export const TruckDispatch: React.FC = () => {
       delivery.type === 'OUTBOUND' ||
       delivery.type === 'EXCHANGE' ||
       delivery.dispatchCategory === '출고' ||
-      delivery.dispatchCategory === '교환';
+      delivery.dispatchCategory === '교환' ||
+      delivery.originalDispatchCategory === '출고' ||
+      delivery.originalDispatchCategory === '교환';
 
     if (!isOutboundLike || !delivery.contractId) {
       return { isOutboundLike, ready: true, status: 'NONE' as const, reason: '' };
@@ -1543,8 +1547,13 @@ export const TruckDispatch: React.FC = () => {
     showToast(`배차 조건이 [${companyName} / ₩${costToApply.toLocaleString()}]으로 즉시 확정되었습니다.`);
   };
   
-  // 배차 세부 유형 ('출고' | '입고' | '반납' | '정비' | '이동')
-  const [dispatchCategory, setDispatchCategory] = useState<'출고' | '입고' | '반납' | '정비' | '이동' | '교환'>('출고');
+  // 배차 세부 유형 ('출고' | '입고' | '반납' | '정비' | '이동' | '교환' | '경유/합짐')
+  const [dispatchCategory, setDispatchCategory] = useState<'출고' | '입고' | '반납' | '정비' | '이동' | '교환' | '경유/합짐'>('출고');
+
+  // 🔗 경유/합짐 묶음 배차 다중 선택 및 추가 피커 state
+  const [selectedBundleCandidateIds, setSelectedBundleCandidateIds] = useState<string[]>([]);
+  const [showBundleAddPicker, setShowBundleAddPicker] = useState<boolean>(false);
+  const [bundlePickerSearch, setBundlePickerSearch] = useState<string>('');
   
   // 상차 일시 & 시간 지정
   const [loadingDate, setLoadingDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -1877,6 +1886,8 @@ export const TruckDispatch: React.FC = () => {
     const inPeriodDeliveries = deliveries.filter(d => {
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
       if (isCustomerDirectTransport(d)) return false;
+      // 경유/합짐 묶음 배차의 후순위(2순위 이상)이고 운송비가 1순위 대표건에 통합(0원)된 경우 중복 대사 집계에서 제외
+      if (d.bundleGroupId && (d.bundleOrder || 1) > 1 && getEffectiveDeliveryCost(d) === 0) return false;
       const dDate = d.loadingDate || d.requestDate || d.scheduledDate || d.createdAt?.substring(0, 10);
       if (reconStartDate && dDate && dDate < reconStartDate) return false;
       if (reconEndDate && dDate && dDate > reconEndDate) return false;
@@ -1929,6 +1940,8 @@ export const TruckDispatch: React.FC = () => {
       // 1. 운송 완료건만 대상 (고객직접운송 건은 월말 정산에서 제외)
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
       if (isCustomerDirectTransport(d)) return false;
+      // 경유/합짐 묶음 배차의 후순위(2순위 이상)이고 운송비가 1순위 대표건에 통합(0원)된 경우 중복 대사에서 제외
+      if (d.bundleGroupId && (d.bundleOrder || 1) > 1 && getEffectiveDeliveryCost(d) === 0) return false;
 
       // 2. 💡 [사장님 지시] 지급/정산 상태 필터 (기본: 지급 미완료 건만 대사 대상)
       const isPaid = (d as any).reconciliationStatus === 'PAYMENT_REQUESTED' || (d as any).reconciliationStatus === 'SETTLED' || d.isCostSettled === true;
@@ -3012,6 +3025,404 @@ export const TruckDispatch: React.FC = () => {
   };
 
 
+  // 🔗 배차건의 원래 고유 업무구분('출고' | '입고' | '교환' | '반납' | '정비' | '이동') 판정 헬퍼 (경유/합짐 묶음 해제 시 복원 기준)
+  const getOriginalDeliveryCategoryLabel = (d?: Delivery | null): '출고' | '입고' | '교환' | '반납' | '정비' | '이동' => {
+    if (!d) return '출고';
+    if (d.originalDispatchCategory && ['출고', '입고', '교환', '반납', '정비', '이동'].includes(d.originalDispatchCategory)) {
+      return d.originalDispatchCategory;
+    }
+    if (d.dispatchCategory && ['출고', '입고', '교환', '반납', '정비', '이동'].includes(d.dispatchCategory)) {
+      return d.dispatchCategory as '출고' | '입고' | '교환' | '반납' | '정비' | '이동';
+    }
+    if (d.type === 'RETURN') return '반납';
+    if (d.type === 'INBOUND') return '입고';
+    if (d.type === 'EXCHANGE') return '교환';
+    if (d.type === 'MOVEMENT') return '이동';
+    return '출고';
+  };
+
+  // 🔗 특정 bundleGroupId에 속한 묶음 배차 목록을 처리 순서(bundleOrder 오름차순)대로 반환
+  const getBundleGroupDeliveries = (bundleGroupId?: string | null): Delivery[] => {
+    if (!bundleGroupId) return [];
+    return deliveries
+      .filter(d => d.bundleGroupId === bundleGroupId)
+      .sort((a, b) => ((a.bundleOrder || 999) - (b.bundleOrder || 999)) || (a.id || '').localeCompare(b.id || ''));
+  };
+
+  // 🔗 2건 이상의 배차의뢰를 묶어 "경유/합짐" 그룹 결성 핸들러
+  const handleCreateBundleFromIds = async (targetIds: string[]) => {
+    if (!canSave) {
+      showErrorModal('배차 수정 권한이 없습니다.');
+      return;
+    }
+    const uniqueIds = Array.from(new Set(targetIds.filter(Boolean)));
+    if (uniqueIds.length < 2) {
+      showErrorModal('경유/합짐으로 묶으려면 최소 2건 이상의 배차의뢰를 선택해 주세요.');
+      return;
+    }
+
+    const targetDeliveries = uniqueIds
+      .map(id => deliveries.find(d => d.id === id))
+      .filter(Boolean) as Delivery[];
+
+    if (targetDeliveries.length < 2) {
+      showErrorModal('선택한 배차의뢰 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      const nowIso = new Date().toISOString();
+      const dateTag = nowIso.slice(2, 10).replace(/-/g, '');
+      const existingBundleId = targetDeliveries.find(d => d.bundleGroupId)?.bundleGroupId;
+      const bundleGroupId = existingBundleId || `BND-${dateTag}-${Math.floor(100 + Math.random() * 900)}`;
+
+      // 이미 배정된 차량/기사 또는 운송비가 있는 건이 있다면 1순위 대표건으로 승계
+      const donorWithDriver = targetDeliveries.find(d => (d.driverName && d.driverName.trim()) || (d.transportCompany && d.transportCompany.trim()));
+      const maxExpectedCost = Math.max(0, ...targetDeliveries.map(d => Number(d.expectedCost) || Number(d.deliveryCost) || 0));
+      const maxFinalCost = Math.max(0, ...targetDeliveries.map(d => Number(d.finalCost) || 0));
+
+      for (let i = 0; i < targetDeliveries.length; i++) {
+        const d = targetDeliveries[i];
+        const origCat = getOriginalDeliveryCategoryLabel(d);
+        const isPrimary = i === 0;
+
+        const updatePayload: Partial<Delivery> = {
+          bundleGroupId,
+          bundleOrder: i + 1,
+          originalDispatchCategory: origCat,
+          dispatchCategory: '경유/합짐',
+          dropoffType: 'MULTI_STOP',
+          updatedAt: nowIso
+        };
+
+        if (donorWithDriver) {
+          updatePayload.transportCompany = donorWithDriver.transportCompany || d.transportCompany || '';
+          updatePayload.vehicleType = donorWithDriver.vehicleType || d.vehicleType || '3.5T';
+          updatePayload.vehicleNo = donorWithDriver.vehicleNo || d.vehicleNo || '';
+          updatePayload.driverName = donorWithDriver.driverName || d.driverName || '';
+          updatePayload.driverContact = donorWithDriver.driverContact || d.driverContact || '';
+        }
+
+        if (isPrimary) {
+          if (maxExpectedCost > 0 || maxFinalCost > 0) {
+            updatePayload.expectedCost = maxExpectedCost;
+            updatePayload.finalCost = maxFinalCost;
+            updatePayload.deliveryCost = maxFinalCost > 0 ? maxFinalCost : maxExpectedCost;
+          }
+        } else {
+          // 후순위 경유 건은 월말 정산 시 이중 지급 방지를 위해 운송비를 1순위 대표건에 통합(0원)
+          updatePayload.expectedCost = 0;
+          updatePayload.finalCost = 0;
+          updatePayload.deliveryCost = 0;
+        }
+
+        db.updateRow<Delivery>('deliveries', d.id, updatePayload);
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+
+      setSelectedBundleCandidateIds([]);
+      setShowBundleAddPicker(false);
+      setBundlePickerSearch('');
+
+      const refreshedFirst = db.deliveries.find(d => d.id === targetDeliveries[0].id) || {
+        ...targetDeliveries[0],
+        bundleGroupId,
+        bundleOrder: 1,
+        originalDispatchCategory: getOriginalDeliveryCategoryLabel(targetDeliveries[0]),
+        dispatchCategory: '경유/합짐' as const,
+        dropoffType: 'MULTI_STOP' as const
+      };
+      handleSelectDelivery(refreshedFirst);
+      showToast(`총 ${targetDeliveries.length}건의 배차의뢰가 [경유/합짐]으로 묶였습니다. 우측 패널에서 처리 순서를 조정할 수 있습니다.`);
+    } catch (err: any) {
+      showErrorModal(`경유/합짐 묶기 실패:\n${err?.message || err}`);
+    }
+  };
+
+  // 🔗 현재 선택된 배차건(또는 기존 묶음)에 다른 배차의뢰 1건 추가
+  const handleAddDeliveryToCurrentBundle = async (addDeliveryId: string) => {
+    if (!selectedDelivery) return;
+    const currentGroup = selectedDelivery.bundleGroupId
+      ? getBundleGroupDeliveries(selectedDelivery.bundleGroupId).map(d => d.id)
+      : [selectedDelivery.id];
+    if (currentGroup.includes(addDeliveryId)) return;
+    await handleCreateBundleFromIds([...currentGroup, addDeliveryId]);
+  };
+
+  // 🔗 경유/합짐 묶음 내 처리 순서 변경 (▲ 위로 / ▼ 아래로)
+  const handleMoveBundleStopOrder = async (targetDeliveryId: string, direction: 'UP' | 'DOWN') => {
+    if (!canSave) return;
+    const target = deliveries.find(d => d.id === targetDeliveryId);
+    if (!target || !target.bundleGroupId) return;
+
+    const groupItems = getBundleGroupDeliveries(target.bundleGroupId);
+    const curIdx = groupItems.findIndex(d => d.id === targetDeliveryId);
+    if (curIdx === -1) return;
+
+    const swapIdx = direction === 'UP' ? curIdx - 1 : curIdx + 1;
+    if (swapIdx < 0 || swapIdx >= groupItems.length) return;
+
+    const reordered = [...groupItems];
+    const temp = reordered[curIdx];
+    reordered[curIdx] = reordered[swapIdx];
+    reordered[swapIdx] = temp;
+
+    try {
+      const nowIso = new Date().toISOString();
+      // 그룹 전체 통합 운송비 보존 (1순위 대표건이 바뀌어도 새 1순위로 운송비 자동 승계)
+      const groupExpectedCost = Math.max(0, ...groupItems.map(d => Number(d.expectedCost) || Number(d.deliveryCost) || 0));
+      const groupFinalCost = Math.max(0, ...groupItems.map(d => Number(d.finalCost) || 0));
+      const primaryVehiclesJson = groupItems[0]?.vehicles;
+
+      for (let i = 0; i < reordered.length; i++) {
+        const item = reordered[i];
+        const isNewPrimary = i === 0;
+        let updatedVehiclesStr = item.vehicles;
+        if (isNewPrimary && primaryVehiclesJson) {
+          updatedVehiclesStr = primaryVehiclesJson;
+        } else if (!isNewPrimary && item.vehicles) {
+          try {
+            const parsed = JSON.parse(item.vehicles);
+            if (Array.isArray(parsed)) {
+              updatedVehiclesStr = JSON.stringify(parsed.map((v: any) => ({ ...v, expectedCost: 0, finalCost: 0, deliveryCost: 0 })));
+            }
+          } catch {}
+        }
+
+        db.updateRow<Delivery>('deliveries', item.id, {
+          bundleOrder: i + 1,
+          expectedCost: isNewPrimary ? groupExpectedCost : 0,
+          finalCost: isNewPrimary ? groupFinalCost : 0,
+          deliveryCost: isNewPrimary ? (groupFinalCost > 0 ? groupFinalCost : groupExpectedCost) : 0,
+          ...(updatedVehiclesStr ? { vehicles: updatedVehiclesStr } : {}),
+          updatedAt: nowIso
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+
+      if (selectedDelivery) {
+        const updatedSel = db.deliveries.find(d => d.id === selectedDelivery.id);
+        if (updatedSel) setSelectedDelivery(updatedSel);
+      }
+      showToast('경유/합짐 처리 순서가 변경되었습니다. (카톡 및 문자 안내문 순서 자동 반영)');
+    } catch (err: any) {
+      showErrorModal(`처리 순서 변경 실패:\n${err?.message || err}`);
+    }
+  };
+
+  // 🔗 경유/합짐 전체 묶음 해제 (원래의 개별 배차의뢰들로 100% 원복)
+  const handleUnbundleEntireGroup = async (bundleGroupId: string) => {
+    if (!canSave || !bundleGroupId) return;
+    const groupItems = getBundleGroupDeliveries(bundleGroupId);
+    if (groupItems.length === 0) return;
+
+    try {
+      const nowIso = new Date().toISOString();
+      for (const item of groupItems) {
+        const origCat = getOriginalDeliveryCategoryLabel(item);
+        db.updateRow<Delivery>('deliveries', item.id, {
+          dispatchCategory: origCat,
+          bundleGroupId: null,
+          bundleOrder: null,
+          dropoffType: 'SINGLE',
+          updatedAt: nowIso
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+
+      if (selectedDelivery && selectedDelivery.bundleGroupId === bundleGroupId) {
+        const origCat = getOriginalDeliveryCategoryLabel(selectedDelivery);
+        setDispatchCategory(origCat);
+        setSelectedDelivery({
+          ...selectedDelivery,
+          dispatchCategory: origCat,
+          bundleGroupId: null,
+          bundleOrder: null,
+          dropoffType: 'SINGLE',
+          updatedAt: nowIso
+        });
+      }
+      showToast(`경유/합짐 묶음이 해제되어 총 ${groupItems.length}건의 개별 배차의뢰로 원복되었습니다.`);
+    } catch (err: any) {
+      showErrorModal(`묶음 해제 실패:\n${err?.message || err}`);
+    }
+  };
+
+  // 🔗 묶음 중 특정 1건만 분리 (남은 건이 1건만 되면 전체 묶음 자동 해제)
+  const handleRemoveSingleFromBundle = async (targetDeliveryId: string) => {
+    if (!canSave) return;
+    const target = deliveries.find(d => d.id === targetDeliveryId);
+    if (!target || !target.bundleGroupId) return;
+
+    const groupItems = getBundleGroupDeliveries(target.bundleGroupId);
+    if (groupItems.length <= 2) {
+      // 2건 묶음에서 1건을 빼면 남은 건도 단독 1건이 되므로 전체 묶음 해제 수행
+      await handleUnbundleEntireGroup(target.bundleGroupId);
+      return;
+    }
+
+    try {
+      const nowIso = new Date().toISOString();
+      const origCat = getOriginalDeliveryCategoryLabel(target);
+      const groupExpectedCost = Math.max(0, ...groupItems.map(d => Number(d.expectedCost) || Number(d.deliveryCost) || 0));
+      const groupFinalCost = Math.max(0, ...groupItems.map(d => Number(d.finalCost) || 0));
+
+      // 1. 분리 대상 건 원복
+      db.updateRow<Delivery>('deliveries', target.id, {
+        dispatchCategory: origCat,
+        bundleGroupId: null,
+        bundleOrder: null,
+        dropoffType: 'SINGLE',
+        expectedCost: 0,
+        finalCost: 0,
+        deliveryCost: 0,
+        updatedAt: nowIso
+      });
+
+      // 2. 잔여 묶음 건들 순번 재정렬 및 1순위 운송비 보존
+      const remaining = groupItems.filter(d => d.id !== target.id);
+      for (let i = 0; i < remaining.length; i++) {
+        const rem = remaining[i];
+        const isPrimary = i === 0;
+        db.updateRow<Delivery>('deliveries', rem.id, {
+          bundleOrder: i + 1,
+          expectedCost: isPrimary ? groupExpectedCost : 0,
+          finalCost: isPrimary ? groupFinalCost : 0,
+          deliveryCost: isPrimary ? (groupFinalCost > 0 ? groupFinalCost : groupExpectedCost) : 0,
+          updatedAt: nowIso
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+
+      if (selectedDelivery?.id === target.id) {
+        setDispatchCategory(origCat);
+        setSelectedDelivery({
+          ...target,
+          dispatchCategory: origCat,
+          bundleGroupId: null,
+          bundleOrder: null,
+          dropoffType: 'SINGLE'
+        });
+      }
+      showToast(`선택한 배차의뢰가 묶음에서 분리되어 [${origCat}] 개별건으로 원복되었습니다. (잔여 묶음 ${remaining.length}건 유지)`);
+    } catch (err: any) {
+      showErrorModal(`개별 분리 실패:\n${err?.message || err}`);
+    }
+  };
+
+  // 🔗 경유/합짐 묶음 배차의 카톡/문자 안내문 조립용 경유지 배열(bundleStops) 생성 헬퍼
+  const buildBundleStopsForDelivery = (targetDelivery: Delivery): DispatchBundleStopParam[] | undefined => {
+    if (!targetDelivery.bundleGroupId) return undefined;
+    const groupItems = getBundleGroupDeliveries(targetDelivery.bundleGroupId);
+    if (groupItems.length < 2) return undefined;
+
+    return groupItems.map((item, idx) => {
+      const isSelected = selectedDelivery?.id === item.id;
+      const itemContract = item.contractId ? contracts.find(c => c.id === item.contractId) : null;
+      const itemCustomer = itemContract ? customers.find(c => c.id === itemContract.customerId) : (item.billableCustomerId ? customers.find(c => c.id === item.billableCustomerId) : null);
+      const itemSite = itemContract ? sites.find(s => s.id === itemContract.siteId) : null;
+      const origCat = getOriginalDeliveryCategoryLabel(item);
+
+      const effectiveItem: Delivery = isSelected
+        ? {
+            ...item,
+            originAddress: originAddress || item.originAddress,
+            destinationAddress: destinationAddress || item.destinationAddress,
+            loadingDate: loadingDate || item.loadingDate,
+            loadingTimeSlot: (loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot) || item.loadingTimeSlot,
+            unloadingDate: unloadingDate || item.unloadingDate,
+            unloadingTimeSlot: (unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot) || item.unloadingTimeSlot,
+            closingMemo: sanitizeDispatcherSpecialNote(closingMemo)
+          }
+        : item;
+
+      // 장비 종류 문자열 생성
+      let cargoFormatted = '';
+      const parsedCargos = parseCargoItems(effectiveItem);
+      const validCargos = parsedCargos.filter(p => p.modelName && !p.modelName.includes('미지정'));
+      if (validCargos.length > 0) {
+        cargoFormatted = validCargos.map(p => `${p.modelName}*${p.count}`).join(' / ');
+      } else if (itemContract) {
+        const cAssets = contractAssets.filter(ca => ca.contractId === itemContract.id);
+        if (cAssets.length > 0) {
+          const counts: Record<string, number> = {};
+          cAssets.forEach(ca => {
+            const asset = assets.find(a => a.id === ca.assetId);
+            const mName = asset?.modelName || (ca as any).modelName || '고소작업대';
+            counts[mName] = (counts[mName] || 0) + 1;
+          });
+          cargoFormatted = Object.entries(counts).map(([m, cnt]) => `${m}*${cnt}`).join(' / ');
+        }
+      }
+
+      // 현장 담당자 추출
+      const memoSource = `${effectiveItem.memo || ''} ${item.memo || ''} ${(item as any).rawText || ''}`;
+      const memoMatch =
+        memoSource.match(/\[고객담당자:\s*([^\(\]\|\n]+?)(?:\s*\(([^\)\]]+)\))?\]/) ||
+        memoSource.match(/(?:현장담당자?|방문지\s*담당자?):\s*([^\(\s\|,]+)(?:\s*\(([^\)]+)\))?/);
+
+      const actContacts = (itemSite?.contacts || []).filter(c => c.isActive !== false && c.name && c.name !== '미상');
+      const contractContact = itemContract?.contactId ? contacts.find(c => c.id === itemContract.contactId) : undefined;
+
+      let siteContactName: string | undefined;
+      let siteContactPhone: string | undefined;
+      let siteContactPosition: string | undefined;
+
+      if (memoMatch && memoMatch[1]?.trim() && memoMatch[1].trim() !== '-' && memoMatch[1].trim() !== '미상') {
+        siteContactName = memoMatch[1].trim();
+        const mPhone = memoMatch[2]?.trim();
+        siteContactPhone = (mPhone && mPhone !== '-' && mPhone !== '미상')
+          ? mPhone
+          : (actContacts[0]?.contact || itemSite?.contact || contractContact?.contact);
+      } else if (actContacts.length > 0) {
+        siteContactName = actContacts[0].name;
+        siteContactPhone = (actContacts[0].contact && actContacts[0].contact !== '미상') ? actContacts[0].contact : undefined;
+        siteContactPosition = actContacts[0].position;
+      } else if (itemSite?.contactName && itemSite.contactName !== '미상') {
+        siteContactName = itemSite.contactName;
+        siteContactPhone = (itemSite.contact && itemSite.contact !== '미상') ? itemSite.contact : undefined;
+      } else if (contractContact && contractContact.name && contractContact.name !== '미상') {
+        siteContactName = contractContact.name;
+        siteContactPhone = (contractContact.contact && contractContact.contact !== '미상') ? contractContact.contact : undefined;
+        siteContactPosition = contractContact.position;
+      }
+
+      const isReturnStop = effectiveItem.type === 'RETURN' || origCat === '반납';
+      const stopVendorInfo = isReturnStop
+        ? (isSelected
+            ? getSubleaseVendorInfoByAssets(selectedReturnAssetIds, effectiveItem.destinationAddress)
+            : getDeliverySubleaseVendorInfo(effectiveItem))
+        : null;
+
+      if (stopVendorInfo) {
+        if (stopVendorInfo.contactName) siteContactName = stopVendorInfo.contactName;
+        if (stopVendorInfo.contactPhone) siteContactPhone = stopVendorInfo.contactPhone;
+      }
+
+      return {
+        order: item.bundleOrder || idx + 1,
+        delivery: effectiveItem,
+        originalCategoryLabel: origCat,
+        siteName: stopVendorInfo?.vendorName || itemSite?.name || effectiveItem.destinationAddress || '현장',
+        siteAddress: stopVendorInfo?.address || effectiveItem.destinationAddress || itemSite?.address,
+        siteContactName,
+        siteContactPhone,
+        siteContactPosition,
+        customerName: stopVendorInfo?.vendorName || itemCustomer?.name,
+        cargoFormattedString: cargoFormatted,
+        dispatcherNote: sanitizeDispatcherSpecialNote(effectiveItem.closingMemo)
+      };
+    });
+  };
+
   // 2. 배차건 정밀 필터링 (상태 4단계 + 요청/운송일 기간 피커 + 검색어)
   const filteredDeliveries = useMemo(() => {
     const q = searchQuery.trim();
@@ -3032,6 +3443,7 @@ export const TruckDispatch: React.FC = () => {
 
       return Boolean(
         (d.id && d.id.toLowerCase().includes(qLower)) ||
+        (d.bundleGroupId && d.bundleGroupId.toLowerCase().includes(qLower)) ||
         (d.driverName && matcher(d.driverName)) ||
         (d.transportCompany && matcher(d.transportCompany)) ||
         (d.destinationAddress && matcher(d.destinationAddress)) ||
@@ -3040,10 +3452,27 @@ export const TruckDispatch: React.FC = () => {
       );
     });
 
-    // 최신 등록순 (createdAt 내림차순, 없으면 loadingDate/requestDate 내림차순) 정렬
+    // 묶음 배차(bundleGroupId) 그룹별 대표 시간 맵 생성 (묶인 배차건들이 목록에서 서로 떨어지지 않고 순서대로 붙어 있도록 정렬)
+    const bundleGroupMaxTime = new Map<string, number>();
+    for (const d of list) {
+      if (d.bundleGroupId) {
+        const t = d.createdAt ? new Date(d.createdAt).getTime() : 0;
+        const cur = bundleGroupMaxTime.get(d.bundleGroupId) ?? -Infinity;
+        if (t > cur) bundleGroupMaxTime.set(d.bundleGroupId, t);
+      }
+    }
+
+    // 최신 등록순 정렬 + 동일 bundleGroupId 내에서는 bundleOrder(1 -> 2 -> 3) 오름차순 정렬
     return list.sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (a.bundleGroupId && b.bundleGroupId && a.bundleGroupId === b.bundleGroupId) {
+        return ((a.bundleOrder || 999) - (b.bundleOrder || 999)) || (a.id || '').localeCompare(b.id || '');
+      }
+      const timeA = a.bundleGroupId
+        ? (bundleGroupMaxTime.get(a.bundleGroupId) || 0)
+        : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.bundleGroupId
+        ? (bundleGroupMaxTime.get(b.bundleGroupId) || 0)
+        : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       if (timeA !== timeB) return timeB - timeA;
       const dateA = a.loadingDate || a.requestDate || '';
       const dateB = b.loadingDate || b.requestDate || '';
@@ -3058,18 +3487,12 @@ export const TruckDispatch: React.FC = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     setSelectedDelivery(d);
     setIsEditUnlocked(false); // 💡 새로 선택 시 기본 잠금 적용!
+    setShowBundleAddPicker(false);
 
-    let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' =
-      d.dispatchCategory ||
-      (d.type === 'EXCHANGE'
-        ? '교환'
-        : d.type === 'OUTBOUND'
-          ? '출고'
-          : d.type === 'RETURN'
-            ? '반납'
-            : d.type === 'INBOUND'
-              ? '입고'
-              : '출고');
+    let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' | '경유/합짐' =
+      (d.bundleGroupId || d.dispatchCategory === '경유/합짐')
+        ? '경유/합짐'
+        : getOriginalDeliveryCategoryLabel(d);
     setDispatchCategory(defaultCat);
     setSelectedReturnAssetIds(extractReturnAssetIdsFromDelivery(d));
 
@@ -3104,17 +3527,22 @@ export const TruckDispatch: React.FC = () => {
     setBillableToCust(d.billableToCustomer || false);
     setBillableCustId(d.billableCustomerId || (contract?.customerId || ''));
 
-    if (d.vehicles) {
+    // 🔗 경유/합짐 묶음 배차인 경우 1순위 대표건의 차량/운송비 정보를 공유 표시
+    const costSourceDelivery = d.bundleGroupId
+      ? (getBundleGroupDeliveries(d.bundleGroupId)[0] || d)
+      : d;
+
+    if (costSourceDelivery.vehicles) {
       try {
-        const parsed = JSON.parse(d.vehicles);
+        const parsed = JSON.parse(costSourceDelivery.vehicles);
         if (Array.isArray(parsed) && parsed.length > 0) {
           if (parsed.length === 1) {
             const row0 = parsed[0];
             const rowExp = Number(row0.expectedCost) || 0;
             const rowFin = Number(row0.finalCost) || 0;
-            const dExp = Number(d.expectedCost) || 0;
-            const dFin = Number(d.finalCost) || 0;
-            const dCost = Number(d.deliveryCost) || 0;
+            const dExp = Number(costSourceDelivery.expectedCost) || 0;
+            const dFin = Number(costSourceDelivery.finalCost) || 0;
+            const dCost = Number(costSourceDelivery.deliveryCost) || 0;
             parsed[0] = {
               ...row0,
               expectedCost: rowExp > 0 ? rowExp : dExp,
@@ -3130,14 +3558,14 @@ export const TruckDispatch: React.FC = () => {
 
     setAssignedVehicles([{
       id: 'v-' + Date.now(),
-      transportCompany: d.transportCompany || '',
-      vehicleType: d.vehicleType || '3.5T',
-      vehicleNo: d.vehicleNo || '',
-      driverName: d.driverName || '',
-      driverContact: d.driverContact || '',
-      expectedCost: getEffectiveDeliveryCost(d),
-      finalCost: d.finalCost !== undefined && d.finalCost !== null ? d.finalCost : 0,
-      deliveryCost: getEffectiveDeliveryCost(d)
+      transportCompany: costSourceDelivery.transportCompany || d.transportCompany || '',
+      vehicleType: costSourceDelivery.vehicleType || d.vehicleType || '3.5T',
+      vehicleNo: costSourceDelivery.vehicleNo || d.vehicleNo || '',
+      driverName: costSourceDelivery.driverName || d.driverName || '',
+      driverContact: costSourceDelivery.driverContact || d.driverContact || '',
+      expectedCost: getEffectiveDeliveryCost(costSourceDelivery),
+      finalCost: costSourceDelivery.finalCost !== undefined && costSourceDelivery.finalCost !== null ? costSourceDelivery.finalCost : 0,
+      deliveryCost: getEffectiveDeliveryCost(costSourceDelivery)
     }]);
   };
 
@@ -3303,6 +3731,8 @@ export const TruckDispatch: React.FC = () => {
           : getDeliverySubleaseVendorInfo(dObj))
       : null;
 
+    const bundleStopsForSms = buildBundleStopsForDelivery(targetDelivery);
+
     const smsBody = buildDispatchSmsText({
       delivery: dObj,
       siteName: smsVendorInfo?.vendorName || site?.name || targetDelivery.destinationAddress,
@@ -3314,6 +3744,7 @@ export const TruckDispatch: React.FC = () => {
       hqYardAddress,
       hqYardPhone,
       hqYardContactPerson,
+      bundleStops: bundleStopsForSms
     });
 
     launchDispatchSms({
@@ -3424,6 +3855,8 @@ export const TruckDispatch: React.FC = () => {
       if (kakaoVendorInfo.contactPhone) siteContactPhone = kakaoVendorInfo.contactPhone;
     }
 
+    const bundleStopsForKakao = buildBundleStopsForDelivery(targetDelivery);
+
     const generatedText = buildDispatchKakaoTalkText({
       delivery: dObj,
       siteName: kakaoVendorInfo?.vendorName || site?.name || targetDelivery.destinationAddress || '현장',
@@ -3437,7 +3870,8 @@ export const TruckDispatch: React.FC = () => {
       hqYardPhone,
       hqYardContactPerson,
       cargoFormattedString: cargoFormatted,
-      dispatcherNote: effectiveDispatcherNote
+      dispatcherNote: effectiveDispatcherNote,
+      bundleStops: bundleStopsForKakao
     });
 
     // 1. 클립보드에 선제 복사
@@ -3466,7 +3900,8 @@ export const TruckDispatch: React.FC = () => {
     }
 
     const validDrivers = assignedVehicles.filter(v => (v.driverName || '').trim() !== '' || (v.transportCompany || '').trim() === CUSTOMER_DIRECT_TRANSPORT);
-    const isReturnCategory = dispatchCategory === '반납';
+    const origCategory = getOriginalDeliveryCategoryLabel(selectedDelivery);
+    const isReturnCategory = dispatchCategory === '반납' || origCategory === '반납' || selectedDelivery.type === 'RETURN';
     const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
     if (validDrivers.length === 0 && prevStatus !== 'DELIVERED' && !(isReturnCategory && prevStatus === 'PENDING')) {
       showErrorModal('배차 기사를 최소 1명 이상 입력하거나 운송거래처에서 [고객직접운송]을 선택해 주십시오.', '배차 기사 미입력');
@@ -3497,7 +3932,7 @@ export const TruckDispatch: React.FC = () => {
     // 🚨 출고 제한 거래처 출고 배차 원천 차단 (이미 운송 완료된 건의 운송료/정보 수정은 허용)
     const targetContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
     const targetCustomer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
-    const isOutboundOrExchange = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
+    const isOutboundOrExchange = selectedDelivery.type === 'OUTBOUND' || origCategory === '출고' || origCategory === '교환';
     if (!isModifyingDelivered && isOutboundOrExchange && isCustomerRestricted(targetCustomer?.transactionStatus)) {
       showErrorModal(`[출고제한] 거래처 [${targetCustomer?.name}]은(는) 연체 관리 또는 경영진 지시로 인해 신규 출고가 차단된 상태입니다. 배차 기사를 배정할 수 없습니다.`, '출고 차단');
       return;
@@ -3576,10 +4011,22 @@ export const TruckDispatch: React.FC = () => {
         return [baseMemo, vendorTag, staffTag].filter(Boolean).join(' ').trim();
       })();
 
+      const bundleGroupItems = selectedDelivery.bundleGroupId
+        ? getBundleGroupDeliveries(selectedDelivery.bundleGroupId)
+        : [];
+      const isBundledGroup = bundleGroupItems.length >= 2;
+      const isPrimaryBundleStop = !isBundledGroup || (selectedDelivery.bundleOrder || 1) === 1 || bundleGroupItems[0]?.id === selectedDelivery.id;
+      const zeroCostVehicles = sanitizedVehicles.map(v => ({
+        ...v,
+        expectedCost: 0,
+        finalCost: 0,
+        deliveryCost: 0
+      }));
+
       const payload: Partial<Delivery> = {
         status: nextStatus,
         type: isReturnCategory ? 'RETURN' : selectedDelivery.type,
-        dispatchCategory: dispatchCategory,
+        dispatchCategory: isBundledGroup ? '경유/합짐' : dispatchCategory,
         loadingDate: loadingDate,
         loadingTimeSlot: finalLoadingSlot,
         unloadingDate: unloadingDate,
@@ -3594,10 +4041,10 @@ export const TruckDispatch: React.FC = () => {
         vehicleNo: mainVeh.vehicleNo || '',
         driverName: mainVeh.driverName || '',
         driverContact: mainVeh.driverContact || '',
-        expectedCost: isAllCustDirect ? 0 : totalExpectedCost,
-        finalCost: isAllCustDirect ? 0 : totalFinalCost,
-        deliveryCost: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : totalExpectedCost),
-        deliveryCostConfirmed: isAllCustDirect ? 0 : (totalFinalCost > 0 ? totalFinalCost : selectedDelivery.deliveryCostConfirmed),
+        expectedCost: isAllCustDirect || !isPrimaryBundleStop ? 0 : totalExpectedCost,
+        finalCost: isAllCustDirect || !isPrimaryBundleStop ? 0 : totalFinalCost,
+        deliveryCost: isAllCustDirect || !isPrimaryBundleStop ? 0 : (totalFinalCost > 0 ? totalFinalCost : totalExpectedCost),
+        deliveryCostConfirmed: isAllCustDirect || !isPrimaryBundleStop ? 0 : (totalFinalCost > 0 ? totalFinalCost : selectedDelivery.deliveryCostConfirmed),
         isCostSettled: isAllCustDirect ? true : selectedDelivery.isCostSettled,
         reconciliationStatus: isAllCustDirect
           ? 'PAID'
@@ -3606,7 +4053,7 @@ export const TruckDispatch: React.FC = () => {
               : (!selectedDelivery.reconciliationStatus || selectedDelivery.reconciliationStatus === ('UNRECONCILED' as any) || selectedDelivery.reconciliationStatus === ('NONE' as any))
                 ? 'PENDING'
                 : selectedDelivery.reconciliationStatus),
-        vehicles: JSON.stringify(sanitizedVehicles),
+        vehicles: JSON.stringify(isPrimaryBundleStop ? sanitizedVehicles : zeroCostVehicles),
         ...(returnCargoJson !== undefined ? { cargoItems: returnCargoJson } : {}),
         closingMemo: (() => {
           const cleanDispatcherNote = sanitizeDispatcherSpecialNote(closingMemo);
@@ -3621,6 +4068,36 @@ export const TruckDispatch: React.FC = () => {
       };
 
       db.updateRow<Delivery>('deliveries', selectedDelivery.id, payload);
+
+      // 🔗 경유/합짐 묶음 배차일 경우: 묶인 모든 경유 건에 기사/차량 배정을 동기화하고, 운송비는 1순위 대표건에만 귀속!
+      if (isBundledGroup) {
+        const primaryStopId = bundleGroupItems[0]?.id;
+        for (const sibling of bundleGroupItems) {
+          if (sibling.id === selectedDelivery.id) continue;
+          const isSiblingPrimary = sibling.id === primaryStopId;
+          const siblingNormSt = getNormalizedDeliveryStatus(sibling);
+          const siblingNextStatus: Delivery['status'] = (siblingNormSt === 'DELIVERED')
+            ? sibling.status
+            : nextStatus;
+          db.updateRow<Delivery>('deliveries', sibling.id, {
+            status: siblingNextStatus,
+            dispatchCategory: '경유/합짐',
+            dropoffType: 'MULTI_STOP',
+            transportCompany: mainVeh.transportCompany || '',
+            vehicleType: mainVeh.vehicleType || '3.5T',
+            vehicleNo: mainVeh.vehicleNo || '',
+            driverName: mainVeh.driverName || '',
+            driverContact: mainVeh.driverContact || '',
+            expectedCost: isAllCustDirect || !isSiblingPrimary ? 0 : totalExpectedCost,
+            finalCost: isAllCustDirect || !isSiblingPrimary ? 0 : totalFinalCost,
+            deliveryCost: isAllCustDirect || !isSiblingPrimary ? 0 : (totalFinalCost > 0 ? totalFinalCost : totalExpectedCost),
+            deliveryCostConfirmed: isAllCustDirect || !isSiblingPrimary ? 0 : (totalFinalCost > 0 ? totalFinalCost : sibling.deliveryCostConfirmed),
+            vehicles: JSON.stringify(isSiblingPrimary ? sanitizedVehicles : zeroCostVehicles),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
       await db.awaitPendingWrites();
 
       // 🔄 [반납 배차 전용] 임차자산 반납 처리 (반납일자 = 하차일) 및 선택 해제 자산 원복
@@ -3748,16 +4225,17 @@ export const TruckDispatch: React.FC = () => {
     }
 
     try {
+      const origCat = getOriginalDeliveryCategoryLabel(targetDelivery);
       const isSimpleTransit = targetDelivery?.type === 'INBOUND'
         || targetDelivery?.type === 'MOVEMENT'
-        || targetDelivery?.dispatchCategory === '입고'
-        || targetDelivery?.dispatchCategory === '반납'
-        || targetDelivery?.dispatchCategory === '이동';
+        || origCat === '입고'
+        || origCat === '반납'
+        || origCat === '이동';
 
       const isOutboundLike = targetDelivery?.type === 'OUTBOUND'
         || targetDelivery?.type === 'EXCHANGE'
-        || targetDelivery?.dispatchCategory === '출고'
-        || targetDelivery?.dispatchCategory === '교환';
+        || origCat === '출고'
+        || origCat === '교환';
 
       if (isSimpleTransit) {
         // [헌장 1.3] INBOUND/MOVEMENT 배차 완료 = 배차 상태만 DELIVERED로 기록.
@@ -3831,11 +4309,12 @@ export const TruckDispatch: React.FC = () => {
     try {
       const nowIso = new Date().toISOString();
       const normSt = getNormalizedDeliveryStatus(targetDelivery);
+      const origCat = getOriginalDeliveryCategoryLabel(targetDelivery);
       const isOutboundOrExchange =
         targetDelivery.type === 'OUTBOUND' ||
         targetDelivery.type === 'EXCHANGE' ||
-        targetDelivery.dispatchCategory === '출고' ||
-        targetDelivery.dispatchCategory === '교환';
+        origCat === '출고' ||
+        origCat === '교환';
 
       // 배차완료(DISPATCHED) 상태이거나 출고/교환 건인 경우: 출고 요청 전체를 죽이지 않고 차량·기사 배정만 해제하여 [배차대기(REQUESTED)]로 원복
       if (normSt === 'DISPATCHED' || normSt === 'CANCELLED' || isOutboundOrExchange) {
@@ -4109,9 +4588,10 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 배차 6대 운송 속성('출고' | '입고' | '교환' | '반납' | '정비' | '이동') 판정 헬퍼
-  const getDeliveryCategoryLabel = (d?: Delivery | null): '출고' | '입고' | '교환' | '반납' | '정비' | '이동' => {
+  // 배차 운송 속성('출고' | '입고' | '교환' | '반납' | '정비' | '이동' | '경유/합짐') 판정 헬퍼
+  const getDeliveryCategoryLabel = (d?: Delivery | null): '출고' | '입고' | '교환' | '반납' | '정비' | '이동' | '경유/합짐' => {
     if (!d) return '출고';
+    if (d.bundleGroupId || d.dispatchCategory === '경유/합짐') return '경유/합짐';
     if (d.dispatchCategory && ['출고', '입고', '교환', '반납', '정비', '이동'].includes(d.dispatchCategory)) {
       return d.dispatchCategory as '출고' | '입고' | '교환' | '반납' | '정비' | '이동';
     }
@@ -4124,7 +4604,7 @@ export const TruckDispatch: React.FC = () => {
 
   // 중간단계(배차완료 -> 운송완료 전환) 완료 처리 액션 버튼 명칭 헬퍼
   const getDeliveryCompletionActionLabel = (d?: Delivery | null): string => {
-    const cat = getDeliveryCategoryLabel(d);
+    const cat = getOriginalDeliveryCategoryLabel(d);
     if (cat === '반납') return '반납완료';
     if (cat === '입고') return '입고완료';
     if (cat === '정비') return '정비운송완료';
@@ -4132,33 +4612,56 @@ export const TruckDispatch: React.FC = () => {
     return '상차완료';
   };
 
-  // 6대 운송 속성 배지 헬퍼 ("출고/입고/교환/반납/정비/이동")
+  // 운송 속성 배지 헬퍼 ("출고/입고/교환/반납/정비/이동/경유·합짐")
   const getDeliveryCategoryBadge = (d?: Delivery | null) => {
     const cat = getDeliveryCategoryLabel(d);
+    const origCat = getOriginalDeliveryCategoryLabel(d);
     const styles: Record<string, { bg: string; color: string; border: string }> = {
       '출고': { bg: 'rgba(37,99,235,0.12)', color: '#2563eb', border: 'rgba(37,99,235,0.35)' },
       '입고': { bg: 'rgba(217,119,6,0.12)', color: '#d97706', border: 'rgba(217,119,6,0.35)' },
       '교환': { bg: 'rgba(16,185,129,0.12)', color: '#059669', border: 'rgba(16,185,129,0.35)' },
       '반납': { bg: 'rgba(225,29,72,0.12)', color: '#e11d48', border: 'rgba(225,29,72,0.35)' },
       '정비': { bg: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: 'rgba(124,58,237,0.35)' },
-      '이동': { bg: 'rgba(71,85,105,0.12)', color: '#475569', border: 'rgba(71,85,105,0.35)' }
+      '이동': { bg: 'rgba(71,85,105,0.12)', color: '#475569', border: 'rgba(71,85,105,0.35)' },
+      '경유/합짐': { bg: 'rgba(79,70,229,0.14)', color: '#4f46e5', border: 'rgba(79,70,229,0.45)' }
     };
     const st = styles[cat] || styles['출고'];
+    const bundleStops = d?.bundleGroupId ? getBundleGroupDeliveries(d.bundleGroupId) : [];
+    const orderNum = d?.bundleOrder || 1;
     return (
-      <span style={{
-        padding: '2px 8px',
-        borderRadius: '6px',
-        fontSize: '11.5px',
-        fontWeight: 800,
-        backgroundColor: st.bg,
-        color: st.color,
-        border: `1px solid ${st.border}`,
-        display: 'inline-flex',
-        alignItems: 'center',
-        whiteSpace: 'nowrap',
-        flexShrink: 0
-      }}>
-        {cat}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <span style={{
+          padding: '2px 8px',
+          borderRadius: '6px',
+          fontSize: '11.5px',
+          fontWeight: 800,
+          backgroundColor: st.bg,
+          color: st.color,
+          border: `1px solid ${st.border}`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '3px',
+          whiteSpace: 'nowrap',
+          flexShrink: 0
+        }}>
+          {cat === '경유/합짐' && <Link2 size={11} />}
+          {cat}
+        </span>
+        {cat === '경유/합짐' && (
+          <span style={{
+            padding: '2px 6px',
+            borderRadius: '5px',
+            fontSize: '10.5px',
+            fontWeight: 800,
+            backgroundColor: 'rgba(15,23,42,0.06)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-color)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}>
+            순서 {orderNum}{bundleStops.length > 0 ? `/${bundleStops.length}` : ''} · {origCat}
+          </span>
+        )}
       </span>
     );
   };
@@ -4530,7 +5033,7 @@ export const TruckDispatch: React.FC = () => {
               </div>
 
               {/* 검색창 */}
-              <div style={{ marginBottom: '14px', position: 'relative' }}>
+              <div style={{ marginBottom: '10px', position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
@@ -4551,6 +5054,73 @@ export const TruckDispatch: React.FC = () => {
                 />
               </div>
 
+              {/* 🔗 경유/합짐 묶음 다중 선택 컨트롤 바 */}
+              {canSave && (
+                <div style={{
+                  marginBottom: '10px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  backgroundColor: selectedBundleCandidateIds.length >= 2 ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.05)',
+                  border: selectedBundleCandidateIds.length >= 2 ? '1px solid #4f46e5' : '1px dashed rgba(79,70,229,0.35)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 800, color: '#4338ca' }}>
+                    <Link2 size={13} />
+                    <span>
+                      {selectedBundleCandidateIds.length === 0
+                        ? '경유/합짐 묶기: 각 카드 좌상단 체크박스를 2건 이상 선택'
+                        : `선택된 배차의뢰 ${selectedBundleCandidateIds.length}건`}
+                    </span>
+                  </div>
+                  {selectedBundleCandidateIds.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        disabled={selectedBundleCandidateIds.length < 2}
+                        onClick={() => handleCreateBundleFromIds(selectedBundleCandidateIds)}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          backgroundColor: selectedBundleCandidateIds.length >= 2 ? '#4f46e5' : '#94a3b8',
+                          color: '#ffffff',
+                          fontSize: '11.5px',
+                          fontWeight: 800,
+                          cursor: selectedBundleCandidateIds.length >= 2 ? 'pointer' : 'not-allowed',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <Link2 size={12} /> 경유/합짐 묶기 ({selectedBundleCandidateIds.length}건)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBundleCandidateIds([])}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        선택 해제
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* 배차 목록 렌더링 */}
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
                 {filteredDeliveries.length === 0 ? (
@@ -4562,6 +5132,8 @@ export const TruckDispatch: React.FC = () => {
                     const contract = getContract(d.contractId);
                     const customer = contract ? getCustomer(contract.customerId) : null;
                     const isSelected = selectedDelivery?.id === d.id;
+                    const isSameBundleWithSelected = Boolean(selectedDelivery?.bundleGroupId && d.bundleGroupId === selectedDelivery.bundleGroupId);
+                    const isCheckedForBundle = selectedBundleCandidateIds.includes(d.id);
                     const cargoItems = parseCargoItems(d);
                     const normStatus = getNormalizedDeliveryStatus(d);
 
@@ -4573,8 +5145,20 @@ export const TruckDispatch: React.FC = () => {
                         style={{
                           padding: '14px',
                           borderRadius: '10px',
-                          border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(59,130,246,0.05)' : 'var(--bg-body)',
+                          border: isSelected
+                            ? '2px solid var(--primary)'
+                            : isSameBundleWithSelected
+                              ? '2px dashed #4f46e5'
+                              : isCheckedForBundle
+                                ? '2px solid #4f46e5'
+                                : d.bundleGroupId
+                                  ? '1px solid rgba(79,70,229,0.45)'
+                                  : '1px solid var(--border-color)',
+                          backgroundColor: isSelected
+                            ? 'rgba(59,130,246,0.05)'
+                            : isSameBundleWithSelected
+                              ? 'rgba(79,70,229,0.06)'
+                              : 'var(--bg-body)',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                           boxShadow: isSelected ? '0 4px 12px rgba(59,130,246,0.12)' : 'none'
@@ -4582,6 +5166,21 @@ export const TruckDispatch: React.FC = () => {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {canSave && (
+                              <input
+                                type="checkbox"
+                                checked={isCheckedForBundle}
+                                onClick={e => e.stopPropagation()}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setSelectedBundleCandidateIds(prev =>
+                                    checked ? [...prev, d.id] : prev.filter(id => id !== d.id)
+                                  );
+                                }}
+                                title="경유/합짐 묶음 배차 대상 선택"
+                                style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#4f46e5', margin: 0, flexShrink: 0 }}
+                              />
+                            )}
                             {getDeliveryCategoryBadge(d)}
                             <span style={{
                               fontSize: '12px',
@@ -4940,15 +5539,359 @@ export const TruckDispatch: React.FC = () => {
                           return null;
                         })()}
 
+                        {/* 🔗 경유/합짐 묶음 배차 관리 및 처리 순서 스튜디오 */}
+                        {(() => {
+                          const bundleGroupItems = selectedDelivery.bundleGroupId
+                            ? getBundleGroupDeliveries(selectedDelivery.bundleGroupId)
+                            : [];
+                          const isBundled = bundleGroupItems.length >= 2;
+                          const candidateDeliveries = deliveries
+                            .filter(d => {
+                              if (d.id === selectedDelivery.id) return false;
+                              if (selectedDelivery.bundleGroupId && d.bundleGroupId === selectedDelivery.bundleGroupId) return false;
+                              const st = getNormalizedDeliveryStatus(d);
+                              if (st === 'CANCELLED') return false;
+                              if (!bundlePickerSearch.trim()) return true;
+                              const q = bundlePickerSearch.trim().toLowerCase();
+                              const c = getContract(d.contractId);
+                              const cust = c ? getCustomer(c.customerId)?.name : '';
+                              const site = c ? sites.find(s => s.id === c.siteId)?.name : '';
+                              return (
+                                (cust || '').toLowerCase().includes(q) ||
+                                (site || '').toLowerCase().includes(q) ||
+                                (d.destinationAddress || '').toLowerCase().includes(q) ||
+                                (d.originAddress || '').toLowerCase().includes(q) ||
+                                (d.loadingDate || '').includes(q)
+                              );
+                            })
+                            .slice(0, 15);
+
+                          return (
+                            <div style={{
+                              marginBottom: '16px',
+                              padding: '12px 14px',
+                              borderRadius: '10px',
+                              backgroundColor: isBundled ? 'rgba(79,70,229,0.06)' : 'var(--bg-body)',
+                              border: isBundled ? '1px solid rgba(79,70,229,0.4)' : '1px solid var(--border-color)'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    backgroundColor: isBundled ? '#4f46e5' : 'rgba(100,116,139,0.15)',
+                                    color: isBundled ? '#ffffff' : 'var(--text-secondary)',
+                                    fontSize: '11.5px',
+                                    fontWeight: 800,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    <Link2 size={12} />
+                                    {isBundled ? `경유/합짐 묶음 배차 · 총 ${bundleGroupItems.length}건` : '단독 배차 의뢰'}
+                                  </span>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                    {isBundled
+                                      ? `원래 구분: ${getOriginalDeliveryCategoryLabel(selectedDelivery)} | 현재 처리 순서: ${selectedDelivery.bundleOrder || 1}순위`
+                                      : '다른 배차 의뢰와 묶어서 경유/합짐 1건으로 통합 배차할 수 있습니다.'}
+                                  </span>
+                                </div>
+
+                                {canSave && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowBundleAddPicker(prev => !prev)}
+                                      style={{
+                                        padding: '5px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid rgba(79,70,229,0.45)',
+                                        backgroundColor: showBundleAddPicker ? '#4f46e5' : 'rgba(79,70,229,0.1)',
+                                        color: showBundleAddPicker ? '#ffffff' : '#4338ca',
+                                        fontSize: '11.5px',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      <Plus size={12} />
+                                      {isBundled ? '경유 건 추가' : '다른 배차의뢰와 경유/합짐 묶기'}
+                                    </button>
+                                    {isBundled && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUnbundleEntireGroup(selectedDelivery.bundleGroupId!)}
+                                        style={{
+                                          padding: '5px 10px',
+                                          borderRadius: '6px',
+                                          border: '1px solid rgba(239,68,68,0.4)',
+                                          backgroundColor: 'rgba(239,68,68,0.1)',
+                                          color: 'var(--danger)',
+                                          fontSize: '11.5px',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
+                                        <Unlink size={12} /> 전체 묶음 해제 · 개별건 원복
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 묶음에 추가할 배차의뢰 검색/선택 피커 */}
+                              {showBundleAddPicker && canSave && (
+                                <div style={{
+                                  marginTop: '10px',
+                                  padding: '10px',
+                                  borderRadius: '8px',
+                                  backgroundColor: 'var(--bg-card)',
+                                  border: '1px solid rgba(79,70,229,0.35)'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
+                                    <input
+                                      type="text"
+                                      placeholder="묶을 배차의뢰 검색: 고객사 / 현장 / 상하차지 / 상차일..."
+                                      value={bundlePickerSearch}
+                                      onChange={e => setBundlePickerSearch(e.target.value)}
+                                      style={{
+                                        flex: 1,
+                                        padding: '6px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--border-color)',
+                                        backgroundColor: 'var(--bg-body)',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '12px'
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowBundleAddPicker(false)}
+                                      style={{
+                                        padding: '5px 10px',
+                                        borderRadius: '6px',
+                                        border: '1px solid var(--border-color)',
+                                        backgroundColor: 'var(--bg-body)',
+                                        color: 'var(--text-secondary)',
+                                        fontSize: '11.5px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      닫기
+                                    </button>
+                                  </div>
+                                  <div style={{ maxHeight: '190px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {candidateDeliveries.length === 0 ? (
+                                      <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                        추가할 수 있는 배차 의뢰가 없습니다.
+                                      </div>
+                                    ) : (
+                                      candidateDeliveries.map(cand => {
+                                        const cContract = getContract(cand.contractId);
+                                        const cCust = cContract ? getCustomer(cContract.customerId)?.name : '';
+                                        const origCat = getOriginalDeliveryCategoryLabel(cand);
+                                        const cCargo = parseCargoItems(cand).map(ci => `${ci.modelName} ${ci.count}대`).join(', ') || sanitizeDispatcherSpecialNote(cand.closingMemo) || '장비 정보';
+                                        return (
+                                          <div
+                                            key={cand.id}
+                                            style={{
+                                              padding: '7px 10px',
+                                              borderRadius: '6px',
+                                              border: '1px solid var(--border-color)',
+                                              backgroundColor: 'var(--bg-body)',
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
+                                              alignItems: 'center',
+                                              gap: '8px',
+                                              fontSize: '12px'
+                                            }}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
+                                              <span style={{
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                backgroundColor: 'rgba(79,70,229,0.12)',
+                                                color: '#4338ca',
+                                                fontWeight: 800,
+                                                fontSize: '11px',
+                                                whiteSpace: 'nowrap',
+                                                flexShrink: 0
+                                              }}>
+                                                {origCat}
+                                              </span>
+                                              <span style={{ fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                {cand.loadingDate || cand.requestDate}
+                                              </span>
+                                              <span style={{ fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                {cCust || '고객사'}
+                                              </span>
+                                              <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {cand.originAddress || '상차지'} ➔ {cand.destinationAddress || '하차지'} · {cCargo}
+                                              </span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAddDeliveryToCurrentBundle(cand.id)}
+                                              style={{
+                                                padding: '4px 10px',
+                                                borderRadius: '5px',
+                                                border: 'none',
+                                                backgroundColor: '#4f46e5',
+                                                color: '#ffffff',
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap',
+                                                flexShrink: 0
+                                              }}
+                                            >
+                                              + 합짐 추가
+                                            </button>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 묶인 경유/합짐 처리 순서 리스트 */}
+                              {isBundled && (
+                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {bundleGroupItems.map((stopItem, idx) => {
+                                    const sContract = getContract(stopItem.contractId);
+                                    const sCust = sContract ? getCustomer(sContract.customerId)?.name : '';
+                                    const sOrigCat = getOriginalDeliveryCategoryLabel(stopItem);
+                                    const sCargo = parseCargoItems(stopItem).map(ci => `${ci.modelName} ${ci.count}대`).join(', ') || sanitizeDispatcherSpecialNote(stopItem.closingMemo) || '장비 확인';
+                                    const isCurrentStop = stopItem.id === selectedDelivery.id;
+                                    return (
+                                      <div
+                                        key={stopItem.id}
+                                        onClick={() => handleSelectDelivery(stopItem)}
+                                        style={{
+                                          padding: '8px 10px',
+                                          borderRadius: '8px',
+                                          border: isCurrentStop ? '2px solid #4f46e5' : '1px solid var(--border-color)',
+                                          backgroundColor: isCurrentStop ? 'rgba(79,70,229,0.1)' : 'var(--bg-card)',
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
+                                          <span style={{
+                                            padding: '2px 8px',
+                                            borderRadius: '5px',
+                                            backgroundColor: idx === 0 ? '#4f46e5' : 'rgba(79,70,229,0.15)',
+                                            color: idx === 0 ? '#ffffff' : '#4338ca',
+                                            fontSize: '11px',
+                                            fontWeight: 800,
+                                            whiteSpace: 'nowrap',
+                                            flexShrink: 0
+                                          }}>
+                                            순서 {idx + 1} · {sOrigCat}
+                                          </span>
+                                          <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                            {sCust || stopItem.destinationAddress || '현장'}
+                                          </span>
+                                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            [{stopItem.loadingTimeSlot || '시간미정'}] {stopItem.originAddress || '상차지'} ➔ {stopItem.destinationAddress || '하차지'} ({sCargo})
+                                          </span>
+                                        </div>
+
+                                        {canSave && (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                                            <button
+                                              type="button"
+                                              disabled={idx === 0}
+                                              onClick={() => handleMoveBundleStopOrder(stopItem.id, 'UP')}
+                                              title="처리 순서 위로 이동"
+                                              style={{
+                                                padding: '3px 6px',
+                                                borderRadius: '5px',
+                                                border: '1px solid var(--border-color)',
+                                                backgroundColor: 'var(--bg-body)',
+                                                color: idx === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                                                cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                                                opacity: idx === 0 ? 0.45 : 1,
+                                                display: 'inline-flex',
+                                                alignItems: 'center'
+                                              }}
+                                            >
+                                              <ArrowUp size={12} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={idx === bundleGroupItems.length - 1}
+                                              onClick={() => handleMoveBundleStopOrder(stopItem.id, 'DOWN')}
+                                              title="처리 순서 아래로 이동"
+                                              style={{
+                                                padding: '3px 6px',
+                                                borderRadius: '5px',
+                                                border: '1px solid var(--border-color)',
+                                                backgroundColor: 'var(--bg-body)',
+                                                color: idx === bundleGroupItems.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                                                cursor: idx === bundleGroupItems.length - 1 ? 'not-allowed' : 'pointer',
+                                                opacity: idx === bundleGroupItems.length - 1 ? 0.45 : 1,
+                                                display: 'inline-flex',
+                                                alignItems: 'center'
+                                              }}
+                                            >
+                                              <ArrowDown size={12} />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleRemoveSingleFromBundle(stopItem.id)}
+                                              title="이 배차건만 묶음에서 분리하여 개별건으로 원복"
+                                              style={{
+                                                padding: '3px 8px',
+                                                borderRadius: '5px',
+                                                border: '1px solid rgba(239,68,68,0.35)',
+                                                backgroundColor: 'rgba(239,68,68,0.08)',
+                                                color: 'var(--danger)',
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap'
+                                              }}
+                                            >
+                                              개별 분리
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                  <div style={{ fontSize: '11.5px', color: '#4338ca', fontWeight: 700, paddingTop: '2px' }}>
+                                    💡 처리 순서대로 기사 배차문자 및 카카오톡 안내 메시지에 [순서 1], [순서 2]... 경유지 정보와 완료 링크가 자동 생성됩니다.
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {/* 배차 세부 설정 폼 (3컬럼: 배차 구분 | 상차일자 & 시간 | 하차일자 & 시간) */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr 1.25fr', gap: '14px', marginBottom: '16px' }}>
                           <div>
                             <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>배차 구분</label>
                             <select
                               value={dispatchCategory}
-                              disabled={isFormDisabled}
+                              disabled={isFormDisabled || Boolean(selectedDelivery.bundleGroupId)}
                               onChange={e => setDispatchCategory(e.target.value as any)}
-                              style={{ width: '100%', padding: '7px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                              style={{ width: '100%', padding: '7px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: (isFormDisabled || Boolean(selectedDelivery.bundleGroupId)) ? 'var(--bg-card)' : 'var(--bg-body)', fontSize: '12.5px', color: 'var(--text-primary)', opacity: (isFormDisabled || Boolean(selectedDelivery.bundleGroupId)) ? 0.75 : 1, cursor: (isFormDisabled || Boolean(selectedDelivery.bundleGroupId)) ? 'not-allowed' : 'default' }}
                             >
                               <option value="출고">출고</option>
                               <option value="입고">입고</option>
@@ -4956,6 +5899,7 @@ export const TruckDispatch: React.FC = () => {
                               <option value="반납">반납</option>
                               <option value="정비">정비</option>
                               <option value="이동">이동</option>
+                              <option value="경유/합짐">경유/합짐</option>
                             </select>
                           </div>
 
