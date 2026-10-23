@@ -1,13 +1,8 @@
 import { EmailTemplateContext, EmailTemplateResult } from '../../types';
 
 export const contractBundleEmail = (ctx: EmailTemplateContext): EmailTemplateResult => {
-  const { custName, tenantCorp, tenantBrand, tenantTel, siteName, mappedAssetsCount = 0, uniqueModelList = [], salesRepName, salesRepPhone } = ctx;
+  const { custName, tenantCorp, tenantBrand, siteName, mappedAssetsCount = 0, uniqueModelList = [] } = ctx;
   const modelsText = uniqueModelList.length > 0 ? uniqueModelList.join(', ') : '전체 장비';
-  const contactLine = salesRepName && salesRepPhone
-    ? `연락처: ${salesRepName} ${salesRepPhone}`
-    : salesRepName
-      ? `연락처: ${salesRepName}${tenantTel ? ` (${tenantTel})` : ''}`
-      : `전화: ${salesRepPhone || tenantTel}`;
 
   return {
     subject: `[${tenantBrand}] ${custName} - ${siteName} 계약서패키지`,
@@ -28,8 +23,7 @@ ${tenantCorp} 입니다.
 내용 검토 후 서명 및 직인 날인하시어 회신 부탁드립니다.
 
 감사합니다.
-${tenantCorp} 배상
-${contactLine}`
+${tenantCorp} 배상`
   };
 };
 

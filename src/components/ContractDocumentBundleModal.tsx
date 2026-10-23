@@ -880,38 +880,27 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setEmailSentSuccess(false);
   }, [equipmentUnloadingDate, baseDeliveryDate, filterDate]);
 
-  // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
+  // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화 (하단 연락처·영업담당자·본사 전화번호 미출력)
   useEffect(() => {
     if (!selectedContract || !isOpen) return;
     const custName = customer?.name || '고객사';
     const siteName = site?.name || '현장';
     const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
     const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand;
-    const tenantTel = currentTenant?.tel || '031-334-5295';
-
-    // 영업담당자 성명 및 전화번호 산출 (1순위: 계약 배정 영업사원, 2순위: 현재 로그인 사용자, 3순위: 테넌트 기본값)
-    const salesUser = (selectedContract?.salespersonId ? users?.find(u => u.id === selectedContract.salespersonId) : null) || currentUser;
-    const salesDuty = salesUser?.duty || salesUser?.position || '';
-    const salesRepName = salesUser?.name
-      ? (salesDuty && salesDuty !== '개발자' ? `${salesUser.name} ${salesDuty}` : salesUser.name)
-      : ((selectedContract as any)?.salespersonName || currentTenant?.representativeName || '');
-    const salesRepPhone = salesUser?.phone || (salesUser as any)?.mobile || currentTenant?.salesPhone || tenantTel;
 
     const plugin = getTenantPlugin(currentTenant?.tenantCode || 'GIYEUN');
     const emailResult = plugin.templates.emails.contractBundle({
       custName,
       tenantCorp,
       tenantBrand,
-      tenantTel,
+      tenantTel: '',
       siteName,
       mappedAssetsCount: mappedAssets.length,
-      uniqueModelList,
-      salesRepName,
-      salesRepPhone
+      uniqueModelList
     });
     setEmailSubject(emailResult.subject);
     setEmailBody(emailResult.body);
-  }, [selectedContractId, selectedContract?.salespersonId, filterDate, mappedAssets.length, uniqueModelList.join(','), isOpen, currentTenant, users, currentUser]);
+  }, [selectedContractId, filterDate, mappedAssets.length, uniqueModelList.join(','), isOpen, currentTenant]);
 
   // ── 수신인 추가 / 제거 핸들러 ──
   const handleRemoveRecipient = (id: string) => {
