@@ -619,7 +619,7 @@ export const DailyInOutStatus: React.FC = () => {
       '모델명': e.modelName,
       '수량': e.quantity,
       '모델명 * 수량': `${e.modelName} * ${e.quantity}대`,
-      '자산번호': e.assetNos.join(', ') || '-',
+      '관리번호': e.assetNos.join(', ') || '-',
       '거래처명': e.customerName || '-',
       '현장명': e.siteName || '-',
       '계약번호': e.contractNo || '-',
@@ -987,7 +987,7 @@ export const DailyInOutStatus: React.FC = () => {
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '82px', backgroundColor: 'var(--bg-secondary)' }}>확정상태</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '125px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '48px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
-              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>관리번호</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '110px', backgroundColor: 'var(--bg-secondary)' }}>운송기사 / 업체</th>
             </tr>
@@ -1448,7 +1448,7 @@ export const DailyInOutStatus: React.FC = () => {
               <Search size={13} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="거래처/현장/자산번호"
+                placeholder="거래처/현장/관리번호"
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
                 style={{
@@ -1626,7 +1626,7 @@ export const DailyInOutStatus: React.FC = () => {
                   <SortableTh label="확정상태" sortKey="statusText" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '105px', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '150px', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="수량" sortKey="quantity" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }} align="center" />
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>관리번호</th>
                   <SortableTh label="거래처 / 현장" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="운송기사 / 업체" sortKey="driverName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }} />
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>비고</th>
