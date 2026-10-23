@@ -28,6 +28,27 @@ import {
 } from '../utils/siteMatcher';
 import { splitMasterAwareOptions } from '../types/siteOption';
 
+// 🕒 KST(한국 표준시) 기준 입력일시/수정일시 포맷 헬퍼 (YYYY-MM-DD HH:mm)
+const formatDateTimeKst = (raw?: string | null): string => {
+  if (!raw) return '-';
+  const str = String(raw).trim();
+  if (!str) return '-';
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str.slice(0, 16).replace('T', ' ');
+  const parts = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || '';
+  const hh = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')} ${hh}:${get('minute')}`;
+};
+
 // ⚡ 좌측 고객 목록 개별 아이템 메모이제이션 (선택 고객 변경 시 타 고객 불필요 재렌더링 방지)
 interface CustomerListItemProps {
   cust: Customer;
@@ -1409,7 +1430,10 @@ export const Customers: React.FC = () => {
       return;
     }
 
-    if (!window.confirm(`정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`)) return;
+    const targetSiteObj = (sites || []).find(s => s.id === siteId);
+    const createdStr = formatDateTimeKst(targetSiteObj?.createdAt);
+    const updatedStr = formatDateTimeKst((targetSiteObj as any)?.updatedAt || targetSiteObj?.createdAt);
+    if (!window.confirm(`정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?\n\n• 현장코드: ${siteId}\n• 입력일시: ${createdStr}\n• 최종수정: ${updatedStr}`)) return;
 
     try {
       const deleted = await deleteSite(siteId);
@@ -2164,12 +2188,13 @@ const handleDeleteAccount = async (accId: string) => {
                         <SortableTh label="계산서 마감일" sortKey="billingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
+                        <SortableTh label="입력일시" sortKey="createdAt" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                       </tr>
                     </thead>
                     <tbody>
                       {sortedCustomerSites.length === 0 ? (
                         <tr>
-                          <td colSpan={9} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
+                          <td colSpan={10} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 현장이 없습니다. 현장을 추가해 주세요.
                           </td>
                         </tr>
@@ -2354,6 +2379,12 @@ const handleDeleteAccount = async (accId: string) => {
                                   );
                                 })()}
                               </div>
+                            </td>
+                            <td
+                              style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}
+                              title={`입력일시: ${formatDateTimeKst(cs.createdAt)}${(cs as any).updatedAt ? ` / 최종수정: ${formatDateTimeKst((cs as any).updatedAt)}` : ''}`}
+                            >
+                              {formatDateTimeKst(cs.createdAt)}
                             </td>
                           </tr>
                         );
@@ -2569,10 +2600,17 @@ const handleDeleteAccount = async (accId: string) => {
           padding: '20px'
         }}>
           <form onSubmit={handleSaveCustSubmit} className="card" style={{ width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-                {editingCust.id ? '고객사 정보 수정' : '신규 고객사 등록'}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+                  {editingCust.id ? '고객사 정보 수정' : '신규 고객사 등록'}
+                </h3>
+                {editingCust.id && (
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1', backgroundColor: 'rgba(14, 165, 233, 0.12)', border: '1px solid rgba(14, 165, 233, 0.35)', padding: '2px 8px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                    입력일시: {formatDateTimeKst(editingCust.createdAt)}
+                  </span>
+                )}
+              </div>
               <button type="button" onClick={() => setShowCustModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
@@ -3009,10 +3047,17 @@ const handleDeleteAccount = async (accId: string) => {
           padding: '20px'
         }}>
           <form onSubmit={handleSaveContactSubmit} className="card" style={{ width: '100%', maxWidth: '420px', backgroundColor: 'var(--bg-card)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-                {editingContact.id ? '담당자 수정' : '신규 담당자 등록'}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+                  {editingContact.id ? '담당자 수정' : '신규 담당자 등록'}
+                </h3>
+                {editingContact.id && (
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1', backgroundColor: 'rgba(14, 165, 233, 0.12)', border: '1px solid rgba(14, 165, 233, 0.35)', padding: '2px 8px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                    입력일시: {formatDateTimeKst(editingContact.createdAt)}
+                  </span>
+                )}
+              </div>
               <button type="button" onClick={() => setShowContactModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
@@ -3103,12 +3148,64 @@ const handleDeleteAccount = async (accId: string) => {
           padding: '20px'
         }}>
           <form onSubmit={handleSaveSiteSubmit} className="card" style={{ width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-                {editingSite.id ? '현장 수정' : '신규 현장 등록'}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: editingSite.id ? '8px' : '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+                  {editingSite.id ? '현장 수정' : '신규 현장 등록'}
+                </h3>
+                {editingSite.id && (
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#0369a1', backgroundColor: 'rgba(14, 165, 233, 0.12)', border: '1px solid rgba(14, 165, 233, 0.35)', padding: '2px 8px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                    입력일시: {formatDateTimeKst(editingSite.createdAt)}
+                  </span>
+                )}
+              </div>
               <button type="button" onClick={() => setShowSiteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
+            {editingSite.id && (() => {
+              const modalSiteStats = siteContractAssetStatsMap.get(editingSite.id) || { contractCount: 0, assetCount: 0 };
+              const updatedAtStr = (editingSite as any).updatedAt ? formatDateTimeKst((editingSite as any).updatedAt) : null;
+              return (
+                <div style={{
+                  marginBottom: '12px',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  fontSize: '11.5px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      현장코드: <strong style={{ color: 'var(--text-main)', fontFamily: 'monospace' }}>{editingSite.id}</strong>
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      입력일시: <strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{formatDateTimeKst(editingSite.createdAt)}</strong>
+                    </span>
+                    {updatedAtStr && updatedAtStr !== '-' && (
+                      <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        최종수정: <strong style={{ color: 'var(--text-main)', fontFamily: 'monospace' }}>{updatedAtStr}</strong>
+                      </span>
+                    )}
+                  </div>
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    backgroundColor: (modalSiteStats.contractCount > 0 || modalSiteStats.assetCount > 0) ? 'rgba(22, 163, 74, 0.12)' : 'rgba(100, 116, 139, 0.12)',
+                    color: (modalSiteStats.contractCount > 0 || modalSiteStats.assetCount > 0) ? '#15803d' : 'var(--text-secondary)',
+                    border: (modalSiteStats.contractCount > 0 || modalSiteStats.assetCount > 0) ? '1px solid rgba(22, 163, 74, 0.35)' : '1px solid var(--border-color)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    연결 내역: 계약 {modalSiteStats.contractCount}건 / 장비 {modalSiteStats.assetCount}대
+                  </span>
+                </div>
+              );
+            })()}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
