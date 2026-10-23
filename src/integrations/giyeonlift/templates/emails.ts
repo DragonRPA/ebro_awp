@@ -1,8 +1,13 @@
 import { EmailTemplateContext, EmailTemplateResult } from '../../types';
 
 export const contractBundleEmail = (ctx: EmailTemplateContext): EmailTemplateResult => {
-  const { custName, tenantCorp, tenantBrand, tenantTel, siteName, mappedAssetsCount = 0, uniqueModelList = [] } = ctx;
+  const { custName, tenantCorp, tenantBrand, tenantTel, siteName, mappedAssetsCount = 0, uniqueModelList = [], salesRepName, salesRepPhone } = ctx;
   const modelsText = uniqueModelList.length > 0 ? uniqueModelList.join(', ') : '전체 장비';
+  const contactLine = salesRepName && salesRepPhone
+    ? `연락처: ${salesRepName} ${salesRepPhone}`
+    : salesRepName
+      ? `연락처: ${salesRepName}${tenantTel ? ` (${tenantTel})` : ''}`
+      : `전화: ${salesRepPhone || tenantTel}`;
 
   return {
     subject: `[${tenantBrand}] ${custName} - ${siteName} 계약서패키지`,
@@ -24,12 +29,17 @@ ${tenantCorp} 입니다.
 
 감사합니다.
 ${tenantCorp} 배상
-전화: ${tenantTel}`
+${contactLine}`
   };
 };
 
 export const statementEmail = (ctx: EmailTemplateContext): EmailTemplateResult => {
-  const { custName, tenantCorp, tenantBrand, tenantTel } = ctx;
+  const { custName, tenantCorp, tenantBrand, tenantTel, salesRepName, salesRepPhone } = ctx;
+  const contactLine = salesRepName && salesRepPhone
+    ? `연락처: ${salesRepName} ${salesRepPhone}`
+    : salesRepName
+      ? `연락처: ${salesRepName}${tenantTel ? ` (${tenantTel})` : ''}`
+      : `전화: ${salesRepPhone || tenantTel}`;
   return {
     subject: `[${tenantBrand}] ${custName} 거래명세표 송부`,
     body: `안녕하십니까, ${custName} 담당자님.
@@ -41,6 +51,6 @@ ${tenantCorp} 입니다.
 
 감사합니다.
 ${tenantCorp} 배상
-전화: ${tenantTel}`
+${contactLine}`
   };
 };

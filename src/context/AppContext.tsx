@@ -5296,6 +5296,7 @@ ${payload.memo ? `\n[특이사항 / 메모]\n${payload.memo}\n` : ''}
 
 감사합니다.
 ${currentTenant?.corporateName || tenantCorp} 배상
+연락처: ${currentUser?.name || ''} ${(currentUser as any)?.mobile || currentUser?.phone || currentTenant?.tel || '031-334-5295'}
           `.trim();
 
           await emailService.sendEmail(

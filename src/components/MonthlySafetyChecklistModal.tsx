@@ -44,6 +44,7 @@ export const MonthlySafetyChecklistModal: React.FC<Props> = ({
     assets,
     contractAssets,
     products,
+    users,
     currentUser,
     currentTenant,
     showErrorModal,
@@ -491,7 +492,12 @@ export const MonthlySafetyChecklistModal: React.FC<Props> = ({
     const custName = customer?.name || '고객사';
     const siteName = site?.name || '현장';
     const tenantCorp = currentTenant?.corporateName || currentTenant?.tradeName || currentTenant?.displayName || '(주)기연리프트';
-    const tenantTel = currentTenant?.tel || '031-334-5296';
+    const tenantTel = currentTenant?.tel || '031-334-5295';
+    const salesUser = (activeContract?.salespersonId ? users?.find(u => u.id === activeContract.salespersonId) : null) || currentUser;
+    const salesDuty = salesUser?.duty || salesUser?.position || '';
+    const salesRepName = salesUser?.name ? (salesDuty && salesDuty !== '개발자' ? `${salesUser.name} ${salesDuty}` : salesUser.name) : ((activeContract as any)?.salespersonName || currentTenant?.representativeName || '');
+    const salesRepPhone = salesUser?.phone || (salesUser as any)?.mobile || currentTenant?.salesPhone || tenantTel;
+    const contactFooterLine = salesRepName && salesRepPhone ? `연락처: ${salesRepName} ${salesRepPhone}` : `전화: ${salesRepPhone || tenantTel}`;
 
     const [yr, mo] = targetMonth.split('-');
     const monthLabel = yr && mo ? `${yr}년 ${Number(mo)}월` : targetMonth;
@@ -519,7 +525,8 @@ ${assetSummaryLines || '  - 대상 장비 없음'}
 추가 문의사항이나 정비 요청 사항이 있으시면 언제든 연락 주십시오.
 
 감사합니다.
-${tenantCorp} 드림 (대표전화: ${tenantTel})`
+${tenantCorp} 배상
+${contactFooterLine}`
     );
   }, [isOpen, activeContract, customer?.name, site?.name, currentTenant, targetMonth, inspectionDate, inspectorName, siteActiveAssets]);
 

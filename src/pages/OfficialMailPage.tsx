@@ -102,6 +102,10 @@ export const OfficialMailPage: React.FC = () => {
 
   const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (테넌트 관리 센터 > 공식메일설정 필요)';
   const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || 'e-Bro ERP';
+  const senderDuty = currentUser?.duty || currentUser?.position || '';
+  const senderRepName = currentUser?.name && currentUser.name !== '개발자' ? (senderDuty && senderDuty !== '개발자' ? `${currentUser.name} ${senderDuty}` : currentUser.name) : (currentTenant?.representativeName || '');
+  const senderRepPhone = currentUser?.phone || (currentUser as any)?.mobile || currentTenant?.salesPhone || currentTenant?.tel || '031-334-5295';
+  const senderContactFooter = senderRepName ? `연락처: ${senderRepName} ${senderRepPhone}` : `전화: ${senderRepPhone}`;
 
   // 최근 발송 이력 로드
   const loadHistory = () => {
@@ -197,7 +201,7 @@ export const OfficialMailPage: React.FC = () => {
           (siteLine ? `${siteLine}\n` : '') +
           `문의 사항이 있으시면 언제든지 연락 주시기 바랍니다.\n\n` +
           `감사합니다.\n` +
-          `${senderBrand} 배상`
+          `${senderBrand} 배상\n${senderContactFooter}`
         );
       }
       return;
@@ -238,7 +242,7 @@ export const OfficialMailPage: React.FC = () => {
       `${attachmentListText}\n\n` +
       `첨부된 파일을 확인해 주시기 바라며, 추가 문의 사항이 있으시면 언제든지 연락 주시기 바랍니다.\n\n` +
       `감사합니다.\n` +
-      `${senderBrand} 배상`
+      `${senderBrand} 배상\n${senderContactFooter}`
     );
   }, [recipientName, currentCustomer, selectedSiteId, relatedSites, senderBrand, specModel]);
 

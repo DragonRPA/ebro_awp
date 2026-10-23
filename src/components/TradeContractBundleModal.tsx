@@ -78,9 +78,12 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
 
     const custName = customer?.name || '고객사';
     const tenantName = currentTenant?.corporateName || currentTenant?.tradeName || '(주)기연리프트';
+    const repName = currentUser?.name || '';
+    const repPhone = (currentUser as any)?.mobile || currentUser?.phone || currentTenant?.tel || '031-334-5295';
+    const contactLine = repName ? `연락처: ${repName} ${repPhone}` : `전화: ${repPhone}`;
     setEmailSubject(`[물품매매계약서] ${custName} 귀하 - 주문번호 ${order.id}`);
     setEmailBody(
-      `안녕하십니까, ${custName} 귀중.\n\n귀사와 체결한 유통 물품매매계약서를 송부하여 드립니다.\n첨부된 엑셀 계약서의 품목 명세와 인도 조건, 결제 조건을 확인해 주시기 바랍니다.\n\n• 주문번호: ${order.id}\n• 계약금액: ₩${order.totalSalesAmount.toLocaleString()}원 (부가세 포함)\n• 인도장소: ${order.deliveryLocation || customer?.address || '매수인 지정 장소'}\n\n감사합니다.\n${tenantName} 드림`
+      `안녕하십니까, ${custName} 귀중.\n\n귀사와 체결한 유통 물품매매계약서를 송부하여 드립니다.\n첨부된 엑셀 계약서의 품목 명세와 인도 조건, 결제 조건을 확인해 주시기 바랍니다.\n\n• 주문번호: ${order.id}\n• 계약금액: ₩${order.totalSalesAmount.toLocaleString()}원 (부가세 포함)\n• 인도장소: ${order.deliveryLocation || customer?.address || '매수인 지정 장소'}\n\n감사합니다.\n${tenantName} 드림\n${contactLine}`
     );
     setSendSuccessMsg(null);
   }, [isOpen, order, customer, currentTenant]);

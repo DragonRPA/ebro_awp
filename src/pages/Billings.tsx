@@ -1445,6 +1445,7 @@ ${items.map((item, idx) => {
 
 감사합니다.
 ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올림
+연락처: ${spName !== '-' ? spName : (currentUser?.name || '')} ${spPhone !== '-' ? spPhone : ((currentUser as any)?.mobile || currentUser?.phone || currentTenant?.tel || '')}
 ========================================================================================`;
 
     try {

@@ -20,6 +20,8 @@ export interface EmailTemplateContext {
   siteName: string;
   mappedAssetsCount?: number;
   uniqueModelList?: string[];
+  salesRepName?: string;
+  salesRepPhone?: string;
 }
 
 export interface EmailTemplateResult {
