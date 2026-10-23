@@ -215,7 +215,7 @@ JSON 응답 포맷:
 async function callVisionChat(prompt: string, imageUrl: string): Promise<any> {
   // 1차 시도: Groq LPU Vision API
   try {
-    const modelsToTry = ['qwen/qwen3.6-27b', 'qwen/qwen3.8-27b'];
+    const modelsToTry = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b'];
     for (const model of modelsToTry) {
       try {
         const controller = new AbortController();

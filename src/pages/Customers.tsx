@@ -249,12 +249,74 @@ export const Customers: React.FC = () => {
 
   // 📄 사업자등록증 사본 열람 모달 상태 및 핸들러
   const [viewingBizCertCust, setViewingBizCertCust] = useState<Customer | null>(null);
-  const handleViewBizCert = (cust: Customer) => {
+  const [bizCertEditName, setBizCertEditName] = useState<string>('');
+  const [isSavingBizCertName, setIsSavingBizCertName] = useState<boolean>(false);
+
+  const openBizCertViewer = (cust: Customer) => {
+    setViewingBizCertCust(cust);
+    setBizCertEditName(cust.name || '');
+  };
+
+  const applyCorporateFormat = (mode: 'PRE_CORP' | 'SUF_CORP' | 'PRE_JU' | 'SUF_JU' | 'PRE_SYM' | 'SUF_SYM') => {
+    const core = (bizCertEditName || '')
+      .replace(/^(주식회사|\(주\)|㈜|\(유\)|유한회사)\s*/g, '')
+      .replace(/\s*(주식회사|\(주\)|㈜|\(유\)|유한회사)$/g, '')
+      .trim();
+    if (!core) return;
+    if (mode === 'PRE_CORP') setBizCertEditName(`주식회사 ${core}`);
+    else if (mode === 'SUF_CORP') setBizCertEditName(`${core} 주식회사`);
+    else if (mode === 'PRE_JU') setBizCertEditName(`(주)${core}`);
+    else if (mode === 'SUF_JU') setBizCertEditName(`${core}(주)`);
+    else if (mode === 'PRE_SYM') setBizCertEditName(`㈜${core}`);
+    else if (mode === 'SUF_SYM') setBizCertEditName(`${core}㈜`);
+  };
+
+  const handleSaveBizCertName = async () => {
+    if (!viewingBizCertCust) return;
+    const nextName = bizCertEditName.trim();
+    if (!nextName) {
+      showErrorModal('고객사 상호를 입력해 주십시오.');
+      return;
+    }
+    if (nextName === viewingBizCertCust.name) {
+      showToast('현재 상호와 동일합니다.', 'success');
+      return;
+    }
+    setIsSavingBizCertName(true);
+    try {
+      const updated = await saveCustomer({
+        ...viewingBizCertCust,
+        name: nextName,
+        updatedAt: new Date().toISOString()
+      });
+      await db.awaitPendingWrites();
+      setViewingBizCertCust(updated);
+      setBizCertEditName(updated.name);
+      showToast(`고객사 상호가 [${updated.name}](으)로 수정되었습니다.`, 'success');
+    } catch (err: any) {
+      showErrorModal(`상호 수정 실패: ${err?.message || err}`);
+    } finally {
+      setIsSavingBizCertName(false);
+    }
+  };
+
+  const handleViewBizCert = async (cust: Customer) => {
     if (!cust.businessCertFileUrl || cust.businessCertFileUrl.trim() === '') {
+      try {
+        const freshList = await db.pullTableFromSupabase('customers');
+        await refreshAllData();
+        const freshCust = (freshList || db.customers).find((c: Customer) => c.id === cust.id);
+        if (freshCust && freshCust.businessCertFileUrl && freshCust.businessCertFileUrl.trim() !== '') {
+          openBizCertViewer(freshCust);
+          return;
+        }
+      } catch {
+        // ignore pull error and fall through to modal
+      }
       showErrorModal(`[${cust.name}] 고객사에 등록된 사업자등록증 파일(이미지/PDF)이 없습니다. '사업자등록증 보완' 버튼을 통해 등록해 주십시오.`);
       return;
     }
-    setViewingBizCertCust(cust);
+    openBizCertViewer(cust);
   };
 
   // 📇 명함/이메일 AI 모달 상태
@@ -3072,13 +3134,13 @@ const handleDeleteAccount = async (accId: string) => {
         }}>
           <div className="card" style={{ width: '100%', maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', padding: 0, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
             {/* 헤더 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 18px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <FileText size={18} style={{ color: '#0284c7' }} />
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                   사업자등록증 사본 열람
                 </h3>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   | {viewingBizCertCust.name} ({viewingBizCertCust.bizRegNo || '번호미상'})
                 </span>
               </div>
@@ -3089,6 +3151,83 @@ const handleDeleteAccount = async (accId: string) => {
               >
                 <X size={18} />
               </button>
+            </div>
+
+            {/* 상호(법인명) 즉시 교정 바 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '10px 18px', backgroundColor: 'rgba(2, 132, 199, 0.07)', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '280px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  법인명(상호) 교정
+                </span>
+                <input
+                  type="text"
+                  value={bizCertEditName}
+                  onChange={e => setBizCertEditName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSaveBizCertName();
+                    }
+                  }}
+                  placeholder="사업자등록증 상의 정확한 법인명(상호) 입력"
+                  style={{
+                    flex: 1,
+                    padding: '5px 10px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    borderRadius: '4px',
+                    border: bizCertEditName.trim() !== viewingBizCertCust.name ? '1.5px solid #0284c7' : '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveBizCertName}
+                  disabled={isSavingBizCertName || !bizCertEditName.trim() || bizCertEditName.trim() === viewingBizCertCust.name}
+                  className="btn-primary"
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    opacity: (isSavingBizCertName || !bizCertEditName.trim() || bizCertEditName.trim() === viewingBizCertCust.name) ? 0.55 : 1,
+                    cursor: (isSavingBizCertName || !bizCertEditName.trim() || bizCertEditName.trim() === viewingBizCertCust.name) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSavingBizCertName ? '저장중...' : '상호 저장'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                {[
+                  { label: '주식회사 앞', mode: 'PRE_CORP' as const },
+                  { label: '주식회사 뒤', mode: 'SUF_CORP' as const },
+                  { label: '(주) 앞', mode: 'PRE_JU' as const },
+                  { label: '(주) 뒤', mode: 'SUF_JU' as const },
+                  { label: '㈜ 앞', mode: 'PRE_SYM' as const },
+                  { label: '㈜ 뒤', mode: 'SUF_SYM' as const }
+                ].map(btn => (
+                  <button
+                    key={btn.mode}
+                    type="button"
+                    onClick={() => applyCorporateFormat(btn.mode)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* 본문 요약 바 */}

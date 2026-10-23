@@ -2264,6 +2264,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (existingCust) {
       res = db.updateRow<Customer>('customers', existingCust.id, cust) as Customer;
 
+      // 상호(고객사명) 변경 시 승계 전 고객사명(predecessorCustomerName) 참조 자동 동기화
+      if (res.name && existingCust.name !== res.name) {
+        const linkedPredContracts = db.contracts.filter(c => c.predecessorCustomerId === existingCust.id && c.predecessorCustomerName !== res.name);
+        linkedPredContracts.forEach(c => {
+          db.updateRow<Contract>('contracts', c.id, { predecessorCustomerName: res.name });
+        });
+      }
+
       // 고객 정보 보완 완료 시 관련 할 일 자동 상계 처리
       const relatedTodos = db.todos.filter(
         t => t.relatedEntityId === cust.id && t.type === 'MISSING_INFO' && !t.isCompleted

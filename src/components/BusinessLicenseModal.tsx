@@ -161,14 +161,6 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
         matched = customers.find(c => (c.bizRegNo || '').replace(/[^0-9]/g, '') === cleanBizNoDigits) || null;
       }
 
-      if (!matched && result.companyName) {
-        const cleanExtractedName = result.companyName.replace(/주식회사|\(주\)/g, '').trim();
-        matched = customers.find(c => {
-          const cleanDbName = c.name.replace(/주식회사|\(주\)/g, '').trim();
-          return cleanExtractedName.length >= 2 && cleanDbName === cleanExtractedName;
-        }) || null;
-      }
-
       setMatchedCustomer(matched);
 
       // 신규 폼 기본값 세팅

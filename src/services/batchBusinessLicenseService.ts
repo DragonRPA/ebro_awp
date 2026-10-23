@@ -244,18 +244,11 @@ export async function processSingleLicense(
 
     // 3) 분기 처리: 매출처(고객사) vs 매입처(협력사)
     if (options.targetType === 'CUSTOMER') {
-      // 3-A. 기존 고객사 대조 (사업자번호 10자리 -> 상호명 정규화)
-      let matchedCust = options.existingCustomers.find(c => {
+      // 3-A. 기존 고객사 대조 (헌장 1.6: 오직 사업자등록번호 10자리 1:1 일치 기준으로만 판단, 상호 유사성 매칭 금지)
+      const matchedCust = options.existingCustomers.find(c => {
         const cDigits = (c.bizRegNo || '').replace(/[^0-9]/g, '');
         return cleanBizNoDigits.length === 10 && cDigits === cleanBizNoDigits;
       });
-
-      if (!matchedCust && cleanExtractedName.length >= 2) {
-        matchedCust = options.existingCustomers.find(c => {
-          const cNameNorm = normalizeCompanyName(c.name || '');
-          return cNameNorm.length >= 2 && cNameNorm === cleanExtractedName;
-        });
-      }
 
       if (matchedCust) {
         // 기존 고객 정보 보완 (사업자등록증 기준 상호명, 업태, 종목, 증빙파일 갱신)
@@ -365,18 +358,11 @@ export async function processSingleLicense(
         };
       }
     } else {
-      // 3-B. 매입거래처(협력사) 처리
-      let matchedVendor = options.existingVendors.find(v => {
+      // 3-B. 매입거래처(협력사) 처리 (헌장 1.6: 오직 사업자등록번호 10자리 1:1 일치 기준으로만 판단)
+      const matchedVendor = options.existingVendors.find(v => {
         const vDigits = (v.bizRegNo || '').replace(/[^0-9]/g, '');
         return cleanBizNoDigits.length === 10 && vDigits === cleanBizNoDigits;
       });
-
-      if (!matchedVendor && cleanExtractedName.length >= 2) {
-        matchedVendor = options.existingVendors.find(v => {
-          const vNameNorm = normalizeCompanyName(v.name || '');
-          return vNameNorm.length >= 2 && vNameNorm === cleanExtractedName;
-        });
-      }
 
       const defaultType = options.defaultVendorType || 'RENTAL';
 
