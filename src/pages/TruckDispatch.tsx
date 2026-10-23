@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
-import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, Vendor, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess } from '../services/db';
+import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, Vendor, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess, Contract, ContractAsset, ContractHistory } from '../services/db';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
@@ -3903,7 +3903,17 @@ export const TruckDispatch: React.FC = () => {
     const origCategory = getOriginalDeliveryCategoryLabel(selectedDelivery);
     const isReturnCategory = dispatchCategory === '반납' || origCategory === '반납' || selectedDelivery.type === 'RETURN';
     const prevStatus = getNormalizedDeliveryStatus(selectedDelivery);
-    if (validDrivers.length === 0 && prevStatus !== 'DELIVERED' && !(isReturnCategory && prevStatus === 'PENDING')) {
+    const finalLoadingSlotCheck = loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot;
+    const finalUnloadingSlotCheck = unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot;
+    const isScheduleOnlySaveInPending =
+      validDrivers.length === 0 &&
+      prevStatus === 'PENDING' &&
+      (loadingDate !== (selectedDelivery.loadingDate || '') ||
+        finalLoadingSlotCheck !== (selectedDelivery.loadingTimeSlot || '') ||
+        unloadingDate !== (selectedDelivery.unloadingDate || selectedDelivery.loadingDate || '') ||
+        finalUnloadingSlotCheck !== (selectedDelivery.unloadingTimeSlot || selectedDelivery.loadingTimeSlot || ''));
+
+    if (validDrivers.length === 0 && prevStatus !== 'DELIVERED' && !(isReturnCategory && prevStatus === 'PENDING') && !isScheduleOnlySaveInPending) {
       showErrorModal('배차 기사를 최소 1명 이상 입력하거나 운송거래처에서 [고객직접운송]을 선택해 주십시오.', '배차 기사 미입력');
       return;
     }
@@ -3925,8 +3935,8 @@ export const TruckDispatch: React.FC = () => {
     const isModifyingDelivered = prevStatus === 'DELIVERED';
     const nextStatus: Delivery['status'] = isModifyingDelivered
       ? (selectedDelivery.status === 'COMPLETED' ? 'COMPLETED' : 'DELIVERED')
-      : (validDrivers.length === 0 && isReturnCategory && prevStatus === 'PENDING')
-        ? 'PENDING'
+      : (validDrivers.length === 0 && prevStatus === 'PENDING' && (isReturnCategory || isScheduleOnlySaveInPending))
+        ? (selectedDelivery.status === 'REQUESTED' ? 'REQUESTED' : 'PENDING')
         : 'DISPATCHED';
 
     // 🚨 출고 제한 거래처 출고 배차 원천 차단 (이미 운송 완료된 건의 운송료/정보 수정은 허용)
@@ -4069,6 +4079,105 @@ export const TruckDispatch: React.FC = () => {
 
       db.updateRow<Delivery>('deliveries', selectedDelivery.id, payload);
 
+      // 🔗 [출고 배차 하차일 변경 시 계약·청구 개시일 자동 동기화]
+      if (!isReturnCategory && isOutboundOrExchange && unloadingDate && /^\d{4}-\d{2}-\d{2}$/.test(unloadingDate)) {
+        const prevUnloadDate = (selectedDelivery.unloadingDate || selectedDelivery.loadingDate || '').trim();
+        const prevLoadDate = (selectedDelivery.loadingDate || '').trim();
+        let parsedCargoForSync: any[] = [];
+        try {
+          if (selectedDelivery.cargoItems) {
+            const raw = JSON.parse(selectedDelivery.cargoItems);
+            if (Array.isArray(raw)) parsedCargoForSync = raw;
+          }
+        } catch {
+          parsedCargoForSync = [];
+        }
+
+        if (parsedCargoForSync.length > 0) {
+          const updatedCargoForSync = parsedCargoForSync.map((ci, idx) => {
+            if (idx === 0 || ci?.requestMeta) {
+              return {
+                ...ci,
+                requestMeta: {
+                  ...(ci.requestMeta || {}),
+                  loadingTime: `${loadingDate} ${finalLoadingSlot}`.trim(),
+                  unloadingTime: `${unloadingDate} ${finalUnloadingSlot}`.trim()
+                }
+              };
+            }
+            return ci;
+          });
+          db.updateRow<Delivery>('deliveries', selectedDelivery.id, {
+            cargoItems: JSON.stringify(updatedCargoForSync)
+          });
+        }
+
+        if (unloadingDate !== prevUnloadDate && selectedDelivery.contractId) {
+          const targetCaIds = new Set<string>();
+          parsedCargoForSync.forEach(ci => {
+            if (Array.isArray(ci?.contractAssetIds)) {
+              ci.contractAssetIds.forEach((id: string) => {
+                if (id) targetCaIds.add(id);
+              });
+            }
+          });
+          db.outboundInspections
+            .filter(ins => ins.deliveryId === selectedDelivery.id && (ins as any).contractAssetId)
+            .forEach(ins => targetCaIds.add((ins as any).contractAssetId));
+
+          if (targetCaIds.size === 0) {
+            db.contractAssets
+              .filter(ca =>
+                ca.contractId === selectedDelivery.contractId &&
+                ca.status !== 'RETURNED' &&
+                ca.status !== 'SOLD' &&
+                (!ca.startDate || ca.startDate === prevUnloadDate || ca.startDate === prevLoadDate)
+              )
+              .forEach(ca => targetCaIds.add(ca.id));
+          }
+
+          targetCaIds.forEach(caId => {
+            const caObj = db.contractAssets.find(c => c.id === caId && c.contractId === selectedDelivery.contractId);
+            if (!caObj) return;
+            const shouldSyncFirstStart =
+              !caObj.firstStartDate ||
+              caObj.firstStartDate === caObj.startDate ||
+              caObj.firstStartDate === prevUnloadDate ||
+              caObj.firstStartDate === prevLoadDate;
+            db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+              startDate: unloadingDate,
+              ...(shouldSyncFirstStart ? { firstStartDate: unloadingDate } : {})
+            });
+            if (caObj.assetId) {
+              db.updateRow<Asset>('assets', caObj.assetId, {
+                contractStart: unloadingDate
+              });
+            }
+          });
+
+          const parentContract = db.contracts.find(c => c.id === selectedDelivery.contractId);
+          if (parentContract) {
+            const activeCas = db.contractAssets.filter(
+              c => c.contractId === parentContract.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.startDate
+            );
+            const earliestStart = activeCas.map(c => c.startDate).filter(Boolean).sort()[0] || unloadingDate;
+            if (parentContract.startDate !== earliestStart) {
+              db.updateRow<Contract>('contracts', parentContract.id, {
+                startDate: earliestStart,
+                updatedAt: new Date().toISOString()
+              });
+            }
+            db.insertRow<ContractHistory>('contractHistory', {
+              contractId: parentContract.id,
+              changeType: 'FEE_CHANGE',
+              changeDate: new Date().toISOString().split('T')[0],
+              description: `[배차/운송 일정 변경] 배차 ${selectedDelivery.id}: 하차일(계약개시일) [${prevUnloadDate || '-'} ➔ ${unloadingDate}] 자동 동기화 (처리자: ${currentUser?.name || '담당자'})`,
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+      }
+
       // 🔗 경유/합짐 묶음 배차일 경우: 묶인 모든 경유 건에 기사/차량 배정을 동기화하고, 운송비는 1순위 대표건에만 귀속!
       if (isBundledGroup) {
         const primaryStopId = bundleGroupItems[0]?.id;
@@ -4138,21 +4247,23 @@ export const TruckDispatch: React.FC = () => {
         }
       }
 
-      // [업무 인계 파이프라인] 선행 배차 의뢰 ToDo 자동 상계
-      await clearHandoverTasks({
-        entityId: selectedDelivery.id,
-        category: 'DISPATCH_REQUEST',
-        completedByUserId: currentUser?.id,
-        completedByName: currentUser?.name,
-        completionAction: 'DISPATCH_ASSIGNED'
-      });
+      // [업무 인계 파이프라인] 선행 배차 의뢰 ToDo 자동 상계 (기사 배정이 완료된 경우에만)
+      if (!isScheduleOnlySaveInPending) {
+        await clearHandoverTasks({
+          entityId: selectedDelivery.id,
+          category: 'DISPATCH_REQUEST',
+          completedByUserId: currentUser?.id,
+          completedByName: currentUser?.name,
+          completionAction: 'DISPATCH_ASSIGNED'
+        });
+      }
 
       const curContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
       const curCust = curContract ? customers.find(c => c.id === curContract.customerId)?.name : '';
       const curSite = curContract ? sites.find(s => s.id === curContract.siteId)?.name : '';
 
       // [업무 인계 파이프라인] 출고 건인 경우 주기장 PDI 검수 ToDo 후속 발행 (단, 단순 정보 수정 시 중복 발행 방지)
-      if (selectedDelivery.type === 'OUTBOUND' && !isModifyingDispatched && !isModifyingDelivered) {
+      if (selectedDelivery.type === 'OUTBOUND' && !isModifyingDispatched && !isModifyingDelivered && !isScheduleOnlySaveInPending) {
         await issueHandoverTask({
           category: 'OUTBOUND_PDI_INSPECTION',
           title: `[출고 PDI 검수 요망] ${curCust || '고객사'} (${mainVeh.driverName || '기사'} 배정)`,

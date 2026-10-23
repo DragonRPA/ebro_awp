@@ -873,6 +873,13 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setEmailSentSuccess(false);
   }, [selectedContractId, selectedContract, site?.id, isOpen, availableCustomerContacts]);
 
+  // 하차일자(계약개시일)·배차일·발행범위가 변경되면 이전 PDF 캐시를 초기화하여 변경된 일자로 즉시 재조립 보장
+  useEffect(() => {
+    setGeneratedResult(null);
+    setErrorMessage(null);
+    setEmailSentSuccess(false);
+  }, [equipmentUnloadingDate, baseDeliveryDate, filterDate]);
+
   // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
   useEffect(() => {
     if (!selectedContract || !isOpen) return;

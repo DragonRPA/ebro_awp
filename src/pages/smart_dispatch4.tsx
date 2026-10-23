@@ -294,6 +294,14 @@ export const SmartDispatch4: React.FC = () => {
   const [editHistoryOptQtys, setEditHistoryOptQtys] = useState<Record<string, number>>({});
   const [editHistoryPriceReason, setEditHistoryPriceReason] = useState<string>('');
   const [isSavingHistoryPrices, setIsSavingHistoryPrices] = useState<boolean>(false);
+
+  // 📅 출고 요청 내역 우측 상세: 4. 상하차 일정 및 계약(청구) 개시일 원스톱 변경 상태
+  const [isEditingHistorySchedule, setIsEditingHistorySchedule] = useState<boolean>(false);
+  const [editHistoryLoadingDate, setEditHistoryLoadingDate] = useState<string>('');
+  const [editHistoryLoadingSlot, setEditHistoryLoadingSlot] = useState<string>('오전');
+  const [editHistoryUnloadingDate, setEditHistoryUnloadingDate] = useState<string>('');
+  const [editHistoryUnloadingSlot, setEditHistoryUnloadingSlot] = useState<string>('오전');
+  const [isSavingHistorySchedule, setIsSavingHistorySchedule] = useState<boolean>(false);
   
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
@@ -6758,6 +6766,10 @@ export const SmartDispatch4: React.FC = () => {
         attachmentsStr: attachmentsStr && attachmentsStr !== 'NONE' ? attachmentsStr : '없음',
         specsStr: specsStr || '없음',
         checkedSpecsObj,
+        loadingDateVal: d.loadingDate || '',
+        loadingTimeSlotVal: (d.loadingTimeSlot || '오전').replace(/ASAP/g, '최우선'),
+        unloadingDateVal: d.unloadingDate || d.loadingDate || '',
+        unloadingTimeSlotVal: (d.unloadingTimeSlot || d.loadingTimeSlot || '오전').replace(/ASAP/g, '최우선'),
         loadingSchedule: `${d.loadingDate || '-'} ${(d.loadingTimeSlot || '').replace(/ASAP/g, '최우선')}`.trim(),
         unloadingSchedule: `${d.unloadingDate || d.loadingDate || '-'} ${(d.unloadingTimeSlot || d.loadingTimeSlot || '').replace(/ASAP/g, '최우선')}`.trim(),
         vehicleType: d.vehicleType || '5T',
@@ -7090,6 +7102,7 @@ export const SmartDispatch4: React.FC = () => {
                           onClick={() => {
                             setSelectedHistoryDeliveryId(row.id);
                             setIsEditingHistoryPrices(false);
+                            setIsEditingHistorySchedule(false);
                           }}
                           className={`cursor-pointer transition ${isSelected ? 'selected' : ''} ${row.dispatchStatus === 'CANCELLED' ? 'opacity-60' : ''}`}
                         >
@@ -7100,6 +7113,7 @@ export const SmartDispatch4: React.FC = () => {
                                 e.stopPropagation();
                                 setSelectedHistoryDeliveryId(row.id);
                                 setIsEditingHistoryPrices(false);
+                                setIsEditingHistorySchedule(false);
                               }}
                               className={`px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer whitespace-nowrap ${
                                 isSelected
@@ -7461,6 +7475,10 @@ export const SmartDispatch4: React.FC = () => {
                               setEditHistoryOptPrices(optPriceInit);
                               setEditHistoryOptUnits(optUnitInit);
                               setEditHistoryOptQtys(optQtyInit);
+                              setEditHistoryLoadingDate(selectedRow.loadingDateVal || getLocalTodayDateStr());
+                              setEditHistoryLoadingSlot(selectedRow.loadingTimeSlotVal || '오전');
+                              setEditHistoryUnloadingDate(selectedRow.unloadingDateVal || selectedRow.loadingDateVal || getLocalTodayDateStr());
+                              setEditHistoryUnloadingSlot(selectedRow.unloadingTimeSlotVal || '오전');
                               setEditHistoryPriceReason('');
                               setIsEditingHistoryPrices(true);
                             }}
@@ -7481,6 +7499,7 @@ export const SmartDispatch4: React.FC = () => {
                                 }
                                 setIsSavingHistoryPrices(true);
                                 try {
+                                  const unloadChanged = editHistoryUnloadingDate && editHistoryUnloadingDate !== selectedRow.unloadingDateVal;
                                   if (selectedRow.canEditPreInspection) {
                                     const allOpts = Array.from(editHistorySelectedOptions);
                                     const nextPaidStr = allOpts
@@ -7506,11 +7525,21 @@ export const SmartDispatch4: React.FC = () => {
                                       paidOptionPrices: editHistoryOptPrices,
                                       paidOptionUnits: editHistoryOptUnits,
                                       paidOptionQtys: editHistoryOptQtys,
+                                      loadingDate: editHistoryLoadingDate,
+                                      loadingTimeSlot: editHistoryLoadingSlot,
+                                      unloadingDate: editHistoryUnloadingDate,
+                                      unloadingTimeSlot: editHistoryUnloadingSlot,
                                       reason: editHistoryPriceReason
                                     });
                                     if (res.success) {
-                                      showToast(`배차번호 ${selectedRow.id}의 출고 요청 내역 및 단가가 수정 저장되었습니다.`, 'success');
+                                      showToast(
+                                        unloadChanged
+                                          ? `출고 요청 내역 및 하차일(계약개시일: ${editHistoryUnloadingDate})이 동기화 저장되었습니다.`
+                                          : `배차번호 ${selectedRow.id}의 출고 요청 내역 및 단가가 수정 저장되었습니다.`,
+                                        'success'
+                                      );
                                       setIsEditingHistoryPrices(false);
+                                      setIsEditingHistorySchedule(false);
                                     }
                                   } else {
                                     const eqList = Object.entries(editHistoryEqRates).map(([modelName, r]) => ({
@@ -7524,11 +7553,21 @@ export const SmartDispatch4: React.FC = () => {
                                       paidOptionPrices: editHistoryOptPrices,
                                       paidOptionUnits: editHistoryOptUnits,
                                       paidOptionQtys: editHistoryOptQtys,
+                                      loadingDate: editHistoryLoadingDate,
+                                      loadingTimeSlot: editHistoryLoadingSlot,
+                                      unloadingDate: editHistoryUnloadingDate,
+                                      unloadingTimeSlot: editHistoryUnloadingSlot,
                                       reason: editHistoryPriceReason
                                     });
                                     if (res.success) {
-                                      showToast(`배차번호 ${selectedRow.id}의 렌탈료 및 유상옵션 단가가 수정 저장되었습니다.`, 'success');
+                                      showToast(
+                                        unloadChanged
+                                          ? `렌탈료 단가 및 하차일(계약개시일: ${editHistoryUnloadingDate})이 동기화 저장되었습니다.`
+                                          : `배차번호 ${selectedRow.id}의 렌탈료 및 유상옵션 단가가 수정 저장되었습니다.`,
+                                        'success'
+                                      );
                                       setIsEditingHistoryPrices(false);
+                                      setIsEditingHistorySchedule(false);
                                     }
                                   }
                                 } finally {
@@ -8275,17 +8314,232 @@ export const SmartDispatch4: React.FC = () => {
 
                   {/* 5. 상하차 일정 및 배차/운송 정보 */}
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="text-[11px] font-bold text-blue-400">4. 상하차 일정 및 배차 현황</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="min-w-0">
-                        <span className="text-[10.5px] text-slate-400 block">상차 일정</span>
-                        <span className="font-mono font-bold text-white">{selectedRow.loadingSchedule}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[11px] font-bold text-blue-400 whitespace-nowrap">4. 상하차 일정 및 배차 현황</span>
+                        <span className="px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-700/60 text-indigo-300 text-[10px] font-bold whitespace-nowrap">
+                          하차일 = 계약·청구 개시일
+                        </span>
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-[10.5px] text-slate-400 block">하차 일정</span>
-                        <span className="font-mono font-bold text-white">{selectedRow.unloadingSchedule}</span>
-                      </div>
+                      {canSave &&
+                        selectedRow.dispatchStatus !== 'CANCELLED' &&
+                        selectedRow.dispatchStatus !== 'DELIVERED' &&
+                        selectedRow.dispatchStatus !== 'COMPLETED' &&
+                        !isEditingHistoryPrices && (
+                          !isEditingHistorySchedule ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditHistoryLoadingDate(selectedRow.loadingDateVal || getLocalTodayDateStr());
+                                setEditHistoryLoadingSlot(selectedRow.loadingTimeSlotVal || '오전');
+                                setEditHistoryUnloadingDate(selectedRow.unloadingDateVal || selectedRow.loadingDateVal || getLocalTodayDateStr());
+                                setEditHistoryUnloadingSlot(selectedRow.unloadingTimeSlotVal || '오전');
+                                setIsEditingHistorySchedule(true);
+                              }}
+                              className="rounded bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 font-bold transition whitespace-nowrap cursor-pointer"
+                              style={{ height: '26px', padding: '0 10px', fontSize: '11px', flexShrink: 0 }}
+                            >
+                              일정 · 개시일 변경
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                disabled={isSavingHistorySchedule}
+                                onClick={async () => {
+                                  if (!editHistoryLoadingDate || !editHistoryUnloadingDate) {
+                                    showToast('상차일과 하차일을 모두 선택해 주십시오.', 'error');
+                                    return;
+                                  }
+                                  if (editHistoryLoadingDate > editHistoryUnloadingDate) {
+                                    showToast('상차일이 하차일보다 늦을 수 없습니다.', 'error');
+                                    return;
+                                  }
+                                  setIsSavingHistorySchedule(true);
+                                  try {
+                                    const res = await updateOutboundRequestPricing({
+                                      deliveryId: selectedRow.id,
+                                      loadingDate: editHistoryLoadingDate,
+                                      loadingTimeSlot: editHistoryLoadingSlot,
+                                      unloadingDate: editHistoryUnloadingDate,
+                                      unloadingTimeSlot: editHistoryUnloadingSlot,
+                                      reason: '고객 요청에 의한 상하차 일시 및 계약 개시일 변경'
+                                    });
+                                    if (res.success) {
+                                      showToast(`하차일시(${editHistoryUnloadingDate} ${editHistoryUnloadingSlot}) 및 계약·청구 개시일이 일괄 변경되었습니다.`, 'success');
+                                      setIsEditingHistorySchedule(false);
+                                    }
+                                  } finally {
+                                    setIsSavingHistorySchedule(false);
+                                  }
+                                }}
+                                className="rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition whitespace-nowrap cursor-pointer"
+                                style={{ height: '26px', padding: '0 10px', fontSize: '11px', flexShrink: 0 }}
+                              >
+                                {isSavingHistorySchedule ? '저장중...' : '일정 저장'}
+                              </button>
+                              {selectedRow.totalAssignedCount > 0 && selectedRow.contractId && (
+                                <button
+                                  type="button"
+                                  disabled={isSavingHistorySchedule}
+                                  onClick={async () => {
+                                    if (!editHistoryLoadingDate || !editHistoryUnloadingDate) {
+                                      showToast('상차일과 하차일을 모두 선택해 주십시오.', 'error');
+                                      return;
+                                    }
+                                    if (editHistoryLoadingDate > editHistoryUnloadingDate) {
+                                      showToast('상차일이 하차일보다 늦을 수 없습니다.', 'error');
+                                      return;
+                                    }
+                                    setIsSavingHistorySchedule(true);
+                                    try {
+                                      const res = await updateOutboundRequestPricing({
+                                        deliveryId: selectedRow.id,
+                                        loadingDate: editHistoryLoadingDate,
+                                        loadingTimeSlot: editHistoryLoadingSlot,
+                                        unloadingDate: editHistoryUnloadingDate,
+                                        unloadingTimeSlot: editHistoryUnloadingSlot,
+                                        reason: '하차일시 변경 및 계약서패키지 재발송'
+                                      });
+                                      if (res.success) {
+                                        showToast(`하차일(계약개시일: ${editHistoryUnloadingDate}) 저장 완료. 변경된 계약서패키지 발송 창을 엽니다.`, 'success');
+                                        setIsEditingHistorySchedule(false);
+                                        setBundleModalTarget({
+                                          contractId: selectedRow.contractId,
+                                          deliveryId: selectedRow.id,
+                                          contractAssetIds: selectedRow.equipmentItems.flatMap(e => e.contractAssetIds || [])
+                                        });
+                                      }
+                                    } finally {
+                                      setIsSavingHistorySchedule(false);
+                                    }
+                                  }}
+                                  className="rounded bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400 font-bold transition whitespace-nowrap cursor-pointer"
+                                  style={{ height: '26px', padding: '0 10px', fontSize: '11px', flexShrink: 0 }}
+                                  title="변경된 하차일(계약개시일)로 저장한 뒤 즉시 계약서패키지 재발송 모달을 엽니다"
+                                >
+                                  저장 후 계약서 재발송 ➔
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={isSavingHistorySchedule}
+                                onClick={() => setIsEditingHistorySchedule(false)}
+                                className="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-slate-700 transition whitespace-nowrap cursor-pointer"
+                                style={{ height: '26px', padding: '0 8px', fontSize: '11px', flexShrink: 0 }}
+                              >
+                                취소
+                              </button>
+                            </div>
+                          )
+                        )}
                     </div>
+
+                    {(isEditingHistorySchedule || isEditingHistoryPrices) ? (
+                      <div className="flex flex-col gap-2.5 p-2.5 rounded-lg bg-slate-900 border border-blue-800/70">
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span className="text-[10.5px] font-bold text-slate-300 whitespace-nowrap">상차 일자</span>
+                            <input
+                              type="date"
+                              value={editHistoryLoadingDate}
+                              onChange={e => {
+                                const nextLoad = e.target.value;
+                                setEditHistoryLoadingDate(nextLoad);
+                                if (nextLoad && (!editHistoryUnloadingDate || editHistoryUnloadingDate < nextLoad)) {
+                                  setEditHistoryUnloadingDate(nextLoad);
+                                }
+                              }}
+                              className="rounded bg-slate-950 border border-slate-700 text-white font-mono font-bold"
+                              style={{ height: '32px', padding: '0 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span className="text-[10.5px] font-bold text-slate-300 whitespace-nowrap">상차 시간</span>
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={['오전', '오후', '최우선'].includes(editHistoryLoadingSlot) ? editHistoryLoadingSlot : '직접입력'}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setEditHistoryLoadingSlot(v === '직접입력' ? '08:00' : v);
+                                }}
+                                className="rounded bg-slate-950 border border-slate-700 text-white font-bold cursor-pointer"
+                                style={{ height: '32px', padding: '0 6px', fontSize: '11.5px', flex: 1, minWidth: 0, boxSizing: 'border-box' }}
+                              >
+                                <option value="오전">오전</option>
+                                <option value="오후">오후</option>
+                                <option value="최우선">최우선</option>
+                                <option value="직접입력">시각지정</option>
+                              </select>
+                              {!['오전', '오후', '최우선'].includes(editHistoryLoadingSlot) && (
+                                <input
+                                  type="time"
+                                  value={editHistoryLoadingSlot}
+                                  onChange={e => setEditHistoryLoadingSlot(e.target.value)}
+                                  className="rounded bg-slate-950 border border-blue-500/70 text-white font-mono font-bold"
+                                  style={{ height: '32px', padding: '0 6px', fontSize: '11.5px', width: '92px', flexShrink: 0, boxSizing: 'border-box' }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-800">
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span className="text-[10.5px] font-bold text-emerald-300 whitespace-nowrap">하차 일자 (계약·청구 개시일)</span>
+                            <input
+                              type="date"
+                              value={editHistoryUnloadingDate}
+                              onChange={e => setEditHistoryUnloadingDate(e.target.value)}
+                              className="rounded bg-slate-950 border border-emerald-500/80 text-emerald-300 font-mono font-bold"
+                              style={{ height: '32px', padding: '0 8px', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span className="text-[10.5px] font-bold text-emerald-300 whitespace-nowrap">하차 시간</span>
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={['오전', '오후', '최우선'].includes(editHistoryUnloadingSlot) ? editHistoryUnloadingSlot : '직접입력'}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setEditHistoryUnloadingSlot(v === '직접입력' ? '08:00' : v);
+                                }}
+                                className="rounded bg-slate-950 border border-emerald-500/80 text-emerald-300 font-bold cursor-pointer"
+                                style={{ height: '32px', padding: '0 6px', fontSize: '11.5px', flex: 1, minWidth: 0, boxSizing: 'border-box' }}
+                              >
+                                <option value="오전">오전</option>
+                                <option value="오후">오후</option>
+                                <option value="최우선">최우선</option>
+                                <option value="직접입력">시각지정</option>
+                              </select>
+                              {!['오전', '오후', '최우선'].includes(editHistoryUnloadingSlot) && (
+                                <input
+                                  type="time"
+                                  value={editHistoryUnloadingSlot}
+                                  onChange={e => setEditHistoryUnloadingSlot(e.target.value)}
+                                  className="rounded bg-slate-950 border border-emerald-500/80 text-emerald-300 font-mono font-bold"
+                                  style={{ height: '32px', padding: '0 6px', fontSize: '11.5px', width: '92px', flexShrink: 0, boxSizing: 'border-box' }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          • 하차 일자를 변경하면 연결된 계약 체결 자산의 개시일과 계약서 인도일시가 자동 동기화됩니다.
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[10.5px] text-slate-400 block">상차 일정</span>
+                          <span className="font-mono font-bold text-white">{selectedRow.loadingSchedule}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10.5px] text-emerald-400 font-bold block">하차 일정 (계약 개시일)</span>
+                          <span className="font-mono font-bold text-emerald-300">{selectedRow.unloadingSchedule}</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
                       <div className="min-w-0">
                         <span className="text-[10.5px] text-slate-400 block">희망 차종 / 운송비 부담</span>

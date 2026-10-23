@@ -373,6 +373,10 @@ interface AppContextType {
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     paidOptionQtys?: Record<string, number>;
+    loadingDate?: string;
+    loadingTimeSlot?: string;
+    unloadingDate?: string;
+    unloadingTimeSlot?: string;
     reason?: string;
   }) => Promise<{ success: boolean; errorMessage?: string }>;
   saveSmartReturn: (data: SmartReturnData) => Promise<any>;
@@ -3321,7 +3325,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const match = dateTimeStr.match(/\d{4}-\d{2}-\d{2}/);
       return match ? match[0] : '';
     };
-    const targetStartDate = extractDate(data.loadingTime) || extractDate(data.unloadingTime) || new Date().toISOString().split('T')[0];
+    const targetStartDate = extractDate(data.unloadingTime) || extractDate(data.loadingTime) || new Date().toISOString().split('T')[0];
 
     // ── 계약 단일성 원칙: 명시 지정 계약 ➔ 동일 (고객사 + 현장) 활성 계약 ➔ 동일 현장 종료 계약 탐색 ──
     const explicitTargetContract = (!rawData.forceNewContract && rawData.targetContractId)
@@ -4062,7 +4066,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // 💰 출고 요청 내역 수정 (요청 모델/수량/삭제/추가, 옵션 변경, 유상옵션 청구조건·단가 및 렌탈료 수정) 트랜잭션
+  // 💰 출고 요청 내역 수정 (요청 모델/수량/삭제/추가, 옵션 변경, 유상옵션 청구조건·단가, 상하차일시 및 계약개시일 수정) 트랜잭션
   const updateOutboundRequestPricing = async (params: {
     deliveryId: string;
     equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
@@ -4074,11 +4078,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paidOptionPrices?: Record<string, number>;
     paidOptionUnits?: Record<string, '월' | '대' | '건'>;
     paidOptionQtys?: Record<string, number>;
+    loadingDate?: string;
+    loadingTimeSlot?: string;
+    unloadingDate?: string;
+    unloadingTimeSlot?: string;
     reason?: string;
   }): Promise<{ success: boolean; errorMessage?: string }> => {
     if (db.isSupabaseConnected()) {
       try {
         await Promise.all([
+          db.pullTableFromSupabase('contracts'),
           db.pullTableFromSupabase('contractAssets'),
           db.pullTableFromSupabase('deliveries'),
           db.pullTableFromSupabase('outboundInspections')
@@ -4099,6 +4108,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, errorMessage: msg };
     }
 
+    const origLoadingDate = (targetDelivery.loadingDate || '').trim();
+    const origLoadingSlot = (targetDelivery.loadingTimeSlot || '').trim();
+    const origUnloadingDate = (targetDelivery.unloadingDate || targetDelivery.loadingDate || '').trim();
+    const origUnloadingSlot = (targetDelivery.unloadingTimeSlot || targetDelivery.loadingTimeSlot || '').trim();
+
+    const nextLoadingDate = params.loadingDate !== undefined ? params.loadingDate.trim() : origLoadingDate;
+    const nextLoadingSlot = params.loadingTimeSlot !== undefined ? params.loadingTimeSlot.trim() : origLoadingSlot;
+    const nextUnloadingDate = params.unloadingDate !== undefined ? params.unloadingDate.trim() : origUnloadingDate;
+    const nextUnloadingSlot = params.unloadingTimeSlot !== undefined ? params.unloadingTimeSlot.trim() : origUnloadingSlot;
+
+    if (nextLoadingDate && nextUnloadingDate && nextLoadingDate > nextUnloadingDate) {
+      const msg = '상차일이 하차일보다 늦을 수 없습니다. 일자를 확인해 주십시오.';
+      showErrorModal(msg, '상하차 일자 확인');
+      return { success: false, errorMessage: msg };
+    }
+
     let parsedCargo: any[] = [];
     try {
       if (targetDelivery.cargoItems) {
@@ -4110,6 +4135,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const deliverySnapshot = { ...targetDelivery };
+    const contractSnapshot = targetDelivery.contractId
+      ? (() => {
+          const c = db.contracts.find(ct => ct.id === targetDelivery.contractId);
+          return c ? { ...c } : null;
+        })()
+      : null;
     const caSnapshots: ContractAsset[] = [];
     const deletedCas: ContractAsset[] = [];
     const createdCaIds: string[] = [];
@@ -4122,7 +4153,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const actorName = currentUser?.name || '담당자';
       const changeLogs: string[] = [];
 
+      if (params.loadingDate !== undefined || params.loadingTimeSlot !== undefined) {
+        if (origLoadingDate !== nextLoadingDate || origLoadingSlot !== nextLoadingSlot) {
+          changeLogs.push(`상차일시: [${origLoadingDate || '-'} ${origLoadingSlot}]➔[${nextLoadingDate || '-'} ${nextLoadingSlot}]`);
+        }
+      }
+      if (params.unloadingDate !== undefined || params.unloadingTimeSlot !== undefined) {
+        if (origUnloadingDate !== nextUnloadingDate || origUnloadingSlot !== nextUnloadingSlot) {
+          changeLogs.push(`하차일시(계약개시일): [${origUnloadingDate || '-'} ${origUnloadingSlot}]➔[${nextUnloadingDate || '-'} ${nextUnloadingSlot}]`);
+        }
+      }
+
       const baseMeta = parsedCargo.find(ci => ci?.requestMeta)?.requestMeta || {};
+      const nextLoadingTimeStr = `${nextLoadingDate} ${nextLoadingSlot}`.trim() || baseMeta?.loadingTime || '';
+      const nextUnloadingTimeStr = `${nextUnloadingDate} ${nextUnloadingSlot}`.trim() || baseMeta?.unloadingTime || '';
       const origPaidOptions = parsedCargo[0]?.paidOptions ?? '';
       const origPrices: Record<string, number> = parsedCargo[0]?.paidOptionPrices || baseMeta?.paidOptionPrices || {};
       const origUnits: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || baseMeta?.paidOptionUnits || {};
@@ -4234,7 +4278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const keptCaIds = new Set<string>();
         const targetContract = targetDelivery.contractId ? db.contracts.find(c => c.id === targetDelivery.contractId) : undefined;
-        const startDateStr = (targetDelivery.loadingDate || targetDelivery.scheduledDate || targetContract?.startDate || todayStr).slice(0, 10);
+        const startDateStr = (nextUnloadingDate || nextLoadingDate || targetDelivery.scheduledDate || targetContract?.startDate || todayStr).slice(0, 10);
 
         const releaseAssignedAssetOnCa = (ca: ContractAsset) => {
           if (!ca.assetId) return;
@@ -4340,6 +4384,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           const updatedMeta = {
             ...baseMeta,
+            ...(nextLoadingTimeStr ? { loadingTime: nextLoadingTimeStr } : {}),
+            ...(nextUnloadingTimeStr ? { unloadingTime: nextUnloadingTimeStr } : {}),
             protection: nextProtection,
             attachments: nextAttachments,
             ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
@@ -4374,7 +4420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         });
       } else {
-        // Case B: 이미 완료된 출고 건 등의 단가/옵션만 수정하는 경우
+        // Case B: 단가/옵션 또는 상하차 일정만 수정하는 경우
         updatedCargo = parsedCargo.map((ci, idx) => {
           const nextCi = { ...ci };
 
@@ -4432,6 +4478,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (idx === 0 || nextCi.requestMeta) {
             nextCi.requestMeta = {
               ...(nextCi.requestMeta || baseMeta),
+              ...(nextLoadingTimeStr ? { loadingTime: nextLoadingTimeStr } : {}),
+              ...(nextUnloadingTimeStr ? { unloadingTime: nextUnloadingTimeStr } : {}),
               protection: nextProtection,
               attachments: nextAttachments,
               ...(nextCheckedSpecs !== undefined ? { checkedSpecs: nextCheckedSpecs } : {}),
@@ -4443,6 +4491,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           return nextCi;
         });
+      }
+
+      // 🔗 [하차일 = 계약(청구) 개시일 자동 연동]: 하차일이 지정/변경된 경우 이 출고 요청에 귀속된 모든 체결 자산(ContractAsset), 할당 장비(Asset), 계약(Contract)의 개시일을 하차일로 일괄 동기화
+      if (nextUnloadingDate && /^\d{4}-\d{2}-\d{2}$/.test(nextUnloadingDate)) {
+        const targetCaIdSet = new Set<string>();
+        updatedCargo.forEach(ci => {
+          if (Array.isArray(ci?.contractAssetIds)) {
+            ci.contractAssetIds.forEach((id: string) => {
+              if (id) targetCaIdSet.add(id);
+            });
+          }
+        });
+        db.outboundInspections
+          .filter(ins => ins.deliveryId === targetDelivery.id && (ins as any).contractAssetId)
+          .forEach(ins => targetCaIdSet.add((ins as any).contractAssetId));
+
+        if (targetCaIdSet.size === 0 && targetDelivery.contractId) {
+          db.contractAssets
+            .filter(ca =>
+              ca.contractId === targetDelivery.contractId &&
+              ca.status !== 'RETURNED' &&
+              ca.status !== 'SOLD' &&
+              (!ca.startDate || ca.startDate === origUnloadingDate || ca.startDate === origLoadingDate)
+            )
+            .forEach(ca => targetCaIdSet.add(ca.id));
+        }
+
+        let syncedSlotCount = 0;
+        targetCaIdSet.forEach(caId => {
+          const caObj = db.contractAssets.find(c => c.id === caId && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId));
+          if (!caObj) return;
+          const shouldSyncFirstStart =
+            !caObj.firstStartDate ||
+            caObj.firstStartDate === caObj.startDate ||
+            caObj.firstStartDate === origUnloadingDate ||
+            caObj.firstStartDate === origLoadingDate;
+
+          if (caObj.startDate !== nextUnloadingDate || (shouldSyncFirstStart && caObj.firstStartDate !== nextUnloadingDate)) {
+            if (!caSnapshots.some(s => s.id === caObj.id)) {
+              caSnapshots.push({ ...caObj });
+            }
+            db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+              startDate: nextUnloadingDate,
+              ...(shouldSyncFirstStart ? { firstStartDate: nextUnloadingDate } : {})
+            });
+            syncedSlotCount++;
+          }
+
+          if (caObj.assetId) {
+            const assignedAsset = db.assets.find(a => a.id === caObj.assetId);
+            if (assignedAsset && assignedAsset.contractStart !== nextUnloadingDate) {
+              if (!assetSnapshots.some(s => s.id === assignedAsset.id)) {
+                assetSnapshots.push({ ...assignedAsset });
+              }
+              db.updateRow<Asset>('assets', assignedAsset.id, {
+                contractStart: nextUnloadingDate
+              });
+            }
+          }
+        });
+
+        if (targetDelivery.contractId) {
+          const parentContract = db.contracts.find(c => c.id === targetDelivery.contractId);
+          if (parentContract) {
+            const activeCasForContract = db.contractAssets.filter(
+              c => c.contractId === parentContract.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.startDate
+            );
+            const sortedStartDates = activeCasForContract.map(c => c.startDate).filter(Boolean).sort();
+            const earliestContractStart = sortedStartDates[0] || nextUnloadingDate;
+            if (parentContract.startDate !== earliestContractStart) {
+              db.updateRow<Contract>('contracts', parentContract.id, {
+                startDate: earliestContractStart,
+                updatedAt: nowIso
+              });
+            }
+          }
+        }
+
+        if (syncedSlotCount > 0 && !changeLogs.some(l => l.startsWith('하차일시'))) {
+          changeLogs.push(`계약·청구 개시일(하차일 기준) 동기화: ${nextUnloadingDate} (${syncedSlotCount}대)`);
+        }
       }
 
       // 레거시 closingMemo / memo에 옵션 태그가 이미 있던 경우에만 동기화 (신규 배차의 closingMemo에는 옵션을 주입하지 않음)
@@ -4458,8 +4587,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const optSegment = `[옵션] ${nextPaidOptions || '없음'}${nextProtection && nextProtection !== 'NONE' && nextProtection !== '없음' ? ` / 보양: ${nextProtection}` : ''}`;
         nextMemo = nextMemo.replace(/\[옵션\]\s*[^|]+/, `${optSegment} `);
       }
+      if ((params.unloadingDate !== undefined || params.unloadingTimeSlot !== undefined) && nextMemo.includes('[하차일정]')) {
+        nextMemo = nextMemo.replace(/\[하차일정\]\s*[^|]+/, `[하차일정] ${nextUnloadingDate} ${nextUnloadingSlot} `);
+      }
 
       db.updateRow<Delivery>('deliveries', targetDelivery.id, {
+        loadingDate: nextLoadingDate,
+        loadingTimeSlot: nextLoadingSlot,
+        unloadingDate: nextUnloadingDate,
+        unloadingTimeSlot: nextUnloadingSlot,
+        scheduledDate: nextLoadingDate || targetDelivery.scheduledDate,
         cargoItems: JSON.stringify(updatedCargo),
         closingMemo: nextClosingMemo,
         memo: nextMemo,
@@ -4482,6 +4619,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       console.error('updateOutboundRequestPricing error:', err);
       db.updateRow<Delivery>('deliveries', deliverySnapshot.id, deliverySnapshot);
+      if (contractSnapshot) {
+        db.updateRow<Contract>('contracts', contractSnapshot.id, contractSnapshot);
+      }
       createdCaIds.forEach(id => db.deleteRow('contractAssets', id));
       deletedCas.forEach(ca => db.insertRow<ContractAsset>('contractAssets', ca));
       caSnapshots.forEach(ca => db.updateRow<ContractAsset>('contractAssets', ca.id, ca));
