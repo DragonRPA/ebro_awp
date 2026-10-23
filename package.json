@@ -26,7 +26,7 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
-    "nodemailer": "^9.0.3",
+    "nodemailer": "^10.2.1",
     "pdf-lib": "^1.17.1",
     "pdf-to-printer": "^5.8.1",
     "pdfjs-dist": "^3.11.174",

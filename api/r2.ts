@@ -31,9 +31,20 @@ function getS3Client(accountId: string, accessKeyId: string, secretAccessKey: st
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS 처리
+  // CORS 처리 (허용된 Origin 검증)
+  const origin = req.headers.origin || '';
+  const isAllowedOrigin =
+    !origin ||
+    origin.endsWith('.ebro.run') ||
+    origin === 'https://ebro.run' ||
+    origin.endsWith('.vercel.app') ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    origin === 'capacitor://localhost' ||
+    origin === 'http://localhost';
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin && origin ? origin : 'https://ebro.run');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -42,6 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (!isAllowedOrigin) {
+    return res.status(403).json({ success: false, error: '허용되지 않은 출처의 요청입니다.' });
   }
 
   const action = (req.query.action as string) || (req.body && req.body.action) || 'list';

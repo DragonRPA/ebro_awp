@@ -13,9 +13,20 @@ export const config = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS 처리
+  // CORS 처리 (허용된 Origin 검증)
+  const origin = req.headers.origin || '';
+  const isAllowedOrigin =
+    !origin ||
+    origin.endsWith('.ebro.run') ||
+    origin === 'https://ebro.run' ||
+    origin.endsWith('.vercel.app') ||
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:') ||
+    origin === 'capacitor://localhost' ||
+    origin === 'http://localhost';
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', isAllowedOrigin && origin ? origin : 'https://ebro.run');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -24,6 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (!isAllowedOrigin) {
+    return res.status(403).json({ error: '허용되지 않은 출처의 요청입니다.' });
   }
 
   if (req.method !== 'POST') {
@@ -74,10 +89,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
+    const isSafeAttachmentUrl = (rawUrl: string): boolean => {
+      try {
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== 'https:') return false;
+        const host = parsed.hostname.toLowerCase();
+        // 내부망/루프백/메타데이터 IP 대역 원천 차단 (SSRF 방어)
+        if (
+          host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host === '0.0.0.0' ||
+          host === '169.254.169.254' ||
+          host.startsWith('10.') ||
+          host.startsWith('192.168.') ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+          host.endsWith('.internal') ||
+          host.endsWith('.local')
+        ) {
+          return false;
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     const parsedAttachments = [];
     if (Array.isArray(attachments)) {
       for (const att of attachments) {
         if (att.url) {
+          if (!isSafeAttachmentUrl(String(att.url))) {
+            console.warn(`Blocked unsafe attachment URL: ${att.url}`);
+            continue;
+          }
           try {
             const resp = await fetch(att.url);
             if (resp.ok) {
