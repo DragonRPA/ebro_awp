@@ -94,7 +94,8 @@ export const DailyInOutStatus: React.FC = () => {
 
   useEffect(() => {
     loadTablesForMenu?.('daily_inout');
-  }, [loadTablesForMenu]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isDark = theme === 'dark';
 

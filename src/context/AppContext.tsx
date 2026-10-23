@@ -1333,18 +1333,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'dev_uploader':         ['contracts', 'contractAssets', 'customers', 'sites', 'siteMasters', 'assets'],
   };
 
-  const loadTablesForMenu = async (menuId: string) => {
+  const inFlightMenuLoadsRef = useRef<Map<string, Promise<void>>>(new Map());
+  const lastMenuLoadAtRef = useRef<Map<string, number>>(new Map());
+
+  const loadTablesForMenu = useCallback(async (menuId: string) => {
     if (!db.isSupabaseConnected()) return;
     const keys = MENU_TABLE_MAP[menuId];
     if (!keys || keys.length === 0) return;
-    try {
-      await Promise.all(keys.map(key => db.pullTableFromSupabase(key)));
-      refreshAllData();
-    } catch (err: any) {
-      console.error('loadTablesForMenu error:', err);
-      showErrorModal(err?.message || String(err), '메뉴 데이터 동기화 오류');
+
+    const existingPromise = inFlightMenuLoadsRef.current.get(menuId);
+    if (existingPromise) {
+      return existingPromise;
     }
-  };
+
+    const now = Date.now();
+    const lastLoadedAt = lastMenuLoadAtRef.current.get(menuId) || 0;
+    if (now - lastLoadedAt < 1500) {
+      return;
+    }
+
+    const loadPromise = (async () => {
+      try {
+        await Promise.all(keys.map(key => db.pullTableFromSupabase(key)));
+        lastMenuLoadAtRef.current.set(menuId, Date.now());
+        refreshAllData();
+      } catch (err: any) {
+        console.error('loadTablesForMenu error:', err);
+        showErrorModal(err?.message || String(err), '메뉴 데이터 동기화 오류');
+      } finally {
+        inFlightMenuLoadsRef.current.delete(menuId);
+      }
+    })();
+
+    inFlightMenuLoadsRef.current.set(menuId, loadPromise);
+    return loadPromise;
+  }, []);
 
 
   useEffect(() => {

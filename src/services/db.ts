@@ -6830,10 +6830,13 @@ class LocalDB {
     return normalized;
   }
 
+  private inFlightTablePulls = new Map<string, Promise<any[] | null>>();
+
   // 단일 테이블만 Supabase에서 pull (메뉴 전환 시 관련 테이블만 선택적 로딩용)
   /**
    * Supabase PostgREST 기본 1,000건 제한을 극복하여 대용량 테이블(billing_details 등)의 전체 레코드를 무누락 전수 로드합니다.
    * 중앙 플랫폼 테이블(tenants 등)은 centralSupabase(ebro-platform-core)에서 직접 조회합니다.
+   * 일시적 네트워크 순단(TypeError: Failed to fetch 등) 발생 시 최대 3회 지수 백오프 재시도를 수행합니다.
    */
   private async fetchAllRowsFromSupabase(tableName: string): Promise<any[]> {
     const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
@@ -6843,15 +6846,49 @@ class LocalDB {
     let from = 0;
 
     while (true) {
-      const { data, error } = await targetClient
-        .from(tableName)
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+      let data: any[] | null = null;
+      let lastError: any = null;
+      const MAX_RETRIES = 3;
 
-      if (error) {
-        console.error(`[db.ts] Supabase fetchAllRows failed for ${tableName} (range ${from}-${from + PAGE_SIZE - 1}):`, error);
-        throw new Error(`[Supabase DB 조회 실패] ${tableName}\n\n사유: ${error.message || String(error)}`);
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const res = await targetClient
+            .from(tableName)
+            .select('*')
+            .order('id', { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+
+          if (!res.error) {
+            data = res.data;
+            lastError = null;
+            break;
+          }
+          lastError = res.error;
+        } catch (err: any) {
+          lastError = err;
+        }
+
+        const errMsg = String(lastError?.message || lastError || '');
+        const isTransientNetworkError =
+          errMsg.includes('Failed to fetch') ||
+          errMsg.includes('NetworkError') ||
+          errMsg.includes('Load failed') ||
+          errMsg.includes('fetch failed') ||
+          errMsg.includes('502') ||
+          errMsg.includes('503') ||
+          errMsg.includes('504') ||
+          errMsg.includes('520');
+
+        if (!isTransientNetworkError || attempt === MAX_RETRIES) {
+          break;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 250 * attempt));
+      }
+
+      if (lastError) {
+        console.error(`[db.ts] Supabase fetchAllRows failed for ${tableName} (range ${from}-${from + PAGE_SIZE - 1}):`, lastError);
+        throw new Error(`[Supabase DB 조회 실패] ${tableName}\n\n사유: ${lastError.message || String(lastError)}`);
       }
 
       if (!data || data.length === 0) break;
@@ -6864,27 +6901,41 @@ class LocalDB {
     return allRows;
   }
 
-  // 단일 테이블만 Supabase에서 pull (메뉴 전환 시 관련 테이블만 선택적 로딩용)
+  // 단일 테이블만 Supabase에서 pull (메뉴 전환 시 관련 테이블만 선택적 로딩용 — 중복 동시 호출 병합)
   async pullTableFromSupabase(key: string): Promise<any[] | null> {
-    const tableName = this.mapToSupabaseTable(key);
-    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
-    if (!targetClient) return null;
-    const data = await this.fetchAllRowsFromSupabase(tableName);
-    let normalizedData = this.normalizePayloadKeys(data, tableName);
-    if (key === 'customRoles' && (!normalizedData || normalizedData.length === 0)) {
-      normalizedData = SEED_CUSTOM_ROLES;
-      const { error } = await targetClient.from('custom_roles').upsert(
-        SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
-        { onConflict: 'id' }
-      );
-      if (error) {
-        throw new Error(`[Supabase custom_roles 초기 시드 저장 실패]: ${error.message}`);
-      }
-    } else if (key === 'rolePermissions' && (!normalizedData || normalizedData.length === 0)) {
-      normalizedData = SEED_ROLE_PERMISSIONS;
+    const existing = this.inFlightTablePulls.get(key);
+    if (existing) {
+      return existing;
     }
-    this.set(key as keyof LocalDB, normalizedData);
-    return normalizedData;
+
+    const promise = (async () => {
+      try {
+        const tableName = this.mapToSupabaseTable(key);
+        const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+        if (!targetClient) return null;
+        const data = await this.fetchAllRowsFromSupabase(tableName);
+        let normalizedData = this.normalizePayloadKeys(data, tableName);
+        if (key === 'customRoles' && (!normalizedData || normalizedData.length === 0)) {
+          normalizedData = SEED_CUSTOM_ROLES;
+          const { error } = await targetClient.from('custom_roles').upsert(
+            SEED_CUSTOM_ROLES.map(r => this.sanitizeSupabasePayload(r, 'custom_roles')),
+            { onConflict: 'id' }
+          );
+          if (error) {
+            throw new Error(`[Supabase custom_roles 초기 시드 저장 실패]: ${error.message}`);
+          }
+        } else if (key === 'rolePermissions' && (!normalizedData || normalizedData.length === 0)) {
+          normalizedData = SEED_ROLE_PERMISSIONS;
+        }
+        this.set(key as keyof LocalDB, normalizedData);
+        return normalizedData;
+      } finally {
+        this.inFlightTablePulls.delete(key);
+      }
+    })();
+
+    this.inFlightTablePulls.set(key, promise);
+    return promise;
   }
 
 
