@@ -665,7 +665,10 @@ CREATE TABLE deliveries (
     "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE SET NULL,
     "assetIds"            TEXT,
     type                  TEXT CHECK (type IN ('OUTBOUND', 'INBOUND', 'EXCHANGE', 'MOVEMENT', 'RETURN')) NOT NULL,
-    "dispatchCategory"    TEXT CHECK ("dispatchCategory" IN ('출고', '입고', '반납', '정비', '이동', '교환')) DEFAULT '출고',
+    "dispatchCategory"    TEXT CHECK ("dispatchCategory" IN ('출고', '입고', '반납', '정비', '이동', '교환', '경유/합짐')) DEFAULT '출고',
+    "bundleGroupId"       TEXT,
+    "bundleOrder"         INTEGER,
+    "originalDispatchCategory" TEXT,
     purpose               TEXT,
     "paidBy"              TEXT,
 

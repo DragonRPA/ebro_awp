@@ -6238,7 +6238,31 @@ class LocalDB {
   get contractHistories() { return this.contractHistory; }
   set contractHistories(val: ContractHistory[]) { this.contractHistory = val; }
 
-  get deliveries() { return this.get<Delivery>('deliveries', SEED_DELIVERIES); }
+  get deliveries() {
+    const raw = this.get<Delivery>('deliveries', SEED_DELIVERIES);
+    return raw.map(d => {
+      if (!d) return d;
+      if (d.memo && typeof d.memo === 'string') {
+        const bMatch = d.memo.match(/\[BUNDLE:([^|\]]+)\|(\d+)\|([^|\]]+)\]/);
+        if (bMatch) {
+          const parsedGroupId = bMatch[1].trim();
+          const parsedOrder = parseInt(bMatch[2], 10);
+          const parsedOrigCat = bMatch[3].trim() as any;
+          const cleanMemo = d.memo.replace(/\s*\[BUNDLE:[^\]]+\]/g, '').trim();
+          return {
+            ...d,
+            memo: cleanMemo,
+            bundleGroupId: d.bundleGroupId !== undefined ? d.bundleGroupId : parsedGroupId,
+            bundleOrder: d.bundleOrder !== undefined ? d.bundleOrder : (isNaN(parsedOrder) ? 1 : parsedOrder),
+            originalDispatchCategory: d.originalDispatchCategory || parsedOrigCat,
+            dispatchCategory: d.bundleGroupId === null ? d.dispatchCategory : ('경유/합짐' as const),
+            dropoffType: d.bundleGroupId === null ? d.dropoffType : (d.dropoffType || 'MULTI_STOP')
+          };
+        }
+      }
+      return d;
+    });
+  }
   set deliveries(val: Delivery[]) { this.set('deliveries', val); }
 
   get transportCompanies() { return this.get<TransportCompany>('transportCompanies', SEED_TRANSPORT_COMPANIES); }
@@ -6666,6 +6690,17 @@ class LocalDB {
     if (tableName === 'assets') {
       if (!normalized.assetNature) {
         normalized.assetNature = isVirtualAsset(normalized) ? 'VIRTUAL' : 'PHYSICAL';
+      }
+    }
+    if (tableName === 'deliveries' && normalized.memo && typeof normalized.memo === 'string') {
+      const bMatch = normalized.memo.match(/\[BUNDLE:([^|\]]+)\|(\d+)\|([^|\]]+)\]/);
+      if (bMatch) {
+        if (!normalized.bundleGroupId) normalized.bundleGroupId = bMatch[1].trim();
+        if (!normalized.bundleOrder) normalized.bundleOrder = parseInt(bMatch[2], 10) || 1;
+        if (!normalized.originalDispatchCategory) normalized.originalDispatchCategory = bMatch[3].trim();
+        normalized.dispatchCategory = '경유/합짐';
+        if (!normalized.dropoffType) normalized.dropoffType = 'MULTI_STOP';
+        normalized.memo = normalized.memo.replace(/\s*\[BUNDLE:[^\]]+\]/g, '').trim();
       }
     }
     if (tableName === 'consumables') {
@@ -7120,6 +7155,25 @@ class LocalDB {
       if (resolvedTable === 'assets' && (key === 'antiEntrapmentOwnership' || key === 'isReactivating')) {
         continue;
       }
+      if (resolvedTable === 'deliveries' && ['bundleGroupId', 'bundleOrder', 'originalDispatchCategory'].includes(key)) {
+        continue;
+      }
+      if (resolvedTable === 'deliveries' && key === 'dispatchCategory' && val === '경유/합짐') {
+        const fallbackCat =
+          (obj.originalDispatchCategory && ['출고', '입고', '교환', '반납', '정비', '이동'].includes(obj.originalDispatchCategory))
+            ? obj.originalDispatchCategory
+            : obj.type === 'RETURN'
+              ? '반납'
+              : obj.type === 'INBOUND'
+                ? '입고'
+                : obj.type === 'EXCHANGE'
+                  ? '교환'
+                  : obj.type === 'MOVEMENT'
+                    ? '이동'
+                    : '출고';
+        sanitized['dispatchCategory'] = fallbackCat;
+        continue;
+      }
       if (resolvedTable === 'customers') {
         if (key === 'billingDay') {
           if (obj.defaultBillingDay === undefined) sanitized['defaultBillingDay'] = val;
@@ -7344,6 +7398,43 @@ class LocalDB {
 
       if (specsModified) {
         sanitized.defaultCheckedSpecs = baseSpecs;
+      }
+    }
+
+    // deliveries 테이블의 경유/합짐 묶음 메타데이터([BUNDLE:bundleGroupId|bundleOrder|originalDispatchCategory])를 memo에 동기화하여 원격 DB 스키마 제약 없이 100% 영구 보존
+    if (resolvedTable === 'deliveries') {
+      const existingDel = obj.id ? (this.deliveries || []).find(d => d && d.id === obj.id) : null;
+      const hasBundleFieldInUpdate =
+        'bundleGroupId' in obj ||
+        'bundleOrder' in obj ||
+        'originalDispatchCategory' in obj ||
+        obj.dispatchCategory === '경유/합짐' ||
+        'memo' in obj ||
+        Boolean(existingDel?.bundleGroupId);
+      if (hasBundleFieldInUpdate) {
+        const effectiveGroupId = 'bundleGroupId' in obj ? obj.bundleGroupId : existingDel?.bundleGroupId;
+        const effectiveOrder = ('bundleOrder' in obj ? obj.bundleOrder : existingDel?.bundleOrder) || 1;
+        const effectiveOrigCat =
+          ('originalDispatchCategory' in obj ? obj.originalDispatchCategory : existingDel?.originalDispatchCategory) ||
+          (existingDel?.dispatchCategory && existingDel.dispatchCategory !== '경유/합짐' ? existingDel.dispatchCategory : null) ||
+          (obj.type === 'RETURN' || existingDel?.type === 'RETURN'
+            ? '반납'
+            : obj.type === 'INBOUND' || existingDel?.type === 'INBOUND'
+              ? '입고'
+              : obj.type === 'EXCHANGE' || existingDel?.type === 'EXCHANGE'
+                ? '교환'
+                : obj.type === 'MOVEMENT' || existingDel?.type === 'MOVEMENT'
+                  ? '이동'
+                  : '출고');
+        const baseMemo = (sanitized.memo !== undefined ? String(sanitized.memo || '') : String(existingDel?.memo || ''))
+          .replace(/\s*\[BUNDLE:[^\]]+\]/g, '')
+          .trim();
+        if (effectiveGroupId) {
+          const bundleTag = `[BUNDLE:${effectiveGroupId}|${effectiveOrder}|${effectiveOrigCat}]`;
+          sanitized.memo = baseMemo ? `${baseMemo} ${bundleTag}` : bundleTag;
+        } else if ('bundleGroupId' in obj || 'memo' in obj) {
+          sanitized.memo = baseMemo;
+        }
       }
     }
 
