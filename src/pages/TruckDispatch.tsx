@@ -5455,8 +5455,10 @@ export const TruckDispatch: React.FC = () => {
                           </div>
                         </div>
 
-                        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{customer?.name || (d.billableCustomerId ? getCustomer(d.billableCustomerId)?.name : '') || d.destinationAddress || '고객사 미지정'}</span>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {customer?.name || (d.billableCustomerId ? getCustomer(d.billableCustomerId)?.name : '') || d.destinationAddress || '고객사 미지정'}
+                          </span>
                           {customer?.transactionStatus === 'RESTRICT_NEW' && (
                             <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
                               추가계약금지
@@ -5468,11 +5470,26 @@ export const TruckDispatch: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '6px' }}>
+                          <div
+                            title={d.destinationAddress || '목적지 미지정'}
+                            style={{
+                              fontSize: '12.5px',
+                              color: 'var(--text-secondary)',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              wordBreak: 'keep-all',
+                              lineHeight: 1.35,
+                              flex: 1,
+                              minWidth: 0
+                            }}
+                          >
                             📍 {d.destinationAddress || '목적지 미지정'}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -6084,43 +6101,48 @@ export const TruckDispatch: React.FC = () => {
                                           cursor: 'pointer'
                                         }}
                                       >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                                          <span style={{
-                                            padding: '2px 8px',
-                                            borderRadius: '5px',
-                                            backgroundColor: idx === 0 ? '#4f46e5' : 'rgba(79,70,229,0.15)',
-                                            color: idx === 0 ? '#ffffff' : '#4338ca',
-                                            fontSize: '11px',
-                                            fontWeight: 800,
-                                            whiteSpace: 'nowrap',
-                                            flexShrink: 0
-                                          }}>
-                                            순서 {idx + 1} · {sOrigCat}
-                                          </span>
-                                          {/* 경유지 개별 진행 상태 배지 */}
-                                          {sNormSt === 'DELIVERED' ? (
-                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                              🟢 {getDeliveryCompletionActionLabel(stopItem)}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', minWidth: 0 }}>
+                                            <span style={{
+                                              padding: '2px 8px',
+                                              borderRadius: '5px',
+                                              backgroundColor: idx === 0 ? '#4f46e5' : 'rgba(79,70,229,0.15)',
+                                              color: idx === 0 ? '#ffffff' : '#4338ca',
+                                              fontSize: '11px',
+                                              fontWeight: 800,
+                                              whiteSpace: 'nowrap',
+                                              flexShrink: 0
+                                            }}>
+                                              순서 {idx + 1} · {sOrigCat}
                                             </span>
-                                          ) : sNormSt === 'DISPATCHED' && sIsLoaded ? (
-                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.16)', color: '#d97706', border: '1px solid rgba(217,119,6,0.38)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                              🟠 상차완료
+                                            {/* 경유지 개별 진행 상태 배지 */}
+                                            {sNormSt === 'DELIVERED' ? (
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                🟢 {getDeliveryCompletionActionLabel(stopItem)}
+                                              </span>
+                                            ) : sNormSt === 'DISPATCHED' && sIsLoaded ? (
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.16)', color: '#d97706', border: '1px solid rgba(217,119,6,0.38)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                🟠 상차완료
+                                              </span>
+                                            ) : sNormSt === 'DISPATCHED' ? (
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                🔵 배차완료
+                                              </span>
+                                            ) : (
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                🟡 배차대기
+                                              </span>
+                                            )}
+                                            <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                              {sCust || stopItem.destinationAddress || '현장'}
                                             </span>
-                                          ) : sNormSt === 'DISPATCHED' ? (
-                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                              🔵 배차완료
-                                            </span>
-                                          ) : (
-                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.35)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                              🟡 배차대기
-                                            </span>
-                                          )}
-                                          <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                            {sCust || stopItem.destinationAddress || '현장'}
-                                          </span>
-                                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                          </div>
+                                          <div
+                                            title={`[${stopItem.loadingTimeSlot || '시간미정'}] ${stopItem.originAddress || '상차지'} ➔ ${stopItem.destinationAddress || '하차지'} (${sCargo})`}
+                                            style={{ fontSize: '11.5px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                          >
                                             [{stopItem.loadingTimeSlot || '시간미정'}] {stopItem.originAddress || '상차지'} ➔ {stopItem.destinationAddress || '하차지'} ({sCargo})
-                                          </span>
+                                          </div>
                                         </div>
 
                                         {canSave && (
@@ -8292,13 +8314,13 @@ export const TruckDispatch: React.FC = () => {
               </div>
             )}
 
-            {/* 1:1 대사 그리드 테이블 (행 높이 42px / 한눈에 15건 조망) */}
-            <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+            {/* 1:1 대사 그리드 테이블 (고정 레이아웃으로 횡스크롤 및 컬럼 밀림 원천 차단) */}
+            <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                   {/* 1행: 대분류 영역 헤더 (상태 | 배차정보 3열 | 비교 | 청구정보 3열 | 차액 | 조치) */}
                   <tr style={{ backgroundColor: 'var(--bg-body)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '11.5px' }}>
-                    <th rowSpan={2} style={{ padding: '6px 8px', width: '65px', textAlign: 'center', verticalAlign: 'middle', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
+                    <th rowSpan={2} style={{ padding: '6px 8px', width: '68px', textAlign: 'center', verticalAlign: 'middle', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
                       상태
                     </th>
                     <th colSpan={3} style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 800, backgroundColor: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', borderRight: '1px solid var(--border-color)' }}>
@@ -8310,10 +8332,10 @@ export const TruckDispatch: React.FC = () => {
                     <th colSpan={3} style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 800, backgroundColor: 'rgba(16, 185, 129, 0.08)', color: '#10b981', borderRight: '1px solid var(--border-color)' }}>
                       청구정보
                     </th>
-                    <th rowSpan={2} style={{ padding: '6px 8px', width: '120px', textAlign: 'center', verticalAlign: 'middle', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
+                    <th rowSpan={2} style={{ padding: '6px 8px', width: '110px', textAlign: 'center', verticalAlign: 'middle', borderRight: '1px solid var(--border-color)', fontWeight: 800 }}>
                       차액
                     </th>
-                    <th rowSpan={2} style={{ padding: '6px 8px', width: '130px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 800 }}>
+                    <th rowSpan={2} style={{ padding: '6px 8px', width: '120px', textAlign: 'center', verticalAlign: 'middle', fontWeight: 800 }}>
                       조치
                     </th>
                   </tr>
@@ -8321,24 +8343,24 @@ export const TruckDispatch: React.FC = () => {
                   {/* 2행: 세부 필드 헤더 (배차정보 3열 + 청구정보 3열) */}
                   <tr style={{ backgroundColor: 'var(--bg-body)', borderBottom: '1.5px solid var(--border-color)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '11px' }}>
                     {/* 배차정보 하위 */}
-                    <th style={{ padding: '6px 8px', width: '85px', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>
+                    <th style={{ padding: '6px 8px', width: '90px', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>
                       일자
                     </th>
-                    <th style={{ padding: '6px 8px', minWidth: '180px', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>
+                    <th style={{ padding: '6px 8px', width: '28%', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>
                       내역 (고객사 / 현장 / 기사)
                     </th>
-                    <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right', backgroundColor: 'rgba(59, 130, 246, 0.03)', borderRight: '1px solid var(--border-color)' }}>
+                    <th style={{ padding: '6px 8px', width: '92px', textAlign: 'right', backgroundColor: 'rgba(59, 130, 246, 0.03)', borderRight: '1px solid var(--border-color)' }}>
                       금액
                     </th>
 
                     {/* 청구정보 하위 */}
-                    <th style={{ padding: '6px 8px', width: '85px', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
+                    <th style={{ padding: '6px 8px', width: '90px', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
                       청구서 일자
                     </th>
-                    <th style={{ padding: '6px 8px', minWidth: '180px', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
+                    <th style={{ padding: '6px 8px', width: '24%', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>
                       청구 내역 (현장명 / 비고)
                     </th>
-                    <th style={{ padding: '6px 8px', width: '90px', textAlign: 'right', backgroundColor: 'rgba(16, 185, 129, 0.03)', borderRight: '1px solid var(--border-color)' }}>
+                    <th style={{ padding: '6px 8px', width: '92px', textAlign: 'right', backgroundColor: 'rgba(16, 185, 129, 0.03)', borderRight: '1px solid var(--border-color)' }}>
                       청구금액
                     </th>
                   </tr>
@@ -8377,21 +8399,31 @@ export const TruckDispatch: React.FC = () => {
                           const displayCustomer = customer?.name || memoCustomer || '고객사미지정';
                           const bundleStops = d.bundleGroupId ? getBundleGroupDeliveries(d.bundleGroupId) : [];
                           const isBundledRow = bundleStops.length >= 2;
-                          const bundleSummaryText = isBundledRow
+                          const bundleStopLines = isBundledRow
                             ? bundleStops.map((bd, idx) => {
                                 const bCon = bd.contractId ? contractMap.get(bd.contractId) : null;
                                 const bCus = bCon?.customerId ? customerMap.get(bCon.customerId) : null;
-                                return `${idx + 1}차:${bCus?.name || ''}(${bd.destinationAddress || '-'})`;
-                              }).join(' ➔ ')
-                            : '';
+                                const bSite = bCon?.siteId ? siteMap.get(bCon.siteId) : null;
+                                const cName = bCus?.name || '';
+                                let cleanDest = bd.destinationAddress || bSite?.name || '-';
+                                if (cName && cleanDest.startsWith(cName)) {
+                                  cleanDest = cleanDest.slice(cName.length).trim();
+                                  if (cleanDest.startsWith('(') && cleanDest.endsWith(')')) {
+                                    cleanDest = cleanDest.slice(1, -1).trim();
+                                  }
+                                }
+                                return `${idx + 1}차: ${cName ? `${cName} · ` : ''}${cleanDest}`;
+                              })
+                            : [];
+                          const bundleSummaryText = bundleStopLines.join(' ➔ ');
                           const cost = getEffectiveDeliveryCost(d);
                           const isPaymentReq = (d as any).reconciliationStatus === 'PAYMENT_REQUESTED';
                           const isPaidSettled = (d as any).reconciliationStatus === 'PAID' || (d as any).reconciliationStatus === 'SETTLED' || d.isCostSettled === true;
                           const isMatched = (d as any).reconciliationStatus === 'MATCHED' || (d as any).reconciliationStatus === 'RECONCILED';
 
                           return (
-                            <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)', height: '40px' }}>
-                              <td style={{ textAlign: 'center', padding: '6px' }}>
+                            <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)', height: isBundledRow ? 'auto' : '40px' }}>
+                              <td style={{ textAlign: 'center', padding: '6px', verticalAlign: 'middle' }}>
                                 {isPaymentReq ? (
                                   <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(37,99,235,0.12)', color: 'var(--primary)', border: '1px solid rgba(37,99,235,0.35)', whiteSpace: 'nowrap' }}>
                                     지급요청
@@ -8410,14 +8442,55 @@ export const TruckDispatch: React.FC = () => {
                                   </span>
                                 )}
                               </td>
-                              <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>{d.loadingDate || d.requestDate}</td>
-                              <td style={{ padding: '6px 10px' }} title={isBundledRow ? bundleSummaryText : undefined}>
-                                {isBundledRow && (
-                                  <span style={{ padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.14)', color: '#d97706', border: '1px solid rgba(217,119,6,0.35)', marginRight: '6px', whiteSpace: 'nowrap' }}>
-                                    경유/합짐 {bundleStops.length}건
-                                  </span>
+                              <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>{d.loadingDate || d.requestDate}</td>
+                              <td style={{ padding: '6px 10px', overflow: 'hidden', verticalAlign: 'middle' }} title={isBundledRow ? bundleSummaryText : (d.destinationAddress || '')}>
+                                {isBundledRow ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                                      <span style={{ padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.14)', color: '#d97706', border: '1px solid rgba(217,119,6,0.35)', flexShrink: 0 }}>
+                                        경유/합짐 {bundleStops.length}건
+                                      </span>
+                                      <strong style={{ color: 'var(--text-primary)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {bundleStops.map(bd => {
+                                          const bCon = bd.contractId ? contractMap.get(bd.contractId) : null;
+                                          const bCus = bCon?.customerId ? customerMap.get(bCon.customerId) : null;
+                                          return bCus?.name || '';
+                                        }).filter(Boolean).join(' · ') || displayCustomer}
+                                      </strong>
+                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>
+                                        ({d.driverName || '기사미배정'})
+                                      </span>
+                                    </div>
+                                    {bundleStopLines.slice(0, 2).map((lineText, lIdx) => (
+                                      <div
+                                        key={lIdx}
+                                        style={{
+                                          fontSize: '11px',
+                                          color: 'var(--text-secondary)',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          lineHeight: 1.35
+                                        }}
+                                      >
+                                        {lineText}
+                                        {lIdx === 1 && bundleStopLines.length > 2 ? ` 외 ${bundleStopLines.length - 2}곳` : ''}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    wordBreak: 'keep-all',
+                                    lineHeight: 1.35
+                                  }}>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{displayCustomer}</strong> | {d.destinationAddress || '도착지미지정'} ({d.driverName || '기사미배정'})
+                                  </div>
                                 )}
-                                <strong style={{ color: 'var(--text-primary)' }}>{displayCustomer}</strong> | {isBundledRow ? bundleSummaryText : (d.destinationAddress || '도착지미지정')} ({d.driverName || '기사미배정'})
                               </td>
                               <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>
                                 ₩{cost.toLocaleString()}
@@ -8484,13 +8557,23 @@ export const TruckDispatch: React.FC = () => {
                         const displayCustomer = customer?.name || memoCustomer || '고객사미지정';
                         const bundleStops = sys?.bundleGroupId ? getBundleGroupDeliveries(sys.bundleGroupId) : [];
                         const isBundledRow = bundleStops.length >= 2;
-                        const bundleSummaryText = isBundledRow
+                        const bundleStopLines = isBundledRow
                           ? bundleStops.map((bd, idx) => {
                               const bCon = bd.contractId ? contractMap.get(bd.contractId) : null;
                               const bCus = bCon?.customerId ? customerMap.get(bCon.customerId) : null;
-                              return `${idx + 1}차:${bCus?.name || ''}(${bd.destinationAddress || '-'})`;
-                            }).join(' ➔ ')
-                          : '';
+                              const bSite = bCon?.siteId ? siteMap.get(bCon.siteId) : null;
+                              const cName = bCus?.name || '';
+                              let cleanDest = bd.destinationAddress || bSite?.name || '-';
+                              if (cName && cleanDest.startsWith(cName)) {
+                                cleanDest = cleanDest.slice(cName.length).trim();
+                                if (cleanDest.startsWith('(') && cleanDest.endsWith(')')) {
+                                  cleanDest = cleanDest.slice(1, -1).trim();
+                                }
+                              }
+                              return `${idx + 1}차: ${cName ? `${cName} · ` : ''}${cleanDest}`;
+                            })
+                          : [];
+                        const bundleSummaryText = bundleStopLines.join(' ➔ ');
 
                         const isMatched = pair.isReconciled && !pair.isExcluded;
                         const isMismatch = pair.matchStatus === 'MISMATCH';
@@ -8506,12 +8589,12 @@ export const TruckDispatch: React.FC = () => {
                             style={{
                               borderBottom: '1px solid var(--border-color)',
                               backgroundColor: isExcluded ? 'rgba(100,116,139,0.06)' : isMismatch ? 'rgba(234,179,8,0.05)' : isMatched ? 'rgba(34,197,94,0.03)' : isExcelOnly ? 'rgba(239,68,68,0.04)' : 'transparent',
-                              height: '42px',
+                              height: isBundledRow ? 'auto' : '42px',
                               cursor: 'pointer'
                             }}
                           >
                             {/* 상태 배지 */}
-                            <td style={{ textAlign: 'center', padding: '6px', whiteSpace: 'nowrap' }}>
+                            <td style={{ textAlign: 'center', padding: '6px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                               {isExcluded ? (
                                 <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(100,116,139,0.15)', color: 'var(--text-muted)' }}>
                                   🚫 제외
@@ -8536,49 +8619,108 @@ export const TruckDispatch: React.FC = () => {
                             </td>
 
                             {/* [배차정보] 일자 */}
-                            <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: sys ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: sys ? 'var(--text-primary)' : 'var(--text-muted)', verticalAlign: 'middle' }}>
                               {sys ? (sys.loadingDate || sys.requestDate) : '(미기재)'}
                             </td>
 
                             {/* [배차정보] 내역 */}
-                            <td style={{ padding: '6px 10px', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={isBundledRow ? bundleSummaryText : undefined}>
+                            <td style={{ padding: '6px 10px', overflow: 'hidden', verticalAlign: 'middle' }} title={isBundledRow ? bundleSummaryText : (sys?.destinationAddress || '')}>
                               {sys ? (
-                                <>
-                                  {isBundledRow && (
-                                    <span style={{ padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.14)', color: '#d97706', border: '1px solid rgba(217,119,6,0.35)', marginRight: '5px', whiteSpace: 'nowrap' }}>
-                                      경유/합짐 {bundleStops.length}건
-                                    </span>
-                                  )}
-                                  <strong style={{ color: 'var(--text-primary)' }}>{displayCustomer}</strong> | {isBundledRow ? bundleSummaryText : (sys.destinationAddress || '도착지미지정')}
-                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>({sys.driverName || '기사미배정'})</span>
-                                </>
+                                isBundledRow ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                                      <span style={{ padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.14)', color: '#d97706', border: '1px solid rgba(217,119,6,0.35)', flexShrink: 0 }}>
+                                        경유/합짐 {bundleStops.length}건
+                                      </span>
+                                      <strong style={{ color: 'var(--text-primary)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {bundleStops.map(bd => {
+                                          const bCon = bd.contractId ? contractMap.get(bd.contractId) : null;
+                                          const bCus = bCon?.customerId ? customerMap.get(bCon.customerId) : null;
+                                          return bCus?.name || '';
+                                        }).filter(Boolean).join(' · ') || displayCustomer}
+                                      </strong>
+                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>
+                                        ({sys.driverName || '기사미배정'})
+                                      </span>
+                                    </div>
+                                    {bundleStopLines.slice(0, 2).map((lineText, lIdx) => (
+                                      <div
+                                        key={lIdx}
+                                        style={{
+                                          fontSize: '11px',
+                                          color: 'var(--text-secondary)',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                          whiteSpace: 'nowrap',
+                                          lineHeight: 1.35
+                                        }}
+                                      >
+                                        {lineText}
+                                        {lIdx === 1 && bundleStopLines.length > 2 ? ` 외 ${bundleStopLines.length - 2}곳` : ''}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    wordBreak: 'keep-all',
+                                    lineHeight: 1.35
+                                  }}>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{displayCustomer}</strong> | {sys.destinationAddress || '도착지미지정'}
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>({sys.driverName || '기사미배정'})</span>
+                                  </div>
+                                )
                               ) : (
                                 <span style={{ color: 'var(--text-muted)' }}>-</span>
                               )}
                             </td>
 
                             {/* [배차정보] 금액 */}
-                            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: sys ? 'var(--primary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, color: sys ? 'var(--primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                               {sys ? `₩${pair.systemCost.toLocaleString()}` : '-'}
                             </td>
 
                             {/* VS 기호 */}
-                            <td style={{ textAlign: 'center', color: isMatched ? '#16a34a' : isMismatch ? '#ca8a04' : 'var(--text-muted)', fontWeight: 800 }}>
+                            <td style={{ textAlign: 'center', color: isMatched ? '#16a34a' : isMismatch ? '#ca8a04' : 'var(--text-muted)', fontWeight: 800, verticalAlign: 'middle' }}>
                               {isMatched ? '=' : isMismatch ? '≠' : 'VS'}
                             </td>
 
                             {/* [청구정보] 일자 */}
-                            <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: excel ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: excel ? 'var(--text-primary)' : 'var(--text-muted)', verticalAlign: 'middle' }}>
                               {excel ? (excel['정규일자'] || excel['일자'] || excel['날짜'] || excel['운송일자']) : '(미기재)'}
                             </td>
 
                             {/* [청구정보] 청구 내역 */}
-                            <td style={{ padding: '6px 10px', maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '6px 10px', overflow: 'hidden', verticalAlign: 'middle' }} title={excel ? `${excel['정규하차지'] || excel['현장명'] || excel['업체명'] || ''} ${excel['비고'] ? `[${excel['비고']}]` : ''}` : undefined}>
                               {excel ? (
-                                <>
-                                  <strong style={{ color: 'var(--text-primary)' }}>{excel['정규하차지'] || excel['현장명'] || excel['업체명'] || '현장미상'}</strong>
-                                  {excel['비고'] && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>[{excel['비고']}]</span>}
-                                </>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                                  <div style={{
+                                    fontWeight: 700,
+                                    color: 'var(--text-primary)',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    lineHeight: 1.35
+                                  }}>
+                                    {excel['정규하차지'] || excel['현장명'] || excel['업체명'] || '현장미상'}
+                                  </div>
+                                  {excel['비고'] && (
+                                    <div style={{
+                                      fontSize: '11px',
+                                      color: 'var(--text-muted)',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      lineHeight: 1.35
+                                    }}>
+                                      [{excel['비고']}]
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
                                 <span style={{ color: 'var(--text-muted)' }}>-</span>
                               )}
