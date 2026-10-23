@@ -4341,7 +4341,7 @@ export const SEED_TENANTS: Tenant[] = [
         consumableFolder: '소모품납품증빙',
         deliveryFolder: '출고의뢰_증빙',
         maintenanceFolder: '정비보고서_증빙',
-        updatedAt: new Date().toISOString()
+        updatedAt: '2026-01-01T00:00:00.000Z'
       }
     },
     subscription: {
@@ -4362,7 +4362,7 @@ export const SEED_TENANTS: Tenant[] = [
     status: 'ACTIVE',
     isDefault: true,
     createdAt: '2013-04-03T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
+    updatedAt: '2026-01-01T00:00:00.000Z',
     allowCustomBillingStatement: true,
     allowContractTradeOutbound: true,
     specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'], // 💡 특수 거래명세서 기능 활성화
@@ -4501,7 +4501,7 @@ export const SEED_TENANTS: Tenant[] = [
         consumableFolder: '소모품납품증빙',
         deliveryFolder: '출고의뢰_증빙',
         maintenanceFolder: '정비보고서_증빙',
-        updatedAt: new Date().toISOString()
+        updatedAt: '2026-01-01T00:00:00.000Z'
       }
     },
     subscription: {
@@ -4522,7 +4522,7 @@ export const SEED_TENANTS: Tenant[] = [
     status: 'ACTIVE',
     isDefault: false,
     createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
+    updatedAt: '2026-01-01T00:00:00.000Z',
     allowCustomBillingStatement: true,
     allowContractTradeOutbound: true,
     specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'],
@@ -4758,7 +4758,7 @@ const SEED_OFFICIAL_MAIL_CONFIG: OfficialMailConfig[] = [
     currentInsuranceEndDate: '2027-03-05',
     nextInsuranceStartDate: '2027-03-05',
     nextInsuranceEndDate: '2028-03-05',
-    updatedAt: new Date().toISOString()
+    updatedAt: '2026-01-01T00:00:00.000Z'
   }
 ];
 

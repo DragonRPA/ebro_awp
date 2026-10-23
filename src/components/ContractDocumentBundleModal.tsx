@@ -1,5 +1,5 @@
 // src/components/ContractDocumentBundleModal.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
 import { 
@@ -840,9 +840,21 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
   const availableCustomerContacts = siteContactDirectory.emailContacts;
   const siteContactsMissingEmail = siteContactDirectory.noEmailContacts;
 
-  // ── 계약 변경 시 등록된 현장(CustomerSite)에 저장된 수신인만 자동 지정 ──
+  // ── 모달 오픈 또는 대상 계약·현장 변경 시 최초 1회만 현장 담당자 수신인 자동 지정 (사용자 전체 해제 시 재선택 방지) ──
+  const initializedRecipientKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!selectedContract || !isOpen) return;
+    if (!isOpen) {
+      initializedRecipientKeyRef.current = null;
+      return;
+    }
+    if (!selectedContract) return;
+
+    const currentKey = `${selectedContractId || selectedContract.id}::${site?.id || 'default'}`;
+    if (initializedRecipientKeyRef.current === currentKey) {
+      return;
+    }
+    initializedRecipientKeyRef.current = currentKey;
 
     const initialList: RecipientItem[] = availableCustomerContacts.map((c, idx) => ({
       id: `recip-site-${site?.id || 'default'}-${idx}`,
@@ -858,23 +870,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     setGeneratedResult(null);
     setErrorMessage(null);
     setEmailSentSuccess(false);
-  }, [selectedContractId, site?.id, isOpen, currentTenant]);
-
-  // 현장에 담당자 이메일이 새로 등록된 경우(직접입력 후 자동 동기화 등) 현재 수신인이 비어 있으면 자동 채움
-  useEffect(() => {
-    if (!selectedContract || !isOpen) return;
-    if (recipients.length === 0 && availableCustomerContacts.length > 0) {
-      setRecipients(
-        availableCustomerContacts.map((c, idx) => ({
-          id: `recip-site-${site?.id || 'default'}-${idx}`,
-          email: c.email,
-          name: c.name,
-          roleLabel: c.roleLabel,
-          source: 'SITE'
-        }))
-      );
-    }
-  }, [availableCustomerContacts, selectedContract, isOpen, site?.id, recipients.length]);
+  }, [selectedContractId, selectedContract, site?.id, isOpen, availableCustomerContacts]);
 
   // 분할 발행 범위(출고 요청 건별 / 투입일별 / 전체) 변경 시 이메일 제목·본문 장비 대수 및 모델 목록 즉시 동기화
   useEffect(() => {
@@ -1880,11 +1876,60 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
 
           {/* 3. 이메일 수신인 관리 섹션 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px 16px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                <Mail size={15} color="var(--primary)" />
-                이메일 수신인 ({recipients.length}명 지정됨)
-              </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <Mail size={15} color="var(--primary)" />
+                  이메일 수신인 ({recipients.length}명 지정됨)
+                </label>
+                {recipients.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setRecipients([])}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#dc2626',
+                      backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                      border: '1px solid rgba(220, 38, 38, 0.3)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    전체 해제
+                  </button>
+                ) : availableCustomerContacts.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRecipients(
+                        availableCustomerContacts.map((c, idx) => ({
+                          id: `recip-site-${site?.id || 'default'}-${idx}`,
+                          email: c.email,
+                          name: c.name,
+                          roleLabel: c.roleLabel,
+                          source: 'SITE'
+                        }))
+                      )
+                    }
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: 'var(--primary)',
+                      backgroundColor: 'var(--primary-light)',
+                      border: '1px solid var(--primary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    현장 담당자 전체 선택
+                  </button>
+                ) : null}
+              </div>
               <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 * 등록된 현장에 저장된 수신인 자동 지정됨 (임의 추가 및 삭제 가능)
               </span>

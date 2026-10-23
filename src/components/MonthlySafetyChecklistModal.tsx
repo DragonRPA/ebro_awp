@@ -1,5 +1,5 @@
 // src/components/MonthlySafetyChecklistModal.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   X, FileText, FolderOpen, CheckCircle2, AlertCircle,
@@ -444,9 +444,22 @@ export const MonthlySafetyChecklistModal: React.FC<Props> = ({
   const availableContacts = siteContactDirectory.emailContacts;
   const missingEmailContacts = siteContactDirectory.noEmailContacts;
 
-  // 모달 오픈 시 수신인 초기 세팅: 안전담당자가 있으면 안전담당자 최우선 자동 지정, 없으면 등록된 현장 담당자 자동 지정
+  // 모달 오픈 시 최초 1회만 수신인 초기 세팅 (사용자가 전체 해제했을 때 다시 자동 선택되는 현상 방지)
+  const initializedRecipientKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!isOpen || !activeContract) return;
+    if (!isOpen) {
+      initializedRecipientKeyRef.current = null;
+      return;
+    }
+    if (!activeContract) return;
+
+    const currentKey = `${contractId || activeContract.id}::${site?.id || 'default'}`;
+    if (initializedRecipientKeyRef.current === currentKey) {
+      return;
+    }
+    initializedRecipientKeyRef.current = currentKey;
+
     const safetyList = availableContacts.filter(c => c.contactType === 'SAFETY');
     const defaultTargetList = safetyList.length > 0 ? safetyList : availableContacts;
 
@@ -463,25 +476,7 @@ export const MonthlySafetyChecklistModal: React.FC<Props> = ({
     setGeneratedResult(null);
     setErrorMessage(null);
     setEmailSentSuccess(false);
-  }, [isOpen, contractId, site?.id]);
-
-  // 안전담당자 이메일이 새로 추가되어 수신인이 비어 있던 경우 자동 채움
-  useEffect(() => {
-    if (!isOpen || !activeContract) return;
-    if (recipients.length === 0 && availableContacts.length > 0) {
-      const safetyList = availableContacts.filter(c => c.contactType === 'SAFETY');
-      const defaultTargetList = safetyList.length > 0 ? safetyList : availableContacts;
-      setRecipients(
-        defaultTargetList.map((c, idx) => ({
-          id: `recip-safety-${site?.id || 'default'}-${idx}`,
-          email: c.email,
-          name: c.name,
-          roleLabel: c.roleLabel,
-          source: c.contactType === 'SAFETY' ? 'SAFETY' : 'SITE'
-        }))
-      );
-    }
-  }, [availableContacts, isOpen, activeContract, site?.id, recipients.length]);
+  }, [isOpen, contractId, activeContract, site?.id, availableContacts]);
 
   // 점검 조건 변경 시 조립 결과 초기화
   useEffect(() => {
@@ -1175,11 +1170,62 @@ ${tenantCorp} 드림 (대표전화: ${tenantTel})`
               borderRadius: '8px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                <Mail size={15} color="#d97706" />
-                현장 안전담당자 이메일 수신인 ({recipients.length}명 지정됨)
-              </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <Mail size={15} color="#d97706" />
+                  현장 안전담당자 이메일 수신인 ({recipients.length}명 지정됨)
+                </label>
+                {recipients.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setRecipients([])}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#dc2626',
+                      backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                      border: '1px solid rgba(220, 38, 38, 0.3)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    전체 해제
+                  </button>
+                ) : availableContacts.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const safetyList = availableContacts.filter(c => c.contactType === 'SAFETY');
+                      const defaultTargetList = safetyList.length > 0 ? safetyList : availableContacts;
+                      setRecipients(
+                        defaultTargetList.map((c, idx) => ({
+                          id: `recip-safety-${site?.id || 'default'}-${idx}`,
+                          email: c.email,
+                          name: c.name,
+                          roleLabel: c.roleLabel,
+                          source: c.contactType === 'SAFETY' ? 'SAFETY' : 'SITE'
+                        }))
+                      );
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#b45309',
+                      backgroundColor: 'rgba(217, 119, 6, 0.12)',
+                      border: '1px solid #d97706',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    현장 담당자 전체 선택
+                  </button>
+                ) : null}
+              </div>
               <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                 * 현장 안전담당자 최우선 자동 지정 (직접 입력 시 현장 안전담당자로 자동 등록)
               </span>
