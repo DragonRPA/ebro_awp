@@ -301,23 +301,23 @@ export const TenantManagementPage: React.FC = () => {
       const fallbackR2 = (tenant as any).r2Config || (tenant.features as any)?.r2Config || {};
       const fallbackMail = (tenant as any).officialMailConfig || (tenant.features as any)?.officialMailConfig || (tenant.features as any)?.smtpConfig || (tenant as any).smtpConfig || {};
       setR2Config({
-        r2AccountId: mailConfig?.r2AccountId || fallbackR2.r2AccountId || '',
-        r2BucketName: mailConfig?.r2BucketName || fallbackR2.r2BucketName || '',
-        r2AccessKeyId: mailConfig?.r2AccessKeyId || fallbackR2.r2AccessKeyId || '',
-        r2SecretAccessKey: decryptSecret(mailConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || ''),
-        r2PublicDomain: mailConfig?.r2PublicDomain || fallbackR2.r2PublicDomain || '',
+        r2AccountId: fallbackR2.r2AccountId || mailConfig?.r2AccountId || '',
+        r2BucketName: fallbackR2.r2BucketName || mailConfig?.r2BucketName || '',
+        r2AccessKeyId: fallbackR2.r2AccessKeyId || mailConfig?.r2AccessKeyId || '',
+        r2SecretAccessKey: decryptSecret(fallbackR2.r2SecretAccessKey || mailConfig?.r2SecretAccessKey || ''),
+        r2PublicDomain: fallbackR2.r2PublicDomain || mailConfig?.r2PublicDomain || '',
       });
-      const initialEmail = (mailConfig?.googleEmail || fallbackMail.googleEmail || '').trim();
-      const initialProvider = (mailConfig?.smtpProvider || fallbackMail.smtpProvider || (initialEmail.toLowerCase().endsWith('@naver.com') ? 'NAVER' : initialEmail.toLowerCase().endsWith('@daum.net') ? 'DAUM' : 'GMAIL')) as 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
-      const initialHost = mailConfig?.smtpHost || fallbackMail.smtpHost || (initialProvider === 'NAVER' ? 'smtp.naver.com' : initialProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+      const initialEmail = (fallbackMail.googleEmail || mailConfig?.googleEmail || '').trim();
+      const initialProvider = (fallbackMail.smtpProvider || mailConfig?.smtpProvider || (initialEmail.toLowerCase().endsWith('@naver.com') ? 'NAVER' : initialEmail.toLowerCase().endsWith('@daum.net') ? 'DAUM' : 'GMAIL')) as 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
+      const initialHost = fallbackMail.smtpHost || mailConfig?.smtpHost || (initialProvider === 'NAVER' ? 'smtp.naver.com' : initialProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
       setEmailConfig({
         smtpProvider: initialProvider,
         smtpHost: initialHost,
-        smtpPort: mailConfig?.smtpPort || fallbackMail.smtpPort || 465,
+        smtpPort: fallbackMail.smtpPort || mailConfig?.smtpPort || 465,
         googleEmail: initialEmail,
-        googlePassword: decryptSecret(mailConfig?.googlePassword || fallbackMail.googlePassword || ''),
-        gmailAppPassword: decryptSecret(mailConfig?.gmailAppPassword || fallbackMail.gmailAppPassword || ''),
-        isDevMode: mailConfig?.isDevMode ?? fallbackMail.isDevMode ?? true,
+        googlePassword: decryptSecret(fallbackMail.googlePassword || mailConfig?.googlePassword || ''),
+        gmailAppPassword: decryptSecret(fallbackMail.gmailAppPassword || mailConfig?.gmailAppPassword || ''),
+        isDevMode: fallbackMail.isDevMode ?? mailConfig?.isDevMode ?? true,
       });
       setEditingTenant(tenant);
       setFormData({
@@ -864,30 +864,30 @@ export const TenantManagementPage: React.FC = () => {
       const fallbackMail: any = (editingTenant as any)?.officialMailConfig || (editingTenant?.features as any)?.officialMailConfig || (editingTenant?.features as any)?.smtpConfig || {};
       const fallbackR2: any = (editingTenant as any)?.r2Config || (editingTenant?.features as any)?.r2Config || {};
 
-      const finalGoogleEmail = (emailConfig.googleEmail || existingConfig?.googleEmail || fallbackMail.googleEmail || '').trim();
+      const finalGoogleEmail = (emailConfig.googleEmail || fallbackMail.googleEmail || existingConfig?.googleEmail || '').trim();
       const rawPass = (emailConfig.googlePassword || '').trim();
       const finalGooglePassword = rawPass
         ? (rawPass.startsWith('__EBRO_ENC__v1__') ? rawPass : encryptSecret(rawPass))
-        : (existingConfig?.googlePassword || fallbackMail.googlePassword || '');
+        : (fallbackMail.googlePassword || existingConfig?.googlePassword || '');
       const rawAppPass = (emailConfig.gmailAppPassword || '').trim();
       const finalGmailAppPassword = rawAppPass
         ? (rawAppPass.startsWith('__EBRO_ENC__v1__') ? rawAppPass : encryptSecret(rawAppPass))
-        : (existingConfig?.gmailAppPassword || fallbackMail.gmailAppPassword || '');
-      const finalSmtpProvider = emailConfig.smtpProvider || existingConfig?.smtpProvider || fallbackMail.smtpProvider || 'NAVER';
-      const finalSmtpHost = emailConfig.smtpHost || existingConfig?.smtpHost || fallbackMail.smtpHost || (finalSmtpProvider === 'NAVER' ? 'smtp.naver.com' : finalSmtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
-      const finalSmtpPort = emailConfig.smtpPort || existingConfig?.smtpPort || fallbackMail.smtpPort || 465;
-      const finalIsDevMode = emailConfig.isDevMode ?? existingConfig?.isDevMode ?? fallbackMail.isDevMode ?? true;
+        : (fallbackMail.gmailAppPassword || existingConfig?.gmailAppPassword || '');
+      const finalSmtpProvider = emailConfig.smtpProvider || fallbackMail.smtpProvider || existingConfig?.smtpProvider || 'NAVER';
+      const finalSmtpHost = emailConfig.smtpHost || fallbackMail.smtpHost || existingConfig?.smtpHost || (finalSmtpProvider === 'NAVER' ? 'smtp.naver.com' : finalSmtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+      const finalSmtpPort = emailConfig.smtpPort || fallbackMail.smtpPort || existingConfig?.smtpPort || 465;
+      const finalIsDevMode = emailConfig.isDevMode ?? fallbackMail.isDevMode ?? existingConfig?.isDevMode ?? true;
 
       const rawR2Secret = (r2Config.r2SecretAccessKey || '').trim();
       const finalR2Secret = rawR2Secret
         ? (rawR2Secret.startsWith('__EBRO_ENC__v1__') ? rawR2Secret : encryptSecret(rawR2Secret))
-        : (existingConfig?.r2SecretAccessKey || fallbackR2.r2SecretAccessKey || '');
+        : (fallbackR2.r2SecretAccessKey || existingConfig?.r2SecretAccessKey || '');
       const finalR2Config = {
-        r2AccountId: r2Config.r2AccountId || existingConfig?.r2AccountId || fallbackR2.r2AccountId || '',
-        r2BucketName: r2Config.r2BucketName || existingConfig?.r2BucketName || fallbackR2.r2BucketName || '',
-        r2AccessKeyId: r2Config.r2AccessKeyId || existingConfig?.r2AccessKeyId || fallbackR2.r2AccessKeyId || '',
+        r2AccountId: r2Config.r2AccountId || fallbackR2.r2AccountId || existingConfig?.r2AccountId || '',
+        r2BucketName: r2Config.r2BucketName || fallbackR2.r2BucketName || existingConfig?.r2BucketName || '',
+        r2AccessKeyId: r2Config.r2AccessKeyId || fallbackR2.r2AccessKeyId || existingConfig?.r2AccessKeyId || '',
         r2SecretAccessKey: finalR2Secret,
-        r2PublicDomain: r2Config.r2PublicDomain || existingConfig?.r2PublicDomain || fallbackR2.r2PublicDomain || '',
+        r2PublicDomain: r2Config.r2PublicDomain || fallbackR2.r2PublicDomain || existingConfig?.r2PublicDomain || '',
         updatedAt: nowIso,
       };
       const finalOfficialMailConfig = {
@@ -1676,8 +1676,8 @@ export const TenantManagementPage: React.FC = () => {
                         {(() => {
                           const mailCfg = db.officialMailConfigs.find(c => c.tenantId === tenant.id || c.id === `cfg-${tenant.id}`);
                           const fallbackMail: any = (tenant as any).officialMailConfig || (tenant.features as any)?.officialMailConfig || (tenant.features as any)?.smtpConfig || {};
-                          const emailAddr = mailCfg?.googleEmail || fallbackMail.googleEmail || '';
-                          const isDev = mailCfg?.isDevMode ?? fallbackMail.isDevMode ?? true;
+                          const emailAddr = fallbackMail.googleEmail || mailCfg?.googleEmail || '';
+                          const isDev = fallbackMail.isDevMode ?? mailCfg?.isDevMode ?? true;
                           return (
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               <button

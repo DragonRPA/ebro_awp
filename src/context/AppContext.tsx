@@ -1216,6 +1216,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (centralTenants && centralTenants.length > 0) {
         db.tenants = centralTenants;
         setTenants([...centralTenants]);
+        setOfficialMailConfigs([...db.officialMailConfigs]);
 
         const currentValid = centralTenants.find(t => t.id === currentTenantId || t.tenantCode === currentTenantId);
         if (!currentValid) {

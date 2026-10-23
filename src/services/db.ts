@@ -4331,10 +4331,10 @@ export const SEED_TENANTS: Tenant[] = [
       voiceAssistance: true,
       agentAiEnabled: false,
       officialMailConfig: {
-        googleEmail: '77.victor.lee@gmail.com',
-        gmailAppPassword: 'hqqgtwtsjimvqmeb',
-        smtpProvider: 'GMAIL',
-        smtpHost: 'smtp.gmail.com',
+        googleEmail: 'giyeonlift7@naver.com',
+        gmailAppPassword: 'WEFWT3MYX5CQ',
+        smtpProvider: 'NAVER',
+        smtpHost: 'smtp.naver.com',
         smtpPort: 465,
         isDevMode: false,
         contractFolder: '렌탈계약서_증빙',
@@ -4491,10 +4491,10 @@ export const SEED_TENANTS: Tenant[] = [
       voiceAssistance: true,
       agentAiEnabled: true,
       officialMailConfig: {
-        googleEmail: '77.victor.lee@gmail.com',
-        gmailAppPassword: 'hqqgtwtsjimvqmeb',
-        smtpProvider: 'GMAIL',
-        smtpHost: 'smtp.gmail.com',
+        googleEmail: 'giyeonlift7@naver.com',
+        gmailAppPassword: 'WEFWT3MYX5CQ',
+        smtpProvider: 'NAVER',
+        smtpHost: 'smtp.naver.com',
         smtpPort: 465,
         isDevMode: false,
         contractFolder: '렌탈계약서_증빙',
@@ -4741,13 +4741,13 @@ const SEED_BANK_MATCHING_RULES: BankMatchingRule[] = [];
 
 const SEED_OFFICIAL_MAIL_CONFIG: OfficialMailConfig[] = [
   {
-    id: 'default-config',
+    id: 'cfg-tenant-giyeonlift',
     tenantId: 'tenant-giyeonlift',
-    googleEmail: '77.victor.lee@gmail.com',
+    googleEmail: 'giyeonlift7@naver.com',
     googlePassword: '',
-    gmailAppPassword: 'hqqgtwtsjimvqmeb',
-    smtpProvider: 'GMAIL',
-    smtpHost: 'smtp.gmail.com',
+    gmailAppPassword: 'WEFWT3MYX5CQ',
+    smtpProvider: 'NAVER',
+    smtpHost: 'smtp.naver.com',
     smtpPort: 465,
     contractFolder: '렌탈계약서_증빙',
     consumableFolder: '소모품납품증빙',
@@ -6309,7 +6309,10 @@ class LocalDB {
     const tenantsList = this.tenants || [];
     const byId = new Map<string, OfficialMailConfig>();
     for (const c of cached) {
-      if (c && c.id) byId.set(c.id, c);
+      if (c && (c.id || c.tenantId)) {
+        const normKey = c.tenantId ? `cfg-${c.tenantId}` : c.id;
+        byId.set(normKey, { ...c, id: normKey });
+      }
     }
     for (const t of tenantsList) {
       if (!t || !t.id) continue;
@@ -6321,24 +6324,24 @@ class LocalDB {
         byId.set(cfgId, {
           id: cfgId,
           tenantId: t.id,
-          googleEmail: mailCfg?.googleEmail ?? prev.googleEmail ?? '',
-          googlePassword: mailCfg?.googlePassword ?? prev.googlePassword ?? '',
-          gmailAppPassword: mailCfg?.gmailAppPassword ?? prev.gmailAppPassword ?? '',
-          smtpProvider: mailCfg?.smtpProvider ?? prev.smtpProvider ?? 'NAVER',
-          smtpHost: mailCfg?.smtpHost ?? prev.smtpHost ?? 'smtp.naver.com',
-          smtpPort: mailCfg?.smtpPort ?? prev.smtpPort ?? 465,
+          googleEmail: mailCfg?.googleEmail || prev.googleEmail || '',
+          googlePassword: mailCfg?.googlePassword || prev.googlePassword || '',
+          gmailAppPassword: mailCfg?.gmailAppPassword || prev.gmailAppPassword || '',
+          smtpProvider: mailCfg?.smtpProvider || prev.smtpProvider || 'NAVER',
+          smtpHost: mailCfg?.smtpHost || prev.smtpHost || 'smtp.naver.com',
+          smtpPort: mailCfg?.smtpPort || prev.smtpPort || 465,
           contractFolder: mailCfg?.contractFolder ?? prev.contractFolder ?? '렌탈계약서_증빙',
           consumableFolder: mailCfg?.consumableFolder ?? prev.consumableFolder ?? '소모품납품증빙',
           deliveryFolder: mailCfg?.deliveryFolder ?? prev.deliveryFolder ?? '출고의뢰_증빙',
           maintenanceFolder: mailCfg?.maintenanceFolder ?? prev.maintenanceFolder ?? '정비보고서_증빙',
           isDevMode: mailCfg?.isDevMode ?? prev.isDevMode ?? true,
           mirrorRecursive: mailCfg?.mirrorRecursive ?? prev.mirrorRecursive ?? true,
-          r2AccountId: r2Cfg?.r2AccountId ?? mailCfg?.r2AccountId ?? prev.r2AccountId ?? '',
-          r2BucketName: r2Cfg?.r2BucketName ?? mailCfg?.r2BucketName ?? prev.r2BucketName ?? '',
-          r2AccessKeyId: r2Cfg?.r2AccessKeyId ?? mailCfg?.r2AccessKeyId ?? prev.r2AccessKeyId ?? '',
-          r2SecretAccessKey: r2Cfg?.r2SecretAccessKey ?? mailCfg?.r2SecretAccessKey ?? prev.r2SecretAccessKey ?? '',
-          r2PublicDomain: r2Cfg?.r2PublicDomain ?? mailCfg?.r2PublicDomain ?? prev.r2PublicDomain ?? '',
-          updatedAt: mailCfg?.updatedAt || r2Cfg?.updatedAt || t.updatedAt || prev.updatedAt || new Date().toISOString()
+          r2AccountId: r2Cfg?.r2AccountId || mailCfg?.r2AccountId || prev.r2AccountId || '',
+          r2BucketName: r2Cfg?.r2BucketName || mailCfg?.r2BucketName || prev.r2BucketName || '',
+          r2AccessKeyId: r2Cfg?.r2AccessKeyId || mailCfg?.r2AccessKeyId || prev.r2AccessKeyId || '',
+          r2SecretAccessKey: r2Cfg?.r2SecretAccessKey || mailCfg?.r2SecretAccessKey || prev.r2SecretAccessKey || '',
+          r2PublicDomain: r2Cfg?.r2PublicDomain || mailCfg?.r2PublicDomain || prev.r2PublicDomain || '',
+          updatedAt: mailCfg?.updatedAt || r2Cfg?.updatedAt || t.updatedAt || prev.updatedAt || '2026-01-01T00:00:00.000Z'
         });
       }
     }

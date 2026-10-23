@@ -150,29 +150,29 @@ class RealGmailService {
     const tenantSmtpFallback: any = (activeTenant?.features as any)?.officialMailConfig || (activeTenant as any)?.officialMailConfig || (activeTenant?.features as any)?.smtpConfig || (activeTenant as any)?.smtpConfig || {};
 
     const googleEmail = (
+      tenantSmtpFallback?.googleEmail ||
       dbConfig?.googleEmail ||
       lsConfig?.googleEmail ||
-      tenantSmtpFallback?.googleEmail ||
       ''
     ).trim();
 
     const rawAppPass = (
+      tenantSmtpFallback?.gmailAppPassword ||
       dbConfig?.gmailAppPassword ||
       lsConfig?.gmailAppPassword ||
-      tenantSmtpFallback?.gmailAppPassword ||
       ''
     ).replace(/\s+/g, '').trim();
     const gmailAppPassword = decryptSecret(rawAppPass);
 
     const emailLower = googleEmail.toLowerCase();
-    let smtpProvider = dbConfig?.smtpProvider || lsConfig?.smtpProvider || tenantSmtpFallback?.smtpProvider || '';
+    let smtpProvider = tenantSmtpFallback?.smtpProvider || dbConfig?.smtpProvider || lsConfig?.smtpProvider || '';
     if (!smtpProvider) {
       if (emailLower.endsWith('@naver.com')) smtpProvider = 'NAVER';
       else if (emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) smtpProvider = 'DAUM';
       else smtpProvider = 'GMAIL';
     }
 
-    let smtpHost = dbConfig?.smtpHost || lsConfig?.smtpHost || tenantSmtpFallback?.smtpHost || '';
+    let smtpHost = tenantSmtpFallback?.smtpHost || dbConfig?.smtpHost || lsConfig?.smtpHost || '';
     if (!smtpHost || (emailLower.endsWith('@naver.com') && smtpHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && smtpHost.includes('gmail.com'))) {
       if (smtpProvider === 'NAVER' || emailLower.endsWith('@naver.com')) {
         smtpHost = 'smtp.naver.com';
@@ -182,7 +182,7 @@ class RealGmailService {
         smtpHost = 'smtp.gmail.com';
       }
     }
-    const smtpPort = dbConfig?.smtpPort || lsConfig?.smtpPort || tenantSmtpFallback?.smtpPort || 465;
+    const smtpPort = tenantSmtpFallback?.smtpPort || dbConfig?.smtpPort || lsConfig?.smtpPort || 465;
 
     if (!googleEmail || !gmailAppPassword || gmailAppPassword.includes('•')) {
       // 🛡️ [전사 표준 헌장 5.9조 테스트 격리 지원] 테스트 모드이거나 개발자 격리 발송인 경우 로컬 모의 발송 보존
