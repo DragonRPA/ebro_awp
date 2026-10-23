@@ -13,7 +13,7 @@
 // └─────────────────────────────────────────────────────────────────────────┘
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS } from '../services/db';
+import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel } from '../services/db';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
 import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import {
@@ -762,11 +762,15 @@ export const SmartDispatch4: React.FC = () => {
   const [targetContractId, setTargetContractId] = useState<string>('');
   const [forceNewContract, setForceNewContract] = useState<boolean>(false);
 
-  // ── 정산/결제 마감 일정 (청구서 마감일, 거래명세서 마감일, 약정 결제일) ─────────────
+  // ── 정산/결제 마감 일정 (청구서 마감일, 거래명세서 마감일, 약정 결제일, 계산서 발행조건, 결제조건/비고) ─────────────
   const [closingDay, setClosingDay] = useState<number>(30);
   const [statementClosingDay, setStatementClosingDay] = useState<number>(25);
+  const [paymentDueMonthOffset, setPaymentDueMonthOffset] = useState<number>(1);
   const [paymentDueDay, setPaymentDueDay] = useState<number>(15);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH');
+  const [paymentTermsNote, setPaymentTermsNote] = useState<string>('');
   const [freightBillingStandard, setFreightBillingStandard] = useState<'2/4' | '3/5'>('3/5');
+  const [taxInvoiceIssueType, setTaxInvoiceIssueType] = useState<'FORWARD' | 'REVERSE'>('FORWARD');
   const [showEditScheduleForExistingSite, setShowEditScheduleForExistingSite] = useState<boolean>(false);
 
   // ── 추가출고 옵션 첨삭 확인 모달 상태 ────────────────────────────────────
@@ -1586,23 +1590,51 @@ export const SmartDispatch4: React.FC = () => {
       setContactEmail('');
       setClosingDay(30);
       setStatementClosingDay(25);
+      setPaymentDueMonthOffset(1);
       setPaymentDueDay(15);
+      setPaymentMethod('CASH');
+      setPaymentTermsNote('');
       setFreightBillingStandard('3/5');
+      setTaxInvoiceIssueType('FORWARD');
       setShowEditScheduleForExistingSite(false);
       return;
     }
     const custContacts = contacts.filter(c => c.customerId === cust.id && !isBlankContactVal(c.name));
     const primary = custContacts[0];
 
-    // 마감/결제일 및 운송료 청구기준 상속 (현장 특약 1순위 -> 기존 계약 2순위 -> 고객사 기본값 3순위)
-    const bDay = site?.billingDay || cust.defaultBillingDay || 30;
+    // 마감/결제일 및 운송료 청구기준, 계산서 발행조건, 약정결제 조건/비고 상속
+    const isSeboCustomer = cust.id === 'CUST-0000022' || String(cust.bizRegNo || '').replace(/[^0-9]/g, '') === '1188100241';
+    const tIssue: 'FORWARD' | 'REVERSE' =
+      site?.taxInvoiceIssueType === 'REVERSE' || (site?.checkedSpecs as any)?.__taxInvoiceIssueType === 'REVERSE'
+        ? 'REVERSE'
+        : site?.taxInvoiceIssueType === 'FORWARD' || (site?.checkedSpecs as any)?.__taxInvoiceIssueType === 'FORWARD'
+          ? 'FORWARD'
+          : cust.defaultTaxInvoiceIssueType === 'REVERSE' || (cust.defaultCheckedSpecs as any)?.__taxInvoiceIssueType === 'REVERSE' || isSeboCustomer
+            ? 'REVERSE'
+            : 'FORWARD';
+    const bDay = site?.billingDay !== undefined && site?.billingDay !== null
+      ? site.billingDay
+      : (cust.defaultBillingDay !== undefined && cust.defaultBillingDay !== null ? cust.defaultBillingDay : (tIssue === 'REVERSE' ? 0 : 30));
     const sDay = site?.statementClosingDay || cust.defaultStatementClosingDay || 25;
+    const pOffset = site?.paymentDueMonthOffset !== undefined && site?.paymentDueMonthOffset !== null
+      ? site.paymentDueMonthOffset
+      : (cust.paymentDueMonthOffset !== undefined && cust.paymentDueMonthOffset !== null ? cust.paymentDueMonthOffset : 1);
     const pDay = site?.paymentDueDay || cust.paymentDueDay || 15;
+    const pMethod: PaymentMethodType =
+      site?.paymentMethod || (site?.checkedSpecs as any)?.__paymentMethod || cust.defaultPaymentMethod || (cust.defaultCheckedSpecs as any)?.__paymentMethod || 'CASH';
+    const pNote: string =
+      site?.paymentTermsNote !== undefined
+        ? site.paymentTermsNote
+        : ((site?.checkedSpecs as any)?.__paymentTermsNote ?? cust.defaultPaymentTermsNote ?? ((cust.defaultCheckedSpecs as any)?.__paymentTermsNote || ''));
     const fStd = resolveSiteFreightBillingStandard(cust, site);
     setClosingDay(bDay);
     setStatementClosingDay(sDay);
+    setPaymentDueMonthOffset(pOffset);
     setPaymentDueDay(pDay);
+    setPaymentMethod(pMethod);
+    setPaymentTermsNote(pNote);
     setFreightBillingStandard(fStd);
+    setTaxInvoiceIssueType(tIssue);
     setShowEditScheduleForExistingSite(false);
 
     if (site) {
@@ -1998,8 +2030,12 @@ export const SmartDispatch4: React.FC = () => {
     setSelectedContext('ADDITIONAL');
     setClosingDay(30);
     setStatementClosingDay(25);
+    setPaymentDueMonthOffset(1);
     setPaymentDueDay(15);
+    setPaymentMethod('CASH');
+    setPaymentTermsNote('');
     setFreightBillingStandard('3/5');
+    setTaxInvoiceIssueType('FORWARD');
     setShowEditScheduleForExistingSite(false);
     setOpenBlock('CUSTOMER');
     setEditingDraftId(null);
@@ -2366,9 +2402,13 @@ export const SmartDispatch4: React.FC = () => {
         siteMasterId: effectiveSmId || undefined,
         closingDay,
         statementClosingDay,
+        paymentDueMonthOffset,
         paymentDay: paymentDueDay,
         paymentDueDay,
+        paymentMethod,
+        paymentTermsNote,
         freightBillingStandard,
+        taxInvoiceIssueType,
         targetContractId: (!isNewCustomerMode && !isRegisteringNewSite && !forceNewContract && targetContractId) ? targetContractId : undefined,
         forceNewContract: (!isNewCustomerMode && !isRegisteringNewSite) ? forceNewContract : false,
       };
@@ -3777,53 +3817,102 @@ export const SmartDispatch4: React.FC = () => {
                         </span>
                         <span className="text-[10px] text-slate-400 font-normal">계산서/명세서 마감, 입금 약정일 및 운송료 청구기준</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                            value={closingDay}
-                            onChange={e => setClosingDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                            ))}
-                          </select>
+                      <div className="flex flex-col gap-2 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={statementClosingDay}
+                              onChange={e => setStatementClosingDay(Number(e.target.value))}
+                            >
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={closingDay}
+                              onChange={e => setClosingDay(Number(e.target.value))}
+                            >
+                              <option value={0}>미지정 (역발행 등)</option>
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">계산서 발행조건 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={taxInvoiceIssueType}
+                              onChange={e => setTaxInvoiceIssueType(e.target.value as 'FORWARD' | 'REVERSE')}
+                            >
+                              <option value="FORWARD">정발행 (기본)</option>
+                              <option value="REVERSE">역발행</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={freightBillingStandard}
+                              onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                            >
+                              <option value="3/5">3/5 기준 (기본)</option>
+                              <option value="2/4">2/4 기준</option>
+                            </select>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                            value={statementClosingDay}
-                            onChange={e => setStatementClosingDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                            value={paymentDueDay}
-                            onChange={e => setPaymentDueDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                            value={freightBillingStandard}
-                            onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
-                          >
-                            <option value="3/5">3/5 기준 (기본)</option>
-                            <option value="2/4">2/4 기준</option>
-                          </select>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제조건 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={paymentMethod}
+                              onChange={e => setPaymentMethod(e.target.value as PaymentMethodType)}
+                            >
+                              {PAYMENT_METHOD_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <select
+                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                value={paymentDueMonthOffset}
+                                onChange={e => setPaymentDueMonthOffset(Number(e.target.value))}
+                              >
+                                {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                              <select
+                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                value={paymentDueDay}
+                                onChange={e => setPaymentDueDay(Number(e.target.value))}
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                  <option key={day} value={day}>{day === 31 ? '말일' : `${day}일`}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제비고 (특약조건)</label>
+                            <input
+                              type="text"
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                              value={paymentTermsNote}
+                              onChange={e => setPaymentTermsNote(e.target.value)}
+                              placeholder="예: 300만원이상 채권, 또는 채권"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4004,53 +4093,102 @@ export const SmartDispatch4: React.FC = () => {
                         </span>
                         <span className="text-[10px] text-slate-400 font-normal">고객사 기본값 상속 · 필요 시 현장 특약 수정</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
-                            value={closingDay}
-                            onChange={e => setClosingDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                            ))}
-                          </select>
+                      <div className="flex flex-col gap-2 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={statementClosingDay}
+                              onChange={e => setStatementClosingDay(Number(e.target.value))}
+                            >
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={closingDay}
+                              onChange={e => setClosingDay(Number(e.target.value))}
+                            >
+                              <option value={0}>미지정 (역발행 등)</option>
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">계산서 발행조건 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={taxInvoiceIssueType}
+                              onChange={e => setTaxInvoiceIssueType(e.target.value as 'FORWARD' | 'REVERSE')}
+                            >
+                              <option value="FORWARD">정발행 (기본)</option>
+                              <option value="REVERSE">역발행</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={freightBillingStandard}
+                              onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                            >
+                              <option value="3/5">3/5 기준 (기본)</option>
+                              <option value="2/4">2/4 기준</option>
+                            </select>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">명세서 마감일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
-                            value={statementClosingDay}
-                            onChange={e => setStatementClosingDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
-                            value={paymentDueDay}
-                            onChange={e => setPaymentDueDay(Number(e.target.value))}
-                          >
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                              <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
-                          <select
-                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
-                            value={freightBillingStandard}
-                            onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
-                          >
-                            <option value="3/5">3/5 기준 (기본)</option>
-                            <option value="2/4">2/4 기준</option>
-                          </select>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제조건 *</label>
+                            <select
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={paymentMethod}
+                              onChange={e => setPaymentMethod(e.target.value as PaymentMethodType)}
+                            >
+                              {PAYMENT_METHOD_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제일 *</label>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <select
+                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                                value={paymentDueMonthOffset}
+                                onChange={e => setPaymentDueMonthOffset(Number(e.target.value))}
+                              >
+                                {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                              <select
+                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                                value={paymentDueDay}
+                                onChange={e => setPaymentDueDay(Number(e.target.value))}
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                  <option key={day} value={day}>{day === 31 ? '말일' : `${day}일`}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-slate-300">약정 결제비고 (특약조건)</label>
+                            <input
+                              type="text"
+                              className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                              value={paymentTermsNote}
+                              onChange={e => setPaymentTermsNote(e.target.value)}
+                              placeholder="예: 300만원이상 채권, 또는 채권"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4366,62 +4504,111 @@ export const SmartDispatch4: React.FC = () => {
                         </div>
                         {!showEditScheduleForExistingSite ? (
                           <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800 flex-wrap">
-                            <span className="text-slate-400">계산서: <strong className="text-white">{closingDay === 31 ? '말일' : `${closingDay}일`}</strong></span>
+                            <span className="text-slate-400">계산서: <strong className="text-white">{closingDay === 0 ? '미지정' : (closingDay === 31 ? '말일' : `${closingDay}일`)}</strong> <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${taxInvoiceIssueType === 'REVERSE' ? 'bg-amber-900/60 text-amber-300 border border-amber-700/60' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>{taxInvoiceIssueType === 'REVERSE' ? '역발행' : '정발행'}</span></span>
                             <span className="text-slate-600">|</span>
                             <span className="text-slate-400">명세서: <strong className="text-white">{statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`}</strong></span>
                             <span className="text-slate-600">|</span>
-                            <span className="text-slate-400">결제: <strong className="text-emerald-400">{paymentDueDay === 31 ? '익월 말일' : `익월 ${paymentDueDay}일`}</strong></span>
+                            <span className="text-slate-400">결제: <strong className="text-emerald-400">{formatPaymentDueCondition(paymentDueMonthOffset, paymentDueDay, paymentMethod, paymentTermsNote)}</strong></span>
                             <span className="text-slate-600">|</span>
                             <span className="text-slate-400">운송료 청구기준: <strong className="text-cyan-300">{freightBillingStandard} 기준</strong></span>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                            <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">계산서 마감일</label>
-                              <select
-                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                                value={closingDay}
-                                onChange={e => setClosingDay(Number(e.target.value))}
-                              >
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                  <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                                ))}
-                              </select>
+                          <div className="flex flex-col gap-2 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">명세서 마감일</label>
+                                <select
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={statementClosingDay}
+                                  onChange={e => setStatementClosingDay(Number(e.target.value))}
+                                >
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                    <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">계산서 마감일</label>
+                                <select
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={closingDay}
+                                  onChange={e => setClosingDay(Number(e.target.value))}
+                                >
+                                  <option value={0}>미지정 (역발행 등)</option>
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                    <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">계산서 발행조건</label>
+                                <select
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={taxInvoiceIssueType}
+                                  onChange={e => setTaxInvoiceIssueType(e.target.value as 'FORWARD' | 'REVERSE')}
+                                >
+                                  <option value="FORWARD">정발행 (기본)</option>
+                                  <option value="REVERSE">역발행</option>
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">운송료 청구기준</label>
+                                <select
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={freightBillingStandard}
+                                  onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                                >
+                                  <option value="3/5">3/5 기준 (기본)</option>
+                                  <option value="2/4">2/4 기준</option>
+                                </select>
+                              </div>
                             </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">명세서 마감일</label>
-                              <select
-                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                                value={statementClosingDay}
-                                onChange={e => setStatementClosingDay(Number(e.target.value))}
-                              >
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                  <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">약정 결제일</label>
-                              <select
-                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                                value={paymentDueDay}
-                                onChange={e => setPaymentDueDay(Number(e.target.value))}
-                              >
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                  <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-xs font-semibold text-slate-300">운송료 청구기준</label>
-                              <select
-                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
-                                value={freightBillingStandard}
-                                onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
-                              >
-                                <option value="3/5">3/5 기준 (기본)</option>
-                                <option value="2/4">2/4 기준</option>
-                              </select>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">약정 결제조건</label>
+                                <select
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={paymentMethod}
+                                  onChange={e => setPaymentMethod(e.target.value as PaymentMethodType)}
+                                >
+                                  {PAYMENT_METHOD_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">약정 결제일</label>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <select
+                                    className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                    value={paymentDueMonthOffset}
+                                    onChange={e => setPaymentDueMonthOffset(Number(e.target.value))}
+                                  >
+                                    {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                    value={paymentDueDay}
+                                    onChange={e => setPaymentDueDay(Number(e.target.value))}
+                                  >
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                      <option key={day} value={day}>{day === 31 ? '말일' : `${day}일`}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-xs font-semibold text-slate-300">약정 결제비고 (특약조건)</label>
+                                <input
+                                  type="text"
+                                  className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                  value={paymentTermsNote}
+                                  onChange={e => setPaymentTermsNote(e.target.value)}
+                                  placeholder="예: 300만원이상 채권, 또는 채권"
+                                />
+                              </div>
                             </div>
                           </div>
                         )}

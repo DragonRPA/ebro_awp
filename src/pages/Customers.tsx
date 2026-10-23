@@ -9,7 +9,7 @@ import {
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
   ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy, ExternalLink
 } from 'lucide-react';
-import { db, Customer, CustomerContact, CustomerSite, SiteMaster, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
+import { db, Customer, CustomerContact, CustomerSite, SiteMaster, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, getPaymentMethodLabel, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
 import { matchHangul, matchesChosungFilter, sortCustomersByName, createHangulMatcher } from '../utils/hangulSearch';
@@ -660,9 +660,12 @@ export const Customers: React.FC = () => {
       '대표 연락처': isPrivileged ? (c.repContact || '-') : maskPhoneNumber(c.repContact),
       '대표 이메일': isPrivileged ? (c.repEmail || '-') : maskEmail(c.repEmail),
       '사업자등록번호': c.bizRegNo || '-',
-      '계산서 마감일': `매월 ${(c.defaultBillingDay || 30) === 31 ? '말일' : `${c.defaultBillingDay || 30}일`}`,
+      '계산서 마감일': c.defaultBillingDay === 0 ? '미지정' : `매월 ${(c.defaultBillingDay || 30) === 31 ? '말일' : `${c.defaultBillingDay || 30}일`}`,
+      '계산서 발행조건': c.defaultTaxInvoiceIssueType === 'REVERSE' ? '역발행' : '정발행',
       '명세서 마감일': `매월 ${(c.defaultStatementClosingDay || 25) === 31 ? '말일' : `${c.defaultStatementClosingDay || 25}일`}`,
-      '약정 결제일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
+      '약정 결제조건': getPaymentMethodLabel(c.defaultPaymentMethod),
+      '약정 결제일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay, c.defaultPaymentMethod, c.defaultPaymentTermsNote),
+      '약정 결제비고': c.defaultPaymentTermsNote || '-',
       '본사 주소': isPrivileged ? (c.address || '-') : maskAddress(c.address),
       '영업 상태': c.isClosed ? '폐업' : '영업중',
       '거래 상태': getCustomerTransactionStatusLabel(c.transactionStatus),
@@ -706,17 +709,25 @@ export const Customers: React.FC = () => {
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const excelData = sortedCustomerSites.map((cs, idx) => {
       const stmtDay = cs.statementClosingDay || activeCustomer.defaultStatementClosingDay || 25;
-      const billDay = cs.billingDay || activeCustomer.defaultBillingDay || 30;
+      const isReverse = ((cs.taxInvoiceIssueType || (cs.checkedSpecs as any)?.__taxInvoiceIssueType || activeCustomer.defaultTaxInvoiceIssueType) === 'REVERSE');
+      const rawBillDay = cs.billingDay !== undefined && cs.billingDay !== null ? cs.billingDay : (activeCustomer.defaultBillingDay !== undefined ? activeCustomer.defaultBillingDay : (isReverse ? 0 : 30));
+      const payMethod = cs.paymentMethod || (cs.checkedSpecs as any)?.__paymentMethod || activeCustomer.defaultPaymentMethod || 'CASH';
+      const payNote = cs.paymentTermsNote !== undefined ? cs.paymentTermsNote : ((cs.checkedSpecs as any)?.__paymentTermsNote ?? activeCustomer.defaultPaymentTermsNote ?? '');
       return {
         '순번': idx + 1,
         '고객사명': activeCustomer.name,
         '현장명': cs.name,
-        '명세서 마감일': `매월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
-        '계산서 마감일': `매월 ${billDay === 31 ? '말일' : `${billDay}일`}`,
+        '명세서 마감일': `당월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
+        '계산서 마감일': rawBillDay === 0 ? '' : `당월 ${rawBillDay === 31 ? '말일' : `${rawBillDay}일`}`,
+        '계산서 발행조건': isReverse ? '역발행' : '정발행',
+        '약정 결제조건': getPaymentMethodLabel(payMethod),
         '약정 결제일': formatPaymentDueCondition(
           cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : activeCustomer.paymentDueMonthOffset,
-          cs.paymentDueDay || activeCustomer.paymentDueDay
+          cs.paymentDueDay || activeCustomer.paymentDueDay,
+          payMethod,
+          payNote
         ),
+        '약정 결제비고': payNote || '',
         '현장 주소': isPrivileged ? (cs.address || '-') : maskAddress(cs.address),
         '현장 담당자': (() => {
           const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
@@ -763,20 +774,28 @@ export const Customers: React.FC = () => {
     const excelData = sortedAllSites.map((cs, idx) => {
       const cust = custMap.get(cs.customerId || '');
       const stmtDay = cs.statementClosingDay || cust?.defaultStatementClosingDay || 25;
-      const billDay = cs.billingDay || cust?.defaultBillingDay || 30;
+      const isReverse = ((cs.taxInvoiceIssueType || (cs.checkedSpecs as any)?.__taxInvoiceIssueType || cust?.defaultTaxInvoiceIssueType) === 'REVERSE');
+      const rawBillDay = cs.billingDay !== undefined && cs.billingDay !== null ? cs.billingDay : (cust?.defaultBillingDay !== undefined ? cust.defaultBillingDay : (isReverse ? 0 : 30));
+      const payMethod = cs.paymentMethod || (cs.checkedSpecs as any)?.__paymentMethod || cust?.defaultPaymentMethod || 'CASH';
+      const payNote = cs.paymentTermsNote !== undefined ? cs.paymentTermsNote : ((cs.checkedSpecs as any)?.__paymentTermsNote ?? cust?.defaultPaymentTermsNote ?? '');
       const closingContact = (cs.contacts || []).find(c => c.isActive !== false && c.contactType === 'CLOSING');
       return {
         '순번': idx + 1,
-        '고객사명': cust?.name || '-',
         '사업자등록번호': cust?.bizRegNo || '-',
+        '고객사명': cust?.name || '-',
         '고객현장명': cs.name || '-',
-        '현장 상태': cs.isActive !== false ? '가동중' : '완공/종료',
-        '명세서 마감일': `매월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
-        '계산서 마감일': `매월 ${billDay === 31 ? '말일' : `${billDay}일`}`,
+        '명세서 마감일': `당월 ${stmtDay === 31 ? '말일' : `${stmtDay}일`}`,
+        '계산서 마감일': rawBillDay === 0 ? '' : `당월 ${rawBillDay === 31 ? '말일' : `${rawBillDay}일`}`,
         '약정 결제일': formatPaymentDueCondition(
           cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : cust?.paymentDueMonthOffset,
-          cs.paymentDueDay || cust?.paymentDueDay
+          cs.paymentDueDay || cust?.paymentDueDay,
+          payMethod,
+          payNote
         ),
+        '약정 결제조건': getPaymentMethodLabel(payMethod),
+        '약정 결제비고': payNote || '',
+        '계산서발행': isReverse ? '역발행' : '정발행',
+        '현장 상태': cs.isActive !== false ? '가동중' : '완공/종료',
         '마감담당자': closingContact?.name || cs.billingContactName || cs.contactName || '-',
         '마감담당 연락처': closingContact?.contact || cs.billingContactPhone || cs.contact || '-',
         '명세서/계산서 이메일': closingContact?.email || cs.billingContactEmail || cs.email || cust?.repEmail || '-',
@@ -927,6 +946,9 @@ export const Customers: React.FC = () => {
       name: '', bizRegNo: '', isClosed: false, address: '', 
       representative: '', repContact: '', repEmail: '', 
       defaultBillingDay: 30, defaultStatementClosingDay: 25, paymentDueMonthOffset: 1, paymentDueDay: 25,
+      defaultTaxInvoiceIssueType: 'FORWARD',
+      defaultPaymentMethod: 'CASH',
+      defaultPaymentTermsNote: '',
       transactionStatus: 'ALLOWED'
     });
     setShowCustModal(true);
@@ -934,10 +956,13 @@ export const Customers: React.FC = () => {
 
   const handleOpenEditCust = (cust: Customer) => {
     setEditingCust({
-      defaultBillingDay: 30,
-      defaultStatementClosingDay: 25,
+      defaultBillingDay: cust.defaultBillingDay !== undefined && cust.defaultBillingDay !== null ? cust.defaultBillingDay : 30,
+      defaultStatementClosingDay: cust.defaultStatementClosingDay || 25,
       paymentDueMonthOffset: cust.paymentDueMonthOffset !== undefined ? cust.paymentDueMonthOffset : 1,
       paymentDueDay: cust.paymentDueDay || 25,
+      defaultTaxInvoiceIssueType: cust.defaultTaxInvoiceIssueType || ((cust.defaultCheckedSpecs as any)?.__taxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD'),
+      defaultPaymentMethod: cust.defaultPaymentMethod || (cust.defaultCheckedSpecs as any)?.__paymentMethod || 'CASH',
+      defaultPaymentTermsNote: cust.defaultPaymentTermsNote !== undefined ? cust.defaultPaymentTermsNote : ((cust.defaultCheckedSpecs as any)?.__paymentTermsNote || ''),
       ...cust
     });
     setShowCustModal(true);
@@ -952,12 +977,24 @@ export const Customers: React.FC = () => {
     try {
       setIsSubmittingCust(true);
       const isNew = !editingCust.id;
+      const resolvedPayMethod: PaymentMethodType = (editingCust.defaultPaymentMethod === 'BILL' || editingCust.defaultPaymentMethod === 'BOND') ? editingCust.defaultPaymentMethod : 'CASH';
+      const resolvedPayNote = (editingCust.defaultPaymentTermsNote || '').trim();
+      const rawBillingDay = editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? Number(editingCust.defaultBillingDay) : 30;
       const sanitizedCust = {
         ...editingCust,
-        defaultBillingDay: Math.min(31, Math.max(1, Number(editingCust.defaultBillingDay) || 30)),
+        defaultBillingDay: rawBillingDay === 0 ? 0 : Math.min(31, Math.max(1, rawBillingDay || 30)),
         defaultStatementClosingDay: Math.min(31, Math.max(1, Number(editingCust.defaultStatementClosingDay) || 25)),
         paymentDueDay: Math.min(31, Math.max(1, Number(editingCust.paymentDueDay) || 25)),
-        paymentDueMonthOffset: Math.max(0, Number(editingCust.paymentDueMonthOffset) || 0)
+        paymentDueMonthOffset: Math.max(0, Number(editingCust.paymentDueMonthOffset) || 0),
+        defaultTaxInvoiceIssueType: editingCust.defaultTaxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+        defaultPaymentMethod: resolvedPayMethod,
+        defaultPaymentTermsNote: resolvedPayNote,
+        defaultCheckedSpecs: {
+          ...(editingCust.defaultCheckedSpecs || {}),
+          __taxInvoiceIssueType: editingCust.defaultTaxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+          __paymentMethod: resolvedPayMethod,
+          __paymentTermsNote: resolvedPayNote
+        }
       };
       const saved = await saveCustomer(sanitizedCust as Omit<Customer, 'id' | 'createdAt'>);
       
@@ -1141,9 +1178,13 @@ export const Customers: React.FC = () => {
       email: '',
       contacts: initialContacts,
       statementClosingDay: parentCust?.defaultStatementClosingDay || 25,
-      billingDay: parentCust?.defaultBillingDay || 30,
+      billingDay: parentCust?.defaultBillingDay !== undefined && parentCust?.defaultBillingDay !== null ? parentCust.defaultBillingDay : (parentCust?.defaultTaxInvoiceIssueType === 'REVERSE' ? 0 : 30),
       paymentDueMonthOffset: parentCust?.paymentDueMonthOffset ?? 1,
       paymentDueDay: parentCust?.paymentDueDay || 25,
+      paymentMethod: parentCust?.defaultPaymentMethod || (parentCust?.defaultCheckedSpecs as any)?.__paymentMethod || 'CASH',
+      paymentTermsNote: parentCust?.defaultPaymentTermsNote ?? ((parentCust?.defaultCheckedSpecs as any)?.__paymentTermsNote || ''),
+      freightBillingStandard: parentCust?.defaultFreightBillingStandard || '3/5',
+      taxInvoiceIssueType: parentCust?.defaultTaxInvoiceIssueType || 'FORWARD',
       paidOptions: parentCust?.defaultPaidOptions || '',
       protection: parentCust?.defaultProtection || '',
       attachments: parentCust?.defaultAttachments || '',
@@ -1255,6 +1296,7 @@ export const Customers: React.FC = () => {
     }
 
     const parentCust = customers.find(c => c.id === (cs.customerId || ''));
+    const resolvedTaxIssue = cs.taxInvoiceIssueType || (cs.checkedSpecs as any)?.__taxInvoiceIssueType || parentCust?.defaultTaxInvoiceIssueType || 'FORWARD';
     setEditingSite({
       ...cs,
       isActive: cs.isActive !== false,
@@ -1263,9 +1305,13 @@ export const Customers: React.FC = () => {
       attachments: normalizeOptionString(cs.attachments || (cs.checkedSpecs as any)?.__attachments),
       checkedSpecs: cs.checkedSpecs ? { ...cs.checkedSpecs } : {},
       statementClosingDay: cs.statementClosingDay || parentCust?.defaultStatementClosingDay || 25,
-      billingDay: cs.billingDay || parentCust?.defaultBillingDay || 30,
+      billingDay: cs.billingDay !== undefined && cs.billingDay !== null ? cs.billingDay : (parentCust?.defaultBillingDay !== undefined && parentCust?.defaultBillingDay !== null ? parentCust.defaultBillingDay : (resolvedTaxIssue === 'REVERSE' ? 0 : 30)),
       paymentDueMonthOffset: cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : (parentCust?.paymentDueMonthOffset ?? 1),
       paymentDueDay: cs.paymentDueDay || parentCust?.paymentDueDay || 25,
+      paymentMethod: cs.paymentMethod || (cs.checkedSpecs as any)?.__paymentMethod || parentCust?.defaultPaymentMethod || (parentCust?.defaultCheckedSpecs as any)?.__paymentMethod || 'CASH',
+      paymentTermsNote: cs.paymentTermsNote !== undefined ? cs.paymentTermsNote : ((cs.checkedSpecs as any)?.__paymentTermsNote ?? parentCust?.defaultPaymentTermsNote ?? ((parentCust?.defaultCheckedSpecs as any)?.__paymentTermsNote || '')),
+      freightBillingStandard: cs.freightBillingStandard || (cs.checkedSpecs as any)?.__freightBillingStandard || parentCust?.defaultFreightBillingStandard || '3/5',
+      taxInvoiceIssueType: resolvedTaxIssue,
       contacts: contactsList
     });
     setShowSiteSpecs(false);
@@ -1369,6 +1415,8 @@ export const Customers: React.FC = () => {
         || validContacts.find(c => c.contactType === 'SAFETY');
 
       const cleanAddr = sanitizeSiteAddressInput(editingSite.address);
+      const resolvedPayMethod: PaymentMethodType = (editingSite.paymentMethod === 'BILL' || editingSite.paymentMethod === 'BOND') ? editingSite.paymentMethod : 'CASH';
+      const resolvedPayNote = (editingSite.paymentTermsNote || '').trim();
 
       const siteToSave: CustomerSite = {
         ...editingSite,
@@ -1379,7 +1427,17 @@ export const Customers: React.FC = () => {
         paidOptions: normalizeOptionString(editingSite.paidOptions),
         protection: normalizeOptionString(editingSite.protection),
         attachments: normalizeOptionString(editingSite.attachments),
-        checkedSpecs: editingSite.checkedSpecs || {},
+        paymentMethod: resolvedPayMethod,
+        paymentTermsNote: resolvedPayNote,
+        freightBillingStandard: editingSite.freightBillingStandard === '2/4' ? '2/4' : '3/5',
+        taxInvoiceIssueType: editingSite.taxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+        checkedSpecs: {
+          ...(editingSite.checkedSpecs || {}),
+          __freightBillingStandard: editingSite.freightBillingStandard === '2/4' ? '2/4' : '3/5',
+          __taxInvoiceIssueType: editingSite.taxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+          __paymentMethod: resolvedPayMethod,
+          __paymentTermsNote: resolvedPayNote
+        },
         // 1. 장비담당자 (하위호환 플랫 필드)
         contactName: eqContact?.name || editingSite.contactName || '',
         contact: eqContact?.contact || editingSite.contact || '',
@@ -2127,9 +2185,31 @@ const handleDeleteAccount = async (accId: string) => {
                   <div><span style={{ color: 'var(--text-secondary)' }}>대표 이메일:</span> {activeCustomer.repEmail || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>업태:</span> {activeCustomer.bizType || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>종목:</span> {activeCustomer.bizItem || '-'}</div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>계산서 마감일:</span> 매월 <strong>{(activeCustomer.defaultBillingDay || 30) === 31 ? '말일' : `${activeCustomer.defaultBillingDay || 30}일`}</strong></div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>계산서 마감일:</span>{' '}
+                    {activeCustomer.defaultBillingDay === 0 || (activeCustomer.defaultTaxInvoiceIssueType === 'REVERSE' && !activeCustomer.defaultBillingDay) ? (
+                      <strong>미지정</strong>
+                    ) : (
+                      <>매월 <strong>{(activeCustomer.defaultBillingDay || 30) === 31 ? '말일' : `${activeCustomer.defaultBillingDay || 30}일`}</strong></>
+                    )}
+                    <span style={{
+                      marginLeft: '5px',
+                      padding: '1px 5px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      borderRadius: '4px',
+                      backgroundColor: activeCustomer.defaultTaxInvoiceIssueType === 'REVERSE' ? 'rgba(217, 119, 6, 0.14)' : 'rgba(37, 99, 235, 0.08)',
+                      color: activeCustomer.defaultTaxInvoiceIssueType === 'REVERSE' ? '#b45309' : '#2563eb',
+                      border: activeCustomer.defaultTaxInvoiceIssueType === 'REVERSE' ? '1px solid rgba(217, 119, 6, 0.35)' : '1px solid rgba(37, 99, 235, 0.25)'
+                    }}>
+                      {activeCustomer.defaultTaxInvoiceIssueType === 'REVERSE' ? '역발행' : '정발행'}
+                    </span>
+                  </div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>명세서 마감일:</span> 매월 <strong>{(activeCustomer.defaultStatementClosingDay || 25) === 31 ? '말일' : `${activeCustomer.defaultStatementClosingDay || 25}일`}</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>약정 결제일:</span> <strong>{formatPaymentDueCondition(activeCustomer.paymentDueMonthOffset, activeCustomer.paymentDueDay)}</strong></div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>약정 결제일:</span>{' '}
+                    <strong>{formatPaymentDueCondition(activeCustomer.paymentDueMonthOffset, activeCustomer.paymentDueDay, activeCustomer.defaultPaymentMethod, activeCustomer.defaultPaymentTermsNote)}</strong>
+                  </div>
                   <div style={{ gridColumn: 'span 4' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>사업장 주소:</span> {activeCustomer.address || '-'}
                   </div>
@@ -2186,6 +2266,7 @@ const handleDeleteAccount = async (accId: string) => {
                         <SortableTh label="연락처" sortKey="contact" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
                         <SortableTh label="명세서 마감일" sortKey="closingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <SortableTh label="계산서 마감일" sortKey="billingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                        <SortableTh label="약정 결제일" sortKey="paymentDueDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                         <SortableTh label="입력일시" sortKey="createdAt" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
@@ -2194,7 +2275,7 @@ const handleDeleteAccount = async (accId: string) => {
                     <tbody>
                       {sortedCustomerSites.length === 0 ? (
                         <tr>
-                          <td colSpan={10} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
+                          <td colSpan={11} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 현장이 없습니다. 현장을 추가해 주세요.
                           </td>
                         </tr>
@@ -2314,9 +2395,55 @@ const handleDeleteAccount = async (accId: string) => {
                               </span>
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: '11.5px', fontWeight: 600, color: cs.billingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
-                                매월 {(cs.billingDay || activeCustomer?.defaultBillingDay || 30) === 31 ? '말일' : `${cs.billingDay || activeCustomer?.defaultBillingDay || 30}일`}
-                              </span>
+                              {(() => {
+                                const isReverse = ((cs.taxInvoiceIssueType || (cs.checkedSpecs as any)?.__taxInvoiceIssueType || activeCustomer?.defaultTaxInvoiceIssueType) === 'REVERSE');
+                                const rawBillDay = cs.billingDay !== undefined && cs.billingDay !== null ? cs.billingDay : (activeCustomer?.defaultBillingDay !== undefined ? activeCustomer.defaultBillingDay : (isReverse ? 0 : 30));
+                                return (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: rawBillDay ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                      {rawBillDay === 0 ? '미지정' : `매월 ${rawBillDay === 31 ? '말일' : `${rawBillDay}일`}`}
+                                    </span>
+                                    {isReverse ? (
+                                      <span style={{ padding: '1px 5px', fontSize: '10px', fontWeight: 700, borderRadius: '4px', backgroundColor: 'rgba(217, 119, 6, 0.14)', color: '#b45309', border: '1px solid rgba(217, 119, 6, 0.35)', whiteSpace: 'nowrap' }}>
+                                        역발행
+                                      </span>
+                                    ) : (
+                                      <span style={{ padding: '1px 5px', fontSize: '10px', fontWeight: 600, borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: '#2563eb', border: '1px solid rgba(37, 99, 235, 0.25)', whiteSpace: 'nowrap' }}>
+                                        정발행
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              {(() => {
+                                const payMethod = cs.paymentMethod || (cs.checkedSpecs as any)?.__paymentMethod || activeCustomer?.defaultPaymentMethod || 'CASH';
+                                const payNote = (cs.paymentTermsNote !== undefined ? cs.paymentTermsNote : ((cs.checkedSpecs as any)?.__paymentTermsNote ?? activeCustomer?.defaultPaymentTermsNote ?? '')).trim();
+                                const dueOffset = cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1);
+                                const dueDay = cs.paymentDueDay || activeCustomer?.paymentDueDay || 25;
+                                const dateOnlyText = payNote === '익익월 초' && dueOffset === 2 && dueDay === 1
+                                  ? '익익월 초'
+                                  : formatPaymentDueCondition(dueOffset, dueDay);
+                                const methodBg = payMethod === 'BILL' ? 'rgba(124, 58, 237, 0.14)' : payMethod === 'BOND' ? 'rgba(217, 119, 6, 0.14)' : 'rgba(16, 185, 129, 0.10)';
+                                const methodColor = payMethod === 'BILL' ? '#6d28d9' : payMethod === 'BOND' ? '#b45309' : '#059669';
+                                const methodBorder = payMethod === 'BILL' ? '1px solid rgba(124, 58, 237, 0.35)' : payMethod === 'BOND' ? '1px solid rgba(217, 119, 6, 0.35)' : '1px solid rgba(16, 185, 129, 0.28)';
+                                return (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ padding: '1px 5px', fontSize: '10px', fontWeight: 700, borderRadius: '4px', backgroundColor: methodBg, color: methodColor, border: methodBorder, whiteSpace: 'nowrap' }}>
+                                      {getPaymentMethodLabel(payMethod)}
+                                    </span>
+                                    <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-main)' }}>
+                                      {dateOnlyText}
+                                    </span>
+                                    {payNote && payNote !== '익익월 초' && (
+                                      <span style={{ padding: '1px 5px', fontSize: '10px', fontWeight: 600, borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.10)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.28)', whiteSpace: 'nowrap' }}>
+                                        {payNote}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <button
@@ -2783,61 +2910,108 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
 
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1.05fr 1.05fr 1.6fr',
-                gap: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
                 padding: '10px 14px',
                 backgroundColor: 'var(--bg-app)',
                 borderRadius: '6px',
-                border: '1px dashed var(--border-color)',
-                alignItems: 'start'
+                border: '1px dashed var(--border-color)'
               }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>계산서 마감일</label>
-                  <select
-                    style={inputStyle}
-                    value={editingCust.defaultBillingDay || 30}
-                    onChange={e => setEditingCust({ ...editingCust, defaultBillingDay: Number(e.target.value) })}
-                  >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>명세서 마감일</label>
-                  <select
-                    style={inputStyle}
-                    value={editingCust.defaultStatementClosingDay || 25}
-                    onChange={e => setEditingCust({ ...editingCust, defaultStatementClosingDay: Number(e.target.value) })}
-                  >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제일</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 0.9fr',
+                  gap: '10px',
+                  alignItems: 'start'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>명세서 마감일</label>
                     <select
-                      style={{ ...inputStyle, padding: '5px 6px' }}
-                      value={editingCust.paymentDueMonthOffset !== undefined ? editingCust.paymentDueMonthOffset : 1}
-                      onChange={e => setEditingCust({ ...editingCust, paymentDueMonthOffset: Number(e.target.value) })}
+                      style={inputStyle}
+                      value={editingCust.defaultStatementClosingDay || 25}
+                      onChange={e => setEditingCust({ ...editingCust, defaultStatementClosingDay: Number(e.target.value) })}
                     >
-                      {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
                       ))}
                     </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>계산서 마감일</label>
                     <select
-                      style={{ ...inputStyle, padding: '5px 6px' }}
-                      value={editingCust.paymentDueDay || 25}
-                      onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
+                      style={inputStyle}
+                      value={editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? editingCust.defaultBillingDay : 30}
+                      onChange={e => setEditingCust({ ...editingCust, defaultBillingDay: Number(e.target.value) })}
                     >
-                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
-                        <option key={day} value={day}>{day}일</option>
+                      <option value={0}>미지정 (역발행 등)</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
                       ))}
-                      <option value={31}>말일</option>
                     </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>계산서 발행조건</label>
+                    <select
+                      style={inputStyle}
+                      value={editingCust.defaultTaxInvoiceIssueType || 'FORWARD'}
+                      onChange={e => setEditingCust({ ...editingCust, defaultTaxInvoiceIssueType: e.target.value as 'FORWARD' | 'REVERSE' })}
+                    >
+                      <option value="FORWARD">정발행 (기본)</option>
+                      <option value="REVERSE">역발행</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '0.9fr 1.4fr 1.3fr',
+                  gap: '10px',
+                  alignItems: 'start'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제조건</label>
+                    <select
+                      style={inputStyle}
+                      value={editingCust.defaultPaymentMethod || 'CASH'}
+                      onChange={e => setEditingCust({ ...editingCust, defaultPaymentMethod: e.target.value as PaymentMethodType })}
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제일</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px' }}>
+                      <select
+                        style={{ ...inputStyle, padding: '5px 6px' }}
+                        value={editingCust.paymentDueMonthOffset !== undefined ? editingCust.paymentDueMonthOffset : 1}
+                        onChange={e => setEditingCust({ ...editingCust, paymentDueMonthOffset: Number(e.target.value) })}
+                      >
+                        {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <select
+                        style={{ ...inputStyle, padding: '5px 6px' }}
+                        value={editingCust.paymentDueDay || 25}
+                        onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                          <option key={day} value={day}>{day}일</option>
+                        ))}
+                        <option value={31}>말일</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제비고 (특약조건)</label>
+                    <input
+                      type="text"
+                      style={inputStyle}
+                      value={editingCust.defaultPaymentTermsNote || ''}
+                      onChange={e => setEditingCust({ ...editingCust, defaultPaymentTermsNote: e.target.value })}
+                      placeholder="예: 300만원이상 채권, 또는 채권"
+                    />
                   </div>
                 </div>
               </div>
@@ -3516,11 +3690,11 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              {/* 📅 현장 마감 조건 (명세서 마감일 / 계산서 마감일 / 약정 결제일) */}
+              {/* 📅 현장 마감 조건 (명세서 마감일 / 계산서 마감일 / 계산서 발행조건 / 약정 결제조건 / 약정 결제일 / 약정 결제비고) */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                   {/* 명세서 마감일 */}
-                  <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ ...labelStyle, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span>명세서 마감일</span>
                       <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>*청구생성 연동</span>
@@ -3538,47 +3712,100 @@ const handleDeleteAccount = async (accId: string) => {
                   </div>
 
                   {/* 계산서 마감일 */}
-                  <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>
                       계산서 마감일
                     </label>
                     <select
                       style={inputStyle}
-                      value={editingSite.billingDay || activeCustomer?.defaultBillingDay || 30}
+                      value={editingSite.billingDay !== undefined && editingSite.billingDay !== null ? editingSite.billingDay : (activeCustomer?.defaultBillingDay !== undefined ? activeCustomer.defaultBillingDay : 30)}
                       onChange={e => setEditingSite({ ...editingSite, billingDay: Number(e.target.value) })}
                     >
+                      <option value={0}>미지정 (역발행 등)</option>
                       {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
                         <option key={day} value={day}>매월 {day}일</option>
                       ))}
                       <option value={31}>31일 (말일)</option>
                     </select>
                   </div>
-                </div>
 
-                {/* 약정 결제일 */}
-                <div>
-                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px', maxWidth: '340px' }}>
+                  {/* 계산서 발행 조건 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>
+                      계산서 발행조건
+                    </label>
                     <select
                       style={inputStyle}
-                      value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}
-                      onChange={e => setEditingSite({ ...editingSite, paymentDueMonthOffset: Number(e.target.value) })}
+                      value={editingSite.taxInvoiceIssueType || activeCustomer?.defaultTaxInvoiceIssueType || 'FORWARD'}
+                      onChange={e => setEditingSite({ ...editingSite, taxInvoiceIssueType: e.target.value as 'FORWARD' | 'REVERSE' })}
                     >
-                      {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <select
-                      style={inputStyle}
-                      value={editingSite.paymentDueDay || activeCustomer?.paymentDueDay || 25}
-                      onChange={e => setEditingSite({ ...editingSite, paymentDueDay: Number(e.target.value) })}
-                    >
-                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
-                        <option key={day} value={day}>{day}일</option>
-                      ))}
-                      <option value={31}>말일</option>
+                      <option value="FORWARD">정발행 (기본)</option>
+                      <option value="REVERSE">역발행</option>
                     </select>
                   </div>
+                </div>
+
+                {/* 약정 결제조건 / 약정 결제일 / 운송료 청구기준 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.3fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제조건</label>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.paymentMethod || activeCustomer?.defaultPaymentMethod || 'CASH'}
+                      onChange={e => setEditingSite({ ...editingSite, paymentMethod: e.target.value as PaymentMethodType })}
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px' }}>
+                      <select
+                        style={inputStyle}
+                        value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}
+                        onChange={e => setEditingSite({ ...editingSite, paymentDueMonthOffset: Number(e.target.value) })}
+                      >
+                        {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <select
+                        style={inputStyle}
+                        value={editingSite.paymentDueDay || activeCustomer?.paymentDueDay || 25}
+                        onChange={e => setEditingSite({ ...editingSite, paymentDueDay: Number(e.target.value) })}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                          <option key={day} value={day}>{day}일</option>
+                        ))}
+                        <option value={31}>말일</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>운송료 청구기준</label>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.freightBillingStandard || activeCustomer?.defaultFreightBillingStandard || '3/5'}
+                      onChange={e => setEditingSite({ ...editingSite, freightBillingStandard: e.target.value as '3/5' | '2/4' })}
+                    >
+                      <option value="3/5">3/5 기준 (기본 · 3개월 이하 왕복 / 5개월 이하 편도)</option>
+                      <option value="2/4">2/4 기준 (2개월 이하 왕복 / 4개월 이하 편도)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 약정 결제비고 (특약조건) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제비고 (특약조건)</label>
+                  <input
+                    type="text"
+                    style={inputStyle}
+                    value={editingSite.paymentTermsNote !== undefined ? editingSite.paymentTermsNote : (activeCustomer?.defaultPaymentTermsNote || '')}
+                    onChange={e => setEditingSite({ ...editingSite, paymentTermsNote: e.target.value })}
+                    placeholder="예: 300만원이상 채권, 또는 채권, 익익월 초 등 결제 특약사항 입력"
+                  />
                 </div>
               </div>
 

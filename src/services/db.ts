@@ -985,13 +985,47 @@ export const PAYMENT_DUE_MONTH_OPTIONS = [
   { value: 3, label: '익익익월', shortLabel: '익익익월' },
 ] as const;
 
-export function formatPaymentDueCondition(monthOffset?: number | null, day?: number | null): string {
+export type PaymentMethodType = 'CASH' | 'BILL' | 'BOND'; // 'CASH': 현금(기본), 'BILL': 어음, 'BOND': 채권
+
+export const PAYMENT_METHOD_OPTIONS: ReadonlyArray<{ value: PaymentMethodType; label: string }> = [
+  { value: 'CASH', label: '현금' },
+  { value: 'BILL', label: '어음' },
+  { value: 'BOND', label: '채권' },
+] as const;
+
+export function getPaymentMethodLabel(method?: PaymentMethodType | string | null): string {
+  if (method === 'BILL' || method === '어음') return '어음';
+  if (method === 'BOND' || method === '채권') return '채권';
+  return '현금';
+}
+
+export function formatPaymentDueCondition(
+  monthOffset?: number | null,
+  day?: number | null,
+  paymentMethod?: PaymentMethodType | string | null,
+  paymentTermsNote?: string | null
+): string {
   const safeOffset = (monthOffset !== undefined && monthOffset !== null && !isNaN(monthOffset)) ? monthOffset : 1;
   const safeDay = (day !== undefined && day !== null && !isNaN(day) && day > 0) ? day : 25;
   const monthLabels = ['당월', '익월', '익익월', '익익익월'];
   const monthText = monthLabels[safeOffset] !== undefined ? monthLabels[safeOffset] : '익월';
   const dayText = safeDay === 31 ? '말일' : `${safeDay}일`;
-  return `${monthText} ${dayText}`;
+  const noteTrimmed = (paymentTermsNote || '').trim();
+  const baseDateStr = noteTrimmed === '익익월 초' && safeOffset === 2 && safeDay === 1
+    ? '익익월 초'
+    : `${monthText} ${dayText}`;
+
+  const methodLabel = getPaymentMethodLabel(paymentMethod);
+  if (methodLabel === '어음' || methodLabel === '채권') {
+    if (noteTrimmed && noteTrimmed !== '익익월 초') {
+      return `${methodLabel}(${baseDateStr}, ${noteTrimmed})`;
+    }
+    return `${methodLabel}(${baseDateStr})`;
+  }
+  if (noteTrimmed && noteTrimmed !== '익익월 초') {
+    return `${baseDateStr}(${noteTrimmed})`;
+  }
+  return baseDateStr;
 }
 
 export function calculatePaymentDueDate(
@@ -1047,6 +1081,8 @@ export const getCustomerTransactionStatusLabel = (status?: string): { label: str
   return { label: '정상 거래', color: '#16a34a', badgeClass: 'badge-success', isBlocked: false, isTotal: false };
 };
 
+export type TaxInvoiceIssueType = 'FORWARD' | 'REVERSE'; // 'FORWARD': 정발행 (기본), 'REVERSE': 역발행
+
 export interface Customer {
   id: string;
   name: string;
@@ -1061,9 +1097,12 @@ export interface Customer {
   driveFolderId?: string;
   prepaidBalance?: number; // 선수금 (예치금) 잔액
   transactionStatus?: CustomerTransactionStatus; // ALLOWED: 정상거래, RESTRICT_NEW: 추가계약금지(기존계약유지), BLOCKED_ALL: 전면차단(장비회수·계약금지)
-  defaultBillingDay?: number; // 계산서 기본 마감일 (예: 30일/월말)
+  defaultBillingDay?: number; // 계산서 기본 마감일 (예: 30일/월말, 0: 미지정)
   defaultStatementClosingDay?: number; // 명세서 기본 마감일 (예: 25일)
   defaultFreightBillingStandard?: '3/5' | '2/4'; // 운송료 청구기준 기본값 ('3/5' | '2/4')
+  defaultTaxInvoiceIssueType?: TaxInvoiceIssueType; // 계산서 발행 조건 기본값 ('FORWARD': 정발행 | 'REVERSE': 역발행)
+  defaultPaymentMethod?: PaymentMethodType; // 약정 결제조건 기본값 ('CASH': 현금 기본 | 'BILL': 어음 | 'BOND': 채권)
+  defaultPaymentTermsNote?: string; // 약정 결제비고 기본값 (특약조건)
   paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
   paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월, 기본값 1
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
@@ -1163,10 +1202,13 @@ export interface CustomerSite {
   protection?: string;               // 현장 전용 무상옵션
   attachments?: string;              // 현장 전용 부착물
   checkedSpecs?: Record<string, any>; // 현장 전용 요구 사양 체크 상태
-  billingDay?: number;               // 계산서 마감일
+  billingDay?: number;               // 계산서 마감일 (0: 미지정)
   statementClosingDay?: number;      // 명세서 마감일
   paymentDueDay?: number;            // 약정 결제일 (1~30, 31: 말일)
+  paymentMethod?: PaymentMethodType; // 약정 결제조건 ('CASH': 현금 기본 | 'BILL': 어음 | 'BOND': 채권)
+  paymentTermsNote?: string;         // 약정 결제비고 (특약조건, 예: '300만원이상 채권', '또는 채권')
   freightBillingStandard?: '3/5' | '2/4'; // 현장 전용 운송료 청구기준 ('3/5' 기본 | '2/4')
+  taxInvoiceIssueType?: TaxInvoiceIssueType; // 계산서 발행 조건 ('FORWARD': 정발행 기본 | 'REVERSE': 역발행)
 
   createdAt: string;
   updatedAt?: string;
@@ -6003,13 +6045,33 @@ class LocalDB {
         defFreightStd = (c.defaultCheckedSpecs as any).__freightBillingStandard;
         changed = true;
       }
+      let defTaxIssueType: TaxInvoiceIssueType = c.defaultTaxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD';
+      if (!c.defaultTaxInvoiceIssueType && c.defaultCheckedSpecs && ((c.defaultCheckedSpecs as any).__taxInvoiceIssueType === 'FORWARD' || (c.defaultCheckedSpecs as any).__taxInvoiceIssueType === 'REVERSE')) {
+        defTaxIssueType = (c.defaultCheckedSpecs as any).__taxInvoiceIssueType;
+      } else if (!c.defaultTaxInvoiceIssueType && (!c.defaultCheckedSpecs || !(c.defaultCheckedSpecs as any).__taxInvoiceIssueType)) {
+        const cleanBizNo = String(c.bizRegNo || '').replace(/[^0-9]/g, '');
+        if (cleanBizNo === '1188100241' || (c.name || '').includes('세보엠이씨')) {
+          defTaxIssueType = 'REVERSE';
+        }
+      }
+      if (c.defaultTaxInvoiceIssueType !== defTaxIssueType) {
+        changed = true;
+      }
+      let defPaymentMethod: PaymentMethodType = (c.defaultPaymentMethod === 'BILL' || c.defaultPaymentMethod === 'BOND') ? c.defaultPaymentMethod : 'CASH';
+      if (!c.defaultPaymentMethod && c.defaultCheckedSpecs && ((c.defaultCheckedSpecs as any).__paymentMethod === 'CASH' || (c.defaultCheckedSpecs as any).__paymentMethod === 'BILL' || (c.defaultCheckedSpecs as any).__paymentMethod === 'BOND')) {
+        defPaymentMethod = (c.defaultCheckedSpecs as any).__paymentMethod;
+      }
+      let defPaymentTermsNote = c.defaultPaymentTermsNote ?? ((c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__paymentTermsNote === 'string') ? (c.defaultCheckedSpecs as any).__paymentTermsNote : '');
+      if (c.defaultPaymentMethod !== defPaymentMethod || (c.defaultPaymentTermsNote || '') !== defPaymentTermsNote) {
+        changed = true;
+      }
       let dueMonthOffset = c.paymentDueMonthOffset !== undefined && c.paymentDueMonthOffset !== null ? c.paymentDueMonthOffset : 1;
       let dueDay = c.paymentDueDay || 25;
       if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
         changed = true;
       }
       if (changed) {
-        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, defaultFreightBillingStandard: defFreightStd, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
+        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, defaultFreightBillingStandard: defFreightStd, defaultTaxInvoiceIssueType: defTaxIssueType, defaultPaymentMethod: defPaymentMethod, defaultPaymentTermsNote: defPaymentTermsNote, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
       }
       return c;
     }).sort((a, b) => compareCustomerNames(a?.name, b?.name));
@@ -6118,6 +6180,27 @@ class LocalDB {
         changed = true;
       }
 
+      let taxIssueType: TaxInvoiceIssueType = s.taxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD';
+      if (!s.taxInvoiceIssueType && specs && ((specs as any).__taxInvoiceIssueType === 'FORWARD' || (specs as any).__taxInvoiceIssueType === 'REVERSE')) {
+        taxIssueType = (specs as any).__taxInvoiceIssueType;
+      } else if (!s.taxInvoiceIssueType && (!specs || !(specs as any).__taxInvoiceIssueType)) {
+        if (s.customerId === 'CUST-0000022') {
+          taxIssueType = 'REVERSE';
+        }
+      }
+      if (s.taxInvoiceIssueType !== taxIssueType) {
+        changed = true;
+      }
+
+      let payMethod: PaymentMethodType = (s.paymentMethod === 'BILL' || s.paymentMethod === 'BOND') ? s.paymentMethod : 'CASH';
+      if (!s.paymentMethod && specs && ((specs as any).__paymentMethod === 'CASH' || (specs as any).__paymentMethod === 'BILL' || (specs as any).__paymentMethod === 'BOND')) {
+        payMethod = (specs as any).__paymentMethod;
+      }
+      let payNote = s.paymentTermsNote ?? ((specs && typeof (specs as any).__paymentTermsNote === 'string') ? (specs as any).__paymentTermsNote : '');
+      if (s.paymentMethod !== payMethod || (s.paymentTermsNote || '') !== payNote) {
+        changed = true;
+      }
+
       const isActiveVal = s.isActive !== false;
       if (s.isActive === undefined) {
         changed = true;
@@ -6156,6 +6239,9 @@ class LocalDB {
           attachments: att,
           checkedSpecs: specs,
           freightBillingStandard: freightStd,
+          taxInvoiceIssueType: taxIssueType,
+          paymentMethod: payMethod,
+          paymentTermsNote: payNote,
           isActive: isActiveVal,
           billingContactName,
           billingContactPhone,
@@ -6754,6 +6840,15 @@ class LocalDB {
     if (!normalized.freightBillingStandard && normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && (normalized.checkedSpecs.__freightBillingStandard === '2/4' || normalized.checkedSpecs.__freightBillingStandard === '3/5')) {
       normalized.freightBillingStandard = normalized.checkedSpecs.__freightBillingStandard;
     }
+    if (!normalized.taxInvoiceIssueType && normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && (normalized.checkedSpecs.__taxInvoiceIssueType === 'FORWARD' || normalized.checkedSpecs.__taxInvoiceIssueType === 'REVERSE')) {
+      normalized.taxInvoiceIssueType = normalized.checkedSpecs.__taxInvoiceIssueType;
+    }
+    if (!normalized.paymentMethod && normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && (normalized.checkedSpecs.__paymentMethod === 'CASH' || normalized.checkedSpecs.__paymentMethod === 'BILL' || normalized.checkedSpecs.__paymentMethod === 'BOND')) {
+      normalized.paymentMethod = normalized.checkedSpecs.__paymentMethod;
+    }
+    if (normalized.paymentTermsNote === undefined && normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && typeof normalized.checkedSpecs.__paymentTermsNote === 'string') {
+      normalized.paymentTermsNote = normalized.checkedSpecs.__paymentTermsNote;
+    }
     if (normalized.attachments !== undefined && normalized.attachments !== null) {
       if (Array.isArray(normalized.attachments)) {
         normalized.attachments = normalized.attachments.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
@@ -6782,6 +6877,15 @@ class LocalDB {
     }
     if (!normalized.defaultFreightBillingStandard && normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && (normalized.defaultCheckedSpecs.__freightBillingStandard === '2/4' || normalized.defaultCheckedSpecs.__freightBillingStandard === '3/5')) {
       normalized.defaultFreightBillingStandard = normalized.defaultCheckedSpecs.__freightBillingStandard;
+    }
+    if (!normalized.defaultTaxInvoiceIssueType && normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && (normalized.defaultCheckedSpecs.__taxInvoiceIssueType === 'FORWARD' || normalized.defaultCheckedSpecs.__taxInvoiceIssueType === 'REVERSE')) {
+      normalized.defaultTaxInvoiceIssueType = normalized.defaultCheckedSpecs.__taxInvoiceIssueType;
+    }
+    if (!normalized.defaultPaymentMethod && normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && (normalized.defaultCheckedSpecs.__paymentMethod === 'CASH' || normalized.defaultCheckedSpecs.__paymentMethod === 'BILL' || normalized.defaultCheckedSpecs.__paymentMethod === 'BOND')) {
+      normalized.defaultPaymentMethod = normalized.defaultCheckedSpecs.__paymentMethod;
+    }
+    if (normalized.defaultPaymentTermsNote === undefined && normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && typeof normalized.defaultCheckedSpecs.__paymentTermsNote === 'string') {
+      normalized.defaultPaymentTermsNote = normalized.defaultCheckedSpecs.__paymentTermsNote;
     }
     if (normalized.defaultAttachments !== undefined && normalized.defaultAttachments !== null) {
       if (Array.isArray(normalized.defaultAttachments)) {
@@ -7258,7 +7362,7 @@ class LocalDB {
           if (obj.paymentTermDays === undefined) sanitized['paymentTermDays'] = val;
           continue;
         }
-        if (key === 'defaultAttachments' || key === 'defaultFreightBillingStandard') {
+        if (key === 'defaultAttachments' || key === 'defaultFreightBillingStandard' || key === 'defaultTaxInvoiceIssueType') {
           continue;
         }
       }
@@ -7283,7 +7387,8 @@ class LocalDB {
         if (obj.contractId === undefined) sanitized['contractId'] = val;
         continue;
       }
-      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail', 'attachments', 'freightBillingStandard'].includes(key)) { continue; }
+      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail', 'attachments', 'freightBillingStandard', 'taxInvoiceIssueType', 'paymentMethod', 'paymentTermsNote'].includes(key)) { continue; }
+      if (resolvedTable === 'customers' && ['defaultFreightBillingStandard', 'defaultTaxInvoiceIssueType', 'defaultPaymentMethod', 'defaultPaymentTermsNote'].includes(key)) { continue; }
       if (resolvedTable === 'site_masters' && !['id', 'name', 'isActive', 'paidOptions', 'protection', 'checkedSpecs', 'createdAt', 'updatedAt', 'tenant_id', 'tenantId'].includes(key)) { continue; }
       // equipment_manuals mediaType -> media_type 정제
       if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
@@ -7443,6 +7548,31 @@ class LocalDB {
         specsModified = true;
       }
 
+      if (resolvedTable === 'customer_sites') {
+        const effectiveTaxIssueType: TaxInvoiceIssueType = (obj.taxInvoiceIssueType === 'FORWARD' || obj.taxInvoiceIssueType === 'REVERSE')
+          ? obj.taxInvoiceIssueType
+          : (baseSpecs.__taxInvoiceIssueType === 'FORWARD' || baseSpecs.__taxInvoiceIssueType === 'REVERSE')
+            ? baseSpecs.__taxInvoiceIssueType
+            : (obj.customerId === 'CUST-0000022' || existingSiteObj?.customerId === 'CUST-0000022' ? 'REVERSE' : 'FORWARD');
+        if (baseSpecs.__taxInvoiceIssueType !== effectiveTaxIssueType) {
+          baseSpecs.__taxInvoiceIssueType = effectiveTaxIssueType;
+          specsModified = true;
+        }
+        const effectivePayMethod: PaymentMethodType = (obj.paymentMethod === 'CASH' || obj.paymentMethod === 'BILL' || obj.paymentMethod === 'BOND')
+          ? obj.paymentMethod
+          : (baseSpecs.__paymentMethod === 'CASH' || baseSpecs.__paymentMethod === 'BILL' || baseSpecs.__paymentMethod === 'BOND')
+            ? baseSpecs.__paymentMethod
+            : 'CASH';
+        if (baseSpecs.__paymentMethod !== effectivePayMethod) {
+          baseSpecs.__paymentMethod = effectivePayMethod;
+          specsModified = true;
+        }
+        if (obj.paymentTermsNote !== undefined) {
+          baseSpecs.__paymentTermsNote = String(obj.paymentTermsNote || '').trim();
+          specsModified = true;
+        }
+      }
+
       if (resolvedTable === 'customer_sites' && obj.protection !== undefined) {
         const fullProt = obj.protection
           ? (Array.isArray(obj.protection)
@@ -7461,10 +7591,13 @@ class LocalDB {
       if (resolvedTable === 'customer_sites') {
         delete sanitized.attachments;
         delete sanitized.freightBillingStandard;
+        delete sanitized.taxInvoiceIssueType;
+        delete sanitized.paymentMethod;
+        delete sanitized.paymentTermsNote;
       }
     }
 
-    // customers의 defaultAttachments/defaultProtection/defaultFreightBillingStandard 컬럼 및 defaultCheckedSpecs 동기화
+    // customers의 defaultAttachments/defaultProtection/defaultFreightBillingStandard/defaultTaxInvoiceIssueType 컬럼 및 defaultCheckedSpecs 동기화
     if (resolvedTable === 'customers') {
       const existingCustObj = obj.id ? (this.customers || []).find(c => c && c.id === obj.id) : null;
       const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
@@ -7487,6 +7620,26 @@ class LocalDB {
         specsModified = true;
       }
 
+      if (obj.defaultTaxInvoiceIssueType === 'FORWARD' || obj.defaultTaxInvoiceIssueType === 'REVERSE') {
+        baseSpecs.__taxInvoiceIssueType = obj.defaultTaxInvoiceIssueType;
+        specsModified = true;
+      } else if (!baseSpecs.__taxInvoiceIssueType) {
+        const cleanBizNo = String(obj.bizRegNo || existingCustObj?.bizRegNo || '').replace(/[^0-9]/g, '');
+        baseSpecs.__taxInvoiceIssueType = (cleanBizNo === '1188100241' || String(obj.name || existingCustObj?.name || '').includes('세보엠이씨')) ? 'REVERSE' : 'FORWARD';
+        specsModified = true;
+      }
+      if (obj.defaultPaymentMethod === 'CASH' || obj.defaultPaymentMethod === 'BILL' || obj.defaultPaymentMethod === 'BOND') {
+        baseSpecs.__paymentMethod = obj.defaultPaymentMethod;
+        specsModified = true;
+      } else if (!baseSpecs.__paymentMethod) {
+        baseSpecs.__paymentMethod = 'CASH';
+        specsModified = true;
+      }
+      if (obj.defaultPaymentTermsNote !== undefined) {
+        baseSpecs.__paymentTermsNote = String(obj.defaultPaymentTermsNote || '').trim();
+        specsModified = true;
+      }
+
       if (obj.defaultProtection !== undefined) {
         const fullProt = obj.defaultProtection
           ? (Array.isArray(obj.defaultProtection)
@@ -7504,6 +7657,9 @@ class LocalDB {
       }
       delete sanitized.defaultAttachments;
       delete sanitized.defaultFreightBillingStandard;
+      delete sanitized.defaultTaxInvoiceIssueType;
+      delete sanitized.defaultPaymentMethod;
+      delete sanitized.defaultPaymentTermsNote;
     }
 
     // deliveries 테이블의 경유/합짐 묶음 메타데이터([BUNDLE:bundleGroupId|bundleOrder|originalDispatchCategory])를 memo에 동기화하여 원격 DB 스키마 제약 없이 100% 영구 보존

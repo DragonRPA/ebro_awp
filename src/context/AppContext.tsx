@@ -3160,6 +3160,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             isActive: true
           }]
         : undefined;
+      const isSeboCust = finalCustomer.id === 'CUST-0000022' || String(finalCustomer.bizRegNo || '').replace(/[^0-9]/g, '') === '1188100241';
+      const resolvedTaxInvoiceIssueType: 'FORWARD' | 'REVERSE' =
+        rawData.taxInvoiceIssueType === 'REVERSE'
+          ? 'REVERSE'
+          : rawData.taxInvoiceIssueType === 'FORWARD'
+            ? 'FORWARD'
+            : (finalCustomer.defaultTaxInvoiceIssueType === 'REVERSE' || isSeboCust ? 'REVERSE' : 'FORWARD');
+      const resolvedPaymentMethod: 'CASH' | 'BILL' | 'BOND' =
+        (rawData.paymentMethod === 'BILL' || rawData.paymentMethod === 'BOND')
+          ? rawData.paymentMethod
+          : (finalCustomer.defaultPaymentMethod === 'BILL' || finalCustomer.defaultPaymentMethod === 'BOND' ? finalCustomer.defaultPaymentMethod : 'CASH');
+      const resolvedPaymentTermsNote: string =
+        rawData.paymentTermsNote !== undefined
+          ? String(rawData.paymentTermsNote || '').trim()
+          : String(finalCustomer.defaultPaymentTermsNote || '').trim();
+      const resolvedPaymentDueMonthOffset: number =
+        rawData.paymentDueMonthOffset !== undefined && rawData.paymentDueMonthOffset !== null
+          ? Number(rawData.paymentDueMonthOffset)
+          : (finalCustomer.paymentDueMonthOffset ?? 1);
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
         siteMasterId: selectedOptionGroup?.id || null,
@@ -3172,8 +3191,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         contacts: initialSiteContacts,
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
+        paymentDueMonthOffset: resolvedPaymentDueMonthOffset,
         paymentDueDay: contractPaymentDueDay,
+        paymentMethod: resolvedPaymentMethod,
+        paymentTermsNote: resolvedPaymentTermsNote,
         freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5',
+        taxInvoiceIssueType: resolvedTaxInvoiceIssueType,
         paidOptions: data.paidOptions !== undefined ? data.paidOptions : (selectedOptionGroup?.paidOptions || finalCustomer.defaultPaidOptions || ''),
         protection: data.protection !== undefined ? data.protection : (selectedOptionGroup?.protection || finalCustomer.defaultProtection || 'NONE'),
         attachments: data.attachments !== undefined ? data.attachments : (selectedOptionGroup?.attachments || finalCustomer.defaultAttachments || ''),
@@ -3182,7 +3205,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
               ? data.checkedSpecs
               : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {})),
-            __freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5'
+            __freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5',
+            __taxInvoiceIssueType: resolvedTaxInvoiceIssueType,
+            __paymentMethod: resolvedPaymentMethod,
+            __paymentTermsNote: resolvedPaymentTermsNote
           },
           db.standardOptions,
           data.paidOptionPrices
@@ -3271,6 +3297,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...(site.checkedSpecs || {}),
             ...(siteUpdates.checkedSpecs || {}),
             __freightBillingStandard: nextFreightStd
+          };
+        }
+      }
+      if (rawData.taxInvoiceIssueType === 'FORWARD' || rawData.taxInvoiceIssueType === 'REVERSE') {
+        const nextIssueType: 'FORWARD' | 'REVERSE' = rawData.taxInvoiceIssueType;
+        const prevIssueType = site.taxInvoiceIssueType || (site.checkedSpecs && (site.checkedSpecs as any).__taxInvoiceIssueType);
+        if (prevIssueType !== nextIssueType) {
+          siteUpdates.taxInvoiceIssueType = nextIssueType;
+          siteUpdates.checkedSpecs = {
+            ...(site.checkedSpecs || {}),
+            ...(siteUpdates.checkedSpecs || {}),
+            __taxInvoiceIssueType: nextIssueType
+          };
+        }
+      }
+      if (rawData.paymentDueMonthOffset !== undefined && rawData.paymentDueMonthOffset !== null) {
+        siteUpdates.paymentDueMonthOffset = Number(rawData.paymentDueMonthOffset);
+      }
+      if (rawData.paymentMethod === 'CASH' || rawData.paymentMethod === 'BILL' || rawData.paymentMethod === 'BOND') {
+        const nextMethod: 'CASH' | 'BILL' | 'BOND' = rawData.paymentMethod;
+        const prevMethod = site.paymentMethod || (site.checkedSpecs && (site.checkedSpecs as any).__paymentMethod);
+        if (prevMethod !== nextMethod) {
+          siteUpdates.paymentMethod = nextMethod;
+          siteUpdates.checkedSpecs = {
+            ...(site.checkedSpecs || {}),
+            ...(siteUpdates.checkedSpecs || {}),
+            __paymentMethod: nextMethod
+          };
+        }
+      }
+      if (rawData.paymentTermsNote !== undefined) {
+        const nextNote = String(rawData.paymentTermsNote || '').trim();
+        const prevNote = site.paymentTermsNote ?? ((site.checkedSpecs && (site.checkedSpecs as any).__paymentTermsNote) || '');
+        if (prevNote !== nextNote) {
+          siteUpdates.paymentTermsNote = nextNote;
+          siteUpdates.checkedSpecs = {
+            ...(site.checkedSpecs || {}),
+            ...(siteUpdates.checkedSpecs || {}),
+            __paymentTermsNote: nextNote
           };
         }
       }
