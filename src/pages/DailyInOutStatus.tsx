@@ -108,8 +108,8 @@ export const DailyInOutStatus: React.FC = () => {
   };
   const todayStr = getTodayStr();
 
-  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) vs CALENDAR (상하 캘린더) vs TABLE (표 형태)
-  const [viewMode, setViewMode] = useState<'SPLIT' | 'CALENDAR' | 'TABLE'>('SPLIT');
+  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) vs TABLE (표 형태)
+  const [viewMode, setViewMode] = useState<'SPLIT' | 'TABLE'>('SPLIT');
 
   // 2. 기준 연월 상태
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
@@ -1472,7 +1472,7 @@ export const DailyInOutStatus: React.FC = () => {
             </div>
           </div>
 
-          {/* 뷰 모드 3종 토글 스위치 (좌우 분할 / 캘린더 형태 / 표 형태) */}
+          {/* 뷰 모드 2종 토글 스위치 (좌우 분할 / 표 형태) */}
           <div
             data-mid="view-mode-toggle"
             style={{
@@ -1508,30 +1508,6 @@ export const DailyInOutStatus: React.FC = () => {
             >
               <Layers size={12} />
               좌우 분할
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('CALENDAR')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                height: '22px',
-                padding: '0 9px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '11px',
-                fontWeight: 700,
-                backgroundColor: viewMode === 'CALENDAR' ? 'var(--primary)' : 'transparent',
-                color: viewMode === 'CALENDAR' ? '#ffffff' : 'var(--text-secondary)',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap'
-              }}
-              title="상단에 월간 캘린더, 하단에 일자별 확정 내역 리스트를 표시합니다"
-            >
-              <Calendar size={12} />
-              캘린더 형태
             </button>
             <button
               type="button"
@@ -1606,23 +1582,6 @@ export const DailyInOutStatus: React.FC = () => {
         >
           {renderCalendarCard(true)}
           {renderDailyDetailPanel(true)}
-        </div>
-      )}
-
-      {/* ── [모드 2: 캘린더 형태 보기 (상단 캘린더 + 하단 고정 높이 리스트)] ── */}
-      {viewMode === 'CALENDAR' && (
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          {renderCalendarCard(false)}
-          {renderDailyDetailPanel(false)}
         </div>
       )}
 
