@@ -6915,13 +6915,13 @@ export const TruckDispatch: React.FC = () => {
                     );
                   })()}
 
-                  {/* 💬 최하단: 출고 요청 자연어 원본 텍스트 박스 */}
+                  {/* 💬 최하단: (영업)배차 및 특이사항 메모 박스 */}
                   <div style={{ marginBottom: '20px', padding: '14px 16px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1.5px solid rgba(59,130,246,0.25)', borderRadius: '10px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MessageSquare size={16} /> 💬 출고 요청 자연어 원본 텍스트 (배차 판단 참고용)
+                      <MessageSquare size={16} /> (영업)배차 및 특이사항 메모
                     </div>
                     <div style={{ fontSize: '12.5px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontFamily: 'Consolas, Monaco, monospace', backgroundColor: 'var(--bg-card)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      {stripOptionsFromDispatchRawText(selectedDelivery.rawText || selectedDelivery.memo) || '요청된 자연어 원문이 없습니다.'}
+                      {stripOptionsFromDispatchRawText(selectedDelivery.rawText, selectedDelivery.cargoItems, selectedDelivery.memo) || '-'}
                     </div>
                   </div>
 

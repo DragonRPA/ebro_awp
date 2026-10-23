@@ -468,35 +468,77 @@ export function sanitizeDispatcherSpecialNote(rawNote?: string | null): string {
 }
 
 /**
- * 🧹 배차 화면 참고용 원문 텍스트에서 불필요한 장비 옵션/보양 목록 제거 헬퍼
+ * 🧹 (영업)배차 및 특이사항 메모 순수 추출 헬퍼
+ * - 영업사원이 출고/교환/회수 요청 시 직접 기재한 특이사항 메모만 추출하고,
+ *   시스템이 자동으로 생성/하드코딩한 태그([고객담당자:...], [배차담당자:...], [출고 요청 통합 발행]..., 현장담당:..., 상차:..., [하차일정]..., [옵션]..., [정산일정]... 등)는 전면 제거한다.
  */
-export function stripOptionsFromDispatchRawText(rawText?: string | null): string {
-  if (!rawText || !rawText.trim()) return '';
+export function stripOptionsFromDispatchRawText(
+  rawText?: string | null,
+  cargoItems?: string | null,
+  fallbackMemo?: string | null
+): string {
+  const cleanSingleText = (input?: string | null): string => {
+    if (!input || !input.trim()) return '';
 
-  // [고객담당자: ...] 뒤에 바로 붙은 [회수옵션] 등을 분리하기 위해 먼저 태그 앞을 구분
-  const normalized = rawText
-    .replace(/\]\s*\[(?=(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자|임차처|고객담당자))/g, '] | [');
+    // [고객담당자: ...], [배차담당자: ...] 등 인라인 시스템 태그 선제 제거 및 구분자 정규화
+    const withoutInlineTags = input
+      .replace(/\[출고\s*요청\s*통합\s*(?:발행|확정)\][^\n|]*/g, '')
+      .replace(/\[고객담당자:\s*[^\]]*\]/g, '')
+      .replace(/\[배차담당자:\s*[^\]]*\]/g, '')
+      .replace(/\[외주정비회수\][^\n|]*/g, '')
+      .replace(/\]\s*\[(?=(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자|임차처|고객담당자|하차일정|시차출고|교환회수대상|대차회수대상|현장상세주소|차종|정산일정|운송료청구기준|운송비부담))/g, '] | [');
 
-  const segments = normalized
-    .split('|')
-    .map(seg => seg.trim())
-    .filter(Boolean);
+    const segments = withoutInlineTags
+      .split('|')
+      .map(seg => seg.trim())
+      .filter(Boolean);
 
-  const kept: string[] = [];
-  for (const seg of segments) {
-    const cleaned = seg
-      .replace(/\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자)\][^\]]*\]?/g, '')
-      .replace(/\[배차담당자:[^\]]*\]/g, '')
-      .replace(/(?:유상옵션|무상옵션|회수옵션|출고옵션|보양)\s*:\s*[^|]*/g, '')
-      .trim();
+    const kept: string[] = [];
+    for (const seg of segments) {
+      let cleaned = seg
+        .replace(/^\[(?:마감조건|회수조건)\]\s*/g, '')
+        .replace(/^특이사항\s*:\s*/g, '')
+        .replace(/\[(?:회수옵션|출고옵션|무상옵션|유상옵션|옵션|보양작업|배차담당자|고객담당자|임차처)\][^\]]*\]?/g, '')
+        .replace(/(?:유상옵션|무상옵션|회수옵션|출고옵션|보양|부착물|현장요구사양)\s*:\s*[^|]*/g, '')
+        .trim();
 
-    if (!cleaned || cleaned === '-' || cleaned === '특이사항:' || cleaned === '특이사항: 없음') {
-      continue;
+      if (!cleaned) continue;
+
+      if (
+        /^(?:현장담당|상차|하차|청구담당|계산서|마감일|결제일)\s*:/.test(cleaned) ||
+        /^\[(?:하차일정|옵션|출고옵션|회수옵션|무상옵션|유상옵션|보양작업|교환회수대상|대차회수대상|현장상세주소|차종|정산일정|운송료청구기준|운송비부담|배차담당자|고객담당자|임차처|납품증 사진|전자 서명)\]/.test(cleaned) ||
+        /^\[출고\s*요청\s*통합/.test(cleaned) ||
+        cleaned === '출고 파이프라인 자동 지시건' ||
+        cleaned === '없음' ||
+        cleaned === 'NONE' ||
+        cleaned === '-' ||
+        cleaned === '특이사항:' ||
+        cleaned === '특이사항: 없음'
+      ) {
+        continue;
+      }
+
+      kept.push(cleaned);
     }
-    kept.push(cleaned);
+
+    return kept.join(' | ').trim();
+  };
+
+  // 1순위: cargoItems 내 requestMeta.userNote (영업사원이 출고 요청 시 직접 입력한 원본 메모)
+  if (cargoItems) {
+    try {
+      const parsed = typeof cargoItems === 'string' ? JSON.parse(cargoItems) : cargoItems;
+      if (Array.isArray(parsed) && parsed[0]?.requestMeta && parsed[0].requestMeta.userNote !== undefined) {
+        return cleanSingleText(String(parsed[0].requestMeta.userNote || ''));
+      }
+    } catch {}
   }
 
-  return kept.join(' | ').trim();
+  // 2순위: rawText 정제 후 반환, 비어있으면 fallbackMemo 정제 후 반환
+  const fromRaw = cleanSingleText(rawText);
+  if (fromRaw) return fromRaw;
+
+  return cleanSingleText(fallbackMemo);
 }
 
 /**

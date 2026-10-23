@@ -37,6 +37,7 @@ import {
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { canViewFinancials } from '../utils/privacyMasking';
+import { stripOptionsFromDispatchRawText } from '../utils/nativeLauncher';
 import {
   extractCategorizedSiteOptions,
   stripOptionPrice,
@@ -2348,7 +2349,7 @@ export const SmartDispatch4: React.FC = () => {
         userNote: note,
         staggeredMemo,
         context: selectedContext || 'ADDITIONAL',
-        rawText: `[출고 요청 통합 발행] ${selectedContext || 'OUTBOUND'}`,
+        rawText: (note || '').trim(),
         vehicleType: vehicleType || '5T',
         paidBy: paidBy || undefined,
         billableToCustomer: false,
@@ -2723,7 +2724,7 @@ export const SmartDispatch4: React.FC = () => {
         unloadingTime: unloadingStr,
         equipments: draft.equipments,
         note: draft.note,
-        rawText: `[출고 요청 통합 확정] ${draft.context.join(', ')}`,
+        rawText: stripOptionsFromDispatchRawText(draft.note),
         vehicleType: draft.vehicleType || '5T',
         paidBy: draft.paidBy || undefined,
         billableToCustomer: false,
@@ -3767,16 +3768,16 @@ export const SmartDispatch4: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    {/* 🌟 신규현장 청구 및 결제 마감 일정 (3대 필수 일정) */}
+                    {/* 🌟 신규현장 청구 및 결제 마감 일정 (4대 필수 일정: 계산서/명세서/결제일/운송료청구기준) */}
                     <div data-mid="dispatch4-site-schedule" className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                       <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span>신규현장 마감 및 결제일정 *</span>
+                          <span>신규현장 마감 및 결제일정 / 운송료 청구기준 *</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 font-normal">계산서/명세서 마감 및 입금 약정일</span>
+                        <span className="text-[10px] text-slate-400 font-normal">계산서/명세서 마감, 입금 약정일 및 운송료 청구기준</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                         <div className="flex flex-col gap-1">
                           <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
                           <select
@@ -3811,6 +3812,17 @@ export const SmartDispatch4: React.FC = () => {
                             {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
                             ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
+                          <select
+                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                            value={freightBillingStandard}
+                            onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                          >
+                            <option value="3/5">3/5 기준 (기본)</option>
+                            <option value="2/4">2/4 기준</option>
                           </select>
                         </div>
                       </div>
@@ -3988,11 +4000,11 @@ export const SmartDispatch4: React.FC = () => {
                       <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span>신규현장 마감 및 결제일정 *</span>
+                          <span>신규현장 마감 및 결제일정 / 운송료 청구기준 *</span>
                         </span>
                         <span className="text-[10px] text-slate-400 font-normal">고객사 기본값 상속 · 필요 시 현장 특약 수정</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                         <div className="flex flex-col gap-1">
                           <label className="text-xs font-semibold text-slate-300">계산서 마감일 *</label>
                           <select
@@ -4027,6 +4039,17 @@ export const SmartDispatch4: React.FC = () => {
                             {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                               <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
                             ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold text-slate-300">운송료 청구기준 *</label>
+                          <select
+                            className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"
+                            value={freightBillingStandard}
+                            onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                          >
+                            <option value="3/5">3/5 기준 (기본)</option>
+                            <option value="2/4">2/4 기준</option>
                           </select>
                         </div>
                       </div>
@@ -5444,7 +5467,13 @@ export const SmartDispatch4: React.FC = () => {
             )}
           </div>
 
-          {/* 6. 운송료 청구기준 */}
+          {/* 6. 운송료 청구기준 — 신규 계약(신규 고객현장 또는 기존 계약 없는 신규 채번 현장)에만 입력 요구, 기존 계약(고객현장)은 2번 블록에서 자동 상속·채움 */}
+          {(isNewCustomerMode ||
+            isRegisteringNewSite ||
+            (selectedSite &&
+              !siteContractMetaMap.get(selectedSite.id)?.activeContract &&
+              !siteContractMetaMap.get(selectedSite.id)?.completedContract &&
+              (forceNewContract || !targetContractId))) && (
           <div data-mid="dispatch4-block-freight-standard" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
@@ -5454,7 +5483,7 @@ export const SmartDispatch4: React.FC = () => {
             >
               <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
                 <Truck className="w-4 h-4 text-emerald-400" />
-                <span>6. 운송료 청구기준</span>
+                <span>6. 운송료 청구기준 (신규계약 필수 지정)</span>
                 <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
                   ✓ {freightBillingStandard} 기준 ({freightBillingStandard === '2/4' ? '2개월 이하 왕복 · 4개월 이하 편도' : '3개월 이하 왕복 · 5개월 이하 편도'})
                 </span>
@@ -5541,6 +5570,7 @@ export const SmartDispatch4: React.FC = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* 특이사항 / 메모 */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1 shadow-sm">
