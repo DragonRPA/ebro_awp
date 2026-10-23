@@ -34,6 +34,7 @@ export const Assets: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [ownerFilter, setOwnerFilter] = useState('ALL');
   const [natureFilter, setNatureFilter] = useState<'ALL' | 'PHYSICAL' | 'VIRTUAL'>('ALL');
+  const [feetFilter, setFeetFilter] = useState('ALL');
   const [manufacturerFilter, setManufacturerFilter] = useState('ALL');
   const [customerFilter, setCustomerFilter] = useState('ALL');
 
@@ -157,6 +158,16 @@ export const Assets: React.FC = () => {
     () => Array.from(new Set(assets.map(a => a.manufacturer).filter(Boolean))) as string[],
     [assets]
   );
+
+  // 고유 규격(피트) 목록 (숫자 오름차순 정렬)
+  const uniqueFeetList = useMemo(() => {
+    const set = new Set<string>();
+    assets.forEach(a => {
+      const ft = getAssetFeet(a);
+      if (ft && ft !== '-') set.add(ft);
+    });
+    return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  }, [assets, productFeetMap]);
 
   // 자산 생애주기 통합 감사 이력 추출
   const getUnifiedAssetLogs = (asset: Asset): AssetInOutLog[] => {
@@ -399,6 +410,7 @@ export const Assets: React.FC = () => {
         if (natureFilter === 'VIRTUAL' && !isVirt) return false;
         if (natureFilter === 'PHYSICAL' && isVirt) return false;
       }
+      if (feetFilter !== 'ALL' && getAssetFeet(a) !== feetFilter) return false;
       if (manufacturerFilter !== 'ALL' && a.manufacturer !== manufacturerFilter) return false;
       if (customerFilter !== 'ALL' && a.currentCustomerId !== customerFilter) return false;
 
@@ -427,7 +439,7 @@ export const Assets: React.FC = () => {
         matcher.test(supplierName)
       );
     });
-  }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
+  }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, feetFilter, manufacturerFilter, customerFilter, productByModelMap, productFeetMap, vendorMap]);
 
   // 📊 필터링된 결과에 대한 요약 통계 (총 대수, 실물[당사+임차] + 가상 대수, 가상자산을 제외한 순수 실물자산 가동률 및 당사/임차별 가동상황)
   const filteredStats = useMemo(() => {
@@ -882,6 +894,20 @@ export const Assets: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>규격(피트)</label>
+          <select
+            value={feetFilter}
+            onChange={e => setFeetFilter(e.target.value)}
+            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '90px' }}
+          >
+            <option value="ALL">전체 규격</option>
+            {uniqueFeetList.map(ft => (
+              <option key={ft} value={ft}>{ft}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>소유구분</label>
           <select
             value={ownerFilter}
@@ -949,9 +975,9 @@ export const Assets: React.FC = () => {
           </select>
         </div>
 
-        {(searchTerm || ownerFilter !== 'ALL' || natureFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
+        {(searchTerm || feetFilter !== 'ALL' || ownerFilter !== 'ALL' || natureFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
           <button
-            onClick={() => { setSearchTerm(''); setOwnerFilter('ALL'); setNatureFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
+            onClick={() => { setSearchTerm(''); setFeetFilter('ALL'); setOwnerFilter('ALL'); setNatureFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
             style={{
               marginTop: '16px',
               padding: '4px 8px',
