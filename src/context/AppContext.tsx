@@ -5510,9 +5510,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const resolvedManufactureYear = cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '';
 
     if (existing) {
+      const wasReturned = Boolean(isReactivating || existing.status === 'RENTED_RETURNED' || existing.actualRentReturnDate);
       const nextStatus =
-        isReactivating || existing.status === 'RENTED_RETURNED'
-          ? 'AVAILABLE'
+        wasReturned
+          ? (cleanAssetData.status && cleanAssetData.status !== 'RENTED_RETURNED' ? cleanAssetData.status : 'AVAILABLE')
           : cleanAssetData.status || existing.status || 'AVAILABLE';
       result = db.updateRow<Asset>('assets', existing.id, {
         ...cleanAssetData,
@@ -5525,7 +5526,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         status: nextStatus,
         monthlyRentFee: sanitizedMonthlyFee,
         dailyRentFee: sanitizedDailyFee,
-        actualRentReturnDate: isReactivating ? '' : (cleanAssetData.actualRentReturnDate ?? existing.actualRentReturnDate ?? ''),
+        actualRentReturnDate: wasReturned ? '' : (cleanAssetData.actualRentReturnDate ?? existing.actualRentReturnDate ?? ''),
         updatedAt: new Date().toISOString()
       });
     } else {
