@@ -1277,14 +1277,16 @@ export const RentAssets: React.FC = () => {
     const defaultRenter = renterQuery || lastUsedRenter || (rentedAssets.length > 0 ? (rentedAssets[0].renter || '') : '') || renterVendors[0] || '';
     const matchedVendor = vendors.find(v => v.name === defaultRenter);
     const nextAssetNo = generateNextRentedAssetNo(assets);
+    const initialProduct = sortedProducts[0];
     setRenterSearchQuery(defaultRenter);
     setIsRenterDropdownOpen(false);
     setEditingAsset({
-      modelName: sortedProducts[0]?.modelName || '',
+      modelName: initialProduct?.modelName || '',
       assetNo: nextAssetNo,
       vendorAssetNo: '',
       serialNo: '',
-      manufacturer: '',
+      manufacturer: initialProduct?.manufacturer || '',
+      manufactureYear: '',
       ownerType: 'RENTED',
       antiEntrapmentOwnership: 'VENDOR', // 기본값: 임차처 소유 (오탈거 방지 기본 방어)
       renter: defaultRenter,
@@ -1302,10 +1304,13 @@ export const RentAssets: React.FC = () => {
   const handleOpenEdit = (a: Asset) => {
     const resolvedRenter = a.renter || (a.vendorId ? vendors.find(v => v.id === a.vendorId)?.name : '') || '';
     const resolvedVendorId = a.vendorId || (resolvedRenter ? vendors.find(v => v.name === resolvedRenter)?.id : undefined);
+    const matchedProduct = productByModelMap.get(a.modelName) || products.find(p => (p.modelName || '').trim().toLowerCase() === (a.modelName || '').trim().toLowerCase());
     setRenterSearchQuery(resolvedRenter);
     setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
+      manufacturer: a.manufacturer || matchedProduct?.manufacturer || '',
+      manufactureYear: a.manufactureYear || '',
       antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: resolvedRenter,
       vendorId: resolvedVendorId,
@@ -1418,10 +1423,13 @@ export const RentAssets: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const renterVal = a.renter || lastUsedRenter || (rentedAssets.length > 0 ? (rentedAssets[0].renter || '') : '') || renterVendors[0] || '';
     const matchedVendor = vendors.find(v => v.name === renterVal);
+    const matchedProduct = productByModelMap.get(a.modelName) || products.find(p => (p.modelName || '').trim().toLowerCase() === (a.modelName || '').trim().toLowerCase());
     setRenterSearchQuery(renterVal);
     setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
+      manufacturer: a.manufacturer || matchedProduct?.manufacturer || '',
+      manufactureYear: a.manufactureYear || '',
       antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: renterVal,
       vendorId: a.vendorId || matchedVendor?.id,
@@ -4342,9 +4350,10 @@ export const RentAssets: React.FC = () => {
                 <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '6px' }}>장비 물리 제원 정보</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11.5px' }}>
                   <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{a.modelName}</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {a.manufacturer || '-'}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {a.manufacturer || productByModelMap.get(a.modelName)?.manufacturer || '-'}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {a.manufactureYear || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {a.serialNo || '-'}</div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>임차처번호:</span> {a.vendorAssetNo || '-'}</div>
+                  <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-secondary)' }}>임차처번호:</span> {a.vendorAssetNo || '-'}</div>
                 </div>
               </div>
 

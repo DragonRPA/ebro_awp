@@ -1283,7 +1283,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'product':              ['products'],
     'asset':                ['assets', 'products', 'vendors', 'assetInOutLogs'],
     'acquisition_disposal': ['assets', 'products', 'vendors', 'assetInOutLogs'],
-    'rent_asset':           ['assets', 'vendors', 'assetInOutLogs', 'deliveries'],
+    'rent_asset':           ['assets', 'products', 'vendors', 'assetInOutLogs', 'deliveries'],
     'consumable':           ['consumables', 'consumableLogs', 'consumablePurchases', 'vendors', 'mechanicConsumableStocks', 'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts'],
     'consumable_purchase':  ['consumables', 'consumablePurchases', 'vendors'],
     'consumable_inout':     ['consumables', 'consumableLogs', 'consumablePurchases', 'assets', 'mechanicConsumableStocks'],
@@ -5200,6 +5200,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const existing = db.assets.find(a => a.assetNo === cleanAssetData.assetNo || (cleanAssetData.id && a.id === cleanAssetData.id));
     const resolvedOwnership = cleanAssetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
     const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
+    const targetModelName = (cleanAssetData.modelName || existing?.modelName || '').trim();
+    const matchedProduct = db.products.find(p =>
+      (p.modelName || '').trim().toLowerCase() === targetModelName.toLowerCase() ||
+      (p.shortName && p.shortName.trim().toLowerCase() === targetModelName.toLowerCase())
+    );
+    const resolvedManufacturer = cleanAssetData.manufacturer || matchedProduct?.manufacturer || existing?.manufacturer || '';
+    const resolvedManufactureYear = cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '';
 
     if (existing) {
       const nextStatus =
@@ -5210,6 +5217,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         ...cleanAssetData,
         vendorAssetNo: cleanAssetData.vendorAssetNo || existing.vendorAssetNo || '',
         serialNo: cleanAssetData.serialNo ?? existing.serialNo ?? '',
+        manufacturer: resolvedManufacturer,
+        manufactureYear: resolvedManufactureYear,
         ownerType: 'RENTED',
         antiEntrapmentOwnership: resolvedOwnership,
         status: nextStatus,
@@ -5221,11 +5230,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     } else {
       result = db.insertRow<Asset>('assets', {
         modelName: assetData.modelName || '',
-          assetNo: assetData.assetNo || '',
-          vendorId: assetData.vendorId || '',
-          vendorAssetNo: assetData.vendorAssetNo || '',
-          serialNo: assetData.serialNo || '',
-        manufacturer: assetData.manufacturer || '',
+        assetNo: assetData.assetNo || '',
+        vendorId: assetData.vendorId || '',
+        vendorAssetNo: assetData.vendorAssetNo || '',
+        serialNo: assetData.serialNo || '',
+        manufacturer: resolvedManufacturer,
+        manufactureYear: resolvedManufactureYear,
         ownerType: 'RENTED',
         antiEntrapmentOwnership: resolvedOwnership,
         status: 'AVAILABLE',

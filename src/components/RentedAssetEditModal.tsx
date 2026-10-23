@@ -36,6 +36,17 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const renterComboboxRef = useRef<HTMLDivElement>(null);
 
+  const findProductManufacturer = (modelName?: string): string => {
+    if (!modelName) return '';
+    const norm = modelName.trim().toLowerCase();
+    const matched = products.find(
+      p =>
+        (p.modelName || '').trim().toLowerCase() === norm ||
+        (p.shortName && p.shortName.trim().toLowerCase() === norm)
+    );
+    return matched?.manufacturer || '';
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (renterComboboxRef.current && !renterComboboxRef.current.contains(e.target as Node)) {
@@ -45,6 +56,15 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!formData.manufacturer && formData.modelName) {
+      const autoMfg = findProductManufacturer(formData.modelName);
+      if (autoMfg) {
+        setFormData(prev => ({ ...prev, manufacturer: autoMfg }));
+      }
+    }
+  }, [formData.modelName, products]);
 
   if (!isOpen) return null;
 
@@ -80,6 +100,8 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
       setFormData(prev => ({
         ...prev,
         ...pastReturned,
+        manufacturer: pastReturned.manufacturer || findProductManufacturer(pastReturned.modelName),
+        manufactureYear: pastReturned.manufactureYear || '',
         assetNo: val,
         rentStart: today,
         rentEnd: calcRentEnd(today),
@@ -198,13 +220,45 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
             <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
             <select
               value={formData.modelName || ''}
-              onChange={e => setFormData({ ...formData, modelName: e.target.value })}
+              onChange={e => {
+                const selectedModel = e.target.value;
+                const autoManufacturer = findProductManufacturer(selectedModel);
+                setFormData({
+                  ...formData,
+                  modelName: selectedModel,
+                  manufacturer: autoManufacturer || formData.manufacturer || ''
+                });
+              }}
               style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
             >
               {sortedProducts.map(p => (
                 <option key={p.id} value={p.modelName}>{p.modelName}</option>
               ))}
             </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>제조사 (제품정보 자동채움)</label>
+              <input
+                type="text"
+                placeholder="제품정보 기준 자동채움"
+                value={formData.manufacturer || ''}
+                onChange={e => setFormData({ ...formData, manufacturer: e.target.value })}
+                style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>연식</label>
+              <input
+                type="text"
+                placeholder="예: 2023"
+                value={formData.manufactureYear || ''}
+                onChange={e => setFormData({ ...formData, manufactureYear: e.target.value })}
+                style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={renterComboboxRef}>
