@@ -1621,7 +1621,7 @@ export interface ContractHistory {
   contractId: string;
   changeType: 'REGISTER' | 'EXTEND' | 'SHORTEN' | 'SUCCEED' | 'TERMINATE' | 'EXCHANGE' | 'FEE_CHANGE' | 'AS_SERVICE'
            | 'BILLING_CREATED' | 'BILLING_SENT' | 'BILLING_CANCELLED' | 'BILLING_REGENERATED' | 'PAYMENT_RECEIVED' | 'PAYMENT_CANCELLED' | 'DOCUMENT_SENT' | 'MONTHLY_CHECKLIST_SENT' | 'ASSET_SOLD'
-           | 'ASSET_PERIOD_CHANGE' | 'ADD_ASSET';
+           | 'ASSET_PERIOD_CHANGE' | 'ADD_ASSET' | 'SALESPERSON_CHANGE';
   changeDate: string;
   prevEndDate?: string;
   newEndDate?: string;

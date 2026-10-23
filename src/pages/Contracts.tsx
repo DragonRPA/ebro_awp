@@ -62,11 +62,13 @@ export const Contracts: React.FC = () => {
   const [monthlyChecklistContractId, setMonthlyChecklistContractId] = useState<string | undefined>(undefined);
 
   // 계약 변경 권한 검증 함수 (매각 계약은 1회성 완결 계약이므로 변경 불가)
+  // 💡 다른 직원이 계약기간의 연장/단축 및 승계 등을 수행할 수 있도록 contract.save 또는 billing.save 권한 보유자에게 허용하되,
+  //    계약 연장/단축/승계 과정에서 계약의 최초 영업담당자(salespersonId)는 절대 임의 변경되지 않고 그대로 유지됨!
   const canModifyContract = (contract: Contract) => {
     if ((contract.contractType || 'RENTAL') === 'SALE') return false;
     if (!currentUser) return false;
     if (currentUser.role === 'ADMIN') return true;
-    if (hasPermission('billing', 'save')) return true;
+    if (hasPermission('contract', 'save') || hasPermission('billing', 'save')) return true;
     return contract.salespersonId === currentUser.id;
   };
 
@@ -258,6 +260,13 @@ export const Contracts: React.FC = () => {
   const [tradeTargetBillingYm, setTradeTargetBillingYm] = useState(new Date().toISOString().slice(0, 7));
   const [tradeMemo, setTradeMemo] = useState('');
   const [isSubmittingTradeOutbound, setIsSubmittingTradeOutbound] = useState(false);
+
+  // Feature 8) 계약 상세 내 영업담당자 명시적 변경 모달 state (퇴사/부서변경 등 예외 상황 전용)
+  const [showSalespersonModal, setShowSalespersonModal] = useState(false);
+  const [newSalespersonId, setNewSalespersonId] = useState('');
+  const [salespersonChangeReasonType, setSalespersonChangeReasonType] = useState<'퇴사 인계' | '부서 변경' | '업무 분장 조정' | '기타'>('퇴사 인계');
+  const [salespersonChangeReasonText, setSalespersonChangeReasonText] = useState('');
+  const [isSubmittingSalespersonChange, setIsSubmittingSalespersonChange] = useState(false);
 
   // ⚡ O(1) 조회용 인덱스 맵 사전 계산 (필터 변경 시 O(N*M) 중첩 탐색 방지)
   const customerMap = useMemo(() => {
@@ -945,6 +954,8 @@ export const Contracts: React.FC = () => {
         } else {
           historyTitle = '월 렌탈료 단가 변경';
         }
+      } else if (h.changeType === 'SALESPERSON_CHANGE' || h.description?.includes('영업담당자 변경')) {
+        historyTitle = '👤 영업담당자 변경';
       } else if (h.changeType === 'REGISTER') {
         historyTitle = '계약 등록';
       } else if (h.changeType === 'EXTEND') {
@@ -1292,6 +1303,67 @@ export const Contracts: React.FC = () => {
       setShowTransferModal(false);
     } catch (err: any) {
       showToast(`승계 실패: ${err?.message || err}`, 'error');
+    }
+  };
+
+  // Feature 8) 영업담당자 명시적 변경 모달 오픈 및 저장 핸들러 (퇴사/부서변경 등)
+  const handleOpenSalespersonModal = () => {
+    if (!activeContract) return;
+    setNewSalespersonId(activeContract.salespersonId || '');
+    setSalespersonChangeReasonType('퇴사 인계');
+    setSalespersonChangeReasonText('');
+    setShowSalespersonModal(true);
+  };
+
+  const handleSaveSalespersonChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingSalespersonChange || !activeContract) return;
+    if (!newSalespersonId) {
+      showToast('변경할 영업담당자를 선택하십시오.', 'error');
+      return;
+    }
+    if (newSalespersonId === activeContract.salespersonId) {
+      showToast('현재 영업담당자와 동일합니다. 다른 담당자를 선택하십시오.', 'error');
+      return;
+    }
+
+    const prevUser = users.find(u => u.id === activeContract.salespersonId);
+    const nextUser = users.find(u => u.id === newSalespersonId);
+    if (!nextUser) {
+      showToast('선택한 직원 정보를 찾을 수 없습니다.', 'error');
+      return;
+    }
+
+    const prevName = prevUser?.name || '미지정';
+    const nextName = nextUser.name;
+    const reasonDetail = salespersonChangeReasonText.trim()
+      ? `${salespersonChangeReasonType} (${salespersonChangeReasonText.trim()})`
+      : salespersonChangeReasonType;
+
+    setIsSubmittingSalespersonChange(true);
+    try {
+      const nowIso = new Date().toISOString();
+      db.updateRow<Contract>('contracts', activeContract.id, {
+        salespersonId: newSalespersonId,
+        updatedAt: nowIso
+      });
+
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: activeContract.id,
+        changeType: 'SALESPERSON_CHANGE',
+        changeDate: todayStr,
+        description: `[영업담당자 변경] ${prevName} ➔ ${nextName} (사유: ${reasonDetail} / 처리자: ${currentUser?.name || '관리자'})`,
+        createdAt: nowIso
+      });
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      showToast(`영업담당자가 [${prevName}]에서 [${nextName}](으)로 변경되었습니다.`);
+      setShowSalespersonModal(false);
+    } catch (err: any) {
+      showToast(`영업담당자 변경 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingSalespersonChange(false);
     }
   };
 
@@ -3097,7 +3169,31 @@ export const Contracts: React.FC = () => {
                 </div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>현장명</label><strong>{getSiteName(activeContract.siteId)}</strong></div>
                 
-                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>영업담당</label><span>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</span></div>
+                <div>
+                  <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>영업담당 (최초 출고 요청자)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <strong>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</strong>
+                    {canSave && canModifyContract(activeContract) && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleOpenSalespersonModal}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          borderRadius: '4px',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title="퇴사 또는 부서 변경 발생 시 영업담당자 변경"
+                      >
+                        <Edit3 size={11} /> 영업담당자 변경
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div style={{ visibility: 'hidden' }}></div>
                 
                 {/* 3분할 담당자 상세 정보 */}
@@ -4296,10 +4392,13 @@ export const Contracts: React.FC = () => {
       )}
 
       {/* 모달 2: 만료일 / 기간 연장/단축 */}
-      {showExtendModal && (
+      {showExtendModal && activeContract && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <form onSubmit={handleSaveExtend} className="card" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg-card)' }}>
-            <h3 className="card-title" style={{ marginBottom: '14px' }}>계약 기간 연장 / 단축</h3>
+            <h3 className="card-title" style={{ marginBottom: '10px' }}>계약 기간 연장 / 단축</h3>
+            <div style={{ marginBottom: '12px', padding: '8px 10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+              계약 영업담당자: <strong style={{ color: 'var(--primary)' }}>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</strong> (기간 변경 시에도 기존 영업담당자 유지)
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={modIsOpen} onChange={e => setModIsOpen(e.target.checked)} />
@@ -4406,10 +4505,13 @@ export const Contracts: React.FC = () => {
       )}
 
       {/* 모달 3: 계약 승계 */}
-      {showTransferModal && (
+      {showTransferModal && activeContract && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <form onSubmit={handleSaveTransfer} className="card" style={{ width: '100%', maxWidth: '420px', backgroundColor: 'var(--bg-card)' }}>
-            <h3 className="card-title" style={{ marginBottom: '14px' }}>계약 승계 처리</h3>
+            <h3 className="card-title" style={{ marginBottom: '10px' }}>계약 승계 처리</h3>
+            <div style={{ marginBottom: '12px', padding: '8px 10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+              승계 후 유지될 영업담당자: <strong style={{ color: 'var(--primary)' }}>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</strong> (최초 영업담당자 자동 유지)
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -5710,6 +5812,167 @@ export const Contracts: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Feature 8: 영업담당자 변경 모달 (퇴사/부서변경 등 명시적 담당자 인계 전용) */}
+      {showSalespersonModal && activeContract && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            zIndex: 3150,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowSalespersonModal(false)}
+        >
+          <div
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              backgroundColor: 'var(--bg-card)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              padding: '22px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={17} color="var(--primary)" /> 영업담당자 변경
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowSalespersonModal(false)}
+                style={{ border: 'none', background: 'none', color: 'var(--text-muted)', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                marginBottom: '14px',
+                padding: '10px 12px',
+                backgroundColor: 'var(--bg-app)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                fontSize: '12px',
+                lineHeight: 1.5,
+                color: 'var(--text-secondary)'
+              }}
+            >
+              <div>
+                계약번호: <strong>{activeContract.contractNo}</strong> ({getCustName(activeContract.customerId)} / {getSiteName(activeContract.siteId)})
+              </div>
+              <div style={{ marginTop: '4px' }}>
+                현재 영업담당자: <strong style={{ color: 'var(--primary)' }}>{users.find(u => u.id === activeContract.salespersonId)?.name || '미지정'}</strong>
+              </div>
+              <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                ※ 계약의 영업담당자는 최초 출고 요청자가 기본 유지되며, 퇴사 또는 부서 변경 등 업무 인계가 필요한 경우에만 변경합니다.
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveSalespersonChange} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  인수 영업담당자 선택 *
+                </label>
+                <select
+                  value={newSalespersonId}
+                  onChange={e => setNewSalespersonId(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    fontSize: '13px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-input, var(--bg-card))',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <option value="">-- 변경할 영업담당자 선택 --</option>
+                  {users
+                    .filter(u => u.status !== 'RETIRED')
+                    .map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} {u.position ? `(${u.position})` : ''} {u.id === activeContract.salespersonId ? '- 현재 담당자' : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  변경 사유 구분 *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                  {(['퇴사 인계', '부서 변경', '업무 분장 조정', '기타'] as const).map(rType => (
+                    <button
+                      key={rType}
+                      type="button"
+                      onClick={() => setSalespersonChangeReasonType(rType)}
+                      style={{
+                        padding: '7px 10px',
+                        fontSize: '12px',
+                        fontWeight: salespersonChangeReasonType === rType ? 700 : 500,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: salespersonChangeReasonType === rType ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                        backgroundColor: salespersonChangeReasonType === rType ? 'var(--primary)' : 'var(--bg-app)',
+                        color: salespersonChangeReasonType === rType ? '#fff' : 'var(--text-primary)'
+                      }}
+                    >
+                      {rType}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  상세 변경 사유 메모
+                </label>
+                <input
+                  type="text"
+                  placeholder="예: 담당자 퇴사로 인한 현장 인계, 영업부서 개편 등"
+                  value={salespersonChangeReasonText}
+                  onChange={e => setSalespersonChangeReasonText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowSalespersonModal(false)}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSubmittingSalespersonChange || !newSalespersonId || newSalespersonId === activeContract.salespersonId}
+                  style={{ fontWeight: 700 }}
+                >
+                  {isSubmittingSalespersonChange ? '변경 저장 중...' : '영업담당자 변경 확정'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* 스타일 */}
       <style>{`
         .hover-row:hover {

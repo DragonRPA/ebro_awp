@@ -71,6 +71,7 @@ export { VEHICLE_TYPE_OPTIONS };
 
 interface DraftOrder {
   id: string;
+  ownerId?: string;
   context: CallContext[];
   customerName: ScoredField;
   siteName: ScoredField;
@@ -391,6 +392,7 @@ export const SmartDispatch4: React.FC = () => {
         const meta = parseNoteMeta(d.note);
         return {
           id:                 d.id,
+          ownerId:            d.ownerId,
           context:            (d.context || []).filter(c => c === 'ADDITIONAL' || c === 'NEW_CUSTOMER' || c === 'EXCHANGE') as CallContext[],
           customerName:       { ...d.customerName, confirmed: false },
           siteName:           { ...d.siteName,     confirmed: false },
@@ -2213,11 +2215,17 @@ export const SmartDispatch4: React.FC = () => {
       const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
       const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
 
+      const editingDraftObj = editingDraftId ? queue.find(d => d.id === editingDraftId) : undefined;
+      const initialRequesterId = (editingDraftObj?.ownerId && users.some(u => u.id === editingDraftObj.ownerId))
+        ? editingDraftObj.ownerId
+        : currentUser?.id;
+
       // 🚀 [실제 출고의뢰 풀 파이프라인 생성: 고객사·현장 신규생성, 계약체결, 배차대장 등록, 장비할당 가상매핑]
       const dispatchData = {
         customerName: effectiveCustomerName,
         siteName: effectiveSiteName,
         siteAddress: effectiveAddress,
+        salespersonId: initialRequesterId,
         siteContactName: effectiveContact,
         siteContactPhone: effectivePhone,
         siteContactPosition: contactPosition.trim(),
@@ -2591,11 +2599,16 @@ export const SmartDispatch4: React.FC = () => {
 
       const isExchange = draft.context?.includes('EXCHANGE');
 
+      const initialDraftRequesterId = (draft.ownerId && users.some(u => u.id === draft.ownerId))
+        ? draft.ownerId
+        : currentUser?.id;
+
       // AppContext의 saveSmartDispatch 풀 파이프라인 호출
       const res = await saveSmartDispatch({
         customerName: draft.customerName.value,
         siteName: draft.siteName.value,
         siteAddress: resolvedAddress,
+        salespersonId: initialDraftRequesterId,
         siteContactName: draft.contactPerson.value,
         siteContactPhone: contactPhoneVal,
         siteContactEmail: '',

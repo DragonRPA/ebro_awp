@@ -44,6 +44,7 @@ export interface SmartDispatchData {
   customerName: string;
   siteName: string;
   siteAddress: string;
+  salespersonId?: string;
   salespersonName?: string;
   salespersonPhone?: string;
   siteContactName: string;
@@ -3297,8 +3298,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const existingUsers = db.users;
-    const isSalespersonValid = currentUser?.id && existingUsers.some(u => u.id === currentUser.id);
-    const validSalespersonId = isSalespersonValid ? currentUser.id : (existingUsers.find(u => u.id === 'u-1')?.id || existingUsers[0]?.id || undefined);
+    // 💡 계약 영업담당자 결정 원칙:
+    // 1) 최초 출고 요청자(ownerId / salespersonId / salespersonName)가 명시되어 있으면 해당 직원을 최우선 적용
+    // 2) 없으면 현재 출고 요청을 입력한 로그인 사용자(currentUser)를 적용
+    // 3) 기존 계약에 장비 추가 편입 시에는 기존 계약의 최초 영업담당자(existingActiveContract.salespersonId)를 절대 덮어쓰지 않고 유지함
+    const explicitRequesterId = rawData.salespersonId || rawData.requesterId || rawData.ownerId;
+    const explicitRequesterByName = (!explicitRequesterId && data.salespersonName)
+      ? existingUsers.find(u => u.name.trim() === data.salespersonName!.trim())?.id
+      : undefined;
+    const candidateSalespersonId = explicitRequesterId || explicitRequesterByName || currentUser?.id;
+    const isSalespersonValid = candidateSalespersonId && existingUsers.some(u => u.id === candidateSalespersonId);
+    const validSalespersonId = isSalespersonValid ? candidateSalespersonId : (existingUsers.find(u => u.id === 'u-1')?.id || existingUsers[0]?.id || undefined);
 
     const extractDate = (dateTimeStr?: string): string => {
       if (!dateTimeStr) return '';
@@ -7599,16 +7609,36 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       targetContract = existingTargetContract;
       isTargetExisting = true;
       // 만약 승계 대상 자산의 종료일이 기존 계약 만료일보다 길다면 부모 계약 만료일 동적 확장
+      // 💡 기존 양수 계약에 영업담당자가 비어있는 경우에만 원 계약의 최초 영업담당자를 승계하며, 이미 지정된 담당자는 절대 덮어쓰지 않음
       const currentTargetEnd = targetContract.endDate;
-      if (currentTargetEnd && oldEndDate && (currentTargetEnd === '미정' || oldEndDate > currentTargetEnd)) {
-        db.updateRow<Contract>('contracts', targetContract.id, {
-          endDate: oldEndDate,
+      const needEndExtend = Boolean(currentTargetEnd && oldEndDate && (currentTargetEnd === '미정' || oldEndDate > currentTargetEnd));
+      const needSalespersonFill = !targetContract.salespersonId && Boolean(oldContract.salespersonId);
+      if (needEndExtend || needSalespersonFill) {
+        const updatedTarget = db.updateRow<Contract>('contracts', targetContract.id, {
+          ...(needEndExtend ? { endDate: oldEndDate } : {}),
+          ...(needSalespersonFill ? { salespersonId: oldContract.salespersonId } : {}),
           updatedAt: new Date().toISOString()
         });
+        if (updatedTarget) targetContract = updatedTarget;
       }
     } else {
       const newContractNo = generateNextContractNo(nextDay);
       ensureCustomerContactExists(successorCustomerId, successorContactId);
+      // 💡 최초 영업담당자 보존 원칙: 원 계약의 salespersonId가 있으면 그대로 유지, 만약 비어있으면 선행 계약(predecessorContractId) 체인을 역추적하여 최초 영업담당자를 유지함
+      let inheritedSalespersonId = oldContract.salespersonId;
+      if (!inheritedSalespersonId && oldContract.predecessorContractId) {
+        let curPredId: string | undefined = oldContract.predecessorContractId;
+        const visited = new Set<string>();
+        while (curPredId && !visited.has(curPredId)) {
+          visited.add(curPredId);
+          const pred = db.contracts.find(c => c.id === curPredId);
+          if (pred?.salespersonId) {
+            inheritedSalespersonId = pred.salespersonId;
+            break;
+          }
+          curPredId = pred?.predecessorContractId;
+        }
+      }
       targetContract = db.insertRow<Contract>('contracts', {
         contractNo: newContractNo,
         customerId: successorCustomerId,
@@ -7621,7 +7651,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         paymentDueDay: oldContract.paymentDueDay,
         paymentDueMonthOffset: oldContract.paymentDueMonthOffset,
         lateInterestRate: oldContract.lateInterestRate || 0,
-        salespersonId: oldContract.salespersonId,
+        salespersonId: inheritedSalespersonId,
         status: 'ACTIVE',
         predecessorContractId: oldContract.id,
         predecessorContractNo: oldContract.contractNo,
