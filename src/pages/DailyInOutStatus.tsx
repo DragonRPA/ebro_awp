@@ -736,22 +736,12 @@ export const DailyInOutStatus: React.FC = () => {
           const dayOfWeek = (firstDayOfWeek + day - 1) % 7;
           const netMovement = totalIn - totalOut;
 
-          const inCatParts: string[] = [];
-          if (dayData?.inByCat.OWNED_PHYSICAL) inCatParts.push(`실물${dayData.inByCat.OWNED_PHYSICAL}`);
-          if (dayData?.inByCat.OWNED_VIRTUAL) inCatParts.push(`가상${dayData.inByCat.OWNED_VIRTUAL}`);
-          if (dayData?.inByCat.RENTED) inCatParts.push(`임차${dayData.inByCat.RENTED}`);
-
-          const outCatParts: string[] = [];
-          if (dayData?.outByCat.OWNED_PHYSICAL) outCatParts.push(`실물${dayData.outByCat.OWNED_PHYSICAL}`);
-          if (dayData?.outByCat.OWNED_VIRTUAL) outCatParts.push(`가상${dayData.outByCat.OWNED_VIRTUAL}`);
-          if (dayData?.outByCat.RENTED) outCatParts.push(`임차${dayData.outByCat.RENTED}`);
-
           return (
             <div
               key={dateStr}
               onClick={() => setSelectedDate(dateStr)}
               style={{
-                minHeight: isSplitMode ? '74px' : '82px',
+                minHeight: isSplitMode ? '68px' : '74px',
                 minWidth: 0,
                 borderRadius: '6px',
                 border: isSelected
@@ -767,13 +757,13 @@ export const DailyInOutStatus: React.FC = () => {
                 padding: '4px 5px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '3px',
+                gap: '4px',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
                 position: 'relative',
                 overflow: 'hidden'
               }}
-              title={`${dateStr}${dayData?.inModelSummary ? `\n[입고] ${dayData.inModelSummary}` : ''}${dayData?.outModelSummary ? `\n[출고] ${dayData.outModelSummary}` : ''}`}
+              title={`${dateStr}${totalIn > 0 ? `\n입고: ${totalIn}대` : ''}${totalOut > 0 ? `\n출고: ${totalOut}대` : ''}`}
             >
               {/* 셀 상단: 일자 번호 & 순유동 배지 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2px' }}>
@@ -816,7 +806,7 @@ export const DailyInOutStatus: React.FC = () => {
                 )}
               </div>
 
-              {/* 🔵 입고 확정 칩 */}
+              {/* 🔵 입고 확정 칩 (심플 대수 표시) */}
               {totalIn > 0 && (
                 <div
                   data-mid="chip-inbound"
@@ -824,36 +814,25 @@ export const DailyInOutStatus: React.FC = () => {
                     backgroundColor: isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.12)',
                     border: isDark ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(37, 99, 235, 0.3)',
                     borderRadius: '4px',
-                    padding: '2px 4px',
+                    padding: '3px 6px',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1px',
-                    fontSize: '10px',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
                     color: isDark ? '#ffffff' : '#1e3a8a',
-                    lineHeight: '1.15',
+                    lineHeight: '1.2',
                     minWidth: 0
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, gap: '2px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
-                      <ArrowDownLeft size={10} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
-                    </span>
-                    <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
-                  </div>
-                  <div style={{
-                    fontSize: '9px',
-                    color: isDark ? '#fde047' : '#1e3a8a',
-                    fontWeight: 700,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {inCatParts.length > 0 ? `${inCatParts.join('·')} | ` : ''}{dayData?.inModelSummary}
-                  </div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
+                    <ArrowDownLeft size={11} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
                 </div>
               )}
 
-              {/* 🔴 출고 확정 칩 */}
+              {/* 🔴 출고 확정 칩 (심플 대수 표시) */}
               {totalOut > 0 && (
                 <div
                   data-mid="chip-outbound"
@@ -861,32 +840,21 @@ export const DailyInOutStatus: React.FC = () => {
                     backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
                     border: isDark ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(220, 38, 38, 0.28)',
                     borderRadius: '4px',
-                    padding: '2px 4px',
+                    padding: '3px 6px',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1px',
-                    fontSize: '10px',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
                     color: isDark ? '#ffffff' : '#111827',
-                    lineHeight: '1.15',
+                    lineHeight: '1.2',
                     minWidth: 0
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, gap: '2px' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
-                      <ArrowUpRight size={10} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
-                    </span>
-                    <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
-                  </div>
-                  <div style={{
-                    fontSize: '9px',
-                    color: isDark ? '#fde047' : '#111827',
-                    fontWeight: 700,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {outCatParts.length > 0 ? `${outCatParts.join('·')} | ` : ''}{dayData?.outModelSummary}
-                  </div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
+                    <ArrowUpRight size={11} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
                 </div>
               )}
 
