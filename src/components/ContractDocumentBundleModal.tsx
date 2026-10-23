@@ -522,11 +522,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         extractCertDateFromText(preset?.safetyCertUrl) ||
         '-';
 
-      // 💡 3. 자산별 제조연도(연식): Asset 대장의 manufactureYear 사용 ('2025' -> '2025년', '2026년7월' -> '2026년7월')
-      const rawYear = a?.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
-      const resolvedManufactureYear = rawYear
-        ? (/^\d{4}$/.test(rawYear) ? `${rawYear}년` : rawYear)
-        : '-';
+      // 💡 3. 자산별 제조연도(연식): Asset 대장의 manufactureYear에 'yyyy년mm월' 형식 데이터가 있더라도 'mm월'을 떼어내고 'yyyy년'만 표시
+      const rawYear = a?.manufactureYear ? String(a.manufactureYear).trim() : '';
+      const yrMatch = rawYear.match(/(\d{4})/);
+      const resolvedManufactureYear = yrMatch
+        ? `${yrMatch[1]}년`
+        : (rawYear && rawYear !== '-' ? rawYear : '-');
 
       const assetInspector = customInspectorName.trim() || defaultInspectorName;
       // 💡 02.반입전체크리스트 {점검일시} 값은 03.안전점검결과서 {{배차일)-2} 또는 {지정} 값과 100% 동일한 값 사용

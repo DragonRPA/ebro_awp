@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.26';
-const CORE_HASH = '02b8924df9c1';
+const VERSION = 'v2.0.0.Build.27';
+const CORE_HASH = 'ae59bc622b93';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -951,11 +951,12 @@ async function executeContractBundleInternal(payload) {
         : ((a.certDate && a.certDate !== '-' && !(a.certDate === '2010-12-29' && normKey(mName) !== 'GS2646')) ? a.certDate : null);
       const resolvedCert = incomingCert || certFromFiles || '-';
 
-      // 제조연도: '2025' (4자리 숫자만 있는 경우) -> '2025년', '2025년' 또는 '2026년7월' -> 그대로 유지 ('년월년' 방지)
-      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
-      const resolvedYr = rawYr && rawYr !== '-'
-        ? (/^\d{4}$/.test(rawYr) ? `${rawYr}년` : rawYr)
-        : '-';
+      // 제조연도: '2025' -> '2025년', '2026년7월' 등 'yyyy년mm월' 형식 데이터가 있더라도 'mm월'을 떼어내고 'yyyy년'만 표시
+      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim() : '';
+      const yrMatch = rawYr.match(/(\d{4})/);
+      const resolvedYr = yrMatch
+        ? `${yrMatch[1]}년`
+        : (rawYr && rawYr !== '-' ? rawYr : '-');
 
       const pickSpec = (val, fallbackVal) => (val && val !== '-') ? val : (fallbackVal || '-');
 
@@ -1254,6 +1255,7 @@ Replace-Tag $curSafety "{작업높이}" "${astWorkingHeight}"
 Replace-Tag $curSafety "{적재}" "${astCapacity}"
 Replace-Tag $curSafety "{관리번호}" "${astNo}"
 Replace-Tag $curSafety "{차량번호}" "${astNo}"
+Replace-Tag $curSafety "{제조연도}년" "${astMfgYear}"
 Replace-Tag $curSafety "{제조연도}" "${astMfgYear}"
 Replace-Tag $curSafety "{안전인증일}" "${astCertDate}"
 Replace-Tag $curSafety "{Today}" "${astInspDate}"

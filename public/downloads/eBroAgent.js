@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.25';
-const CORE_HASH = 'eeab34f334a0';
+const VERSION = 'v2.0.0.Build.27';
+const CORE_HASH = 'ae59bc622b93';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -951,11 +951,12 @@ async function executeContractBundleInternal(payload) {
         : ((a.certDate && a.certDate !== '-' && !(a.certDate === '2010-12-29' && normKey(mName) !== 'GS2646')) ? a.certDate : null);
       const resolvedCert = incomingCert || certFromFiles || '-';
 
-      // 제조연도: '2025' (4자리 숫자만 있는 경우) -> '2025년', '2025년' 또는 '2026년7월' -> 그대로 유지 ('년월년' 방지)
-      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim().replace(/월년$/, '월').replace(/년년$/, '년') : '';
-      const resolvedYr = rawYr && rawYr !== '-'
-        ? (/^\d{4}$/.test(rawYr) ? `${rawYr}년` : rawYr)
-        : '-';
+      // 제조연도: '2025' -> '2025년', '2026년7월' 등 'yyyy년mm월' 형식 데이터가 있더라도 'mm월'을 떼어내고 'yyyy년'만 표시
+      const rawYr = a.manufactureYear ? String(a.manufactureYear).trim() : '';
+      const yrMatch = rawYr.match(/(\d{4})/);
+      const resolvedYr = yrMatch
+        ? `${yrMatch[1]}년`
+        : (rawYr && rawYr !== '-' ? rawYr : '-');
 
       const pickSpec = (val, fallbackVal) => (val && val !== '-') ? val : (fallbackVal || '-');
 
@@ -1254,6 +1255,7 @@ Replace-Tag $curSafety "{작업높이}" "${astWorkingHeight}"
 Replace-Tag $curSafety "{적재}" "${astCapacity}"
 Replace-Tag $curSafety "{관리번호}" "${astNo}"
 Replace-Tag $curSafety "{차량번호}" "${astNo}"
+Replace-Tag $curSafety "{제조연도}년" "${astMfgYear}"
 Replace-Tag $curSafety "{제조연도}" "${astMfgYear}"
 Replace-Tag $curSafety "{안전인증일}" "${astCertDate}"
 Replace-Tag $curSafety "{Today}" "${astInspDate}"
@@ -1668,6 +1670,162 @@ $wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.M
   }
 }
 
+async function executeMonthlySafetyChecklistInternal(payload) {
+  const tempBuildDir = path.join(AGENT_HOME, 'temp_monthly_chk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+  try {
+    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+
+    const templateCandidates = [
+      path.join(DRIVE_MIRROR_DIR, '고소작업대(TL)_월간_Checklist.xlsx'),
+      path.join(DRIVE_MIRROR_DIR, '05.월간안전점검체크리스트.xlsx')
+    ];
+    let templatePath = templateCandidates.find(p => fs.existsSync(p));
+    if (!templatePath) {
+      agentLog('SYNC', '월간 안전점검 체크리스트 양식 파일 부재 감지 -> Cloudflare R2 동기화 시도');
+      try { await autoSyncFromCloudflare(); } catch (e) {}
+      templatePath = templateCandidates.find(p => fs.existsSync(p));
+    }
+    if (!templatePath) {
+      throw new Error('로컬 미러링 폴더(C:\\eBroAgent\\drive_mirror)에 고소작업대(TL)_월간_Checklist.xlsx 양식 파일이 존재하지 않습니다.');
+    }
+
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const tenantName = payload.tenantName || payload.corporateName || policy.tenantName || policy.corporateName || TENANT_CODE || '(주)기연리프트';
+    const tenantCorp = payload.corporateName || payload.tenantName || policy.corporateName || tenantName;
+    const custName = payload.customerName || '고객사';
+    const siteName = payload.siteName || '현장';
+    const inspectionDate = payload.inspectionDate || new Date().toISOString().split('T')[0];
+    const inspectorName = payload.inspectorName || '김관주';
+    const targetMonth = payload.targetMonth || inspectionDate.substring(0, 7);
+
+    const rawAssets = Array.isArray(payload.assets) && payload.assets.length > 0 ? payload.assets : [
+      { assetNo: '-', modelName: '-' }
+    ];
+
+    const psEscape = (val) => String(val ?? '')
+      .replace(/`/g, '``')
+      .replace(/"/g, '""')
+      .replace(/\$/g, '`$');
+
+    const psScript = `\ufeff
+$ErrorActionPreference = 'Stop'
+$excel = $null
+$wb = $null
+try {
+  $excel = New-Object -ComObject Excel.Application
+  try { $excel.Visible = $false } catch {}
+  try { $excel.DisplayAlerts = $false } catch {}
+  try { $excel.ScreenUpdating = $false } catch {}
+  try { $excel.EnableEvents = $false } catch {}
+  try { $excel.Interactive = $false } catch {}
+
+  function Replace-Tag($targetWs, $tag, $val) {
+    $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
+  }
+
+  $templateIn = '${templatePath.replace(/\\/g, '\\\\')}'
+  $workXlsx = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\월간안전점검_작업용.xlsx'
+  $outPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\월간안전점검.pdf'
+  Copy-Item $templateIn $workXlsx -Force
+  $wb = $excel.Workbooks.Open($workXlsx)
+  $wsBase = $wb.Sheets.Item(1)
+
+  $sheets = @($wsBase)
+  for ($idx = 1; $idx -lt ${rawAssets.length}; $idx++) {
+    $wsBase.Copy([Type]::Missing, $sheets[$idx - 1])
+    $copied = $wb.Sheets.Item($sheets[$idx - 1].Index + 1)
+    try { $copied.Name = "점검표_$($idx + 1)" } catch {}
+    $sheets += $copied
+  }
+
+` + rawAssets.map((ast, idx) => {
+  const astModel = psEscape(ast.modelName || '-');
+  const astNo = psEscape(ast.assetNo || '-');
+  const astInspDate = psEscape(ast.inspectionDate || inspectionDate);
+  const astInspName = psEscape(ast.inspectorName || inspectorName);
+  const safeSheetTitle = psEscape(`${ast.assetNo || `장비${idx + 1}`}_${ast.modelName || ''}`).replace(/[\\/?*:[\]]/g, '_').slice(0, 28);
+  return `
+  $curWs = $sheets[${idx}]
+  try { $curWs.Name = "${safeSheetTitle}_${idx + 1}" } catch {}
+  Replace-Tag $curWs "{고객명}" "${psEscape(custName)}"
+  Replace-Tag $curWs "{현장명}" "${psEscape(siteName)}"
+  Replace-Tag $curWs "{모델명}" "${astModel}"
+  Replace-Tag $curWs "{관리번호}" "${astNo}"
+  Replace-Tag $curWs "{자산번호}" "${astNo}"
+  Replace-Tag $curWs "{안전점검일}" "${astInspDate}"
+  Replace-Tag $curWs "{안전점검일시}" "${astInspDate}"
+  Replace-Tag $curWs "{점검일시}" "${astInspDate}"
+  Replace-Tag $curWs "{테넌트명}" "${psEscape(tenantCorp)}"
+  Replace-Tag $curWs "{테넌트}" "${psEscape(tenantCorp)}"
+  Replace-Tag $curWs "{점검자}" "${astInspName}"
+  Replace-Tag $curWs "{점점자}" "${astInspName}"
+  try {
+    $curWs.PageSetup.PaperSize = 9
+    $curWs.PageSetup.Orientation = 1
+    $curWs.PageSetup.Zoom = $false
+    $curWs.PageSetup.FitToPagesWide = 1
+    $curWs.PageSetup.FitToPagesTall = 1
+  } catch {}
+`;
+}).join('\n') + `
+
+  $wb.Save()
+  $wb.ExportAsFixedFormat(0, $outPdf)
+} finally {
+  if ($wb) { try { $wb.Close($false) } catch {} }
+  if ($excel) {
+    try { $excel.Quit() } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null } catch {}
+  }
+}
+`;
+
+    const psFile = path.join(tempBuildDir, 'build_monthly_chk.ps1');
+    fs.writeFileSync(psFile, psScript, 'utf8');
+
+    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+
+    const outPdfPath = path.join(tempBuildDir, '월간안전점검.pdf');
+    const workXlsxPath = path.join(tempBuildDir, '월간안전점검_작업용.xlsx');
+    if (!fs.existsSync(outPdfPath)) {
+      throw new Error('월간 안전점검 체크리스트 PDF 파일이 생성되지 않았습니다.');
+    }
+
+    const safeCustName = String(custName).replace(/[\\/:*?"<>|]/g, '');
+    const safeSiteName = String(siteName).replace(/[\\/:*?"<>|]/g, '');
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+    const fileName = `[${cleanTenantPrefix}]_월간안전점검체크리스트_${safeCustName}_${safeSiteName}_${targetMonth}(${rawAssets.length}대).pdf`;
+    const xlsxFileName = `[${cleanTenantPrefix}]_월간안전점검체크리스트_${safeCustName}_${safeSiteName}_${targetMonth}(${rawAssets.length}대).xlsx`;
+
+    const archiveDir = path.join(ARCHIVE_ROOT, targetMonth.substring(0, 7));
+    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    const localSavePath = path.join(archiveDir, fileName);
+    const localXlsxSavePath = path.join(archiveDir, xlsxFileName);
+
+    fs.copyFileSync(outPdfPath, localSavePath);
+    if (fs.existsSync(workXlsxPath)) {
+      fs.copyFileSync(workXlsxPath, localXlsxSavePath);
+    }
+
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+
+    agentLog('JOB', `월간 안전점검 체크리스트 생성 완료: ${localSavePath} (${rawAssets.length}p)`);
+    return {
+      success: true,
+      fileName,
+      xlsxFileName,
+      pageCount: rawAssets.length,
+      localPath: localSavePath,
+      xlsxLocalPath: localXlsxSavePath,
+      message: `월간 안전점검 체크리스트 생성 완료 (총 ${rawAssets.length}대)`
+    };
+  } catch (err) {
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+    throw err;
+  }
+}
+
 function processSystemJobQueue() {
   if (isSystemJobWorkerRunning) return;
   // FIFO 순서 보장: 가장 먼저 들어온 PENDING 작업부터 순차 처리
@@ -1717,6 +1875,12 @@ function processSystemJobQueue() {
           exec(`cmd /c start "" "${stmtRes.localPath}"`, { windowsHide: true });
         }
         nextJob.result = stmtRes;
+      } else if (nextJob.jobType === 'GENERATE_MONTHLY_CHECKLIST') {
+        const chkRes = await executeMonthlySafetyChecklistInternal(nextJob.payload);
+        if (nextJob.payload?.openAfterComplete && chkRes.localPath && fs.existsSync(chkRes.localPath)) {
+          exec(`cmd /c start "" "${chkRes.localPath}"`, { windowsHide: true });
+        }
+        nextJob.result = chkRes;
       }
       nextJob.status = 'COMPLETED';
       nextJob.completedAt = new Date().toISOString();
@@ -2258,6 +2422,31 @@ const server = http.createServer(async (req, res) => {
         agentLog('ERROR', '거래명세서 생성 실패: ' + (statementErr.message || statementErr));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: statementErr.message }));
+      }
+    });
+    return;
+  }
+
+  // 3-5. 정품 엑셀 원본 기반 월간 안전점검 체크리스트 PDF/XLSX 생성 엔진 (/api/generate-monthly-checklist)
+  if (req.method === 'POST' && pathname === '/api/generate-monthly-checklist') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('GENERATE_MONTHLY_CHECKLIST', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const chkRes = await executeMonthlySafetyChecklistInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(chkRes));
+      } catch (chkErr) {
+        agentLog('ERROR', '월간 안전점검 체크리스트 생성 실패: ' + (chkErr.message || chkErr));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: chkErr.message }));
       }
     });
     return;

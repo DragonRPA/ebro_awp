@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 
 
-const VERSION = 'v2.0.0.Build.26';
+const VERSION = 'v2.0.0.Build.27';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -433,7 +433,7 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     $assetSpeed = if ($asset.speed -and "$($asset.speed)" -ne "-") { "$($asset.speed)" } else { "-" }
     $assetWorkingHeight = if ($asset.workingHeight -and "$($asset.workingHeight)" -ne "-") { "$($asset.workingHeight)" } else { "-" }
     $assetCapacity = if ($asset.capacityPreExt -and "$($asset.capacityPreExt)" -ne "-") { "$($asset.capacityPreExt)" } else { "-" }
-    $assetMfgYear = if ($asset.manufactureYear -and "$($asset.manufactureYear)" -ne "-") { "$($asset.manufactureYear)" } else { "-" }
+    $assetMfgYear = if ($asset.manufactureYear -and "$($asset.manufactureYear)" -ne "-") { if ("$($asset.manufactureYear)" -match "(\d{4})") { "$($Matches[1])년" } else { "$($asset.manufactureYear)" } } else { "-" }
     $assetCertDate = if ($asset.safetyCertDate -and "$($asset.safetyCertDate)" -ne "-") { "$($asset.safetyCertDate)" } elseif ($asset.certDate -and "$($asset.certDate)" -ne "-") { "$($asset.certDate)" } else { "-" }
 
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
