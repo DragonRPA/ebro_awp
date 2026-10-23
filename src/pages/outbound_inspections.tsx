@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
-import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, Delivery, db, isCustomerRestricted } from '../services/db';
+import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, ContractHistory, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, Delivery, db, isCustomerRestricted } from '../services/db';
 import { splitMasterAwareOptions } from '../types/siteOption';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { isModelMatch } from '../utils/modelUtils';
@@ -805,22 +805,28 @@ export const OutboundInspections: React.FC = () => {
             });
           }
 
-          // 3. [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 취소 롤백 이력 로깅
+          // 3. [헌장 1.2] 기존 출고완료(OUTBOUND) 이력 삭제 및 계약 이력에 출고승인 취소 롤백 기록
+          const targetDeliveryId = item.deliveryId || selectedGroup.deliveryId;
+          const logsToRemove = db.assetInOutLogs.filter(l =>
+            l.assetId === item.assetId &&
+            l.type === 'OUTBOUND' &&
+            (
+              (targetDeliveryId && l.deliveryId === targetDeliveryId) ||
+              (!l.deliveryId && l.customerName === selectedGroup.customerName)
+            )
+          );
+          logsToRemove.forEach(l => db.deleteRow('assetInOutLogs', l.id));
+
           const targetAsset = db.assets.find(a => a.id === item.assetId);
-          db.insertRow<AssetInOutLog>('assetInOutLogs', {
-            assetId: item.assetId,
-            assetNo: targetAsset?.assetNo || '',
-            modelName: targetAsset?.modelName || '',
-            deliveryId: item.deliveryId || selectedGroup.deliveryId,
-            type: 'OUTBOUND',
-            eventDate: nowIso.split('T')[0],
-            customerId: contract?.customerId,
-            customerName: selectedGroup.customerName,
-            siteId: contract?.siteId,
-            siteName: selectedGroup.siteName,
-            memo: `[출고승인 취소 롤백] 출고 승인이 취소되고 검수 진행중(자산상태 ASSIGNED)으로 안전 롤백되었습니다. 사유: ${rollbackReason.trim()}`,
-            createdAt: nowIso
-          });
+          if (contract) {
+            db.insertRow<ContractHistory>('contractHistory', {
+              contractId: contract.id,
+              changeType: 'REGISTER',
+              changeDate: nowIso.split('T')[0],
+              description: `[출고승인 취소 롤백] 자산(${targetAsset?.assetNo || item.assetId}) 출고 승인이 취소되고 검수 진행중(장비 할당)으로 롤백되었습니다. 사유: ${rollbackReason.trim()}`,
+              createdAt: nowIso
+            });
+          }
         }
       });
 

@@ -225,7 +225,7 @@ export const Assets: React.FC = () => {
     showToast(`자산 ${asset.assetNo} 이력 엑셀 파일이 다운로드되었습니다.`);
   };
 
-  // KPI 통계 (단일 패스 O(N) 집계)
+  // KPI 통계 (단일 패스 O(N) 집계 — 실물자산 기준 가동률로 가상자산 왜곡 원천 차단)
   const kpiStats = useMemo(() => {
     const totalCount = assets.length;
     let ownedCount = 0;
@@ -239,12 +239,25 @@ export const Assets: React.FC = () => {
     let returnedOrDisposedCount = 0;
     let totalBookValue = 0;
 
+    // 실물자산(Physical Only) 기준 가동률 집계 변수 (가상자산이 가동률을 왜곡하지 않도록 분리)
+    let physicalActiveCount = 0;
+    let physicalRentedOpCount = 0;
+    let physicalAssignedCount = 0;
+
     for (let i = 0; i < totalCount; i++) {
       const a = assets[i];
-      if (isVirtualAsset(a)) {
+      const isVirt = isVirtualAsset(a);
+      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate);
+
+      if (isVirt) {
         virtualCount++;
       } else {
         physicalCount++;
+        if (!isReturnedOrDisposed) {
+          physicalActiveCount++;
+          if (a.status === 'RENTED') physicalRentedOpCount++;
+          else if (a.status === 'ASSIGNED') physicalAssignedCount++;
+        }
       }
       if (a.ownerType === 'OWNED') {
         ownedCount++;
@@ -259,13 +272,12 @@ export const Assets: React.FC = () => {
       else if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) availableCount++;
       else if (a.status === 'REPAIRING') repairingCount++;
 
-      if (a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate)) {
+      if (isReturnedOrDisposed) {
         returnedOrDisposedCount++;
       }
     }
 
-    const activeTotal = totalCount - returnedOrDisposedCount;
-    const opRate = activeTotal > 0 ? Math.round(((rentedOpCount + assignedCount) / activeTotal) * 100) : 0;
+    const opRate = physicalActiveCount > 0 ? Math.round(((physicalRentedOpCount + physicalAssignedCount) / physicalActiveCount) * 100) : 0;
 
     return {
       totalCount,
@@ -278,6 +290,9 @@ export const Assets: React.FC = () => {
       availableCount,
       repairingCount,
       returnedOrDisposedCount,
+      physicalActiveCount,
+      physicalRentedOpCount,
+      physicalAssignedCount,
       opRate,
       totalBookValue
     };
@@ -339,6 +354,52 @@ export const Assets: React.FC = () => {
       );
     });
   }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
+
+  // 📊 필터링된 결과에 대한 요약 통계 (총 대수, 실물 + 가상 대수, 가상자산을 제외한 순수 실물자산 가동률)
+  const filteredStats = useMemo(() => {
+    const totalCount = filtered.length;
+    let physicalCount = 0;
+    let virtualCount = 0;
+    let physicalActiveCount = 0;
+    let physicalRentedOpCount = 0;
+    let physicalAssignedCount = 0;
+    let physicalAvailableCount = 0;
+
+    for (let i = 0; i < totalCount; i++) {
+      const a = filtered[i];
+      const isVirt = isVirtualAsset(a);
+      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate);
+
+      if (isVirt) {
+        virtualCount++;
+      } else {
+        physicalCount++;
+        if (!isReturnedOrDisposed) {
+          physicalActiveCount++;
+          if (a.status === 'RENTED') physicalRentedOpCount++;
+          else if (a.status === 'ASSIGNED') physicalAssignedCount++;
+          else if (a.status === 'AVAILABLE') physicalAvailableCount++;
+        }
+      }
+    }
+
+    const physicalOperatingCount = physicalRentedOpCount + physicalAssignedCount;
+    const physicalOpRate = physicalActiveCount > 0
+      ? Math.round((physicalOperatingCount / physicalActiveCount) * 100)
+      : 0;
+
+    return {
+      totalCount,
+      physicalCount,
+      virtualCount,
+      physicalActiveCount,
+      physicalOperatingCount,
+      physicalRentedOpCount,
+      physicalAssignedCount,
+      physicalAvailableCount,
+      physicalOpRate
+    };
+  }, [filtered]);
 
   const { items: sortedAssets, sortConfig, requestSort } = useSortableData<Asset>(
     filtered,
@@ -590,7 +651,7 @@ export const Assets: React.FC = () => {
           <strong style={{ fontSize: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{kpiStats.returnedOrDisposedCount}대</strong>
         </div>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>실가동률</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>실물자산 가동률</span>
           <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{kpiStats.opRate}%</strong>
         </div>
       </div>
@@ -608,7 +669,25 @@ export const Assets: React.FC = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', padding: '1px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+              <span>
+                조회 결과: 총 <strong style={{ color: 'var(--primary)' }}>{filteredStats.totalCount}대</strong>
+              </span>
+              <span style={{ color: 'var(--border-color)' }}>|</span>
+              <span>
+                실물 <strong style={{ color: 'var(--text-main)' }}>{filteredStats.physicalCount}대</strong> + 가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
+              </span>
+              <span style={{ color: 'var(--border-color)' }}>|</span>
+              <span>
+                실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{filteredStats.physicalOpRate}%</strong>
+                <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>
+                  (가동 {filteredStats.physicalOperatingCount}대 / 실물운용 {filteredStats.physicalActiveCount}대, 임대가능 {filteredStats.physicalAvailableCount}대)
+                </span>
+              </span>
+            </div>
+          </div>
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
             <input
@@ -1110,7 +1189,7 @@ export const Assets: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <span>전사 등록자산: <strong style={{ color: 'var(--primary)' }}>{kpiStats.totalCount}대</strong> (당사 {kpiStats.ownedCount}대 + 임차 {kpiStats.rentedCount}대 | 실물 {kpiStats.physicalCount}대 + 가상 {kpiStats.virtualCount}대)</span>
             <span>|</span>
-            <span>실가동률: <strong style={{ color: 'var(--success)' }}>{kpiStats.opRate}%</strong> (대여중 {kpiStats.rentedOpCount}대 + 대기 {kpiStats.assignedCount}대)</span>
+            <span>실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{kpiStats.opRate}%</strong> (실물 대여중 {kpiStats.physicalRentedOpCount}대 + 대기 {kpiStats.physicalAssignedCount}대 / 실물운용 {kpiStats.physicalActiveCount}대)</span>
             <span>|</span>
             <span>당사자산 장부가 총액: <strong style={{ color: 'var(--primary)' }}>₩{kpiStats.totalBookValue.toLocaleString()}원</strong></span>
           </div>
