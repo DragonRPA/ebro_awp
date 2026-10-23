@@ -5172,6 +5172,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       result = db.updateRow<Asset>('assets', existing.id, {
         ...cleanAssetData,
         vendorAssetNo: cleanAssetData.vendorAssetNo || existing.vendorAssetNo || '',
+        serialNo: cleanAssetData.serialNo ?? existing.serialNo ?? '',
         ownerType: 'RENTED',
         antiEntrapmentOwnership: resolvedOwnership,
         status: nextStatus,

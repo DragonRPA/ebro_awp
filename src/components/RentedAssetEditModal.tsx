@@ -184,6 +184,17 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>제조번호</label>
+            <input
+              type="text"
+              placeholder="제조번호 입력"
+              value={formData.serialNo || ''}
+              onChange={e => setFormData({ ...formData, serialNo: e.target.value })}
+              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
             <select
               value={formData.modelName || ''}
