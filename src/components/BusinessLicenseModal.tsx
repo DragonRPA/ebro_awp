@@ -809,7 +809,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                     <div className="flex flex-col gap-0.5 sm:gap-1">
                       <label className="text-[11px] sm:text-xs text-slate-300 font-medium">세금계산서 수신 이메일</label>
                       <input
-                        type="email"
+                        type="text"
                         value={newForm.repEmail}
                         onChange={(e) => setNewForm({ ...newForm, repEmail: e.target.value })}
                         placeholder="tax@company.com"

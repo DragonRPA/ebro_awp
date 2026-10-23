@@ -2807,11 +2807,11 @@ const handleDeleteAccount = async (accId: string) => {
               <div>
                 <label style={labelStyle}>대표 이메일</label>
                 <input
-                  type="email"
+                  type="text"
                   style={inputStyle}
                   value={editingCust.repEmail || ''}
                   onChange={e => setEditingCust({ ...editingCust, repEmail: e.target.value })}
-                  placeholder="contact@company.com"
+                  placeholder="contact@company.com (복수 입력 시 , 또는 / 로 구분)"
                 />
               </div>
 
@@ -3055,11 +3055,11 @@ const handleDeleteAccount = async (accId: string) => {
               <div>
                 <label style={labelStyle}>이메일</label>
                 <input
-                  type="email"
+                  type="text"
                   style={inputStyle}
                   value={editingContact.email || ''}
                   onChange={e => setEditingContact({ ...editingContact, email: e.target.value })}
-                  placeholder="email@company.com"
+                  placeholder="email@company.com (복수 입력 가능)"
                 />
               </div>
 
@@ -3405,11 +3405,11 @@ const handleDeleteAccount = async (accId: string) => {
                               이메일주소 {cType === 'CLOSING' && <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>[명세서/계산서]</span>}
                             </label>
                             <input
-                              type="email"
+                              type="text"
                               style={inputStyle}
                               value={sc.email || ''}
                               onChange={e => handleUpdateSiteContact(scIdx, 'email', e.target.value)}
-                              placeholder="site@company.com"
+                              placeholder="site@company.com (복수 입력 가능)"
                             />
                           </div>
                         </div>

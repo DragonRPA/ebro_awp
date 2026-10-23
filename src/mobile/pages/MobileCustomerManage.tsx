@@ -764,7 +764,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
             <div className="flex flex-col gap-1">
               <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">세금계산서 수신 이메일</label>
               <input 
-                type="email" 
+                type="text" 
                 value={editingCustomer.repEmail || ''} 
                 onChange={e => setEditingCustomer({...editingCustomer, repEmail: e.target.value})} 
                 placeholder="tax@company.com"
@@ -891,7 +891,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
             <div className="flex flex-col gap-1">
               <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">세금계산서 수신 이메일</label>
               <input 
-                type="email" 
+                type="text" 
                 value={newCustomerForm.repEmail || ''} 
                 onChange={e => setNewCustomerForm({...newCustomerForm, repEmail: e.target.value})} 
                 placeholder="tax@company.com"

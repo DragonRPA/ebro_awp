@@ -1592,7 +1592,7 @@ export const Vendors: React.FC = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>이메일</label>
                   <input
-                    type="email"
+                    type="text"
                     value={editingVendor.email || ''}
                     onChange={e => setEditingVendor({ ...editingVendor, email: e.target.value })}
                     placeholder="예: vendor@example.com"

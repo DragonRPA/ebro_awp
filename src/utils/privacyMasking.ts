@@ -89,13 +89,15 @@ export function maskEmail(email?: string | null): string {
   const clean = String(email).trim();
   if (!clean || !clean.includes('@')) return clean || '-';
 
-  const [user, domain] = clean.split('@');
-  if (user.length <= 2) {
-    return `${user.charAt(0)}*@${domain}`;
-  }
-  const visible = user.substring(0, 2);
-  const masked = '*'.repeat(user.length - 2);
-  return `${visible}${masked}@${domain}`;
+  return clean.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, (match) => {
+    const [user, domain] = match.split('@');
+    if (user.length <= 2) {
+      return `${user.charAt(0)}*@${domain}`;
+    }
+    const visible = user.substring(0, 2);
+    const masked = '*'.repeat(user.length - 2);
+    return `${visible}${masked}@${domain}`;
+  });
 }
 
 /**

@@ -382,7 +382,7 @@ export const ContactCardOcrModal: React.FC<ContactCardOcrModalProps> = ({
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-slate-300 font-medium">이메일</label>
                     <input
-                      type="email"
+                      type="text"
                       value={newForm.email}
                       onChange={(e) => setNewForm({ ...newForm, email: e.target.value })}
                       className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"

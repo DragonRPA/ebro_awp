@@ -1147,7 +1147,7 @@ export const TradeBillingPage: React.FC = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '11.5px' }}>수신자 이메일 *</label>
                     <input
-                      type="email"
+                      type="text"
                       placeholder="accounting@company.com"
                       value={formRecipientEmail}
                       onChange={e => setFormRecipientEmail(e.target.value)}

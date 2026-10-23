@@ -3111,14 +3111,14 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 {sendEmailImmediately && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
                     <input
-                      type="email"
+                      type="text"
                       placeholder="수신 이메일 (예: dealer@machinery.co.kr)"
                       value={disposalEmailTo}
                       onChange={e => setDisposalEmailTo(e.target.value)}
                       style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '12px' }}
                     />
                     <input
-                      type="email"
+                      type="text"
                       placeholder="참조 이메일 (CC, 선택)"
                       value={disposalEmailCc}
                       onChange={e => setDisposalEmailCc(e.target.value)}

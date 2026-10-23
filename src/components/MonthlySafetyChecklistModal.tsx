@@ -1316,7 +1316,7 @@ ${contactFooterLine}`
                 }}
               />
               <input
-                type="email"
+                type="text"
                 value={manualInputEmail}
                 onChange={e => setManualInputEmail(e.target.value)}
                 onKeyDown={e => {

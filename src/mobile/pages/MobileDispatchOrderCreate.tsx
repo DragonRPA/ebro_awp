@@ -1425,7 +1425,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                     )}
                   </label>
                   <input
-                    type="email"
+                    type="text"
                     value={siteContactEmail}
                     onChange={(e) => setSiteContactEmail(e.target.value)}
                     placeholder="이메일 입력"

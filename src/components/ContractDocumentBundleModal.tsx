@@ -2022,7 +2022,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
                 }}
               />
               <input
-                type="email"
+                type="text"
                 value={manualInputEmail}
                 onChange={e => setManualInputEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddManualRecipient(); } }}
