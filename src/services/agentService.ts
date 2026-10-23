@@ -1,7 +1,7 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.27';
-export const EXPECTED_CORE_HASH: string = 'ae59bc622b93';
+export const EXPECTED_AGENT_VERSION: string = 'v2.0.0.Build.28';
+export const EXPECTED_CORE_HASH: string = 'c567132099d6';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트
@@ -170,35 +170,43 @@ export interface AgentHealthInfo {
 /**
  * 🌐 테넌트 관리 센터의 기능 정책을 로컬 에이전트에 실시간 핫 동기화
  */
-export async function syncTenantPolicyToAgent(tenant?: {
-  tenantCode?: string;
-  subdomain?: string;
-  displayName?: string;
-  tradeName?: string;
-  corporateName?: string;
-  businessNumber?: string;
-  representativeName?: string;
-  tel?: string;
-  fax?: string;
-  salesPhone?: string;
-  businessAddress?: string;
-  businessCategory?: string;
-  businessItem?: string;
-  bankAccounts?: Array<{ bankName: string; accountNumber: string; accountHolder: string }>;
-  stampImageUrl?: string;
-  features?: TenantFeatures;
-} | null): Promise<boolean> {
-  if (!tenant) return false;
+export async function syncTenantPolicyToAgent(
+  tenant?: {
+    tenantCode?: string;
+    subdomain?: string;
+    displayName?: string;
+    tradeName?: string;
+    corporateName?: string;
+    businessNumber?: string;
+    representativeName?: string;
+    tel?: string;
+    fax?: string;
+    salesPhone?: string;
+    businessAddress?: string;
+    businessCategory?: string;
+    businessItem?: string;
+    bankAccounts?: Array<{ bankName: string; accountNumber: string; accountHolder: string }>;
+    stampImageUrl?: string;
+    features?: TenantFeatures;
+  } | null,
+  backupPolicy?: {
+    autoBackupEnabled?: boolean;
+    autoBackupTime?: string;
+    autoBackupRetentionDays?: number;
+    backupUserId?: string;
+    backupUserName?: string;
+  } | null
+): Promise<boolean> {
+  if (!tenant && !backupPolicy) return false;
   try {
-    const isAiEnabled = Boolean(tenant.features?.agentAiEnabled);
-    const code = tenant.tenantCode || 'GIYEONLIFT';
-    const sub = tenant.subdomain || (code === 'GIYEONLIFT' || code === 'GIYEUN' ? 'giyeon' : code.toLowerCase());
-    const tenantName = tenant.displayName || tenant.tradeName || tenant.corporateName || code;
-    const corporateName = tenant.corporateName || tenant.tradeName || tenantName;
-    const res = await fetchWithAgentFallback('/api/policy/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const payload: Record<string, any> = {};
+    if (tenant) {
+      const isAiEnabled = Boolean(tenant.features?.agentAiEnabled);
+      const code = tenant.tenantCode || 'GIYEONLIFT';
+      const sub = tenant.subdomain || (code === 'GIYEONLIFT' || code === 'GIYEUN' ? 'giyeon' : code.toLowerCase());
+      const tenantName = tenant.displayName || tenant.tradeName || tenant.corporateName || code;
+      const corporateName = tenant.corporateName || tenant.tradeName || tenantName;
+      Object.assign(payload, {
         agentAiEnabled: isAiEnabled,
         tenantCode: code,
         subdomain: sub,
@@ -214,7 +222,19 @@ export async function syncTenantPolicyToAgent(tenant?: {
         businessItem: tenant.businessItem || '',
         bankAccounts: tenant.bankAccounts || [],
         stampImageUrl: tenant.stampImageUrl || ''
-      })
+      });
+    }
+    if (backupPolicy) {
+      if (backupPolicy.autoBackupEnabled !== undefined) payload.autoBackupEnabled = Boolean(backupPolicy.autoBackupEnabled);
+      if (backupPolicy.autoBackupTime !== undefined) payload.autoBackupTime = backupPolicy.autoBackupTime || '09:00';
+      if (backupPolicy.autoBackupRetentionDays !== undefined) payload.autoBackupRetentionDays = Number(backupPolicy.autoBackupRetentionDays) || 30;
+      if (backupPolicy.backupUserId !== undefined) payload.backupUserId = backupPolicy.backupUserId || '';
+      if (backupPolicy.backupUserName !== undefined) payload.backupUserName = backupPolicy.backupUserName || '';
+    }
+    const res = await fetchWithAgentFallback('/api/policy/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
     return res.ok;
   } catch (e) {
@@ -790,4 +810,93 @@ export function notifyAgentRequired(actionName: string = '로컬 연동 작업')
     window.dispatchEvent(new CustomEvent('ebro:agent_required', { detail: { actionName } }));
   }
 }
+
+export interface LocalBackupStatus {
+  success: boolean;
+  autoBackupEnabled?: boolean;
+  autoBackupTime?: string;
+  autoBackupRetentionDays?: number;
+  backupUserId?: string;
+  backupUserName?: string;
+  lastAutoBackupAt?: string | null;
+  hasTodayBackup?: boolean;
+  isRunning?: boolean;
+  lastError?: string | null;
+  backupDir?: string;
+  backupCount?: number;
+  recentBackups?: Array<{
+    fileName: string;
+    filePath: string;
+    sizeBytes: number;
+    modifiedAt: string;
+  }>;
+  error?: string;
+}
+
+/**
+ * 🛡️ 로컬 에이전트의 DB 백업 현황 및 정책 상태 조회
+ */
+export async function getAgentLocalBackupStatus(): Promise<LocalBackupStatus> {
+  try {
+    const res = await fetchWithAgentFallback('/api/backup/status', {
+      method: 'GET',
+      timeout: 3000
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+    return { success: false, error: `HTTP ${res.status}` };
+  } catch (e: any) {
+    return { success: false, error: e?.message || '에이전트 연결 실패' };
+  }
+}
+
+/**
+ * 🛡️ 로컬 에이전트에 즉시 전체 DB 백업 실행 명령 전송
+ */
+export async function triggerAgentLocalBackupNow(backupPolicy?: {
+  autoBackupEnabled?: boolean;
+  autoBackupTime?: string;
+  autoBackupRetentionDays?: number;
+  backupUserId?: string;
+  backupUserName?: string;
+}): Promise<{
+  success: boolean;
+  fileName?: string;
+  filePath?: string;
+  tableCount?: number;
+  totalRowsCount?: number;
+  fileSizeMb?: number;
+  completedAt?: string;
+  message?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetchWithAgentFallback('/api/backup/run-now', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backupPolicy || {}),
+      timeout: 120000
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { success: false, error: e?.message || '에이전트 통신 실패' };
+  }
+}
+
+/**
+ * 📂 로컬 PC 백업 폴더(C:\eBroAgent\문서고\DB백업) 탐색기 열기
+ */
+export async function openAgentLocalBackupFolder(): Promise<boolean> {
+  try {
+    const res = await fetchWithAgentFallback('/api/backup/open-folder', {
+      method: 'POST',
+      timeout: 3000
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 

@@ -724,6 +724,10 @@ export interface User {
   email?: string;
   profileImageUrl?: string;
   customRoleId?: string; // 상속받은 권한 명칭 ID (CustomRole.id)
+  autoBackupEnabled?: boolean; // 로컬 DB 자동 백업 권한 허용 여부
+  autoBackupTime?: string; // 자동 백업 실행 시각 (기본 '09:00')
+  autoBackupRetentionDays?: number; // 로컬 백업 파일 보존 일수 (기본 30일)
+  lastAutoBackupAt?: string; // 마지막 로컬 자동 백업 완료 일시
   createdAt?: string;
   updatedAt?: string;
 }
