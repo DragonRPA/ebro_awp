@@ -41,14 +41,23 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
 
     return (data || []).map(row => {
       const decrypted = decryptEntityPrivacyFields('tenants', row);
-      const rawSpecialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'] : undefined);
+      const defaultSpecialFeatures = ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch', 'btn:contracts:trade_outbound'];
+      const rawSpecialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? defaultSpecialFeatures : undefined);
       const explicitContractTrade = (decrypted as any).allowContractTradeOutbound ?? decrypted.features?.allowContractTradeOutbound;
       const resolvedAllowContractTradeOutbound = typeof explicitContractTrade === 'boolean' ? explicitContractTrade : true;
-      const specialFeatures = Array.isArray(rawSpecialFeatures)
+      let specialFeatures = Array.isArray(rawSpecialFeatures)
         ? (resolvedAllowContractTradeOutbound && !rawSpecialFeatures.includes('btn:contracts:trade_outbound') && explicitContractTrade !== false
             ? [...rawSpecialFeatures, 'btn:contracts:trade_outbound']
-            : rawSpecialFeatures)
+            : [...rawSpecialFeatures])
         : rawSpecialFeatures;
+      if (row.id === 'tenant-giyeonlift' && Array.isArray(specialFeatures)) {
+        if (!specialFeatures.includes('tab:truck_dispatch:audit_settle')) {
+          specialFeatures.push('tab:truck_dispatch:audit_settle');
+        }
+        if (!specialFeatures.includes('btn:truck_dispatch:bulk_approve')) {
+          specialFeatures.push('btn:truck_dispatch:bulk_approve');
+        }
+      }
       const po = decrypted.privacyOfficer || decrypted.features?.privacyOfficer;
       return {
         ...decrypted,

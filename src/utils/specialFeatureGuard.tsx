@@ -3,6 +3,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { SPECIAL_FEATURES_REGISTRY, isControlledSpecialFeature } from '../config/specialFeaturesRegistry';
 import { Tenant, db } from '../services/db';
+import { isDemoMode } from '../services/demoMode';
 
 /**
  * 🛡️ [특수 기능 가드 판정 함수]
@@ -14,6 +15,11 @@ import { Tenant, db } from '../services/db';
  *    ➔ currentTenant.specialFeatures 목록에 포함되어 있을 때만 true (미인가 시 false ➔ 숨김)
  */
 export function isSpecialFeatureGranted(featureId: string, tenant?: Tenant | null): boolean {
+  // 0. 데모 모드(awp-demo 등)에서는 모든 특수 기능(운송료 대사 탭, 통합 지급요청 등)을 100% 허용하여 테스트 보장
+  if (isDemoMode()) {
+    return true;
+  }
+
   // 1. 등록되지 않은 일반 탭/버튼은 항상 허용
   if (!isControlledSpecialFeature(featureId)) {
     return true;
@@ -23,6 +29,14 @@ export function isSpecialFeatureGranted(featureId: string, tenant?: Tenant | nul
   const targetTenant = tenant || db.currentTenant;
   if (!targetTenant) {
     return false;
+  }
+
+  // 기연리프트 기본 테넌트에서는 운송료 대사 탭 및 통합 지급요청 버튼 항상 보장
+  if (
+    targetTenant.id === 'tenant-giyeonlift' &&
+    (featureId === 'tab:truck_dispatch:audit_settle' || featureId === 'btn:truck_dispatch:bulk_approve')
+  ) {
+    return true;
   }
 
   if (featureId === 'btn:contracts:trade_outbound') {
