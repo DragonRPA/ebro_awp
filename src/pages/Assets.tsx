@@ -225,7 +225,7 @@ export const Assets: React.FC = () => {
     showToast(`자산 ${asset.assetNo} 이력 엑셀 파일이 다운로드되었습니다.`);
   };
 
-  // KPI 통계 (단일 패스 O(N) 집계 — 실물자산 기준 가동률로 가상자산 왜곡 원천 차단)
+  // KPI 통계 (단일 패스 O(N) 집계 — 당사/임차/가상 분리 및 실물자산 기준 가동률로 가상자산 왜곡 원천 차단)
   const kpiStats = useMemo(() => {
     const totalCount = assets.length;
     let ownedCount = 0;
@@ -239,26 +239,66 @@ export const Assets: React.FC = () => {
     let returnedOrDisposedCount = 0;
     let totalBookValue = 0;
 
-    // 실물자산(Physical Only) 기준 가동률 집계 변수 (가상자산이 가동률을 왜곡하지 않도록 분리)
-    let physicalActiveCount = 0;
-    let physicalRentedOpCount = 0;
-    let physicalAssignedCount = 0;
+    // 당사 실물 (OWNED & !VIRTUAL)
+    let ownedPhysicalTotal = 0;
+    let ownedPhysicalActive = 0;
+    let ownedPhysicalRented = 0;
+    let ownedPhysicalAssigned = 0;
+    let ownedPhysicalAvailable = 0;
+    let ownedPhysicalRepairing = 0;
+    let ownedPhysicalDisposed = 0;
+
+    // 임차 실물 (RENTED & !VIRTUAL)
+    let rentedPhysicalTotal = 0;
+    let rentedPhysicalActive = 0;
+    let rentedPhysicalRented = 0;
+    let rentedPhysicalAssigned = 0;
+    let rentedPhysicalAvailable = 0;
+    let rentedPhysicalRepairing = 0;
+    let rentedPhysicalReturned = 0;
+
+    // 가상자산 (VIRTUAL)
+    let virtualOperatingCount = 0;
+    let virtualAvailableCount = 0;
 
     for (let i = 0; i < totalCount; i++) {
       const a = assets[i];
       const isVirt = isVirtualAsset(a);
-      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate);
+      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'LOST' || Boolean(a.actualRentReturnDate);
 
       if (isVirt) {
         virtualCount++;
+        if (!isReturnedOrDisposed) {
+          if (a.status === 'RENTED' || a.status === 'ASSIGNED') virtualOperatingCount++;
+          else if (a.status === 'AVAILABLE') virtualAvailableCount++;
+        }
       } else {
         physicalCount++;
-        if (!isReturnedOrDisposed) {
-          physicalActiveCount++;
-          if (a.status === 'RENTED') physicalRentedOpCount++;
-          else if (a.status === 'ASSIGNED') physicalAssignedCount++;
+        if (a.ownerType === 'OWNED') {
+          ownedPhysicalTotal++;
+          if (isReturnedOrDisposed) {
+            ownedPhysicalDisposed++;
+          } else {
+            ownedPhysicalActive++;
+            if (a.status === 'RENTED') ownedPhysicalRented++;
+            else if (a.status === 'ASSIGNED') ownedPhysicalAssigned++;
+            else if (a.status === 'AVAILABLE') ownedPhysicalAvailable++;
+            else if (a.status === 'REPAIRING') ownedPhysicalRepairing++;
+          }
+        } else {
+          rentedPhysicalTotal++;
+          if (isReturnedOrDisposed) {
+            rentedPhysicalReturned++;
+          } else {
+            rentedPhysicalActive++;
+            if (a.status === 'RENTED') rentedPhysicalRented++;
+            else if (a.status === 'ASSIGNED') rentedPhysicalAssigned++;
+            else if (a.status === 'AVAILABLE') rentedPhysicalAvailable++;
+            else if (a.status === 'REPAIRING') rentedPhysicalRepairing++;
+          }
         }
       }
+
       if (a.ownerType === 'OWNED') {
         ownedCount++;
         const bv = a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - (a.accumDepreciation || 0));
@@ -267,17 +307,28 @@ export const Assets: React.FC = () => {
         rentedCount++;
       }
 
-      if (a.status === 'RENTED') rentedOpCount++;
-      else if (a.status === 'ASSIGNED') assignedCount++;
-      else if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) availableCount++;
-      else if (a.status === 'REPAIRING') repairingCount++;
+      if (a.status === 'RENTED' && !isReturnedOrDisposed) rentedOpCount++;
+      else if (a.status === 'ASSIGNED' && !isReturnedOrDisposed) assignedCount++;
+      else if (a.status === 'AVAILABLE' && !isReturnedOrDisposed) availableCount++;
+      else if (a.status === 'REPAIRING' && !isReturnedOrDisposed) repairingCount++;
 
       if (isReturnedOrDisposed) {
         returnedOrDisposedCount++;
       }
     }
 
-    const opRate = physicalActiveCount > 0 ? Math.round(((physicalRentedOpCount + physicalAssignedCount) / physicalActiveCount) * 100) : 0;
+    const ownedPhysicalOperating = ownedPhysicalRented + ownedPhysicalAssigned;
+    const rentedPhysicalOperating = rentedPhysicalRented + rentedPhysicalAssigned;
+    const physicalActiveCount = ownedPhysicalActive + rentedPhysicalActive;
+    const physicalRentedOpCount = ownedPhysicalRented + rentedPhysicalRented;
+    const physicalAssignedCount = ownedPhysicalAssigned + rentedPhysicalAssigned;
+    const physicalOperatingCount = ownedPhysicalOperating + rentedPhysicalOperating;
+    const physicalAvailableCount = ownedPhysicalAvailable + rentedPhysicalAvailable;
+    const physicalRepairingCount = ownedPhysicalRepairing + rentedPhysicalRepairing;
+
+    const opRate = physicalActiveCount > 0 ? Math.round((physicalOperatingCount / physicalActiveCount) * 100) : 0;
+    const ownedPhysicalOpRate = ownedPhysicalActive > 0 ? Math.round((ownedPhysicalOperating / ownedPhysicalActive) * 100) : 0;
+    const rentedPhysicalOpRate = rentedPhysicalActive > 0 ? Math.round((rentedPhysicalOperating / rentedPhysicalActive) * 100) : 0;
 
     return {
       totalCount,
@@ -290,10 +341,33 @@ export const Assets: React.FC = () => {
       availableCount,
       repairingCount,
       returnedOrDisposedCount,
+      ownedPhysicalTotal,
+      ownedPhysicalActive,
+      ownedPhysicalRented,
+      ownedPhysicalAssigned,
+      ownedPhysicalOperating,
+      ownedPhysicalAvailable,
+      ownedPhysicalRepairing,
+      ownedPhysicalDisposed,
+      rentedPhysicalTotal,
+      rentedPhysicalActive,
+      rentedPhysicalRented,
+      rentedPhysicalAssigned,
+      rentedPhysicalOperating,
+      rentedPhysicalAvailable,
+      rentedPhysicalRepairing,
+      rentedPhysicalReturned,
+      virtualOperatingCount,
+      virtualAvailableCount,
       physicalActiveCount,
       physicalRentedOpCount,
       physicalAssignedCount,
+      physicalOperatingCount,
+      physicalAvailableCount,
+      physicalRepairingCount,
       opRate,
+      ownedPhysicalOpRate,
+      rentedPhysicalOpRate,
       totalBookValue
     };
   }, [assets]);
@@ -355,49 +429,113 @@ export const Assets: React.FC = () => {
     });
   }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
 
-  // 📊 필터링된 결과에 대한 요약 통계 (총 대수, 실물 + 가상 대수, 가상자산을 제외한 순수 실물자산 가동률)
+  // 📊 필터링된 결과에 대한 요약 통계 (총 대수, 실물[당사+임차] + 가상 대수, 가상자산을 제외한 순수 실물자산 가동률 및 당사/임차별 가동상황)
   const filteredStats = useMemo(() => {
     const totalCount = filtered.length;
     let physicalCount = 0;
     let virtualCount = 0;
-    let physicalActiveCount = 0;
-    let physicalRentedOpCount = 0;
-    let physicalAssignedCount = 0;
-    let physicalAvailableCount = 0;
+
+    // 당사 실물 (OWNED & !VIRTUAL)
+    let ownedPhysicalTotal = 0;
+    let ownedPhysicalActive = 0;
+    let ownedPhysicalRented = 0;
+    let ownedPhysicalAssigned = 0;
+    let ownedPhysicalAvailable = 0;
+    let ownedPhysicalRepairing = 0;
+    let ownedPhysicalDisposed = 0;
+
+    // 임차 실물 (RENTED & !VIRTUAL)
+    let rentedPhysicalTotal = 0;
+    let rentedPhysicalActive = 0;
+    let rentedPhysicalRented = 0;
+    let rentedPhysicalAssigned = 0;
+    let rentedPhysicalAvailable = 0;
+    let rentedPhysicalRepairing = 0;
+    let rentedPhysicalReturned = 0;
 
     for (let i = 0; i < totalCount; i++) {
       const a = filtered[i];
       const isVirt = isVirtualAsset(a);
-      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate);
+      const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'LOST' || Boolean(a.actualRentReturnDate);
 
       if (isVirt) {
         virtualCount++;
       } else {
         physicalCount++;
-        if (!isReturnedOrDisposed) {
-          physicalActiveCount++;
-          if (a.status === 'RENTED') physicalRentedOpCount++;
-          else if (a.status === 'ASSIGNED') physicalAssignedCount++;
-          else if (a.status === 'AVAILABLE') physicalAvailableCount++;
+        if (a.ownerType === 'OWNED') {
+          ownedPhysicalTotal++;
+          if (isReturnedOrDisposed) {
+            ownedPhysicalDisposed++;
+          } else {
+            ownedPhysicalActive++;
+            if (a.status === 'RENTED') ownedPhysicalRented++;
+            else if (a.status === 'ASSIGNED') ownedPhysicalAssigned++;
+            else if (a.status === 'AVAILABLE') ownedPhysicalAvailable++;
+            else if (a.status === 'REPAIRING') ownedPhysicalRepairing++;
+          }
+        } else {
+          rentedPhysicalTotal++;
+          if (isReturnedOrDisposed) {
+            rentedPhysicalReturned++;
+          } else {
+            rentedPhysicalActive++;
+            if (a.status === 'RENTED') rentedPhysicalRented++;
+            else if (a.status === 'ASSIGNED') rentedPhysicalAssigned++;
+            else if (a.status === 'AVAILABLE') rentedPhysicalAvailable++;
+            else if (a.status === 'REPAIRING') rentedPhysicalRepairing++;
+          }
         }
       }
     }
 
-    const physicalOperatingCount = physicalRentedOpCount + physicalAssignedCount;
+    const ownedPhysicalOperating = ownedPhysicalRented + ownedPhysicalAssigned;
+    const rentedPhysicalOperating = rentedPhysicalRented + rentedPhysicalAssigned;
+    const physicalActiveCount = ownedPhysicalActive + rentedPhysicalActive;
+    const physicalRentedOpCount = ownedPhysicalRented + rentedPhysicalRented;
+    const physicalAssignedCount = ownedPhysicalAssigned + rentedPhysicalAssigned;
+    const physicalOperatingCount = ownedPhysicalOperating + rentedPhysicalOperating;
+    const physicalAvailableCount = ownedPhysicalAvailable + rentedPhysicalAvailable;
+    const physicalRepairingCount = ownedPhysicalRepairing + rentedPhysicalRepairing;
+
     const physicalOpRate = physicalActiveCount > 0
       ? Math.round((physicalOperatingCount / physicalActiveCount) * 100)
+      : 0;
+    const ownedPhysicalOpRate = ownedPhysicalActive > 0
+      ? Math.round((ownedPhysicalOperating / ownedPhysicalActive) * 100)
+      : 0;
+    const rentedPhysicalOpRate = rentedPhysicalActive > 0
+      ? Math.round((rentedPhysicalOperating / rentedPhysicalActive) * 100)
       : 0;
 
     return {
       totalCount,
       physicalCount,
       virtualCount,
+      ownedPhysicalTotal,
+      ownedPhysicalActive,
+      ownedPhysicalRented,
+      ownedPhysicalAssigned,
+      ownedPhysicalOperating,
+      ownedPhysicalAvailable,
+      ownedPhysicalRepairing,
+      ownedPhysicalDisposed,
+      rentedPhysicalTotal,
+      rentedPhysicalActive,
+      rentedPhysicalRented,
+      rentedPhysicalAssigned,
+      rentedPhysicalOperating,
+      rentedPhysicalAvailable,
+      rentedPhysicalRepairing,
+      rentedPhysicalReturned,
       physicalActiveCount,
       physicalOperatingCount,
       physicalRentedOpCount,
       physicalAssignedCount,
       physicalAvailableCount,
-      physicalOpRate
+      physicalRepairingCount,
+      physicalOpRate,
+      ownedPhysicalOpRate,
+      rentedPhysicalOpRate
     };
   }, [filtered]);
 
@@ -629,30 +767,55 @@ export const Assets: React.FC = () => {
       </div>
 
       {/* ② 자산 운용 KPI 요약 바 */}
-      <div data-mid="asset-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div data-mid="asset-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '6px', flexShrink: 0 }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임대 가능 (주기장)</span>
-          <strong style={{ fontSize: '14px', color: 'var(--success)', whiteSpace: 'nowrap' }}>{kpiStats.availableCount}대</strong>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: '14px', color: 'var(--success)' }}>{kpiStats.physicalAvailableCount}대</strong>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              (당사 {kpiStats.ownedPhysicalAvailable}·임차 {kpiStats.rentedPhysicalAvailable} | 가상 {kpiStats.virtualAvailableCount})
+            </span>
+          </div>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>현장 대여중</span>
-          <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{kpiStats.rentedOpCount}대</strong>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: '14px', color: 'var(--primary)' }}>{kpiStats.physicalRentedOpCount}대</strong>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              (당사 {kpiStats.ownedPhysicalRented}·임차 {kpiStats.rentedPhysicalRented}{kpiStats.virtualOperatingCount > 0 ? ` | 가상 ${kpiStats.virtualOperatingCount}` : ''})
+            </span>
+          </div>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>출고/검수 대기</span>
-          <strong style={{ fontSize: '14px', color: '#0070C0', whiteSpace: 'nowrap' }}>{kpiStats.assignedCount}대</strong>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: '14px', color: '#0070C0' }}>{kpiStats.physicalAssignedCount}대</strong>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              (당사 {kpiStats.ownedPhysicalAssigned}·임차 {kpiStats.rentedPhysicalAssigned})
+            </span>
+          </div>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>수리/정비중</span>
-          <strong style={{ fontSize: '14px', color: 'var(--danger)', whiteSpace: 'nowrap' }}>{kpiStats.repairingCount}대</strong>
+          <strong style={{ fontSize: '14px', color: 'var(--danger)', whiteSpace: 'nowrap' }}>{kpiStats.physicalRepairingCount}대</strong>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>반납/매각 완료</span>
-          <strong style={{ fontSize: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{kpiStats.returnedOrDisposedCount}대</strong>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{kpiStats.returnedOrDisposedCount}대</strong>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              (임차반납 {kpiStats.rentedPhysicalReturned}·매각 {kpiStats.ownedPhysicalDisposed})
+            </span>
+          </div>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>실물자산 가동률</span>
-          <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{kpiStats.opRate}%</strong>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontSize: '14px', color: 'var(--primary)' }}>{kpiStats.opRate}%</strong>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+              (당사 {kpiStats.ownedPhysicalOpRate}%·임차 {kpiStats.rentedPhysicalOpRate}%)
+            </span>
+          </div>
         </div>
       </div>
 
@@ -671,19 +834,29 @@ export const Assets: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', padding: '1px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', padding: '1px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
               <span>
                 조회 결과: 총 <strong style={{ color: 'var(--primary)' }}>{filteredStats.totalCount}대</strong>
               </span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
               <span>
-                실물 <strong style={{ color: 'var(--text-main)' }}>{filteredStats.physicalCount}대</strong> + 가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
+                실물 <strong style={{ color: 'var(--text-main)' }}>{filteredStats.physicalCount}대</strong>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '11px', marginLeft: '3px' }}>
+                  (당사 <strong>{filteredStats.ownedPhysicalTotal}</strong>
+                  {filteredStats.ownedPhysicalDisposed > 0 ? `[운용 ${filteredStats.ownedPhysicalActive}·매각 ${filteredStats.ownedPhysicalDisposed}]` : ''}
+                  {' + '}임차 <strong style={{ color: '#0284c7' }}>{filteredStats.rentedPhysicalTotal}</strong>
+                  {filteredStats.rentedPhysicalReturned > 0 ? `[운용 ${filteredStats.rentedPhysicalActive}·반납 ${filteredStats.rentedPhysicalReturned}]` : ''})
+                </span>
+                {' + '}가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
               </span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
               <span>
                 실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{filteredStats.physicalOpRate}%</strong>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '11px', marginLeft: '4px', fontWeight: 600 }}>
+                  [당사 {filteredStats.ownedPhysicalOpRate}% · 임차 {filteredStats.rentedPhysicalOpRate}%]
+                </span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>
-                  (가동 {filteredStats.physicalOperatingCount}대 / 실물운용 {filteredStats.physicalActiveCount}대, 임대가능 {filteredStats.physicalAvailableCount}대)
+                  (가동 {filteredStats.physicalOperatingCount}대[당사 {filteredStats.ownedPhysicalOperating}·임차 {filteredStats.rentedPhysicalOperating}] / 실물운용 {filteredStats.physicalActiveCount}대[당사 {filteredStats.ownedPhysicalActive}·임차 {filteredStats.rentedPhysicalActive}], 임대가능 {filteredStats.physicalAvailableCount}대[당사 {filteredStats.ownedPhysicalAvailable}·임차 {filteredStats.rentedPhysicalAvailable}]{filteredStats.physicalRepairingCount > 0 ? `, 수리중 ${filteredStats.physicalRepairingCount}대` : ''})
                 </span>
               </span>
             </div>
@@ -1187,9 +1360,9 @@ export const Assets: React.FC = () => {
           zIndex: 15
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span>전사 등록자산: <strong style={{ color: 'var(--primary)' }}>{kpiStats.totalCount}대</strong> (당사 {kpiStats.ownedCount}대 + 임차 {kpiStats.rentedCount}대 | 실물 {kpiStats.physicalCount}대 + 가상 {kpiStats.virtualCount}대)</span>
+            <span>전사 등록자산: <strong style={{ color: 'var(--primary)' }}>{kpiStats.totalCount}대</strong> (실물 {kpiStats.physicalCount}대[당사 {kpiStats.ownedPhysicalTotal} + 임차 {kpiStats.rentedPhysicalTotal}(운용 {kpiStats.rentedPhysicalActive}·반납 {kpiStats.rentedPhysicalReturned})] + 가상 {kpiStats.virtualCount}대)</span>
             <span>|</span>
-            <span>실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{kpiStats.opRate}%</strong> (실물 대여중 {kpiStats.physicalRentedOpCount}대 + 대기 {kpiStats.physicalAssignedCount}대 / 실물운용 {kpiStats.physicalActiveCount}대)</span>
+            <span>실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{kpiStats.opRate}%</strong> [당사 {kpiStats.ownedPhysicalOpRate}% · 임차 {kpiStats.rentedPhysicalOpRate}%] (가동 {kpiStats.physicalOperatingCount}대[당사 {kpiStats.ownedPhysicalOperating}·임차 {kpiStats.rentedPhysicalOperating}] / 실물운용 {kpiStats.physicalActiveCount}대[당사 {kpiStats.ownedPhysicalActive}·임차 {kpiStats.rentedPhysicalActive}], 임대가능 {kpiStats.physicalAvailableCount}대[당사 {kpiStats.ownedPhysicalAvailable}·임차 {kpiStats.rentedPhysicalAvailable}])</span>
             <span>|</span>
             <span>당사자산 장부가 총액: <strong style={{ color: 'var(--primary)' }}>₩{kpiStats.totalBookValue.toLocaleString()}원</strong></span>
           </div>
