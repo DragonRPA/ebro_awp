@@ -37,7 +37,7 @@ const QUICK_DIRECTIVE_PRESETS = [
 
 export const MobileDelinquencyManage: React.FC = () => {
   const { 
-    customers, billings, contracts, users, todos, delinquencyActionLogs, 
+    customers, sites, billings, contracts, users, todos, delinquencyActionLogs, 
     currentUser, saveCustomer, refreshAllData, showErrorModal 
   } = useApp();
 
@@ -62,16 +62,25 @@ export const MobileDelinquencyManage: React.FC = () => {
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const today = useMemo(() => new Date(), []);
 
-  // 헌장 4.1 & 5.1 준수: 약정 납기일 정밀 동적 산출 함수
-  const getAgreedDueDate = (billing: Billing, customer?: Customer): { dueDate: string; conditionText: string } => {
-    if (customer?.paymentDueDay) {
+  // 헌장 4.1 & 5.1 준수: 고객현장 ➔ 계약 ➔ 고객사 우선순위 기반 약정 납기일 정밀 동적 산출 함수
+  const getAgreedDueDate = (
+    billing: Billing,
+    customer?: Customer,
+    contract?: typeof contracts[0],
+    site?: typeof sites[0]
+  ): { dueDate: string; conditionText: string } => {
+    const dueDay = site?.paymentDueDay || contract?.paymentDueDay || customer?.paymentDueDay;
+    const offset = site?.paymentDueMonthOffset ?? contract?.paymentDueMonthOffset ?? customer?.paymentDueMonthOffset ?? 1;
+    const payMethod = site?.paymentMethod || customer?.defaultPaymentMethod;
+    const payNote = site?.paymentTermsNote || customer?.defaultPaymentTermsNote;
+
+    if (dueDay) {
       const ym = billing.billingYm || billing.createdAt.slice(0, 7);
-      const offset = customer.paymentDueMonthOffset !== undefined ? customer.paymentDueMonthOffset : 1;
-      const dueDate = calculatePaymentDueDate(ym, offset, customer.paymentDueDay);
+      const dueDate = calculatePaymentDueDate(ym, offset, dueDay);
       if (dueDate) {
         return {
           dueDate,
-          conditionText: formatPaymentDueCondition(offset, customer.paymentDueDay)
+          conditionText: formatPaymentDueCondition(offset, dueDay, payMethod, payNote)
         };
       }
     }
@@ -111,10 +120,13 @@ export const MobileDelinquencyManage: React.FC = () => {
       if (unpaid <= 0) return;
 
       const customer = customers.find(c => c.id === b.customerId);
-      const { dueDate, conditionText } = getAgreedDueDate(b, customer);
+      const contract = contracts.find(c => c.id === b.contractId);
+      const site = (contract?.siteId ? (sites || []).find(s => s.id === contract.siteId) : undefined)
+        || (sites || []).find(s => s.customerId === b.customerId && s.paymentDueDay != null)
+        || (sites || []).find(s => s.customerId === b.customerId);
+      const { dueDate, conditionText } = getAgreedDueDate(b, customer, contract, site);
       const isOverdue = dueDate < todayStr;
 
-      const contract = contracts.find(c => c.id === b.contractId);
       const spId = contract?.salespersonId;
 
       if (!custMap.has(b.customerId)) {
@@ -132,6 +144,7 @@ export const MobileDelinquencyManage: React.FC = () => {
           item.totalOverdueAmount += unpaid;
           if (!item.oldestOverdueDueDate || dueDate < item.oldestOverdueDueDate) {
             item.oldestOverdueDueDate = dueDate;
+            item.conditionText = conditionText;
           }
         }
         if (!item.salespersonId && spId) item.salespersonId = spId;
@@ -194,7 +207,7 @@ export const MobileDelinquencyManage: React.FC = () => {
     });
 
     return result.sort((a, b) => b.totalOverdueAmount - a.totalOverdueAmount);
-  }, [customers, billings, contracts, users, todos, delinquencyActionLogs, todayStr, today]);
+  }, [customers, sites, billings, contracts, users, todos, delinquencyActionLogs, todayStr, today]);
 
   // 검색 및 필터링
   const filteredList = useMemo(() => {

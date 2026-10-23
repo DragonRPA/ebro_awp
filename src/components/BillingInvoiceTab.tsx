@@ -198,18 +198,22 @@ export const BillingInvoiceTab: React.FC = () => {
     }
   }, [filteredCustomers, selectedCustomerId, customerSearchQuery]);
 
-  // 고객사 변경 시 납기일 기본값 자동 세팅
+  // 고객사 변경 시 납기일 기본값 자동 세팅 (현장 우선 ➔ 고객사 기본값)
   useEffect(() => {
     if (!selectedCustomerId || !customers) return;
     const cust = customers.find(c => c.id === selectedCustomerId);
     if (cust) {
+      const custSite = (sites || []).find(s => s.customerId === selectedCustomerId && s.paymentDueDay != null)
+        || (sites || []).find(s => s.customerId === selectedCustomerId);
       const baseYm = selectedYm || new Date().toISOString().slice(0, 7);
-      const calculatedDate = calculatePaymentDueDate(baseYm, cust.paymentDueMonthOffset ?? 1, cust.paymentDueDay || 25);
+      const offset = custSite?.paymentDueMonthOffset ?? cust.paymentDueMonthOffset ?? 1;
+      const dueDay = custSite?.paymentDueDay || cust.paymentDueDay || 25;
+      const calculatedDate = calculatePaymentDueDate(baseYm, offset, dueDay);
       setInvoiceDueDate(calculatedDate);
     }
     // 고객사 변경 시 선택 초기화
     setSelectedBillingIds([]);
-  }, [selectedCustomerId, selectedYm, customers]);
+  }, [selectedCustomerId, selectedYm, customers, sites]);
 
   // ── 미통합 청구서 집계 ──
   // invoiceId가 없거나 null/빈값인 청구서 중 현재 고객사 및 귀속월 일치 대상

@@ -49,7 +49,7 @@ const QUICK_DIRECTIVE_PRESETS = [
 
 export const DelinquencyPage: React.FC = () => {
   const { 
-    currentUser, hasPermission, billings, customers, users, contracts, contractAssets,
+    currentUser, hasPermission, billings, customers, sites, users, contracts, contractAssets,
     delinquencyActionLogs, saveDelinquencyAction, updateDelinquencyActionPromise,
     saveCustomer, refreshAllData, showErrorModal, todos,
     legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
@@ -144,6 +144,23 @@ export const DelinquencyPage: React.FC = () => {
     return map;
   }, [contracts]);
 
+  const siteMap = useMemo(() => {
+    const map = new Map<string, typeof sites[0]>();
+    (sites || []).forEach(s => map.set(s.id, s));
+    return map;
+  }, [sites]);
+
+  const sitesByCustomerMap = useMemo(() => {
+    const map = new Map<string, typeof sites>();
+    (sites || []).forEach(s => {
+      if (!s.customerId) return;
+      const list = map.get(s.customerId);
+      if (list) list.push(s);
+      else map.set(s.customerId, [s]);
+    });
+    return map;
+  }, [sites]);
+
   const userMap = useMemo(() => {
     const map = new Map<string, typeof users[0]>();
     users.forEach(u => map.set(u.id, u));
@@ -183,16 +200,25 @@ export const DelinquencyPage: React.FC = () => {
     return map;
   }, [legalNoticeLogs]);
 
-  // 🌟 고객 약정 납기일 동적 산출 함수 (고객정보 paymentDueMonthOffset / paymentDueDay / paymentTermDays 기반)
-  const getAgreedDueDate = (billing: Billing, customer?: Customer): { dueDate: string; conditionText: string } => {
-    if (customer?.paymentDueDay) {
+  // 🌟 고객현장(CustomerSite) ➔ 계약(Contract) ➔ 고객사(Customer) 우선순위 기반 약정 납기일 동적 산출 함수
+  const getAgreedDueDate = (
+    billing: Billing,
+    customer?: Customer,
+    contract?: typeof contracts[0],
+    site?: typeof sites[0]
+  ): { dueDate: string; conditionText: string } => {
+    const dueDay = site?.paymentDueDay || contract?.paymentDueDay || customer?.paymentDueDay;
+    const offset = site?.paymentDueMonthOffset ?? contract?.paymentDueMonthOffset ?? customer?.paymentDueMonthOffset ?? 1;
+    const payMethod = site?.paymentMethod || customer?.defaultPaymentMethod;
+    const payNote = site?.paymentTermsNote || customer?.defaultPaymentTermsNote;
+
+    if (dueDay) {
       const ym = billing.billingYm || billing.createdAt.slice(0, 7);
-      const offset = customer.paymentDueMonthOffset !== undefined ? customer.paymentDueMonthOffset : 1;
-      const dueDate = calculatePaymentDueDate(ym, offset, customer.paymentDueDay);
+      const dueDate = calculatePaymentDueDate(ym, offset, dueDay);
       if (dueDate) {
         return {
           dueDate,
-          conditionText: `${formatPaymentDueCondition(offset, customer.paymentDueDay)} 결제`
+          conditionText: `${formatPaymentDueCondition(offset, dueDay, payMethod, payNote)} 결제`
         };
       }
     }
@@ -223,7 +249,7 @@ export const DelinquencyPage: React.FC = () => {
     return { dueDate: effectiveBillDate, conditionText: '발행일 당일' };
   };
 
-  // 1. DB(billings) + 고객 약정 납기일 기반 정밀 연체 채권 집계
+  // 1. DB(billings) + 고객현장/고객 약정 납기일 기반 정밀 연체 채권 집계
   const calculatedDelinquencies = useMemo(() => {
     const custMap = new Map<string, {
       totalOverdueAmount: number;
@@ -242,11 +268,16 @@ export const DelinquencyPage: React.FC = () => {
 
       const custId = b.customerId;
       const customer = customerMap.get(custId);
-      const { dueDate, conditionText } = getAgreedDueDate(b, customer);
+      const contract = b.contractId ? contractMap.get(b.contractId) : undefined;
+      const custSites = sitesByCustomerMap.get(custId) || [];
+      const site = (contract?.siteId ? siteMap.get(contract.siteId) : undefined)
+        || custSites.find(s => s.paymentDueDay != null)
+        || custSites[0];
+
+      const { dueDate, conditionText } = getAgreedDueDate(b, customer, contract, site);
       const isOverdue = dueDate < todayStr;
 
       // 계약에서 영업담당자 추출 (O(1))
-      const contract = b.contractId ? contractMap.get(b.contractId) : undefined;
       const spId = contract?.salespersonId;
 
       if (!custMap.has(custId)) {
@@ -266,6 +297,7 @@ export const DelinquencyPage: React.FC = () => {
           item.overdueInvoicesCount += 1;
           if (!item.oldestOverdueDueDate || dueDate < item.oldestOverdueDueDate) {
             item.oldestOverdueDueDate = dueDate;
+            item.conditionText = conditionText;
           }
         }
         if (!item.salespersonId && spId) {
@@ -361,7 +393,7 @@ export const DelinquencyPage: React.FC = () => {
       }
       return b.overdueDays - a.overdueDays;
     });
-  }, [billings, customerMap, userMap, contractMap, logsByCustomerMap, pendingTodoCustomerIds, todayMs, todayStr]);
+  }, [billings, customerMap, siteMap, sitesByCustomerMap, userMap, contractMap, logsByCustomerMap, pendingTodoCustomerIds, todayMs, todayStr]);
 
   // 필터링된 연체 목록
   const filteredDelinquencies = useMemo(() => {
