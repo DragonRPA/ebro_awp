@@ -176,6 +176,7 @@ export const DailyInOutStatus: React.FC = () => {
     let rented = 0;
     (assets || []).forEach(a => {
       if (a.status === 'SOLD' || a.status === 'DISPOSED') return;
+      if (a.status === 'RENTED_RETURNED' || (a.ownerType === 'RENTED' && Boolean(a.actualRentReturnDate))) return;
       const cat = classifyAssetCategory(a);
       if (cat === 'OWNED_PHYSICAL') ownedPhysical++;
       else if (cat === 'OWNED_VIRTUAL') ownedVirtual++;

@@ -168,21 +168,27 @@ export const Assets: React.FC = () => {
     return contractMap.get(assetId) || null;
   };
 
+  // 임차처에 반납 완료된 외부 임차자산(RENTED_RETURNED 또는 actualRentReturnDate 존재)은 자산 관리 대장 조회 및 수량 집계에서 원천 제외
+  const managedAssets = useMemo(
+    () => assets.filter(a => !(a.status === 'RENTED_RETURNED' || (a.ownerType === 'RENTED' && Boolean(a.actualRentReturnDate)))),
+    [assets]
+  );
+
   // 고유 제조사 목록
   const uniqueManufacturers = useMemo(
-    () => Array.from(new Set(assets.map(a => getAssetManufacturer(a)).filter(m => Boolean(m) && m !== '-'))) as string[],
-    [assets, productByModelMap]
+    () => Array.from(new Set(managedAssets.map(a => getAssetManufacturer(a)).filter(m => Boolean(m) && m !== '-'))) as string[],
+    [managedAssets, productByModelMap]
   );
 
   // 고유 규격(피트) 목록 (숫자 오름차순 정렬)
   const uniqueFeetList = useMemo(() => {
     const set = new Set<string>();
-    assets.forEach(a => {
+    managedAssets.forEach(a => {
       const ft = getAssetFeet(a);
       if (ft && ft !== '-') set.add(ft);
     });
     return Array.from(set).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-  }, [assets, productFeetMap]);
+  }, [managedAssets, productFeetMap]);
 
   // 자산 생애주기 통합 감사 이력 추출
   const getUnifiedAssetLogs = (asset: Asset): AssetInOutLog[] => {
@@ -253,7 +259,7 @@ export const Assets: React.FC = () => {
 
   // KPI 통계 (단일 패스 O(N) 집계 — 당사/임차/가상 분리 및 실물자산 기준 가동률로 가상자산 왜곡 원천 차단)
   const kpiStats = useMemo(() => {
-    const totalCount = assets.length;
+    const totalCount = managedAssets.length;
     let ownedCount = 0;
     let rentedCount = 0;
     let physicalCount = 0;
@@ -288,7 +294,7 @@ export const Assets: React.FC = () => {
     let virtualAvailableCount = 0;
 
     for (let i = 0; i < totalCount; i++) {
-      const a = assets[i];
+      const a = managedAssets[i];
       const isVirt = isVirtualAsset(a);
       const isReturnedOrDisposed = a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'LOST' || Boolean(a.actualRentReturnDate);
 
@@ -396,7 +402,7 @@ export const Assets: React.FC = () => {
       rentedPhysicalOpRate,
       totalBookValue
     };
-  }, [assets]);
+  }, [managedAssets]);
 
   // 🌟 [초고속 렌더링 청크 윈도우: 헌장 1.1] 초기 50건 우선 렌더링으로 10만 개 DOM 프리징 원천 방어
   const [visibleCount, setVisibleCount] = useState(50);
@@ -410,7 +416,7 @@ export const Assets: React.FC = () => {
       matcher: createHangulMatcher(token)
     }));
 
-    return assets.filter(a => {
+    return managedAssets.filter(a => {
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
 
       const matchesStatus = statusFilter === 'ALL' ? true :
@@ -455,7 +461,7 @@ export const Assets: React.FC = () => {
         matcher.test(supplierName)
       );
     });
-  }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, feetFilter, manufacturerFilter, customerFilter, productByModelMap, productFeetMap, vendorMap]);
+  }, [managedAssets, searchTerm, statusFilter, ownerFilter, natureFilter, feetFilter, manufacturerFilter, customerFilter, productByModelMap, productFeetMap, vendorMap]);
 
   // 📊 필터링된 결과에 대한 요약 통계 (총 대수, 실물[당사+임차] + 가상 대수, 가상자산을 제외한 순수 실물자산 가동률 및 당사/임차별 가동상황)
   const filteredStats = useMemo(() => {
@@ -780,7 +786,7 @@ export const Assets: React.FC = () => {
             자산 관리 대장
           </h2>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            총 <strong>{assets.length}</strong>대 (조회 <strong>{filtered.length}</strong>대)
+            총 <strong>{managedAssets.length}</strong>대 (조회 <strong>{filtered.length}</strong>대)
           </span>
         </div>
 
@@ -836,15 +842,12 @@ export const Assets: React.FC = () => {
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>수리/정비중</span>
           <strong style={{ fontSize: '14px', color: 'var(--danger)', whiteSpace: 'nowrap' }}>{kpiStats.physicalRepairingCount}대</strong>
         </div>
-        <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>반납/매각 완료</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
-            <strong style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{kpiStats.returnedOrDisposedCount}대</strong>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              (임차반납 {kpiStats.rentedPhysicalReturned}·매각 {kpiStats.ownedPhysicalDisposed})
-            </span>
+        {kpiStats.ownedPhysicalDisposed > 0 && (
+          <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>매각 완료</span>
+            <strong style={{ fontSize: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{kpiStats.ownedPhysicalDisposed}대</strong>
           </div>
-        </div>
+        )}
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>실물자산 가동률</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
@@ -881,8 +884,7 @@ export const Assets: React.FC = () => {
                 <span style={{ color: 'var(--text-secondary)', fontSize: '11px', marginLeft: '3px' }}>
                   (당사 <strong>{filteredStats.ownedPhysicalTotal}</strong>
                   {filteredStats.ownedPhysicalDisposed > 0 ? `[운용 ${filteredStats.ownedPhysicalActive}·매각 ${filteredStats.ownedPhysicalDisposed}]` : ''}
-                  {' + '}임차 <strong style={{ color: '#0284c7' }}>{filteredStats.rentedPhysicalTotal}</strong>
-                  {filteredStats.rentedPhysicalReturned > 0 ? `[운용 ${filteredStats.rentedPhysicalActive}·반납 ${filteredStats.rentedPhysicalReturned}]` : ''})
+                  {' + '}임차 <strong style={{ color: '#0284c7' }}>{filteredStats.rentedPhysicalTotal}</strong>)
                 </span>
                 {' + '}가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
               </span>
@@ -966,7 +968,7 @@ export const Assets: React.FC = () => {
             style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '110px' }}
           >
             <option value="ALL">전체 상태</option>
-            {Object.values(ASSET_STATUS_SSOT).map(st => (
+            {Object.values(ASSET_STATUS_SSOT).filter(st => st.code !== 'RENTED_RETURNED').map(st => (
               <option key={st.code} value={st.code}>{st.label}</option>
             ))}
           </select>
