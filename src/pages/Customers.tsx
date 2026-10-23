@@ -600,7 +600,9 @@ export const Customers: React.FC = () => {
       });
   }, [contacts, selectedCustomerId]);
 
-  const customerSites = useMemo(() => {
+  const [siteViewMode, setSiteViewMode] = useState<'ACTIVE_ONLY' | 'ALL'>('ACTIVE_ONLY');
+
+  const allCustomerSites = useMemo(() => {
     return sites
       .filter(cs => cs.customerId === selectedCustomerId)
       .sort((a, b) => {
@@ -610,6 +612,17 @@ export const Customers: React.FC = () => {
         return a.name.localeCompare(b.name, 'ko');
       });
   }, [sites, selectedCustomerId]);
+
+  const activeCustomerSitesCount = useMemo(() => {
+    return allCustomerSites.filter(cs => cs.isActive !== false).length;
+  }, [allCustomerSites]);
+
+  const customerSites = useMemo(() => {
+    if (siteViewMode === 'ACTIVE_ONLY') {
+      return allCustomerSites.filter(cs => cs.isActive !== false);
+    }
+    return allCustomerSites;
+  }, [allCustomerSites, siteViewMode]);
 
   const { items: sortedCustomerContacts, requestSort: requestSortContacts, sortConfig: sortConfigContacts } = useSortableData(customerContacts);
   const { items: sortedCustomerSites, requestSort: requestSortSites, sortConfig: sortConfigSites } = useSortableData(customerSites);
@@ -2294,8 +2307,45 @@ const handleDeleteAccount = async (accId: string) => {
               {/* 2. 등록 현장 고밀도 그리드 */}
               <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPin size={14} className="text-success" /> 고객 현장 목록 ({customerSites.length}개소)
+                  <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                      <MapPin size={14} className="text-success" /> 고객 현장 목록 ({customerSites.length}개소)
+                    </span>
+                    <div style={{ display: 'inline-flex', borderRadius: '5px', border: '1px solid var(--border-color)', overflow: 'hidden', backgroundColor: 'var(--bg-card)' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSiteViewMode('ACTIVE_ONLY')}
+                        style={{
+                          padding: '2px 9px',
+                          fontSize: '11px',
+                          fontWeight: siteViewMode === 'ACTIVE_ONLY' ? 700 : 500,
+                          border: 'none',
+                          borderRight: '1px solid var(--border-color)',
+                          backgroundColor: siteViewMode === 'ACTIVE_ONLY' ? 'var(--primary)' : 'transparent',
+                          color: siteViewMode === 'ACTIVE_ONLY' ? '#ffffff' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        유효한 현장만 보기 ({activeCustomerSitesCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSiteViewMode('ALL')}
+                        style={{
+                          padding: '2px 9px',
+                          fontSize: '11px',
+                          fontWeight: siteViewMode === 'ALL' ? 700 : 500,
+                          border: 'none',
+                          backgroundColor: siteViewMode === 'ALL' ? 'var(--primary)' : 'transparent',
+                          color: siteViewMode === 'ALL' ? '#ffffff' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        전체보기 ({allCustomerSites.length})
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     {canSave && (
@@ -2338,7 +2388,20 @@ const handleDeleteAccount = async (accId: string) => {
                       {sortedCustomerSites.length === 0 ? (
                         <tr>
                           <td colSpan={11} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
-                            등록된 현장이 없습니다. 현장을 추가해 주세요.
+                            {allCustomerSites.length > 0 && siteViewMode === 'ACTIVE_ONLY' ? (
+                              <span>
+                                유효한(가동중) 현장이 없습니다. (완공/종료 현장 {allCustomerSites.length}개소){' '}
+                                <button
+                                  type="button"
+                                  onClick={() => setSiteViewMode('ALL')}
+                                  style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '11px' }}
+                                >
+                                  전체보기 전환
+                                </button>
+                              </span>
+                            ) : (
+                              '등록된 현장이 없습니다. 현장을 추가해 주세요.'
+                            )}
                           </td>
                         </tr>
                       ) : (
