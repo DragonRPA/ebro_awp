@@ -107,8 +107,8 @@ export const DailyInOutStatus: React.FC = () => {
   };
   const todayStr = getTodayStr();
 
-  // 1. 뷰 모드: CALENDAR vs TABLE
-  const [viewMode, setViewMode] = useState<'CALENDAR' | 'TABLE'>('CALENDAR');
+  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) vs CALENDAR (상하 캘린더) vs TABLE (표 형태)
+  const [viewMode, setViewMode] = useState<'SPLIT' | 'CALENDAR' | 'TABLE'>('SPLIT');
 
   // 2. 기준 연월 상태
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
@@ -637,10 +637,10 @@ export const DailyInOutStatus: React.FC = () => {
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '4px',
-          padding: '2px 8px',
+          gap: '3px',
+          padding: '1px 6px',
           borderRadius: '4px',
-          fontSize: '11px',
+          fontSize: '10.5px',
           fontWeight: 800,
           backgroundColor: isDark ? meta.darkBg : meta.bg,
           color: isDark ? meta.darkColor : meta.color,
@@ -654,33 +654,481 @@ export const DailyInOutStatus: React.FC = () => {
     );
   };
 
+  // ── 캘린더 그리드 렌더링 헬퍼 (좌우 분할 모드 & 상하 캘린더 모드 공용) ──
+  const renderCalendarCard = (isSplitMode: boolean) => (
+    <div
+      data-mid="calendar-grid-card"
+      style={{
+        flex: isSplitMode ? '0 0 50%' : '1 1 auto',
+        width: isSplitMode ? '50%' : '100%',
+        minWidth: isSplitMode ? '460px' : 0,
+        minHeight: 0,
+        height: isSplitMode ? '100%' : undefined,
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: '10px',
+        border: '1px solid var(--border-color)',
+        padding: '8px 10px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+    >
+      {/* 요일 헤더 (일 ~ 토) */}
+      <div style={{
+        flexShrink: 0,
+        display: 'grid',
+        gridTemplateColumns: isSplitMode ? 'repeat(7, minmax(0, 1fr))' : 'repeat(7, minmax(105px, 1fr))',
+        gap: '4px',
+        textAlign: 'center',
+        fontWeight: 800,
+        fontSize: '11.5px',
+        paddingBottom: '5px',
+        borderBottom: '1px solid var(--border-color)'
+      }}>
+        <div style={{ color: '#ef4444' }}>일</div>
+        <div style={{ color: 'var(--text-secondary)' }}>월</div>
+        <div style={{ color: 'var(--text-secondary)' }}>화</div>
+        <div style={{ color: 'var(--text-secondary)' }}>수</div>
+        <div style={{ color: 'var(--text-secondary)' }}>목</div>
+        <div style={{ color: 'var(--text-secondary)' }}>금</div>
+        <div style={{ color: '#3b82f6' }}>토</div>
+      </div>
+
+      {/* 날짜 그리드 (영역 고정 + 내부 스크롤) */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: isSplitMode ? 'hidden' : 'auto',
+        display: 'grid',
+        gridTemplateColumns: isSplitMode ? 'repeat(7, minmax(0, 1fr))' : 'repeat(7, minmax(105px, 1fr))',
+        gridAutoRows: isSplitMode ? 'minmax(74px, 1fr)' : 'minmax(82px, 1fr)',
+        gap: '4px',
+        marginTop: '5px',
+        paddingRight: '2px'
+      }}>
+        {/* 시작 요일 전 빈 셀 */}
+        {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
+          <div
+            key={`empty-${idx}`}
+            style={{
+              minHeight: isSplitMode ? '74px' : '82px',
+              backgroundColor: 'var(--bg-main)',
+              borderRadius: '6px',
+              opacity: 0.25,
+              border: '1px dashed var(--border-color)'
+            }}
+          />
+        ))}
+
+        {/* 1일 ~ 말일 셀 */}
+        {daysArray.map(day => {
+          const dayStr = String(day).padStart(2, '0');
+          const monthStr = String(calMonth).padStart(2, '0');
+          const dateStr = `${calYear}-${monthStr}-${dayStr}`;
+          const dayData = eventsByDateMap.get(dateStr);
+          const totalIn = dayData?.totalIn || 0;
+          const totalOut = dayData?.totalOut || 0;
+          const isToday = dateStr === todayStr;
+          const isSelected = selectedDate === dateStr;
+          const dayOfWeek = (firstDayOfWeek + day - 1) % 7;
+          const netMovement = totalIn - totalOut;
+
+          const inCatParts: string[] = [];
+          if (dayData?.inByCat.OWNED_PHYSICAL) inCatParts.push(`실물${dayData.inByCat.OWNED_PHYSICAL}`);
+          if (dayData?.inByCat.OWNED_VIRTUAL) inCatParts.push(`가상${dayData.inByCat.OWNED_VIRTUAL}`);
+          if (dayData?.inByCat.RENTED) inCatParts.push(`임차${dayData.inByCat.RENTED}`);
+
+          const outCatParts: string[] = [];
+          if (dayData?.outByCat.OWNED_PHYSICAL) outCatParts.push(`실물${dayData.outByCat.OWNED_PHYSICAL}`);
+          if (dayData?.outByCat.OWNED_VIRTUAL) outCatParts.push(`가상${dayData.outByCat.OWNED_VIRTUAL}`);
+          if (dayData?.outByCat.RENTED) outCatParts.push(`임차${dayData.outByCat.RENTED}`);
+
+          return (
+            <div
+              key={dateStr}
+              onClick={() => setSelectedDate(dateStr)}
+              style={{
+                minHeight: isSplitMode ? '74px' : '82px',
+                minWidth: 0,
+                borderRadius: '6px',
+                border: isSelected
+                  ? '2px solid var(--primary)'
+                  : isToday
+                    ? '1.5px solid #3b82f6'
+                    : '1px solid var(--border-color)',
+                backgroundColor: isSelected
+                  ? 'rgba(37, 99, 235, 0.08)'
+                  : isToday
+                    ? 'rgba(59, 130, 246, 0.03)'
+                    : 'var(--bg-card)',
+                padding: '4px 5px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+                cursor: 'pointer',
+                transition: 'all 0.12s ease',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              title={`${dateStr}${dayData?.inModelSummary ? `\n[입고] ${dayData.inModelSummary}` : ''}${dayData?.outModelSummary ? `\n[출고] ${dayData.outModelSummary}` : ''}`}
+            >
+              {/* 셀 상단: 일자 번호 & 순유동 배지 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2px' }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: isToday || isSelected ? 800 : 700,
+                  color: isToday ? '#ffffff' : dayOfWeek === 0 ? '#ef4444' : dayOfWeek === 6 ? '#3b82f6' : 'var(--text-primary)',
+                  backgroundColor: isToday ? 'var(--primary)' : 'transparent',
+                  borderRadius: isToday ? '50%' : '0',
+                  width: isToday ? '18px' : 'auto',
+                  height: isToday ? '18px' : 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}>
+                  {day}
+                </span>
+
+                {(totalIn > 0 || totalOut > 0) && (
+                  <span style={{
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    padding: '0px 4px',
+                    borderRadius: '3px',
+                    backgroundColor: isDark
+                      ? (netMovement > 0 ? 'rgba(37, 99, 235, 0.35)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.35)' : 'rgba(255,255,255,0.1)')
+                      : (netMovement > 0 ? 'rgba(37, 99, 235, 0.12)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-secondary)'),
+                    color: isDark
+                      ? '#fde047'
+                      : (netMovement > 0 ? '#1e3a8a' : '#111827'),
+                    border: isDark ? '1px solid rgba(253, 224, 71, 0.35)' : 'none',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {netMovement > 0 ? `+${netMovement}` : netMovement < 0 ? `${netMovement}` : '±0'}
+                  </span>
+                )}
+              </div>
+
+              {/* 🔵 입고 확정 칩 */}
+              {totalIn > 0 && (
+                <div
+                  data-mid="chip-inbound"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.12)',
+                    border: isDark ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(37, 99, 235, 0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1px',
+                    fontSize: '10px',
+                    color: isDark ? '#ffffff' : '#1e3a8a',
+                    lineHeight: '1.15',
+                    minWidth: 0
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, gap: '2px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
+                      <ArrowDownLeft size={10} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
+                    </span>
+                    <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
+                  </div>
+                  <div style={{
+                    fontSize: '9px',
+                    color: isDark ? '#fde047' : '#1e3a8a',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {inCatParts.length > 0 ? `${inCatParts.join('·')} | ` : ''}{dayData?.inModelSummary}
+                  </div>
+                </div>
+              )}
+
+              {/* 🔴 출고 확정 칩 */}
+              {totalOut > 0 && (
+                <div
+                  data-mid="chip-outbound"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
+                    border: isDark ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(220, 38, 38, 0.28)',
+                    borderRadius: '4px',
+                    padding: '2px 4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1px',
+                    fontSize: '10px',
+                    color: isDark ? '#ffffff' : '#111827',
+                    lineHeight: '1.15',
+                    minWidth: 0
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, gap: '2px' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
+                      <ArrowUpRight size={10} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
+                    </span>
+                    <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
+                  </div>
+                  <div style={{
+                    fontSize: '9px',
+                    color: isDark ? '#fde047' : '#111827',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {outCatParts.length > 0 ? `${outCatParts.join('·')} | ` : ''}{dayData?.outModelSummary}
+                  </div>
+                </div>
+              )}
+
+              {totalIn === 0 && totalOut === 0 && (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', opacity: 0.4 }}>-</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── 선택된 일자 상세 확정 내역 패널 (크기 고정 + 내부 테이블 스크롤) ──
+  const renderDailyDetailPanel = (isSplitMode: boolean) => (
+    <div
+      data-mid="daily-detail-panel"
+      style={{
+        flex: isSplitMode ? '1 1 50%' : '0 0 215px',
+        height: isSplitMode ? '100%' : '215px',
+        minHeight: isSplitMode ? 0 : '215px',
+        maxHeight: isSplitMode ? '100%' : '215px',
+        minWidth: 0,
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: '10px',
+        border: '1px solid var(--border-color)',
+        padding: '10px 12px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        overflow: 'hidden'
+      }}
+    >
+      {/* 상단 요약 헤더 (고정) */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <Calendar size={15} color="var(--primary)" />
+            <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              {selectedDate} 일일 입출고 확정 내역
+            </h4>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              총 {selectedDateData.allList.length}건
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: '4px',
+              backgroundColor: ASSET_CATEGORY_META.OWNED_PHYSICAL.bg,
+              color: isDark ? ASSET_CATEGORY_META.OWNED_PHYSICAL.darkColor : ASSET_CATEGORY_META.OWNED_PHYSICAL.color,
+              whiteSpace: 'nowrap'
+            }}>
+              실물: 입 {selectedDateData.inByCat.OWNED_PHYSICAL} / 출 {selectedDateData.outByCat.OWNED_PHYSICAL}
+            </span>
+            <span style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: '4px',
+              backgroundColor: ASSET_CATEGORY_META.OWNED_VIRTUAL.bg,
+              color: isDark ? ASSET_CATEGORY_META.OWNED_VIRTUAL.darkColor : ASSET_CATEGORY_META.OWNED_VIRTUAL.color,
+              whiteSpace: 'nowrap'
+            }}>
+              가상: 입 {selectedDateData.inByCat.OWNED_VIRTUAL} / 출 {selectedDateData.outByCat.OWNED_VIRTUAL}
+            </span>
+            <span style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: '4px',
+              backgroundColor: ASSET_CATEGORY_META.RENTED.bg,
+              color: isDark ? ASSET_CATEGORY_META.RENTED.darkColor : ASSET_CATEGORY_META.RENTED.color,
+              whiteSpace: 'nowrap'
+            }}>
+              임차: 입 {selectedDateData.inByCat.RENTED} / 출 {selectedDateData.outByCat.RENTED}
+            </span>
+          </div>
+        </div>
+
+        {/* 당일 입출고 모델 합계 배지 바 */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '6px',
+            backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.1)',
+            color: isDark ? '#ffffff' : '#1e3a8a',
+            fontSize: '11px',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title={selectedDateData.inModelSummary}>
+            🔵 입고 확정 <strong style={{ color: isDark ? '#fde047' : '#1e3a8a' }}>{selectedDateData.totalIn}대</strong> ({selectedDateData.inModelSummary})
+          </span>
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: '6px',
+            backgroundColor: isDark ? 'rgba(220, 38, 38, 0.22)' : 'rgba(220, 38, 38, 0.09)',
+            color: isDark ? '#ffffff' : '#111827',
+            fontSize: '11px',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }} title={selectedDateData.outModelSummary}>
+            🔴 출고 확정 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong> ({selectedDateData.outModelSummary})
+          </span>
+        </div>
+      </div>
+
+      {/* 하단 테이블 영역 (flex: 1 고정 + 내부 스크롤 — 데이터 수에 따라 외곽 크기가 절대 변하지 않음) */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflowX: 'auto',
+        overflowY: 'auto',
+        border: '1px solid var(--border-color)',
+        borderRadius: '6px',
+        backgroundColor: 'var(--bg-main)'
+      }}>
+        <table style={{ width: '100%', minWidth: isSplitMode ? '620px' : '820px', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+            <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '64px', backgroundColor: 'var(--bg-secondary)' }}>입출구분</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '96px', backgroundColor: 'var(--bg-secondary)' }}>자산속성</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '82px', backgroundColor: 'var(--bg-secondary)' }}>확정상태</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '125px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '48px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '110px', backgroundColor: 'var(--bg-secondary)' }}>운송기사 / 업체</th>
+            </tr>
+          </thead>
+          <tbody>
+            {selectedDateData.allList.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ padding: '36px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                  해당 일자({selectedDate})에는 확정된 입고·출고 내역이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              selectedDateData.allList.map(item => {
+                const isIn = item.inOutType === 'INBOUND';
+                return (
+                  <tr
+                    key={item.id}
+                    style={{
+                      borderBottom: '1px solid var(--border-color)',
+                      backgroundColor: isIn ? 'rgba(37, 99, 235, 0.02)' : 'rgba(220, 38, 38, 0.02)'
+                    }}
+                  >
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
+                      <span style={{
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10.5px',
+                        fontWeight: 800,
+                        backgroundColor: isIn
+                          ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
+                          : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
+                        color: isIn
+                          ? (isDark ? '#ffffff' : '#1e3a8a')
+                          : (isDark ? '#fde047' : '#111827')
+                      }}>
+                        {isIn ? '🔵 입고' : '🔴 출고'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
+                      {renderCategoryBadge(item.assetCategory)}
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981' }}>
+                        ● {item.statusText}
+                      </span>
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {item.modelName} * {item.quantity}대
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                      {item.quantity}대
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      {item.assetNos.join(', ') || '-'}
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {item.customerName || '-'}
+                      </span>
+                      {item.siteName && (
+                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                          ({item.siteName})
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '5px 8px', whiteSpace: 'nowrap', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {item.driverName ? `${item.driverName} (${item.transportCompany || '자차'})` : (item.transportCompany || '-')}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <div
       data-hs-observe="dailyinoutstatus"
       data-subview="daily_inout"
       data-subview-title="일일 입출고 조회"
-      style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
-      {/* ── 표준 헤더 바 ── */}
+      {/* ── 표준 헤더 바 (컴팩트) ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingBottom: '6px',
+        paddingBottom: '4px',
         borderBottom: '1px solid var(--border-color)',
         flexShrink: 0,
         flexWrap: 'wrap',
-        gap: '10px'
+        gap: '8px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Calendar size={18} color="var(--primary)" />
-          <h2 data-mid="daily_inout-header" style={{ margin: 0, fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={16} color="var(--primary)" />
+          <h2 data-mid="daily_inout-header" style={{ margin: 0, fontWeight: 700, fontSize: '15px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             일일 입출고 조회
           </h2>
           <span style={{
-            fontSize: '11.5px',
+            fontSize: '10.5px',
             fontWeight: 700,
-            padding: '2px 8px',
+            padding: '1px 7px',
             borderRadius: '4px',
             backgroundColor: 'rgba(16, 185, 129, 0.12)',
             color: '#059669',
@@ -690,28 +1138,28 @@ export const DailyInOutStatus: React.FC = () => {
             입고·출고 확정 실적 전용
           </span>
         </div>
-        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
             onClick={() => fullRefreshFromServer?.()}
             className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '11.5px', whiteSpace: 'nowrap' }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={12} />
             새로고침
           </button>
         </div>
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {/* 자산속성 3대 구분 (당사 실물자산 / 당사 가상자산 / 임차자산) 비교 요약 바 */}
+      {/* 자산속성 3대 구분 (당사 실물자산 / 당사 가상자산 / 임차자산) 컴팩트 비교 요약 바 */}
       {/* ──────────────────────────────────────────────────────── */}
       <div
         data-mid="asset-category-summary-strip"
         style={{
           flexShrink: 0,
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(200px, 1fr))',
-          gap: '8px',
+          gridTemplateColumns: 'repeat(4, minmax(180px, 1fr))',
+          gap: '6px',
           overflowX: 'auto'
         }}
       >
@@ -720,28 +1168,28 @@ export const DailyInOutStatus: React.FC = () => {
           onClick={() => setCategoryFilter('ALL')}
           style={{
             backgroundColor: categoryFilter === 'ALL' ? (isDark ? 'rgba(37, 99, 235, 0.18)' : 'rgba(37, 99, 235, 0.06)') : 'var(--bg-card)',
-            border: categoryFilter === 'ALL' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-            borderRadius: '10px',
-            padding: '8px 12px',
+            border: categoryFilter === 'ALL' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '5px 10px',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '2px'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-              <CheckCircle2 size={14} color="var(--primary)" />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+              <CheckCircle2 size={12} color="var(--primary)" />
               전체 확정 합계
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               총 {fleetCountsByCategory.total.toLocaleString()}대 운용
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '12px', fontWeight: 800 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '11px', fontWeight: 800 }}>
             <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>입고 {categoryMonthStats.ALL.inQty}대</span>
             <span style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>출고 {categoryMonthStats.ALL.outQty}대</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '10px', whiteSpace: 'nowrap' }}>
               순유동 {categoryMonthStats.ALL.net > 0 ? `+${categoryMonthStats.ALL.net}` : categoryMonthStats.ALL.net}대
             </span>
           </div>
@@ -752,28 +1200,28 @@ export const DailyInOutStatus: React.FC = () => {
           onClick={() => setCategoryFilter(prev => prev === 'OWNED_PHYSICAL' ? 'ALL' : 'OWNED_PHYSICAL')}
           style={{
             backgroundColor: categoryFilter === 'OWNED_PHYSICAL' ? ASSET_CATEGORY_META.OWNED_PHYSICAL.bg : 'var(--bg-card)',
-            border: categoryFilter === 'OWNED_PHYSICAL' ? `2px solid ${ASSET_CATEGORY_META.OWNED_PHYSICAL.color}` : '1px solid var(--border-color)',
-            borderRadius: '10px',
-            padding: '8px 12px',
+            border: categoryFilter === 'OWNED_PHYSICAL' ? `1.5px solid ${ASSET_CATEGORY_META.OWNED_PHYSICAL.color}` : '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '5px 10px',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '2px'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.OWNED_PHYSICAL.darkColor : ASSET_CATEGORY_META.OWNED_PHYSICAL.color, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-              <Box size={14} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.OWNED_PHYSICAL.darkColor : ASSET_CATEGORY_META.OWNED_PHYSICAL.color, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+              <Box size={12} />
               당사 실물자산
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               보유 {fleetCountsByCategory.OWNED_PHYSICAL.toLocaleString()}대
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '12px', fontWeight: 800 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '11px', fontWeight: 800 }}>
             <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>입고 {categoryMonthStats.OWNED_PHYSICAL.inQty}대</span>
             <span style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>출고 {categoryMonthStats.OWNED_PHYSICAL.outQty}대</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '10px', whiteSpace: 'nowrap' }}>
               순유동 {categoryMonthStats.OWNED_PHYSICAL.net > 0 ? `+${categoryMonthStats.OWNED_PHYSICAL.net}` : categoryMonthStats.OWNED_PHYSICAL.net}대
             </span>
           </div>
@@ -784,28 +1232,28 @@ export const DailyInOutStatus: React.FC = () => {
           onClick={() => setCategoryFilter(prev => prev === 'OWNED_VIRTUAL' ? 'ALL' : 'OWNED_VIRTUAL')}
           style={{
             backgroundColor: categoryFilter === 'OWNED_VIRTUAL' ? ASSET_CATEGORY_META.OWNED_VIRTUAL.bg : 'var(--bg-card)',
-            border: categoryFilter === 'OWNED_VIRTUAL' ? `2px solid ${ASSET_CATEGORY_META.OWNED_VIRTUAL.color}` : '1px solid var(--border-color)',
-            borderRadius: '10px',
-            padding: '8px 12px',
+            border: categoryFilter === 'OWNED_VIRTUAL' ? `1.5px solid ${ASSET_CATEGORY_META.OWNED_VIRTUAL.color}` : '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '5px 10px',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '2px'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.OWNED_VIRTUAL.darkColor : ASSET_CATEGORY_META.OWNED_VIRTUAL.color, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-              <Cpu size={14} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.OWNED_VIRTUAL.darkColor : ASSET_CATEGORY_META.OWNED_VIRTUAL.color, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+              <Cpu size={12} />
               당사 가상자산
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               등록 {fleetCountsByCategory.OWNED_VIRTUAL.toLocaleString()}대
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '12px', fontWeight: 800 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '11px', fontWeight: 800 }}>
             <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>입고 {categoryMonthStats.OWNED_VIRTUAL.inQty}대</span>
             <span style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>출고 {categoryMonthStats.OWNED_VIRTUAL.outQty}대</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '10px', whiteSpace: 'nowrap' }}>
               순유동 {categoryMonthStats.OWNED_VIRTUAL.net > 0 ? `+${categoryMonthStats.OWNED_VIRTUAL.net}` : categoryMonthStats.OWNED_VIRTUAL.net}대
             </span>
           </div>
@@ -816,28 +1264,28 @@ export const DailyInOutStatus: React.FC = () => {
           onClick={() => setCategoryFilter(prev => prev === 'RENTED' ? 'ALL' : 'RENTED')}
           style={{
             backgroundColor: categoryFilter === 'RENTED' ? ASSET_CATEGORY_META.RENTED.bg : 'var(--bg-card)',
-            border: categoryFilter === 'RENTED' ? `2px solid ${ASSET_CATEGORY_META.RENTED.color}` : '1px solid var(--border-color)',
-            borderRadius: '10px',
-            padding: '8px 12px',
+            border: categoryFilter === 'RENTED' ? `1.5px solid ${ASSET_CATEGORY_META.RENTED.color}` : '1px solid var(--border-color)',
+            borderRadius: '8px',
+            padding: '5px 10px',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px'
+            gap: '2px'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.RENTED.darkColor : ASSET_CATEGORY_META.RENTED.color, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-              <Building2 size={14} />
+            <span style={{ fontSize: '11px', fontWeight: 800, color: isDark ? ASSET_CATEGORY_META.RENTED.darkColor : ASSET_CATEGORY_META.RENTED.color, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+              <Building2 size={12} />
               임차자산
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               임차 {fleetCountsByCategory.RENTED.toLocaleString()}대
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '12px', fontWeight: 800 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '11px', fontWeight: 800 }}>
             <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>입고 {categoryMonthStats.RENTED.inQty}대</span>
             <span style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>출고 {categoryMonthStats.RENTED.outQty}대</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '10px', whiteSpace: 'nowrap' }}>
               순유동 {categoryMonthStats.RENTED.net > 0 ? `+${categoryMonthStats.RENTED.net}` : categoryMonthStats.RENTED.net}대
             </span>
           </div>
@@ -845,38 +1293,39 @@ export const DailyInOutStatus: React.FC = () => {
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {/* 헌장 3.5 Gutenberg Z-패턴: ①좌상단 스코프 & ②우상단 파이프라인 */}
+      {/* 헌장 3.5 Gutenberg Z-패턴: ①좌상단 스코프 & ②우상단 파이프라인 (컴팩트) */}
       {/* ──────────────────────────────────────────────────────── */}
       <div
         data-mid="filter-panel"
         style={{
           flexShrink: 0,
           backgroundColor: 'var(--bg-card)',
-          borderRadius: '12px',
+          borderRadius: '10px',
           border: '1px solid var(--border-color)',
-          padding: '10px 16px',
+          padding: '6px 12px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
           flexWrap: 'wrap',
-          gap: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+          gap: '8px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
         }}
       >
         {/* ① 좌상단: 연월 네비게이션 & 자산속성·입출·모델 필터 (헌장 3.4 상하 스택) */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
           {/* 기준 연월 이동 바 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               조회 연월
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"
                 onClick={handlePrevMonth}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: '6px',
+                  height: '28px',
+                  padding: '0 7px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
@@ -886,12 +1335,12 @@ export const DailyInOutStatus: React.FC = () => {
                 }}
                 title="이전달"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={14} />
               </button>
               <span style={{
-                fontSize: '15.5px',
+                fontSize: '13.5px',
                 fontWeight: 800,
-                minWidth: '110px',
+                minWidth: '92px',
                 textAlign: 'center',
                 color: 'var(--text-primary)',
                 letterSpacing: '-0.3px',
@@ -903,8 +1352,9 @@ export const DailyInOutStatus: React.FC = () => {
                 type="button"
                 onClick={handleNextMonth}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: '6px',
+                  height: '28px',
+                  padding: '0 7px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
@@ -914,18 +1364,19 @@ export const DailyInOutStatus: React.FC = () => {
                 }}
                 title="다음달"
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={14} />
               </button>
               <button
                 type="button"
                 onClick={handleTodayMonth}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
+                  height: '28px',
+                  padding: '0 9px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap'
@@ -936,9 +1387,9 @@ export const DailyInOutStatus: React.FC = () => {
             </div>
           </div>
 
-          {/* 자산속성 구분 필터 (당사 실물자산 / 당사 가상자산 / 임차자산) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          {/* 자산속성 구분 필터 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               자산속성 구분
             </span>
             <select
@@ -946,16 +1397,16 @@ export const DailyInOutStatus: React.FC = () => {
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value as any)}
               style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
+                height: '28px',
+                padding: '0 8px',
+                borderRadius: '5px',
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-primary)',
-                fontSize: '12.5px',
+                fontSize: '11.5px',
                 fontWeight: 700,
                 outline: 'none',
-                minWidth: '140px'
+                minWidth: '120px'
               }}
             >
               <option value="ALL">전체 자산속성</option>
@@ -966,8 +1417,8 @@ export const DailyInOutStatus: React.FC = () => {
           </div>
 
           {/* 입출 구분 필터 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               입출구분
             </span>
             <select
@@ -975,16 +1426,16 @@ export const DailyInOutStatus: React.FC = () => {
               value={filterType}
               onChange={e => setFilterType(e.target.value as any)}
               style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
+                height: '28px',
+                padding: '0 8px',
+                borderRadius: '5px',
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-primary)',
-                fontSize: '12.5px',
+                fontSize: '11.5px',
                 fontWeight: 600,
                 outline: 'none',
-                minWidth: '130px'
+                minWidth: '115px'
               }}
             >
               <option value="ALL">전체 (입·출고 확정)</option>
@@ -994,24 +1445,24 @@ export const DailyInOutStatus: React.FC = () => {
           </div>
 
           {/* 모델 필터 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               모델 선택
             </span>
             <select
               value={modelFilter}
               onChange={e => setModelFilter(e.target.value)}
               style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
+                height: '28px',
+                padding: '0 8px',
+                borderRadius: '5px',
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-surface)',
                 color: 'var(--text-primary)',
-                fontSize: '12.5px',
+                fontSize: '11.5px',
                 fontWeight: 600,
                 outline: 'none',
-                maxWidth: '150px'
+                maxWidth: '135px'
               }}
             >
               <option value="ALL">전체 모델 ({uniqueModelList.length})</option>
@@ -1022,67 +1473,95 @@ export const DailyInOutStatus: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단: 검색 & 뷰 전환 & 엑셀 내보내기 */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+        {/* ② 우상단: 검색 & 뷰 전환(좌우분할 / 캘린더형태 / 표형태) & 엑셀 내보내기 */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
           {/* 통합 검색창 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               통합 검색
             </span>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)' }} />
+              <Search size={13} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)' }} />
               <input
                 type="text"
                 placeholder="거래처/현장/자산번호"
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
                 style={{
-                  height: '34px',
-                  paddingLeft: '30px',
-                  paddingRight: '10px',
-                  borderRadius: '6px',
+                  height: '28px',
+                  paddingLeft: '26px',
+                  paddingRight: '8px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
-                  fontSize: '12.5px',
+                  fontSize: '11.5px',
                   outline: 'none',
-                  width: '165px'
+                  width: '150px'
                 }}
               />
             </div>
           </div>
 
-          {/* 뷰 모드 토글 스위치 */}
+          {/* 뷰 모드 3종 토글 스위치 (좌우 분할 / 캘린더 형태 / 표 형태) */}
           <div
             data-mid="view-mode-toggle"
             style={{
               display: 'flex',
               backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              padding: '3px',
-              border: '1px solid var(--border-color)'
+              borderRadius: '6px',
+              padding: '2px',
+              border: '1px solid var(--border-color)',
+              height: '28px',
+              alignItems: 'center'
             }}
           >
+            <button
+              type="button"
+              onClick={() => setViewMode('SPLIT')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                height: '22px',
+                padding: '0 9px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700,
+                backgroundColor: viewMode === 'SPLIT' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'SPLIT' ? '#ffffff' : 'var(--text-secondary)',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap'
+              }}
+              title="좌측에 월간 캘린더, 우측에 일자별 확정 내역 리스트를 고정 표시합니다"
+            >
+              <Layers size={12} />
+              좌우 분할
+            </button>
             <button
               type="button"
               onClick={() => setViewMode('CALENDAR')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '6px',
+                gap: '4px',
+                height: '22px',
+                padding: '0 9px',
+                borderRadius: '4px',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 700,
                 backgroundColor: viewMode === 'CALENDAR' ? 'var(--primary)' : 'transparent',
                 color: viewMode === 'CALENDAR' ? '#ffffff' : 'var(--text-secondary)',
                 transition: 'all 0.15s ease',
                 whiteSpace: 'nowrap'
               }}
+              title="상단에 월간 캘린더, 하단에 일자별 확정 내역 리스트를 표시합니다"
             >
-              <Calendar size={13} />
+              <Calendar size={12} />
               캘린더 형태
             </button>
             <button
@@ -1091,20 +1570,22 @@ export const DailyInOutStatus: React.FC = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '5px 12px',
-                borderRadius: '6px',
+                gap: '4px',
+                height: '22px',
+                padding: '0 9px',
+                borderRadius: '4px',
                 border: 'none',
                 cursor: 'pointer',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 700,
                 backgroundColor: viewMode === 'TABLE' ? 'var(--primary)' : 'transparent',
                 color: viewMode === 'TABLE' ? '#ffffff' : 'var(--text-secondary)',
                 transition: 'all 0.15s ease',
                 whiteSpace: 'nowrap'
               }}
+              title="당월 전체 확정 입출고 내역을 표 형태로 표시합니다"
             >
-              <Table size={13} />
+              <Table size={12} />
               표 형태
             </button>
           </div>
@@ -1117,21 +1598,21 @@ export const DailyInOutStatus: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              height: '34px',
-              padding: '0 14px',
-              borderRadius: '6px',
+              gap: '5px',
+              height: '28px',
+              padding: '0 11px',
+              borderRadius: '5px',
               border: '1px solid #10b981',
               backgroundColor: 'rgba(16, 185, 129, 0.1)',
               color: '#059669',
-              fontSize: '12.5px',
+              fontSize: '11.5px',
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap'
             }}
             title="현재 조건 엑셀 다운로드"
           >
-            <Download size={14} />
+            <Download size={13} />
             엑셀 내보내기
           </button>
         </div>
@@ -1141,414 +1622,38 @@ export const DailyInOutStatus: React.FC = () => {
       {/* 헌장 3.5 Gutenberg Z-패턴: ③중앙 본문 Body / Inspection */}
       {/* ──────────────────────────────────────────────────────── */}
 
-      {/* ── [모드 A: 캘린더 형태 보기] ── */}
+      {/* ── [모드 1: 좌우 분할 보기 (좌측 캘린더 + 우측 확정 내역 리스트)] ── */}
+      {viewMode === 'SPLIT' && (
+        <div
+          data-mid="split-view-stage"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '8px'
+          }}
+        >
+          {renderCalendarCard(true)}
+          {renderDailyDetailPanel(true)}
+        </div>
+      )}
+
+      {/* ── [모드 2: 캘린더 형태 보기 (상단 캘린더 + 하단 고정 높이 리스트)] ── */}
       {viewMode === 'CALENDAR' && (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
-          {/* 월간 7열 달력 그리드 */}
-          <div
-            data-mid="calendar-grid-card"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderRadius: '12px',
-              border: '1px solid var(--border-color)',
-              padding: '14px 16px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              overflowX: 'auto'
-            }}
-          >
-            {/* 요일 헤더 (일 ~ 토) */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))',
-              gap: '8px',
-              textAlign: 'center',
-              fontWeight: 800,
-              fontSize: '12.5px',
-              paddingBottom: '8px',
-              borderBottom: '1px solid var(--border-color)'
-            }}>
-              <div style={{ color: '#ef4444' }}>일</div>
-              <div style={{ color: 'var(--text-secondary)' }}>월</div>
-              <div style={{ color: 'var(--text-secondary)' }}>화</div>
-              <div style={{ color: 'var(--text-secondary)' }}>수</div>
-              <div style={{ color: 'var(--text-secondary)' }}>목</div>
-              <div style={{ color: 'var(--text-secondary)' }}>금</div>
-              <div style={{ color: '#3b82f6' }}>토</div>
-            </div>
-
-            {/* 날짜 그리드 */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))',
-              gap: '8px',
-              marginTop: '8px'
-            }}>
-              {/* 시작 요일 전 빈 셀 */}
-              {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
-                <div
-                  key={`empty-${idx}`}
-                  style={{
-                    minHeight: '125px',
-                    backgroundColor: 'var(--bg-main)',
-                    borderRadius: '8px',
-                    opacity: 0.25,
-                    border: '1px dashed var(--border-color)'
-                  }}
-                />
-              ))}
-
-              {/* 1일 ~ 말일 셀 */}
-              {daysArray.map(day => {
-                const dayStr = String(day).padStart(2, '0');
-                const monthStr = String(calMonth).padStart(2, '0');
-                const dateStr = `${calYear}-${monthStr}-${dayStr}`;
-                const dayData = eventsByDateMap.get(dateStr);
-                const totalIn = dayData?.totalIn || 0;
-                const totalOut = dayData?.totalOut || 0;
-                const isToday = dateStr === todayStr;
-                const isSelected = selectedDate === dateStr;
-                const dayOfWeek = (firstDayOfWeek + day - 1) % 7;
-                const netMovement = totalIn - totalOut;
-
-                const inCatParts: string[] = [];
-                if (dayData?.inByCat.OWNED_PHYSICAL) inCatParts.push(`실물 ${dayData.inByCat.OWNED_PHYSICAL}`);
-                if (dayData?.inByCat.OWNED_VIRTUAL) inCatParts.push(`가상 ${dayData.inByCat.OWNED_VIRTUAL}`);
-                if (dayData?.inByCat.RENTED) inCatParts.push(`임차 ${dayData.inByCat.RENTED}`);
-
-                const outCatParts: string[] = [];
-                if (dayData?.outByCat.OWNED_PHYSICAL) outCatParts.push(`실물 ${dayData.outByCat.OWNED_PHYSICAL}`);
-                if (dayData?.outByCat.OWNED_VIRTUAL) outCatParts.push(`가상 ${dayData.outByCat.OWNED_VIRTUAL}`);
-                if (dayData?.outByCat.RENTED) outCatParts.push(`임차 ${dayData.outByCat.RENTED}`);
-
-                return (
-                  <div
-                    key={dateStr}
-                    onClick={() => setSelectedDate(dateStr)}
-                    style={{
-                      minHeight: '128px',
-                      borderRadius: '8px',
-                      border: isSelected
-                        ? '2px solid var(--primary)'
-                        : isToday
-                          ? '2px solid #3b82f6'
-                          : '1px solid var(--border-color)',
-                      backgroundColor: isSelected
-                        ? 'rgba(37, 99, 235, 0.06)'
-                        : isToday
-                          ? 'rgba(59, 130, 246, 0.03)'
-                          : 'var(--bg-card)',
-                      padding: '8px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '5px',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      position: 'relative'
-                    }}
-                    title={`${dateStr} 클릭 시 확정 입출고 상세 내역 조회`}
-                  >
-                    {/* 셀 상단: 일자 번호 & 순유동 배지 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{
-                        fontSize: '12.5px',
-                        fontWeight: isToday || isSelected ? 800 : 700,
-                        color: isToday ? '#ffffff' : dayOfWeek === 0 ? '#ef4444' : dayOfWeek === 6 ? '#3b82f6' : 'var(--text-primary)',
-                        backgroundColor: isToday ? 'var(--primary)' : 'transparent',
-                        borderRadius: isToday ? '50%' : '0',
-                        width: isToday ? '22px' : 'auto',
-                        height: isToday ? '22px' : 'auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {day}
-                      </span>
-
-                      {(totalIn > 0 || totalOut > 0) && (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 800,
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          backgroundColor: isDark
-                            ? (netMovement > 0 ? 'rgba(37, 99, 235, 0.35)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.35)' : 'rgba(255,255,255,0.1)')
-                            : (netMovement > 0 ? 'rgba(37, 99, 235, 0.12)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-secondary)'),
-                          color: isDark
-                            ? '#fde047'
-                            : (netMovement > 0 ? '#1e3a8a' : '#111827'),
-                          border: isDark ? '1px solid rgba(253, 224, 71, 0.35)' : 'none',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {netMovement > 0 ? `+${netMovement} 유입` : netMovement < 0 ? `${netMovement} 유출` : '±0'}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 🔵 입고 확정 칩 */}
-                    {totalIn > 0 && (
-                      <div
-                        data-mid="chip-inbound"
-                        style={{
-                          backgroundColor: isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.12)',
-                          border: isDark ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(37, 99, 235, 0.3)',
-                          borderRadius: '5px',
-                          padding: '3px 6px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px',
-                          fontSize: '11px',
-                          color: isDark ? '#ffffff' : '#1e3a8a',
-                          lineHeight: '1.2'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
-                            <ArrowDownLeft size={12} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
-                          </span>
-                          <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
-                        </div>
-                        {inCatParts.length > 0 && (
-                          <div style={{ fontSize: '9.5px', fontWeight: 700, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {inCatParts.join(' · ')}
-                          </div>
-                        )}
-                        <div style={{
-                          fontSize: '10px',
-                          color: isDark ? '#fde047' : '#1e3a8a',
-                          fontWeight: 700,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }} title={dayData?.inModelSummary}>
-                          {dayData?.inModelSummary}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 🔴 출고 확정 칩 */}
-                    {totalOut > 0 && (
-                      <div
-                        data-mid="chip-outbound"
-                        style={{
-                          backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
-                          border: isDark ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(220, 38, 38, 0.28)',
-                          borderRadius: '5px',
-                          padding: '3px 6px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px',
-                          fontSize: '11px',
-                          color: isDark ? '#ffffff' : '#111827',
-                          lineHeight: '1.2'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
-                            <ArrowUpRight size={12} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
-                          </span>
-                          <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
-                        </div>
-                        {outCatParts.length > 0 && (
-                          <div style={{ fontSize: '9.5px', fontWeight: 700, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {outCatParts.join(' · ')}
-                          </div>
-                        )}
-                        <div style={{
-                          fontSize: '10px',
-                          color: isDark ? '#fde047' : '#111827',
-                          fontWeight: 700,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }} title={dayData?.outModelSummary}>
-                          {dayData?.outModelSummary}
-                        </div>
-                      </div>
-                    )}
-
-                    {totalIn === 0 && totalOut === 0 && (
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', opacity: 0.5 }}>-</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 하단 상세 패널: 선택된 일자 확정 입출고 내역 */}
-          <div
-            data-mid="daily-detail-panel"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderRadius: '12px',
-              border: '1px solid var(--border-color)',
-              padding: '16px 20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <Calendar size={18} color="var(--primary)" />
-                <h4 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  {selectedDate} 일일 입출고 확정 내역
-                </h4>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  총 {selectedDateData.allList.length}건
-                </span>
-                {/* 선택 일자 자산속성별 요약 칩 */}
-                {(selectedDateData.totalIn > 0 || selectedDateData.totalOut > 0) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: ASSET_CATEGORY_META.OWNED_PHYSICAL.bg,
-                      color: isDark ? ASSET_CATEGORY_META.OWNED_PHYSICAL.darkColor : ASSET_CATEGORY_META.OWNED_PHYSICAL.color,
-                      whiteSpace: 'nowrap'
-                    }}>
-                      당사 실물자산: 입 {selectedDateData.inByCat.OWNED_PHYSICAL}대 / 출 {selectedDateData.outByCat.OWNED_PHYSICAL}대
-                    </span>
-                    <span style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: ASSET_CATEGORY_META.OWNED_VIRTUAL.bg,
-                      color: isDark ? ASSET_CATEGORY_META.OWNED_VIRTUAL.darkColor : ASSET_CATEGORY_META.OWNED_VIRTUAL.color,
-                      whiteSpace: 'nowrap'
-                    }}>
-                      당사 가상자산: 입 {selectedDateData.inByCat.OWNED_VIRTUAL}대 / 출 {selectedDateData.outByCat.OWNED_VIRTUAL}대
-                    </span>
-                    <span style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: ASSET_CATEGORY_META.RENTED.bg,
-                      color: isDark ? ASSET_CATEGORY_META.RENTED.darkColor : ASSET_CATEGORY_META.RENTED.color,
-                      whiteSpace: 'nowrap'
-                    }}>
-                      임차자산: 입 {selectedDateData.inByCat.RENTED}대 / 출 {selectedDateData.outByCat.RENTED}대
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* 당일 입출고 합계 배지 */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.3)' : 'rgba(37, 99, 235, 0.12)',
-                  color: isDark ? '#ffffff' : '#1e3a8a',
-                  fontSize: '11.5px',
-                  fontWeight: 800,
-                  whiteSpace: 'nowrap'
-                }}>
-                  🔵 입고 확정 <strong style={{ color: isDark ? '#fde047' : '#1e3a8a' }}>{selectedDateData.totalIn}대</strong> ({selectedDateData.inModelSummary})
-                </span>
-                <span style={{
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
-                  color: isDark ? '#ffffff' : '#111827',
-                  fontSize: '11.5px',
-                  fontWeight: 800,
-                  whiteSpace: 'nowrap'
-                }}>
-                  🔴 출고 확정 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong> ({selectedDateData.outModelSummary})
-                </span>
-              </div>
-            </div>
-
-            {selectedDateData.allList.length === 0 ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                해당 일자에는 확정된 입고·출고 내역이 없습니다.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '420px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                <table style={{ width: '100%', minWidth: '940px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-                    <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '75px', backgroundColor: 'var(--bg-secondary)' }}>입출구분</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '115px', backgroundColor: 'var(--bg-secondary)' }}>자산속성</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '105px', backgroundColor: 'var(--bg-secondary)' }}>확정상태</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '150px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '125px', backgroundColor: 'var(--bg-secondary)' }}>운송기사 / 업체</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDateData.allList.map(item => {
-                      const isIn = item.inOutType === 'INBOUND';
-                      return (
-                        <tr
-                          key={item.id}
-                          style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            backgroundColor: isIn ? 'rgba(37, 99, 235, 0.02)' : 'rgba(220, 38, 38, 0.02)'
-                          }}
-                        >
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              backgroundColor: isIn
-                                ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
-                                : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
-                              color: isIn
-                                ? (isDark ? '#ffffff' : '#1e3a8a')
-                                : (isDark ? '#fde047' : '#111827')
-                            }}>
-                              {isIn ? '🔵 입고' : '🔴 출고'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                            {renderCategoryBadge(item.assetCategory)}
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#10b981' }}>
-                              ● {item.statusText}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-primary)' }}>
-                            {item.modelName} * {item.quantity}대
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 700 }}>
-                            {item.quantity}대
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            {item.assetNos.join(', ') || '-'}
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {item.customerName || '-'}
-                            </div>
-                            {item.siteName && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                {item.siteName}
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            {item.driverName ? `${item.driverName} (${item.transportCompany || '자차'})` : (item.transportCompany || '-')}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}
+        >
+          {renderCalendarCard(false)}
+          {renderDailyDetailPanel(false)}
         </div>
       )}
 
@@ -1685,67 +1790,67 @@ export const DailyInOutStatus: React.FC = () => {
       )}
 
       {/* ──────────────────────────────────────────────────────── */}
-      {/* 헌장 3.5 Gutenberg Z-패턴: ④우하단 대차대조 합계 검증 바 */}
+      {/* 헌장 3.5 Gutenberg Z-패턴: ④우하단 대차대조 합계 검증 바 (컴팩트) */}
       {/* ──────────────────────────────────────────────────────── */}
       <div
         data-mid="audit-summary-bar"
         style={{
           flexShrink: 0,
           backgroundColor: 'var(--bg-card)',
-          borderRadius: '12px',
+          borderRadius: '8px',
           border: '1px solid var(--border-color)',
-          padding: '10px 18px',
+          padding: '6px 14px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          gap: '8px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <Layers size={17} color="var(--primary)" />
-          <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Layers size={14} color="var(--primary)" />
+          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
             {calYear}년 {calMonth}월 확정 입출고 대차대조 집계
           </span>
-          <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
             (당사 실물: 입 {monthStats.catBreakdown.OWNED_PHYSICAL.inQty}·출 {monthStats.catBreakdown.OWNED_PHYSICAL.outQty} / 당사 가상: 입 {monthStats.catBreakdown.OWNED_VIRTUAL.inQty}·출 {monthStats.catBreakdown.OWNED_VIRTUAL.outQty} / 임차: 입 {monthStats.catBreakdown.RENTED.inQty}·출 {monthStats.catBreakdown.RENTED.outQty})
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {/* 총 확정 입고 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               확정 입고 총계:
             </span>
-            <span style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
               🔵 {monthStats.totalIn}대
             </span>
           </div>
 
           {/* 총 확정 출고 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               확정 출고 총계:
             </span>
-            <span style={{ fontSize: '14px', fontWeight: 800, color: '#b91c1c', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#b91c1c', whiteSpace: 'nowrap' }}>
               🔴 {monthStats.totalOut}대
             </span>
           </div>
 
-          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--border-color)' }} />
+          <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-color)' }} />
 
           {/* 주기장 순유동 대차 차액 검증 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               ⚖️ 확정 순유동:
             </span>
             <span style={{
-              fontSize: '13px',
+              fontSize: '11.5px',
               fontWeight: 800,
-              padding: '2px 8px',
-              borderRadius: '6px',
+              padding: '1px 7px',
+              borderRadius: '5px',
               backgroundColor: monthStats.netYardMovement > 0
                 ? 'rgba(37, 99, 235, 0.12)'
                 : monthStats.netYardMovement < 0
