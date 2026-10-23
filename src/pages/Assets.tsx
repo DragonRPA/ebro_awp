@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, Download, Eye, Layers, Edit2, Save, X, Wrench, RefreshCw, PlusCircle, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { Asset, calculateAssetDepreciation, AssetInOutLog, Repair } from '../services/db';
+import { Asset, calculateAssetDepreciation, AssetInOutLog, Repair, isVirtualAsset } from '../services/db';
 import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass } from '../config/asset_status_config';
 import { canViewFinancials } from '../utils/privacyMasking';
 import { SortableTh } from '../components/SortableTh';
@@ -33,6 +33,7 @@ export const Assets: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [ownerFilter, setOwnerFilter] = useState('ALL');
+  const [natureFilter, setNatureFilter] = useState<'ALL' | 'PHYSICAL' | 'VIRTUAL'>('ALL');
   const [manufacturerFilter, setManufacturerFilter] = useState('ALL');
   const [customerFilter, setCustomerFilter] = useState('ALL');
 
@@ -229,6 +230,8 @@ export const Assets: React.FC = () => {
     const totalCount = assets.length;
     let ownedCount = 0;
     let rentedCount = 0;
+    let physicalCount = 0;
+    let virtualCount = 0;
     let rentedOpCount = 0;
     let assignedCount = 0;
     let availableCount = 0;
@@ -238,6 +241,11 @@ export const Assets: React.FC = () => {
 
     for (let i = 0; i < totalCount; i++) {
       const a = assets[i];
+      if (isVirtualAsset(a)) {
+        virtualCount++;
+      } else {
+        physicalCount++;
+      }
       if (a.ownerType === 'OWNED') {
         ownedCount++;
         const bv = a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - (a.accumDepreciation || 0));
@@ -263,6 +271,8 @@ export const Assets: React.FC = () => {
       totalCount,
       ownedCount,
       rentedCount,
+      physicalCount,
+      virtualCount,
       rentedOpCount,
       assignedCount,
       availableCount,
@@ -295,6 +305,11 @@ export const Assets: React.FC = () => {
       if (!matchesStatus) return false;
 
       if (ownerFilter !== 'ALL' && a.ownerType !== ownerFilter) return false;
+      if (natureFilter !== 'ALL') {
+        const isVirt = isVirtualAsset(a);
+        if (natureFilter === 'VIRTUAL' && !isVirt) return false;
+        if (natureFilter === 'PHYSICAL' && isVirt) return false;
+      }
       if (manufacturerFilter !== 'ALL' && a.manufacturer !== manufacturerFilter) return false;
       if (customerFilter !== 'ALL' && a.currentCustomerId !== customerFilter) return false;
 
@@ -323,7 +338,7 @@ export const Assets: React.FC = () => {
         matcher.test(supplierName)
       );
     });
-  }, [assets, searchTerm, statusFilter, ownerFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
+  }, [assets, searchTerm, statusFilter, ownerFilter, natureFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
 
   const { items: sortedAssets, sortConfig, requestSort } = useSortableData<Asset>(
     filtered,
@@ -337,6 +352,7 @@ export const Assets: React.FC = () => {
         case 'serialNo': return a.serialNo || '';
         case 'manufacturingYear': return a.manufactureYear || 0;
         case 'ownerType': return a.ownerType;
+        case 'assetNature': return isVirtualAsset(a) ? '가상' : '실물';
         case 'status': return a.status;
         case 'currentCustomerId': return getCustomerName(a.currentCustomerId);
         case 'currentSiteId': return getSiteName(a.currentSiteId);
@@ -444,6 +460,7 @@ export const Assets: React.FC = () => {
         '제조번호': a.serialNo || '-',
         '연식': a.manufactureYear || '-',
         '소유구분': a.ownerType === 'OWNED' ? '당사자산' : '외부임차',
+        '자산구분': isVirtualAsset(a) ? '가상' : '실물',
         '상태': isReturned ? '임차처 반납완료' : getAssetStatusLabel(a.status),
         '현재 고객사': getCustomerName(a.currentCustomerId),
         '현재 현장': getSiteName(a.currentSiteId),
@@ -626,6 +643,19 @@ export const Assets: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>자산구분</label>
+          <select
+            value={natureFilter}
+            onChange={e => setNatureFilter(e.target.value as 'ALL' | 'PHYSICAL' | 'VIRTUAL')}
+            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '85px' }}
+          >
+            <option value="ALL">전체 구분</option>
+            <option value="PHYSICAL">실물</option>
+            <option value="VIRTUAL">가상</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 상태</label>
           <select
             value={statusFilter}
@@ -667,9 +697,9 @@ export const Assets: React.FC = () => {
           </select>
         </div>
 
-        {(searchTerm || ownerFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
+        {(searchTerm || ownerFilter !== 'ALL' || natureFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
           <button
-            onClick={() => { setSearchTerm(''); setOwnerFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
+            onClick={() => { setSearchTerm(''); setOwnerFilter('ALL'); setNatureFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
             style={{
               marginTop: '16px',
               padding: '4px 8px',
@@ -732,6 +762,8 @@ export const Assets: React.FC = () => {
                 <SortableTh sortKey="manufacturingYear" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '70px' }}>연식</SortableTh>
                 {/* 8. 소유구분 */}
                 <SortableTh sortKey="ownerType" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '70px' }}>소유</SortableTh>
+                {/* 8-2. 자산구분 (실물/가상) */}
+                <SortableTh sortKey="assetNature" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '64px' }}>구분</SortableTh>
                 {/* 9. 상태 */}
                 <SortableTh sortKey="status" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '85px' }}>상태</SortableTh>
                 {/* 10. 현재 고객사 */}
@@ -774,7 +806,7 @@ export const Assets: React.FC = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={hasFinancialAccess ? 26 : 19} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={hasFinancialAccess ? 27 : 20} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                     조회 조건에 해당하는 자산이 없습니다.
                   </td>
                 </tr>
@@ -868,6 +900,41 @@ export const Assets: React.FC = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+
+                      {/* 8-2. 자산구분 (실물/가상) */}
+                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {isVirtualAsset(a) ? (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 700,
+                              backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                              color: '#7c3aed',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            가상
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 600,
+                              backgroundColor: 'rgba(15, 23, 42, 0.06)',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid var(--border-color)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            실물
+                          </span>
+                        )}
                       </td>
 
                       {/* 9. FSM 운용 상태 */}
@@ -997,7 +1064,7 @@ export const Assets: React.FC = () => {
               {/* 🌟 [청크 로딩 안내 & 전체 확장 행: 헌장 1.1] */}
               {visibleCount < filtered.length && (
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px dashed var(--border-color)' }}>
-                  <td colSpan={hasFinancialAccess ? 26 : 19} style={{ padding: '10px 16px', textAlign: 'center' }}>
+                  <td colSpan={hasFinancialAccess ? 27 : 20} style={{ padding: '10px 16px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         현재 <strong>{visibleAssets.length}</strong>대 표시 중 (전체 {filtered.length}대 중 잔여 {filtered.length - visibleAssets.length}대)
@@ -1041,7 +1108,7 @@ export const Assets: React.FC = () => {
           zIndex: 15
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <span>전사 등록자산: <strong style={{ color: 'var(--primary)' }}>{kpiStats.totalCount}대</strong> (당사 {kpiStats.ownedCount}대 + 임차 {kpiStats.rentedCount}대)</span>
+            <span>전사 등록자산: <strong style={{ color: 'var(--primary)' }}>{kpiStats.totalCount}대</strong> (당사 {kpiStats.ownedCount}대 + 임차 {kpiStats.rentedCount}대 | 실물 {kpiStats.physicalCount}대 + 가상 {kpiStats.virtualCount}대)</span>
             <span>|</span>
             <span>실가동률: <strong style={{ color: 'var(--success)' }}>{kpiStats.opRate}%</strong> (대여중 {kpiStats.rentedOpCount}대 + 대기 {kpiStats.assignedCount}대)</span>
             <span>|</span>
@@ -1159,6 +1226,17 @@ export const Assets: React.FC = () => {
                         <option value="RENTED">임차자산</option>
                       </select>
                     </div>
+                    <div>
+                      <label style={labelStyle}>자산구분</label>
+                      <select
+                        style={inputStyle}
+                        value={editForm.assetNature || (isVirtualAsset(editForm) ? 'VIRTUAL' : 'PHYSICAL')}
+                        onChange={ef('assetNature')}
+                      >
+                        <option value="PHYSICAL">실물</option>
+                        <option value="VIRTUAL">가상</option>
+                      </select>
+                    </div>
                     {editForm.ownerType === 'RENTED' && (
                       <div>
                         <label style={labelStyle}>협착방지봉 소유권</label>
@@ -1186,6 +1264,12 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {selectedAsset.serialNo || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {selectedAsset.manufactureYear || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>소유구분:</span> {selectedAsset.ownerType === 'OWNED' ? '당사자산' : `임차자산 (${selectedAsset.renter || '임차처'})`}</div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>자산구분:</span>{' '}
+                      <strong style={{ color: isVirtualAsset(selectedAsset) ? '#7c3aed' : 'var(--text-main)' }}>
+                        {isVirtualAsset(selectedAsset) ? '가상' : '실물'}
+                      </strong>
+                    </div>
                     {selectedAsset.ownerType === 'RENTED' && (
                       <div style={{ gridColumn: 'span 2', marginTop: '2px', padding: '6px 8px', borderRadius: '4px', backgroundColor: selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.1)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-app)', border: `1px solid ${selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.3)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}` }}>
                         <span style={{ color: 'var(--text-secondary)' }}>협착방지봉:</span>{' '}

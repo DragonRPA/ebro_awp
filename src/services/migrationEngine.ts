@@ -106,7 +106,7 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'rentStart', 'rentEnd', 'actualRentReturnDate', 'monthlyRentFee', 'dailyRentFee', 'currentCustomerId', 'currentSiteId', 'contractStart', 'contractEnd',
     'acquisitionDate', 'acquisitionPrice', 'depreciationMonths', 'residualValueRate', 'accumDepreciation', 'bookValue', 'cumRentalFee', 'cumRepairCost',
     'status', 'memo', 'note', 'createdAt', 'updatedAt', 'tenant_id', 'maintenanceScore', 'billingDay', 'monthlyRentalFee', 'dailyRentalFee',
-    'renter', 'disposalDate', 'disposalPrice', 'buyer', 'memo1', 'memo2', 'safetyInspectionUrl', 'preDeliveryChecklistUrl', 'fullDefectSummary'
+    'renter', 'disposalDate', 'disposalPrice', 'buyer', 'memo1', 'memo2', 'safetyInspectionUrl', 'preDeliveryChecklistUrl', 'fullDefectSummary', 'assetNature'
   ],
   contracts: [
     'id', 'contractNo', 'customerId', 'salespersonId', 'contactId', 'siteId', 'billingDay', 'status', 'driveFolderId', 'startDate', 'endDate',
@@ -1490,6 +1490,7 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
           manufacturer: inferMakerFromModel(targetModel),
           manufactureYear: '2025년',
           ownerType: 'OWNED',
+          assetNature: isVirtualRow ? 'VIRTUAL' : 'PHYSICAL',
           status: 'AVAILABLE',
           acquisitionDate: '2025-01-01',
           acquisitionPrice: 11800000,

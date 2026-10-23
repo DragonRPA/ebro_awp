@@ -1254,6 +1254,7 @@ export interface Asset {
   manufacturer?: string;
   manufactureYear?: string; // 제조년도 (예: 2023)
   ownerType: 'OWNED' | 'RENTED'; // 당사자산 / 임차자산
+  assetNature?: 'PHYSICAL' | 'VIRTUAL'; // 자산 구분 ('PHYSICAL': 실물, 'VIRTUAL': 가상)
   antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권 ('VENDOR': 임차처 소유, 'OURS': 당사 소유, 'NONE': 미장착)
   status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD' | 'LOST' | 'DISPOSED';
   
@@ -1298,6 +1299,14 @@ export interface Asset {
   preDeliveryChecklistUrl?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** 실물/가상 자산 판별 헬퍼 (assetNature 컬럼 최우선, 미지정 시 memo 내 '가상' 여부로 판정) */
+export function isVirtualAsset(a?: Partial<Asset> | null): boolean {
+  if (!a) return false;
+  if (a.assetNature === 'VIRTUAL') return true;
+  if (a.assetNature === 'PHYSICAL') return false;
+  return Boolean(a.memo && String(a.memo).includes('가상'));
 }
 
 /**
@@ -6651,6 +6660,11 @@ class LocalDB {
     }
 
     // consumables 호환 (name ➔ modelName, supplier 추론) - 반드시 consumables 테이블에만 한정 적용
+    if (tableName === 'assets') {
+      if (!normalized.assetNature) {
+        normalized.assetNature = isVirtualAsset(normalized) ? 'VIRTUAL' : 'PHYSICAL';
+      }
+    }
     if (tableName === 'consumables') {
       if (normalized.name && !normalized.modelName) {
         normalized.modelName = normalized.name;
