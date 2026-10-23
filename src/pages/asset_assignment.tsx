@@ -8,7 +8,7 @@ import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const AssetAssignment: React.FC = () => {
-  const { hasPermission, contractAssets, contracts, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
+  const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
   
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   
@@ -89,48 +89,165 @@ export const AssetAssignment: React.FC = () => {
 
   // 일반 미할당 계약자산 및 계약별 미할당 슬롯 집계
   const pendingCaList = useMemo(() => (contractAssets || []).filter(ca => !ca.assetId), [contractAssets]);
-  const pendingCountByContractMap = useMemo(() => {
-    const map = new Map<string, number>();
-    pendingCaList.forEach(ca => {
-      if (ca.contractId) {
-        map.set(ca.contractId, (map.get(ca.contractId) || 0) + 1);
-      }
-    });
-    return map;
-  }, [pendingCaList]);
 
-  // 대차 교체 의뢰 접수 건 (EXCHANGE 이력 기반) & 일반 미할당/검수대기 계약 목록
-  const { exchangePendingContracts, pendingContracts, exchangeSlotsCount } = useMemo(() => {
-    const excList: typeof contracts = [];
-    const normList: typeof contracts = [];
+  // ── 🌟 [출고 요청 건(Delivery) 단위 개별 그룹핑: 동일 계약 내 복수 출고 요청 건을 개별 카드로 분리] ──
+  const extractCaIdsFromDelivery = (d: any): string[] => {
+    if (!d?.cargoItems) return [];
+    try {
+      const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+      if (!Array.isArray(raw)) return [];
+      const ids: string[] = [];
+      raw.forEach((ci: any) => {
+        if (Array.isArray(ci?.contractAssetIds)) {
+          ids.push(...ci.contractAssetIds.filter(Boolean));
+        }
+      });
+      return ids;
+    } catch {
+      return [];
+    }
+  };
+
+  interface AssignmentRequestGroup {
+    groupKey: string;
+    contract: (typeof contracts)[number];
+    delivery?: (typeof deliveries)[number];
+    slots: typeof contractAssets;
+    pendingCount: number;
+    isExchange: boolean;
+    requestDate: string;
+    scheduledDate: string;
+    createdAt: string;
+  }
+
+  const { exchangePendingGroups, pendingGroups, exchangeSlotsCount, groupMap } = useMemo(() => {
+    const excList: AssignmentRequestGroup[] = [];
+    const normList: AssignmentRequestGroup[] = [];
+    const gMap = new Map<string, AssignmentRequestGroup>();
     let excSlots = 0;
+
+    const outboundDeliveriesByContract = new Map<string, typeof deliveries>();
+    (deliveries || []).forEach(d => {
+      if (!d.contractId || d.status === 'CANCELLED') return;
+      const isOutOrEx =
+        d.type === 'OUTBOUND' ||
+        d.type === 'EXCHANGE' ||
+        d.dispatchCategory === '출고' ||
+        d.dispatchCategory === '교환' ||
+        (d as any).originalDispatchCategory === '출고' ||
+        (d as any).originalDispatchCategory === '교환';
+      if (!isOutOrEx) return;
+      let list = outboundDeliveriesByContract.get(d.contractId);
+      if (!list) {
+        list = [];
+        outboundDeliveriesByContract.set(d.contractId, list);
+      }
+      list.push(d);
+    });
 
     for (let i = 0; i < contracts.length; i++) {
       const c = contracts[i];
       const activePreInspSlots = contractAssetsByContractMap.get(c.id) || [];
       if (activePreInspSlots.length === 0) continue;
-      const pCount = pendingCountByContractMap.get(c.id) || 0;
-      if (exchangeHistoryByContractMap.has(c.id) && pCount > 0) {
-        excList.push(c);
-        excSlots += pCount;
-      } else {
-        normList.push(c);
+
+      const cDeliveries = (outboundDeliveriesByContract.get(c.id) || []).slice().sort((a, b) => {
+        return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
+      });
+
+      const claimedCaIds = new Set<string>();
+      const contractGroups: AssignmentRequestGroup[] = [];
+
+      for (const d of cDeliveries) {
+        const dCaIds = extractCaIdsFromDelivery(d);
+        if (dCaIds.length === 0) continue;
+        const dCaIdSet = new Set(dCaIds);
+        const matchedSlots = activePreInspSlots.filter(ca => dCaIdSet.has(ca.id) && !claimedCaIds.has(ca.id));
+        if (matchedSlots.length === 0) continue;
+        matchedSlots.forEach(ca => claimedCaIds.add(ca.id));
+
+        const pCount = matchedSlots.filter(ca => !ca.assetId).length;
+        const isEx =
+          d.type === 'EXCHANGE' ||
+          d.dispatchCategory === '교환' ||
+          (d as any).originalDispatchCategory === '교환' ||
+          (exchangeHistoryByContractMap.has(c.id) && pCount > 0 && cDeliveries.length === 1);
+        const schedDate =
+          d.loadingDate ||
+          d.scheduledDate ||
+          matchedSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          '';
+
+        contractGroups.push({
+          groupKey: `DLV:${d.id}`,
+          contract: c,
+          delivery: d,
+          slots: matchedSlots,
+          pendingCount: pCount,
+          isExchange: isEx,
+          requestDate: d.requestDate || (d.createdAt ? d.createdAt.slice(0, 10) : ''),
+          scheduledDate: schedDate,
+          createdAt: d.createdAt || d.requestDate || c.createdAt || ''
+        });
+      }
+
+      const remainingSlots = activePreInspSlots.filter(ca => !claimedCaIds.has(ca.id));
+      if (remainingSlots.length > 0) {
+        const fallbackDeliv = cDeliveries.find(d => extractCaIdsFromDelivery(d).length === 0) || (contractGroups.length === 0 ? cDeliveries[0] : undefined);
+        const pCount = remainingSlots.filter(ca => !ca.assetId).length;
+        const isEx =
+          (fallbackDeliv && (fallbackDeliv.type === 'EXCHANGE' || fallbackDeliv.dispatchCategory === '교환' || (fallbackDeliv as any).originalDispatchCategory === '교환')) ||
+          (exchangeHistoryByContractMap.has(c.id) && pCount > 0);
+        const schedDate =
+          fallbackDeliv?.loadingDate ||
+          fallbackDeliv?.scheduledDate ||
+          remainingSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          '';
+
+        contractGroups.push({
+          groupKey: c.id,
+          contract: c,
+          delivery: fallbackDeliv,
+          slots: remainingSlots,
+          pendingCount: pCount,
+          isExchange: Boolean(isEx),
+          requestDate: fallbackDeliv?.requestDate || (c.createdAt ? c.createdAt.slice(0, 10) : ''),
+          scheduledDate: schedDate,
+          createdAt: fallbackDeliv?.createdAt || c.createdAt || ''
+        });
+      }
+
+      for (const grp of contractGroups) {
+        gMap.set(grp.groupKey, grp);
+        if (grp.isExchange && grp.pendingCount > 0) {
+          excList.push(grp);
+          excSlots += grp.pendingCount;
+        } else {
+          normList.push(grp);
+        }
       }
     }
-    // 미할당 슬롯이 남아있는 건을 앞쪽에, 전량 할당 완료(검수대기) 건을 뒤쪽에 배치
+
+    // 미할당 슬롯이 남아있는 건을 앞쪽에, 그 안에서는 최신 출고 요청일시 순으로 배치
     normList.sort((a, b) => {
-      const pa = (pendingCountByContractMap.get(a.id) || 0) > 0 ? 0 : 1;
-      const pb = (pendingCountByContractMap.get(b.id) || 0) > 0 ? 0 : 1;
-      return pa - pb;
+      const pa = a.pendingCount > 0 ? 0 : 1;
+      const pb = b.pendingCount > 0 ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
     });
-    return { exchangePendingContracts: excList, pendingContracts: normList, exchangeSlotsCount: excSlots };
-  }, [contracts, contractAssetsByContractMap, pendingCountByContractMap, exchangeHistoryByContractMap]);
+
+    return { exchangePendingGroups: excList, pendingGroups: normList, exchangeSlotsCount: excSlots, groupMap: gMap };
+  }, [contracts, deliveries, contractAssetsByContractMap, exchangeHistoryByContractMap]);
 
 
-  // 선택된 계약의 하위 슬롯들 (미할당 + 기할당) (O(1) 맵 조회)
+  // 선택된 출고 요청 그룹의 하위 슬롯들 (미할당 + 기할당) (O(1) 맵 조회)
   const currentSlots = useMemo(() => {
-    return selectedContractId ? (contractAssetsByContractMap.get(selectedContractId) || []) : [];
-  }, [contractAssetsByContractMap, selectedContractId]);
+    if (!selectedContractId) return [];
+    const grp = groupMap.get(selectedContractId);
+    if (grp) return grp.slots;
+    return contractAssetsByContractMap.get(selectedContractId) || [];
+  }, [groupMap, contractAssetsByContractMap, selectedContractId]);
 
   // 모델별 그룹핑 집계 (정규화 키 기반 동일 모델 100% 통합)
   const modelGroups = useMemo(() => {
@@ -197,12 +314,13 @@ export const AssetAssignment: React.FC = () => {
     return { bg: 'var(--danger-light)', color: 'var(--danger)', border: 'var(--danger)' };
   };
 
-  // 🎯 계약 선택 핸들러 (첫 번째 미할당 모델 자동 단일 포커스)
-  const handleSelectContract = (contractId: string) => {
-    setSelectedContractId(contractId);
+  // 🎯 출고 요청 그룹(또는 계약) 선택 핸들러 (첫 번째 미할당 모델 자동 단일 포커스)
+  const handleSelectContract = (groupKey: string) => {
+    setSelectedContractId(groupKey);
     setSelectedAssetIds([]);
 
-    const slots = contractAssetsByContractMap.get(contractId) || [];
+    const grp = groupMap.get(groupKey);
+    const slots = grp ? grp.slots : (contractAssetsByContractMap.get(groupKey) || []);
     const pendingSlots = slots.filter(ca => !ca.assetId);
     if (pendingSlots.length > 0) {
       const firstModelKey = normalizeModelKey(pendingSlots[0].expectedModel);
@@ -543,22 +661,23 @@ export const AssetAssignment: React.FC = () => {
       })()}
 
       {/* 교환 출고할당 대기 (최우선 표출) */}
-      {exchangePendingContracts.length > 0 && (
+      {exchangePendingGroups.length > 0 && (
         <div style={{ backgroundColor: 'var(--warning-light)', padding: '14px', borderRadius: '10px', border: '2px solid var(--warning)' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--warning)' }}>
-            <AlertTriangle size={14} /> 교환 출고할당 대기 ({exchangePendingContracts.length}건)
+            <AlertTriangle size={14} /> 교환 출고할당 대기 ({exchangePendingGroups.length}건)
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
-            {exchangePendingContracts.map(contract => {
+            {exchangePendingGroups.map(grp => {
+              const contract = grp.contract;
               const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
               const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
-              const cas = contractAssetsByContractMap.get(contract.id) || [];
-              const isSelected = selectedContractId === contract.id;
+              const cas = grp.slots;
+              const isSelected = selectedContractId === grp.groupKey;
               const excHistory = exchangeHistoryByContractMap.get(contract.id);
               return (
                 <div
-                  key={contract.id}
-                  onClick={() => handleSelectContract(contract.id)}
+                  key={grp.groupKey}
+                  onClick={() => handleSelectContract(grp.groupKey)}
                   style={{
                     padding: '12px', backgroundColor: isSelected ? 'var(--warning-light)' : 'var(--bg-card)',
                     border: `2px solid ${isSelected ? 'var(--warning)' : 'var(--border-color)'}`, borderRadius: '10px',
@@ -588,23 +707,24 @@ export const AssetAssignment: React.FC = () => {
         </div>
       )}
 
-      {/* 1단계: 출고 대기 계약(기안) 카드 바둑판 뷰 */}
+      {/* 1단계: 출고 대기 요청 건 카드 바둑판 뷰 */}
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <PackageSearch size={14} color="var(--primary)" /> 출고 대기 요청 건 ({pendingContracts.length}건)
+          <PackageSearch size={14} color="var(--primary)" /> 출고 대기 요청 건 ({pendingGroups.length}건)
         </h3>
         
-        {pendingContracts.length === 0 ? (
+        {pendingGroups.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>대기 중인 출고 요청이 없습니다.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
-            {pendingContracts.map(contract => {
+            {pendingGroups.map(grp => {
+              const contract = grp.contract;
               const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
               const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
-              const cas = contractAssetsByContractMap.get(contract.id) || [];
+              const cas = grp.slots;
               const totalCount = cas.length;
               const assignedCount = cas.filter(ca => ca.assetId).length;
-              const isSelected = selectedContractId === contract.id;
+              const isSelected = selectedContractId === grp.groupKey;
               const progress = totalCount > 0 ? Math.round((assignedCount / totalCount) * 100) : 0;
 
               const unassignedCas = cas.filter(ca => !ca.assetId);
@@ -616,7 +736,7 @@ export const AssetAssignment: React.FC = () => {
                 return acc;
               }, {} as Record<string, number>);
               const reqText = Object.entries(reqSummary).map(([k, v]) => `${k} × ${v}대`).join(', ');
-              const latestScheduledDate = targetSummaryCas
+              const latestScheduledDate = grp.scheduledDate || targetSummaryCas
                 .map(ca => ca.startDate)
                 .filter(Boolean)
                 .sort()
@@ -624,8 +744,8 @@ export const AssetAssignment: React.FC = () => {
 
               return (
                 <div 
-                  key={contract.id}
-                  onClick={() => handleSelectContract(contract.id)}
+                  key={grp.groupKey}
+                  onClick={() => handleSelectContract(grp.groupKey)}
                   style={{
                     padding: '12px',
                     backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-app)',
@@ -1061,9 +1181,9 @@ export const AssetAssignment: React.FC = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingContracts.length + exchangePendingContracts.length}건 계약)</span>
+          <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingGroups.length + exchangePendingGroups.length}건 요청)</span>
           <span>|</span>
-          <span>교환 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingContracts.length}건</strong></span>
+          <span>교환 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingGroups.length}건</strong></span>
           <span>|</span>
           <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {availablePool.length}대</strong></span>
           <span>|</span>
