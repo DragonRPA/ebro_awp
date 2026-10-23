@@ -1063,6 +1063,7 @@ export interface Customer {
   transactionStatus?: CustomerTransactionStatus; // ALLOWED: 정상거래, RESTRICT_NEW: 추가계약금지(기존계약유지), BLOCKED_ALL: 전면차단(장비회수·계약금지)
   defaultBillingDay?: number; // 계산서 기본 마감일 (예: 30일/월말)
   defaultStatementClosingDay?: number; // 명세서 기본 마감일 (예: 25일)
+  defaultFreightBillingStandard?: '3/5' | '2/4'; // 운송료 청구기준 기본값 ('3/5' | '2/4')
   paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
   paymentDueMonthOffset?: number; // 0: 당월, 1: 익월, 2: 익익월, 3: 익익익월, 기본값 1
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
@@ -1165,6 +1166,7 @@ export interface CustomerSite {
   billingDay?: number;               // 계산서 마감일
   statementClosingDay?: number;      // 명세서 마감일
   paymentDueDay?: number;            // 약정 결제일 (1~30, 31: 말일)
+  freightBillingStandard?: '3/5' | '2/4'; // 현장 전용 운송료 청구기준 ('3/5' 기본 | '2/4')
 
   createdAt: string;
   updatedAt?: string;
@@ -5996,13 +5998,18 @@ class LocalDB {
         defAtt = (c.defaultCheckedSpecs as any).__attachments;
         changed = true;
       }
+      let defFreightStd = c.defaultFreightBillingStandard;
+      if (!defFreightStd && c.defaultCheckedSpecs && ((c.defaultCheckedSpecs as any).__freightBillingStandard === '2/4' || (c.defaultCheckedSpecs as any).__freightBillingStandard === '3/5')) {
+        defFreightStd = (c.defaultCheckedSpecs as any).__freightBillingStandard;
+        changed = true;
+      }
       let dueMonthOffset = c.paymentDueMonthOffset !== undefined && c.paymentDueMonthOffset !== null ? c.paymentDueMonthOffset : 1;
       let dueDay = c.paymentDueDay || 25;
       if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
         changed = true;
       }
       if (changed) {
-        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
+        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, defaultFreightBillingStandard: defFreightStd, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
       }
       return c;
     }).sort((a, b) => compareCustomerNames(a?.name, b?.name));
@@ -6105,6 +6112,12 @@ class LocalDB {
       const normAtt = replaceLegacyCommas(att);
       if (normAtt !== att) { att = normAtt; changed = true; }
 
+      let freightStd = s.freightBillingStandard;
+      if (!freightStd && specs && ((specs as any).__freightBillingStandard === '2/4' || (specs as any).__freightBillingStandard === '3/5')) {
+        freightStd = (specs as any).__freightBillingStandard;
+        changed = true;
+      }
+
       const isActiveVal = s.isActive !== false;
       if (s.isActive === undefined) {
         changed = true;
@@ -6142,6 +6155,7 @@ class LocalDB {
           protection: prot,
           attachments: att,
           checkedSpecs: specs,
+          freightBillingStandard: freightStd,
           isActive: isActiveVal,
           billingContactName,
           billingContactPhone,
@@ -6737,6 +6751,9 @@ class LocalDB {
     if (normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && typeof normalized.checkedSpecs.__protection === 'string') {
       normalized.protection = normalized.checkedSpecs.__protection;
     }
+    if (!normalized.freightBillingStandard && normalized.checkedSpecs && typeof normalized.checkedSpecs === 'object' && (normalized.checkedSpecs.__freightBillingStandard === '2/4' || normalized.checkedSpecs.__freightBillingStandard === '3/5')) {
+      normalized.freightBillingStandard = normalized.checkedSpecs.__freightBillingStandard;
+    }
     if (normalized.attachments !== undefined && normalized.attachments !== null) {
       if (Array.isArray(normalized.attachments)) {
         normalized.attachments = normalized.attachments.flat().map((s: any) => String(s).trim()).filter(Boolean).join(', ');
@@ -6762,6 +6779,9 @@ class LocalDB {
     }
     if (normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && typeof normalized.defaultCheckedSpecs.__protection === 'string') {
       normalized.defaultProtection = normalized.defaultCheckedSpecs.__protection;
+    }
+    if (!normalized.defaultFreightBillingStandard && normalized.defaultCheckedSpecs && typeof normalized.defaultCheckedSpecs === 'object' && (normalized.defaultCheckedSpecs.__freightBillingStandard === '2/4' || normalized.defaultCheckedSpecs.__freightBillingStandard === '3/5')) {
+      normalized.defaultFreightBillingStandard = normalized.defaultCheckedSpecs.__freightBillingStandard;
     }
     if (normalized.defaultAttachments !== undefined && normalized.defaultAttachments !== null) {
       if (Array.isArray(normalized.defaultAttachments)) {
@@ -7238,7 +7258,7 @@ class LocalDB {
           if (obj.paymentTermDays === undefined) sanitized['paymentTermDays'] = val;
           continue;
         }
-        if (key === 'defaultAttachments') {
+        if (key === 'defaultAttachments' || key === 'defaultFreightBillingStandard') {
           continue;
         }
       }
@@ -7263,7 +7283,7 @@ class LocalDB {
         if (obj.contractId === undefined) sanitized['contractId'] = val;
         continue;
       }
-      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail', 'attachments'].includes(key)) { continue; }
+      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail', 'attachments', 'freightBillingStandard'].includes(key)) { continue; }
       if (resolvedTable === 'site_masters' && !['id', 'name', 'isActive', 'paidOptions', 'protection', 'checkedSpecs', 'createdAt', 'updatedAt', 'tenant_id', 'tenantId'].includes(key)) { continue; }
       // equipment_manuals mediaType -> media_type 정제
       if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
@@ -7396,16 +7416,30 @@ class LocalDB {
       sanitized[key] = val;
     }
 
-    // site_masters 및 customer_sites의 attachments/protection 컬럼 및 checkedSpecs 동기화
+    // site_masters 및 customer_sites의 attachments/protection/freightBillingStandard 컬럼 및 checkedSpecs 동기화
     if (resolvedTable === 'site_masters' || resolvedTable === 'customer_sites') {
+      const existingSiteObj = (resolvedTable === 'customer_sites' && obj.id)
+        ? (this.sites || []).find(s => s && s.id === obj.id)
+        : (resolvedTable === 'site_masters' && obj.id)
+          ? (this.siteMasters || []).find(m => m && m.id === obj.id)
+          : null;
       const baseSpecs = (sanitized.checkedSpecs && typeof sanitized.checkedSpecs === 'object' && !Array.isArray(sanitized.checkedSpecs))
         ? { ...sanitized.checkedSpecs }
-        : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs) ? { ...obj.checkedSpecs } : {});
+        : (obj.checkedSpecs && typeof obj.checkedSpecs === 'object' && !Array.isArray(obj.checkedSpecs))
+          ? { ...obj.checkedSpecs }
+          : (existingSiteObj?.checkedSpecs && typeof existingSiteObj.checkedSpecs === 'object' && !Array.isArray(existingSiteObj.checkedSpecs))
+            ? { ...existingSiteObj.checkedSpecs }
+            : {};
       let specsModified = false;
 
       if (obj.attachments !== undefined) {
         sanitized.attachments = obj.attachments ? String(obj.attachments) : '';
         baseSpecs.__attachments = sanitized.attachments;
+        specsModified = true;
+      }
+
+      if (resolvedTable === 'customer_sites' && (obj.freightBillingStandard === '2/4' || obj.freightBillingStandard === '3/5')) {
+        baseSpecs.__freightBillingStandard = obj.freightBillingStandard;
         specsModified = true;
       }
 
@@ -7424,18 +7458,32 @@ class LocalDB {
       if (specsModified) {
         sanitized.checkedSpecs = baseSpecs;
       }
+      if (resolvedTable === 'customer_sites') {
+        delete sanitized.attachments;
+        delete sanitized.freightBillingStandard;
+      }
     }
 
-    // customers의 defaultAttachments/defaultProtection 컬럼 및 defaultCheckedSpecs 동기화
+    // customers의 defaultAttachments/defaultProtection/defaultFreightBillingStandard 컬럼 및 defaultCheckedSpecs 동기화
     if (resolvedTable === 'customers') {
+      const existingCustObj = obj.id ? (this.customers || []).find(c => c && c.id === obj.id) : null;
       const baseSpecs = (sanitized.defaultCheckedSpecs && typeof sanitized.defaultCheckedSpecs === 'object' && !Array.isArray(sanitized.defaultCheckedSpecs))
         ? { ...sanitized.defaultCheckedSpecs }
-        : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs) ? { ...obj.defaultCheckedSpecs } : {});
+        : (obj.defaultCheckedSpecs && typeof obj.defaultCheckedSpecs === 'object' && !Array.isArray(obj.defaultCheckedSpecs))
+          ? { ...obj.defaultCheckedSpecs }
+          : (existingCustObj?.defaultCheckedSpecs && typeof existingCustObj.defaultCheckedSpecs === 'object' && !Array.isArray(existingCustObj.defaultCheckedSpecs))
+            ? { ...existingCustObj.defaultCheckedSpecs }
+            : {};
       let specsModified = false;
 
       if (obj.defaultAttachments !== undefined) {
         sanitized.defaultAttachments = obj.defaultAttachments ? String(obj.defaultAttachments) : '';
         baseSpecs.__attachments = sanitized.defaultAttachments;
+        specsModified = true;
+      }
+
+      if (obj.defaultFreightBillingStandard === '2/4' || obj.defaultFreightBillingStandard === '3/5') {
+        baseSpecs.__freightBillingStandard = obj.defaultFreightBillingStandard;
         specsModified = true;
       }
 
@@ -7454,6 +7502,8 @@ class LocalDB {
       if (specsModified) {
         sanitized.defaultCheckedSpecs = baseSpecs;
       }
+      delete sanitized.defaultAttachments;
+      delete sanitized.defaultFreightBillingStandard;
     }
 
     // deliveries 테이블의 경유/합짐 묶음 메타데이터([BUNDLE:bundleGroupId|bundleOrder|originalDispatchCategory])를 memo에 동기화하여 원격 DB 스키마 제약 없이 100% 영구 보존

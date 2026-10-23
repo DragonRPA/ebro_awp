@@ -6,7 +6,7 @@ import { SortableTh } from '../components/SortableTh';
 import { 
   Shield, Check, Plus, Trash2, Edit3, Search, 
   CheckSquare, Download, Building2, 
-  CheckCircle2, ChevronRight, Sliders, X, Layers
+  CheckCircle2, ChevronRight, Sliders, X, Layers, Copy
 } from 'lucide-react';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
@@ -26,12 +26,20 @@ export const SiteOptionManage: React.FC = () => {
   // 2. 검색 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
 
-  // 3. 옵션 그룹 등록/수정 모달 상태 (현장명만 사용, 주소 필드 완전 배제)
+  // 3. 옵션 그룹 등록/수정/복사 모달 상태 (현장명만 사용, 주소 필드 완전 배제)
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
-  const [quickSiteForm, setQuickSiteForm] = useState({ name: '' });
+  const [quickSiteForm, setQuickSiteForm] = useState({ name: '', copyFromMasterId: '' });
 
   const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
   const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '' });
+
+  const [showCopySiteMasterModal, setShowCopySiteMasterModal] = useState(false);
+  const [copySiteMasterForm, setCopySiteMasterForm] = useState({
+    sourceId: '',
+    sourceName: '',
+    newName: '',
+    useWorkingOptions: true
+  });
 
   // 연결된 고객현장에 옵션 변경사항 일괄 전파 여부 (기본 true)
   const [propagateToLinkedSites, setPropagateToLinkedSites] = useState(true);
@@ -227,7 +235,63 @@ export const SiteOptionManage: React.FC = () => {
     setWorkingOptionItems(inherited);
   }, [activeSite, standardOptions]);
 
-  // ── 옵션 그룹 등록/수정/삭제 핸들러 ──
+  // ── 🔧 작업대 옵션 배열(SiteOptionItem[])을 SiteMaster 저장 포맷으로 직렬화 ──
+  const serializeOptionItems = (items: SiteOptionItem[], baseSpecs?: Record<string, any>) => {
+    const paidNames = items
+      .filter(item => item.category === 'PAID' && item.isEnabled)
+      .map(item => item.name)
+      .join(', ');
+
+    const protItems = items.filter(item =>
+      item.category === 'PROTECTION' &&
+      item.isEnabled &&
+      !(item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음'))
+    );
+    const protName = protItems.length > 0 ? protItems.map(item => item.name).join(', ') : 'NONE';
+
+    const attachmentNames = items
+      .filter(item => item.category === 'ATTACHMENT' && item.isEnabled)
+      .map(item => item.name)
+      .join(', ');
+
+    const specsMap: Record<string, any> = {};
+    if (baseSpecs && typeof baseSpecs === 'object') {
+      Object.entries(baseSpecs).forEach(([k, v]) => {
+        if (k.startsWith('__') && k !== '__attachments' && k !== '__optionMeta') {
+          specsMap[k] = v;
+        }
+      });
+    }
+
+    items
+      .filter(item => item.category === 'SPEC' && item.isEnabled)
+      .forEach(item => {
+        specsMap[item.optionId] = true;
+      });
+
+    const optionMeta: Record<string, { appliedPrice?: number; isRequired?: boolean; note?: string }> = {};
+    items.forEach(item => {
+      if (item.isEnabled || item.appliedPrice !== item.defaultPrice || item.isRequired || (item.note && item.note.trim())) {
+        optionMeta[item.optionId] = {
+          appliedPrice: Number(item.appliedPrice || 0),
+          isRequired: Boolean(item.isRequired),
+          note: (item.note || '').trim()
+        };
+      }
+    });
+    if (Object.keys(optionMeta).length > 0) {
+      specsMap.__optionMeta = optionMeta;
+    }
+
+    return {
+      paidOptions: paidNames,
+      protection: protName,
+      attachments: attachmentNames,
+      checkedSpecs: specsMap
+    };
+  };
+
+  // ── 옵션 그룹 등록/수정/복사/삭제 핸들러 ──
   const handleSaveQuickSite = async (e: React.FormEvent) => {
     e.preventDefault();
     const rawName = (quickSiteForm.name || '').trim();
@@ -245,24 +309,109 @@ export const SiteOptionManage: React.FC = () => {
       return;
     }
 
+    const copySource = quickSiteForm.copyFromMasterId
+      ? siteMasterMap.get(quickSiteForm.copyFromMasterId) || null
+      : null;
+
     try {
       const created = await saveSiteMaster({
         name: rawName,
         isActive: true,
-        paidOptions: '',
-        protection: 'NONE',
-        attachments: '',
-        checkedSpecs: {}
+        paidOptions: copySource ? (copySource.paidOptions || '') : '',
+        protection: copySource ? (copySource.protection || 'NONE') : 'NONE',
+        attachments: copySource ? (copySource.attachments || '') : '',
+        checkedSpecs: copySource && copySource.checkedSpecs
+          ? JSON.parse(JSON.stringify(copySource.checkedSpecs))
+          : {}
       });
       if (created?.id) {
         setSelectedSiteId(created.id);
       }
-      showToast(`[${rawName}] 옵션 그룹이 등록되었습니다.`);
+      showToast(
+        copySource
+          ? `[${copySource.name}] 옵션을 통째 복사하여 [${rawName}] 그룹이 등록되었습니다.`
+          : `[${rawName}] 옵션 그룹이 등록되었습니다.`
+      );
       setShowQuickSiteModal(false);
-      setQuickSiteForm({ name: '' });
+      setQuickSiteForm({ name: '', copyFromMasterId: '' });
       await fullRefreshFromServer();
     } catch (err: any) {
       showErrorModal(`옵션 그룹 등록 오류: ${err?.message || err}`);
+    }
+  };
+
+  const handleOpenCopyMaster = (site: SiteMaster, useWorking = true) => {
+    setCopySiteMasterForm({
+      sourceId: site.id,
+      sourceName: site.name || '',
+      newName: `${site.name || ''} `,
+      useWorkingOptions: useWorking && site.id === selectedSiteId
+    });
+    setShowCopySiteMasterModal(true);
+  };
+
+  const handleSaveCopyMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const rawName = (copySiteMasterForm.newName || '').trim();
+    if (!rawName) {
+      showErrorModal('새로운 옵션 그룹명을 입력해주세요.');
+      return;
+    }
+
+    const normalizedInput = rawName.replace(/\s+/g, '').toLowerCase();
+    const duplicate = (siteMasters || []).find(
+      m => (m.name || '').replace(/\s+/g, '').toLowerCase() === normalizedInput
+    );
+    if (duplicate) {
+      showErrorModal(`동일한 이름의 옵션 그룹이 이미 등록되어 있습니다.\n\n• 기존 그룹명: [${duplicate.name}]`);
+      return;
+    }
+
+    const sourceMaster = siteMasterMap.get(copySiteMasterForm.sourceId);
+    if (!sourceMaster) {
+      showErrorModal('복사할 기준 옵션 그룹을 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      let payloadOptions: {
+        paidOptions: string;
+        protection: string;
+        attachments: string;
+        checkedSpecs: Record<string, any>;
+      };
+
+      if (copySiteMasterForm.useWorkingOptions && sourceMaster.id === selectedSiteId && workingOptionItems.length > 0) {
+        payloadOptions = serializeOptionItems(workingOptionItems, sourceMaster.checkedSpecs);
+      } else {
+        payloadOptions = {
+          paidOptions: sourceMaster.paidOptions || '',
+          protection: sourceMaster.protection || 'NONE',
+          attachments: sourceMaster.attachments || '',
+          checkedSpecs: sourceMaster.checkedSpecs
+            ? JSON.parse(JSON.stringify(sourceMaster.checkedSpecs))
+            : {}
+        };
+      }
+
+      const created = await saveSiteMaster({
+        name: rawName,
+        isActive: true,
+        paidOptions: payloadOptions.paidOptions,
+        protection: payloadOptions.protection,
+        attachments: payloadOptions.attachments,
+        checkedSpecs: payloadOptions.checkedSpecs,
+        updatedAt: new Date().toISOString()
+      });
+
+      if (created?.id) {
+        setSelectedSiteId(created.id);
+      }
+      setShowCopySiteMasterModal(false);
+      showToast(`[${sourceMaster.name}] 옵션을 통째 복사하여 [${rawName}] 그룹으로 등록했습니다.`);
+      await fullRefreshFromServer();
+    } catch (err: any) {
+      showErrorModal(`옵션 그룹 복사 오류: ${err?.message || err}`);
     }
   };
 
@@ -491,44 +640,17 @@ export const SiteOptionManage: React.FC = () => {
     if (!activeSite) return;
     setIsSaving(true);
     try {
-      // 1. 유상옵션 문자열 요약
-      const paidNames = workingOptionItems
-        .filter(item => item.category === 'PAID' && item.isEnabled)
-        .map(item => item.name)
-        .join(', ');
-
-      // 2. 무상옵션(보양) 문자열 요약
-      const protItems = workingOptionItems.filter(item => 
-        item.category === 'PROTECTION' && 
-        item.isEnabled && 
-        !(item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음'))
-      );
-      const protName = protItems.length > 0 ? protItems.map(item => item.name).join(', ') : 'NONE';
-
-      // 3. 부착물 문자열 요약
-      const attachmentNames = workingOptionItems
-        .filter(item => item.category === 'ATTACHMENT' && item.isEnabled)
-        .map(item => item.name)
-        .join(', ');
-
-      // 4. 현장요구사양 맵 요약
-      const specsMap: Record<string, boolean> = {};
-      workingOptionItems
-        .filter(item => item.category === 'SPEC' && item.isEnabled)
-        .forEach(item => {
-          specsMap[item.optionId] = true;
-        });
-
+      const serialized = serializeOptionItems(workingOptionItems, activeSite.checkedSpecs);
       const linkedCount = (sitesByMasterMap.get(activeSite.id) || []).length;
 
       await saveSiteMaster(
         {
           id: activeSite.id,
           name: activeSite.name,
-          paidOptions: paidNames,
-          protection: protName,
-          attachments: attachmentNames,
-          checkedSpecs: specsMap,
+          paidOptions: serialized.paidOptions,
+          protection: serialized.protection,
+          attachments: serialized.attachments,
+          checkedSpecs: serialized.checkedSpecs,
           updatedAt: new Date().toISOString()
         },
         { propagateToLinkedSites }
@@ -610,6 +732,7 @@ export const SiteOptionManage: React.FC = () => {
         if (showMasterModal) setShowMasterModal(false);
         if (showQuickSiteModal) setShowQuickSiteModal(false);
         if (showEditSiteMasterModal) setShowEditSiteMasterModal(false);
+        if (showCopySiteMasterModal) setShowCopySiteMasterModal(false);
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -623,7 +746,7 @@ export const SiteOptionManage: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showMasterModal, showQuickSiteModal, showEditSiteMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
+  }, [showMasterModal, showQuickSiteModal, showEditSiteMasterModal, showCopySiteMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
 
   return (
     <div data-hs-observe="siteoptionmanage" 
@@ -665,10 +788,82 @@ export const SiteOptionManage: React.FC = () => {
         </div>
       )}
 
+      {/* 기존 옵션 그룹 통째 복사 모달 */}
+      {showCopySiteMasterModal && (
+        <div className="modal-overlay" onClick={() => setShowCopySiteMasterModal(false)} style={{ zIndex: 10000 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Copy size={16} color="var(--primary)" />
+                옵션 그룹 복사 등록
+              </h3>
+              <button type="button" onClick={() => setShowCopySiteMasterModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCopyMaster} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>복사 기준 옵션 그룹</label>
+                <select
+                  value={copySiteMasterForm.sourceId}
+                  onChange={e => {
+                    const nextId = e.target.value;
+                    const found = siteMasterMap.get(nextId);
+                    setCopySiteMasterForm(prev => ({
+                      ...prev,
+                      sourceId: nextId,
+                      sourceName: found?.name || '',
+                      newName: found ? `${found.name} ` : prev.newName,
+                      useWorkingOptions: nextId === selectedSiteId
+                    }));
+                  }}
+                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 700 }}
+                >
+                  {(siteMasters || []).map(sm => (
+                    <option key={sm.id} value={sm.id}>{sm.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {copySiteMasterForm.sourceId === selectedSiteId && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer', padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+                  <input
+                    type="checkbox"
+                    checked={copySiteMasterForm.useWorkingOptions}
+                    onChange={e => setCopySiteMasterForm(prev => ({ ...prev, useWorkingOptions: e.target.checked }))}
+                    style={{ width: '15px', height: '15px', cursor: 'pointer' }}
+                  />
+                  <span>현재 화면에서 체크·수정한 옵션 구성을 그대로 포함하여 복사</span>
+                </label>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>새로운 옵션 그룹명 *</label>
+                <input
+                  required
+                  autoFocus
+                  type="text"
+                  placeholder="예: 삼성반도체 표준옵션 - 협력업체명"
+                  value={copySiteMasterForm.newName}
+                  onChange={e => setCopySiteMasterForm(prev => ({ ...prev, newName: e.target.value }))}
+                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1.5px solid var(--primary)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 700 }}
+                />
+              </div>
+
+              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" onClick={() => setShowCopySiteMasterModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+                <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', border: '1px solid var(--primary)', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>복사 및 신규 등록</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 신규 옵션 그룹 등록 모달 (주소 필드 없음) */}
       {showQuickSiteModal && (
         <div className="modal-overlay" onClick={() => setShowQuickSiteModal(false)} style={{ zIndex: 10000 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px', padding: 0, overflow: 'hidden' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Layers size={16} color="var(--primary)" />
@@ -681,13 +876,35 @@ export const SiteOptionManage: React.FC = () => {
             
             <form onSubmit={handleSaveQuickSite} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>기존 옵션 그룹 복사</label>
+                <select
+                  value={quickSiteForm.copyFromMasterId || ''}
+                  onChange={e => {
+                    const srcId = e.target.value;
+                    const src = siteMasterMap.get(srcId);
+                    setQuickSiteForm(prev => ({
+                      ...prev,
+                      copyFromMasterId: srcId,
+                      name: (!prev.name.trim() && src) ? `${src.name} ` : prev.name
+                    }));
+                  }}
+                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
+                >
+                  <option value="">복사 안 함 — 빈 옵션 그룹으로 시작</option>
+                  {(siteMasters || []).map(sm => (
+                    <option key={sm.id} value={sm.id}>{sm.name} 옵션 통째 복사</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 (옵션 그룹명) *</label>
                 <input
                   required
                   type="text"
                   placeholder="예: 삼성반도체 표준옵션 / 현대건설 기본그룹"
                   value={quickSiteForm.name}
-                  onChange={e => setQuickSiteForm({ name: e.target.value })}
+                  onChange={e => setQuickSiteForm(prev => ({ ...prev, name: e.target.value }))}
                   style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }}
                 />
               </div>
@@ -943,7 +1160,7 @@ export const SiteOptionManage: React.FC = () => {
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
                   const attachmentCount = (site.attachments || '').split(',').map(s => s.trim()).filter(Boolean).length;
                   const specCount = site.checkedSpecs
-                    ? Object.entries(site.checkedSpecs).filter(([k, v]) => k !== '__attachments' && Boolean(v)).length
+                    ? Object.entries(site.checkedSpecs).filter(([k, v]) => !k.startsWith('__') && Boolean(v)).length
                     : 0;
                   const linkedCount = siteCustomerStatsMap[site.id]?.linkedSiteCount || 0;
 
@@ -963,18 +1180,44 @@ export const SiteOptionManage: React.FC = () => {
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
                         <span style={{
                           fontSize: '13px',
                           fontWeight: 800,
                           color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
                           whiteSpace: 'nowrap',
                           textOverflow: 'ellipsis',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          flex: 1
                         }}>
                           {site.name}
                         </span>
-                        <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleOpenCopyMaster(site, site.id === selectedSiteId);
+                            }}
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10.5px',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <Copy size={11} /> 복사
+                          </button>
+                          <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
+                        </div>
                       </div>
 
                       {/* 옵션 요약 뱃지 행 */}
@@ -1078,8 +1321,29 @@ export const SiteOptionManage: React.FC = () => {
                           )}
                         </div>
                         
-                        {/* 명칭 수정 및 삭제 버튼 영역 */}
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {/* 복사, 명칭 수정 및 삭제 버튼 영역 */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            data-mid="btn-copy-site-master"
+                            onClick={() => handleOpenCopyMaster(activeSite, true)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                              color: 'var(--primary)',
+                              border: '1px solid rgba(37, 99, 235, 0.35)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <Copy size={13} /> 옵션 그룹 복사
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleOpenEditMaster(activeSite)}
@@ -1471,6 +1735,28 @@ export const SiteOptionManage: React.FC = () => {
                         연결된 고객현장({siteCustomerStatsMap[activeSite.id]?.linkedSiteCount || 0}곳)에 옵션 일괄 반영
                       </label>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCopyMaster(activeSite, true)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--primary)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--primary)',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Copy size={14} />
+                      다른 이름으로 복사 등록
+                    </button>
 
                     <button data-hs-trigger="Save"
                       type="button"

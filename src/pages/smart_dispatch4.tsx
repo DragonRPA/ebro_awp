@@ -1493,7 +1493,55 @@ export const SmartDispatch4: React.FC = () => {
     }
   };
 
-  // DB 상속 (현장/고객 변경 시 담당자, 연락처, 마감일정 100% 자동 동기화)
+  // 🌟 고객사/현장 기준 운송료 청구기준('3/5' | '2/4') 자동 판별 헬퍼
+  const resolveSiteFreightBillingStandard = useCallback((cust: Customer | null, site: CustomerSite | null): '3/5' | '2/4' => {
+    // 1순위: 선택된 현장에 직접 저장된 운송료 청구기준
+    if (site) {
+      const siteStd = site.freightBillingStandard || (site.checkedSpecs && (site.checkedSpecs as any).__freightBillingStandard);
+      if (siteStd === '2/4' || siteStd === '3/5') return siteStd;
+
+      // 2순위: 해당 현장의 활성/종료 계약에 저장된 운송료 청구기준
+      const siteMeta = siteContractMetaMap.get(site.id);
+      const siteContract = siteMeta?.activeContract || siteMeta?.completedContract;
+      if (siteContract) {
+        if (siteContract.freightBillingStandard === '2/4' || siteContract.freightBillingStandard === '3/5') {
+          return siteContract.freightBillingStandard;
+        }
+        const relDels = (deliveries || []).filter(d => d && d.contractId === siteContract.id);
+        for (const d of relDels) {
+          if (d.cargoItems) {
+            try {
+              const parsed = JSON.parse(d.cargoItems);
+              const metaStd = Array.isArray(parsed)
+                ? parsed.find((ci: any) => ci?.requestMeta?.freightBillingStandard)?.requestMeta?.freightBillingStandard
+                : undefined;
+              if (metaStd === '2/4' || metaStd === '3/5') return metaStd;
+            } catch {}
+          }
+          const txt = `${d.memo || ''} ${d.rawText || ''}`;
+          if (txt.includes('[운송료청구기준] 2/4') || txt.includes('운송료청구기준: 2/4')) return '2/4';
+          if (txt.includes('[운송료청구기준] 3/5') || txt.includes('운송료청구기준: 3/5')) return '3/5';
+        }
+      }
+    }
+
+    // 3순위: 고객사 기본 운송료 청구기준 또는 동일 고객사의 최근 계약 운송료 청구기준
+    if (cust) {
+      const custStd = cust.defaultFreightBillingStandard || (cust.defaultCheckedSpecs && (cust.defaultCheckedSpecs as any).__freightBillingStandard);
+      if (custStd === '2/4' || custStd === '3/5') return custStd;
+
+      const custContractWithStd = (contracts || []).find(
+        c => c && c.customerId === cust.id && (c.freightBillingStandard === '2/4' || c.freightBillingStandard === '3/5')
+      );
+      if (custContractWithStd?.freightBillingStandard === '2/4' || custContractWithStd?.freightBillingStandard === '3/5') {
+        return custContractWithStd.freightBillingStandard;
+      }
+    }
+
+    return '3/5';
+  }, [siteContractMetaMap, deliveries, contracts]);
+
+  // DB 상속 (현장/고객 변경 시 담당자, 연락처, 마감일정, 운송료 청구기준 100% 자동 동기화)
   const applyInheritance = useCallback((cust: Customer | null, site: CustomerSite | null) => {
     if (!cust) {
       setContactPerson('');
@@ -1503,19 +1551,22 @@ export const SmartDispatch4: React.FC = () => {
       setClosingDay(30);
       setStatementClosingDay(25);
       setPaymentDueDay(15);
+      setFreightBillingStandard('3/5');
       setShowEditScheduleForExistingSite(false);
       return;
     }
     const custContacts = contacts.filter(c => c.customerId === cust.id && !isBlankContactVal(c.name));
     const primary = custContacts[0];
 
-    // 마감/결제일 상속 (현장 특약 1순위 -> 고객사 기본값 2순위)
+    // 마감/결제일 및 운송료 청구기준 상속 (현장 특약 1순위 -> 기존 계약 2순위 -> 고객사 기본값 3순위)
     const bDay = site?.billingDay || cust.defaultBillingDay || 30;
     const sDay = site?.statementClosingDay || cust.defaultStatementClosingDay || 25;
     const pDay = site?.paymentDueDay || cust.paymentDueDay || 15;
+    const fStd = resolveSiteFreightBillingStandard(cust, site);
     setClosingDay(bDay);
     setStatementClosingDay(sDay);
     setPaymentDueDay(pDay);
+    setFreightBillingStandard(fStd);
     setShowEditScheduleForExistingSite(false);
 
     if (site) {
@@ -1540,7 +1591,7 @@ export const SmartDispatch4: React.FC = () => {
       setContactPosition('');
       setContactEmail('');
     }
-  }, [contacts, getSiteRegisteredContact, isBlankContactVal]);
+  }, [contacts, getSiteRegisteredContact, isBlankContactVal, resolveSiteFreightBillingStandard]);
 
   const handleSelectCustomer = (cust: Customer) => {
     setSelectedCustomer(cust);
@@ -2515,8 +2566,10 @@ export const SmartDispatch4: React.FC = () => {
       setFreightBillingStandard(draft.freightBillingStandard);
     } else if (draft.note?.includes('[운송료청구기준] 2/4')) {
       setFreightBillingStandard('2/4');
-    } else {
+    } else if (draft.note?.includes('[운송료청구기준] 3/5')) {
       setFreightBillingStandard('3/5');
+    } else {
+      setFreightBillingStandard(resolveSiteFreightBillingStandard(matchedCustomer, matchedSiteObj));
     }
 
     
@@ -2640,7 +2693,13 @@ export const SmartDispatch4: React.FC = () => {
         statementClosingDay: draft.statementClosingDay,
         paymentDay: draft.paymentDueDay,
         paymentDueDay: draft.paymentDueDay,
-        freightBillingStandard: draft.freightBillingStandard || (draft.note?.includes('[운송료청구기준] 2/4') ? '2/4' : '3/5'),
+        freightBillingStandard:
+          draft.freightBillingStandard ||
+          (draft.note?.includes('[운송료청구기준] 2/4')
+            ? '2/4'
+            : draft.note?.includes('[운송료청구기준] 3/5')
+              ? '3/5'
+              : resolveSiteFreightBillingStandard(custObj || null, siteObj || null)),
       } as any, false);
 
       if (res && res.success) {
@@ -4225,15 +4284,17 @@ export const SmartDispatch4: React.FC = () => {
                           </button>
                         </div>
                         {!showEditScheduleForExistingSite ? (
-                          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800 flex-wrap">
                             <span className="text-slate-400">계산서: <strong className="text-white">{closingDay === 31 ? '말일' : `${closingDay}일`}</strong></span>
                             <span className="text-slate-600">|</span>
                             <span className="text-slate-400">명세서: <strong className="text-white">{statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`}</strong></span>
                             <span className="text-slate-600">|</span>
                             <span className="text-slate-400">결제: <strong className="text-emerald-400">{paymentDueDay === 31 ? '익월 말일' : `익월 ${paymentDueDay}일`}</strong></span>
+                            <span className="text-slate-600">|</span>
+                            <span className="text-slate-400">운송료 청구기준: <strong className="text-cyan-300">{freightBillingStandard} 기준</strong></span>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 p-2.5 bg-slate-950/60 rounded-xl border border-slate-800">
                             <div className="flex flex-col gap-1">
                               <label className="text-xs font-semibold text-slate-300">계산서 마감일</label>
                               <select
@@ -4268,6 +4329,17 @@ export const SmartDispatch4: React.FC = () => {
                                 {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                                   <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
                                 ))}
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-semibold text-slate-300">운송료 청구기준</label>
+                              <select
+                                className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500"
+                                value={freightBillingStandard}
+                                onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                              >
+                                <option value="3/5">3/5 기준 (기본)</option>
+                                <option value="2/4">2/4 기준</option>
                               </select>
                             </div>
                           </div>
@@ -5351,7 +5423,30 @@ export const SmartDispatch4: React.FC = () => {
                     return (
                       <label
                         key={item.id}
-                        onClick={() => setFreightBillingStandard(item.id)}
+                        onClick={async () => {
+                          setFreightBillingStandard(item.id);
+                          if (selectedSite && freightBillingStandard !== item.id) {
+                            try {
+                              const nextSpecs = {
+                                ...(selectedSite.checkedSpecs || {}),
+                                __freightBillingStandard: item.id,
+                              };
+                              db.updateRow<CustomerSite>('sites', selectedSite.id, {
+                                freightBillingStandard: item.id,
+                                checkedSpecs: nextSpecs,
+                                updatedAt: new Date().toISOString(),
+                              });
+                              await db.awaitPendingWrites();
+                              setSelectedSite(prev => prev ? {
+                                ...prev,
+                                freightBillingStandard: item.id,
+                                checkedSpecs: nextSpecs,
+                              } : prev);
+                              refreshAllData();
+                              showToast(`현장 '${selectedSite.name}'의 운송료 청구기준이 [${item.id} 기준]으로 자동 저장되었습니다.`, 'info');
+                            } catch {}
+                          }
+                        }}
                         className={`p-3 rounded-xl border cursor-pointer select-none transition flex flex-col gap-1.5 ${
                           checked
                             ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-sm'

@@ -162,6 +162,19 @@ export function inheritOptionsFromMaster(
       isEnabled = Boolean(currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name]));
     }
 
+    const rawMeta = currentSpecs && typeof currentSpecs.__optionMeta === 'object' && currentSpecs.__optionMeta !== null
+      ? (currentSpecs.__optionMeta[opt.id] || currentSpecs.__optionMeta[opt.name] || null)
+      : null;
+    const savedAppliedPrice = rawMeta && typeof rawMeta.appliedPrice === 'number' && !Number.isNaN(rawMeta.appliedPrice)
+      ? rawMeta.appliedPrice
+      : (opt.defaultPrice || 0);
+    const savedIsRequired = rawMeta && typeof rawMeta.isRequired === 'boolean'
+      ? rawMeta.isRequired
+      : false;
+    const savedNote = rawMeta && typeof rawMeta.note === 'string'
+      ? rawMeta.note
+      : '';
+
     return {
       id: `so-${siteId}-${opt.id}`,
       siteId,
@@ -169,11 +182,11 @@ export function inheritOptionsFromMaster(
       category: opt.category,
       name: opt.name,
       defaultPrice: opt.defaultPrice || 0,
-      appliedPrice: opt.defaultPrice || 0,
+      appliedPrice: savedAppliedPrice,
       unit: opt.unit || (opt.category === 'PAID' ? '월' : '건'),
       isEnabled,
-      isRequired: false,
-      note: ''
+      isRequired: savedIsRequired,
+      note: savedNote
     };
   });
 }

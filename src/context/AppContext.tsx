@@ -2444,15 +2444,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } as any);
     }
 
-    // 옵션 그룹을 상속받은 연결된 고객현장에 옵션만 일괄 전파 (현장명/주소는 절대 덮어쓰지 않음)
+    // 옵션 그룹을 상속받은 연결된 고객현장에 옵션만 일괄 전파 (현장명/주소/운송료청구기준은 절대 덮어쓰지 않음)
     if (options?.propagateToLinkedSites && savedMaster?.id) {
       const linkedSites = db.sites.filter(site => site.siteMasterId === savedMaster.id);
       for (const ls of linkedSites) {
+        const nextCheckedSpecs: Record<string, any> = savedMaster.checkedSpecs ? { ...savedMaster.checkedSpecs } : (ls.checkedSpecs || {});
+        if (ls.checkedSpecs && (ls.checkedSpecs as any).__freightBillingStandard && !nextCheckedSpecs.__freightBillingStandard) {
+          nextCheckedSpecs.__freightBillingStandard = (ls.checkedSpecs as any).__freightBillingStandard;
+        }
         db.updateRow<CustomerSite>('sites', ls.id, {
           paidOptions: savedMaster.paidOptions ?? ls.paidOptions ?? '',
           protection: savedMaster.protection ?? ls.protection ?? 'NONE',
           attachments: savedMaster.attachments ?? ls.attachments ?? '',
-          checkedSpecs: savedMaster.checkedSpecs ? { ...savedMaster.checkedSpecs } : (ls.checkedSpecs || {}),
+          checkedSpecs: nextCheckedSpecs,
           updatedAt: new Date().toISOString(),
         } as any);
       }
@@ -3169,12 +3173,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
         paymentDueDay: contractPaymentDueDay,
+        freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5',
         paidOptions: data.paidOptions !== undefined ? data.paidOptions : (selectedOptionGroup?.paidOptions || finalCustomer.defaultPaidOptions || ''),
         protection: data.protection !== undefined ? data.protection : (selectedOptionGroup?.protection || finalCustomer.defaultProtection || 'NONE'),
         attachments: data.attachments !== undefined ? data.attachments : (selectedOptionGroup?.attachments || finalCustomer.defaultAttachments || ''),
-        checkedSpecs: (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
-          ? data.checkedSpecs
-          : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {}),
+        checkedSpecs: {
+          ...((data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)
+            ? data.checkedSpecs
+            : (selectedOptionGroup?.checkedSpecs || finalCustomer.defaultCheckedSpecs || {})),
+          __freightBillingStandard: rawData.freightBillingStandard === '2/4' ? '2/4' : '3/5'
+        },
         createdAt: new Date().toISOString()
       });
     } else {
@@ -3250,6 +3258,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
+      if (rawData.freightBillingStandard === '2/4' || rawData.freightBillingStandard === '3/5') {
+        const nextFreightStd: '2/4' | '3/5' = rawData.freightBillingStandard;
+        const prevSiteStd = site.freightBillingStandard || (site.checkedSpecs && (site.checkedSpecs as any).__freightBillingStandard);
+        if (prevSiteStd !== nextFreightStd) {
+          siteUpdates.freightBillingStandard = nextFreightStd;
+          siteUpdates.checkedSpecs = {
+            ...(site.checkedSpecs || {}),
+            ...(siteUpdates.checkedSpecs || {}),
+            __freightBillingStandard: nextFreightStd
+          };
+        }
+      }
       // 🌟 [헌장 1.5] 옵션/보양/부착물/표준사양은 고객 현장에 직접 저장
       if (data.saveOptionsToSite !== false) {
         if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
@@ -3262,7 +3282,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           siteUpdates.attachments = data.attachments;
         }
         if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) {
-          siteUpdates.checkedSpecs = data.checkedSpecs;
+          siteUpdates.checkedSpecs = {
+            ...data.checkedSpecs,
+            ...(siteUpdates.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: siteUpdates.checkedSpecs.__freightBillingStandard } : (site.checkedSpecs?.__freightBillingStandard ? { __freightBillingStandard: site.checkedSpecs.__freightBillingStandard } : {}))
+          };
         }
       }
       if (Object.keys(siteUpdates).length > 0) {
@@ -3275,6 +3298,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 🌟 고객사 기본 옵션/보양 등록 및 전체 현장 일괄 전파 처리 (1회성 출고 적용 시에는 고객사 기본값 오염 방지)
     const custOptionUpdates: Partial<Customer> = {};
+    if (rawData.freightBillingStandard === '2/4' || rawData.freightBillingStandard === '3/5') {
+      if (!finalCustomer.defaultFreightBillingStandard) {
+        custOptionUpdates.defaultFreightBillingStandard = rawData.freightBillingStandard;
+        custOptionUpdates.defaultCheckedSpecs = {
+          ...(finalCustomer.defaultCheckedSpecs || {}),
+          __freightBillingStandard: rawData.freightBillingStandard
+        };
+      }
+    }
     if (data.saveOptionsToSite !== false) {
       if (data.isSetAsCustomerDefault || (!finalCustomer.defaultPaidOptions && data.paidOptions)) {
         if (data.paidOptions) custOptionUpdates.defaultPaidOptions = data.paidOptions;

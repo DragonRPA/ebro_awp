@@ -461,11 +461,16 @@ export const Contracts: React.FC = () => {
     return initialContractDateMap.get(c.id) || c.startDate || '-';
   };
 
-  // 💡 계약별 운송료 청구기준 산출 ('3/5' 기본 | '2/4')
+  // 💡 계약별 운송료 청구기준 산출 ('3/5' 기본 | '2/4') — 계약 ➔ 고객현장 ➔ 배차메타 순으로 조회
   const getContractFreightBillingStandard = (c?: Contract | null): '3/5' | '2/4' => {
     if (!c) return '3/5';
     if (c.freightBillingStandard === '2/4' || c.freightBillingStandard === '3/5') {
       return c.freightBillingStandard;
+    }
+    if (c.siteId) {
+      const siteObj = siteMap.get(c.siteId);
+      const siteStd = siteObj?.freightBillingStandard || (siteObj?.checkedSpecs && (siteObj.checkedSpecs as any).__freightBillingStandard);
+      if (siteStd === '2/4' || siteStd === '3/5') return siteStd;
     }
     const relDels = deliveriesByContractMap.get(c.id) || [];
     for (const d of relDels) {
@@ -481,6 +486,11 @@ export const Contracts: React.FC = () => {
       const txt = `${d.memo || ''} ${d.rawText || ''}`;
       if (txt.includes('[운송료청구기준] 2/4') || txt.includes('운송료청구기준: 2/4')) return '2/4';
       if (txt.includes('[운송료청구기준] 3/5') || txt.includes('운송료청구기준: 3/5')) return '3/5';
+    }
+    if (c.customerId) {
+      const custObj = customerMap.get(c.customerId);
+      const custStd = custObj?.defaultFreightBillingStandard || (custObj?.defaultCheckedSpecs && (custObj.defaultCheckedSpecs as any).__freightBillingStandard);
+      if (custStd === '2/4' || custStd === '3/5') return custStd;
     }
     return '3/5';
   };
@@ -3257,9 +3267,22 @@ export const Contracts: React.FC = () => {
                                   freightBillingStandard: stdOpt,
                                   updatedAt: new Date().toISOString()
                                 });
+                                if (activeContract.siteId) {
+                                  const targetSite = db.sites.find(s => s.id === activeContract.siteId);
+                                  if (targetSite) {
+                                    db.updateRow<CustomerSite>('sites', targetSite.id, {
+                                      freightBillingStandard: stdOpt,
+                                      checkedSpecs: {
+                                        ...(targetSite.checkedSpecs || {}),
+                                        __freightBillingStandard: stdOpt
+                                      },
+                                      updatedAt: new Date().toISOString()
+                                    });
+                                  }
+                                }
                                 await db.awaitPendingWrites();
                                 refreshAllData();
-                                showToast(`운송료 청구기준이 [${stdOpt} 기준]으로 변경되었습니다.`);
+                                showToast(`운송료 청구기준이 [${stdOpt} 기준]으로 변경 및 현장에 자동 저장되었습니다.`);
                               } catch (err: any) {
                                 showToast(`운송료 청구기준 변경 실패: ${err?.message || err}`, 'error');
                               }
