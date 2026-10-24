@@ -1127,6 +1127,133 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cancelledCleanupTriggered) {
         db.awaitPendingWrites().catch(err => console.error("Cancelled outbound cleanup sync error:", err));
       }
+
+      // 💡 [상차완료 ➔ 하차 예정일 자동 운송완료 및 계약/청구 개시일 동기화]
+      const nowLocal = new Date();
+      const todayLocalStr = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
+      let autoDeliverySyncTriggered = false;
+
+      db.deliveries.forEach(deliv => {
+        if (deliv.status === 'CANCELLED') return;
+        const isLoadedOrDelivered = Boolean(deliv.loadingCompletedAt) || deliv.status === 'DELIVERED' || (deliv.status as string) === 'COMPLETED';
+        if (!isLoadedOrDelivered) return;
+
+        const effUnload = (deliv.unloadingDate || deliv.loadingDate || deliv.scheduledDate || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(effUnload)) return;
+
+        // 1) 상차완료 상태에서 하차 예정일이 도래(오늘 이하)한 경우 자동으로 운송완료(DELIVERED) 전환
+        if (deliv.status === 'DISPATCHED' && deliv.loadingCompletedAt && effUnload <= todayLocalStr) {
+          db.updateRow<Delivery>('deliveries', deliv.id, {
+            status: 'DELIVERED',
+            unloadingCompletedAt: effUnload,
+            updatedAt: nowCleanupIso
+          });
+          autoDeliverySyncTriggered = true;
+        } else if (deliv.loadingCompletedAt && deliv.unloadingCompletedAt !== effUnload) {
+          db.updateRow<Delivery>('deliveries', deliv.id, {
+            unloadingCompletedAt: effUnload,
+            updatedAt: nowCleanupIso
+          });
+          autoDeliverySyncTriggered = true;
+        }
+
+        // 2) 출고/교환 배차의 경우 하차 예정일 = 운송 완료일 = 계약 개시일 = 청구 개시일 100% 일치 보장
+        const isOutboundLike =
+          deliv.type === 'OUTBOUND' ||
+          deliv.type === 'EXCHANGE' ||
+          deliv.dispatchCategory === '출고' ||
+          deliv.dispatchCategory === '교환';
+
+        if (isOutboundLike && deliv.contractId) {
+          const targetCaIds = new Set<string>();
+          if (deliv.cargoItems) {
+            try {
+              const parsed = typeof deliv.cargoItems === 'string' ? JSON.parse(deliv.cargoItems) : deliv.cargoItems;
+              if (Array.isArray(parsed)) {
+                parsed.forEach((ci: any) => {
+                  if (Array.isArray(ci?.contractAssetIds)) {
+                    ci.contractAssetIds.forEach((id: string) => {
+                      if (id) targetCaIds.add(id);
+                    });
+                  }
+                });
+              }
+            } catch {}
+          }
+          db.outboundInspections
+            .filter(ins => ins.deliveryId === deliv.id && ins.contractAssetId)
+            .forEach(ins => {
+              if (ins.contractAssetId) targetCaIds.add(ins.contractAssetId);
+            });
+
+          if (targetCaIds.size === 0) {
+            const siblingOutbounds = db.deliveries.filter(
+              d => d.contractId === deliv.contractId && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE')
+            );
+            if (siblingOutbounds.length === 1) {
+              db.contractAssets
+                .filter(ca => ca.contractId === deliv.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD')
+                .forEach(ca => targetCaIds.add(ca.id));
+            }
+          }
+
+          targetCaIds.forEach(caId => {
+            const caObj = db.contractAssets.find(c => c.id === caId && c.contractId === deliv.contractId);
+            if (!caObj) return;
+            const loadStr = (deliv.loadingDate || deliv.scheduledDate || '').slice(0, 10);
+            const shouldSyncFirstStart =
+              !caObj.firstStartDate ||
+              caObj.firstStartDate === caObj.startDate ||
+              caObj.firstStartDate === loadStr;
+            if (caObj.startDate !== effUnload || (shouldSyncFirstStart && caObj.firstStartDate !== effUnload)) {
+              db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+                startDate: effUnload,
+                ...(shouldSyncFirstStart ? { firstStartDate: effUnload } : {})
+              });
+              autoDeliverySyncTriggered = true;
+            }
+            if (caObj.assetId) {
+              const assetObj = db.assets.find(a => a.id === caObj.assetId);
+              if (assetObj && assetObj.status === 'RENTED' && assetObj.currentCustomerId && assetObj.contractStart !== effUnload) {
+                db.updateRow<Asset>('assets', assetObj.id, {
+                  contractStart: effUnload
+                });
+                autoDeliverySyncTriggered = true;
+              }
+            }
+          });
+
+          db.assetInOutLogs
+            .filter(l => l.deliveryId === deliv.id && l.type === 'OUTBOUND' && l.eventDate !== effUnload)
+            .forEach(l => {
+              db.updateRow<AssetInOutLog>('asset_inout_logs', l.id, {
+                eventDate: effUnload
+              });
+              autoDeliverySyncTriggered = true;
+            });
+
+          const parentContract = db.contracts.find(c => c.id === deliv.contractId);
+          if (parentContract) {
+            const activeCas = db.contractAssets.filter(
+              c => c.contractId === parentContract.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.startDate
+            );
+            const earliestStart = activeCas.map(c => c.startDate).filter(Boolean).sort()[0] || effUnload;
+            const needStatusActive = parentContract.status !== 'COMPLETED' && parentContract.status !== 'ACTIVE' && parentContract.status !== 'EXTENDED';
+            if (parentContract.startDate !== earliestStart || needStatusActive) {
+              db.updateRow<Contract>('contracts', parentContract.id, {
+                startDate: earliestStart,
+                ...(needStatusActive ? { status: 'ACTIVE' } : {}),
+                updatedAt: nowCleanupIso
+              });
+              autoDeliverySyncTriggered = true;
+            }
+          }
+        }
+      });
+
+      if (autoDeliverySyncTriggered) {
+        db.awaitPendingWrites().catch(err => console.error("Auto delivery unloading sync error:", err));
+      }
     }
 
     // 진짜 개발자 계정만 '개발자'로 정규화 (사장/부사장 등 최고관리자 성명 보존)
@@ -3824,7 +3951,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return m ? m[0] : (tStr.includes(' ') ? tStr.split(' ')[1] : '오전');
     };
     const loadingTimeSlotStr = getTimeSlot(data.loadingTime);
-    const unloadingDateStr = extractDate(data.unloadingTime) || contract.startDate;
+    const unloadingDateStr = extractDate(data.unloadingTime) || loadingDateStr || targetStartDate || contract.startDate;
     const unloadingTimeSlotStr = getTimeSlot(data.unloadingTime);
 
     const isExchangeDelivery = dData.type === 'EXCHANGE' || dData.context?.includes('EXCHANGE') || dData.rawText?.includes('교환');
@@ -4804,6 +4931,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           }
         });
+
+        db.assetInOutLogs
+          .filter(l => l.deliveryId === targetDelivery.id && l.type === 'OUTBOUND' && l.eventDate !== nextUnloadingDate)
+          .forEach(l => {
+            db.updateRow<AssetInOutLog>('asset_inout_logs', l.id, {
+              eventDate: nextUnloadingDate
+            });
+          });
 
         if (targetDelivery.contractId) {
           const parentContract = db.contracts.find(c => c.id === targetDelivery.contractId);
@@ -11421,21 +11556,87 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    const nowIso = new Date().toISOString();
-    // [헌장 1.3 준수] 배차 단계에서는 배차 상태만 마감 처리하며,
-    // 자산 상태 전환 및 입출고 실적 로그 기록은
-    // 오직 [출고 검수 승인] 및 [입고 검수 등록] 시점에만 해당 대상 장비에 대해 1:1로 수행한다.
+    const nowObj = new Date();
+    const nowIso = nowObj.toISOString();
+    const todayLocalStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-${String(nowObj.getDate()).padStart(2, '0')}`;
+    const effectiveUnloadingDate = (delivery.unloadingDate || delivery.loadingDate || delivery.scheduledDate || todayLocalStr).slice(0, 10);
+
+    // [헌장 1.3 준수 & 상차완료 ➔ 하차 예정일 자동 운송완료]:
+    // 상차완료 시 하차 예정일(effectiveUnloadingDate)이 오늘 이하이면 즉시 DELIVERED로 마감하고,
+    // 미래 하차 예정일이면 loadingCompletedAt 및 unloadingCompletedAt(하차예정일)을 기록하여 하차 예정일에 자동 DELIVERED 전환되도록 한다.
+    // 동시에 하차 예정일 = 운송 완료일 = 계약 개시일 = 청구 개시일로 체결자산/장비/입출고로그/계약 개시일을 100% 일치시킨다.
     db.updateRow<Delivery>('deliveries', deliveryId, {
-      status: 'DELIVERED',
+      status: effectiveUnloadingDate <= todayLocalStr ? 'DELIVERED' : 'DISPATCHED',
       loadingCompletedAt: delivery.loadingCompletedAt || nowIso,
+      unloadingCompletedAt: effectiveUnloadingDate,
       updatedAt: nowIso
     });
 
-    if ((delivery.type === 'OUTBOUND' || delivery.type === 'EXCHANGE') && delivery.contractId) {
+    if (isOutboundLike && delivery.contractId) {
+      const syncCaIds = new Set<string>();
+      if (delivery.cargoItems) {
+        try {
+          const parsed = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+          if (Array.isArray(parsed)) {
+            parsed.forEach((ci: any) => {
+              if (Array.isArray(ci?.contractAssetIds)) {
+                ci.contractAssetIds.forEach((id: string) => {
+                  if (id) syncCaIds.add(id);
+                });
+              }
+            });
+          }
+        } catch {}
+      }
+      db.outboundInspections
+        .filter(ins => ins.deliveryId === delivery.id && ins.contractAssetId)
+        .forEach(ins => {
+          if (ins.contractAssetId) syncCaIds.add(ins.contractAssetId);
+        });
+
+      if (syncCaIds.size === 0) {
+        db.contractAssets
+          .filter(ca => ca.contractId === delivery.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD')
+          .forEach(ca => syncCaIds.add(ca.id));
+      }
+
+      const loadDateStr = (delivery.loadingDate || delivery.scheduledDate || '').slice(0, 10);
+      syncCaIds.forEach(caId => {
+        const caObj = db.contractAssets.find(c => c.id === caId && c.contractId === delivery.contractId);
+        if (!caObj) return;
+        const shouldSyncFirstStart =
+          !caObj.firstStartDate ||
+          caObj.firstStartDate === caObj.startDate ||
+          caObj.firstStartDate === loadDateStr;
+        db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+          startDate: effectiveUnloadingDate,
+          ...(shouldSyncFirstStart ? { firstStartDate: effectiveUnloadingDate } : {})
+        });
+        if (caObj.assetId) {
+          db.updateRow<Asset>('assets', caObj.assetId, {
+            contractStart: effectiveUnloadingDate
+          });
+        }
+      });
+
+      db.assetInOutLogs
+        .filter(l => l.deliveryId === delivery.id && l.type === 'OUTBOUND')
+        .forEach(l => {
+          db.updateRow<AssetInOutLog>('asset_inout_logs', l.id, {
+            eventDate: effectiveUnloadingDate
+          });
+        });
+
       const contract = db.contracts.find(c => c.id === delivery.contractId);
-      if (contract && contract.status !== 'COMPLETED' && contract.status !== 'ACTIVE') {
+      if (contract) {
+        const activeCas = db.contractAssets.filter(
+          c => c.contractId === contract.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.startDate
+        );
+        const earliestStart = activeCas.map(c => c.startDate).filter(Boolean).sort()[0] || effectiveUnloadingDate;
+        const nextContractStatus = (contract.status !== 'COMPLETED' && contract.status !== 'EXTENDED') ? 'ACTIVE' : contract.status;
         db.updateRow<Contract>('contracts', delivery.contractId, {
-          status: 'ACTIVE',
+          startDate: earliestStart,
+          status: nextContractStatus,
           updatedAt: nowIso
         });
       }

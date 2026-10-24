@@ -116,11 +116,22 @@ export const getEffectiveDeliveryCost = (d?: Delivery | null): number => {
 };
 
 // 1. 배차 4단계 진행 상태 판정 헬퍼 (컴포넌트 외부 배치로 TDZ 호이스팅 오류 원천 방어)
+// 💡 상차완료(loadingCompletedAt) 상태에서 하차 예정일이 도래(오늘 이하)한 경우 자동으로 운송완료(DELIVERED)로 판정
 export const getNormalizedDeliveryStatus = (d?: Delivery | null): 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED' => {
   if (!d) return 'PENDING';
-  if (d.status === 'DISPATCHED') return 'DISPATCHED';
   if (d.status === 'DELIVERED' || d.status === 'COMPLETED') return 'DELIVERED';
   if (d.status === 'CANCELLED') return 'CANCELLED';
+  if (d.status === 'DISPATCHED') {
+    if (d.loadingCompletedAt) {
+      const nowObj = new Date();
+      const todayLocalStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-${String(nowObj.getDate()).padStart(2, '0')}`;
+      const effUnload = (d.unloadingDate || d.loadingDate || d.scheduledDate || '').slice(0, 10);
+      if (!effUnload || effUnload <= todayLocalStr) {
+        return 'DELIVERED';
+      }
+    }
+    return 'DISPATCHED';
+  }
   return 'PENDING';
 };
 
@@ -4184,7 +4195,7 @@ export const TruckDispatch: React.FC = () => {
           });
         }
 
-        if (unloadingDate !== prevUnloadDate && selectedDelivery.contractId) {
+        if (unloadingDate && selectedDelivery.contractId && (selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환')) {
           const targetCaIds = new Set<string>();
           parsedCargoForSync.forEach(ci => {
             if (Array.isArray(ci?.contractAssetIds)) {
@@ -4203,7 +4214,7 @@ export const TruckDispatch: React.FC = () => {
                 ca.contractId === selectedDelivery.contractId &&
                 ca.status !== 'RETURNED' &&
                 ca.status !== 'SOLD' &&
-                (!ca.startDate || ca.startDate === prevUnloadDate || ca.startDate === prevLoadDate)
+                (!ca.startDate || ca.startDate === prevUnloadDate || ca.startDate === prevLoadDate || ca.startDate === loadingDate)
               )
               .forEach(ca => targetCaIds.add(ca.id));
           }
@@ -4215,7 +4226,8 @@ export const TruckDispatch: React.FC = () => {
               !caObj.firstStartDate ||
               caObj.firstStartDate === caObj.startDate ||
               caObj.firstStartDate === prevUnloadDate ||
-              caObj.firstStartDate === prevLoadDate;
+              caObj.firstStartDate === prevLoadDate ||
+              caObj.firstStartDate === loadingDate;
             db.updateRow<ContractAsset>('contractAssets', caObj.id, {
               startDate: unloadingDate,
               ...(shouldSyncFirstStart ? { firstStartDate: unloadingDate } : {})
@@ -4226,6 +4238,14 @@ export const TruckDispatch: React.FC = () => {
               });
             }
           });
+
+          db.assetInOutLogs
+            .filter(l => l.deliveryId === selectedDelivery.id && l.type === 'OUTBOUND')
+            .forEach(l => {
+              db.updateRow<any>('asset_inout_logs', l.id, {
+                eventDate: unloadingDate
+              });
+            });
 
           const parentContract = db.contracts.find(c => c.id === selectedDelivery.contractId);
           if (parentContract) {
@@ -4239,13 +4259,15 @@ export const TruckDispatch: React.FC = () => {
                 updatedAt: new Date().toISOString()
               });
             }
-            db.insertRow<ContractHistory>('contractHistory', {
-              contractId: parentContract.id,
-              changeType: 'FEE_CHANGE',
-              changeDate: new Date().toISOString().split('T')[0],
-              description: `[배차/운송 일정 변경] 배차 ${selectedDelivery.id}: 하차일(계약개시일) [${prevUnloadDate || '-'} ➔ ${unloadingDate}] 자동 동기화 (처리자: ${currentUser?.name || '담당자'})`,
-              createdAt: new Date().toISOString()
-            });
+            if (unloadingDate !== prevUnloadDate) {
+              db.insertRow<ContractHistory>('contractHistory', {
+                contractId: parentContract.id,
+                changeType: 'FEE_CHANGE',
+                changeDate: new Date().toISOString().split('T')[0],
+                description: `[배차/운송 일정 변경] 배차 ${selectedDelivery.id}: 하차일(계약개시일) [${prevUnloadDate || '-'} ➔ ${unloadingDate}] 자동 동기화 (처리자: ${currentUser?.name || '담당자'})`,
+                createdAt: new Date().toISOString()
+              });
+            }
           }
         }
       }
@@ -4389,7 +4411,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 4-A. 상차 완료 처리 (status: 'DISPATCHED' 유지 + loadingCompletedAt 기록) — 묶음 내 각 건별 개별 상차완료 지원
+  // 4-A. 상차 완료 처리 (상차완료 = 하차 예정일 기준 운송완료 및 계약·청구 개시 확정) — 묶음 내 각 건별 개별 상차완료 지원
   const handleCompleteLoadingStatus = async (deliveryId: string) => {
     if (!canSave) return;
 
@@ -4408,25 +4430,78 @@ export const TruckDispatch: React.FC = () => {
     }
 
     try {
-      const nowIso = new Date().toISOString();
-      db.updateRow<Delivery>('deliveries', deliveryId, {
-        status: 'DISPATCHED',
-        loadingCompletedAt: nowIso,
-        updatedAt: nowIso
+      const nowObj = new Date();
+      const nowIso = nowObj.toISOString();
+      const todayLocalStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-${String(nowObj.getDate()).padStart(2, '0')}`;
+      const effectiveUnloadingDate = (
+        targetDelivery.unloadingDate ||
+        targetDelivery.loadingDate ||
+        targetDelivery.scheduledDate ||
+        todayLocalStr
+      ).slice(0, 10);
+      const nextStatus: Delivery['status'] = effectiveUnloadingDate <= todayLocalStr ? 'DELIVERED' : 'DISPATCHED';
+
+      const origCat = getOriginalDeliveryCategoryLabel(targetDelivery);
+      const isSimpleTransit = targetDelivery.type === 'INBOUND'
+        || targetDelivery.type === 'MOVEMENT'
+        || origCat === '입고'
+        || origCat === '반납'
+        || origCat === '이동';
+
+      if (isSimpleTransit) {
+        // [헌장 1.3] INBOUND/MOVEMENT 상차완료 = 하차예정일 기준 운송완료(DELIVERED) 처리.
+        // 자산 상태(RENTED → AVAILABLE) 전환은 입고검수 화면에서만 수행한다.
+        db.updateRow<Delivery>('deliveries', deliveryId, {
+          status: nextStatus,
+          loadingCompletedAt: nowIso,
+          unloadingCompletedAt: effectiveUnloadingDate,
+          updatedAt: nowIso
+        });
+        await db.awaitPendingWrites();
+      } else {
+        // OUTBOUND / EXCHANGE: completeDelivery 내부에서 하차예정일 = 계약개시일 = 청구개시일 100% 동기화 및 상태 전환 수행
+        await completeDelivery(deliveryId);
+      }
+
+      // [업무 인계 파이프라인] 운송 관련 ToDo 상계
+      await clearHandoverTasks({
+        entityId: deliveryId,
+        completionAction: 'DELIVERED',
+        completedByUserId: currentUser?.id,
+        completedByName: currentUser?.name
       });
-      await db.awaitPendingWrites();
+
+      // [업무 인계 파이프라인] 영업담당자에게 상차 및 현장 하차 안착 안내 ToDo 발행
+      const targetContract = targetDelivery.contractId ? contracts.find(c => c.id === targetDelivery.contractId) : null;
+      await issueHandoverTask({
+        category: 'SITE_ARRIVAL_CONFIRM',
+        title: `[상차/운송 완료] ${targetDelivery.destinationAddress || '현장'} (${effectiveUnloadingDate} 하차)`,
+        content: `상차 완료 처리되어 하차예정일(${effectiveUnloadingDate}) 기준으로 운송 완료 및 계약·청구 개시가 확정되었습니다.`,
+        targetDept: 'SALES',
+        assignedUserId: targetContract?.salespersonId,
+        priority: 'HIGH',
+        actionUrl: '/admin/contract',
+        entityType: 'DELIVERY',
+        entityId: deliveryId,
+        senderId: currentUser?.id,
+        senderName: currentUser?.name
+      });
 
       refreshAllData();
       if (selectedDelivery && selectedDelivery.id === deliveryId) {
         setSelectedDelivery({
           ...selectedDelivery,
-          status: 'DISPATCHED',
+          status: nextStatus,
           loadingCompletedAt: nowIso,
+          unloadingCompletedAt: effectiveUnloadingDate,
           updatedAt: nowIso
         });
       }
-      const origCat = getOriginalDeliveryCategoryLabel(targetDelivery);
-      showToast(`상차 완료 처리되었습니다. (${origCat} · 운송중 — 하차 후 [운송완료]를 눌러 마감하십시오)`);
+      if (effectiveUnloadingDate <= todayLocalStr) {
+        showToast(`상차 완료 처리되어 하차예정일(${effectiveUnloadingDate}) 기준으로 운송완료 및 계약·청구 개시가 확정되었습니다.`);
+      } else {
+        showToast(`상차 완료 처리되었습니다. 하차예정일(${effectiveUnloadingDate})에 자동 운송완료되며 계약·청구 개시일이 ${effectiveUnloadingDate}로 확정되었습니다.`);
+      }
     } catch (err: any) {
       showErrorModal(`상차 완료 처리 실패:\n${err?.message || err}`);
     }
@@ -4443,6 +4518,7 @@ export const TruckDispatch: React.FC = () => {
       db.updateRow<Delivery>('deliveries', deliveryId, {
         status: 'DISPATCHED',
         loadingCompletedAt: null as any,
+        unloadingCompletedAt: null as any,
         updatedAt: nowIso
       });
       await db.awaitPendingWrites();
@@ -4453,6 +4529,7 @@ export const TruckDispatch: React.FC = () => {
           ...selectedDelivery,
           status: 'DISPATCHED',
           loadingCompletedAt: undefined,
+          unloadingCompletedAt: undefined,
           updatedAt: nowIso
         });
       }
@@ -4462,96 +4539,9 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 4-C. 운송 완료 처리 (status: 'DELIVERED') — 묶음 내 각 건별 개별 운송완료 지원
+  // 4-C. 하위 호환용 운송 완료 호출 시 상차 완료(하차예정일 기준 운송완료)와 동일하게 처리
   const handleCompleteDeliveryStatus = async (deliveryId: string) => {
-    if (!canSave) return;
-
-    const targetDelivery = deliveries.find(d => d.id === deliveryId);
-    if (targetDelivery) {
-      const readiness = checkDeliveryOutboundReadiness(targetDelivery);
-      if (readiness.isOutboundLike && !readiness.ready) {
-        showErrorModal(
-          `출고 절차가 완료되지 않아 운송 완료 마감을 진행할 수 없습니다.\n\n` +
-          `• 사유: ${readiness.reason}\n\n` +
-          `반드시 [장비 할당] ➔ [출고 검수 승인]을 먼저 완료해 주십시오.`,
-          '운송 완료 처리 불가 (선행 절차 미완료)'
-        );
-        return;
-      }
-    }
-
-    try {
-      const nowIso = new Date().toISOString();
-      const origCat = getOriginalDeliveryCategoryLabel(targetDelivery);
-      const isSimpleTransit = targetDelivery?.type === 'INBOUND'
-        || targetDelivery?.type === 'MOVEMENT'
-        || origCat === '입고'
-        || origCat === '반납'
-        || origCat === '이동';
-
-      const effectiveLoadingAt = targetDelivery?.loadingCompletedAt || nowIso;
-
-      if (isSimpleTransit) {
-        // [헌장 1.3] INBOUND/MOVEMENT 배차 완료 = 배차 상태만 DELIVERED로 기록.
-        // 자산 상태(RENTED → AVAILABLE) 전환은 입고검수 화면에서만 수행한다.
-        // completeInboundDelivery를 여기서 호출하지 않는다.
-        db.updateRow<Delivery>('deliveries', deliveryId, {
-          status: 'DELIVERED',
-          loadingCompletedAt: effectiveLoadingAt,
-          updatedAt: nowIso
-        });
-        await db.awaitPendingWrites();
-      } else {
-        // OUTBOUND / EXCHANGE: completeDelivery — 출고 이력 추가 + 계약 ACTIVE 전환.
-        // 자산 상태는 변경하지 않음 (출고 검수 승인 시점에 RENTED 전환 — 헌장 1.3).
-        await completeDelivery(deliveryId);
-        // 출고팀 상차완료 일시 보존 및 운송완료 상태 명시 기록
-        db.updateRow<Delivery>('deliveries', deliveryId, {
-          status: 'DELIVERED',
-          loadingCompletedAt: effectiveLoadingAt,
-          updatedAt: nowIso
-        });
-        await db.awaitPendingWrites();
-      }
-
-      // [업무 인계 파이프라인] 운송 관련 ToDo 상계
-      await clearHandoverTasks({
-        entityId: deliveryId,
-        completionAction: 'DELIVERED',
-        completedByUserId: currentUser?.id,
-        completedByName: currentUser?.name
-      });
-
-      // [업무 인계 파이프라인] 영업담당자에게 현장 도착 완료 ToDo 발행
-      const targetContract = targetDelivery?.contractId ? contracts.find(c => c.id === targetDelivery.contractId) : null;
-      await issueHandoverTask({
-        category: 'SITE_ARRIVAL_CONFIRM',
-        title: `[현장 도착 완료] ${targetDelivery?.destinationAddress || '현장'} 하차 안착`,
-        content: `장비가 현장에 도착하여 하차가 완료되었습니다. 고객 인수증 수령 및 가동 개시를 확인하십시오.`,
-        targetDept: 'SALES',
-        assignedUserId: targetContract?.salespersonId,
-        priority: 'HIGH',
-        actionUrl: '/admin/contract',
-        entityType: 'DELIVERY',
-        entityId: deliveryId,
-        senderId: currentUser?.id,
-        senderName: currentUser?.name
-      });
-
-      refreshAllData();
-      if (selectedDelivery && selectedDelivery.id === deliveryId) {
-        setSelectedDelivery({
-          ...selectedDelivery,
-          status: 'DELIVERED',
-          loadingCompletedAt: effectiveLoadingAt,
-          updatedAt: nowIso
-        });
-      }
-      const resolvedCat = getOriginalDeliveryCategoryLabel(targetDelivery);
-      showToast(`운송이 완료 마감되었습니다. (${resolvedCat} · 운송완료)`);
-    } catch (err: any) {
-      showErrorModal(`운송 완료 처리 실패:\n${err?.message || err}`);
-    }
+    await handleCompleteLoadingStatus(deliveryId);
   };
 
   // 5. 배차 취소 처리 (DISPATCHED ➔ REQUESTED 배차대기 원복 및 차량·기사 배정 해제)
@@ -4659,6 +4649,7 @@ export const TruckDispatch: React.FC = () => {
       db.updateRow<Delivery>('deliveries', deliveryId, {
         status: 'DISPATCHED',
         loadingCompletedAt: null as any,
+        unloadingCompletedAt: null as any,
         updatedAt: nowIso
       });
       await db.awaitPendingWrites();
@@ -4669,10 +4660,11 @@ export const TruckDispatch: React.FC = () => {
           ...selectedDelivery,
           status: 'DISPATCHED',
           loadingCompletedAt: undefined,
+          unloadingCompletedAt: undefined,
           updatedAt: nowIso
         });
       }
-      showToast('운송 완료가 취소되어 [배차 완료] 상태로 되돌아갔습니다. 선행 절차(장비 할당 ➔ 출고 검수 승인)를 완료한 후 다시 운송 완료 처리해 주십시오.');
+      showToast('상차/운송 완료가 취소되어 [배차 완료] 상태로 원복되었습니다.');
     } catch (err: any) {
       showErrorModal(`운송 완료 취소 실패:\n${err?.message || err}`);
     }
@@ -4928,7 +4920,8 @@ export const TruckDispatch: React.FC = () => {
         return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Clock size={12} /> 🟡 배차 전 (대기)</span>;
       case 'DISPATCHED':
         if (delivery?.loadingCompletedAt) {
-          return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.16)', color: '#d97706', border: '1px solid rgba(217,119,6,0.38)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Truck size={12} /> 🟠 상차 완료 (운송중)</span>;
+          const unloadShort = (delivery.unloadingDate || delivery.loadingDate || delivery.scheduledDate || '').slice(5, 10);
+          return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 800, backgroundColor: 'rgba(217,119,6,0.16)', color: '#d97706', border: '1px solid rgba(217,119,6,0.38)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Truck size={12} /> 🟠 상차 완료 ({unloadShort ? `${unloadShort} 하차예정 자동완료` : '자동완료 대기'})</span>;
         }
         return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}><Truck size={12} /> 🔵 배차 완료 (기사배정)</span>;
       case 'DELIVERED':
@@ -5628,7 +5621,7 @@ export const TruckDispatch: React.FC = () => {
                               const isLoaded = Boolean(d.loadingCompletedAt);
                               return (
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                  {isLoaded && (
+                                  {isLoaded ? (
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -5653,38 +5646,35 @@ export const TruckDispatch: React.FC = () => {
                                     >
                                       <RotateCcw size={10} /> 상차취소
                                     </button>
-                                  )}
-                                  <button data-hs-trigger="Process"
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (isLoaded) {
-                                        handleCompleteDeliveryStatus(d.id);
-                                      } else {
+                                  ) : (
+                                    <button data-hs-trigger="Process"
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         handleCompleteLoadingStatus(d.id);
-                                      }
-                                    }}
-                                    style={{
-                                      padding: '3px 8px',
-                                      fontSize: '11px',
-                                      fontWeight: 800,
-                                      backgroundColor: isBlocked ? '#64748b' : (isLoaded ? 'var(--success)' : '#d97706'),
-                                      color: '#fff',
-                                      border: 'none',
-                                      borderRadius: '5px',
-                                      cursor: isBlocked ? 'not-allowed' : 'pointer',
-                                      opacity: isBlocked ? 0.65 : 1,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                    title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : (isLoaded ? `${getDeliveryCompletionActionLabel(d)} 처리` : '상차완료 처리 (주기장/현장 상차 완료 기록)')}
-                                  >
-                                    <CheckCircle size={11} />
-                                    {isBlocked ? '검수대기 (처리불가)' : (isLoaded ? getDeliveryCompletionActionLabel(d) : '상차완료')}
-                                  </button>
+                                      }}
+                                      style={{
+                                        padding: '3px 8px',
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        backgroundColor: isBlocked ? '#64748b' : '#d97706',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                        opacity: isBlocked ? 0.65 : 1,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : '상차완료 처리 (하차 예정일에 자동 운송완료 및 계약·청구 개시 확정)'}
+                                    >
+                                      <CheckCircle size={11} />
+                                      {isBlocked ? '검수대기 (처리불가)' : '상차완료'}
+                                    </button>
+                                  )}
                                 </div>
                               );
                             })()}
@@ -6147,7 +6137,7 @@ export const TruckDispatch: React.FC = () => {
 
                                         {canSave && (
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                                            {/* 묶음 경유지 개별 상차완료 / 운송완료 인라인 버튼 */}
+                                            {/* 묶음 경유지 개별 상차완료 인라인 버튼 (하차 예정일 자동 운송완료) */}
                                             {sNormSt === 'DISPATCHED' && !sIsLoaded && (
                                               <button
                                                 type="button"
@@ -6164,7 +6154,7 @@ export const TruckDispatch: React.FC = () => {
                                                   opacity: sIsBlocked ? 0.65 : 1,
                                                   whiteSpace: 'nowrap'
                                                 }}
-                                                title={sIsBlocked ? `선행 절차 미완료 (${sReadiness.reason})` : '이 경유지 건만 상차완료 처리'}
+                                                title={sIsBlocked ? `선행 절차 미완료 (${sReadiness.reason})` : '이 경유지 건만 상차완료 처리 (하차 예정일 자동 운송완료)'}
                                               >
                                                 {sIsBlocked ? '검수대기' : '상차완료'}
                                               </button>
@@ -6172,22 +6162,21 @@ export const TruckDispatch: React.FC = () => {
                                             {sNormSt === 'DISPATCHED' && sIsLoaded && (
                                               <button
                                                 type="button"
-                                                onClick={() => handleCompleteDeliveryStatus(stopItem.id)}
+                                                onClick={() => handleRevertLoadingStatus(stopItem.id)}
                                                 style={{
-                                                  padding: '3px 8px',
+                                                  padding: '3px 7px',
                                                   borderRadius: '5px',
-                                                  border: 'none',
-                                                  backgroundColor: sIsBlocked ? '#64748b' : 'var(--success)',
-                                                  color: '#ffffff',
-                                                  fontSize: '11px',
+                                                  border: '1px solid rgba(217,119,6,0.35)',
+                                                  backgroundColor: 'rgba(217,119,6,0.12)',
+                                                  color: '#d97706',
+                                                  fontSize: '10.5px',
                                                   fontWeight: 800,
-                                                  cursor: sIsBlocked ? 'not-allowed' : 'pointer',
-                                                  opacity: sIsBlocked ? 0.65 : 1,
+                                                  cursor: 'pointer',
                                                   whiteSpace: 'nowrap'
                                                 }}
-                                                title={sIsBlocked ? `선행 절차 미완료 (${sReadiness.reason})` : `이 경유지 건만 ${getDeliveryCompletionActionLabel(stopItem)} 처리`}
+                                                title="이 경유지 건만 상차완료 취소"
                                               >
-                                                {sIsBlocked ? '검수대기' : getDeliveryCompletionActionLabel(stopItem)}
+                                                상차취소
                                               </button>
                                             )}
                                             {sNormSt === 'DELIVERED' && (
@@ -6999,60 +6988,75 @@ export const TruckDispatch: React.FC = () => {
                               const readiness = checkDeliveryOutboundReadiness(selectedDelivery);
                               const isBlocked = readiness.isOutboundLike && !readiness.ready;
                               const isLoaded = Boolean(selectedDelivery.loadingCompletedAt);
+                              const unloadDateText = (selectedDelivery.unloadingDate || selectedDelivery.loadingDate || selectedDelivery.scheduledDate || '').slice(0, 10);
                               return (
                                 <>
-                                  {isLoaded && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRevertLoadingStatus(selectedDelivery.id)}
-                                      style={{
+                                  {isLoaded ? (
+                                    <>
+                                      <span style={{
                                         padding: '7px 12px',
                                         borderRadius: '6px',
-                                        backgroundColor: 'rgba(217,119,6,0.12)',
-                                        color: '#d97706',
-                                        border: '1px solid rgba(217,119,6,0.35)',
+                                        backgroundColor: 'rgba(16,185,129,0.12)',
+                                        color: '#059669',
+                                        border: '1px solid rgba(16,185,129,0.35)',
                                         fontSize: '12px',
                                         fontWeight: 800,
-                                        cursor: 'pointer',
                                         display: 'inline-flex',
                                         alignItems: 'center',
                                         gap: '4px',
                                         whiteSpace: 'nowrap'
+                                      }}>
+                                        <CheckCircle size={13} /> 하차예정일({unloadDateText}) 자동 운송완료 대기
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRevertLoadingStatus(selectedDelivery.id)}
+                                        style={{
+                                          padding: '7px 12px',
+                                          borderRadius: '6px',
+                                          backgroundColor: 'rgba(217,119,6,0.12)',
+                                          color: '#d97706',
+                                          border: '1px solid rgba(217,119,6,0.35)',
+                                          fontSize: '12px',
+                                          fontWeight: 800,
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                        title="상차완료 취소 (배차완료 상태로 원복)"
+                                      >
+                                        <RotateCcw size={13} /> 상차완료 취소
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button data-hs-trigger="Process"
+                                      type="button"
+                                      onClick={() => {
+                                        handleCompleteLoadingStatus(selectedDelivery.id);
                                       }}
-                                      title="상차완료 취소 (배차완료 상태로 원복)"
+                                      style={{
+                                        padding: '7px 14px',
+                                        backgroundColor: isBlocked ? '#64748b' : '#d97706',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontWeight: 800,
+                                        fontSize: '12.5px',
+                                        cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                        opacity: isBlocked ? 0.65 : 1,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : '상차완료 처리 (하차 예정일 기준 운송완료 및 계약·청구 개시 확정)'}
                                     >
-                                      <RotateCcw size={13} /> 상차완료 취소
+                                      <CheckCircle size={14} />
+                                      {isBlocked ? '출고검수 미완료 (처리 불가)' : '상차완료'}
                                     </button>
                                   )}
-                                  <button data-hs-trigger="Process"
-                                    type="button"
-                                    onClick={() => {
-                                      if (isLoaded) {
-                                        handleCompleteDeliveryStatus(selectedDelivery.id);
-                                      } else {
-                                        handleCompleteLoadingStatus(selectedDelivery.id);
-                                      }
-                                    }}
-                                    style={{
-                                      padding: '7px 14px',
-                                      backgroundColor: isBlocked ? '#64748b' : (isLoaded ? 'var(--success)' : '#d97706'),
-                                      color: '#fff',
-                                      border: 'none',
-                                      borderRadius: '6px',
-                                      fontWeight: 800,
-                                      fontSize: '12.5px',
-                                      cursor: isBlocked ? 'not-allowed' : 'pointer',
-                                      opacity: isBlocked ? 0.65 : 1,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '5px',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                    title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : (isLoaded ? `${getDeliveryCompletionActionLabel(selectedDelivery)} 처리` : '상차완료 처리 (주기장/현장 상차 완료 기록)')}
-                                  >
-                                    <CheckCircle size={14} />
-                                    {isBlocked ? '출고검수 미완료 (처리 불가)' : (isLoaded ? getDeliveryCompletionActionLabel(selectedDelivery) : '상차완료')}
-                                  </button>
                                 </>
                               );
                             })()}

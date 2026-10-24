@@ -7310,7 +7310,18 @@ export const SmartDispatch4: React.FC = () => {
         vehicleNo: d.vehicleNo || '',
         transportCompany: d.transportCompany || '',
         billableToCustomer: !!d.billableToCustomer,
-        dispatchStatus: d.status,
+        dispatchStatus: (() => {
+          if (d.status === 'DISPATCHED' && d.loadingCompletedAt) {
+            const nowObj = new Date();
+            const todayLocalStr = `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}-${String(nowObj.getDate()).padStart(2, '0')}`;
+            const effUnload = (d.unloadingDate || d.loadingDate || d.scheduledDate || '').slice(0, 10);
+            if (!effUnload || effUnload <= todayLocalStr) {
+              return 'DELIVERED' as const;
+            }
+          }
+          return d.status;
+        })(),
+        isLoadedWaitingUnload: Boolean(d.status === 'DISPATCHED' && d.loadingCompletedAt),
         approvedInspCount,
         isInspectionCompleted,
         canEditPreInspection,
@@ -7693,19 +7704,23 @@ export const SmartDispatch4: React.FC = () => {
                             <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border whitespace-nowrap ${
                               row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
                                 ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                                : row.dispatchStatus === 'DISPATCHED'
-                                  ? 'bg-blue-950 text-blue-300 border-blue-800'
-                                  : row.dispatchStatus === 'CANCELLED'
-                                    ? 'bg-rose-950 text-rose-300 border-rose-800'
-                                    : 'bg-amber-950 text-amber-300 border-amber-800'
+                                : (row as any).isLoadedWaitingUnload
+                                  ? 'bg-amber-950 text-amber-300 border-amber-700'
+                                  : row.dispatchStatus === 'DISPATCHED'
+                                    ? 'bg-blue-950 text-blue-300 border-blue-800'
+                                    : row.dispatchStatus === 'CANCELLED'
+                                      ? 'bg-rose-950 text-rose-300 border-rose-800'
+                                      : 'bg-amber-950 text-amber-300 border-amber-800'
                             }`}>
                               {row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
                                 ? '운송완료'
-                                : row.dispatchStatus === 'DISPATCHED'
-                                  ? '배차완료'
-                                  : row.dispatchStatus === 'CANCELLED'
-                                    ? '출고취소'
-                                    : '배차대기'}
+                                : (row as any).isLoadedWaitingUnload
+                                  ? `상차완료 (${(row.unloadingDateVal || '').slice(5, 10)} 자동완료)`
+                                  : row.dispatchStatus === 'DISPATCHED'
+                                    ? '배차완료'
+                                    : row.dispatchStatus === 'CANCELLED'
+                                      ? '출고취소'
+                                      : '배차대기'}
                             </span>
                           </td>
                           <td style={{ textAlign: 'center' }}>

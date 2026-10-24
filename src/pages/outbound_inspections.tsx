@@ -674,23 +674,37 @@ export const OutboundInspections: React.FC = () => {
 
         // 🟢 출고 승인 마감 시 해당 고유 장비의 status ➔ 'RENTED' (대여중) 으로 변동!
         if (item.assetId) {
+          const linkedDeliv = itemDeliveryId ? db.deliveries.find(d => d.id === itemDeliveryId) : undefined;
+          const matchedCa = item.contractAssetId ? db.contractAssets.find(ca => ca.id === item.contractAssetId) : undefined;
+          const effectiveStartDate = (
+            linkedDeliv?.unloadingDate ||
+            linkedDeliv?.loadingDate ||
+            linkedDeliv?.scheduledDate ||
+            matchedCa?.startDate ||
+            contract?.startDate ||
+            nowIso.split('T')[0]
+          ).slice(0, 10);
+
           db.updateRow<Asset>('assets', item.assetId, {
             status: 'RENTED',
             currentCustomerId: contract?.customerId || '',
             currentSiteId: contract?.siteId || '',
-            contractStart: contract?.startDate || '',
+            contractStart: effectiveStartDate,
             contractEnd: contract?.endDate || '',
             updatedAt: nowIso
           });
           
           if (item.contractAssetId) {
+            const shouldSyncFirstStart = !matchedCa?.firstStartDate || matchedCa.firstStartDate === matchedCa.startDate;
             db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
               status: 'RENTED',
+              startDate: effectiveStartDate,
+              ...(shouldSyncFirstStart ? { firstStartDate: effectiveStartDate } : {}),
               updatedAt: nowIso
             });
           }
 
-          // 🟢 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 검수 승인 시 자산 입출고 이력 1:1 정규화 저장
+          // 🟢 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 검수 승인 시 자산 입출고 이력 1:1 정규화 저장 (하차 예정일 기준)
           const targetAsset = db.assets.find(a => a.id === item.assetId);
           const site = contract ? db.sites.find(s => s.id === contract.siteId) : undefined;
 
@@ -700,7 +714,7 @@ export const OutboundInspections: React.FC = () => {
             modelName: targetAsset?.modelName || '',
             deliveryId: itemDeliveryId,
             type: 'OUTBOUND',
-            eventDate: nowIso.split('T')[0],
+            eventDate: effectiveStartDate,
             customerId: contract?.customerId,
             customerName: customer?.name || selectedGroup.customerName,
             siteId: contract?.siteId,

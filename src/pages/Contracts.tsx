@@ -535,7 +535,16 @@ export const Contracts: React.FC = () => {
     const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
 
     // 현장 기투입(대여중) 여부: 배차/출고검수 대기 건이 없고, 체결된 활성 장비 전체가 자산 매핑 완료 및 대여중 상태인 경우
-    const hasPendingOutboundDel = outboundDel ? (outboundDel.status !== 'DELIVERED' && outboundDel.status !== 'COMPLETED') : false;
+    const nowObjForDel = new Date();
+    const todayLocalForDel = `${nowObjForDel.getFullYear()}-${String(nowObjForDel.getMonth() + 1).padStart(2, '0')}-${String(nowObjForDel.getDate()).padStart(2, '0')}`;
+    const isOutboundDelDelivered = outboundDel
+      ? (
+          outboundDel.status === 'DELIVERED' ||
+          outboundDel.status === 'COMPLETED' ||
+          (outboundDel.status === 'DISPATCHED' && Boolean(outboundDel.loadingCompletedAt) && ((outboundDel.unloadingDate || outboundDel.loadingDate || outboundDel.scheduledDate || '').slice(0, 10) <= todayLocalForDel))
+        )
+      : false;
+    const hasPendingOutboundDel = outboundDel ? !isOutboundDelDelivered : false;
     const isFieldDeployedRented =
       isAssigned &&
       activeCaCount > 0 &&
@@ -544,7 +553,7 @@ export const Contracts: React.FC = () => {
       !hasPendingInsp;
 
     const isDelivered = outboundDel
-      ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED')
+      ? isOutboundDelDelivered
       : isFieldDeployedRented;
 
     // 1. 배차 여부: 배차완료(DISPATCHED/DELIVERED 또는 기사 배정) vs 배차대기
