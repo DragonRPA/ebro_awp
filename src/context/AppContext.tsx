@@ -1871,8 +1871,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 제외)
-      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지 기본 개방 제외, 숨김은 hiddenPages에서 제어)
+      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && normMenuId !== 'sales_journal' && !normAllowedPages.includes(normMenuId)) {
         return false;
       }
     }
