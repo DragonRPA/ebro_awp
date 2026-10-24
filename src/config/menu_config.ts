@@ -38,6 +38,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_sales',
     name: '영업관리',
     items: [
+      { id: 'sales_journal', name: '영업일지' },
       { id: 'customer', name: '고객 관리' },
       { id: 'site_options', name: '현장별 옵션 관리' },
       { id: 'contract', name: '계약 관리' },
@@ -262,7 +263,11 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'billing_invoice': 'billing',
   'billing-invoice': 'billing',
   'billing_waiver': 'billing',
-  'billing-waiver': 'billing'
+  'billing-waiver': 'billing',
+  'sales_journals': 'sales_journal',
+  'sales-journal': 'sales_journal',
+  'salesjournal': 'sales_journal',
+  '영업일지': 'sales_journal'
 };
 
 export function normalizeMenuId(menuId: string): string {

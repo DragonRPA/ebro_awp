@@ -420,6 +420,8 @@ CREATE TABLE assets (
     manufacturer          TEXT,
     "manufactureYear"     TEXT,
     "ownerType"           TEXT CHECK ("ownerType" IN ('OWNED', 'RENTED')) NOT NULL,
+    "assetNature"         TEXT DEFAULT 'PHYSICAL',
+    yard                  TEXT NOT NULL DEFAULT '용인',
 
     -- ③ 임차 및 매입처 연동
     "vendorId"            TEXT REFERENCES vendors(id) ON DELETE SET NULL,
@@ -2294,3 +2296,34 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseUrl" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantSupabaseAnonKey" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenantId" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;
+
+-- ------------------------------------------------------------------------------
+-- 영업일지 (Sales Journals - Groq LLM 자연어 추출 기반)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sales_journals (
+    id                  TEXT PRIMARY KEY,
+    "journalDate"       TEXT NOT NULL,
+    "salespersonId"     TEXT NOT NULL,
+    "salespersonName"   TEXT NOT NULL,
+    "department"        TEXT,
+    "customerId"        TEXT,
+    "customerName"      TEXT NOT NULL,
+    "contactName"       TEXT,
+    "contactTitle"      TEXT,
+    "stage"             TEXT NOT NULL DEFAULT '영업개시',
+    "summary"           TEXT NOT NULL,
+    "nextSchedule"      TEXT,
+    "nextScheduleDate"  TEXT,
+    "rawContent"        TEXT NOT NULL,
+    "extractedJson"     JSONB,
+    "aiModel"           TEXT,
+    "createdAt"         TEXT NOT NULL,
+    "updatedAt"         TEXT,
+    "tenant_id"         TEXT DEFAULT 'giyeun'
+);
+CREATE INDEX IF NOT EXISTS idx_sales_journals_date ON sales_journals("journalDate");
+CREATE INDEX IF NOT EXISTS idx_sales_journals_salesperson ON sales_journals("salespersonId");
+CREATE INDEX IF NOT EXISTS idx_sales_journals_stage ON sales_journals("stage");
+ALTER TABLE sales_journals ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all for anon and authenticated on sales_journals" ON sales_journals;
+CREATE POLICY "Allow all for anon and authenticated on sales_journals" ON sales_journals FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);

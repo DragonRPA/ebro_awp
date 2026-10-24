@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { db, supabase, isSystemDeveloperUser, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, OfficialMailConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement } from '../services/db';
+import { db, supabase, isSystemDeveloperUser, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, Department, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, OfficialMailConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload, MonthlyIncomeStatement, SalesJournal } from '../services/db';
 import { useApproval } from '../hooks/useApproval';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
@@ -235,6 +235,9 @@ interface AppContextType {
   deleteStandardOption: (id: string) => Promise<void>;
   monthlyIncomeStatements: MonthlyIncomeStatement[];
   saveMonthlyIncomeStatement: (stmt: MonthlyIncomeStatement) => Promise<MonthlyIncomeStatement>;
+  salesJournals: SalesJournal[];
+  saveSalesJournal: (journal: Omit<SalesJournal, 'id' | 'createdAt'> & { id?: string }) => Promise<SalesJournal>;
+  deleteSalesJournal: (id: string) => Promise<void>;
   
   // Asset Mutators
   changeAssetStatus: (assetId: string, status: Asset['status'], extraData?: Partial<Asset>) => Promise<void>;
@@ -789,6 +792,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [printQueue, setPrintQueue] = useState<PrintQueueItem[]>([]);
   const [errorReports, setErrorReports] = useState<ErrorReport[]>(() => db.errorReports || []);
   const [monthlyIncomeStatements, setMonthlyIncomeStatements] = useState<MonthlyIncomeStatement[]>(() => db.monthlyIncomeStatements || []);
+  const [salesJournals, setSalesJournals] = useState<SalesJournal[]>(() => db.salesJournals || []);
 
 
   // Navigation / Routing states with In-App History (최대 30단계 뒤로/앞으로가기)
@@ -1196,6 +1200,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPrintQueue([...db.printQueue]);
     setErrorReports([...(db.errorReports || [])]);
     setMonthlyIncomeStatements([...(db.monthlyIncomeStatements || [])]);
+    setSalesJournals([...(db.salesJournals || [])]);
 
     setCurrentUser(prev => {
       if (prev && (prev.loginId === 'admin' || prev.id === 'sys-admin')) {
@@ -1284,6 +1289,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'sites', 'siteMasters', 'standardOptions', 'assets', 'products', 'deliveries'],
     'billing':              ['billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'bankTransactions', 'contracts', 'customers'],
     'customer':             ['customers', 'contacts', 'sites', 'siteMasters', 'standardOptions'],
+    'sales_journal':        ['salesJournals', 'customers', 'users', 'departments'],
     'site_options':         ['siteMasters', 'sites', 'standardOptions', 'customers', 'contracts', 'assets'],
     'product':              ['products'],
     'asset':                ['assets', 'products', 'vendors', 'assetInOutLogs'],
@@ -1892,6 +1898,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rolePerm) {
           return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
         }
+        if (normMenuId === 'sales_journal') {
+          const dept = currentUser.departmentId || currentUser.department;
+          const fallbackRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
+          if (fallbackRule !== undefined) return fallbackRule;
+        }
         return false;
       }
     }
@@ -2311,6 +2322,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const linkedInOutLogs = db.assetInOutLogs.filter(l => (l.customerId === existingCust.id || (l.deliveryId && linkedDeliveryIds.has(l.deliveryId))) && l.customerName && !l.customerName.includes('(임차처)') && l.customerName !== newName);
         linkedInOutLogs.forEach(l => {
           db.updateRow<AssetInOutLog>('asset_inout_logs', l.id, { customerName: newName });
+        });
+        const linkedJournals = (db.salesJournals || []).filter(j => j.customerId === existingCust.id && j.customerName !== newName);
+        linkedJournals.forEach(j => {
+          db.updateRow<SalesJournal>('salesJournals', j.id, { customerName: newName });
         });
       }
 
@@ -2804,6 +2819,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved;
   };
 
+  // 📝 영업일지 저장 및 삭제 (Groq LLM 추출 데이터 + 원문 통합 보관)
+  const saveSalesJournal = async (journal: Omit<SalesJournal, 'id' | 'createdAt'> & { id?: string }): Promise<SalesJournal> => {
+    const existing = journal.id ? (db.salesJournals || []).find(j => j.id === journal.id) : null;
+    const nowIso = new Date().toISOString();
+    let saved: SalesJournal;
+    if (existing) {
+      saved = db.updateRow<SalesJournal>('salesJournals', existing.id, {
+        ...journal,
+        updatedAt: nowIso
+      }) as SalesJournal;
+    } else {
+      saved = db.insertRow<SalesJournal>('salesJournals', {
+        ...journal,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        tenant_id: currentTenant?.id || 'giyeun'
+      }) as SalesJournal;
+    }
+    await db.awaitPendingWrites();
+    refreshAllData();
+    return saved;
+  };
+
+  const deleteSalesJournal = async (id: string): Promise<void> => {
+    db.deleteRow('salesJournals', id);
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
   const saveAsset = async (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     let result;
     const existingAsset = asset.id ? db.assets.find(a => a.id === asset.id) : null;
@@ -2811,7 +2855,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const resolvedMfg = db.resolveAssetManufacturer(asset.modelName || existingAsset?.modelName, asset.manufacturer || existingAsset?.manufacturer);
     const normalizedAsset = {
       ...asset,
-      manufacturer: resolvedMfg
+      manufacturer: resolvedMfg,
+      yard: asset.yard || existingAsset?.yard || '용인'
     };
 
     if (existingAsset) {
@@ -5180,6 +5225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       manufacturer: assetData.manufacturer || '',
       manufactureYear: assetData.manufactureYear || '',
       ownerType: 'OWNED',
+      yard: assetData.yard || '용인',
       status: 'AVAILABLE',
       monthlyRentalFee: assetData.monthlyRentalFee || 0,
       dailyRentalFee: assetData.dailyRentalFee || 0,
@@ -5233,6 +5279,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         manufacturer: assetData.manufacturer || '',
         manufactureYear: assetData.manufactureYear || '',
         ownerType: 'OWNED',
+        yard: assetData.yard || '용인',
         status: 'AVAILABLE',
         monthlyRentalFee: assetData.monthlyRentalFee || 0,
         dailyRentalFee: assetData.dailyRentalFee || 0,
@@ -5572,6 +5619,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         manufacturer: resolvedManufacturer,
         manufactureYear: resolvedManufactureYear,
         ownerType: 'RENTED',
+        yard: cleanAssetData.yard || existing.yard || '용인',
         antiEntrapmentOwnership: resolvedOwnership,
         status: nextStatus,
         monthlyRentFee: sanitizedMonthlyFee,
@@ -5589,6 +5637,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         manufacturer: resolvedManufacturer,
         manufactureYear: resolvedManufactureYear,
         ownerType: 'RENTED',
+        yard: assetData.yard || '용인',
         antiEntrapmentOwnership: resolvedOwnership,
         status: 'AVAILABLE',
         renter: assetData.renter || '',
@@ -13604,6 +13653,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       purchaseSettlements, purchaseSettlementItems, settlementPaymentLogs: db.settlementPaymentLogs, externalLeases, inspectionChecklistItems,
       equipmentManuals, saveEquipmentManual, deleteEquipmentManual,
       standardOptions, saveStandardOption, deleteStandardOption, monthlyIncomeStatements, saveMonthlyIncomeStatement,
+      salesJournals, saveSalesJournal, deleteSalesJournal,
       customRoles, rolePermissions, saveCustomRole, deleteCustomRole, saveRolePermissions, assignUserRole,
       annualLeaveQuotas, leaveUsages, overtimeRecords, payrollClosings, prepaidTransactions, delinquencyActionLogs, legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
       corporateVehicles, vehicleOperationLogs, vehicleFuelLogs, registerCorporateVehicle, updateCorporateVehicle, deleteCorporateVehicle, registerVehicleOperationLog, updateVehicleOperationLog, deleteVehicleOperationLog, registerVehicleFuelLog, deleteVehicleFuelLog,

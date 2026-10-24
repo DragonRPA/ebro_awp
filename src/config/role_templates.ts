@@ -43,6 +43,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   data_formation: { canView: true, canSave: true },
   acquisition_disposal: { canView: true, canSave: true },
   // 열람만 허용 (영업/자산 상태 대사)
+  sales_journal: { canView: true, canSave: true },
   customer: { canView: true, canSave: false },
   site_options: { canView: true, canSave: false },
   contract: { canView: true, canSave: false },
@@ -62,6 +63,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
 // 3. 영업부 (고객 / 계약 / 출고의뢰 / AS의뢰) - DEPT-0000003
 export const SALES_TEMPLATE: PermissionRuleMap = {
   ...BASE_COMMON_PERMISSIONS,
+  sales_journal: { canView: true, canSave: true },
   customer: { canView: true, canSave: true },
   site_options: { canView: true, canSave: true },
   contract: { canView: true, canSave: true },

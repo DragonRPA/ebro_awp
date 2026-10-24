@@ -129,6 +129,7 @@ const PurchaseSettlementPage = React.lazy(() => import('./pages/PurchaseSettleme
 const AssetHistory = React.lazy(() => import('./pages/asset_history').then(module => ({ default: module.AssetHistory })));
 
 const PublicConstructionPermitsPage = React.lazy(() => import('./pages/PublicConstructionPermitsPage').then(module => ({ default: module.PublicConstructionPermitsPage })));
+const SalesJournalPage = React.lazy(() => import('./pages/SalesJournalPage').then(module => ({ default: module.SalesJournalPage })));
 
 export interface SubMenuItem {
   id: string;
@@ -679,6 +680,7 @@ const App: React.FC = () => {
       name: '영업관리',
       icon: <Briefcase size={17} />,
       items: [
+        { id: 'sales_journal', name: '영업일지', icon: <BookOpen size={16} />, component: <SalesJournalPage /> },
         { id: 'customer', name: '고객 관리', icon: <Users size={16} />, component: <Customers /> },
         { id: 'site_options', name: '현장별 옵션 관리', icon: <SlidersHorizontal size={16} />, component: <SiteOptionManage /> },
         { id: 'contract', name: '계약 관리', icon: <UserCheck size={16} />, component: <Contracts /> },

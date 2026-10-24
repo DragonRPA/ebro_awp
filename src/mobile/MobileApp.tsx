@@ -24,6 +24,7 @@ import { MobileVehicleLog } from './pages/MobileVehicleLog';
 import { MobileManualViewer } from './pages/MobileManualViewer';
 import { MobileYardConsumableStock } from './pages/MobileYardConsumableStock';
 import { MobileTestLabHome } from './pages/MobileTestLabHome';
+import { SalesJournalPage } from '../pages/SalesJournalPage';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { MobileWalkieTalkieModal } from './components/MobileWalkieTalkieModal';
 import { MobileApkMonitorModal } from './components/MobileApkMonitorModal';
@@ -389,6 +390,8 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           <MobileVehicleStock />
         ) : activeTab === 'consumable_stock' ? (
           <MobileYardConsumableStock onBack={() => handleTabChange('home')} />
+        ) : activeTab === 'sales_journal' ? (
+          <div style={{ padding: '8px 4px' }}><SalesJournalPage /></div>
         ) : (
           <MobileAssetSearch
             onNavigateToOrder={(specFt) => {

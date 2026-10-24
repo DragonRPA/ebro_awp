@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Car, Fuel } from 'lucide-react';
+import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Car, Fuel, BookOpen } from 'lucide-react';
 import { MobileDeptMode } from './MobileHeader';
 
 export type MobileTabType = 
@@ -19,7 +19,8 @@ export type MobileTabType =
   | 'delinquency'
   | 'vehicle_log'
   | 'manual_viewer'
-  | 'consumable_stock';
+  | 'consumable_stock'
+  | 'sales_journal';
 
 interface MobileBottomNavProps {
   deptMode: MobileDeptMode;
@@ -68,6 +69,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     dispatch: 'delivery',
     vehicle_log: 'vehicle_log',
     consumable_stock: 'consumable_stock',
+    sales_journal: 'sales_journal',
   };
 
   // 부서별 하단 후보 탭 동적 매핑
@@ -77,6 +79,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     // 💼 영업부 모바일 5대 정예 탭
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
+      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'assets', label: '가용재고', icon: Search, badge: 0 },
       { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
@@ -104,6 +107,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     // 👑 경영진 모바일 탭
     rawNavItems = [
       { id: 'home', label: '경영홈', icon: Home, badge: 0 },
+      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'delinquency', label: '연체관리', icon: AlertTriangle, badge: overdueBadgeCount },
       { id: 'my_contracts', label: '계약현황', icon: Building2, badge: 0 },
@@ -130,6 +134,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   } else {
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
+      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
       { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
     ];
   }
