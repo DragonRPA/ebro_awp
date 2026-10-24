@@ -362,7 +362,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     return selectedContract?.startDate || todayLocal;
   }, [outboundDelivery, selectedContract, filterDate]);
 
-  // 계약일 (출고 요청을 입력한 날 = 주문 접수일 최우선)
+  // 계약일 (출고 요청을 입력한 날 = 주문 접수일 최우선, 사후 소급 입력 시 장비 인도일을 초과하지 않도록 보정)
   const orderReceivedDate = useMemo(() => {
     const toLocalYmd = (raw?: string | null): string => {
       if (!raw) return '';
@@ -375,32 +375,38 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       const m = trimmed.match(/\d{4}-\d{2}-\d{2}/);
       return m ? m[0] : '';
     };
+    const clampToUnloading = (ymd: string): string => {
+      if (equipmentUnloadingDate && /^\d{4}-\d{2}-\d{2}$/.test(equipmentUnloadingDate) && ymd > equipmentUnloadingDate) {
+        return equipmentUnloadingDate;
+      }
+      return ymd;
+    };
     if (outboundDelivery) {
       if (outboundDelivery.cargoItems) {
         try {
           const parsed = JSON.parse(outboundDelivery.cargoItems);
           const requestedAt = Array.isArray(parsed) ? parsed.find((ci: any) => ci?.requestMeta)?.requestMeta?.requestedAt : undefined;
           const d = toLocalYmd(requestedAt);
-          if (d) return d;
+          if (d) return clampToUnloading(d);
         } catch {}
       }
       if (outboundDelivery.createdAt) {
         const d = toLocalYmd(outboundDelivery.createdAt);
-        if (d) return d;
+        if (d) return clampToUnloading(d);
       }
       if (outboundDelivery.requestDate) {
         const d = toLocalYmd(outboundDelivery.requestDate);
-        if (d) return d;
+        if (d) return clampToUnloading(d);
       }
     }
     if (selectedContract?.createdAt) {
       const d = toLocalYmd(selectedContract.createdAt);
-      if (d) return d;
+      if (d) return clampToUnloading(d);
     }
     const now = new Date();
     const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return toLocalYmd(selectedContract?.startDate) || todayLocal;
-  }, [outboundDelivery, selectedContract]);
+    return clampToUnloading(toLocalYmd(selectedContract?.startDate) || todayLocal);
+  }, [outboundDelivery, selectedContract, equipmentUnloadingDate]);
 
   // 배차일 기준 2일 전 자동 계산
   const defaultInspectionDate = useMemo(() => {
