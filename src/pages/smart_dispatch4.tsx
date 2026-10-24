@@ -13,7 +13,8 @@
 // └─────────────────────────────────────────────────────────────────────────┘
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel } from '../services/db';
+import { useApproval } from '../hooks/useApproval';
+import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel, CustomerTransactionStatus, isCustomerRestricted } from '../services/db';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
 import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import {
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
+import { BusinessLicenseModal } from '../components/BusinessLicenseModal';
 import { canViewFinancials } from '../utils/privacyMasking';
 import { stripOptionsFromDispatchRawText } from '../utils/nativeLauncher';
 import {
@@ -170,6 +172,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 export const SmartDispatch4: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
+    saveCustomer, showErrorModal,
     saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, assets, deliveries, standardOptions,
     contracts = [],
     contractAssets = [],
@@ -183,6 +186,8 @@ export const SmartDispatch4: React.FC = () => {
     setActiveTab: setGlobalActiveTab,
     refreshAllData
   } = useApp();
+
+  const { createApprovalRequest, fetchRuleForEvent } = useApproval();
 
   const defectSymptoms = useMemo(() => {
     return inspectionChecklistItems
@@ -745,6 +750,13 @@ export const SmartDispatch4: React.FC = () => {
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerAddress, setNewCustomerAddress] = useState('');
+
+  // ── 신규 고객사 등록 모달 및 사업자등록증 AI 자동 판독 모달 상태 ────────────
+  const [showCustModal, setShowCustModal] = useState(false);
+  const [editingCust, setEditingCust] = useState<Partial<Customer> | null>(null);
+  const [isSubmittingCust, setIsSubmittingCust] = useState(false);
+  const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
+  const [targetBizLicenseCustId, setTargetBizLicenseCustId] = useState<string | undefined>(undefined);
 
   // ── 2. 투입 현장 및 현장 담당자 ───────────────────────────────────────────
   const [siteQuery, setSiteQuery] = useState('');
@@ -1751,6 +1763,120 @@ export const SmartDispatch4: React.FC = () => {
     if (selectedSite) {
       loadSiteSafetyOptions(selectedSite, selectedCustomer);
     }
+  };
+
+  // ── 신규 고객사 등록 모달 핸들러 ───────────────────────────────────────────
+  const handleOpenNewCustomerModal = () => {
+    setEditingCust({
+      name: newCustomerName.trim() || '',
+      bizRegNo: '',
+      isClosed: false,
+      address: newCustomerAddress.trim() || '',
+      representative: '',
+      repContact: newCustomerPhone.trim() || '',
+      repEmail: '',
+      defaultBillingDay: closingDay !== undefined && closingDay !== null ? closingDay : 30,
+      defaultStatementClosingDay: statementClosingDay || 25,
+      paymentDueMonthOffset: paymentDueMonthOffset !== undefined ? paymentDueMonthOffset : 1,
+      paymentDueDay: paymentDueDay || 25,
+      defaultTaxInvoiceIssueType: taxInvoiceIssueType || 'FORWARD',
+      defaultPaymentMethod: paymentMethod || 'CASH',
+      defaultPaymentTermsNote: paymentTermsNote || '',
+      transactionStatus: 'ALLOWED'
+    });
+    setShowCustModal(true);
+  };
+
+  const handleOpenEditCustomerModal = (cust: Customer) => {
+    setEditingCust({
+      defaultBillingDay: cust.defaultBillingDay !== undefined && cust.defaultBillingDay !== null ? cust.defaultBillingDay : 30,
+      defaultStatementClosingDay: cust.defaultStatementClosingDay || 25,
+      paymentDueMonthOffset: cust.paymentDueMonthOffset !== undefined ? cust.paymentDueMonthOffset : 1,
+      paymentDueDay: cust.paymentDueDay || 25,
+      defaultTaxInvoiceIssueType: cust.defaultTaxInvoiceIssueType || ((cust.defaultCheckedSpecs as any)?.__taxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD'),
+      defaultPaymentMethod: cust.defaultPaymentMethod || (cust.defaultCheckedSpecs as any)?.__paymentMethod || 'CASH',
+      defaultPaymentTermsNote: cust.defaultPaymentTermsNote !== undefined ? cust.defaultPaymentTermsNote : ((cust.defaultCheckedSpecs as any)?.__paymentTermsNote || ''),
+      ...cust
+    });
+    setShowCustModal(true);
+  };
+
+  const handleSaveCustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCust || !editingCust.name?.trim() || isSubmittingCust) return;
+
+    try {
+      setIsSubmittingCust(true);
+      const isNew = !editingCust.id;
+      const resolvedPayMethod: PaymentMethodType = (editingCust.defaultPaymentMethod === 'BILL' || editingCust.defaultPaymentMethod === 'BOND') ? editingCust.defaultPaymentMethod : 'CASH';
+      const resolvedPayNote = (editingCust.defaultPaymentTermsNote || '').trim();
+      const rawBillingDay = editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? Number(editingCust.defaultBillingDay) : 30;
+      const sanitizedCust = {
+        ...editingCust,
+        name: editingCust.name.trim(),
+        defaultBillingDay: rawBillingDay === 0 ? 0 : Math.min(31, Math.max(1, rawBillingDay || 30)),
+        defaultStatementClosingDay: Math.min(31, Math.max(1, Number(editingCust.defaultStatementClosingDay) || 25)),
+        paymentDueDay: Math.min(31, Math.max(1, Number(editingCust.paymentDueDay) || 25)),
+        paymentDueMonthOffset: Math.max(0, Number(editingCust.paymentDueMonthOffset) || 0),
+        defaultTaxInvoiceIssueType: editingCust.defaultTaxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+        defaultPaymentMethod: resolvedPayMethod,
+        defaultPaymentTermsNote: resolvedPayNote,
+        defaultCheckedSpecs: {
+          ...(editingCust.defaultCheckedSpecs || {}),
+          __taxInvoiceIssueType: editingCust.defaultTaxInvoiceIssueType === 'REVERSE' ? 'REVERSE' : 'FORWARD',
+          __paymentMethod: resolvedPayMethod,
+          __paymentTermsNote: resolvedPayNote
+        }
+      };
+      const saved = await saveCustomer(sanitizedCust as Omit<Customer, 'id' | 'createdAt'>);
+
+      if (isNew) {
+        const { rule } = await fetchRuleForEvent('CUSTOMER_REGISTRATION');
+        if (rule) {
+          const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
+            ? currentUser.id
+            : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
+          await createApprovalRequest(
+            rule.id!,
+            validOriginatorId,
+            saved.id!,
+            'customers',
+            rule.required_tier
+          );
+        }
+      }
+
+      setNewCustomerName(saved.name);
+      setSelectedCustomer(saved);
+      if (saved.repContact) setNewCustomerPhone(saved.repContact);
+      if (saved.address) setNewCustomerAddress(saved.address);
+      setClosingDay(sanitizedCust.defaultBillingDay);
+      setStatementClosingDay(sanitizedCust.defaultStatementClosingDay);
+      setPaymentDueMonthOffset(sanitizedCust.paymentDueMonthOffset);
+      setPaymentDueDay(sanitizedCust.paymentDueDay);
+      setTaxInvoiceIssueType(sanitizedCust.defaultTaxInvoiceIssueType as 'FORWARD' | 'REVERSE');
+      setPaymentMethod(resolvedPayMethod);
+      setPaymentTermsNote(resolvedPayNote);
+
+      setShowCustModal(false);
+      setEditingCust(null);
+      await refreshAllData();
+      showToast(`고객사 [${saved.name}] 정보가 저장되었습니다.${isNew ? ' (결재 상신 완료)' : ''}`, 'success');
+    } catch (err: any) {
+      showErrorModal(`고객 정보 저장 실패: ${err?.message || err}`, '고객 정보 저장 오류');
+    } finally {
+      setIsSubmittingCust(false);
+    }
+  };
+
+  const handleBizLicenseSuccess = async (savedCustomer: Customer, isNew: boolean) => {
+    setNewCustomerName(savedCustomer.name);
+    setSelectedCustomer(savedCustomer);
+    if (savedCustomer.repContact) setNewCustomerPhone(savedCustomer.repContact);
+    if (savedCustomer.address) setNewCustomerAddress(savedCustomer.address);
+    applyInheritance(savedCustomer, selectedSite);
+    await refreshAllData();
+    showToast(isNew ? `신규 고객사 [${savedCustomer.name}] 등록 완료` : `고객사 [${savedCustomer.name}] 정보 보완 완료`, 'success');
   };
 
 
@@ -3572,14 +3698,40 @@ export const SmartDispatch4: React.FC = () => {
               <div className="dispatch4-block-body">
                 {isNewCustomerMode ? (
                   <>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-300">신규 고객사 상호(법인명) *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-semibold text-slate-300 whitespace-nowrap">신규 고객사 상호(법인명) *</label>
+                        <button
+                          type="button"
+                          data-mid="btn-open-new-customer-modal"
+                          onClick={handleOpenNewCustomerModal}
+                          className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap flex-shrink-0 shadow-sm"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>신규 고객사 등록</span>
+                        </button>
+                      </div>
                       <input
                         className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
                         value={newCustomerName}
                         onChange={e => setNewCustomerName(e.target.value)}
                         placeholder="예: (주)한국건설"
                       />
+                      {selectedCustomer && (
+                        <div className="flex items-center justify-between px-3 py-2 bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs">
+                          <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                            <span>등록 완료: {selectedCustomer.name} ({selectedCustomer.bizRegNo || '사업자번호 미등록'})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditCustomerModal(selectedCustomer)}
+                            className="text-[11px] text-emerald-300 hover:text-white px-2 py-0.5 rounded bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/30 transition cursor-pointer whitespace-nowrap"
+                          >
+                            정보 수정
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -9546,6 +9698,308 @@ export const SmartDispatch4: React.FC = () => {
         </div>
       )}
 
+      {/* 🏢 [신규 고객사 등록 / 고객사 정보 수정 모달] */}
+      {showCustModal && editingCust && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
+          padding: '20px'
+        }}>
+          <form onSubmit={handleSaveCustSubmit} className="card" style={{ width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+                  {editingCust.id ? '고객사 정보 수정' : '신규 고객사 등록'}
+                </h3>
+              </div>
+              <button type="button" onClick={() => setShowCustModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
+            </div>
+
+            {!editingCust.id && (
+              <div style={{
+                marginBottom: '10px',
+                padding: '7px 10px',
+                backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                border: '1px solid #059669',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: '11px', color: '#34d399', fontWeight: 600 }}>
+                  📄 사업자등록증 파일(이미지/PDF)로 자동 입력하시겠습니까?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustModal(false);
+                    setTargetBizLicenseCustId(undefined);
+                    setShowBizLicenseModal(true);
+                  }}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    backgroundColor: 'var(--success)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  AI 자동 판독 ➔
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
+              <div>
+                <label style={custModalLabelStyle}>고객사명 *</label>
+                <input
+                  type="text"
+                  style={custModalInputStyle}
+                  value={editingCust.name || ''}
+                  onChange={e => setEditingCust({ ...editingCust, name: e.target.value })}
+                  data-mid="input-customer-name" placeholder="예: (주)한라건설"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr', gap: '8px' }}>
+                <div>
+                  <label style={custModalLabelStyle}>사업자등록번호</label>
+                  <input
+                    type="text"
+                    style={custModalInputStyle}
+                    value={editingCust.bizRegNo || ''}
+                    onChange={e => setEditingCust({ ...editingCust, bizRegNo: e.target.value })}
+                    data-mid="input-biz-no" placeholder="000-00-00000"
+                  />
+                </div>
+                <div>
+                  <label style={custModalLabelStyle}>폐업 여부</label>
+                  <select
+                    style={custModalInputStyle}
+                    value={editingCust.isClosed ? 'true' : 'false'}
+                    onChange={e => setEditingCust({ ...editingCust, isClosed: e.target.value === 'true' })}
+                  >
+                    <option value="false">운영중</option>
+                    <option value="true">폐업</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={custModalLabelStyle}>거래 상태 (출고)</label>
+                  <select
+                    style={{ ...custModalInputStyle, fontWeight: isCustomerRestricted(editingCust.transactionStatus) ? 700 : 400, color: isCustomerRestricted(editingCust.transactionStatus) ? '#dc2626' : 'inherit' }}
+                    value={editingCust.transactionStatus || 'ALLOWED'}
+                    onChange={e => setEditingCust({ ...editingCust, transactionStatus: e.target.value as CustomerTransactionStatus })}
+                  >
+                    <option value="ALLOWED">정상 거래</option>
+                    <option value="RESTRICT_NEW">추가계약 금지 (기존계약 유지)</option>
+                    <option value="BLOCKED_ALL">전면 차단 (기존장비 회수)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={custModalLabelStyle}>대표자명</label>
+                  <input
+                    type="text"
+                    style={custModalInputStyle}
+                    value={editingCust.representative || ''}
+                    onChange={e => setEditingCust({ ...editingCust, representative: e.target.value })}
+                    placeholder="홍길동"
+                  />
+                </div>
+                <div>
+                  <label style={custModalLabelStyle}>대표 연락처</label>
+                  <input
+                    type="text"
+                    style={custModalInputStyle}
+                    value={editingCust.repContact || ''}
+                    onChange={e => setEditingCust({ ...editingCust, repContact: e.target.value })}
+                    placeholder="02-000-0000"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={custModalLabelStyle}>업태</label>
+                  <input
+                    type="text"
+                    style={custModalInputStyle}
+                    value={editingCust.bizType || ''}
+                    onChange={e => setEditingCust({ ...editingCust, bizType: e.target.value })}
+                    placeholder="건설 및 임대업"
+                  />
+                </div>
+                <div>
+                  <label style={custModalLabelStyle}>종목</label>
+                  <input
+                    type="text"
+                    style={custModalInputStyle}
+                    value={editingCust.bizItem || ''}
+                    onChange={e => setEditingCust({ ...editingCust, bizItem: e.target.value })}
+                    placeholder="고소작업대 외"
+                  />
+                </div>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: 'var(--bg-app)',
+                borderRadius: '6px',
+                border: '1px dashed var(--border-color)'
+              }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 0.9fr',
+                  gap: '10px',
+                  alignItems: 'start'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>명세서 마감일</label>
+                    <select
+                      style={custModalInputStyle}
+                      value={editingCust.defaultStatementClosingDay || 25}
+                      onChange={e => setEditingCust({ ...editingCust, defaultStatementClosingDay: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>계산서 마감일</label>
+                    <select
+                      style={custModalInputStyle}
+                      value={editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? editingCust.defaultBillingDay : 30}
+                      onChange={e => setEditingCust({ ...editingCust, defaultBillingDay: Number(e.target.value) })}
+                    >
+                      <option value={0}>미지정 (역발행 등)</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day === 31 ? '31일 (월말)' : `매월 ${day}일`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>계산서 발행조건</label>
+                    <select
+                      style={custModalInputStyle}
+                      value={editingCust.defaultTaxInvoiceIssueType || 'FORWARD'}
+                      onChange={e => setEditingCust({ ...editingCust, defaultTaxInvoiceIssueType: e.target.value as 'FORWARD' | 'REVERSE' })}
+                    >
+                      <option value="FORWARD">정발행 (기본)</option>
+                      <option value="REVERSE">역발행</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '0.9fr 1.4fr 1.3fr',
+                  gap: '10px',
+                  alignItems: 'start'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>약정 결제조건</label>
+                    <select
+                      style={custModalInputStyle}
+                      value={editingCust.defaultPaymentMethod || 'CASH'}
+                      onChange={e => setEditingCust({ ...editingCust, defaultPaymentMethod: e.target.value as PaymentMethodType })}
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.value === 'CASH' ? '현금 (기본)' : opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>약정 결제일</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px' }}>
+                      <select
+                        style={{ ...custModalInputStyle, padding: '5px 6px' }}
+                        value={editingCust.paymentDueMonthOffset !== undefined ? editingCust.paymentDueMonthOffset : 1}
+                        onChange={e => setEditingCust({ ...editingCust, paymentDueMonthOffset: Number(e.target.value) })}
+                      >
+                        {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <select
+                        style={{ ...custModalInputStyle, padding: '5px 6px' }}
+                        value={editingCust.paymentDueDay || 25}
+                        onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                          <option key={day} value={day}>{day}일</option>
+                        ))}
+                        <option value={31}>말일</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ ...custModalLabelStyle, whiteSpace: 'nowrap' }}>약정 결제비고 (특약조건)</label>
+                    <input
+                      type="text"
+                      style={custModalInputStyle}
+                      value={editingCust.defaultPaymentTermsNote || ''}
+                      onChange={e => setEditingCust({ ...editingCust, defaultPaymentTermsNote: e.target.value })}
+                      placeholder="예: 300만원이상 채권, 또는 채권"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={custModalLabelStyle}>대표 이메일</label>
+                <input
+                  type="text"
+                  style={custModalInputStyle}
+                  value={editingCust.repEmail || ''}
+                  onChange={e => setEditingCust({ ...editingCust, repEmail: e.target.value })}
+                  placeholder="contact@company.com (복수 입력 시 , 또는 / 로 구분)"
+                />
+              </div>
+
+              <div>
+                <label style={custModalLabelStyle}>사업장 주소</label>
+                <textarea
+                  style={{ ...custModalInputStyle, minHeight: '44px' }}
+                  value={editingCust.address || ''}
+                  onChange={e => setEditingCust({ ...editingCust, address: e.target.value })}
+                  placeholder="도로명 주소"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setShowCustModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary" disabled={isSubmittingCust} style={{ padding: '5px 16px', fontSize: '12px' }}>
+                  {isSubmittingCust ? '저장중...' : '저장'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* 📄 사업자등록증 AI 자동 판독 모달 */}
+      <BusinessLicenseModal
+        isOpen={showBizLicenseModal}
+        onClose={() => {
+          setShowBizLicenseModal(false);
+          setTargetBizLicenseCustId(undefined);
+        }}
+        onSuccess={handleBizLicenseSuccess}
+        targetCustomerId={targetBizLicenseCustId}
+      />
+
       {/* 📄 [출고 요청 건별 계약서패키지 생성 및 발송 모달] */}
       <ContractDocumentBundleModal
         isOpen={Boolean(bundleModalTarget)}
@@ -9569,6 +10023,25 @@ export const SmartDispatch4: React.FC = () => {
       )}
     </div>
   );
+};
+
+const custModalLabelStyle: React.CSSProperties = {
+  fontSize: '11px',
+  color: 'var(--text-muted)',
+  fontWeight: '600',
+  display: 'block',
+  marginBottom: '3px',
+};
+
+const custModalInputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '5px 8px',
+  fontSize: '12px',
+  borderRadius: '4px',
+  border: '1px solid var(--border-color)',
+  backgroundColor: 'var(--bg-app)',
+  color: 'var(--text-main)',
+  boxSizing: 'border-box',
 };
 
 export default SmartDispatch4;
