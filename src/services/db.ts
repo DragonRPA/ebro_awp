@@ -376,6 +376,30 @@ export async function autoApplyTenantsDdl(): Promise<boolean> {
   }
 }
 
+/** 🚜 assets 테이블 신규 컬럼(yard, assetNature) DDL 및 PostgREST 스키마 캐시 자동 반영 헬퍼 */
+export const ASSETS_DDL_STATEMENTS: string[] = [
+  `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "yard" TEXT DEFAULT '용인';`,
+  `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "assetNature" TEXT DEFAULT 'PHYSICAL';`,
+  `UPDATE "assets" SET "yard" = '용인' WHERE "yard" IS NULL OR "yard" = '';`,
+  `NOTIFY pgrst, 'reload schema';`
+];
+
+export async function autoApplyAssetsDdl(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('dev_exec_ddl', { statements: ASSETS_DDL_STATEMENTS });
+    if (!error) {
+      console.log('[autoApplyAssetsDdl] assets DDL 실행 및 PostgREST 스키마 캐시 갱신 성공:', data);
+      return true;
+    }
+    console.warn('[autoApplyAssetsDdl] dev_exec_ddl RPC 실행 실패 (Fallback 전환):', error?.message || error);
+    return false;
+  } catch (e: any) {
+    console.warn('[autoApplyAssetsDdl] dev_exec_ddl RPC 호출 예외 (Fallback 전환):', e?.message || e);
+    return false;
+  }
+}
+
 export interface ApprovalRule {
   id?: string;
   tenant_id?: string;
@@ -1303,6 +1327,7 @@ export interface Asset {
   manufactureYear?: string; // 제조년도 (예: 2023)
   ownerType: 'OWNED' | 'RENTED'; // 당사자산 / 임차자산
   assetNature?: 'PHYSICAL' | 'VIRTUAL'; // 자산 구분 ('PHYSICAL': 실물, 'VIRTUAL': 가상)
+  yard?: string; // 주기장 (예: '용인')
   antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권 ('VENDOR': 임차처 소유, 'OURS': 당사 소유, 'NONE': 미장착)
   status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD' | 'LOST' | 'DISPOSED';
   
@@ -2668,6 +2693,44 @@ export interface ExternalLease {
   memo?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** 📝 영업전개 흐름 4단계 구분 */
+export type SalesJournalStage = '영업개시' | '제안' | '견적' | '거래개시';
+
+/** 📝 Groq LLM 영업일지 자연어 추출 포맷 */
+export interface SalesJournalExtractedData {
+  journalDate: string;          // 작성일
+  customerName: string;         // 고객명
+  contactName: string;          // 상대방 이름
+  contactTitle: string;         // 상대방 직책
+  stage: SalesJournalStage;     // 상담내용 구분 (영업개시 | 제안 | 견적 | 거래개시)
+  summary: string;              // 상담내용 요약
+  nextSchedule?: string;        // 다음일정 내용
+  nextScheduleDate?: string;    // 다음일정 일자
+}
+
+/** 📝 영업일지 엔티티 (원문 + Groq LLM 추출 데이터 통합 저장) */
+export interface SalesJournal {
+  id: string;
+  journalDate: string;          // 작성일
+  salespersonId: string;        // 작성 영업사원 ID
+  salespersonName: string;      // 작성 영업사원 성명
+  department?: string;          // 소속 부서명
+  customerId?: string;          // 매칭된 고객 ID (있는 경우)
+  customerName: string;         // 고객명
+  contactName?: string;         // 상대방 이름
+  contactTitle?: string;        // 상대방 직책
+  stage: SalesJournalStage;     // 영업개시 | 제안 | 견적 | 거래개시
+  summary: string;              // 상담내용 요약
+  nextSchedule?: string;        // 다음일정 설명
+  nextScheduleDate?: string;    // 다음일정 날짜
+  rawContent: string;           // 자유 자연어 작성 원문
+  extractedJson?: SalesJournalExtractedData | Record<string, any>; // Groq LLM 추출 원본 데이터 포맷
+  aiModel?: string;             // 추출에 사용된 LLM 모델명
+  createdAt: string;
+  updatedAt?: string;
+  tenant_id?: string;
 }
 
 /** 📊 월간 결산 손익계산서 엔티티 */
@@ -5494,7 +5557,7 @@ export const ALL_DB_KEYS = [
   'approvalRules', 'ruleConsensus', 'approvalRequests', 'approvalSteps', 'delegationRecords',
   'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts', 'equipmentManuals', 'standardOptions',
   'printStations', 'printQueue', 'customRoles', 'rolePermissions', 'privacyAccessLogs', 'errorReports',
-  'monthlyIncomeStatements', 'developerAuthorizedDevices'
+  'monthlyIncomeStatements', 'developerAuthorizedDevices', 'salesJournals'
 ];
 
 // 🛡️ [전사 외래키 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
@@ -6263,7 +6326,16 @@ class LocalDB {
   get products() { return this.get<Product>('products', SEED_PRODUCTS); }
   set products(val: Product[]) { this.set('products', val); }
 
-  get assets() { return this.get<Asset>('assets', SEED_ASSETS); }
+  get assets() {
+    const raw = this.get<Asset>('assets', SEED_ASSETS);
+    return raw.map(a => {
+      if (!a) return a;
+      if (!a.yard || String(a.yard).trim() === '') {
+        return { ...a, yard: '용인' };
+      }
+      return a;
+    });
+  }
   set assets(val: Asset[]) { this.set('assets', val); }
 
   get inspectionChecklistItems() {
@@ -6586,9 +6658,13 @@ class LocalDB {
   get developerAuthorizedDevices() { return this.get<DeveloperDeviceProfile>('developerAuthorizedDevices', SEED_DEVELOPER_AUTHORIZED_DEVICES); }
   set developerAuthorizedDevices(val: DeveloperDeviceProfile[]) { this.set('developerAuthorizedDevices', val); }
 
+  get salesJournals() { return this.get<SalesJournal>('salesJournals', []); }
+  set salesJournals(val: SalesJournal[]) { this.set('salesJournals', val); }
+
   // Supabase 테이블 맵핑
   private mapToSupabaseTable(key: string): string {
     const mapping: Record<string, string> = {
+      salesJournals: 'sales_journals',
       monthlyIncomeStatements: 'monthly_income_statements',
       errorReports: 'error_reports',
       privacyAccessLogs: 'privacy_access_logs',
@@ -6795,6 +6871,9 @@ class LocalDB {
     if (tableName === 'assets') {
       if (!normalized.assetNature) {
         normalized.assetNature = isVirtualAsset(normalized) ? 'VIRTUAL' : 'PHYSICAL';
+      }
+      if (!normalized.yard || String(normalized.yard).trim() === '') {
+        normalized.yard = '용인';
       }
     }
     if (tableName === 'deliveries' && normalized.memo && typeof normalized.memo === 'string') {
@@ -7204,6 +7283,7 @@ class LocalDB {
       case 'privacyAccessLogs':   prefix = 'PLOG-';   break;
       case 'errorReports':        prefix = 'ERR-';    break;
       case 'monthlyIncomeStatements': prefix = 'IS-'; break;
+      case 'salesJournals':       prefix = 'SJ-';     break;
       default:
         prefix = key.slice(0, 4).toUpperCase() + '-';
     }
@@ -7948,6 +8028,8 @@ class LocalDB {
       monthlyIncomeStatements: 'monthlyIncomeStatements',
       developer_authorized_devices: 'developerAuthorizedDevices',
       developerAuthorizedDevices: 'developerAuthorizedDevices',
+      sales_journals: 'salesJournals',
+      salesJournals: 'salesJournals',
     };
     return (reverseMapping[key] || key) as keyof LocalDB;
   }
@@ -7994,10 +8076,15 @@ class LocalDB {
       ...(row as any),
       id: newId
     };
-    if (tableKey === 'assets' && formattedRow.modelName) {
-      const autoMfg = this.resolveAssetManufacturer(formattedRow.modelName, formattedRow.manufacturer);
-      if (autoMfg) {
-        formattedRow.manufacturer = autoMfg;
+    if (tableKey === 'assets') {
+      if (!formattedRow.yard || String(formattedRow.yard).trim() === '') {
+        formattedRow.yard = '용인';
+      }
+      if (formattedRow.modelName) {
+        const autoMfg = this.resolveAssetManufacturer(formattedRow.modelName, formattedRow.manufacturer);
+        if (autoMfg) {
+          formattedRow.manufacturer = autoMfg;
+        }
       }
     }
     const newRow = formattedRow as unknown as T;
@@ -8021,6 +8108,17 @@ class LocalDB {
           if (error) {
             const msg = error.message || String(error);
             console.error(`Supabase upsert failed for ${tableName}:`, error);
+
+            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find'))) {
+              const applied = await autoApplyAssetsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
+                const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+                if (!retryRes.error) {
+                  return retryRes.data;
+                }
+              }
+            }
 
             if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();
@@ -8079,11 +8177,17 @@ class LocalDB {
       updatedAt: nowIso
     };
     const mergedItem: any = { ...list[index], ...updatedPayload };
-    if (tableKey === 'assets' && mergedItem.modelName) {
-      const autoMfg = this.resolveAssetManufacturer(mergedItem.modelName, mergedItem.manufacturer);
-      if (autoMfg) {
-        updatedPayload.manufacturer = autoMfg;
-        mergedItem.manufacturer = autoMfg;
+    if (tableKey === 'assets') {
+      if (!mergedItem.yard || String(mergedItem.yard).trim() === '') {
+        updatedPayload.yard = '용인';
+        mergedItem.yard = '용인';
+      }
+      if (mergedItem.modelName) {
+        const autoMfg = this.resolveAssetManufacturer(mergedItem.modelName, mergedItem.manufacturer);
+        if (autoMfg) {
+          updatedPayload.manufacturer = autoMfg;
+          mergedItem.manufacturer = autoMfg;
+        }
       }
     }
     const updated = mergedItem as unknown as T;
@@ -8131,6 +8235,17 @@ class LocalDB {
           if (error) {
             const msg = error.message || String(error);
             console.error(`Supabase update failed for ${tableName}:`, error);
+
+            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find'))) {
+              const applied = await autoApplyAssetsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
+                const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+                if (!retryRes.error) {
+                  return retryRes.data;
+                }
+              }
+            }
 
             if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {
               const applied = await autoApplyTenantsDdl();

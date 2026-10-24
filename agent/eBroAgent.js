@@ -82,8 +82,8 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.28';
-const CORE_HASH = 'c567132099d6';
+const VERSION = 'v2.0.0.Build.29';
+const CORE_HASH = 'dc6adc8a89c5';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -580,6 +580,371 @@ function runCommandAsync(cmd, options = {}) {
   });
 }
 
+// ── 🛡️ PowerShell Excel COM 자가 치유(Self-Healing) 초기화 스니펫 ──
+// 1) 백그라운드 좀비 EXCEL.EXE 정리
+// 2) 깨진 Office TypeLib 레지스트리 고아 버전 키({00020813-0000-0000-C000-000000000046}) 자동 정리
+// 3) $excel.Workbooks 바인딩 대기 및 Late-Binding 폴백 검증
+const PS_INIT_EXCEL_COM_BLOCK = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+try {
+  Get-Process -Name "EXCEL" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -eq 0 } | Stop-Process -Force -ErrorAction SilentlyContinue
+} catch {}
+
+try {
+  $tlbGuid = "{00020813-0000-0000-C000-000000000046}"
+  foreach ($hive in @("HKCU:\\Software\\Classes\\TypeLib\\$tlbGuid", "HKLM:\\SOFTWARE\\Classes\\TypeLib\\$tlbGuid", "HKLM:\\SOFTWARE\\WOW6432Node\\Classes\\TypeLib\\$tlbGuid")) {
+    if (Test-Path $hive) {
+      $verKeys = @(Get-ChildItem -Path $hive -ErrorAction SilentlyContinue)
+      if ($verKeys.Count -gt 1) {
+        foreach ($vk in $verKeys) {
+          $hasValidFile = $false
+          foreach ($sub in @("0\\win64", "0\\win32")) {
+            $p = Join-Path $vk.PSPath $sub
+            if (Test-Path $p) {
+              $defVal = (Get-ItemProperty -Path $p -ErrorAction SilentlyContinue).'(default)'
+              if ($defVal) {
+                $cleanPath = ($defVal -replace '\\\\\\d+$', '')
+                if (Test-Path $cleanPath) { $hasValidFile = $true }
+              }
+            }
+          }
+          if (-not $hasValidFile) {
+            try { Remove-Item -Path $vk.PSPath -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+          }
+        }
+      }
+    }
+  }
+} catch {}
+
+$excel = New-Object -ComObject Excel.Application
+for ($wRetry = 0; $wRetry -lt 10; $wRetry++) {
+  try {
+    if ($null -ne $excel.Workbooks) { break }
+  } catch {}
+  Start-Sleep -Milliseconds 250
+}
+try { $excel.Visible = $false } catch {}
+try { $excel.DisplayAlerts = $false } catch {}
+try { $excel.ScreenUpdating = $false } catch {}
+try { $excel.EnableEvents = $false } catch {}
+try { $excel.Interactive = $false } catch {}
+if ($null -eq $excel -or $null -eq $excel.Workbooks) {
+  throw "EXCEL_COM_WORKBOOKS_NULL"
+}
+`;
+
+// ── 🛡️ 무엑셀(Zero-Excel) 환경 대응: 내장 ExcelJS + Edge Headless 정밀 PDF/XLSX 변환 엔진 ──
+function escapeHtmlText(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function replaceTagInWorksheet(ws, tag, val) {
+  if (!ws || !tag) return;
+  const replacement = String(val ?? '');
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      if (cell.isMerged && cell.master !== cell) return;
+      const v = cell.value;
+      if (typeof v === 'string') {
+        if (v.includes(tag)) {
+          cell.value = v.split(tag).join(replacement);
+        }
+      } else if (v && typeof v === 'object' && Array.isArray(v.richText)) {
+        const joined = v.richText.map(rt => rt.text || '').join('');
+        if (joined.includes(tag)) {
+          cell.value = joined.split(tag).join(replacement);
+        }
+      }
+    });
+  });
+}
+
+function argbToCssColor(colorObj, fallback = '') {
+  if (!colorObj) return fallback;
+  if (colorObj.argb && typeof colorObj.argb === 'string') {
+    const clean = colorObj.argb.replace(/^#/, '');
+    if (clean.length === 8) return '#' + clean.slice(2);
+    if (clean.length === 6) return '#' + clean;
+  }
+  return fallback;
+}
+
+function borderEdgeToCss(edge) {
+  if (!edge || !edge.style) return '';
+  const color = argbToCssColor(edge.color, '#000000');
+  const st = edge.style;
+  if (st === 'double') return `2.4px double ${color}`;
+  if (st === 'thick') return `2px solid ${color}`;
+  if (st === 'medium') return `1.4px solid ${color}`;
+  if (st === 'dashed' || st === 'mediumDashed') return `1px dashed ${color}`;
+  if (st === 'dotted' || st === 'hair') return `1px dotted ${color}`;
+  return `1px solid ${color}`;
+}
+
+function formatExcelCellValue(cell) {
+  const v = cell.value;
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') {
+    const fmt = String(cell.numFmt || '');
+    if (fmt.includes(',') || fmt.includes('#,##0')) {
+      const formatted = Math.round(v).toLocaleString('ko-KR');
+      if (fmt.includes('₩') || fmt.includes('\\')) return `₩${formatted}`;
+      return formatted;
+    }
+    return String(v);
+  }
+  if (typeof v === 'string') return v;
+  if (v instanceof Date) {
+    return v.toISOString().split('T')[0];
+  }
+  if (typeof v === 'object') {
+    if (Array.isArray(v.richText)) {
+      return v.richText.map(rt => rt.text || '').join('');
+    }
+    if (v.result !== undefined && v.result !== null) {
+      if (typeof v.result === 'number') {
+        const fmt = String(cell.numFmt || '');
+        if (fmt.includes(',') || fmt.includes('#,##0')) {
+          return Math.round(v.result).toLocaleString('ko-KR');
+        }
+      }
+      return String(v.result);
+    }
+    if (v.text !== undefined) return String(v.text);
+  }
+  return '';
+}
+
+function renderExcelWorksheetToHtmlPage(wb, ws, startRow, endRow, startCol, endCol) {
+  const masterMerges = new Map();
+  const coveredCells = new Set();
+
+  for (const m of Object.values(ws._merges || {})) {
+    const model = m.model || m;
+    if (!model || !model.top) continue;
+    const top = Math.max(startRow, model.top);
+    const left = Math.max(startCol, model.left);
+    const bottom = Math.min(endRow, model.bottom);
+    const right = Math.min(endCol, model.right);
+    if (top > bottom || left > right) continue;
+    masterMerges.set(`${top},${left}`, { top, left, bottom, right, origTop: model.top, origLeft: model.left });
+    for (let r = top; r <= bottom; r++) {
+      for (let c = left; c <= right; c++) {
+        if (r !== top || c !== left) {
+          coveredCells.add(`${r},${c}`);
+        }
+      }
+    }
+  }
+
+  // 시트 내 직인/서명 이미지 추출 및 마스터 셀 바인딩
+  const cellImages = new Map();
+  try {
+    const imgs = ws.getImages ? ws.getImages() : [];
+    for (const img of imgs) {
+      const media = wb.getImage ? wb.getImage(img.imageId) : null;
+      if (!media || !media.buffer) continue;
+      const ext = (media.extension || 'png').toLowerCase() === 'jpg' ? 'jpeg' : (media.extension || 'png').toLowerCase();
+      const b64 = Buffer.from(media.buffer).toString('base64');
+      const dataUri = `data:image/${ext};base64,${b64}`;
+      let targetR = Math.floor(img.range?.tl?.nativeRow ?? 0) + 1;
+      let targetC = Math.floor(img.range?.tl?.nativeCol ?? 0) + 1;
+      targetR = Math.max(startRow, Math.min(endRow, targetR));
+      targetC = Math.max(startCol, Math.min(endCol, targetC));
+
+      // 병합된 셀 내부인 경우 마스터 좌표로 귀속
+      for (const [mKey, mVal] of masterMerges.entries()) {
+        if (targetR >= mVal.top && targetR <= mVal.bottom && targetC >= mVal.left && targetC <= mVal.right) {
+          targetR = mVal.top;
+          targetC = mVal.left;
+          break;
+        }
+      }
+      const key = `${targetR},${targetC}`;
+      if (!cellImages.has(key)) cellImages.set(key, []);
+      cellImages.get(key).push(dataUri);
+    }
+  } catch (e) {}
+
+  const colWidths = [];
+  let totalColWidth = 0;
+  for (let c = startCol; c <= endCol; c++) {
+    const w = Math.max(1.5, Number(ws.getColumn(c)?.width) || 8.43);
+    colWidths.push(w);
+    totalColWidth += w;
+  }
+
+  const rowHeights = [];
+  let totalRawHeightPt = 0;
+  for (let r = startRow; r <= endRow; r++) {
+    const h = Math.max(10, Number(ws.getRow(r)?.height) || 15.5);
+    rowHeights.push(h);
+    totalRawHeightPt += h;
+  }
+
+  // A4 세로 1페이지(가용 높이 약 745pt) 안에 완벽히 수렴하도록 행 높이 및 폰트 스케일 산출
+  const targetMaxPt = 745;
+  const heightScale = totalRawHeightPt > targetMaxPt ? (targetMaxPt / totalRawHeightPt) : 1;
+  const fontScale = heightScale < 0.85 ? Math.max(0.76, heightScale * 1.04) : 0.92;
+
+  let html = `<div class="excel-sheet-page"><table class="excel-table"><colgroup>`;
+  for (const w of colWidths) {
+    const pct = ((w / totalColWidth) * 100).toFixed(3);
+    html += `<col style="width:${pct}%;">`;
+  }
+  html += `</colgroup><tbody>`;
+
+  for (let r = startRow; r <= endRow; r++) {
+    const scaledRowPt = (rowHeights[r - startRow] * heightScale).toFixed(2);
+    html += `<tr style="height:${scaledRowPt}pt;">`;
+
+    for (let c = startCol; c <= endCol; c++) {
+      const key = `${r},${c}`;
+      if (coveredCells.has(key)) continue;
+
+      const mergeInfo = masterMerges.get(key);
+      const srcCell = mergeInfo ? ws.getCell(mergeInfo.origTop, mergeInfo.origLeft) : ws.getCell(r, c);
+      const bottomR = mergeInfo ? mergeInfo.bottom : r;
+      const rightC = mergeInfo ? mergeInfo.right : c;
+
+      const rowspan = bottomR - r + 1;
+      const colspan = rightC - c + 1;
+
+      const bTop = borderEdgeToCss(srcCell.border?.top);
+      const bLeft = borderEdgeToCss(srcCell.border?.left);
+      const bRight = borderEdgeToCss(ws.getCell(r, rightC).border?.right || srcCell.border?.right);
+      const bBottom = borderEdgeToCss(ws.getCell(bottomR, c).border?.bottom || srcCell.border?.bottom);
+
+      let styles = [];
+      if (bTop) styles.push(`border-top:${bTop}`);
+      if (bLeft) styles.push(`border-left:${bLeft}`);
+      if (bRight) styles.push(`border-right:${bRight}`);
+      if (bBottom) styles.push(`border-bottom:${bBottom}`);
+
+      if (srcCell.fill && srcCell.fill.type === 'pattern' && srcCell.fill.pattern === 'solid') {
+        const bg = argbToCssColor(srcCell.fill.fgColor, '');
+        if (bg && bg.toLowerCase() !== '#000000') {
+          styles.push(`background-color:${bg}`);
+        }
+      }
+
+      const fSize = Math.max(6.5, (Number(srcCell.font?.size) || 10) * fontScale).toFixed(1);
+      styles.push(`font-size:${fSize}pt`);
+      if (srcCell.font?.bold) styles.push('font-weight:700');
+      const fColor = argbToCssColor(srcCell.font?.color, '');
+      if (fColor) styles.push(`color:${fColor}`);
+
+      const hAlign = srcCell.alignment?.horizontal || (typeof srcCell.value === 'number' ? 'right' : 'center');
+      const vAlign = srcCell.alignment?.vertical || 'middle';
+      styles.push(`text-align:${hAlign === 'distributed' || hAlign === 'justify' ? 'center' : hAlign}`);
+      styles.push(`vertical-align:${vAlign === 'distributed' ? 'middle' : vAlign}`);
+
+      const rawText = formatExcelCellValue(srcCell);
+      const hasNewline = rawText.includes('\n');
+      if (srcCell.alignment?.wrapText || hasNewline || colspan >= 4) {
+        styles.push('white-space:pre-wrap;word-break:keep-all;overflow-wrap:break-word');
+      } else {
+        styles.push('white-space:nowrap;overflow:hidden');
+      }
+
+      const spanAttrs = `${rowspan > 1 ? ` rowspan="${rowspan}"` : ''}${colspan > 1 ? ` colspan="${colspan}"` : ''}`;
+      const escaped = escapeHtmlText(rawText);
+      const imgs = cellImages.get(key);
+
+      if (imgs && imgs.length > 0) {
+        styles.push('position:relative');
+        const imgTags = imgs.map(u => `<img src="${u}" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);max-height:38px;max-width:52px;object-fit:contain;opacity:0.9;pointer-events:none;" />`).join('');
+        html += `<td${spanAttrs} style="${styles.join(';')}"><div style="position:relative;width:100%;min-height:14px;">${escaped}${imgTags}</div></td>`;
+      } else {
+        html += `<td${spanAttrs} style="${styles.join(';')}">${escaped}</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+async function convertHtmlPagesToPdfViaEdge(pageHtmlArray, outputPdfPath, tempBuildDir) {
+  const htmlPath = path.join(tempBuildDir, `fallback_doc_${Date.now()}.html`);
+  const fullHtml = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4 portrait; margin: 7mm 7mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html, body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', 'Dotum', sans-serif; color: #000; background: #fff; }
+    .excel-sheet-page {
+      width: 100%;
+      max-height: 282mm;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+    .excel-sheet-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    .excel-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .excel-table td {
+      padding: 1px 3px;
+      line-height: 1.15;
+    }
+  </style>
+</head>
+<body>
+${pageHtmlArray.join('\n')}
+</body>
+</html>`;
+
+  fs.writeFileSync(htmlPath, fullHtml, 'utf8');
+
+  let edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+  if (!fs.existsSync(edgePath)) {
+    if (fs.existsSync('C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe')) {
+      edgePath = 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe';
+    } else if (fs.existsSync('C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe')) {
+      edgePath = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
+    } else if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
+      edgePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    } else {
+      edgePath = 'msedge.exe';
+    }
+  }
+
+  const edgeProfDir = path.join(tempBuildDir, 'edge_prof_' + Date.now());
+  if (!fs.existsSync(edgeProfDir)) {
+    fs.mkdirSync(edgeProfDir, { recursive: true });
+  }
+
+  const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${edgeProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${outputPdfPath}" "${htmlPath}"`;
+  try {
+    await runCommandAsync(edgeCmd, { cwd: tempBuildDir });
+  } catch (e) {
+    agentLog('WARN', 'Edge Headless PDF 변환 프로세스 경고: ' + e.message);
+  }
+
+  const startWait = Date.now();
+  while (Date.now() - startWait < 20000) {
+    if (fs.existsSync(outputPdfPath) && fs.statSync(outputPdfPath).size > 0) {
+      return outputPdfPath;
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  throw new Error('Edge Headless PDF 파일 생성 실패');
+}
+
 // ── 하드웨어 다이렉트 프린터 출력 엔진 (Edge Headless PDF + 64비트 Sumatra 무인 스풀 — 100% 비동기 Non-blocking) ──
 async function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리프트_출력물') {
   if (!htmlContent) {
@@ -1026,12 +1391,7 @@ $ErrorActionPreference = 'Stop'
 $excel = $null
 $wb = $null
 try {
-$excel = New-Object -ComObject Excel.Application
-try { $excel.Visible = $false } catch {}
-try { $excel.DisplayAlerts = $false } catch {}
-try { $excel.ScreenUpdating = $false } catch {}
-try { $excel.EnableEvents = $false } catch {}
-try { $excel.Interactive = $false } catch {}
+${PS_INIT_EXCEL_COM_BLOCK}
 
 function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
@@ -1286,11 +1646,200 @@ $wb.ExportAsFixedFormat(0, $masterPdf)
 }
 `;
 
-    const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
-    fs.writeFileSync(psFile, psScript, 'utf8');
+    const masterPdfOut = path.join(tempBuildDir, '01.계약서패키지.pdf');
+    try {
+      const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
+      fs.writeFileSync(psFile, psScript, 'utf8');
 
-    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
-    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+      const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+      await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+      if (!fs.existsSync(masterPdfOut) || fs.statSync(masterPdfOut).size === 0) {
+        throw new Error('EXCEL_COM_EMPTY_OUTPUT');
+      }
+    } catch (excelComErr) {
+      agentLog('WARN', `계약서패키지 Excel COM 변환 실패 -> 내장 ExcelJS + Edge Headless 엔진 자동 전환 (${excelComErr.message})`);
+      const ExcelJS = require('exceljs');
+      const pageHtmls = [];
+
+      const wbContract = new ExcelJS.Workbook();
+      await wbContract.xlsx.readFile(path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx'));
+      const wsContract = wbContract.worksheets.find(s => s.name.includes('계약서')) || wbContract.worksheets[0];
+
+      const rawSalesRepName = String(payload.salesRepName || payload.salespersonName || tenantRepName || '영업담당자');
+      const rawSalesRepPhone = String(payload.salesRepPhone || payload.salespersonPhone || tenantTel || '010-0000-0000');
+
+      replaceTagInWorksheet(wsContract, '{Today}', contractDate);
+      replaceTagInWorksheet(wsContract, '(주)기연리프트', tenantCorp);
+      replaceTagInWorksheet(wsContract, '주식회사 기연리프트', tenantCorp);
+      replaceTagInWorksheet(wsContract, '{테넌트}', tenantCorp);
+      if (tenantBizNo) replaceTagInWorksheet(wsContract, '138-81-83251', tenantBizNo);
+      if (tenantRepName) replaceTagInWorksheet(wsContract, '이수용', tenantRepName);
+      if (tenantBankAccount) replaceTagInWorksheet(wsContract, '{입금계좌}', tenantBankAccount);
+      replaceTagInWorksheet(wsContract, '{사업자등록번호}', bizRegNo);
+      replaceTagInWorksheet(wsContract, '{고객명}', custName);
+      replaceTagInWorksheet(wsContract, '{대표자}', ceoName);
+      replaceTagInWorksheet(wsContract, '{현장명}', siteName);
+      replaceTagInWorksheet(wsContract, '{하차일시}', deliveryDate);
+      replaceTagInWorksheet(wsContract, '{현장주소}', siteAddress);
+      replaceTagInWorksheet(wsContract, '{현장담당자}', managerName);
+      replaceTagInWorksheet(wsContract, '{현장담당자연락처}', managerPhone);
+      replaceTagInWorksheet(wsContract, '{영업담당자}', rawSalesRepName);
+      replaceTagInWorksheet(wsContract, '{영업담당자연락처}', rawSalesRepPhone);
+      replaceTagInWorksheet(wsContract, '{최소기간}', minPeriod);
+      replaceTagInWorksheet(wsContract, '{최고기간}', minPeriod);
+      replaceTagInWorksheet(wsContract, '{기준기간}', basePeriod);
+      const freightRuleStr = `■ ${minPeriod}개월 이하: 왕복 운반비 임차인 부담 ■ ${basePeriod}개월 이하: 편도 운반비 임차인 부담 ■ ${basePeriod}개월 초과 : 왕복 운반비 임대인 부담 `;
+      replaceTagInWorksheet(wsContract, '■ 3개월 이하: 왕복 운반비 임차인 부담 ■ 5개월 이하: 편도 운반비 임차인 부담 ■ 5개월 초과 : 왕복 운반비 임대인 부담', freightRuleStr);
+      wsContract.getCell('C56').value = freightRuleStr;
+      replaceTagInWorksheet(wsContract, '{합계}', `₩${grandTotalFee.toLocaleString()}`);
+      replaceTagInWorksheet(wsContract, '{옵션}', '');
+      wsContract.getCell('C57').value = '';
+      if (remarksText) {
+        replaceTagInWorksheet(wsContract, '{특이사항}', remarksText);
+      } else {
+        replaceTagInWorksheet(wsContract, '{특이사항} ', '');
+        replaceTagInWorksheet(wsContract, '{특이사항}', '');
+      }
+      replaceTagInWorksheet(wsContract, '(유상옵션)', '');
+      replaceTagInWorksheet(wsContract, '(수량) / {단위}', '');
+      replaceTagInWorksheet(wsContract, '(수량)', '');
+      replaceTagInWorksheet(wsContract, '{단가}', '');
+      replaceTagInWorksheet(wsContract, '{제조번호}', '');
+
+      const rawContractItems = [
+        ...assets.map(ast => {
+          const aNo = (ast.assetNo && ast.assetNo !== '-') ? String(ast.assetNo).trim() : '';
+          const aSn = (ast.sn && ast.sn !== '-') ? String(ast.sn).trim() : '';
+          const col4 = (aNo && aSn) ? `${aNo}\n${aSn}` : (aNo || aSn || '');
+          const feeStr = (Number(ast.rentalFee) || 480000).toLocaleString();
+          return {
+            col1: String(ast.modelName || 'GS-2646'),
+            col3: '1',
+            col4,
+            hasNewline: Boolean(aNo && aSn),
+            col5: feeStr,
+            col7: feeStr
+          };
+        }),
+        ...paidOptions.map(opt => {
+          const qty = Math.max(1, Number(opt.quantity) || 1);
+          const uPrice = Number(opt.unitPrice) || 0;
+          const sTotal = opt.subTotal !== undefined ? Number(opt.subTotal) : uPrice * qty;
+          return {
+            col1: String(opt.name || ''),
+            col3: String(qty),
+            col4: '',
+            hasNewline: false,
+            col5: uPrice.toLocaleString(),
+            col7: sTotal.toLocaleString()
+          };
+        })
+      ];
+
+      if (rawContractItems.length > 12) {
+        const extraRows = rawContractItems.length - 12;
+        try { wsContract.duplicateRow(54, extraRows, true); } catch (e) {}
+      }
+
+      for (let idx = 0; idx < totalItemRows; idx++) {
+        const rNum = 44 + idx;
+        const itm = rawContractItems[idx];
+        const rowObj = wsContract.getRow(rNum);
+        rowObj.getCell(1).value = itm ? itm.col1 : '';
+        rowObj.getCell(3).value = itm ? itm.col3 : '';
+        rowObj.getCell(4).value = itm ? itm.col4 : '';
+        rowObj.getCell(5).value = itm ? itm.col5 : '';
+        rowObj.getCell(7).value = itm ? itm.col7 : '';
+      }
+
+      const contractEndRow = rawContractItems.length <= 12 ? 78 : (78 + rawContractItems.length - 12);
+      pageHtmls.push(renderExcelWorksheetToHtmlPage(wbContract, wsContract, 26, contractEndRow, 1, 11));
+
+      const checkTemplatePath = fs.existsSync(path.join(DRIVE_MIRROR_DIR, '02.반입전체크리스트.xlsx'))
+        ? path.join(DRIVE_MIRROR_DIR, '02.반입전체크리스트.xlsx')
+        : path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx');
+
+      for (const ast of assets) {
+        const wbChk = new ExcelJS.Workbook();
+        await wbChk.xlsx.readFile(checkTemplatePath);
+        const wsChk = wbChk.worksheets.find(s => /반입전|체크리스트/.test(s.name)) || wbChk.worksheets[0];
+        const astInspDate = String(ast.inspectionDate || inspectionDate);
+        const astInspName = String(ast.inspectorName || inspectorName);
+        const astModel = String(ast.modelName || '-');
+        const astNo = String(ast.assetNo || '-');
+
+        replaceTagInWorksheet(wsChk, '(주)기연리프트', tenantCorp);
+        replaceTagInWorksheet(wsChk, '주식회사 기연리프트', tenantCorp);
+        replaceTagInWorksheet(wsChk, '{테넌트}', tenantCorp);
+        replaceTagInWorksheet(wsChk, '{모델명}', astModel);
+        replaceTagInWorksheet(wsChk, '{관리번호}', astNo);
+        replaceTagInWorksheet(wsChk, '{점검일시}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{안전점검일시}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{{배차일)-2} 또는 {지정}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{(배차일)-2} 또는 {지정}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{(배차일)-2}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{Today}', astInspDate);
+        replaceTagInWorksheet(wsChk, '{점검자}', astInspName);
+        replaceTagInWorksheet(wsChk, '{점점자}', astInspName);
+        replaceTagInWorksheet(wsChk, '김관주', astInspName);
+
+        pageHtmls.push(renderExcelWorksheetToHtmlPage(wbChk, wsChk, 1, Math.min(46, wsChk.rowCount || 46), 1, 14));
+      }
+
+      const safetyTemplatePath = fs.existsSync(path.join(DRIVE_MIRROR_DIR, '03.안전점검결과서.xlsx'))
+        ? path.join(DRIVE_MIRROR_DIR, '03.안전점검결과서.xlsx')
+        : path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx');
+
+      for (const ast of assets) {
+        const wbSaf = new ExcelJS.Workbook();
+        await wbSaf.xlsx.readFile(safetyTemplatePath);
+        const wsSaf = wbSaf.worksheets.find(s => /안전점검|결과서/.test(s.name)) || wbSaf.worksheets[wbSaf.worksheets.length - 1];
+        const astInspDate = String(ast.inspectionDate || inspectionDate);
+        const astInspName = String(ast.inspectorName || inspectorName);
+        const astModel = String(ast.modelName || '-');
+        const astNo = String(ast.assetNo || '-');
+        const astMfg = (ast.manufacturer && ast.manufacturer !== '-') ? String(ast.manufacturer) : '-';
+        const astPower = (ast.powerSource && ast.powerSource !== '-') ? String(ast.powerSource) : '배터리';
+        const astWeight = (ast.weight && ast.weight !== '-') ? String(ast.weight) : '-';
+        const astSpeed = (ast.speed && ast.speed !== '-') ? String(ast.speed) : '-';
+        const astWorkingHeight = (ast.workingHeight && ast.workingHeight !== '-') ? String(ast.workingHeight) : '-';
+        const astCapacity = (ast.capacityPreExt && ast.capacityPreExt !== '-') ? String(ast.capacityPreExt) : '-';
+        const astMfgYear = (ast.manufactureYear && ast.manufactureYear !== '-') ? String(ast.manufactureYear) : '-';
+        const astCertDate = (ast.safetyCertDate && ast.safetyCertDate !== '-') ? String(ast.safetyCertDate) : ((ast.certDate && ast.certDate !== '-') ? String(ast.certDate) : '-');
+
+        replaceTagInWorksheet(wsSaf, '{사업장명}', siteName);
+        replaceTagInWorksheet(wsSaf, '{형식}', '자주식 시저형');
+        replaceTagInWorksheet(wsSaf, '{제조사}', astMfg);
+        replaceTagInWorksheet(wsSaf, '(주)기연리프트', tenantCorp);
+        replaceTagInWorksheet(wsSaf, '주식회사 기연리프트', tenantCorp);
+        replaceTagInWorksheet(wsSaf, '{테넌트}', tenantCorp);
+        replaceTagInWorksheet(wsSaf, '{고객명}', custName);
+        replaceTagInWorksheet(wsSaf, '{동력방식}', astPower);
+        replaceTagInWorksheet(wsSaf, '{모델명}', astModel);
+        replaceTagInWorksheet(wsSaf, '{중량}', astWeight);
+        replaceTagInWorksheet(wsSaf, '{운행속도}', astSpeed);
+        replaceTagInWorksheet(wsSaf, '{작업높이}', astWorkingHeight);
+        replaceTagInWorksheet(wsSaf, '{적재}', astCapacity);
+        replaceTagInWorksheet(wsSaf, '{관리번호}', astNo);
+        replaceTagInWorksheet(wsSaf, '{차량번호}', astNo);
+        replaceTagInWorksheet(wsSaf, '{제조연도}년', astMfgYear);
+        replaceTagInWorksheet(wsSaf, '{제조연도}', astMfgYear);
+        replaceTagInWorksheet(wsSaf, '{안전인증일}', astCertDate);
+        replaceTagInWorksheet(wsSaf, '{Today}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{점검일시}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{안전점검일시}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{{배차일)-2} 또는 {지정}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{(배차일)-2} 또는 {지정}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{(배차일)-2}', astInspDate);
+        replaceTagInWorksheet(wsSaf, '{점검자}', astInspName);
+        replaceTagInWorksheet(wsSaf, '{점점자}', astInspName);
+        replaceTagInWorksheet(wsSaf, '김관주', astInspName);
+
+        pageHtmls.push(renderExcelWorksheetToHtmlPage(wbSaf, wsSaf, 1, Math.min(46, wsSaf.rowCount || 46), 1, 11));
+      }
+
+      await convertHtmlPagesToPdfViaEdge(pageHtmls, masterPdfOut, tempBuildDir);
+    }
 
     const { PDFDocument } = require('pdf-lib');
 
@@ -1422,12 +1971,7 @@ $ErrorActionPreference = 'Stop'
 $excel = $null
 $wb = $null
 try {
-$excel = New-Object -ComObject Excel.Application
-try { $excel.Visible = $false } catch {}
-try { $excel.DisplayAlerts = $false } catch {}
-try { $excel.ScreenUpdating = $false } catch {}
-try { $excel.EnableEvents = $false } catch {}
-try { $excel.Interactive = $false } catch {}
+${PS_INIT_EXCEL_COM_BLOCK}
 
 function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
@@ -1622,15 +2166,182 @@ $wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.M
 }
 `;
 
-    const psFile = path.join(tempBuildDir, 'generate_statement.ps1');
-    fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
-
-    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
-    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
-      cwd: tempBuildDir
-    });
-
     const statementPdfPath = path.join(tempBuildDir, '거래명세서.pdf');
+    const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
+    try {
+      const psFile = path.join(tempBuildDir, 'generate_statement.ps1');
+      fs.writeFileSync(psFile, psScript, { encoding: 'utf8' });
+
+      const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+      await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, {
+        cwd: tempBuildDir
+      });
+      if (!fs.existsSync(statementPdfPath) || fs.statSync(statementPdfPath).size === 0) {
+        throw new Error('EXCEL_COM_EMPTY_OUTPUT');
+      }
+    } catch (excelComErr) {
+      agentLog('WARN', `거래명세서 Excel COM 변환 실패 -> 내장 ExcelJS + Edge Headless 엔진 자동 전환 (${excelComErr.message})`);
+      const ExcelJS = require('exceljs');
+      const pageHtmls = [];
+
+      const unescapePs = (s) => String(s || '').replace(/""/g, '"');
+      const rawLessorBizNo = unescapePs(lessorBizNo);
+      const rawLessorName = unescapePs(lessorName);
+      const rawLessorCeo = unescapePs(lessorCeo);
+      const rawLessorAddress = unescapePs(lessorAddress);
+      const rawLessorBizType = unescapePs(lessorBizType);
+      const rawLessorBizItem = unescapePs(lessorBizItem);
+      const rawSalespersonName = unescapePs(salespersonName);
+      const rawSalespersonPhone = unescapePs(salespersonPhone);
+      const rawBillingManagerName = unescapePs(billingManagerName);
+      const rawBillingManagerPhone = unescapePs(billingManagerPhone);
+      const rawLessorEmail = unescapePs(lessorEmail);
+      const rawBankAccount = unescapePs(bankAccount);
+      const rawBizRegNo = unescapePs(bizRegNo);
+      const rawCustName = unescapePs(custName);
+      const rawCeoName = unescapePs(ceoName);
+      const rawSiteAddress = unescapePs(siteAddress);
+      const rawCustBizType = unescapePs(custBizType);
+      const rawCustBizItem = unescapePs(custBizItem);
+      const rawSiteManagerName = unescapePs(siteManagerName);
+      const rawSiteManagerPhone = unescapePs(siteManagerPhone);
+      const rawCustBillingName = unescapePs(custBillingName);
+      const rawCustBillingPhone = unescapePs(custBillingPhone);
+      const rawCustBillingEmail = unescapePs(custBillingEmail);
+      const rawSiteName = unescapePs(siteName);
+      const rawBillingDate = unescapePs(billingDate);
+
+      let firstWb = null;
+      for (let pageIdx = 0; pageIdx < chunks.length; pageIdx++) {
+        const chunk = chunks[pageIdx];
+        const pageNum = pageIdx + 1;
+        const pageTag = totalPages > 1 ? ` ( ${pageNum} / ${totalPages} 쪽 )` : '';
+        const startGlobalIdx = pageIdx * chunkSize;
+
+        const wbStmt = new ExcelJS.Workbook();
+        await wbStmt.xlsx.readFile(statementMasterPath);
+        if (pageIdx === 0) firstWb = wbStmt;
+        const curWs = wbStmt.worksheets[0];
+
+        replaceTagInWorksheet(curWs, '{테넌트사업자등록번호}', rawLessorBizNo);
+        replaceTagInWorksheet(curWs, '{테넌트상호}', rawLessorName);
+        replaceTagInWorksheet(curWs, '{테넌트대표}', rawLessorCeo);
+        replaceTagInWorksheet(curWs, '{테넌트주소}', rawLessorAddress);
+        replaceTagInWorksheet(curWs, '{테넌트업태}', rawLessorBizType);
+        replaceTagInWorksheet(curWs, '{테넌트종목}', rawLessorBizItem);
+        replaceTagInWorksheet(curWs, '{영업담당자}', rawSalespersonName);
+        replaceTagInWorksheet(curWs, '{영업담당자연락처}', rawSalespersonPhone);
+        replaceTagInWorksheet(curWs, '{테넌트계산서담당자}', rawBillingManagerName);
+        replaceTagInWorksheet(curWs, '{테넌트전화}', rawBillingManagerPhone);
+        replaceTagInWorksheet(curWs, '{테넌트세금계산서메일}', rawLessorEmail);
+        replaceTagInWorksheet(curWs, '{테넌트계좌}', rawBankAccount);
+
+        replaceTagInWorksheet(curWs, '{고객사업자등록증번호}', rawBizRegNo);
+        replaceTagInWorksheet(curWs, '{고객상호}', rawCustName);
+        replaceTagInWorksheet(curWs, '{고객대표}', rawCeoName);
+        replaceTagInWorksheet(curWs, '{고객주소}', rawSiteAddress);
+        replaceTagInWorksheet(curWs, '{고객업태}', rawCustBizType);
+        replaceTagInWorksheet(curWs, '{고객종목}', rawCustBizItem);
+        replaceTagInWorksheet(curWs, '{현장담당자}', rawSiteManagerName);
+        replaceTagInWorksheet(curWs, '{현장담당자연락처}', rawSiteManagerPhone);
+        replaceTagInWorksheet(curWs, '{계산서담당자}', rawCustBillingName);
+        replaceTagInWorksheet(curWs, '{계산서담당자연락처}', rawCustBillingPhone);
+        replaceTagInWorksheet(curWs, '{계산서메일}', rawCustBillingEmail);
+        replaceTagInWorksheet(curWs, '{현장명}', `${rawSiteName}${pageTag}`);
+        replaceTagInWorksheet(curWs, '{작성일자}', `${rawBillingDate}${pageTag}`);
+
+        let pageSupplySum = 0;
+        let pageVatSum = 0;
+
+        for (let r = 0; r < 13; r++) {
+          const item = chunk[r];
+          const rowNum = 16 + r;
+          const rowObj = curWs.getRow(rowNum);
+          if (item) {
+            const globalNo = startGlobalIdx + r + 1;
+            let m = item.month !== undefined && item.month !== null ? item.month : '';
+            let d = item.day !== undefined && item.day !== null ? item.day : '';
+            if ((!m || !d) && (item.billingDate || item.date || item.transactionDate || rawBillingDate)) {
+              const dtParts = String(item.billingDate || item.date || item.transactionDate || rawBillingDate).split('-');
+              if (dtParts.length === 3) {
+                if (!m) m = parseInt(dtParts[1], 10);
+                if (!d) d = parseInt(dtParts[2], 10);
+              }
+            }
+            let model = String(item.modelName || item.model || '').trim();
+            let height = String(item.workingHeight || item.height || '').trim();
+            let assetNo = String(item.assetNo || '').trim();
+            let siteEntryDate = String(item.siteEntryDate || '').trim();
+            let periodStart = String(item.periodStart || '').trim();
+            let periodEnd = String(item.periodEnd || '').trim();
+            let billingCategory = String(item.billingCategory || '').trim();
+            const rawDesc = String(item.itemDescription || item.description || item.itemName || '').trim();
+
+            if (!model && rawDesc) {
+              const parts = rawDesc.split('_');
+              if (parts.length >= 3 && parts[parts.length - 1].includes('~')) {
+                model = parts[0];
+                if (!assetNo) assetNo = parts[1];
+                const [ps, pe] = parts[parts.length - 1].split('~');
+                if (!periodStart && ps) periodStart = ps.trim();
+                if (!periodEnd && pe) periodEnd = pe.trim();
+              } else {
+                model = rawDesc;
+              }
+            }
+            const modelAndHeight = item.modelAndHeight || (height ? `${model} / ${height}` : (model || rawDesc || '-'));
+            const safeAssetNo = assetNo || '-';
+            const safeSiteEntry = siteEntryDate || periodStart || '-';
+            const safePStart = periodStart || '-';
+            const safePEnd = periodEnd || '-';
+            const safeTilde = (safePStart !== '-' || safePEnd !== '-') ? '~' : '';
+            const safeCategory = billingCategory || '임대료';
+
+            const qty = Number(item.quantity || item.qty || 1);
+            const priceNum = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
+            const supplyNum = item.supplyAmount !== undefined ? Number(item.supplyAmount) : (item.amount !== undefined ? Number(item.amount) : (priceNum * qty));
+            const vatNum = item.vatAmount !== undefined ? Number(item.vatAmount) : (item.vat !== undefined ? Number(item.vat) : Math.round(supplyNum * 0.1));
+            const notes = String(item.notes || item.remarks || item.memo || '');
+
+            pageSupplySum += supplyNum;
+            pageVatSum += vatNum;
+
+            rowObj.getCell(2).value = globalNo;
+            rowObj.getCell(3).value = String(m);
+            rowObj.getCell(4).value = String(d);
+            rowObj.getCell(5).value = modelAndHeight;
+            rowObj.getCell(8).value = safeAssetNo;
+            rowObj.getCell(11).value = safeSiteEntry;
+            rowObj.getCell(12).value = safePStart;
+            rowObj.getCell(13).value = safeTilde;
+            rowObj.getCell(14).value = safePEnd;
+            rowObj.getCell(15).value = safeCategory;
+            rowObj.getCell(17).value = qty;
+            rowObj.getCell(18).value = priceNum;
+            rowObj.getCell(20).value = supplyNum;
+            rowObj.getCell(23).value = vatNum;
+            rowObj.getCell(25).value = notes;
+          } else {
+            for (const cIdx of [2, 3, 4, 5, 8, 11, 12, 13, 14, 15, 17, 18, 20, 23, 25]) {
+              rowObj.getCell(cIdx).value = null;
+            }
+          }
+        }
+
+        // 수식 결과값(E29: 공급가액 합계, L29: 세액 합계, Q29: 총 합계) 직접 주입
+        curWs.getCell('E29').value = { formula: 'SUM(T16:V28)', result: pageSupplySum };
+        curWs.getCell('L29').value = { formula: 'SUM(W16:X28)', result: pageVatSum };
+        curWs.getCell('Q29').value = { formula: 'E29+L29', result: pageSupplySum + pageVatSum };
+
+        pageHtmls.push(renderExcelWorksheetToHtmlPage(wbStmt, curWs, 1, 30, 2, 27));
+      }
+
+      if (firstWb) {
+        try { await firstWb.xlsx.writeFile(xlsxWorkFile); } catch (e) {}
+      }
+      await convertHtmlPagesToPdfViaEdge(pageHtmls, statementPdfPath, tempBuildDir);
+    }
+
     if (!fs.existsSync(statementPdfPath)) {
       throw new Error('거래명세서 정품 PDF 생성 실패: 결과 파일 없음');
     }
@@ -1647,7 +2358,6 @@ $wb.ExportAsFixedFormat(0, $statementPdf, 0, $true, $false, [System.Reflection.M
     const localSavePath = path.join(archiveDir, fileName);
     fs.writeFileSync(localSavePath, pdfBuffer);
 
-    const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
     if (fs.existsSync(xlsxWorkFile)) {
       const xlsxFileName = `[${cleanTenantPrefix}]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
       fs.copyFileSync(xlsxWorkFile, path.join(archiveDir, xlsxFileName));
@@ -1712,12 +2422,7 @@ $ErrorActionPreference = 'Stop'
 $excel = $null
 $wb = $null
 try {
-  $excel = New-Object -ComObject Excel.Application
-  try { $excel.Visible = $false } catch {}
-  try { $excel.DisplayAlerts = $false } catch {}
-  try { $excel.ScreenUpdating = $false } catch {}
-  try { $excel.EnableEvents = $false } catch {}
-  try { $excel.Interactive = $false } catch {}
+${PS_INIT_EXCEL_COM_BLOCK}
 
   function Replace-Tag($targetWs, $tag, $val) {
     $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
@@ -1780,14 +2485,57 @@ try {
 }
 `;
 
-    const psFile = path.join(tempBuildDir, 'build_monthly_chk.ps1');
-    fs.writeFileSync(psFile, psScript, 'utf8');
-
-    const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
-    await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
-
     const outPdfPath = path.join(tempBuildDir, '월간안전점검.pdf');
     const workXlsxPath = path.join(tempBuildDir, '월간안전점검_작업용.xlsx');
+    try {
+      const psFile = path.join(tempBuildDir, 'build_monthly_chk.ps1');
+      fs.writeFileSync(psFile, psScript, 'utf8');
+
+      const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+      await runCommandAsync(`"${psExe}" -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir });
+      if (!fs.existsSync(outPdfPath) || fs.statSync(outPdfPath).size === 0) {
+        throw new Error('EXCEL_COM_EMPTY_OUTPUT');
+      }
+    } catch (excelComErr) {
+      agentLog('WARN', `월간안전점검 Excel COM 변환 실패 -> 내장 ExcelJS + Edge Headless 엔진 자동 전환 (${excelComErr.message})`);
+      const ExcelJS = require('exceljs');
+      const pageHtmls = [];
+      let firstWb = null;
+
+      for (let idx = 0; idx < rawAssets.length; idx++) {
+        const ast = rawAssets[idx];
+        const wbChk = new ExcelJS.Workbook();
+        await wbChk.xlsx.readFile(templatePath);
+        if (idx === 0) firstWb = wbChk;
+        const curWs = wbChk.worksheets[0];
+
+        const astModel = String(ast.modelName || '-');
+        const astNo = String(ast.assetNo || '-');
+        const astInspDate = String(ast.inspectionDate || inspectionDate);
+        const astInspName = String(ast.inspectorName || inspectorName);
+
+        replaceTagInWorksheet(curWs, '{고객명}', custName);
+        replaceTagInWorksheet(curWs, '{현장명}', siteName);
+        replaceTagInWorksheet(curWs, '{모델명}', astModel);
+        replaceTagInWorksheet(curWs, '{관리번호}', astNo);
+        replaceTagInWorksheet(curWs, '{자산번호}', astNo);
+        replaceTagInWorksheet(curWs, '{안전점검일}', astInspDate);
+        replaceTagInWorksheet(curWs, '{안전점검일시}', astInspDate);
+        replaceTagInWorksheet(curWs, '{점검일시}', astInspDate);
+        replaceTagInWorksheet(curWs, '{테넌트명}', tenantCorp);
+        replaceTagInWorksheet(curWs, '{테넌트}', tenantCorp);
+        replaceTagInWorksheet(curWs, '{점검자}', astInspName);
+        replaceTagInWorksheet(curWs, '{점점자}', astInspName);
+
+        pageHtmls.push(renderExcelWorksheetToHtmlPage(wbChk, curWs, 1, Math.min(44, curWs.rowCount || 44), 1, 10));
+      }
+
+      if (firstWb) {
+        try { await firstWb.xlsx.writeFile(workXlsxPath); } catch (e) {}
+      }
+      await convertHtmlPagesToPdfViaEdge(pageHtmls, outPdfPath, tempBuildDir);
+    }
+
     if (!fs.existsSync(outPdfPath)) {
       throw new Error('월간 안전점검 체크리스트 PDF 파일이 생성되지 않았습니다.');
     }
