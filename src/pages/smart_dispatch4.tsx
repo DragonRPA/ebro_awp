@@ -6786,7 +6786,8 @@ export const SmartDispatch4: React.FC = () => {
 
     const reconstructedRows = outboundDeliveries.map(d => {
       const contract = d.contractId ? contracts.find(c => c.id === d.contractId) : undefined;
-      const customer = contract?.customerId ? customers.find(c => c.id === contract.customerId) : undefined;
+      const resolvedCustomerId = contract?.customerId || (d as any).customerId || d.billableCustomerId;
+      const customer = resolvedCustomerId ? customers.find(c => c.id === resolvedCustomerId) : undefined;
       const site = contract?.siteId ? sites.find(s => s.id === contract.siteId) : undefined;
       const sm = (d.siteMasterId || site?.siteMasterId)
         ? siteMasters.find(m => m.id === (d.siteMasterId || site?.siteMasterId))
@@ -6813,8 +6814,8 @@ export const SmartDispatch4: React.FC = () => {
       const contractSalesperson = contract?.salespersonId ? users.find(u => u.id === contract.salespersonId) : undefined;
       const requesterName = snapMeta?.requesterName || matchedTodo?.senderName || contractSalesperson?.name || '-';
 
-      // 고객사명 / 현장명 / 상세주소 복원
-      let customerName = snapMeta?.customerName || customer?.name || '';
+      // 고객사명 / 현장명 / 상세주소 복원 (현재 고객 마스터의 최신 법인 상호를 최우선 적용)
+      let customerName = customer?.name || snapMeta?.customerName || '';
       let siteName = snapMeta?.siteName || site?.name || '';
       let siteAddress = snapMeta?.siteAddress || site?.address || '';
       if ((!customerName || !siteName) && d.destinationAddress) {

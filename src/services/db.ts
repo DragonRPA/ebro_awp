@@ -1624,6 +1624,7 @@ export interface Contract {
   contractType?: ContractType; // 💡 신규 추가: 'RENTAL' (기본값) | 'SALE' (자산 매각 계약)
   saleTerms?: SaleContractTerms; // 💡 자산 매각 계약 전용 상세 조건
   customerId: string;
+  customerName?: string;
   contactId?: string;
   siteId?: string;
   startDate: string;

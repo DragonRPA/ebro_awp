@@ -2264,11 +2264,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (existingCust) {
       res = db.updateRow<Customer>('customers', existingCust.id, cust) as Customer;
 
-      // 상호(고객사명) 변경 시 승계 전 고객사명(predecessorCustomerName) 참조 자동 동기화
+      // 상호(고객사명) 변경 시 연관 테이블(contracts, deliveries, asset_inout_logs)의 고객사명 참조 자동 동기화
       if (res.name && existingCust.name !== res.name) {
-        const linkedPredContracts = db.contracts.filter(c => c.predecessorCustomerId === existingCust.id && c.predecessorCustomerName !== res.name);
+        const oldName = existingCust.name;
+        const newName = res.name;
+        const linkedContracts = db.contracts.filter(c => c.customerId === existingCust.id);
+        const linkedContractIds = new Set(linkedContracts.map(c => c.id));
+        linkedContracts.forEach(c => {
+          if (c.customerName !== newName) {
+            db.updateRow<Contract>('contracts', c.id, { customerName: newName });
+          }
+        });
+        const linkedPredContracts = db.contracts.filter(c => c.predecessorCustomerId === existingCust.id && c.predecessorCustomerName !== newName);
         linkedPredContracts.forEach(c => {
-          db.updateRow<Contract>('contracts', c.id, { predecessorCustomerName: res.name });
+          db.updateRow<Contract>('contracts', c.id, { predecessorCustomerName: newName });
+        });
+        const linkedDeliveries = db.deliveries.filter(d => (d as any).customerId === existingCust.id || (d.contractId && linkedContractIds.has(d.contractId)) || d.billableCustomerId === existingCust.id);
+        const linkedDeliveryIds = new Set(linkedDeliveries.map(d => d.id));
+        linkedDeliveries.forEach(d => {
+          const patch: Partial<Delivery> = {};
+          if (d.cargoItems) {
+            try {
+              const items = JSON.parse(d.cargoItems);
+              let changed = false;
+              if (Array.isArray(items)) {
+                items.forEach(it => {
+                  if (it?.requestMeta && it.requestMeta.customerName !== newName) {
+                    it.requestMeta.customerName = newName;
+                    changed = true;
+                  }
+                });
+              }
+              if (changed) patch.cargoItems = JSON.stringify(items);
+            } catch { /* ignore */ }
+          }
+          if (d.destinationAddress && d.destinationAddress.startsWith(`${oldName} (`)) {
+            patch.destinationAddress = `${newName}${d.destinationAddress.slice(oldName.length)}`;
+          }
+          if (d.originAddress && d.originAddress.startsWith(`${oldName} (`)) {
+            patch.originAddress = `${newName}${d.originAddress.slice(oldName.length)}`;
+          }
+          if (Object.keys(patch).length > 0) {
+            db.updateRow<Delivery>('deliveries', d.id, patch);
+          }
+        });
+        const linkedInOutLogs = db.assetInOutLogs.filter(l => (l.customerId === existingCust.id || (l.deliveryId && linkedDeliveryIds.has(l.deliveryId))) && l.customerName && !l.customerName.includes('(임차처)') && l.customerName !== newName);
+        linkedInOutLogs.forEach(l => {
+          db.updateRow<AssetInOutLog>('asset_inout_logs', l.id, { customerName: newName });
         });
       }
 
