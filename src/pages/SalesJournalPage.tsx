@@ -94,6 +94,7 @@ export const SalesJournalPage: React.FC = () => {
       );
     const isSales =
       deptName.includes('영업') ||
+      (currentUser.position || '').includes('영업') ||
       (currentUser.role || '').toUpperCase().includes('SALES') ||
       currentUser.customRoleId === 'role_sales';
     const isMgmt =
@@ -118,6 +119,7 @@ export const SalesJournalPage: React.FC = () => {
       const dName = getUserDepartmentName(u, departments);
       const isSalesOrExec =
         dName.includes('영업') ||
+        (u.position || '').includes('영업') ||
         u.customRoleId === 'role_sales' ||
         ['대표이사', '부사장', '상무'].some(p => (u.position || '').includes(p));
       if (isSalesOrExec) {
