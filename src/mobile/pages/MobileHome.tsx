@@ -9,7 +9,7 @@ import {
 import { MobileTabType } from '../MobileBottomNav';
 import { MobileDeptMode } from '../MobileHeader';
 import { CallAudioUploadModal } from '../../components/CallAudioUploadModal';
-import { ContractDocumentBundleModal } from '../../components/ContractDocumentBundleModal';
+
 import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask as resolveCanonicalMobileTab, getTaskDisplayBadges, resolveTaskMenuId } from '../../utils/taskHandoverPipeline';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
 import { db, Todo } from '../../services/db';
@@ -53,8 +53,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [taskCategoryFilter, setTaskCategoryFilter] = useState<'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'>('ALL');
-  const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
-  const [showBundleModal, setShowBundleModal] = useState(false);
 
   // ── 로그인 사용자 직무 맞춤형 ToDo 필터링 (헌장 3.3 정책 & 실물 엔티티 완료 교차검증) ──
   const userTodos = useMemo(() => {
@@ -331,19 +329,14 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-700">
-                    {isPackageResend && task.entityId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBundleTargetContractId(task.entityId);
-                          setShowBundleModal(true);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                    {isPackageResend && (
+                      <span
+                        className="px-2 py-1 rounded-lg bg-slate-700/80 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center gap-1"
                         style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
                         <FileText className="w-3 h-3" />
-                        <span>패키지 재발송</span>
-                      </button>
+                        <span>PC 에이전트에서 발송</span>
+                      </span>
                     )}
 
                     {(() => {
@@ -392,16 +385,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             })}
           </div>
         </div>
-        {showBundleModal && (
-          <ContractDocumentBundleModal
-            isOpen={showBundleModal}
-            onClose={() => {
-              setShowBundleModal(false);
-              setBundleTargetContractId(undefined);
-            }}
-            initialContractId={bundleTargetContractId}
-          />
-        )}
       </details>
     );
   };
