@@ -59,7 +59,8 @@ export const Billings: React.FC = () => {
     receivables, linkReceivableToBilling,
     currentTenant, tenants,
     standardOptions,
-    saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement
+    saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement,
+    navigationPayload, setNavigationPayload
   } = useApp();
 
   // ⚡ 고속 O(1) 해시맵 인덱스 (헌장 1.1 최우선 개발 사명: 렌더링 랙 제로화)
@@ -334,6 +335,39 @@ export const Billings: React.FC = () => {
 
   // 선택된 청구서 상세
   const [selectedBillingId, setSelectedBillingId] = useState<string | null>(null);
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 청구서를 즉시 탐색·선택
+  useEffect(() => {
+    if (!navigationPayload || billings.length === 0) return;
+    const targetBillId = navigationPayload.billingId || (navigationPayload.entityType === 'BILLING' ? navigationPayload.entityId : '');
+    const targetCustId = navigationPayload.customerId || '';
+    const targetContractId = navigationPayload.contractId || '';
+    if (!targetBillId && !targetCustId && !targetContractId) return;
+
+    const matched =
+      (targetBillId ? billings.find(b => b.id === targetBillId) : undefined) ||
+      (targetContractId ? billings.find(b => b.contractId === targetContractId) : undefined) ||
+      (targetCustId ? billings.find(b => b.customerId === targetCustId) : undefined);
+
+    if (matched) {
+      setActiveTab('LIST');
+      const ym = matched.billingYm || (matched.billingDate || '').slice(0, 7);
+      if (ym) {
+        setTempStartBillingYmFilter(ym);
+        setTempEndBillingYmFilter(ym);
+        setStartBillingYmFilter(ym);
+        setEndBillingYmFilter(ym);
+      }
+      setTempPaymentFilter('ALL');
+      setPaymentFilter('ALL');
+      setSearchedBillingIds(null);
+      setSelectedBillingId(matched.id);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, billings]);
 
   // 수납 입력 모달
   const [showPayModal, setShowPayModal] = useState(false);

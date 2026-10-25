@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MobileTabType } from '../MobileBottomNav';
 import { db, BankTransaction, Todo, PaymentDepositLink } from '../../services/db';
-import { findActiveTasksForUser } from '../../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, buildTaskNavigationPayload } from '../../utils/taskHandoverPipeline';
 
 interface MobileAdminHomeProps {
   onNavigate: (tab: MobileTabType) => void;
@@ -31,7 +31,8 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
     todos,
     hasPermission,
     completeTodo,
-    refreshAllData
+    refreshAllData,
+    setNavigationPayload
   } = useApp();
   const [toast, setToast] = useState<string | null>(null);
 
@@ -217,25 +218,56 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
           </div>
 
           <div className="flex flex-col gap-2">
-            {adminTodos.map(task => (
-              <div key={task.id} className="p-3 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-black text-white leading-snug">{task.title}</div>
-                  {task.content && (
-                    <div className="text-[11px] text-slate-200 mt-0.5 line-clamp-2 whitespace-pre-line">{task.content}</div>
-                  )}
+            {adminTodos.map(task => {
+              const url = (task.actionUrl || '').toLowerCase();
+              const cat = (task.taskCategory || '').toUpperCase();
+              const et = (task.entityType || '').toUpperCase();
+              let targetTab: MobileTabType | null = null;
+              if (url.includes('dispatch_assign') || cat.includes('ASSIGN')) targetTab = 'assignment';
+              else if (url.includes('dispatch') || cat.includes('DISPATCH') || et === 'DELIVERY') targetTab = 'dispatch';
+              else if (url.includes('outbound_inspections') || cat.includes('INSPECTION') || et === 'INSPECTION') targetTab = 'inspection';
+              else if (url.includes('contract') || cat.includes('CONTRACT')) targetTab = 'my_contracts';
+              else if (url.includes('customers') || cat.includes('CUSTOMER') || et === 'CUSTOMER') targetTab = 'customers';
+              else if (url.includes('delinquency') || url.includes('receivables') || url.includes('billings') || et === 'BILLING') targetTab = 'delinquency';
+
+              return (
+                <div key={task.id} className="p-3 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-xs font-black text-white leading-snug">{task.title}</div>
+                    {task.content && (
+                      <div className="text-[11px] text-slate-200 mt-0.5 line-clamp-2 whitespace-pre-line">{task.content}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {targetTab && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (setNavigationPayload) {
+                            setNavigationPayload(buildTaskNavigationPayload(task));
+                          }
+                          onNavigate(targetTab!);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        <span>처리 이동</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => completeTodo(task.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                      style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      <CheckSquare className="w-3 h-3" />
+                      <span>완료</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => completeTodo(task.id)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
-                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  <CheckSquare className="w-3 h-3" />
-                  <span>완료</span>
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

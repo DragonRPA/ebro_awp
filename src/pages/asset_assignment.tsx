@@ -18,7 +18,7 @@ const formatLocalYMD = (d: Date): string => {
 };
 
 export const AssetAssignment: React.FC = () => {
-  const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
+  const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory, navigationPayload, setNavigationPayload } = useApp();
   
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   
@@ -453,6 +453,43 @@ export const AssetAssignment: React.FC = () => {
       setSelectedCaIds([]);
     }
   };
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 장비 할당 요청 그룹을 즉시 탐색·선택
+  useEffect(() => {
+    if (!navigationPayload || groupMap.size === 0) return;
+    const targetDelivId = navigationPayload.deliveryId || '';
+    const targetContractId = navigationPayload.contractId || '';
+    const targetEntityId = navigationPayload.entityId || '';
+    if (!targetDelivId && !targetContractId && !targetEntityId) return;
+
+    const allGrpList = Array.from(groupMap.values());
+    const matchedGrp =
+      allGrpList.find(g =>
+        (targetDelivId && (g.groupKey === `DLV:${targetDelivId}` || g.delivery?.id === targetDelivId)) ||
+        (targetEntityId && (g.groupKey === `DLV:${targetEntityId}` || g.groupKey === targetEntityId || g.delivery?.id === targetEntityId))
+      ) ||
+      allGrpList.find(g =>
+        (targetContractId && (g.contract.id === targetContractId || g.groupKey === targetContractId)) ||
+        (targetEntityId && g.contract.id === targetEntityId)
+      );
+
+    if (matchedGrp) {
+      if (statusFilter === 'INCOMPLETE' && matchedGrp.pendingCount === 0) {
+        setStatusFilter('ALL');
+      } else if (statusFilter === 'COMPLETED' && matchedGrp.pendingCount > 0) {
+        setStatusFilter('ALL');
+      }
+      setPeriodFilter('ALL');
+      setStartDate('');
+      setEndDate('');
+      setCustomerSiteQuery('');
+      handleSelectContract(matchedGrp.groupKey);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, groupMap]);
 
   // 🎯 특정 모델 그룹 단일 선택 (모델별 집중 매핑 표준)
   const handleSelectModelGroupSlots = (caIds: string[]) => {

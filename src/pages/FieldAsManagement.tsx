@@ -92,7 +92,7 @@ export const FieldAsManagement: React.FC = () => {
     createRevisitAsTicket, importBandAsHistory, logFieldAsTimelineEvent,
     users, permissions, customers, sites, assets, consumables, mechanicConsumableStocks,
     transferConsumableToMechanic, currentUser, hasPermission, showErrorModal, setActiveTab,
-    inspectionChecklistItems, equipmentManuals
+    inspectionChecklistItems, equipmentManuals, navigationPayload, setNavigationPayload
   } = useApp();
   const { isRuleEnabled, createApprovalRequest } = useApproval();
 
@@ -506,6 +506,33 @@ export const FieldAsManagement: React.FC = () => {
     }
     return studioFilteredTickets[0] || fieldAsTickets[0] || null;
   }, [ticketMap, fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 출장 AS 티켓을 즉시 탐색·포커스
+  useEffect(() => {
+    if (!navigationPayload || fieldAsTickets.length === 0) return;
+    const targetTicketId = navigationPayload.ticketId || navigationPayload.entityId || '';
+    const targetAssetId = navigationPayload.assetId || '';
+    if (!targetTicketId && !targetAssetId) return;
+
+    const matched =
+      fieldAsTickets.find(t => t.id === targetTicketId || t.ticketNo === targetTicketId) ||
+      (targetAssetId ? fieldAsTickets.find(t => t.assetId === targetAssetId || t.assetNo === targetAssetId) : undefined);
+
+    if (matched) {
+      setMainTab('STUDIO');
+      setStudioStatusFilter('ALL');
+      setStudioCategoryFilter('ALL');
+      setStudioDatePreset('ALL');
+      setStudioStartDate('');
+      setStudioEndDate('');
+      setStudioSearchTerm('');
+      setStudioSelectedTicketId(matched.id);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, fieldAsTickets]);
 
   // 대장 필터링된 티켓 목록 (날짜 스코프 및 복합 필터)
   const ledgerFilteredTickets = useMemo(() => {

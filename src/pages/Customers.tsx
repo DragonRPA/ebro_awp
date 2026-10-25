@@ -459,14 +459,25 @@ export const Customers: React.FC = () => {
   const [siteOptionRefSearch, setSiteOptionRefSearch] = useState('');
   const [selectedRefSiteId, setSelectedRefSiteId] = useState('');
 
-  // 외부 네비게이션 연동
+  // 외부 네비게이션 연동 (고객사 수정 모달 또는 대시보드 [처리 이동] 고객사 즉시 선택)
   useEffect(() => {
-    if (navigationPayload?.editCustomerId) {
-      const targetCust = customers.find(c => c.id === navigationPayload.editCustomerId);
+    const targetCustId = navigationPayload?.editCustomerId || navigationPayload?.customerId || (navigationPayload?.entityType === 'CUSTOMER' ? navigationPayload?.entityId : undefined);
+    if (targetCustId) {
+      const targetCust = customers.find(c => c.id === targetCustId);
       if (targetCust) {
+        setSearchTerm('');
+        setChosungFilter('전체');
+        setStatusFilter('ALL');
+        setShowOnlyIncomplete(false);
         setSelectedCustomerId(targetCust.id);
-        setEditingCust({ ...targetCust });
-        setShowCustModal(true);
+        if (navigationPayload?.editCustomerId) {
+          setEditingCust({ ...targetCust });
+          setShowCustModal(true);
+        }
+        setTimeout(() => {
+          const el = document.getElementById(`customer-item-${targetCust.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 150);
       }
       setNavigationPayload(null);
     }

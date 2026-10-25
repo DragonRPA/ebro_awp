@@ -253,7 +253,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
     );
     if (relatedInsps.length > 0) {
       const hasPending = relatedInsps.some(i => {
-        if (i.status !== 'PENDING') return false;
+        if (i.status !== 'PENDING' && i.status !== 'IN_PROGRESS') return false;
         if (i.deliveryId) {
           const d = db.deliveries.find(x => x.id === i.deliveryId);
           if (d && d.status === 'CANCELLED') return false;
@@ -287,7 +287,21 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
       if (dStatus === 'CANCELLED' || dStatus === 'DELIVERED' || dStatus === 'COMPLETED') return true;
       if (deliv.unloadingCompletedAt) return true;
 
-      // 배차 매칭 요청(DISPATCH_REQUEST 등)인데 이미 기사/차량이 배정되어 DISPATCHED 상태이거나 상차 완료된 경우
+      const isShipmentStartTask =
+        cat.includes('SHIPMENT') ||
+        cat === 'OUTBOUND_SHIPMENT_START' ||
+        (t.title || '').includes('상차 출발');
+
+      // 4-A. [장비 상차 출발] (PDI 검수 완료 후 상차/출발/운송완료 처리가 필요한 단계)
+      // 헌장 1.3에 의해 PDI 검수 승인 시점에 이미 자산은 RENTED 상태이고 기사도 DISPATCHED 상태이므로,
+      // 실제 상차 완료(loadingCompletedAt) 또는 운송 완료(DELIVERED/COMPLETED/unloadingCompletedAt)가 되었을 때만 해소 판정
+      if (isShipmentStartTask) {
+        if (deliv.loadingCompletedAt) return true;
+        return false;
+      }
+
+      // 4-B. [출고/회수/반납 배차 의뢰] (DISPATCH_REQUEST 등 차량·기사 매칭 단계)
+      // 이미 기사/차량이 배정되어 DISPATCHED 상태이거나 상차 완료된 경우 해소
       const isDriverAssigned = Boolean(
         dStatus === 'DISPATCHED' &&
         (deliv.driverName || deliv.vehicleNo || deliv.transportCompany || deliv.loadingCompletedAt)
@@ -296,8 +310,21 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
         return true;
       }
 
-      // 출고 배차인데 연결된 체결자산이 이미 모두 대여중(RENTED) 또는 반납완료(RETURNED)인 경우
-      if (deliv.type === 'OUTBOUND' && deliv.contractId) {
+      // 동일 배차 건에 대해 후행 단계인 [장비 상차 출발] (OUTBOUND_SHIPMENT_START) ToDo가 이미 발행되어 열려 있는 경우,
+      // 선행 [출고 배차 의뢰]가 중복 노출되지 않도록 후행 업무로 통합 상계
+      const hasSupersedingShipmentTask = (db.todos || []).some(
+        other =>
+          other.id !== t.id &&
+          !other.isCompleted &&
+          other.entityId === eid &&
+          ((other.taskCategory || '').toUpperCase().includes('SHIPMENT') || (other.title || '').includes('상차 출발'))
+      );
+      if (hasSupersedingShipmentTask) {
+        return true;
+      }
+
+      // 출고 배차인데 연결된 체결자산이 이미 모두 대여중(RENTED) 또는 반납완료(RETURNED)이고 상차까지 끝난 경우
+      if (deliv.type === 'OUTBOUND' && deliv.contractId && deliv.loadingCompletedAt) {
         const cAssets = db.contractAssets.filter(ca => ca.contractId === deliv.contractId);
         if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
           return true;
@@ -441,7 +468,14 @@ export function findActiveTasksForUser(
 
   const rawDept = (currentUser.department || '').toUpperCase();
   const rawRole = (currentUser.role || '').toUpperCase();
-  const rawIsExec = rawDept.includes('경영') || rawDept.includes('대표') || rawRole === 'ADMIN' || rawRole === 'MASTER' || rawRole === 'EXECUTIVE';
+  const rawIsExec =
+    rawDept.includes('경영') ||
+    rawDept.includes('대표') ||
+    rawDept.includes('개발') ||
+    rawRole === 'ADMIN' ||
+    rawRole === 'MASTER' ||
+    rawRole === 'EXECUTIVE' ||
+    rawRole === 'DEVELOPER';
 
   // 🏛️ overrideDeptMode(모바일 부서 퀵체인저 등)가 지정된 경우 해당 부서 시뮬레이션 모드 강제 적용
   // 사용자가 특정 부서 탭을 선택하여 보고 있을 때는 관리자/경영진이라도 해당 부서의 R&R 렌즈로 격리 필터링
@@ -591,6 +625,94 @@ export function findActiveTasksForUser(
 
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
+}
+
+/**
+ * 🎯 [3.5] ToDo 항목에서 대상 메뉴 이동 시 즉시 해당 건을 자동 선택/포커스하기 위한 딥링크 페이로드 빌더
+ */
+export interface TaskNavigationPayload {
+  todoId?: string;
+  entityId?: string;
+  entityType?: string;
+  taskCategory?: string;
+  deliveryId?: string;
+  contractId?: string;
+  inspectionId?: string;
+  repairId?: string;
+  ticketId?: string;
+  billingId?: string;
+  customerId?: string;
+  assetId?: string;
+  actionUrl?: string;
+}
+
+export function buildTaskNavigationPayload(task: Todo): TaskNavigationPayload {
+  const eid = (task.entityId || task.relatedEntityId || '').trim();
+  const etype = (task.entityType || '').toUpperCase();
+  const cat = (task.taskCategory || '').toUpperCase();
+  const rawUrl = (task.actionUrl || '').trim();
+
+  const payload: TaskNavigationPayload = {
+    todoId: task.id,
+    entityId: eid || undefined,
+    entityType: etype || undefined,
+    taskCategory: cat || undefined,
+    actionUrl: rawUrl || undefined,
+  };
+
+  // 1. actionUrl 쿼리 파라미터 파싱 (?contractId=..., ?deliveryId=..., ?customerId=... 등)
+  if (rawUrl.includes('?')) {
+    try {
+      const qs = rawUrl.split('?')[1];
+      const params = new URLSearchParams(qs);
+      if (params.get('contractId')) payload.contractId = params.get('contractId')!;
+      if (params.get('deliveryId')) payload.deliveryId = params.get('deliveryId')!;
+      if (params.get('inspectionId')) payload.inspectionId = params.get('inspectionId')!;
+      if (params.get('repairId')) payload.repairId = params.get('repairId')!;
+      if (params.get('ticketId')) payload.ticketId = params.get('ticketId')!;
+      if (params.get('billingId')) payload.billingId = params.get('billingId')!;
+      if (params.get('customerId')) payload.customerId = params.get('customerId')!;
+      if (params.get('assetId')) payload.assetId = params.get('assetId')!;
+    } catch {}
+  }
+
+  // 2. ID 접두어 및 엔티티 타입 기반 자동 매핑
+  if (eid) {
+    if (eid.startsWith('DLV-') || eid.startsWith('DEL-') || etype === 'DELIVERY') {
+      payload.deliveryId = payload.deliveryId || eid;
+      const d = db.deliveries.find(x => x.id === eid);
+      if (d?.contractId && !payload.contractId) {
+        payload.contractId = d.contractId;
+      }
+    } else if (eid.startsWith('OIN-') || etype === 'INSPECTION') {
+      if (eid.startsWith('OIN-')) {
+        payload.inspectionId = payload.inspectionId || eid;
+        const ins = db.outboundInspections.find(x => x.id === eid);
+        if (ins?.deliveryId && !payload.deliveryId) payload.deliveryId = ins.deliveryId;
+        if (ins?.contractId && !payload.contractId) payload.contractId = ins.contractId;
+      } else {
+        // INSPECTION 업무인데 entityId가 DLV-... 또는 CONT-... 인 경우
+        if (eid.startsWith('CONT')) payload.contractId = payload.contractId || eid;
+        else payload.deliveryId = payload.deliveryId || eid;
+      }
+    } else if (eid.startsWith('CONT') || etype === 'CONTRACT') {
+      payload.contractId = payload.contractId || eid;
+    } else if (eid.startsWith('REP-') || etype === 'REPAIR') {
+      payload.repairId = payload.repairId || eid;
+      const rep = db.repairs.find(x => x.id === eid);
+      if (rep?.assetId && !payload.assetId) payload.assetId = rep.assetId;
+    } else if (eid.startsWith('FAS-') || eid.startsWith('AS-') || cat.includes('AS')) {
+      payload.ticketId = payload.ticketId || eid;
+    } else if (eid.startsWith('BILL-') || eid.startsWith('BIL-') || etype === 'BILLING') {
+      payload.billingId = payload.billingId || eid;
+    } else if (eid.startsWith('CUST-') || etype === 'CUSTOMER') {
+      payload.customerId = payload.customerId || eid;
+    } else if (eid.startsWith('AST-') || etype === 'ASSET') {
+      payload.assetId = payload.assetId || eid;
+    }
+  }
+
+  return payload;
 }
 
 /**

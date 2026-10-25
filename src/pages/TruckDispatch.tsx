@@ -158,7 +158,8 @@ export const TruckDispatch: React.FC = () => {
     currentTenant,
     printStations, printQueue, enqueuePrintJob,
     completeDelivery, completeInboundDelivery,
-    returnRentedAsset
+    returnRentedAsset,
+    navigationPayload, setNavigationPayload
   } = useApp();
 
   const canSave = hasPermission('delivery', 'save');
@@ -3675,6 +3676,55 @@ export const TruckDispatch: React.FC = () => {
       deliveryCost: getEffectiveDeliveryCost(costSourceDelivery)
     }]);
   };
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 배차건을 즉시 탐색·필터 동기화 후 스튜디오에 오픈
+  useEffect(() => {
+    if (!navigationPayload || deliveries.length === 0) return;
+    const targetDelivId = navigationPayload.deliveryId || (navigationPayload.entityType === 'DELIVERY' ? navigationPayload.entityId : '');
+    const targetContractId = navigationPayload.contractId || (navigationPayload.entityType === 'CONTRACT' ? navigationPayload.entityId : '');
+    if (!targetDelivId && !targetContractId) return;
+
+    let matched = targetDelivId
+      ? deliveries.find(d => d.id === targetDelivId)
+      : undefined;
+
+    if (!matched && targetContractId) {
+      const cDeliveries = deliveries
+        .filter(d => d.contractId === targetContractId && d.status !== 'CANCELLED')
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      matched =
+        cDeliveries.find(d => getNormalizedDeliveryStatus(d) === 'PENDING') ||
+        cDeliveries.find(d => getNormalizedDeliveryStatus(d) === 'DISPATCHED') ||
+        cDeliveries[0];
+    }
+
+    if (matched) {
+      setActiveTab('DISPATCH');
+      const normSt = getNormalizedDeliveryStatus(matched);
+      setActiveDispatchStatusTab(normSt);
+      setSearchQuery('');
+
+      const dDate = (matched.loadingDate || matched.requestDate || matched.scheduledDate || matched.createdAt?.substring(0, 10) || '').slice(0, 10);
+      if (dDate) {
+        if ((startDate && dDate < startDate) || (endDate && dDate > endDate)) {
+          setStartDate('');
+          setEndDate('');
+        }
+      }
+
+      handleSelectDelivery(matched);
+      setTimeout(() => {
+        const el = document.querySelector(`[data-uia="card-delivery-item-${matched!.id}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 150);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, deliveries]);
 
   const handleVehicleFieldChange = (index: number, field: keyof AssignedVehicleRow, value: any) => {
     setAssignedVehicles(prev => {

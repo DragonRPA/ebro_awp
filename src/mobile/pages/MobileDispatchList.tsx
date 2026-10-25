@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileDispatchList.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db, Delivery } from '../../services/db';
 import { 
@@ -13,10 +13,12 @@ import { broadcastWorkNotification } from '../../utils/workNotificationService';
 export const MobileDispatchList: React.FC = () => {
   const { 
     deliveries, contracts, customers, sites, users, currentTenant,
-    refreshAllData, showErrorModal, completeDelivery, completeInboundDelivery 
+    refreshAllData, showErrorModal, completeDelivery, completeInboundDelivery,
+    navigationPayload, setNavigationPayload
   } = useApp();
   const [filter, setFilter] = useState<'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED'>('PENDING');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [highlightedDeliveryId, setHighlightedDeliveryId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -50,6 +52,37 @@ export const MobileDispatchList: React.FC = () => {
     if (filter === 'CANCELLED') return d.status === 'CANCELLED';
     return true;
   });
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택
+  useEffect(() => {
+    if (!navigationPayload || deliveries.length === 0) return;
+    const { deliveryId, contractId } = navigationPayload;
+    if (!deliveryId && !contractId) return;
+
+    const matched = deliveryId
+      ? deliveries.find(d => d.id === deliveryId)
+      : deliveries.find(d => d.contractId === contractId && d.status !== 'CANCELLED');
+
+    if (matched) {
+      if (matched.status === 'PENDING' || matched.status === 'REQUESTED') {
+        setFilter('PENDING');
+        setTargetDeliveryId(matched.id);
+        setShowAssignModal(true);
+      } else if (matched.status === 'DISPATCHED') {
+        setFilter('DISPATCHED');
+      } else if (matched.status === 'DELIVERED' || matched.status === 'COMPLETED') {
+        setFilter('DELIVERED');
+      } else if (matched.status === 'CANCELLED') {
+        setFilter('CANCELLED');
+      }
+      setHighlightedDeliveryId(matched.id);
+      setTimeout(() => {
+        const el = document.getElementById(`mobile-delivery-${matched.id}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 120);
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, deliveries]);
 
   // 통화 텍스트 파싱 및 폼 자동 반영
   const applyDriverTranscript = (text: string) => {
@@ -396,11 +429,16 @@ export const MobileDispatchList: React.FC = () => {
           filteredDeliveries.map((delivery) => (
             <div
               key={delivery.id}
-              className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3 shadow-lg"
+              id={`mobile-delivery-${delivery.id}`}
+              className={`p-4 rounded-2xl bg-slate-900 border flex flex-col gap-3 shadow-lg transition-all ${
+                highlightedDeliveryId === delivery.id
+                  ? 'border-blue-500 ring-2 ring-blue-500/40'
+                  : 'border-slate-800'
+              }`}
             >
               <div className="flex items-center justify-between">
                 <span className="px-2.5 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-black border border-blue-500/30">
-                  {delivery.type === 'EXCHANGE' ? '교환 EXCHANGE' : delivery.dispatchCategory || delivery.type}
+                  {delivery.type === 'EXCHANGE' ? '교환' : delivery.dispatchCategory || delivery.type}
                 </span>
                 <span className="text-xs text-slate-400 font-mono">
                   {delivery.loadingDate || delivery.requestDate}

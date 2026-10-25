@@ -19,7 +19,7 @@ export const Repairs: React.FC = () => {
   const {
     repairs, assets, consumables, repairConsumables, registerRepair, updateRepairStatus, 
     hasPermission, users, permissions, currentUser, vendors, assetInOutLogs, showErrorModal,
-    inspectionChecklistItems
+    inspectionChecklistItems, navigationPayload, setNavigationPayload
   } = useApp();
   const { isRuleEnabled, createApprovalRequest } = useApproval();
 
@@ -495,6 +495,37 @@ export const Repairs: React.FC = () => {
       setRepairDetails(cleanNote ? `[정비 메모] ${cleanNote}\n` : '');
     }
   };
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 정비 자산/수리건을 즉시 탐색·스튜디오 오픈
+  useEffect(() => {
+    if (!navigationPayload || assets.length === 0) return;
+    const targetRepairId = navigationPayload.repairId || (navigationPayload.entityType === 'REPAIR' ? navigationPayload.entityId : '');
+    const targetAssetId = navigationPayload.assetId || navigationPayload.entityId || '';
+    if (!targetRepairId && !targetAssetId) return;
+
+    const matchedRepair = targetRepairId ? repairs.find(r => r.id === targetRepairId) : undefined;
+    const resolvedAssetId = matchedRepair?.assetId || targetAssetId;
+    const matchedAsset = resolvedAssetId ? assets.find(a => a.id === resolvedAssetId || a.assetNo === resolvedAssetId) : undefined;
+
+    if (matchedAsset) {
+      setActiveTab('STUDIO');
+      setYardQueueFilter('ALL');
+      setYardSearchTerm('');
+      handleSelectAsset(matchedAsset);
+    } else if (matchedRepair) {
+      setActiveTab('LEDGER');
+      setLedgerStatusFilter('ALL');
+      setLedgerTypeFilter('ALL');
+      setLedgerStartDate('');
+      setLedgerEndDate('');
+      setLedgerSearch(matchedRepair.assetNo || matchedRepair.id);
+      setSelectedDetailRepair(matchedRepair);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, assets, repairs]);
 
   // 📝 입고 결함 점검 조치내용 자동 반영
   const handleAutoFillDefectDetails = () => {

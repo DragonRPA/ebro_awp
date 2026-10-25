@@ -153,7 +153,9 @@ export const OutboundInspections: React.FC = () => {
     consumables,
     mechanicConsumableStocks,
     products,
-    currentTenant
+    currentTenant,
+    navigationPayload,
+    setNavigationPayload
   } = useApp();
 
   const canEdit = hasPermission('repair', 'save') || hasPermission('delivery', 'save') || hasPermission('contract', 'save');
@@ -551,6 +553,47 @@ export const OutboundInspections: React.FC = () => {
     setInspectionNote(sampleNote);
     setCheckedItems(initialMap);
   };
+
+  // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 출고검수 그룹을 즉시 탐색·필터 동기화 후 스튜디오에 오픈
+  useEffect(() => {
+    if (!navigationPayload || inspectionGroups.length === 0) return;
+    const targetInspId = navigationPayload.inspectionId || '';
+    const targetDelivId = navigationPayload.deliveryId || '';
+    const targetContractId = navigationPayload.contractId || '';
+    const targetEntityId = navigationPayload.entityId || '';
+    if (!targetInspId && !targetDelivId && !targetContractId && !targetEntityId) return;
+
+    const matchedGroup =
+      inspectionGroups.find(g =>
+        (targetInspId && g.items.some(i => i.id === targetInspId)) ||
+        (targetDelivId && (g.deliveryId === targetDelivId || g.items.some(i => i.deliveryId === targetDelivId))) ||
+        (targetEntityId && (g.deliveryId === targetEntityId || g.groupId.includes(targetEntityId) || g.items.some(i => i.id === targetEntityId || i.deliveryId === targetEntityId)))
+      ) ||
+      inspectionGroups.find(g =>
+        (targetContractId && g.contractId === targetContractId) ||
+        (targetEntityId && g.contractId === targetEntityId)
+      );
+
+    if (matchedGroup) {
+      setActiveTabStatus(matchedGroup.status);
+      setSearchQuery('');
+      if ((startDate && matchedGroup.loadingDate < startDate) || (endDate && matchedGroup.loadingDate > endDate)) {
+        setStartDate('');
+        setEndDate('');
+      }
+      handleSelectGroup(matchedGroup);
+      setTimeout(() => {
+        const el = document.querySelector(`[data-uia="card-inspection-group-${matchedGroup.groupId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 150);
+    }
+
+    if (setNavigationPayload) {
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, inspectionGroups]);
 
   // 1-Click 전체 선택 / 해제
   const handleToggleAllSpecs = () => {
@@ -1600,6 +1643,7 @@ export const OutboundInspections: React.FC = () => {
                 return (
                   <div
                     key={group.groupId}
+                    data-uia={`card-inspection-group-${group.groupId}`}
                     data-mid='outbound-queue-item' onClick={() => handleSelectGroup(group)}
                     style={{
                       padding: '14px',

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Activity, Layers, CheckCircle, Bell, ArrowRight, FileText, CheckSquare, RefreshCw, ClipboardList, Package } from 'lucide-react';
 import { isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
-import { findActiveTasksForUser, reconcileCompletedTodosInDb } from '../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload } from '../utils/taskHandoverPipeline';
 import { normalizeMenuId } from '../config/menu_config';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -19,6 +19,7 @@ export const Dashboard: React.FC = () => {
     completeTodo, 
     resolveExecutiveDirective,
     setActiveTab,
+    setNavigationPayload,
     refreshAllData
   } = useApp();
 
@@ -457,6 +458,9 @@ export const Dashboard: React.FC = () => {
                           className="btn-primary"
                           onClick={() => {
                             const target = resolveTaskTargetMenu(task.actionUrl, task);
+                            if (setNavigationPayload) {
+                              setNavigationPayload(buildTaskNavigationPayload(task));
+                            }
                             setActiveTab(target);
                           }}
                           style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}

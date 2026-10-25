@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileAssetAssignment.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { isModelMatch, normalizeModelKey } from '../../utils/modelUtils';
 import { 
@@ -41,6 +41,9 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     showErrorModal,
     refreshAllData,
     hasPermission,
+    deliveries,
+    navigationPayload,
+    setNavigationPayload,
   } = useApp();
 
   // 권한 검증
@@ -186,6 +189,26 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       setSelectedCaIds([]);
     }
   };
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택
+  useEffect(() => {
+    if (!navigationPayload || contracts.length === 0) return;
+    const { contractId, deliveryId } = navigationPayload;
+    if (!contractId && !deliveryId) return;
+
+    let resolvedContractId = contractId;
+    if (!resolvedContractId && deliveryId) {
+      const del = (deliveries || []).find(d => d.id === deliveryId);
+      if (del?.contractId) resolvedContractId = del.contractId;
+    }
+
+    if (resolvedContractId && contracts.some(c => c.id === resolvedContractId)) {
+      setFilterTab('ALL');
+      setSearchQuery('');
+      handleSelectContract(resolvedContractId);
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, contracts, deliveries, contractAssets]);
 
   // 10. 가용 장비 풀 필터링 (선택된 슬롯 요구모델 매칭 & 정비점수 오름차순)
   const availableAssets = useMemo(() => {

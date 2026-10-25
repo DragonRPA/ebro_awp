@@ -9,7 +9,7 @@ import {
 import { MobileTabType } from '../MobileBottomNav';
 import { MobileDeptMode } from '../MobileHeader';
 import { CallAudioUploadModal } from '../../components/CallAudioUploadModal';
-import { findActiveTasksForUser } from '../../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, buildTaskNavigationPayload } from '../../utils/taskHandoverPipeline';
 import { db, Todo } from '../../services/db';
 
 interface MobileHomeProps {
@@ -44,7 +44,8 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
     completeTodo,
     resolveExecutiveDirective,
     refreshAllData,
-    billings
+    billings,
+    setNavigationPayload
   } = useApp();
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -324,7 +325,12 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                       return (
                         <button
                           type="button"
-                          onClick={() => onNavigate(targetTab)}
+                          onClick={() => {
+                            if (setNavigationPayload) {
+                              setNavigationPayload(buildTaskNavigationPayload(task));
+                            }
+                            onNavigate(targetTab);
+                          }}
                           className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
                           style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                         >

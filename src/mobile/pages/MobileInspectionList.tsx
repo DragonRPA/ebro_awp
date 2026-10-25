@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { isModelMatch } from '../../utils/modelUtils';
 import { CameraUploader } from '../components/CameraUploader';
@@ -113,7 +113,9 @@ export const MobileInspectionList: React.FC = () => {
     exchangeOutboundAsset,
     refreshAllData, 
     showErrorModal,
-    consumables
+    consumables,
+    navigationPayload,
+    setNavigationPayload
   } = useApp();
   
   // ── 탭 및 필터 상태 ──
@@ -276,6 +278,39 @@ export const MobileInspectionList: React.FC = () => {
       setExpandedAssetIds({ [items[0].id]: true });
     }
   };
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택
+  useEffect(() => {
+    if (!navigationPayload || outboundInspections.length === 0) return;
+    const { inspectionId, deliveryId, contractId } = navigationPayload;
+    if (!inspectionId && !deliveryId && !contractId) return;
+
+    const findMatchingGroup = (groupMap: Record<string, OutboundInspection[]>) => {
+      for (const [gId, list] of Object.entries(groupMap)) {
+        if (deliveryId && (gId === deliveryId || list.some(i => i.deliveryId === deliveryId))) return { gId, list };
+        if (inspectionId && list.some(i => i.id === inspectionId)) return { gId, list };
+        if (contractId && list.some(i => i.contractId === contractId)) return { gId, list };
+      }
+      return null;
+    };
+
+    const pendingHit = findMatchingGroup(allGroups.pending);
+    const completedHit = !pendingHit ? findMatchingGroup(allGroups.completed) : null;
+    const hit = pendingHit || completedHit;
+
+    if (hit) {
+      const targetTab = pendingHit ? 'PENDING' : 'COMPLETED';
+      setActiveTab(targetTab);
+      setDateFilter('ALL');
+      setExchangeOnly(false);
+      setSearchQuery('');
+      setSelectedGroupId(hit.gId);
+      if (hit.list.length > 0) {
+        setExpandedAssetIds({ [hit.list[0].id]: true });
+      }
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, outboundInspections, allGroups]);
 
   // ── 체크포인트 토글 ──
   const handleToggleCheck = (oinId: string, itemId: string) => {
