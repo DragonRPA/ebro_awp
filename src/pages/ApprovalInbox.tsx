@@ -24,7 +24,7 @@ interface InboxStep {
 }
 
 const ApprovalInbox: React.FC = () => {
-  const { currentUser, users, switchUser, customers, contracts, contractAssets, billings, refreshAllData, showErrorModal } = useApp();
+  const { currentUser, users, switchUser, customers, contracts, contractAssets, billings, updateOutboundRequestPricing, refreshAllData, showErrorModal } = useApp();
   const [steps, setSteps] = useState<InboxStep[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
@@ -225,6 +225,15 @@ const ApprovalInbox: React.FC = () => {
           stagedExtend: undefined,
           updatedAt: new Date().toISOString()
         });
+        if (payload?.actionType === 'CONTRACT_DISCOUNT') {
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: reqItem.target_record_id,
+            changeType: 'FEE_CHANGE',
+            changeDate: new Date().toISOString().split('T')[0],
+            description: `[결재 반려] 계약의 할인 품의가 반려되었습니다. (반려사유: ${comment || '-'})`,
+            createdAt: new Date().toISOString()
+          });
+        }
         await db.awaitPendingWrites();
         refreshAllData();
       } else if (reqItem?.target_table === 'assets') {
@@ -234,10 +243,28 @@ const ApprovalInbox: React.FC = () => {
         await db.awaitPendingWrites();
         refreshAllData();
       } else if (reqItem?.target_table === 'deliveries') {
-        db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
-          reconciliationStatus: 'MISMATCH',
-          updatedAt: new Date().toISOString()
-        });
+        if (payload?.actionType === 'CONTRACT_MODIFY') {
+          const targetDeliv = (db.deliveries || []).find(d => d.id === reqItem.target_record_id);
+          const linkedContractId = payload?.asIs?.contractId || targetDeliv?.contractId;
+          if (linkedContractId) {
+            db.updateRow<Contract>('contracts', linkedContractId, {
+              approvalStatus: 'REJECTED',
+              updatedAt: new Date().toISOString()
+            });
+            db.insertRow<ContractHistory>('contractHistory', {
+              contractId: linkedContractId,
+              changeType: 'FEE_CHANGE',
+              changeDate: new Date().toISOString().split('T')[0],
+              description: `[결재 반려] 계약의 수정(완결된 출고의 수정) 품의가 반려되었습니다. (반려사유: ${comment || '-'})`,
+              createdAt: new Date().toISOString()
+            });
+          }
+        } else {
+          db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
+            reconciliationStatus: 'MISMATCH',
+            updatedAt: new Date().toISOString()
+          });
+        }
         await db.awaitPendingWrites();
         refreshAllData();
       } else if (reqItem?.target_table === 'leave_requests' || reqItem?.target_table === 'leave_usages') {
@@ -311,12 +338,103 @@ const ApprovalInbox: React.FC = () => {
             refreshAllData();
           }
 
-          // ② 계약 기간 연장/단축 자동 반영
+          // ② 계약 기간 연장/단축 및 계약의 할인 자동 반영
           else if (reqItem.target_table === 'contracts') {
             const toBe = payload?.toBe;
             const targetContract = contracts.find(c => c.id === reqItem.target_record_id);
-            
-            if (targetContract && toBe?.endDate) {
+
+            // ②-A: 계약의 할인 (장기간 사용 고객 렌탈료 단가 할인) 자동 반영
+            if (targetContract && payload?.actionType === 'CONTRACT_DISCOUNT' && Array.isArray(toBe?.items)) {
+              const nowIso = new Date().toISOString();
+              const todayStr = nowIso.split('T')[0];
+              const discountItems: any[] = toBe.items;
+              const diffLines: string[] = [];
+
+              discountItems.forEach(it => {
+                const newMonthly = Number(it.newMonthlyRentalFee) || 0;
+                const newDaily = Number(it.newDailyRentalFee) || Math.round(newMonthly / 30);
+                const oldMonthly = Number(it.oldMonthlyRentalFee) || 0;
+                const oldDaily = Number(it.oldDailyRentalFee) || 0;
+
+                if (it.caId) {
+                  db.updateRow<ContractAsset>('contractAssets', it.caId, {
+                    monthlyRentalFee: newMonthly,
+                    dailyRentalFee: newDaily,
+                    updatedAt: nowIso
+                  });
+                }
+                const liveCa = (db.contractAssets || []).find(c => c.id === it.caId);
+                const targetAssetId = it.assetId || liveCa?.assetId;
+                if (targetAssetId && liveCa?.status !== 'RETURNED') {
+                  db.updateRow<Asset>('assets', targetAssetId, {
+                    monthlyRentalFee: newMonthly,
+                    dailyRentalFee: newDaily,
+                    updatedAt: nowIso
+                  });
+                }
+                diffLines.push(
+                  `${it.assetNo || '장비'}(${it.modelName || ''}): 월 ${oldMonthly.toLocaleString()}원(일 ${oldDaily.toLocaleString()}원) ➔ 월 ${newMonthly.toLocaleString()}원(일 ${newDaily.toLocaleString()}원)`
+                );
+              });
+
+              // 연결된 출고 배차(deliveries.cargoItems) 단가 동기화
+              const linkedDeliveries = (db.deliveries || []).filter(
+                d => d.contractId === targetContract.id && d.status !== 'CANCELLED'
+              );
+              linkedDeliveries.forEach(deliv => {
+                if (!deliv.cargoItems) return;
+                try {
+                  const parsed = JSON.parse(deliv.cargoItems);
+                  if (Array.isArray(parsed)) {
+                    let changed = false;
+                    const nextCargo = parsed.map((ci: any) => {
+                      const matchedByCa = Array.isArray(ci.contractAssetIds)
+                        ? discountItems.find(t => ci.contractAssetIds.includes(t.caId))
+                        : undefined;
+                      const matchedByModel = !matchedByCa
+                        ? discountItems.find(t => t.modelName === ci.modelName)
+                        : undefined;
+                      const matched = matchedByCa || matchedByModel;
+                      if (matched) {
+                        changed = true;
+                        return {
+                          ...ci,
+                          monthlyRentalFee: Number(matched.newMonthlyRentalFee) || 0,
+                          dailyRentalFee: Number(matched.newDailyRentalFee) || 0
+                        };
+                      }
+                      return ci;
+                    });
+                    if (changed) {
+                      db.updateRow<Delivery>('deliveries', deliv.id, {
+                        cargoItems: JSON.stringify(nextCargo),
+                        updatedAt: nowIso
+                      });
+                    }
+                  }
+                } catch {
+                  // ignore parse error
+                }
+              });
+
+              db.updateRow<Contract>('contracts', targetContract.id, {
+                approvalStatus: 'APPROVED',
+                updatedAt: nowIso
+              });
+
+              db.insertRow<ContractHistory>('contractHistory', {
+                contractId: targetContract.id,
+                changeType: 'FEE_CHANGE',
+                changeDate: todayStr,
+                description: `[결재 승인 완료] 계약의 할인 단가 자동 반영 (적용기준일: ${toBe.effectiveDate || todayStr}): ${diffLines.join(' / ')} (사유: ${payload?.reason || '장기 사용 단가 할인'})`,
+                createdAt: nowIso
+              });
+
+              await db.awaitPendingWrites();
+              refreshAllData();
+            }
+            // ②-B: 계약 기간 연장/단축 자동 반영
+            else if (targetContract && toBe?.endDate) {
               const targetEndDate = toBe.endDate;
               const isShortened = toBe.status === 'SHORTENED';
               const targetAssetIds: string[] = toBe.targetAssetIds || [];
@@ -414,14 +532,22 @@ const ApprovalInbox: React.FC = () => {
             refreshAllData();
           }
 
-          // ④ 운송료 지급 자동 반영
+          // ④ 출고 요청 수정('계약의 수정(완결된 출고의 수정)') 또는 운송료 지급 자동 반영
           else if (reqItem.target_table === 'deliveries') {
-            db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
-              reconciliationStatus: 'PAID',
-              updatedAt: new Date().toISOString()
-            });
-            await db.awaitPendingWrites();
-            refreshAllData();
+            if (payload?.actionType === 'CONTRACT_MODIFY' && payload?.toBe?.updateParams) {
+              await updateOutboundRequestPricing({
+                ...payload.toBe.updateParams,
+                allowCompletedModify: true
+              });
+              refreshAllData();
+            } else {
+              db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
+                reconciliationStatus: 'PAID',
+                updatedAt: new Date().toISOString()
+              });
+              await db.awaitPendingWrites();
+              refreshAllData();
+            }
           }
 
           // ⑤ 연차 신청 자동 반영
@@ -650,6 +776,119 @@ const ApprovalInbox: React.FC = () => {
                             </span>
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {/* ③ 계약의 수정(완결된 출고의 수정) 건 */}
+                    {payload.actionType === 'CONTRACT_MODIFY' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'stretch', background: 'var(--bg-card)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text-muted, #64748b)' }}>현재 상태</div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>계약개시일(하차일): </span>
+                            <strong>{payload.asIs?.unloadingDate || '-'} {payload.asIs?.unloadingTimeSlot || ''}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>장비 모델·수량·단가:</span>
+                            {(payload.asIs?.equipments || []).map((eq: any, i: number) => (
+                              <div key={i} style={{ fontFamily: 'monospace', fontSize: '11.5px' }}>
+                                • {eq.modelName} × {eq.qty}대 (월 {(Number(eq.monthlyRate) || 0).toLocaleString()}원 / 일 {(Number(eq.dailyRate) || 0).toLocaleString()}원)
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>유상옵션:</span>
+                            {(payload.asIs?.paidOptions || []).length > 0 ? (
+                              (payload.asIs?.paidOptions || []).map((opt: any, i: number) => (
+                                <div key={i} style={{ fontFamily: 'monospace', fontSize: '11.5px' }}>
+                                  • {opt.name} ({(Number(opt.price) || 0).toLocaleString()}원/{opt.unit || '월'}{opt.unit === '대' && (opt.perUnitQty || 1) > 1 ? ` · 1대당 ${opt.perUnitQty}개` : ''})
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>없음</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', fontSize: '18px', color: '#4f46e5', fontWeight: 800 }}>➔</div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#4f46e5' }}>변경 희망 상태 (승인 시 자동 반영)</div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>계약개시일(하차일): </span>
+                            <strong style={{ color: '#4f46e5' }}>{payload.toBe?.unloadingDate || '-'} {payload.toBe?.unloadingTimeSlot || ''}</strong>
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>장비 모델·수량·단가:</span>
+                            {(payload.toBe?.equipments || []).map((eq: any, i: number) => (
+                              <div key={i} style={{ fontFamily: 'monospace', fontSize: '11.5px', fontWeight: 700, color: '#4f46e5' }}>
+                                • {eq.modelName} × {eq.qty}대 (월 {(Number(eq.monthlyRate) || 0).toLocaleString()}원 / 일 {(Number(eq.dailyRate) || 0).toLocaleString()}원)
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginBottom: '2px' }}>유상옵션:</span>
+                            {(payload.toBe?.paidOptions || []).length > 0 ? (
+                              (payload.toBe?.paidOptions || []).map((opt: any, i: number) => (
+                                <div key={i} style={{ fontFamily: 'monospace', fontSize: '11.5px', fontWeight: 700, color: '#4f46e5' }}>
+                                  • {opt.name} ({(Number(opt.price) || 0).toLocaleString()}원/{opt.unit || '월'}{opt.unit === '대' && (opt.perUnitQty || 1) > 1 ? ` · 1대당 ${opt.perUnitQty}개` : ''})
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>없음</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ④ 계약의 할인 건 */}
+                    {payload.actionType === 'CONTRACT_DISCOUNT' && Array.isArray(payload.toBe?.items) && (
+                      <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', padding: '6px 10px', borderRadius: '6px', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+                          <span>
+                            할인 적용 기준일: <strong>{payload.toBe.effectiveDate || '-'}</strong>
+                          </span>
+                          <span>
+                            월 렌탈료 합계: <strong>{(Number(payload.asIs?.totalOldMonthlyFee) || 0).toLocaleString()}원</strong> ➔{' '}
+                            <strong style={{ color: '#7c3aed' }}>{(Number(payload.toBe?.totalNewMonthlyFee) || 0).toLocaleString()}원</strong>
+                          </span>
+                        </div>
+                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+                          <thead>
+                            <tr style={{ background: 'var(--bg-card-header)', color: 'var(--text-main)', textAlign: 'left' }}>
+                              <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>자산번호 / 모델명</th>
+                              <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>개시일</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>현재 월/일 렌탈료</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap', color: '#7c3aed' }}>변경 희망 월/일 렌탈료</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>할인 차액</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {payload.toBe.items.map((it: any, idx: number) => {
+                              const oldM = Number(it.oldMonthlyRentalFee) || 0;
+                              const newM = Number(it.newMonthlyRentalFee) || 0;
+                              const diffM = oldM - newM;
+                              return (
+                                <tr key={idx} style={{ borderTop: '1px solid var(--border-color, #f1f5f9)' }}>
+                                  <td style={{ padding: '6px 8px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                    {it.assetNo} ({it.modelName})
+                                  </td>
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{it.startDate || '-'}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                    월 {oldM.toLocaleString()}원 (일 {(Number(it.oldDailyRentalFee) || 0).toLocaleString()}원)
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#7c3aed', whiteSpace: 'nowrap' }}>
+                                    월 {newM.toLocaleString()}원 (일 {(Number(it.newDailyRentalFee) || 0).toLocaleString()}원)
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: diffM > 0 ? '#7c3aed' : '#dc2626', whiteSpace: 'nowrap' }}>
+                                    {diffM >= 0 ? `-${diffM.toLocaleString()}원` : `+${Math.abs(diffM).toLocaleString()}원`}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>

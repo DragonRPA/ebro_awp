@@ -702,13 +702,15 @@ export const APPROVAL_EVENT_REGISTRY = [
   // ── 1. 고객 (1) ──
   { code: 'CUSTOMER_REGISTRATION',       name: '고객 등록',        targetTable: 'customers',           category: '고객' },
 
-  // ── 2. 계약 / 청구 (6) ──
-  { code: 'CONTRACT_SIGN',               name: '계약 체결',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_TERMINATE',          name: '계약 해지',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_EXTEND',             name: '계약 연장',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_SUCCEED',            name: '계약 승계',        targetTable: 'contracts',           category: '계약' },
-  { code: 'REPAIR_BILLING',              name: '수리비 청구',      targetTable: 'repairs',             category: '계약' },
-  { code: 'CUSTOM_BILLING_CREATE',       name: '특수청구 생성 승인', targetTable: 'billings',            category: '계약' },
+  // ── 2. 계약 / 청구 (8) ──
+  { code: 'CONTRACT_SIGN',               name: '계약 체결',                         targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_MODIFY',             name: '계약의 수정(완결된 출고의 수정)',     targetTable: 'deliveries',          category: '계약' },
+  { code: 'CONTRACT_TERMINATE',          name: '계약 해지',                         targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_EXTEND',             name: '계약 연장',                         targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_SUCCEED',            name: '계약 승계',                         targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_DISCOUNT',           name: '계약의 할인',                       targetTable: 'contracts',           category: '계약' },
+  { code: 'REPAIR_BILLING',              name: '수리비 청구',                       targetTable: 'repairs',             category: '계약' },
+  { code: 'CUSTOM_BILLING_CREATE',       name: '특수청구 생성 승인',                 targetTable: 'billings',            category: '계약' },
 
   // ── 3. 자산 (2) ──
   { code: 'ASSET_DISPOSAL',              name: '자산 매각',        targetTable: 'assets',              category: '자산' },

@@ -200,6 +200,26 @@ export const Contracts: React.FC = () => {
   const [isSubmittingContract, setIsSubmittingContract] = useState(false);
   const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
 
+  // 2-B) 계약의 할인 (장기 사용 고객 렌탈료 단가 할인 품의) 모달 상태
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [discountItemsState, setDiscountItemsState] = useState<Array<{
+    caId: string;
+    assetId?: string;
+    assetNo: string;
+    modelName: string;
+    startDate: string;
+    status: string;
+    selected: boolean;
+    oldMonthlyFee: number;
+    oldDailyFee: number;
+    newMonthlyFee: number;
+    newDailyFee: number;
+  }>>([]);
+  const [discountEffectiveDate, setDiscountEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
+  const [discountReason, setDiscountReason] = useState('');
+  const [discountBatchPercent, setDiscountBatchPercent] = useState<string>('10');
+  const [isSubmittingDiscount, setIsSubmittingDiscount] = useState(false);
+
   // 3) 계약 승계 모달
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [succCustSearch, setSuccCustSearch] = useState(''); // 🔍 양수 고객사 초성/검색어
@@ -1093,6 +1113,240 @@ export const Contracts: React.FC = () => {
       setShowFeeModal(false);
     } catch (err: any) {
       showToast(`저장 실패: ${err?.message || err}`, 'error');
+    }
+  };
+
+  // 💡 유형 2: 장기 사용 고객 렌탈료 단가 할인 ('계약의 할인') 모달 열기
+  const handleOpenDiscountModal = () => {
+    if (!activeContract) return;
+    const allContractCAs = contractAssets.filter(ca => ca.contractId === activeContract.id && ca.status !== 'SOLD');
+    const hasNonReturned = allContractCAs.some(ca => ca.status !== 'RETURNED');
+    const initItems = allContractCAs.map(ca => {
+      const asset = assets.find(a => a.id === ca.assetId);
+      const oldMonthly = Number(ca.monthlyRentalFee) || 0;
+      const oldDaily = Number(ca.dailyRentalFee) || Math.round(oldMonthly / 30);
+      return {
+        caId: ca.id,
+        assetId: ca.assetId,
+        assetNo: asset?.assetNo || '미할당',
+        modelName: asset?.modelName || ca.expectedModel || '장비',
+        startDate: ca.startDate || activeContract.startDate || todayStr,
+        status: ca.status || 'ACTIVE',
+        selected: hasNonReturned ? ca.status !== 'RETURNED' : true,
+        oldMonthlyFee: oldMonthly,
+        oldDailyFee: oldDaily,
+        newMonthlyFee: oldMonthly,
+        newDailyFee: oldDaily
+      };
+    });
+    setDiscountItemsState(initItems);
+    setDiscountEffectiveDate(todayStr);
+    setDiscountReason('');
+    setDiscountBatchPercent('10');
+    setShowDiscountModal(true);
+  };
+
+  const applyBatchDiscountPercent = (pctNum: number) => {
+    const clampedPct = Math.max(0, Math.min(100, pctNum));
+    setDiscountItemsState(prev =>
+      prev.map(item => {
+        if (!item.selected) return item;
+        const discountedMonthly = Math.max(0, Math.floor((item.oldMonthlyFee * (100 - clampedPct)) / 100 / 1000) * 1000);
+        const discountedDaily = Math.max(0, Math.round(discountedMonthly / 30 / 100) * 100);
+        return {
+          ...item,
+          newMonthlyFee: discountedMonthly,
+          newDailyFee: discountedDaily
+        };
+      })
+    );
+  };
+
+  const handleSaveDiscount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingDiscount || !activeContract) return;
+
+    const targetItems = discountItemsState.filter(
+      it => it.selected && (it.newMonthlyFee !== it.oldMonthlyFee || it.newDailyFee !== it.oldDailyFee)
+    );
+    if (targetItems.length === 0) {
+      showToast('할인(변경)할 장비를 선택하고 변경 희망 단가를 입력해 주십시오.', 'error');
+      return;
+    }
+    if (!discountReason.trim()) {
+      showToast('계약의 할인 품의 사유를 입력해 주십시오.', 'error');
+      return;
+    }
+
+    setIsSubmittingDiscount(true);
+    try {
+      const custName = customers.find(c => c.id === activeContract.customerId)?.name || '-';
+      const siteName = sites.find(s => s.id === activeContract.siteId)?.name || '-';
+      const totalOldMonthly = targetItems.reduce((s, it) => s + it.oldMonthlyFee, 0);
+      const totalNewMonthly = targetItems.reduce((s, it) => s + it.newMonthlyFee, 0);
+      const totalDiscountDiff = totalOldMonthly - totalNewMonthly;
+
+      const itemDiffLines = targetItems.map(
+        it => `${it.assetNo}(${it.modelName}): 월 ${it.oldMonthlyFee.toLocaleString()}원(일 ${it.oldDailyFee.toLocaleString()}원) ➔ 월 ${it.newMonthlyFee.toLocaleString()}원(일 ${it.newDailyFee.toLocaleString()}원)`
+      );
+
+      let ruleData: any = null;
+      try {
+        const res = await fetchRuleForEvent('CONTRACT_DISCOUNT');
+        ruleData = res?.rule;
+      } catch (err) {
+        console.warn('계약의 할인 결재선 조회 경고:', err);
+      }
+
+      const isApprovalRequired = Boolean(ruleData && ruleData.is_enabled);
+
+      if (isApprovalRequired && currentUser) {
+        const approvalPayload: ApprovalPayload = {
+          actionType: 'CONTRACT_DISCOUNT',
+          targetTable: 'contracts',
+          targetId: activeContract.id,
+          asIs: {
+            contractNo: activeContract.contractNo,
+            customerName: custName,
+            siteName,
+            startDate: activeContract.startDate,
+            totalOldMonthlyFee: totalOldMonthly,
+            items: targetItems.map(it => ({
+              caId: it.caId,
+              assetId: it.assetId,
+              assetNo: it.assetNo,
+              modelName: it.modelName,
+              startDate: it.startDate,
+              monthlyRentalFee: it.oldMonthlyFee,
+              dailyRentalFee: it.oldDailyFee
+            }))
+          },
+          toBe: {
+            effectiveDate: discountEffectiveDate || todayStr,
+            totalNewMonthlyFee: totalNewMonthly,
+            totalDiscountAmount: totalDiscountDiff,
+            items: targetItems.map(it => ({
+              caId: it.caId,
+              assetId: it.assetId,
+              assetNo: it.assetNo,
+              modelName: it.modelName,
+              startDate: it.startDate,
+              oldMonthlyRentalFee: it.oldMonthlyFee,
+              oldDailyRentalFee: it.oldDailyFee,
+              newMonthlyRentalFee: it.newMonthlyFee,
+              newDailyRentalFee: it.newDailyFee
+            }))
+          },
+          reason: discountReason.trim(),
+          summaryText: `[계약의 할인] ${activeContract.contractNo} (${custName} / ${siteName}) 장비 ${targetItems.length}대 월 렌탈료 합계 ${totalOldMonthly.toLocaleString()}원 ➔ ${totalNewMonthly.toLocaleString()}원 (${totalDiscountDiff >= 0 ? `-${totalDiscountDiff.toLocaleString()}원 할인` : `+${Math.abs(totalDiscountDiff).toLocaleString()}원 조정`})`
+        };
+
+        const req = await createApprovalRequest(
+          ruleData.id,
+          currentUser.id,
+          activeContract.id,
+          'contracts',
+          Math.abs(totalDiscountDiff),
+          approvalPayload
+        );
+
+        db.updateRow<Contract>('contracts', activeContract.id, {
+          approvalStatus: 'PENDING',
+          approvalRequestId: req?.id,
+          updatedAt: new Date().toISOString()
+        });
+
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: activeContract.id,
+          changeType: 'FEE_CHANGE',
+          changeDate: todayStr,
+          description: `[결재 상신] 계약의 할인 품의 요청 (적용기준일: ${discountEffectiveDate || todayStr}): ${itemDiffLines.join(' / ')} (사유: ${discountReason.trim()})`,
+          createdAt: new Date().toISOString()
+        });
+
+        await db.awaitPendingWrites();
+        refreshAllData();
+        showToast('계약의 할인 결재가 상신되었습니다. 결재 승인 시 희망 단가로 자동 변경됩니다.');
+        setShowDiscountModal(false);
+        return;
+      }
+
+      // ── 결재선 규칙 비활성화 시 즉시 단가 반영 ──
+      const nowIso = new Date().toISOString();
+      targetItems.forEach(it => {
+        db.updateRow<ContractAsset>('contractAssets', it.caId, {
+          monthlyRentalFee: it.newMonthlyFee,
+          dailyRentalFee: it.newDailyFee,
+          updatedAt: nowIso
+        });
+        if (it.assetId && it.status !== 'RETURNED') {
+          db.updateRow<Asset>('assets', it.assetId, {
+            monthlyRentalFee: it.newMonthlyFee,
+            dailyRentalFee: it.newDailyFee,
+            updatedAt: nowIso
+          });
+        }
+      });
+
+      // 연결된 출고 배차(deliveries.cargoItems) 내 단가도 동기화
+      const linkedDeliveries = (deliveries || []).filter(d => d.contractId === activeContract.id && d.status !== 'CANCELLED');
+      linkedDeliveries.forEach(deliv => {
+        if (!deliv.cargoItems) return;
+        try {
+          const parsed = JSON.parse(deliv.cargoItems);
+          if (Array.isArray(parsed)) {
+            let changed = false;
+            const nextCargo = parsed.map((ci: any) => {
+              const matchedByCa = Array.isArray(ci.contractAssetIds)
+                ? targetItems.find(t => ci.contractAssetIds.includes(t.caId))
+                : undefined;
+              const matchedByModel = !matchedByCa
+                ? targetItems.find(t => t.modelName === ci.modelName)
+                : undefined;
+              const matched = matchedByCa || matchedByModel;
+              if (matched) {
+                changed = true;
+                return {
+                  ...ci,
+                  monthlyRentalFee: matched.newMonthlyFee,
+                  dailyRentalFee: matched.newDailyFee
+                };
+              }
+              return ci;
+            });
+            if (changed) {
+              db.updateRow<Delivery>('deliveries', deliv.id, {
+                cargoItems: JSON.stringify(nextCargo),
+                updatedAt: nowIso
+              });
+            }
+          }
+        } catch {
+          // ignore parse error
+        }
+      });
+
+      db.updateRow<Contract>('contracts', activeContract.id, {
+        approvalStatus: 'APPROVED',
+        updatedAt: nowIso
+      });
+
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: activeContract.id,
+        changeType: 'FEE_CHANGE',
+        changeDate: todayStr,
+        description: `[계약의 할인] 장기 사용 단가 할인 적용 (적용기준일: ${discountEffectiveDate || todayStr}): ${itemDiffLines.join(' / ')} (사유: ${discountReason.trim()})`,
+        createdAt: nowIso
+      });
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      showToast('계약의 할인 단가가 즉시 반영되었습니다.');
+      setShowDiscountModal(false);
+    } catch (err: any) {
+      showToast(`계약의 할인 처리 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingDiscount(false);
     }
   };
 
@@ -3038,6 +3292,23 @@ export const Contracts: React.FC = () => {
 
               {canSave && canModifyContract(activeContract) && (
                 <>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleOpenDiscountModal}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: '#7c3aed',
+                      borderColor: '#7c3aed'
+                    }}
+                  >
+                    <Receipt size={14} /> 계약의 할인
+                  </button>
+
                   <button className="btn-primary" onClick={handleOpenExtendModal} style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Calendar size={14} /> 기간 연장/단축
                   </button>
@@ -3762,16 +4033,16 @@ export const Contracts: React.FC = () => {
                       const customP = priceMap[optName];
                       const unitPrice = customP !== undefined ? Number(customP) : Number(masterOpt?.defaultPrice || 0);
                       const rawUnit = (unitMap[optName] || masterOpt?.unit || '월').trim();
-                      const unit = rawUnit === '건' ? '건' : rawUnit === '대' ? '대' : '월';
-                      const perUnitQty = unit === '대' ? Math.max(1, Number(qtyMap[optName] ?? (masterOpt as any)?.defaultQtyPerUnit) || 1) : 1;
-                      const mult = unit === '건' ? 1 : unit === '대' ? batchQty * perUnitQty : batchQty;
+                      const unit = rawUnit === '건' ? '건' : rawUnit === '수량' ? '수량' : rawUnit === '대' ? '대' : '월';
+                      const perUnitQty = (unit === '대' || unit === '수량') ? Math.max(1, Number(qtyMap[optName] ?? (masterOpt as any)?.defaultQtyPerUnit) || 1) : 1;
+                      const mult = unit === '건' ? 1 : unit === '수량' ? perUnitQty : unit === '대' ? batchQty * perUnitQty : batchQty;
                       return {
                         name: optName,
                         unit,
                         unitPrice,
                         mult,
                         subTotal: unitPrice * mult,
-                        isOneTime: unit === '대' || unit === '건'
+                        isOneTime: unit === '대' || unit === '건' || unit === '수량'
                       };
                     })
                     .filter((x): x is NonNullable<typeof x> => Boolean(x));
@@ -4535,6 +4806,331 @@ export const Contracts: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* 모달 2-B: 계약의 할인 (장기간 사용 고객 렌탈료 단가 할인 품의 상신) */}
+      {showDiscountModal && activeContract && (() => {
+        const selectedItems = discountItemsState.filter(it => it.selected);
+        const totalOldMonthly = selectedItems.reduce((s, it) => s + it.oldMonthlyFee, 0);
+        const totalNewMonthly = selectedItems.reduce((s, it) => s + it.newMonthlyFee, 0);
+        const totalDiffMonthly = totalOldMonthly - totalNewMonthly;
+        const totalDiffPct = totalOldMonthly > 0 ? ((totalDiffMonthly / totalOldMonthly) * 100).toFixed(1) : '0.0';
+        const usedDays = Math.max(
+          1,
+          Math.floor((Date.now() - new Date(activeContract.startDate || todayStr).getTime()) / 86400000) + 1
+        );
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+            <form
+              onSubmit={handleSaveDiscount}
+              className="card"
+              style={{
+                width: '100%',
+                maxWidth: '820px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                <div>
+                  <h3 className="card-title" style={{ margin: 0, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Receipt size={18} /> 계약의 할인 품의 상신
+                  </h3>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    현재 계약 단가 상태와 할인을 희망하는 단가 상태를 함께 입력하여 결재를 상신합니다. 결재 승인 시 희망 단가로 자동 변경됩니다.
+                  </div>
+                </div>
+                <button type="button" className="btn-secondary" onClick={() => setShowDiscountModal(false)} style={{ padding: '4px 10px', fontSize: '12px' }}>
+                  닫기
+                </button>
+              </div>
+
+              {/* 현재 계약 요약 배너 */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>계약번호 / 고객사</span>
+                  <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activeContract.contractNo} · {customers.find(c => c.id === activeContract.customerId)?.name || '-'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>현장명</span>
+                  <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {sites.find(s => s.id === activeContract.siteId)?.name || '-'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>최초 계약개시일 / 누적 사용</span>
+                  <strong style={{ color: 'var(--primary)' }}>
+                    {activeContract.startDate} ({usedDays}일 경과)
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>선택 장비 월 렌탈료 변동</span>
+                  <strong style={{ color: totalDiffMonthly > 0 ? '#7c3aed' : 'var(--text-primary)' }}>
+                    {totalOldMonthly.toLocaleString()}원 ➔ {totalNewMonthly.toLocaleString()}원 ({totalDiffMonthly >= 0 ? `-${totalDiffMonthly.toLocaleString()}원` : `+${Math.abs(totalDiffMonthly).toLocaleString()}원`})
+                  </strong>
+                </div>
+              </div>
+
+              {/* 일괄 할인율 도우미 + 할인 적용 기준일 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '12px', alignItems: 'end', padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', margin: 0 }}>
+                    선택 장비 일괄 할인율 계산 도우미 (현재 단가 대비)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {[5, 10, 15, 20].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          setDiscountBatchPercent(String(pct));
+                          applyBatchDiscountPercent(pct);
+                        }}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          borderRadius: '6px',
+                          border: '1px solid #c4b5fd',
+                          backgroundColor: '#f5f3ff',
+                          color: '#6d28d9',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {pct}% 할인 적용
+                      </button>
+                    ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={discountBatchPercent}
+                        onChange={e => setDiscountBatchPercent(e.target.value)}
+                        style={{ width: '58px', padding: '5px 6px', fontSize: '12px', textAlign: 'right', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: 700 }}>%</span>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => applyBatchDiscountPercent(Number(discountBatchPercent) || 0)}
+                        style={{ padding: '5px 10px', fontSize: '11.5px', whiteSpace: 'nowrap' }}
+                      >
+                        비율 적용
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => applyBatchDiscountPercent(0)}
+                        style={{ padding: '5px 8px', fontSize: '11.5px', whiteSpace: 'nowrap' }}
+                      >
+                        원복
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', margin: 0 }}>
+                    할인 단가 적용 기준일 *
+                  </label>
+                  <input
+                    type="date"
+                    value={discountEffectiveDate}
+                    onChange={e => setDiscountEffectiveDate(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '12.5px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 장비별 현재 상태 vs 변경 희망 상태 입력 테이블 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>
+                    체결 자산별 현재 단가 및 변경 희망 단가 입력 ({selectedItems.length}대 선택)
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', fontSize: '11.5px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountItemsState(prev => prev.map(it => ({ ...it, selected: true })))}
+                      style={{ border: 'none', background: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      전체 선택
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiscountItemsState(prev => prev.map(it => ({ ...it, selected: it.status !== 'RETURNED' })))}
+                      style={{ border: 'none', background: 'none', color: 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      운용중만 선택
+                    </button>
+                  </div>
+                </div>
+
+                <div className="table-container" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                  <table>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-app)' }}>
+                        <th style={{ width: '36px', textAlign: 'center', whiteSpace: 'nowrap' }}>선택</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>자산번호 / 모델명</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>개시일 / 상태</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>현재 월 렌탈료</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>현재 일 렌탈료</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#7c3aed' }}>변경 희망 월 렌탈료</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#7c3aed' }}>변경 희망 일 렌탈료</th>
+                        <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>할인 차액</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discountItemsState.map((item, idx) => {
+                        const diffM = item.oldMonthlyFee - item.newMonthlyFee;
+                        const diffPct = item.oldMonthlyFee > 0 ? ((diffM / item.oldMonthlyFee) * 100).toFixed(1) : '0.0';
+                        return (
+                          <tr key={item.caId} style={{ opacity: item.selected ? 1 : 0.55 }}>
+                            <td style={{ textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                checked={item.selected}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setDiscountItemsState(prev =>
+                                    prev.map((row, rIdx) => (rIdx === idx ? { ...row, selected: checked } : row))
+                                  );
+                                }}
+                              />
+                            </td>
+                            <td style={{ whiteSpace: 'nowrap' }}>
+                              <strong>{item.assetNo}</strong>
+                              <span style={{ marginLeft: '6px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>({item.modelName})</span>
+                            </td>
+                            <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px' }}>
+                              {item.startDate}{' '}
+                              <span style={{ color: item.status === 'RETURNED' ? 'var(--text-muted)' : '#16a34a', fontWeight: 700 }}>
+                                [{item.status === 'RETURNED' ? '반납완료' : '운용중'}]
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace', fontWeight: 700 }}>
+                              {item.oldMonthlyFee.toLocaleString()}원
+                            </td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                              {item.oldDailyFee.toLocaleString()}원
+                            </td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                disabled={!item.selected}
+                                value={item.newMonthlyFee.toLocaleString()}
+                                onChange={e => {
+                                  const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                  const autoDaily = Math.round(num / 30 / 100) * 100;
+                                  setDiscountItemsState(prev =>
+                                    prev.map((row, rIdx) =>
+                                      rIdx === idx ? { ...row, newMonthlyFee: num, newDailyFee: autoDaily } : row
+                                    )
+                                  );
+                                }}
+                                style={{
+                                  width: '115px',
+                                  padding: '5px 8px',
+                                  textAlign: 'right',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  color: '#6d28d9',
+                                  border: '1px solid #a78bfa',
+                                  borderRadius: '4px'
+                                }}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                disabled={!item.selected}
+                                value={item.newDailyFee.toLocaleString()}
+                                onChange={e => {
+                                  const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                  setDiscountItemsState(prev =>
+                                    prev.map((row, rIdx) => (rIdx === idx ? { ...row, newDailyFee: num } : row))
+                                  );
+                                }}
+                                style={{
+                                  width: '95px',
+                                  padding: '5px 8px',
+                                  textAlign: 'right',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  color: '#6d28d9',
+                                  border: '1px solid #c4b5fd',
+                                  borderRadius: '4px'
+                                }}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '11.5px', fontWeight: 700, color: diffM > 0 ? '#7c3aed' : diffM < 0 ? '#dc2626' : 'var(--text-muted)' }}>
+                              {diffM === 0
+                                ? '변동없음'
+                                : diffM > 0
+                                ? `-${diffM.toLocaleString()}원 (-${diffPct}%)`
+                                : `+${Math.abs(diffM).toLocaleString()}원`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 품의 사유 입력 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>계약의 할인 품의 사유 *</label>
+                <input
+                  type="text"
+                  placeholder="예: 6개월 이상 장기 사용 고객 렌탈료 단가 10% 할인 요청"
+                  value={discountReason}
+                  onChange={e => setDiscountReason(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', border: '1px solid var(--border-color)', borderRadius: '6px' }}
+                />
+              </div>
+
+              {/* 하단 대조 요약 및 상신 버튼 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ fontSize: '12.5px', fontWeight: 700 }}>
+                  현재 월 렌탈료 합계: <span>{totalOldMonthly.toLocaleString()}원</span> ➔ 변경 희망 합계:{' '}
+                  <span style={{ color: '#7c3aed' }}>{totalNewMonthly.toLocaleString()}원</span>{' '}
+                  <span style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>
+                    (총 {totalDiffMonthly >= 0 ? `${totalDiffMonthly.toLocaleString()}원 / ${totalDiffPct}% 할인` : `${Math.abs(totalDiffMonthly).toLocaleString()}원 증액`})
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowDiscountModal(false)}>
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDiscount}
+                    className="btn-primary"
+                    style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed', fontWeight: 700, padding: '8px 16px' }}
+                  >
+                    {isSubmittingDiscount ? '상신 처리중...' : '계약의 할인 결재 상신'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        );
+      })()}
 
       {/* 모달 3: 계약 승계 */}
       {showTransferModal && activeContract && (

@@ -302,7 +302,7 @@ export const SmartDispatch4: React.FC = () => {
   const [editHistoryCustomOptInput, setEditHistoryCustomOptInput] = useState<string>('');
   const [editHistoryEqRates, setEditHistoryEqRates] = useState<Record<string, { monthlyRate: number; dailyRate: number }>>({});
   const [editHistoryOptPrices, setEditHistoryOptPrices] = useState<Record<string, number>>({});
-  const [editHistoryOptUnits, setEditHistoryOptUnits] = useState<Record<string, '월' | '대' | '건'>>({});
+  const [editHistoryOptUnits, setEditHistoryOptUnits] = useState<Record<string, '월' | '대' | '건' | '수량'>>({});
   const [editHistoryOptQtys, setEditHistoryOptQtys] = useState<Record<string, number>>({});
   const [editHistoryPriceReason, setEditHistoryPriceReason] = useState<string>('');
   const [isSavingHistoryPrices, setIsSavingHistoryPrices] = useState<boolean>(false);
@@ -1150,9 +1150,9 @@ export const SmartDispatch4: React.FC = () => {
   const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
   const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true);
   const [confirmNoSafetyOptions, setConfirmNoSafetyOptions] = useState<boolean>(false);
-  // 🌟 이번 출고 건 전용 유상옵션 1회성 단가, 청구조건 및 1대당 수량 변경 상태 (현장 기본 옵션은 마스터 기본값 유지)
+  // 🌟 이번 출고 건 전용 유상옵션 1회성 단가, 청구조건 및 수량 변경 상태 (현장 기본 옵션은 마스터 기본값 유지)
   const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
-  const [paidOptionUnits, setPaidOptionUnits] = useState<Record<string, '월' | '대' | '건'>>({});
+  const [paidOptionUnits, setPaidOptionUnits] = useState<Record<string, '월' | '대' | '건' | '수량'>>({});
   const [paidOptionQtys, setPaidOptionQtys] = useState<Record<string, number>>({});
 
   // 선택된 옵션 중 유상옵션 마스터 매핑 및 기본단가 자동 초기화 (오름차순 정렬)
@@ -1181,10 +1181,10 @@ export const SmartDispatch4: React.FC = () => {
       return next;
     });
     setPaidOptionUnits(prev => {
-      const next: Record<string, '월' | '대' | '건'> = {};
+      const next: Record<string, '월' | '대' | '건' | '수량'> = {};
       selectedPaidMasterOptions.forEach(opt => {
         const defU = (opt.unit || '월').trim();
-        const normU: '월' | '대' | '건' = defU === '건' ? '건' : defU === '대' ? '대' : '월';
+        const normU: '월' | '대' | '건' | '수량' = defU === '건' ? '건' : defU === '수량' ? '수량' : defU === '대' ? '대' : '월';
         next[opt.name] = prev[opt.name] !== undefined ? prev[opt.name] : normU;
       });
       return next;
@@ -5569,8 +5569,9 @@ export const SmartDispatch4: React.FC = () => {
                           const currentPrice = paidOptionPrices[opt.name] !== undefined ? paidOptionPrices[opt.name] : defaultPrice;
                           const isModified = currentPrice !== defaultPrice;
                           const defUnitRaw = (opt.unit || '월').trim();
-                          const defUnit: '월' | '대' | '건' = defUnitRaw === '건' ? '건' : defUnitRaw === '대' ? '대' : '월';
-                          const currentUnit: '월' | '대' | '건' = paidOptionUnits[opt.name] || defUnit;
+                          const defUnit: '월' | '대' | '건' | '수량' =
+                            defUnitRaw === '건' ? '건' : defUnitRaw === '수량' ? '수량' : defUnitRaw === '대' ? '대' : '월';
+                          const currentUnit: '월' | '대' | '건' | '수량' = paidOptionUnits[opt.name] || defUnit;
                           const defQtyPerUnit = Math.max(1, Number((opt as any).defaultQtyPerUnit) || 1);
                           const currentPerUnitQty = paidOptionQtys[opt.name] !== undefined && paidOptionQtys[opt.name] >= 1
                             ? paidOptionQtys[opt.name]
@@ -5578,9 +5579,11 @@ export const SmartDispatch4: React.FC = () => {
                           const effectiveMachineQty = Math.max(1, totalQty);
                           const calculatedQty = currentUnit === '건'
                             ? 1
-                            : currentUnit === '대'
-                              ? effectiveMachineQty * currentPerUnitQty
-                              : effectiveMachineQty;
+                            : currentUnit === '수량'
+                              ? currentPerUnitQty
+                              : currentUnit === '대'
+                                ? effectiveMachineQty * currentPerUnitQty
+                                : effectiveMachineQty;
                           const expectedSupply = currentPrice * calculatedQty;
 
                           return (
@@ -5597,7 +5600,7 @@ export const SmartDispatch4: React.FC = () => {
                                 fontSize: '12px'
                               }}
                             >
-                              {/* 좌측: 유상옵션명 + 청구조건 + (1대당 선택 시) 1대당 수량 */}
+                              {/* 좌측: 유상옵션명 + 청구조건 + (1대당/수량 선택 시) 수량 입력 */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minWidth: '125px', flexShrink: 0 }}>
                                   <span
@@ -5631,29 +5634,30 @@ export const SmartDispatch4: React.FC = () => {
                                 <select
                                   value={currentUnit}
                                   onChange={e => {
-                                    const val = e.target.value as '월' | '대' | '건';
+                                    const val = e.target.value as '월' | '대' | '건' | '수량';
                                     setPaidOptionUnits(prev => ({ ...prev, [opt.name]: val }));
                                   }}
                                   className="rounded bg-slate-950 text-amber-300 border border-slate-700 font-bold cursor-pointer"
                                   style={{
-                                    width: '132px',
+                                    width: '140px',
                                     height: '28px',
                                     padding: '2px 8px',
                                     fontSize: '11.5px',
                                     fontWeight: 700,
                                     flexShrink: 0
                                   }}
-                                  title="청구조건 선택 (월별 / 1대당 1회 / 건당 1회)"
+                                  title="청구조건 선택 (월별 / 1대당 1회 / 건당 1회 / 수량×단가)"
                                 >
                                   <option value="월">월 (매월×{totalQty}대)</option>
-                                  <option value="대">1대당 (1회×{totalQty}대)</option>
+                                  <option value="대">대 (1대당×{totalQty}대)</option>
                                   <option value="건">건 (1회)</option>
+                                  <option value="수량">수량 (수량×단가)</option>
                                 </select>
 
-                                {currentUnit === '대' && (
+                                {(currentUnit === '대' || currentUnit === '수량') && (
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                                     <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                                      1대당 수량
+                                      {currentUnit === '수량' ? '수량' : '1대당 수량'}
                                     </span>
                                     <input
                                       type="number"
@@ -5674,7 +5678,7 @@ export const SmartDispatch4: React.FC = () => {
                                         textAlign: 'center',
                                         flexShrink: 0
                                       }}
-                                      title="1대당 기본수량 (기본 1개, 필요 시 2 이상 수정)"
+                                      title={currentUnit === '수량' ? '적용 수량 입력 (수량 × 단가)' : '1대당 기본수량 (기본 1개, 필요 시 2 이상 수정)'}
                                     />
                                     <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                                       개
@@ -7158,7 +7162,7 @@ export const SmartDispatch4: React.FC = () => {
         sm?.checkedSpecs,
         (customer as any)?.defaultCheckedSpecs
       );
-      const paidOptionUnitsMap: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
+      const paidOptionUnitsMap: Record<string, '월' | '대' | '건' | '수량'> = parsedCargo[0]?.paidOptionUnits || snapMeta?.paidOptionUnits || {};
       const paidOptionQtysMap: Record<string, number> = parsedCargo[0]?.paidOptionQtys || snapMeta?.paidOptionQtys || {};
       if (!paidOptionsStr && d.closingMemo) {
         const mOpt = d.closingMemo.match(/유상옵션:\s*([^\|]+)/);
@@ -7175,8 +7179,10 @@ export const SmartDispatch4: React.FC = () => {
           const masterOpt = (standardOptions || []).find(so => so.name === optName);
           const unitPrice = customPrice !== undefined ? Number(customPrice) : (masterOpt?.defaultPrice || 0);
           const rawDefUnit = (masterOpt?.unit || '월').trim();
-          const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
-          const unitLabel: '월' | '대' | '건' = customUnit === '건' || customUnit === '대' || customUnit === '월' ? customUnit : defUnit;
+          const defUnit: '월' | '대' | '건' | '수량' =
+            rawDefUnit === '건' ? '건' : rawDefUnit === '수량' ? '수량' : rawDefUnit === '대' ? '대' : '월';
+          const unitLabel: '월' | '대' | '건' | '수량' =
+            customUnit === '건' || customUnit === '대' || customUnit === '월' || customUnit === '수량' ? customUnit : defUnit;
           const defQtyPerUnit = Math.max(1, Number((masterOpt as any)?.defaultQtyPerUnit) || 1);
           const perUnitQty = customPerUnitQty !== undefined && Number(customPerUnitQty) >= 1 ? Number(customPerUnitQty) : defQtyPerUnit;
           return {
@@ -7958,12 +7964,10 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] font-bold text-emerald-400">
-                        2. 요청 장비 및 단가 명세 (총 {isEditingHistoryPrices && selectedRow.canEditPreInspection ? editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0) : selectedRow.totalQty}대)
+                        2. 요청 장비 및 단가 명세 (총 {isEditingHistoryPrices ? editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0) : selectedRow.totalQty}대)
                       </span>
                       {canSave &&
                         selectedRow.dispatchStatus !== 'CANCELLED' &&
-                        selectedRow.dispatchStatus !== 'DELIVERED' &&
-                        selectedRow.dispatchStatus !== 'COMPLETED' &&
                         (selectedRow.canEditPreInspection || hasFinancialAccess) && (
                         !isEditingHistoryPrices ? (
                           <button
@@ -8029,10 +8033,14 @@ export const SmartDispatch4: React.FC = () => {
                               setEditHistoryPriceReason('');
                               setIsEditingHistoryPrices(true);
                             }}
-                            className="rounded bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 font-bold transition whitespace-nowrap cursor-pointer"
+                            className={`rounded text-white font-bold transition whitespace-nowrap cursor-pointer ${
+                              selectedRow.canEditPreInspection
+                                ? 'bg-blue-600 hover:bg-blue-500 border border-blue-400'
+                                : 'bg-indigo-600 hover:bg-indigo-500 border border-indigo-400'
+                            }`}
                             style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                           >
-                            {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '단가 수정'}
+                            {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '계약의 수정(완결된 출고의 수정)'}
                           </button>
                         ) : (
                           <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
@@ -8040,44 +8048,55 @@ export const SmartDispatch4: React.FC = () => {
                               type="button"
                               disabled={isSavingHistoryPrices}
                               onClick={async () => {
-                                if (selectedRow.canEditPreInspection && editHistoryEquipments.length === 0) {
+                                if (editHistoryEquipments.length === 0) {
                                   showToast('최소 1개 이상의 장비 모델이 필요합니다.', 'error');
+                                  return;
+                                }
+                                if (editHistoryLoadingDate && editHistoryUnloadingDate && editHistoryLoadingDate > editHistoryUnloadingDate) {
+                                  showToast('상차일이 하차일(계약개시일)보다 늦을 수 없습니다.', 'error');
+                                  return;
+                                }
+                                if (!selectedRow.canEditPreInspection && !editHistoryPriceReason.trim()) {
+                                  showToast('계약의 수정 품의 사유를 입력해 주십시오.', 'error');
                                   return;
                                 }
                                 setIsSavingHistoryPrices(true);
                                 try {
                                   const unloadChanged = editHistoryUnloadingDate && editHistoryUnloadingDate !== selectedRow.unloadingDateVal;
-                                  if (selectedRow.canEditPreInspection) {
-                                    const allOpts = Array.from(editHistorySelectedOptions);
-                                    const nextPaidStr = allOpts
-                                      .filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label))
-                                      .join(', ');
-                                    const nextProtStr = allOpts.filter(label => isProtectionOption(label)).join(', ');
-                                    const nextAttStr = allOpts.filter(label => isAttachmentOption(label)).join(', ');
-                                    const nextSpecsObj = buildCheckedSpecsFromLabels(allOpts, selectedRow.checkedSpecsObj);
+                                  const allOpts = Array.from(editHistorySelectedOptions);
+                                  const nextPaidStr = allOpts
+                                    .filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label))
+                                    .join(', ');
+                                  const nextProtStr = allOpts.filter(label => isProtectionOption(label)).join(', ');
+                                  const nextAttStr = allOpts.filter(label => isAttachmentOption(label)).join(', ');
+                                  const nextSpecsObj = buildCheckedSpecsFromLabels(allOpts, selectedRow.checkedSpecsObj);
 
-                                    const res = await updateOutboundRequestPricing({
-                                      deliveryId: selectedRow.id,
-                                      equipments: editHistoryEquipments.map(eq => ({
-                                        contractAssetIds: eq.contractAssetIds,
-                                        modelName: eq.modelName,
-                                        qty: Math.max(1, Number(eq.qty) || 1),
-                                        monthlyRate: Number(eq.monthlyRate) || 0,
-                                        dailyRate: Number(eq.dailyRate) || 0
-                                      })),
-                                      paidOptions: nextPaidStr,
-                                      protection: nextProtStr,
-                                      attachments: nextAttStr,
-                                      checkedSpecs: nextSpecsObj,
-                                      paidOptionPrices: editHistoryOptPrices,
-                                      paidOptionUnits: editHistoryOptUnits,
-                                      paidOptionQtys: editHistoryOptQtys,
-                                      loadingDate: editHistoryLoadingDate,
-                                      loadingTimeSlot: editHistoryLoadingSlot,
-                                      unloadingDate: editHistoryUnloadingDate,
-                                      unloadingTimeSlot: editHistoryUnloadingSlot,
-                                      reason: editHistoryPriceReason
-                                    });
+                                  const updateParams = {
+                                    deliveryId: selectedRow.id,
+                                    allowCompletedModify: !selectedRow.canEditPreInspection,
+                                    equipments: editHistoryEquipments.map(eq => ({
+                                      contractAssetIds: eq.contractAssetIds,
+                                      modelName: eq.modelName,
+                                      qty: Math.max(1, Number(eq.qty) || 1),
+                                      monthlyRate: Number(eq.monthlyRate) || 0,
+                                      dailyRate: Number(eq.dailyRate) || 0
+                                    })),
+                                    paidOptions: nextPaidStr,
+                                    protection: nextProtStr,
+                                    attachments: nextAttStr,
+                                    checkedSpecs: nextSpecsObj,
+                                    paidOptionPrices: editHistoryOptPrices,
+                                    paidOptionUnits: editHistoryOptUnits,
+                                    paidOptionQtys: editHistoryOptQtys,
+                                    loadingDate: editHistoryLoadingDate,
+                                    loadingTimeSlot: editHistoryLoadingSlot,
+                                    unloadingDate: editHistoryUnloadingDate,
+                                    unloadingTimeSlot: editHistoryUnloadingSlot,
+                                    reason: editHistoryPriceReason.trim() || '출고 요청 내역 수정'
+                                  };
+
+                                  if (selectedRow.canEditPreInspection) {
+                                    const res = await updateOutboundRequestPricing(updateParams);
                                     if (res.success) {
                                       showToast(
                                         unloadChanged
@@ -8089,32 +8108,118 @@ export const SmartDispatch4: React.FC = () => {
                                       setIsEditingHistorySchedule(false);
                                     }
                                   } else {
-                                    const eqList = Object.entries(editHistoryEqRates).map(([modelName, r]) => ({
-                                      modelName,
-                                      monthlyRate: r.monthlyRate,
-                                      dailyRate: r.dailyRate
-                                    }));
-                                    const res = await updateOutboundRequestPricing({
-                                      deliveryId: selectedRow.id,
-                                      equipmentRates: eqList,
-                                      paidOptionPrices: editHistoryOptPrices,
-                                      paidOptionUnits: editHistoryOptUnits,
-                                      paidOptionQtys: editHistoryOptQtys,
-                                      loadingDate: editHistoryLoadingDate,
-                                      loadingTimeSlot: editHistoryLoadingSlot,
-                                      unloadingDate: editHistoryUnloadingDate,
-                                      unloadingTimeSlot: editHistoryUnloadingSlot,
-                                      reason: editHistoryPriceReason
-                                    });
-                                    if (res.success) {
+                                    // 🌟 완결된 출고의 수정: 결재선 규칙(CONTRACT_MODIFY) 확인 후 결재 상신 또는 즉시 반영
+                                    const { rule } = await fetchRuleForEvent('CONTRACT_MODIFY');
+                                    const editTotalQty = Math.max(1, editHistoryEquipments.reduce((s, e) => s + (Number(e.qty) || 1), 0));
+                                    const activePaidOpts = allOpts.filter(
+                                      label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label)
+                                    );
+                                    const asIsPaidSummary = selectedRow.paidOptionItems.length > 0
+                                      ? selectedRow.paidOptionItems.map(o => {
+                                          const rawU = (o.unitLabel || '월').trim();
+                                          const perQ = Math.max(1, Number((o as any).perUnitQty) || 1);
+                                          const mCnt = Math.max(1, selectedRow.totalQty || 1);
+                                          const mult = rawU === '건' ? 1 : rawU === '수량' ? perQ : rawU === '대' ? mCnt * perQ : mCnt;
+                                          return rawU === '수량'
+                                            ? `${o.name}: 수량 ${mult} × ${o.price.toLocaleString()}원/수량`
+                                            : `${o.name}: 수량 ${mult}(1대당 ${perQ}) × ${o.price.toLocaleString()}원/${rawU}`;
+                                        }).join(', ')
+                                      : '없음';
+                                    const toBePaidSummary = activePaidOpts.length > 0
+                                      ? activePaidOpts.map(optName => {
+                                          const masterOpt = (standardOptions || []).find(so => so.name === optName);
+                                          const defPrice = Number(masterOpt?.defaultPrice || 0);
+                                          const rawDefUnit = (masterOpt?.unit || '월').trim();
+                                          const defUnit: '월' | '대' | '건' | '수량' =
+                                            rawDefUnit === '건' ? '건' : rawDefUnit === '수량' ? '수량' : rawDefUnit === '대' ? '대' : '월';
+                                          const curP = editHistoryOptPrices[optName] !== undefined ? editHistoryOptPrices[optName] : defPrice;
+                                          const curU: '월' | '대' | '건' | '수량' = editHistoryOptUnits[optName] || defUnit;
+                                          const defPerQ = Math.max(1, Number((masterOpt as any)?.defaultQtyPerUnit) || 1);
+                                          const curPerQ = editHistoryOptQtys[optName] !== undefined && editHistoryOptQtys[optName] >= 1 ? editHistoryOptQtys[optName] : defPerQ;
+                                          const mult = curU === '건' ? 1 : curU === '수량' ? curPerQ : curU === '대' ? editTotalQty * curPerQ : editTotalQty;
+                                          return curU === '수량'
+                                            ? `${optName}: 수량 ${mult} × ${curP.toLocaleString()}원/수량`
+                                            : `${optName}: 수량 ${mult}(1대당 ${curPerQ}) × ${curP.toLocaleString()}원/${curU}`;
+                                        }).join(', ')
+                                      : '없음';
+
+                                    const asIsEquipSummary = selectedRow.equipmentItems
+                                      .map(e => `${e.modelName} × ${e.qty}대 (월 ${e.monthlyRate.toLocaleString()}원 / 일 ${e.dailyRate.toLocaleString()}원)`)
+                                      .join(', ');
+                                    const toBeEquipSummary = editHistoryEquipments
+                                      .map(e => `${e.modelName} × ${e.qty}대 (월 ${(Number(e.monthlyRate) || 0).toLocaleString()}원 / 일 ${(Number(e.dailyRate) || 0).toLocaleString()}원)`)
+                                      .join(', ');
+
+                                    if (rule && rule.id && rule.is_enabled) {
+                                      await createApprovalRequest(
+                                        rule.id,
+                                        currentUser?.id || 'sys-admin',
+                                        selectedRow.id,
+                                        'deliveries',
+                                        undefined,
+                                        {
+                                          actionType: 'CONTRACT_MODIFY',
+                                          targetTable: 'deliveries',
+                                          targetId: selectedRow.id,
+                                          asIs: {
+                                            contractNo: selectedRow.contractNo,
+                                            customerName: selectedRow.customerName,
+                                            siteName: selectedRow.siteName,
+                                            equipmentsSummary: asIsEquipSummary,
+                                            unloadingDate: selectedRow.unloadingDateVal || selectedRow.loadingDateVal || '-',
+                                            paidOptionsSummary: asIsPaidSummary,
+                                            protection: selectedRow.protectionStr || '없음',
+                                            attachments: selectedRow.attachmentsStr || '없음'
+                                          },
+                                          toBe: {
+                                            contractId: selectedRow.contractId,
+                                            contractNo: selectedRow.contractNo,
+                                            customerName: selectedRow.customerName,
+                                            siteName: selectedRow.siteName,
+                                            equipmentsSummary: toBeEquipSummary,
+                                            unloadingDate: editHistoryUnloadingDate,
+                                            paidOptionsSummary: toBePaidSummary,
+                                            protection: nextProtStr || '없음',
+                                            attachments: nextAttStr || '없음',
+                                            updateParams
+                                          },
+                                          reason: editHistoryPriceReason.trim(),
+                                          summaryText: `[계약의 수정(완결된 출고의 수정)] ${selectedRow.customerName} (${selectedRow.siteName}) — 배차 ${selectedRow.id}`
+                                        }
+                                      );
+
+                                      if (selectedRow.contractId) {
+                                        db.updateRow<any>('contracts', selectedRow.contractId, {
+                                          approvalStatus: 'PENDING',
+                                          updatedAt: new Date().toISOString()
+                                        });
+                                        db.insertRow<any>('contractHistory', {
+                                          contractId: selectedRow.contractId,
+                                          changeType: 'FEE_CHANGE',
+                                          changeDate: getLocalTodayDateStr(),
+                                          description: `[결재 상신] 계약의 수정(완결된 출고의 수정) 품의 상신 (배차: ${selectedRow.id}) | 현재: [${asIsEquipSummary}, 개시일 ${selectedRow.unloadingDateVal || '-'}] ➔ 희망: [${toBeEquipSummary}, 개시일 ${editHistoryUnloadingDate}] (사유: ${editHistoryPriceReason.trim()})`,
+                                          createdAt: new Date().toISOString()
+                                        });
+                                        await db.awaitPendingWrites();
+                                        refreshAllData();
+                                      }
+
                                       showToast(
-                                        unloadChanged
-                                          ? `렌탈료 단가 및 하차일(계약개시일: ${editHistoryUnloadingDate})이 동기화 저장되었습니다.`
-                                          : `배차번호 ${selectedRow.id}의 렌탈료 및 유상옵션 단가가 수정 저장되었습니다.`,
+                                        `[결재 상신 완료] 계약의 수정(완결된 출고의 수정) 품의가 상신되었습니다. 최종 결재 승인 시 희망 상태로 자동 변경됩니다.`,
                                         'success'
                                       );
                                       setIsEditingHistoryPrices(false);
                                       setIsEditingHistorySchedule(false);
+                                    } else {
+                                      const res = await updateOutboundRequestPricing(updateParams);
+                                      if (res.success) {
+                                        showToast(
+                                          `계약의 수정(완결된 출고의 수정) 내역이 즉시 반영되었습니다.`,
+                                          'success'
+                                        );
+                                        setIsEditingHistoryPrices(false);
+                                        setIsEditingHistorySchedule(false);
+                                      }
                                     }
                                   }
                                 } finally {
@@ -8124,7 +8229,11 @@ export const SmartDispatch4: React.FC = () => {
                               className="rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition whitespace-nowrap cursor-pointer"
                               style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                             >
-                              {isSavingHistoryPrices ? '저장중...' : '수정 저장'}
+                              {isSavingHistoryPrices
+                                ? '처리중...'
+                                : selectedRow.canEditPreInspection
+                                ? '수정 저장'
+                                : '계약의 수정 결재 상신'}
                             </button>
                             <button
                               type="button"
@@ -8140,9 +8249,44 @@ export const SmartDispatch4: React.FC = () => {
                       )}
                     </div>
 
-                    {/* 편집 모드 A: 미완료 출고 요청 전체 장비(모델 수정, 수량 변경, 모델 삭제, 신규 모델 추가) 편집 */}
-                    {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
+                    {/* 편집 모드: 출고 요청 전체 장비(모델 수정, 수량 변경, 단가 변경, 신규 모델 추가) 및 품의 상신 */}
+                    {isEditingHistoryPrices ? (
                       <div className="flex flex-col gap-2.5">
+                        {!selectedRow.canEditPreInspection && (
+                          <div className="bg-indigo-950/50 border border-indigo-700/70 rounded-lg p-3 flex flex-col gap-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-bold text-indigo-300">
+                                계약의 수정(완결된 출고의 수정) — 현재 상태 vs 변경 희망 상태
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-indigo-900/80 text-indigo-200 text-[10px] font-bold">
+                                결재 승인 시 희망 상태 자동 반영
+                              </span>
+                            </div>
+                            <div className="bg-slate-950/90 border border-slate-800 rounded p-2.5 text-[11px] flex flex-col gap-1">
+                              <div className="font-bold text-slate-400">현재 상태 (변경 전 기준)</div>
+                              <div className="text-slate-200 font-mono">
+                                • 모델·수량·단가: {selectedRow.equipmentItems.map(e => `${e.modelName} × ${e.qty}대 (월 ${e.monthlyRate.toLocaleString()}원 / 일 ${e.dailyRate.toLocaleString()}원)`).join(', ')}
+                              </div>
+                              <div className="text-slate-200 font-mono">
+                                • 계약개시일(하차일): {selectedRow.unloadingDateVal || selectedRow.loadingDateVal || '-'}
+                              </div>
+                              <div className="text-slate-200 font-mono">
+                                • 유상옵션: {selectedRow.paidOptionItems.length > 0 ? selectedRow.paidOptionItems.map(o => `${o.name} (수량 ${Math.max(1, Number((o as any).perUnitQty) || 1)} · ${o.price.toLocaleString()}원/${o.unitLabel || '월'})`).join(', ') : '없음'}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span className="text-[10.5px] font-bold text-amber-300">계약의 수정 품의 사유 (필수)</span>
+                              <input
+                                type="text"
+                                value={editHistoryPriceReason}
+                                onChange={e => setEditHistoryPriceReason(e.target.value)}
+                                placeholder="변경 사유 입력 (예: 현장 요청에 의한 모델/수량/단가/계약개시일/유상옵션 정정)"
+                                className="rounded bg-slate-950 border border-amber-500/70 text-white"
+                                style={{ width: '100%', height: '32px', padding: '0 10px', fontSize: '12px', boxSizing: 'border-box' }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         {editHistoryEquipments.map((eq, i) => (
                           <div key={i} className="bg-slate-900 border border-blue-800/70 rounded-lg p-3 flex flex-col gap-2.5">
                             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
@@ -8495,8 +8639,8 @@ export const SmartDispatch4: React.FC = () => {
                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                     <div className="text-[11px] font-bold text-rose-400">3. 유상옵션 · 무상옵션 · 부착물 명세</div>
 
-                    {/* 편집 모드: 미완료 출고 요청 옵션 추가·삭제 및 유상옵션 청구조건·단가 변경 */}
-                    {isEditingHistoryPrices && selectedRow.canEditPreInspection ? (
+                    {/* 편집 모드: 출고 요청 옵션 추가·삭제 및 유상옵션 청구조건·단가 변경 */}
+                    {isEditingHistoryPrices ? (
                       <div className="flex flex-col gap-2.5">
                         {/* 현재 선택된 요청 옵션 칩 목록 (클릭 시 삭제) */}
                         <div className="flex flex-col gap-1.5">
@@ -8555,14 +8699,15 @@ export const SmartDispatch4: React.FC = () => {
                                 const masterOpt = (standardOptions || []).find(so => so.name === optName);
                                 const defPrice = Number(masterOpt?.defaultPrice || 0);
                                 const rawDefUnit = (masterOpt?.unit || '월').trim();
-                                const defUnit: '월' | '대' | '건' = rawDefUnit === '건' ? '건' : rawDefUnit === '대' ? '대' : '월';
+                                const defUnit: '월' | '대' | '건' | '수량' =
+                                  rawDefUnit === '건' ? '건' : rawDefUnit === '수량' ? '수량' : rawDefUnit === '대' ? '대' : '월';
                                 const curPrice = editHistoryOptPrices[optName] !== undefined ? editHistoryOptPrices[optName] : defPrice;
-                                const curUnit: '월' | '대' | '건' = editHistoryOptUnits[optName] || defUnit;
+                                const curUnit: '월' | '대' | '건' | '수량' = editHistoryOptUnits[optName] || defUnit;
                                 const defPerUnitQty = Math.max(1, Number((masterOpt as any)?.defaultQtyPerUnit) || 1);
                                 const curPerUnitQty = editHistoryOptQtys[optName] !== undefined && editHistoryOptQtys[optName] >= 1
                                   ? editHistoryOptQtys[optName]
                                   : defPerUnitQty;
-                                const mult = curUnit === '건' ? 1 : curUnit === '대' ? editTotalQty * curPerUnitQty : editTotalQty;
+                                const mult = curUnit === '건' ? 1 : curUnit === '수량' ? curPerUnitQty : curUnit === '대' ? editTotalQty * curPerUnitQty : editTotalQty;
 
                                 return (
                                   <div key={optName} className="flex flex-col gap-2 bg-slate-950 border border-slate-800 rounded p-2.5">
@@ -8572,13 +8717,13 @@ export const SmartDispatch4: React.FC = () => {
                                         수량 {mult} · 합계: {(curPrice * mult).toLocaleString()}원
                                       </span>
                                     </div>
-                                    <div className={`grid ${curUnit === '대' ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
+                                    <div className={`grid ${(curUnit === '대' || curUnit === '수량') ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">청구조건</span>
                                         <select
                                           value={curUnit}
                                           onChange={e => {
-                                            const val = e.target.value as '월' | '대' | '건';
+                                            const val = e.target.value as '월' | '대' | '건' | '수량';
                                             setEditHistoryOptUnits(prev => ({ ...prev, [optName]: val }));
                                           }}
                                           className="rounded bg-slate-900 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
@@ -8592,13 +8737,16 @@ export const SmartDispatch4: React.FC = () => {
                                           }}
                                         >
                                           <option value="월">월 (매월×{editTotalQty}대)</option>
-                                          <option value="대">1대당 (1회×{editTotalQty}대)</option>
+                                          <option value="대">대 (1대당×{editTotalQty}대)</option>
                                           <option value="건">건 (1회)</option>
+                                          <option value="수량">수량 (수량×단가)</option>
                                         </select>
                                       </div>
-                                      {curUnit === '대' && (
+                                      {(curUnit === '대' || curUnit === '수량') && (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                          <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">1대당 수량</span>
+                                          <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                                            {curUnit === '수량' ? '수량' : '1대당 수량'}
+                                          </span>
                                           <input
                                             type="number"
                                             min={1}
@@ -8744,13 +8892,14 @@ export const SmartDispatch4: React.FC = () => {
                                 {selectedRow.paidOptionItems.map((opt, idx) => {
                                   const curP = editHistoryOptPrices[opt.name] !== undefined ? editHistoryOptPrices[opt.name] : opt.price;
                                   const rawDefU = (opt.unitLabel || '월').trim();
-                                  const defU: '월' | '대' | '건' = rawDefU === '건' ? '건' : rawDefU === '대' ? '대' : '월';
-                                  const curU: '월' | '대' | '건' = editHistoryOptUnits[opt.name] || defU;
+                                  const defU: '월' | '대' | '건' | '수량' =
+                                    rawDefU === '건' ? '건' : rawDefU === '수량' ? '수량' : rawDefU === '대' ? '대' : '월';
+                                  const curU: '월' | '대' | '건' | '수량' = editHistoryOptUnits[opt.name] || defU;
                                   const curPerUnitQ = editHistoryOptQtys[opt.name] !== undefined && editHistoryOptQtys[opt.name] >= 1
                                     ? editHistoryOptQtys[opt.name]
                                     : Math.max(1, Number((opt as any).perUnitQty) || 1);
                                   const machineCount = Math.max(1, selectedRow.totalQty || 1);
-                                  const mult = curU === '건' ? 1 : curU === '대' ? machineCount * curPerUnitQ : machineCount;
+                                  const mult = curU === '건' ? 1 : curU === '수량' ? curPerUnitQ : curU === '대' ? machineCount * curPerUnitQ : machineCount;
                                   return (
                                     <div key={idx} className="flex items-center justify-between gap-2 bg-slate-900 border border-rose-800/60 rounded-lg p-2.5">
                                       <div className="flex flex-col gap-1.5">
@@ -8759,19 +8908,20 @@ export const SmartDispatch4: React.FC = () => {
                                           <select
                                             value={curU}
                                             onChange={e => {
-                                              const val = e.target.value as '월' | '대' | '건';
+                                              const val = e.target.value as '월' | '대' | '건' | '수량';
                                               setEditHistoryOptUnits(prev => ({ ...prev, [opt.name]: val }));
                                             }}
                                             className="rounded bg-slate-950 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
                                             style={{ width: '98px', height: '30px', padding: '0 6px', fontSize: '11.5px', lineHeight: '28px', flexShrink: 0, boxSizing: 'border-box' }}
                                           >
                                             <option value="월">월 단위</option>
-                                            <option value="대">1대당</option>
+                                            <option value="대">대 단위</option>
                                             <option value="건">건 단위</option>
+                                            <option value="수량">수량 단위</option>
                                           </select>
-                                          {curU === '대' && (
+                                          {(curU === '대' || curU === '수량') && (
                                             <div className="flex items-center gap-1">
-                                              <span className="text-[10.5px] text-slate-300">1대당</span>
+                                              <span className="text-[10.5px] text-slate-300">{curU === '수량' ? '수량' : '1대당'}</span>
                                               <input
                                                 type="number"
                                                 min={1}
@@ -8816,7 +8966,7 @@ export const SmartDispatch4: React.FC = () => {
                                   const rawUnit = (opt.unitLabel || '월').trim();
                                   const perUnitQ = Math.max(1, Number((opt as any).perUnitQty) || 1);
                                   const machineCount = Math.max(1, selectedRow.totalQty || 1);
-                                  const mult = rawUnit === '건' ? 1 : rawUnit === '대' ? machineCount * perUnitQ : machineCount;
+                                  const mult = rawUnit === '건' ? 1 : rawUnit === '수량' ? perUnitQ : rawUnit === '대' ? machineCount * perUnitQ : machineCount;
                                   const subTotal = (Number(opt.price) || 0) * mult;
                                   return (
                                     <div
@@ -8825,7 +8975,7 @@ export const SmartDispatch4: React.FC = () => {
                                     >
                                       <span>
                                         <span className="px-1.5 py-0.2 mr-1.5 rounded bg-rose-600 text-white text-[10px]">유상</span>
-                                        {opt.name} ({opt.price.toLocaleString()}원/{opt.unitLabel}{rawUnit === '대' && perUnitQ > 1 ? ` · 1대당 ${perUnitQ}개` : ''}{opt.isCustomPrice || (opt as any).isCustomUnit ? ' · 조건변경' : ''})
+                                        {opt.name} ({opt.price.toLocaleString()}원/{opt.unitLabel}{rawUnit === '대' && perUnitQ > 1 ? ` · 1대당 ${perUnitQ}개` : rawUnit === '수량' ? ` · 수량 ${perUnitQ}개` : ''}{opt.isCustomPrice || (opt as any).isCustomUnit ? ' · 조건변경' : ''})
                                       </span>
                                       <span className="text-rose-300 whitespace-nowrap">
                                         수량 {mult} · 청구합계: {subTotal.toLocaleString()}원
@@ -9148,16 +9298,83 @@ export const SmartDispatch4: React.FC = () => {
                         취소된 출고 요청
                       </span>
                     ) : (
-                      <span
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${
-                          selectedRow.dispatchStatus === 'DELIVERED' || selectedRow.dispatchStatus === 'COMPLETED'
-                            ? 'bg-slate-900 border border-slate-700 text-slate-400'
-                            : 'bg-amber-950/70 border border-amber-700 text-amber-300'
-                        }`}
-                        title={selectedRow.cancelBlockTooltip}
-                      >
-                        {selectedRow.cancelBlockBadge}
-                      </span>
+                      <>
+                        <span
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${
+                            selectedRow.dispatchStatus === 'DELIVERED' || selectedRow.dispatchStatus === 'COMPLETED'
+                              ? 'bg-slate-900 border border-slate-700 text-slate-400'
+                              : 'bg-amber-950/70 border border-amber-700 text-amber-300'
+                          }`}
+                          title={selectedRow.cancelBlockTooltip}
+                        >
+                          {selectedRow.cancelBlockBadge}
+                        </span>
+                        {canSave && !selectedRow.canEditPreInspection && !isEditingHistoryPrices && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const eqInit: Record<string, { monthlyRate: number; dailyRate: number }> = {};
+                              selectedRow.equipmentItems.forEach(eq => {
+                                eqInit[eq.modelName] = { monthlyRate: eq.monthlyRate, dailyRate: eq.dailyRate };
+                              });
+                              setEditHistoryEqRates(eqInit);
+                              setEditHistoryEquipments(
+                                selectedRow.equipmentItems.map(eq => ({
+                                  contractAssetIds: [...(eq.contractAssetIds || [])],
+                                  modelName: eq.modelName,
+                                  qty: eq.qty,
+                                  monthlyRate: eq.monthlyRate,
+                                  dailyRate: eq.dailyRate,
+                                  assignedAssets: [...(eq.assignedAssets || [])]
+                                }))
+                              );
+                              const defaultAddModel = catalogModels[0]?.modelName || 'SJ-3219';
+                              setEditHistoryAddModelName(defaultAddModel);
+                              setEditHistoryAddModelQty(1);
+                              const initOpts = new Set<string>();
+                              selectedRow.paidOptionItems.forEach(o => initOpts.add(o.name));
+                              if (selectedRow.protectionStr && selectedRow.protectionStr !== '없음') {
+                                splitMasterAwareOptions(selectedRow.protectionStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
+                                  .filter(o => o && o !== '없음' && o !== 'NONE')
+                                  .forEach(o => initOpts.add(o));
+                              }
+                              if (selectedRow.attachmentsStr && selectedRow.attachmentsStr !== '없음') {
+                                splitMasterAwareOptions(selectedRow.attachmentsStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
+                                  .filter(o => o && o !== '없음' && o !== 'NONE')
+                                  .forEach(o => initOpts.add(o));
+                              }
+                              if (selectedRow.specsStr && selectedRow.specsStr !== '없음') {
+                                splitMasterAwareOptions(selectedRow.specsStr, standardOptions, { onlyMasterOptions: false, stripPrice: true })
+                                  .filter(o => o && o !== '없음' && o !== 'NONE')
+                                  .forEach(o => initOpts.add(o));
+                              }
+                              setEditHistorySelectedOptions(initOpts);
+                              setEditHistoryCustomOptInput('');
+                              const optPriceInit: Record<string, number> = {};
+                              const optUnitInit: Record<string, '월' | '대' | '건'> = {};
+                              const optQtyInit: Record<string, number> = {};
+                              selectedRow.paidOptionItems.forEach(o => {
+                                optPriceInit[o.name] = o.price;
+                                const u = (o.unitLabel || '월').trim();
+                                optUnitInit[o.name] = u === '건' ? '건' : u === '대' ? '대' : '월';
+                                optQtyInit[o.name] = Math.max(1, Number((o as any).perUnitQty) || 1);
+                              });
+                              setEditHistoryOptPrices(optPriceInit);
+                              setEditHistoryOptUnits(optUnitInit);
+                              setEditHistoryOptQtys(optQtyInit);
+                              setEditHistoryLoadingDate(selectedRow.loadingDateVal || getLocalTodayDateStr());
+                              setEditHistoryLoadingSlot(selectedRow.loadingTimeSlotVal || '오전');
+                              setEditHistoryUnloadingDate(selectedRow.unloadingDateVal || selectedRow.loadingDateVal || getLocalTodayDateStr());
+                              setEditHistoryUnloadingSlot(selectedRow.unloadingTimeSlotVal || '오전');
+                              setEditHistoryPriceReason('');
+                              setIsEditingHistoryPrices(true);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
+                          >
+                            계약의 수정(완결된 출고의 수정)
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
 

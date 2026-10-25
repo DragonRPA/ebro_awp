@@ -61,7 +61,8 @@ export interface SmartDispatchData {
   equipments: { modelName: string; qty: number; monthlyRate?: number; dailyRate?: number; monthlyRentalFee?: number; dailyRentalFee?: number }[];
   paidOptions?: string;
   paidOptionPrices?: Record<string, number>; // 🌟 출고 요청 시 1회성 변경 유상옵션 단가 (현장 기본 단가는 마스터 기본 단가 유지)
-  paidOptionUnits?: Record<string, '월' | '대' | '건'>; // 🌟 출고 요청 시 1회성 변경 유상옵션 청구조건
+  paidOptionUnits?: Record<string, '월' | '대' | '건' | '수량'>; // 🌟 출고 요청 시 1회성 변경 유상옵션 청구조건
+  paidOptionQtys?: Record<string, number>; // 🌟 출고 요청 시 유상옵션 수량 (1대당 수량 또는 직접 수량)
   protection?: string;
   attachments?: string;
   checkedSpecs?: Record<string, any>;
@@ -368,6 +369,7 @@ interface AppContextType {
   deleteCancelledOutboundRequests: (deliveryIds?: string[]) => Promise<{ success: boolean; deletedCount: number; errorMessage?: string }>;
   updateOutboundRequestPricing: (params: {
     deliveryId: string;
+    allowCompletedModify?: boolean;
     equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
     equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
     paidOptions?: string;
@@ -375,7 +377,7 @@ interface AppContextType {
     attachments?: string;
     checkedSpecs?: Record<string, any>;
     paidOptionPrices?: Record<string, number>;
-    paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+    paidOptionUnits?: Record<string, '월' | '대' | '건' | '수량'>;
     paidOptionQtys?: Record<string, number>;
     loadingDate?: string;
     loadingTimeSlot?: string;
@@ -3802,7 +3804,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       dData.paidOptionPrices && typeof dData.paidOptionPrices === 'object' && Object.keys(dData.paidOptionPrices).length > 0
         ? dData.paidOptionPrices
         : undefined;
-    const effectivePaidOptionUnitsForDelivery: Record<string, '월' | '대' | '건'> | undefined =
+    const effectivePaidOptionUnitsForDelivery: Record<string, '월' | '대' | '건' | '수량'> | undefined =
       dData.paidOptionUnits && typeof dData.paidOptionUnits === 'object' && Object.keys(dData.paidOptionUnits).length > 0
         ? dData.paidOptionUnits
         : undefined;
@@ -3816,7 +3818,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       contractAssetIds: string[];
       paidOptions: string;
       paidOptionPrices?: Record<string, number>;
-      paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+      paidOptionUnits?: Record<string, '월' | '대' | '건' | '수량'>;
       paidOptionQtys?: Record<string, number>;
       monthlyRentalFee?: number;
       dailyRentalFee?: number;
@@ -3846,7 +3848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userNote?: string;
         fullNote?: string;
         paidOptionPrices?: Record<string, number>;
-        paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+        paidOptionUnits?: Record<string, '월' | '대' | '건' | '수량'>;
         paidOptionQtys?: Record<string, number>;
       };
     }[] = [];
@@ -4439,6 +4441,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // 💰 출고 요청 내역 수정 (요청 모델/수량/삭제/추가, 옵션 변경, 유상옵션 청구조건·단가, 상하차일시 및 계약개시일 수정) 트랜잭션
   const updateOutboundRequestPricing = async (params: {
     deliveryId: string;
+    allowCompletedModify?: boolean;
     equipments?: { contractAssetIds?: string[]; modelName: string; qty: number; monthlyRate: number; dailyRate: number }[];
     equipmentRates?: { modelName: string; monthlyRate: number; dailyRate: number }[];
     paidOptions?: string;
@@ -4446,7 +4449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     attachments?: string;
     checkedSpecs?: Record<string, any>;
     paidOptionPrices?: Record<string, number>;
-    paidOptionUnits?: Record<string, '월' | '대' | '건'>;
+    paidOptionUnits?: Record<string, '월' | '대' | '건' | '수량'>;
     paidOptionQtys?: Record<string, number>;
     loadingDate?: string;
     loadingTimeSlot?: string;
@@ -4472,8 +4475,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showErrorModal('수정할 출고 요청을 찾을 수 없습니다.');
       return { success: false, errorMessage: '출고 요청을 찾을 수 없습니다.' };
     }
-    if (targetDelivery.status === 'DELIVERED' || targetDelivery.status === 'COMPLETED') {
-      const msg = '운송이 완료된 건은 더이상 취소하거나 수정할 수 없습니다.';
+    if (!params.allowCompletedModify && (targetDelivery.status === 'DELIVERED' || targetDelivery.status === 'COMPLETED')) {
+      const msg = '운송이 완료된 건은 일반 수정할 수 없습니다. [계약의 수정(완결된 출고의 수정)] 품의를 이용해 주십시오.';
       showErrorModal(msg, '취소/수정 불가');
       return { success: false, errorMessage: msg };
     }
@@ -4539,7 +4542,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nextUnloadingTimeStr = `${nextUnloadingDate} ${nextUnloadingSlot}`.trim() || baseMeta?.unloadingTime || '';
       const origPaidOptions = parsedCargo[0]?.paidOptions ?? '';
       const origPrices: Record<string, number> = parsedCargo[0]?.paidOptionPrices || baseMeta?.paidOptionPrices || {};
-      const origUnits: Record<string, '월' | '대' | '건'> = parsedCargo[0]?.paidOptionUnits || baseMeta?.paidOptionUnits || {};
+      const origUnits: Record<string, '월' | '대' | '건' | '수량'> = parsedCargo[0]?.paidOptionUnits || baseMeta?.paidOptionUnits || {};
       const origQtys: Record<string, number> = parsedCargo[0]?.paidOptionQtys || baseMeta?.paidOptionQtys || {};
 
       const nextPaidOptions = params.paidOptions !== undefined ? params.paidOptions : origPaidOptions;
@@ -4559,7 +4562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             nextPrices
           )
         : undefined;
-      const nextUnits: Record<string, '월' | '대' | '건'> = params.paidOptionUnits !== undefined
+      const nextUnits: Record<string, '월' | '대' | '건' | '수량'> = params.paidOptionUnits !== undefined
         ? { ...origUnits, ...params.paidOptionUnits }
         : origUnits;
       const nextQtys: Record<string, number> = params.paidOptionQtys !== undefined
@@ -4587,7 +4590,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         Object.entries(params.paidOptionQtys).forEach(([optName, newQty]) => {
           const oldQty = origQtys[optName] || 1;
           if (oldQty !== newQty) {
-            changeLogs.push(`유상옵션(${optName}) 1대당 수량: ${oldQty}개➔${newQty}개`);
+            const effU = nextUnits[optName] || '대';
+            changeLogs.push(`유상옵션(${optName}) ${effU === '수량' ? '수량' : '1대당 수량'}: ${oldQty}개➔${newQty}개`);
           }
         });
       }
@@ -4646,7 +4650,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           .forEach(ins => allOriginalCaIds.add((ins as any).contractAssetId));
         if (allOriginalCaIds.size === 0 && targetDelivery.contractId) {
           db.contractAssets
-            .filter(ca => ca.contractId === targetDelivery.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && (!ca.assetId || ca.status === 'ASSIGNED'))
+            .filter(ca => ca.contractId === targetDelivery.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && (params.allowCompletedModify || !ca.assetId || ca.status === 'ASSIGNED'))
             .forEach(ca => allOriginalCaIds.add(ca.id));
         }
 
@@ -4686,9 +4690,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
 
         mergedEqs.forEach((eq, idx) => {
-          const existingCas = eq.contractAssetIds
+          let existingCas = eq.contractAssetIds
             .map(id => db.contractAssets.find(c => c.id === id && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId)))
             .filter((c): c is ContractAsset => Boolean(c));
+
+          if (existingCas.length === 0 && allOriginalCaIds.size > 0) {
+            const unclaimedCas = Array.from(allOriginalCaIds)
+              .filter(id => !keptCaIds.has(id))
+              .map(id => db.contractAssets.find(c => c.id === id && (!targetDelivery.contractId || c.contractId === targetDelivery.contractId)))
+              .filter((c): c is ContractAsset => Boolean(c));
+            const sameModelCas = unclaimedCas.filter(c => c.expectedModel === eq.modelName);
+            existingCas = sameModelCas.length > 0 ? sameModelCas : (mergedEqs.length === 1 ? unclaimedCas : []);
+          }
 
           // 모델이 변경된 경우 이미 할당된 장비가 새 모델과 다르면 할당 해제
           existingCas.forEach(ca => {
@@ -4991,14 +5004,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: nowIso
       });
 
-      if (targetDelivery.contractId && changeLogs.length > 0) {
-        db.insertRow<ContractHistory>('contractHistory', {
-          contractId: targetDelivery.contractId,
-          changeType: 'FEE_CHANGE',
-          changeDate: todayStr,
-          description: `[출고 요청 내역 수정] 배차 ${targetDelivery.id}: ${changeLogs.join(' / ')} (처리자: ${actorName}${params.reason ? `, 사유: ${params.reason}` : ''})`,
-          createdAt: nowIso
-        });
+      if (targetDelivery.contractId) {
+        if (params.allowCompletedModify) {
+          db.updateRow<Contract>('contracts', targetDelivery.contractId, {
+            approvalStatus: 'APPROVED',
+            updatedAt: nowIso
+          });
+        }
+        if (changeLogs.length > 0 || params.allowCompletedModify) {
+          const prefix = params.allowCompletedModify
+            ? '[계약의 수정(완결된 출고의 수정)]'
+            : '[출고 요청 내역 수정]';
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: targetDelivery.contractId,
+            changeType: 'FEE_CHANGE',
+            changeDate: todayStr,
+            description: `${prefix} 배차 ${targetDelivery.id}: ${changeLogs.length > 0 ? changeLogs.join(' / ') : '요청 내역 변경 반영'} (처리자: ${actorName}${params.reason ? `, 사유: ${params.reason}` : ''})`,
+            createdAt: nowIso
+          });
+        }
       }
 
       await db.awaitPendingWrites();

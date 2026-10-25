@@ -311,7 +311,30 @@ const ApprovalRulesManage: React.FC = () => {
     if (error) {
       console.error('fetchRules error:', error);
     } else if (data) {
-      setRules(data);
+      const existingCodes = new Set(data.map((r: ApprovalRule) => r.event_code));
+      const existingNames = new Set(data.map((r: ApprovalRule) => r.event_name));
+      const missingEvents = APPROVAL_EVENT_REGISTRY.filter(
+        ev => !existingCodes.has(ev.code) && !existingNames.has(ev.name)
+      );
+      if (missingEvents.length > 0) {
+        const createdRows: ApprovalRule[] = [];
+        for (const ev of missingEvents) {
+          const { data: insData } = await supabase
+            .from('approval_rules')
+            .insert({
+              event_code: ev.code,
+              event_name: ev.name,
+              required_tier: 3,
+              is_enabled: true,
+            })
+            .select()
+            .single();
+          if (insData) createdRows.push(insData as ApprovalRule);
+        }
+        setRules([...data, ...createdRows]);
+      } else {
+        setRules(data);
+      }
     }
     setLoading(false);
   }, []);
