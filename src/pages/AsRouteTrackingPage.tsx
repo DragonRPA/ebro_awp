@@ -30,7 +30,7 @@ import {
   pullAsRouteLogsFromRemote,
   deleteAsRouteStep,
 } from '../services/asRouteTrackingService';
-import { resolveUserMobileDeptMode } from '../utils/userDepartmentHelper';
+import { getUserDepartmentName, isDeveloperUser } from '../utils/userDepartmentHelper';
 
 interface AsRouteTrackingPageProps {
   isMobileEmbedded?: boolean;
@@ -95,16 +95,47 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
     return allUnifiedLogs.filter(l => l.workDate === selectedDate);
   }, [allUnifiedLogs, selectedDate]);
 
-  // AS팀 기사 목록 추출 (AS부서 소속 임직원 + 해당일 티켓/로그 기록 보유 기사 통합)
+  // AS팀 기사 목록 추출 (조직도 기준 실제 AS팀 소속 임직원만 엄격 필터링)
   const asMechanics = useMemo(() => {
     const map = new Map<string, { id: string; name: string; position?: string; deptName?: string }>();
 
+    const isActualAsTeamUser = (u: any): boolean => {
+      if (!u || u.status === 'RETIRED' || isDeveloperUser(u)) return false;
+      const deptName = getUserDepartmentName(u, departments || []).trim();
+      const dId = String(u.departmentId || '').toUpperCase();
+
+      // 외국인(DEPT-0000006), 출고팀, 영업부, 관리부, 본사/경영진은 제외
+      if (
+        deptName.includes('외국인') ||
+        deptName.includes('출고') ||
+        deptName.includes('영업') ||
+        deptName.includes('관리') ||
+        deptName.includes('기연리프트') ||
+        dId.includes('0000006') ||
+        dId === 'DEPT-6' ||
+        dId.includes('0000004') ||
+        dId === 'DEPT-4' ||
+        dId.includes('0000003') ||
+        dId === 'DEPT-3' ||
+        dId.includes('0000002') ||
+        dId === 'DEPT-2' ||
+        dId.includes('0000001') ||
+        dId === 'DEPT-1'
+      ) {
+        return false;
+      }
+
+      return (
+        dId.includes('0000005') ||
+        dId === 'DEPT-5' ||
+        deptName.toUpperCase().includes('AS') ||
+        deptName.includes('정비')
+      );
+    };
+
     (users || []).forEach(u => {
-      if (!u || u.status === 'RETIRED') return;
-      const mode = resolveUserMobileDeptMode(u, departments || []);
-      const deptObj = (departments || []).find(d => d.id === u.departmentId);
-      const deptName = deptObj?.name || u.department || '';
-      if (mode === 'AS' || deptName.includes('AS') || deptName.includes('정비')) {
+      if (isActualAsTeamUser(u)) {
+        const deptName = getUserDepartmentName(u, departments || []).trim();
         map.set(u.id, {
           id: u.id,
           name: u.name,
@@ -114,35 +145,22 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
       }
     });
 
-    // 해당일 현장AS 배정 기사 및 동선 기록 기사 추가 보장
-    (fieldAsTickets || []).forEach(t => {
-      const mId = t.mechanicId || t.assignedMechanicId;
-      const mName = t.mechanicName;
-      if (mId && mName && !map.has(mId)) {
-        const u = (users || []).find(usr => usr.id === mId);
-        map.set(mId, {
-          id: mId,
-          name: u?.name || mName,
-          position: u?.position,
-          deptName: u?.department || 'AS팀',
-        });
-      }
-    });
-
     dateLogs.forEach(l => {
       if (l.mechanicId && l.mechanicName && !map.has(l.mechanicId)) {
         const u = (users || []).find(usr => usr.id === l.mechanicId);
-        map.set(l.mechanicId, {
-          id: l.mechanicId,
-          name: u?.name || l.mechanicName,
-          position: u?.position,
-          deptName: u?.department || 'AS팀',
-        });
+        if (!u || isActualAsTeamUser(u)) {
+          map.set(l.mechanicId, {
+            id: l.mechanicId,
+            name: u?.name || l.mechanicName,
+            position: u?.position,
+            deptName: (u && getUserDepartmentName(u, departments || '').trim()) || 'AS팀',
+          });
+        }
       }
     });
 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [users, departments, fieldAsTickets, dateLogs]);
+  }, [users, departments, dateLogs]);
 
   // 해당 일자 관련 현장AS 티켓 목록 (접수일/방문예정일/완료일이 선택 일자이거나, 해당일 동선 기록이 존재하는 건, 또는 선택일이 오늘일 때 미완료 건)
   const todayStr = useMemo(() => getLocalWorkDateStr(), []);
