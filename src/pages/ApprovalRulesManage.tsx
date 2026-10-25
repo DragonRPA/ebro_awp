@@ -10,6 +10,7 @@ import {
   getUserEffectiveTier,
   getTierDisplayLabel
 } from '../services/db';
+import { refreshGlobalApprovalRules } from '../hooks/useApproval';
 
 /* ─── CSS 변수 기반 스타일 (라이트/다크 테마 자동 적응) ──────── */
 const thBase: React.CSSProperties = {
@@ -311,6 +312,15 @@ const ApprovalRulesManage: React.FC = () => {
     if (error) {
       console.error('fetchRules error:', error);
     } else if (data) {
+      // '계약 해지' ➔ '계약의 해제' 명칭 자동 정규화
+      for (const r of data as ApprovalRule[]) {
+        if (r.event_code === 'CONTRACT_TERMINATE' && r.event_name !== '계약의 해제') {
+          r.event_name = '계약의 해제';
+          if (r.id) {
+            await supabase.from('approval_rules').update({ event_name: '계약의 해제' }).eq('id', r.id);
+          }
+        }
+      }
       const existingCodes = new Set(data.map((r: ApprovalRule) => r.event_code));
       const existingNames = new Set(data.map((r: ApprovalRule) => r.event_name));
       const missingEvents = APPROVAL_EVENT_REGISTRY.filter(
@@ -335,6 +345,7 @@ const ApprovalRulesManage: React.FC = () => {
       } else {
         setRules(data);
       }
+      refreshGlobalApprovalRules();
     }
     setLoading(false);
   }, []);
@@ -364,6 +375,7 @@ const ApprovalRulesManage: React.FC = () => {
     }
 
     if (error) alert('저장 오류: ' + error.message);
+    else refreshGlobalApprovalRules();
     setSavingIds(prev => { const s = new Set(prev); s.delete(ruleId); return s; });
   };
 

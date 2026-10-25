@@ -17,6 +17,7 @@ import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { FieldAsCreateModal, FieldAsCreatePayload } from '../components/FieldAsCreateModal';
+import { useApproval } from '../hooks/useApproval';
 
 // 자주 쓰이는 조치 내용 프리셋 태그 (5,518건 빅데이터 기반)
 const QUICK_ACTION_TAGS = [
@@ -93,6 +94,7 @@ export const FieldAsManagement: React.FC = () => {
     transferConsumableToMechanic, currentUser, hasPermission, showErrorModal, setActiveTab,
     inspectionChecklistItems, equipmentManuals
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   const canSave = hasPermission('field_as', 'save');
   const isMechanic = currentUser?.role === 'MECHANIC';
@@ -845,7 +847,7 @@ export const FieldAsManagement: React.FC = () => {
 
     try {
       setIsCompletingTicket(true);
-      await completeFieldAsTicket(selectedTicket.id, {
+      const completePayload = {
         mechanicId: actionAssignMechanicId,
         actionTaken: actionTakenText.trim(),
         resolutionType: actionResolutionType,
@@ -863,8 +865,35 @@ export const FieldAsManagement: React.FC = () => {
         durationMinutes: Math.max(0, actionDurationMinutes),
         spentManHours: actionDurationMinutes > 0 ? Number((Math.max(0, actionDurationMinutes) / 60).toFixed(2)) : undefined,
         degradationScore: actionDegradationScore
-      });
-      showToast('AS 현장 조치가 성공적으로 등록되고 차량 소모품 재고가 차감되었습니다.');
+      };
+
+      if (actionBillableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING')) {
+        const billAmt = Math.max(0, actionBillableAmount);
+        if (billAmt <= 0) {
+          showErrorModal('유상 AS 청구 금액을 0원보다 크게 입력해 주세요.');
+          setIsCompletingTicket(false);
+          return;
+        }
+        await createApprovalRequest({
+          eventCode: 'REPAIR_BILLING',
+          targetTable: 'field_as_tickets',
+          targetId: selectedTicket.id,
+          amount: billAmt,
+          payload: {
+            actionType: 'REPAIR_BILLING',
+            reason: `[${selectedTicket.customerName || '고객사'} / ${selectedTicket.assetNo || '장비'}] 현장 유상 AS 수리비 청구 품의 (₩${billAmt.toLocaleString()}원 / ${actionTakenText.trim()})`,
+            toBe: {
+              source: 'FIELD_AS',
+              ticketId: selectedTicket.id,
+              completePayload
+            }
+          }
+        });
+        showToast('현장 유상 AS 수리비 청구 품의가 상신되었습니다. (전결권자 승인 후 조치 완료 및 청구 반영)');
+      } else {
+        await completeFieldAsTicket(selectedTicket.id, completePayload);
+        showToast('AS 현장 조치가 성공적으로 등록되고 차량 소모품 재고가 차감되었습니다.');
+      }
     } catch (err: any) {
       // modal handled in context
     } finally {
@@ -2681,7 +2710,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   <button
                     type="button"
                     onClick={handleCompleteTicket}
-                    disabled={isCompletingTicket}
+                    disabled={isCompletingTicket || !actionAssignMechanicId || !actionTakenText.trim() || (actionBillableType === 'BILLABLE' && !(actionBillableAmount > 0))}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2700,7 +2729,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     }}
                   >
                     <Check size={18} />
-                    {isCompletingTicket ? '완료 처리중...' : 'AS 조치 완료'}
+                    {isCompletingTicket ? '처리중...' : (actionBillableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING') ? '상신' : 'AS 조치 완료')}
                   </button>
                 </div>
               </div>

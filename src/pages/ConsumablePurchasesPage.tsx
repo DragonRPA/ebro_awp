@@ -12,6 +12,7 @@ import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 
 export const ConsumablePurchasesPage: React.FC = () => {
   const {
@@ -26,6 +27,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
     currentUser,
     showErrorModal
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   const canSave = hasPermission('consumable_purchase', 'save') || hasPermission('consumable', 'save');
 
@@ -216,6 +218,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
     }
 
     try {
+      const ruleActive = isRuleEnabled('CONSUMABLE_PURCHASE_PAYMENT');
       for (const item of reqItems) {
         await requestConsumablePurchase({
           consumableId: item.consumableId === 'NEW' ? undefined : item.consumableId,
@@ -232,7 +235,28 @@ export const ConsumablePurchasesPage: React.FC = () => {
       }
       await db.awaitPendingWrites();
 
-      showToast(`구매 신청서가 제출되었습니다. (${reqItems.length}개 품목)`);
+      if (ruleActive) {
+        const totalExpected = reqItems.reduce((acc, item) => acc + (item.qty * item.unitPrice), 0);
+        const latestReq = [...(db.consumablePurchases || [])].reverse()[0];
+        await createApprovalRequest({
+          eventCode: 'CONSUMABLE_PURCHASE_PAYMENT',
+          targetTable: 'consumable_purchases',
+          targetId: latestReq?.id || `CP-${Date.now()}`,
+          amount: totalExpected,
+          payload: {
+            actionType: 'CONSUMABLE_PURCHASE_PAYMENT',
+            reason: `소모품 매입 결제 품의 (${reqItems.map(i => `${i.modelName} ${i.qty}개`).join(', ')})`,
+            toBe: {
+              items: reqItems,
+              totalAmount: totalExpected,
+              requestDate: reqDate
+            }
+          }
+        });
+        showToast(`소모품 구매 품의가 상신되었습니다. (${reqItems.length}개 품목)`);
+      } else {
+        showToast(`구매 신청서가 제출되었습니다. (${reqItems.length}개 품목)`);
+      }
       setActiveTab('REQ_LIST');
       
       // 폼 초기화
@@ -936,9 +960,10 @@ export const ConsumablePurchasesPage: React.FC = () => {
               <button
                 type="submit"
                 className="btn-primary"
+                disabled={reqItems.length === 0 || reqItems.some(it => !it.modelName.trim() || it.qty <= 0 || (!it.sellerName.trim() && !it.purchaseUrl.trim()))}
                 style={{ padding: '8px 20px', fontSize: '12.5px', fontWeight: '700' }}
               >
-                구매 신청서 제출
+                {isRuleEnabled('CONSUMABLE_PURCHASE_PAYMENT') ? '상신' : '구매 신청서 제출'}
               </button>
             </div>
           </form>

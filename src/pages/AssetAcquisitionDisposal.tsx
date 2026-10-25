@@ -5,6 +5,7 @@ import { calculateAssetDepreciation, Asset, Product, Vendor, Customer, SaleContr
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 import {
   ShoppingBag,
   TrendingDown,
@@ -51,11 +52,14 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     acquireAsset,
     batchAcquireAssets,
     executeAssetSale,
+    disposeAsset,
     hasPermission,
     currentTenant,
     showErrorModal,
     refreshAllData
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
+  const [disposalActionMode, setDisposalActionMode] = useState<'SALE' | 'WRITE_OFF'>('SALE');
 
   // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
   const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
@@ -1022,14 +1026,73 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     };
   }, [disposalBasket, installmentDownRate, assetDepreciationMap]);
 
-  // 매각 계약 체결 & 청구서 발행 & 이메일 발송 실행
+  // 매각 계약 체결 & 청구서 발행 & 이메일 발송 실행 (또는 폐기/망실 처분 실행)
   const handleExecuteDisposal = async () => {
     if (!canSave) {
-      showErrorModal('자산 매각 계약 체결 권한이 없습니다.');
+      showErrorModal('자산 처분 권한이 없습니다.');
       return;
     }
     if (disposalBasket.length === 0) {
-      showErrorModal('매각할 자산을 1대 이상 바구니에 담아주세요.');
+      showErrorModal('처분할 자산을 1대 이상 바구니에 담아주세요.');
+      return;
+    }
+
+    if (disposalActionMode === 'WRITE_OFF') {
+      if (!disposalDate) {
+        showErrorModal('폐기/망실 일자를 입력해 주세요.');
+        return;
+      }
+      if (!disposalMemo.trim()) {
+        showErrorModal('폐기/망실 사유를 입력해 주세요.');
+        return;
+      }
+      setIsSubmittingDisposal(true);
+      try {
+        if (isRuleEnabled('ASSET_WRITE_OFF')) {
+          await createApprovalRequest({
+            eventCode: 'ASSET_WRITE_OFF',
+            targetTable: 'assets',
+            targetId: disposalBasket[0].id,
+            amount: disposalAccounting.totalBookValue,
+            payload: {
+              actionType: 'ASSET_WRITE_OFF',
+              reason: disposalMemo.trim(),
+              asIs: {
+                assetCount: disposalBasket.length,
+                totalBookValue: disposalAccounting.totalBookValue
+              },
+              toBe: {
+                disposalDate,
+                memo: disposalMemo.trim(),
+                assets: disposalBasket.map(b => ({
+                  id: b.id,
+                  assetNo: b.assetNo,
+                  modelName: b.modelName,
+                  bookValue: b.bookValue
+                }))
+              }
+            }
+          });
+          showToast(`자산 ${disposalBasket.length}대 폐기/망실 품의가 상신되었습니다. (전결권자 승인 후 폐기 확정)`);
+        } else {
+          for (const b of disposalBasket) {
+            await disposeAsset(b.id, {
+              disposalDate,
+              disposalPrice: 0,
+              buyer: `[폐기/망실] ${disposalMemo.trim()}`
+            });
+          }
+          showToast(`자산 ${disposalBasket.length}대 폐기/망실 처분이 확정되었습니다.`);
+        }
+        setDisposalBasket([]);
+        setCheckedAssetIds(new Set());
+        setDisposalMemo('');
+        setSpecialNotes('');
+      } catch (err: any) {
+        showErrorModal(`자산 폐기/망실 처리 실패:\n\n${err?.message || err}`);
+      } finally {
+        setIsSubmittingDisposal(false);
+      }
       return;
     }
 
@@ -1110,8 +1173,34 @@ export const AssetAcquisitionDisposal: React.FC = () => {
         sendEmail: sendEmailImmediately && !!disposalEmailTo.trim()
       };
 
-      const result = await executeAssetSale(payload);
-      showToast(`자산 ${disposalBasket.length}대 매각 계약 체결 완료! (계약번호: ${result.contractNo})`);
+      if (isRuleEnabled('ASSET_DISPOSAL')) {
+        await createApprovalRequest({
+          eventCode: 'ASSET_DISPOSAL',
+          targetTable: 'assets',
+          targetId: disposalBasket[0].id,
+          amount: disposalAccounting.totalSupplyAmount,
+          payload: {
+            actionType: 'ASSET_DISPOSAL',
+            reason: disposalMemo.trim() || `${buyerName} 대상 자산 ${disposalBasket.length}대 매각 품의`,
+            asIs: {
+              assetCount: disposalBasket.length,
+              totalBookValue: disposalAccounting.totalBookValue,
+              assets: disposalBasket.map(b => ({
+                id: b.id,
+                assetNo: b.assetNo,
+                modelName: b.modelName,
+                bookValue: b.bookValue,
+                salePrice: b.salePrice
+              }))
+            },
+            toBe: payload
+          }
+        });
+        showToast(`자산 ${disposalBasket.length}대 매각 품의가 상신되었습니다. (전결권자 승인 후 매각 계약 및 청구서 자동 발행)`);
+      } else {
+        const result = await executeAssetSale(payload);
+        showToast(`자산 ${disposalBasket.length}대 매각 계약 체결 완료! (계약번호: ${result.contractNo})`);
+      }
 
       // 폼 초기화
       setDisposalBasket([]);
@@ -2556,13 +2645,44 @@ export const AssetAcquisitionDisposal: React.FC = () => {
             {/* ───────────────────────────────────────────────────────────── */}
             <div className="card" style={{ margin: 0, padding: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Receipt size={16} color="var(--primary)" /> 매각 계약 체결 & 청구서 발행 스튜디오
+                  <Receipt size={16} color="var(--primary)" /> {disposalActionMode === 'WRITE_OFF' ? '자산 폐기/망실 처분 스튜디오' : '매각 계약 체결 & 청구서 발행 스튜디오'}
                 </h3>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  3단계 완결 (계약체결 + 매각청구 + 이메일전송)
-                </span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDisposalActionMode('SALE')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      border: disposalActionMode === 'SALE' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: disposalActionMode === 'SALE' ? 'var(--primary)' : 'var(--bg-app)',
+                      color: disposalActionMode === 'SALE' ? '#fff' : 'var(--text-secondary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    자산 매각 (양도)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisposalActionMode('WRITE_OFF')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      border: disposalActionMode === 'WRITE_OFF' ? '1.5px solid #dc2626' : '1px solid var(--border-color)',
+                      backgroundColor: disposalActionMode === 'WRITE_OFF' ? '#dc2626' : 'var(--bg-app)',
+                      color: disposalActionMode === 'WRITE_OFF' ? '#fff' : 'var(--text-secondary)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    자산 폐기/망실
+                  </button>
+                </div>
               </div>
 
               {/* 1. 매수처(거래처 / 딜러) 확정 */}
@@ -3133,21 +3253,32 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 <button
                   type="button"
                   className="btn-primary"
-                  disabled={isSubmittingDisposal || disposalBasket.length === 0}
+                  disabled={
+                    isSubmittingDisposal ||
+                    disposalBasket.length === 0 ||
+                    !disposalDate ||
+                    (disposalActionMode === 'WRITE_OFF'
+                      ? !disposalMemo.trim()
+                      : (buyerMode === 'SELECT' ? !selectedBuyer : !newBuyerName.trim()))
+                  }
                   onClick={handleExecuteDisposal}
                   style={{
                     padding: '10px 24px',
                     fontSize: '13px',
                     fontWeight: 700,
-                    backgroundColor: 'var(--primary)',
-                    borderColor: '#7c3aed',
+                    backgroundColor: disposalActionMode === 'WRITE_OFF' ? '#dc2626' : 'var(--primary)',
+                    borderColor: disposalActionMode === 'WRITE_OFF' ? '#dc2626' : '#7c3aed',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px'
                   }}
                 >
                   <Send size={15} />
-                  {isSubmittingDisposal ? '계약 체결 및 발행 중...' : `매각 계약 체결 & 청구서 발행 & 이메일 전송 (총 ${disposalBasket.length}대)`}
+                  {isSubmittingDisposal
+                    ? '처리중...'
+                    : disposalActionMode === 'WRITE_OFF'
+                    ? (isRuleEnabled('ASSET_WRITE_OFF') ? '상신' : `자산 폐기/망실 확정 (총 ${disposalBasket.length}대)`)
+                    : (isRuleEnabled('ASSET_DISPOSAL') ? '상신' : `매각 계약 체결 & 청구서 발행 & 이메일 전송 (총 ${disposalBasket.length}대)`)}
                 </button>
               </div>
 

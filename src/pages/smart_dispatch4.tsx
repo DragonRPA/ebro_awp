@@ -187,7 +187,7 @@ export const SmartDispatch4: React.FC = () => {
     refreshAllData
   } = useApp();
 
-  const { createApprovalRequest, fetchRuleForEvent } = useApproval();
+  const { createApprovalRequest, fetchRuleForEvent, isRuleEnabled } = useApproval();
 
   const defectSymptoms = useMemo(() => {
     return inspectionChecklistItems
@@ -1808,12 +1808,15 @@ export const SmartDispatch4: React.FC = () => {
     try {
       setIsSubmittingCust(true);
       const isNew = !editingCust.id;
+      const { rule: custRegRule } = isNew ? await fetchRuleForEvent('CUSTOMER_REGISTRATION') : { rule: null };
+      const isCustApprovalRequired = Boolean(isNew && custRegRule && custRegRule.id && custRegRule.is_enabled);
       const resolvedPayMethod: PaymentMethodType = (editingCust.defaultPaymentMethod === 'BILL' || editingCust.defaultPaymentMethod === 'BOND') ? editingCust.defaultPaymentMethod : 'CASH';
       const resolvedPayNote = (editingCust.defaultPaymentTermsNote || '').trim();
       const rawBillingDay = editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? Number(editingCust.defaultBillingDay) : 30;
       const sanitizedCust = {
         ...editingCust,
         name: editingCust.name.trim(),
+        transactionStatus: isCustApprovalRequired ? ('BLOCKED_ALL' as const) : (editingCust.transactionStatus || 'ALLOWED'),
         defaultBillingDay: rawBillingDay === 0 ? 0 : Math.min(31, Math.max(1, rawBillingDay || 30)),
         defaultStatementClosingDay: Math.min(31, Math.max(1, Number(editingCust.defaultStatementClosingDay) || 25)),
         paymentDueDay: Math.min(31, Math.max(1, Number(editingCust.paymentDueDay) || 25)),
@@ -1830,20 +1833,32 @@ export const SmartDispatch4: React.FC = () => {
       };
       const saved = await saveCustomer(sanitizedCust as Omit<Customer, 'id' | 'createdAt'>);
 
-      if (isNew) {
-        const { rule } = await fetchRuleForEvent('CUSTOMER_REGISTRATION');
-        if (rule) {
-          const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
-            ? currentUser.id
-            : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
-          await createApprovalRequest(
-            rule.id!,
-            validOriginatorId,
-            saved.id!,
-            'customers',
-            rule.required_tier
-          );
-        }
+      if (isCustApprovalRequired && custRegRule?.id) {
+        const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
+          ? currentUser.id
+          : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
+        await createApprovalRequest(
+          custRegRule.id,
+          validOriginatorId,
+          saved.id!,
+          'customers',
+          custRegRule.required_tier,
+          {
+            actionType: 'CUSTOMER_REGISTRATION',
+            targetTable: 'customers',
+            targetId: saved.id!,
+            asIs: { transactionStatus: 'BLOCKED_ALL' },
+            toBe: {
+              name: saved.name,
+              bizRegNo: saved.bizRegNo || '-',
+              representative: saved.representative || '-',
+              address: saved.address || '-',
+              transactionStatus: 'ALLOWED'
+            },
+            reason: '신규 고객 등록 품의 상신',
+            summaryText: `[고객 등록] ${saved.name} (${saved.bizRegNo || '사업자번호 미입력'})`
+          }
+        );
       }
 
       setNewCustomerName(saved.name);
@@ -1861,7 +1876,12 @@ export const SmartDispatch4: React.FC = () => {
       setShowCustModal(false);
       setEditingCust(null);
       await refreshAllData();
-      showToast(`고객사 [${saved.name}] 정보가 저장되었습니다.${isNew ? ' (결재 상신 완료)' : ''}`, 'success');
+      showToast(
+        isCustApprovalRequired
+          ? `신규 고객사 [${saved.name}] 등록 품의가 상신되었습니다. 결재 승인 전까지 배차 및 출고가 보류됩니다.`
+          : `고객사 [${saved.name}] 정보가 저장되었습니다.`,
+        'success'
+      );
     } catch (err: any) {
       showErrorModal(`고객 정보 저장 실패: ${err?.message || err}`, '고객 정보 저장 오류');
     } finally {
@@ -2542,6 +2562,59 @@ export const SmartDispatch4: React.FC = () => {
       const res = await saveSmartDispatch(dispatchData as any, isNewCustomerMode || isRegisteringNewSite);
 
       if (res && res.success) {
+        // 결재선: 계약 체결(CONTRACT_SIGN) 활성 시 계약 결재 상신 및 승인 전까지 배차·출고 보류(PENDING)
+        let isContractSignSubmitted = false;
+        if (res.contractId) {
+          try {
+            const { rule: signRule } = await fetchRuleForEvent('CONTRACT_SIGN');
+            if (signRule && signRule.id && signRule.is_enabled) {
+              const equipSummaryStr = equipments
+                .map(eq => `${eq.modelName} × ${Math.max(1, Math.floor(Number(eq.qty) || 1))}대 (월 ${(Number(eq.monthlyRate) || 0).toLocaleString()}원)`)
+                .join(', ');
+              const req = await createApprovalRequest(
+                signRule.id,
+                currentUser?.id || 'sys-admin',
+                res.contractId,
+                'contracts',
+                signRule.required_tier,
+                {
+                  actionType: 'CONTRACT_SIGN',
+                  targetTable: 'contracts',
+                  targetId: res.contractId,
+                  asIs: { status: '미체결 (신규 출고 요청)' },
+                  toBe: {
+                    contractNo: res.contractNo || '-',
+                    customerName: effectiveCustomerName,
+                    siteName: effectiveSiteName,
+                    siteAddress: effectiveAddress,
+                    unloadingTime: fullUnloadingTime,
+                    equipmentsSummary: equipSummaryStr,
+                    paidOptions: effPaidOptStr || '없음'
+                  },
+                  reason: '신규 출고 요청 및 계약 체결 품의 상신',
+                  summaryText: `[계약 체결] ${res.contractNo || ''} (${effectiveCustomerName} / ${effectiveSiteName}) — ${equipSummaryStr}`
+                }
+              );
+              db.updateRow<any>('contracts', res.contractId, {
+                approvalStatus: 'PENDING',
+                approvalRequestId: req?.id,
+                updatedAt: new Date().toISOString()
+              });
+              db.insertRow<any>('contractHistory', {
+                contractId: res.contractId,
+                changeType: 'CREATE',
+                changeDate: getLocalTodayDateStr(),
+                description: `[결재 상신] 계약 체결 품의 상신 (${effectiveCustomerName} / ${effectiveSiteName} — ${equipSummaryStr}) | 결재 승인 전까지 배차·출고 보류`,
+                createdAt: new Date().toISOString()
+              });
+              await db.awaitPendingWrites();
+              isContractSignSubmitted = true;
+            }
+          } catch (signErr) {
+            console.warn('계약 체결 결재 상신 경고:', signErr);
+          }
+        }
+
         // 초안에서 가져와 작성 완료한 경우 초안 상태 SUBMITTED 갱신
         if (editingDraftId) {
           try {
@@ -2561,8 +2634,6 @@ export const SmartDispatch4: React.FC = () => {
           console.error('출고 HTML 생성 오류:', printErr);
         }
 
-        // 🛡️ 강제 브라우저 인쇄 모달을 바로 띄워 메인 화면을 가리고 폼이 사라지는 UX 결함 전면 개선:
-        // 성공 확인 전용 모달을 띄워 계약번호, 배차 생성, 이동 링크를 명확히 제시!
         setSuccessModalInfo({
           contractId: res.contractId || '',
           contractNo: res.contractNo || '',
@@ -2577,7 +2648,12 @@ export const SmartDispatch4: React.FC = () => {
         });
 
         refreshAllData();
-        showToast(`출고 요청이 정식 등록되었습니다! (계약 #${res.contractNo || ''}, 고객사·현장·배차·장비할당 생성 완료)`, 'success');
+        showToast(
+          isContractSignSubmitted
+            ? `계약 체결 품의가 상신되었습니다! (계약 #${res.contractNo || ''}) 결재 승인 완료 시 배차 및 출고가 진행됩니다.`
+            : `출고 요청이 정식 등록되었습니다! (계약 #${res.contractNo || ''}, 고객사·현장·배차·장비할당 생성 완료)`,
+          'success'
+        );
         resetForm();
         setEditingDraftId(null);
       } else {
@@ -6322,17 +6398,17 @@ export const SmartDispatch4: React.FC = () => {
               {isSubmittingDispatch ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>출고 요청 등록 및 배차 생성 중...</span>
+                  <span>{isRuleEnabled('CONTRACT_SIGN') ? '상신 처리중...' : '출고 요청 등록 및 배차 생성 중...'}</span>
                 </>
               ) : isFormValid ? (
                 <>
-                  <span>출고 요청 발행 (검증 완료 9/9)</span>
+                  <span>{isRuleEnabled('CONTRACT_SIGN') ? '상신' : '출고 요청 발행 (검증 완료 9/9)'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
                   <AlertTriangle className="w-4 h-4 text-red-400" />
-                  <span>출고 요청 (미충족 {invalidRules.length}건 방어차단)</span>
+                  <span>{isRuleEnabled('CONTRACT_SIGN') ? `상신 (미충족 ${invalidRules.length}건 방어차단)` : `출고 요청 (미충족 ${invalidRules.length}건 방어차단)`}</span>
                 </>
               )}
             </button>
@@ -8232,8 +8308,10 @@ export const SmartDispatch4: React.FC = () => {
                               {isSavingHistoryPrices
                                 ? '처리중...'
                                 : selectedRow.canEditPreInspection
-                                ? '수정 저장'
-                                : '계약의 수정 결재 상신'}
+                                ? '저장'
+                                : isRuleEnabled('CONTRACT_MODIFY')
+                                ? '상신'
+                                : '저장'}
                             </button>
                             <button
                               type="button"
@@ -10212,8 +10290,16 @@ export const SmartDispatch4: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowCustModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button data-hs-trigger="Save" type="submit" className="btn-primary" disabled={isSubmittingCust} style={{ padding: '5px 16px', fontSize: '12px' }}>
-                  {isSubmittingCust ? '저장중...' : '저장'}
+                <button
+                  data-hs-trigger="Save"
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSubmittingCust || !editingCust?.name?.trim()}
+                  style={{ padding: '5px 16px', fontSize: '12px', opacity: (!editingCust?.name?.trim() || isSubmittingCust) ? 0.55 : 1 }}
+                >
+                  {isSubmittingCust
+                    ? (!editingCust?.id && isRuleEnabled('CUSTOMER_REGISTRATION') ? '상신중...' : '저장중...')
+                    : (!editingCust?.id && isRuleEnabled('CUSTOMER_REGISTRATION') ? '상신' : '저장')}
                 </button>
               </div>
             </div>

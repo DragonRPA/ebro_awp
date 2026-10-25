@@ -1,22 +1,81 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { db, supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, ApprovalPayload, getUserEffectiveTier } from '../services/db';
+
+// 전역 결재선 규칙 활성 여부 캐시 (버튼 텍스트 '저장' vs '상신' 즉시 반응용)
+let cachedRulesByCode: Record<string, ApprovalRule> = {};
+let hasLoadedInitialRules = false;
+let isFetchingRules = false;
+const ruleSubscribers = new Set<() => void>();
+
+export async function refreshGlobalApprovalRules(): Promise<Record<string, ApprovalRule>> {
+  if (!supabase || isFetchingRules) return cachedRulesByCode;
+  isFetchingRules = true;
+  try {
+    const { data, error } = await supabase
+      .from('approval_rules')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (!error && Array.isArray(data)) {
+      const nextMap: Record<string, ApprovalRule> = {};
+      data.forEach((r: ApprovalRule) => {
+        if (r && r.event_code) {
+          nextMap[r.event_code] = r;
+        }
+      });
+      cachedRulesByCode = nextMap;
+      hasLoadedInitialRules = true;
+      ruleSubscribers.forEach(cb => cb());
+    }
+  } catch {
+    // ignore network error
+  } finally {
+    isFetchingRules = false;
+  }
+  return cachedRulesByCode;
+}
 
 export function useApproval() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const listener = () => setTick(t => t + 1);
+    ruleSubscribers.add(listener);
+    if (!hasLoadedInitialRules) {
+      refreshGlobalApprovalRules();
+    }
+    return () => {
+      ruleSubscribers.delete(listener);
+    };
+  }, []);
+
+  const isRuleEnabled = useCallback((eventCode: string): boolean => {
+    const rule = cachedRulesByCode[eventCode];
+    return Boolean(rule && rule.is_enabled);
+  }, []);
 
   const fetchRuleForEvent = useCallback(async (eventCode: string): Promise<{ rule: ApprovalRule | null, consensus: RuleConsensus[] }> => {
     if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
-      const { data: ruleData, error: ruleErr } = await supabase
+      const { data: ruleRows, error: ruleErr } = await supabase
         .from('approval_rules')
         .select('*')
         .eq('event_code', eventCode)
         .eq('is_enabled', true)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
         
       if (ruleErr && ruleErr.code !== 'PGRST116') throw ruleErr;
+      const ruleData = Array.isArray(ruleRows) && ruleRows.length > 0 ? (ruleRows[0] as ApprovalRule) : null;
+      if (ruleData) {
+        cachedRulesByCode[eventCode] = ruleData;
+      } else if (cachedRulesByCode[eventCode]) {
+        cachedRulesByCode[eventCode] = { ...cachedRulesByCode[eventCode], is_enabled: false };
+      }
+      ruleSubscribers.forEach(cb => cb());
+
       if (!ruleData) return { rule: null, consensus: [] };
 
       const { data: consensusData, error: conErr } = await supabase
@@ -37,18 +96,59 @@ export function useApproval() {
   }, []);
 
   const createApprovalRequest = useCallback(async (
-    ruleId: string, 
-    originatorId: string, 
-    targetRecordId: string, 
-    targetTable: string,
-    escalatedTier?: number,
-    payload?: ApprovalPayload
-  ) => {
+    ruleIdOrParams: string | {
+      eventCode: string;
+      targetTable: string;
+      targetRecordId?: string;
+      targetId?: string;
+      userId?: string;
+      userTier?: number;
+      amount?: number;
+      payload?: ApprovalPayload;
+    },
+    originatorIdArg?: string, 
+    targetRecordIdArg?: string, 
+    targetTableArg?: string,
+    escalatedTierArg?: number,
+    payloadArg?: ApprovalPayload
+  ): Promise<any> => {
     if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
-      const { data: ruleData } = await supabase.from('approval_rules').select('event_code, required_tier').eq('id', ruleId).single();
+      let ruleId = '';
+      let originatorId = '';
+      let targetRecordId = '';
+      let targetTable = '';
+      let escalatedTier: number | undefined = undefined;
+      let payload: ApprovalPayload | undefined = undefined;
+      let resolvedRuleEventName = '';
+
+      if (typeof ruleIdOrParams === 'object' && ruleIdOrParams !== null) {
+        const { rule } = await fetchRuleForEvent(ruleIdOrParams.eventCode);
+        if (!rule || !rule.is_enabled) {
+          return { blocked: false, message: '' };
+        }
+        ruleId = rule.id || '';
+        resolvedRuleEventName = rule.event_name || ruleIdOrParams.eventCode;
+        originatorId = ruleIdOrParams.userId || (db.users?.[0]?.id || 'u-1');
+        targetRecordId = ruleIdOrParams.targetRecordId || ruleIdOrParams.targetId || '';
+        targetTable = ruleIdOrParams.targetTable;
+        escalatedTier = rule.required_tier;
+        payload = ruleIdOrParams.payload;
+      } else {
+        ruleId = ruleIdOrParams;
+        originatorId = originatorIdArg || '';
+        targetRecordId = targetRecordIdArg || '';
+        targetTable = targetTableArg || '';
+        escalatedTier = escalatedTierArg;
+        payload = payloadArg;
+      }
+
+      const { data: ruleData } = await supabase.from('approval_rules').select('event_code, event_name, required_tier').eq('id', ruleId).single();
       const targetTier = escalatedTier ?? (ruleData?.required_tier || 0);
+      if (!resolvedRuleEventName) {
+        resolvedRuleEventName = ruleData?.event_name || ruleData?.event_code || '품의';
+      }
 
       // 🛡️ FK 무결성 보장: sys-admin, usr-admin 등 가상 계정 방어 및 실제 DB 사용자(u-1 등) 매핑
       const VIRTUAL_USER_IDS = new Set(['sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
@@ -270,14 +370,24 @@ export function useApproval() {
         await supabase.from('approval_steps').insert(stepsToInsert);
       }
 
+      if (typeof ruleIdOrParams === 'object' && ruleIdOrParams !== null) {
+        return {
+          blocked: Boolean(reqData),
+          message: reqData ? `[${resolvedRuleEventName}] 품의 상신이 완료되었습니다. 전결권자 승인 후 반영됩니다.` : '',
+          request: reqData
+        };
+      }
       return reqData;
     } catch (err: any) {
       setError(err.message);
+      if (typeof ruleIdOrParams === 'object' && ruleIdOrParams !== null) {
+        return { blocked: false, message: err.message };
+      }
       return null;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchRuleForEvent]);
 
   const processApprovalStep = useCallback(async (stepId: string, action: 'APPROVED' | 'REJECTED', comment?: string) => {
     if (!supabase) throw new Error('Supabase Client not initialized');
@@ -333,5 +443,5 @@ export function useApproval() {
     }
   }, []);
 
-  return { loading, error, fetchRuleForEvent, createApprovalRequest, processApprovalStep };
+  return { loading, error, fetchRuleForEvent, createApprovalRequest, processApprovalStep, isRuleEnabled, refreshApprovalRules: refreshGlobalApprovalRules };
 }

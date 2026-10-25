@@ -24,7 +24,13 @@ interface InboxStep {
 }
 
 const ApprovalInbox: React.FC = () => {
-  const { currentUser, users, switchUser, customers, contracts, contractAssets, billings, updateOutboundRequestPricing, refreshAllData, showErrorModal } = useApp();
+  const {
+    currentUser, users, switchUser, customers, contracts, contractAssets, billings,
+    updateOutboundRequestPricing, rescindContract, succeedContract, executeAssetSale, disposeAsset,
+    confirmStocktakingAudit, setPayrollClosingStatus, recordPurchaseSettlementPayment, confirmPurchaseSettlement,
+    registerRepair, completeFieldAsTicket, saveDelinquencyAction,
+    refreshAllData, showErrorModal
+  } = useApp();
   const [steps, setSteps] = useState<InboxStep[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
@@ -131,6 +137,29 @@ const ApprovalInbox: React.FC = () => {
       const l = (db.leaveUsages || []).find(x => x.id === targetId);
       const u = (db.users || []).find(x => x.id === l?.userId);
       return l ? `연차/반차 신청: ${u?.name || '임직원'} (${l.startDate} ~ ${l.endDate}, ${l.usedDays}일 차감)` : targetId;
+    }
+    if (targetTable === 'stocktaking_audits') {
+      const sa = (db.stocktakingAudits || []).find((x: any) => x.id === targetId) as any;
+      return sa ? `재고실사 [${sa.auditDate || sa.auditMonth || targetId}] ${sa.memo || sa.title || ''}` : targetId;
+    }
+    if (targetTable === 'payroll_closings') {
+      const pc = (db.payrollClosings || []).find((x: any) => x.id === targetId) as any;
+      return pc ? `급여 정산 마감 [${pc.month || pc.yearMonth || targetId}]` : targetId;
+    }
+    if (targetTable === 'purchase_settlements') {
+      const ps = (db.purchaseSettlements || []).find((x: any) => x.id === targetId) as any;
+      return ps ? `매입 대금 정산 [${ps.settlementYm}] ${ps.vendorName || ''} (총액 ₩${(ps.totalAmount || 0).toLocaleString()})` : targetId;
+    }
+    if (targetTable === 'consumable_purchases') {
+      const cp = (db.consumablePurchases || []).find((x: any) => x.id === targetId) as any;
+      return cp ? `소모품 매입 [${cp.requestDate || cp.orderDate || ''}] ${cp.sellerName || cp.vendorName || ''} (합계 ₩${((cp.qty || 1) * (cp.unitPrice || 0)).toLocaleString()})` : targetId;
+    }
+    if (targetTable === 'repairs') {
+      return `주기장 유상 수리비 청구 (${targetId})`;
+    }
+    if (targetTable === 'field_as_tickets') {
+      const fa = ((db as any).fieldAsTickets || []).find((x: any) => x.id === targetId);
+      return fa ? `현장 유상 AS 청구 [${fa.ticketNo || targetId}] ${fa.customerName || ''}` : targetId;
     }
     return targetId;
   };
@@ -274,11 +303,15 @@ const ApprovalInbox: React.FC = () => {
         await db.awaitPendingWrites();
         refreshAllData();
       } else if (reqItem?.target_table === 'customers') {
-        db.updateRow<Customer>('customers', reqItem.target_record_id, {
-          transactionStatus: 'BLOCKED_ALL',
-          updatedAt: new Date().toISOString()
-        });
-        await db.awaitPendingWrites();
+        if (payload?.actionType === 'CUSTOMER_REGISTRATION') {
+          db.updateRow<Customer>('customers', reqItem.target_record_id, {
+            transactionStatus: 'BLOCKED_ALL',
+            updatedAt: new Date().toISOString()
+          });
+          await db.awaitPendingWrites();
+          refreshAllData();
+        }
+      } else {
         refreshAllData();
       }
     } 
@@ -338,13 +371,36 @@ const ApprovalInbox: React.FC = () => {
             refreshAllData();
           }
 
-          // ② 계약 기간 연장/단축 및 계약의 할인 자동 반영
+          // ② 계약 체결 / 승계 / 해제 / 기간 연장·단축 / 할인 자동 반영
           else if (reqItem.target_table === 'contracts') {
             const toBe = payload?.toBe;
             const targetContract = contracts.find(c => c.id === reqItem.target_record_id);
 
+            // ②-01: 계약의 해제 (CONTRACT_TERMINATE) 자동 반영
+            if (payload?.actionType === 'CONTRACT_TERMINATE' || payload?.eventCode === 'CONTRACT_TERMINATE') {
+              await rescindContract({
+                contractId: reqItem.target_record_id,
+                reason: payload?.reason || toBe?.reason || '계약의 해제 승인',
+                freightOption: toBe?.freightOption === 'COMPANY' ? 'OURS' : (toBe?.freightOption || 'NONE'),
+                customerFreightAmount: Number(toBe?.customerFreightAmount) || 0
+              });
+              refreshAllData();
+            }
+            // ②-02: 계약 승계 (CONTRACT_SUCCEED) 자동 반영
+            else if ((payload?.actionType === 'CONTRACT_SUCCEED' || payload?.eventCode === 'CONTRACT_SUCCEED') && (toBe?.successorCustomerId || toBe?.newCustomerId)) {
+              await succeedContract(
+                reqItem.target_record_id,
+                toBe.successorCustomerId || toBe.newCustomerId,
+                toBe.successorContactId || '',
+                toBe.successorSiteId || toBe.newSiteId || '',
+                toBe.successionDate || toBe.transferDate || new Date().toISOString().split('T')[0],
+                toBe.description || toBe.notes || payload?.reason || '계약 승계 승인 완료',
+                toBe.selectedAssetIds || toBe.targetAssetIds
+              );
+              refreshAllData();
+            }
             // ②-A: 계약의 할인 (장기간 사용 고객 렌탈료 단가 할인) 자동 반영
-            if (targetContract && payload?.actionType === 'CONTRACT_DISCOUNT' && Array.isArray(toBe?.items)) {
+            else if (targetContract && payload?.actionType === 'CONTRACT_DISCOUNT' && Array.isArray(toBe?.items)) {
               const nowIso = new Date().toISOString();
               const todayStr = nowIso.split('T')[0];
               const discountItems: any[] = toBe.items;
@@ -433,8 +489,8 @@ const ApprovalInbox: React.FC = () => {
               await db.awaitPendingWrites();
               refreshAllData();
             }
-            // ②-B: 계약 기간 연장/단축 자동 반영
-            else if (targetContract && toBe?.endDate) {
+            // ②-B: 계약 기간 연장/단축 자동 반영 (CONTRACT_EXTEND / CONTRACT_SHORTEN)
+            else if (targetContract && (payload?.actionType === 'CONTRACT_EXTEND' || payload?.actionType === 'CONTRACT_SHORTEN') && toBe?.endDate) {
               const targetEndDate = toBe.endDate;
               const isShortened = toBe.status === 'SHORTENED';
               const targetAssetIds: string[] = toBe.targetAssetIds || [];
@@ -446,7 +502,6 @@ const ApprovalInbox: React.FC = () => {
                 ? allContractCAs.filter(ca => targetAssetIds.includes(ca.id))
                 : defaultTargetCAs;
 
-              // 1. 대상 자산 만료일 자동 갱신 (반납완료 자산은 actualReturnDate 동기 갱신 및 물리 자산 마스터 보호)
               targetCAssets.forEach(ca => {
                 const caUpdates: Partial<ContractAsset> = {
                   endDate: targetEndDate,
@@ -464,7 +519,6 @@ const ApprovalInbox: React.FC = () => {
                 }
               });
 
-              // 2. 부모 계약 만료일 자동 보정
               const untargetedCAs = allContractCAs.filter(ca => !targetCAssets.some(t => t.id === ca.id));
               const allEndDates = [
                 targetEndDate,
@@ -486,7 +540,6 @@ const ApprovalInbox: React.FC = () => {
                 updatedAt: new Date().toISOString()
               });
 
-              // 3. 계약 이력 무누락 기록
               db.insertRow<ContractHistory>('contractHistory', {
                 contractId: targetContract.id,
                 changeType: isShortened ? 'SHORTEN' : 'EXTEND',
@@ -511,25 +564,39 @@ const ApprovalInbox: React.FC = () => {
 
           // ③ 자산 매각/폐기 자동 반영
           else if (reqItem.target_table === 'assets') {
-            const isDisposal = payload?.actionType === 'ASSET_DISPOSAL' || reqItem.approval_rules?.event_name?.includes('매각');
-            const isWriteOff = payload?.actionType === 'ASSET_WRITE_OFF' || reqItem.approval_rules?.event_name?.includes('폐기');
-            const newStatus = isDisposal ? 'SOLD' : isWriteOff ? 'SCRAPPED' : 'AVAILABLE';
+            if (payload?.actionType === 'ASSET_DISPOSAL' && Array.isArray(payload?.toBe?.items)) {
+              await executeAssetSale(payload.toBe as any);
+              refreshAllData();
+            } else if (payload?.actionType === 'ASSET_WRITE_OFF' && Array.isArray(payload?.toBe?.assets)) {
+              for (const a of payload.toBe.assets) {
+                await disposeAsset(a.id, {
+                  disposalDate: payload.toBe.disposalDate || new Date().toISOString().split('T')[0],
+                  disposalPrice: 0,
+                  buyer: `[폐기/망실 승인] ${payload.toBe.memo || payload.reason || '자산 폐기 승인 완료'}`
+                });
+              }
+              refreshAllData();
+            } else {
+              const isDisposal = payload?.actionType === 'ASSET_DISPOSAL' || reqItem.approval_rules?.event_name?.includes('매각');
+              const isWriteOff = payload?.actionType === 'ASSET_WRITE_OFF' || reqItem.approval_rules?.event_name?.includes('폐기');
+              const newStatus = isDisposal ? 'SOLD' : isWriteOff ? 'DISPOSED' : 'AVAILABLE';
 
-            db.updateRow<Asset>('assets', reqItem.target_record_id, {
-              status: newStatus as any,
-              updatedAt: new Date().toISOString()
-            });
-            const targetAsset = (db.assets || []).find(a => a.id === reqItem.target_record_id);
-            db.insertRow<AssetInOutLog>('assetInOutLogs', {
-              assetId: reqItem.target_record_id,
-              assetNo: targetAsset?.assetNo || '',
-              modelName: targetAsset?.modelName || '',
-              type: isDisposal ? 'DISPOSAL' : 'REPAIR',
-              eventDate: new Date().toISOString().split('T')[0],
-              memo: `[${isDisposal ? '자산 매각' : '자산 폐기'} 승인 완료] 전결권자 최종 승인 (${payload?.reason || '승인 처리'})`
-            });
-            await db.awaitPendingWrites();
-            refreshAllData();
+              db.updateRow<Asset>('assets', reqItem.target_record_id, {
+                status: newStatus as any,
+                updatedAt: new Date().toISOString()
+              });
+              const targetAsset = (db.assets || []).find(a => a.id === reqItem.target_record_id);
+              db.insertRow<AssetInOutLog>('assetInOutLogs', {
+                assetId: reqItem.target_record_id,
+                assetNo: targetAsset?.assetNo || '',
+                modelName: targetAsset?.modelName || '',
+                type: isDisposal ? 'DISPOSAL' : 'REPAIR',
+                eventDate: new Date().toISOString().split('T')[0],
+                memo: `[${isDisposal ? '자산 매각' : '자산 폐기'} 승인 완료] 전결권자 최종 승인 (${payload?.reason || '승인 처리'})`
+              });
+              await db.awaitPendingWrites();
+              refreshAllData();
+            }
           }
 
           // ④ 출고 요청 수정('계약의 수정(완결된 출고의 수정)') 또는 운송료 지급 자동 반영
@@ -539,6 +606,16 @@ const ApprovalInbox: React.FC = () => {
                 ...payload.toBe.updateParams,
                 allowCompletedModify: true
               });
+              refreshAllData();
+            } else if (payload?.actionType === 'DISPATCH_PAYMENT' && Array.isArray(payload?.toBe?.deliveryIds)) {
+              const nowIso = new Date().toISOString();
+              payload.toBe.deliveryIds.forEach((dId: string) => {
+                db.updateRow<Delivery>('deliveries', dId, {
+                  reconciliationStatus: 'PAID',
+                  updatedAt: nowIso
+                });
+              });
+              await db.awaitPendingWrites();
               refreshAllData();
             } else {
               db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
@@ -559,14 +636,92 @@ const ApprovalInbox: React.FC = () => {
             refreshAllData();
           }
 
-          // ⑥ 고객 등록 자동 반영
+          // ⑥ 고객 등록 또는 연체금 대손 상각 자동 반영
           else if (reqItem.target_table === 'customers') {
-            db.updateRow<Customer>('customers', reqItem.target_record_id, {
-              transactionStatus: 'ALLOWED',
+            if (payload?.actionType === 'DELINQUENCY_WRITE_OFF') {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const unpaidIds: string[] = payload?.toBe?.unpaidBillingIds || [];
+              const targetBills = unpaidIds.length > 0
+                ? billings.filter(b => unpaidIds.includes(b.id))
+                : billings.filter(b => b.customerId === reqItem.target_record_id && b.status !== 'PAID' && b.status !== 'REJECTED');
+              targetBills.forEach(b => {
+                db.updateRow<Billing>('billings', b.id, {
+                  status: 'PAID',
+                  paidAmount: b.totalAmount,
+                  updatedAt: new Date().toISOString()
+                });
+              });
+              await saveDelinquencyAction({
+                customerId: reqItem.target_record_id,
+                actionDate: todayStr,
+                actionType: 'LEGAL',
+                actionDetails: `[대손 상각 결재 승인 완료] 상각액: ₩${(Number(payload?.toBe?.writeOffAmount) || 0).toLocaleString()} / 사유: ${payload?.reason || ''}`,
+                recordedBy: currentUser?.name || '승인권자',
+                mandateType: 'CEO_AUTO_MANDATE'
+              });
+              await db.awaitPendingWrites();
+              refreshAllData();
+            } else {
+              db.updateRow<Customer>('customers', reqItem.target_record_id, {
+                transactionStatus: 'ALLOWED',
+                updatedAt: new Date().toISOString()
+              });
+              await db.awaitPendingWrites();
+              refreshAllData();
+            }
+          }
+
+          // ⑦ 재고실사 보고서 확정 자동 반영
+          else if (reqItem.target_table === 'stocktaking_audits') {
+            await confirmStocktakingAudit(reqItem.target_record_id);
+            refreshAllData();
+          }
+
+          // ⑧ 급여 지급 정산 마감 자동 반영
+          else if (reqItem.target_table === 'payroll_closings') {
+            await setPayrollClosingStatus(
+              reqItem.target_record_id,
+              'APPROVED',
+              payload?.toBe?.approvedBy || currentUser?.name || '승인권자'
+            );
+            refreshAllData();
+          }
+
+          // ⑨ 매입 대금 정산 (운송료 / 소모품 / 전대 임차료) 자동 반영
+          else if (reqItem.target_table === 'purchase_settlements') {
+            if (payload?.toBe?.paidAmount !== undefined && Number(payload.toBe.paidAmount) > 0) {
+              await recordPurchaseSettlementPayment(reqItem.target_record_id, {
+                paidAmount: Number(payload.toBe.paidAmount),
+                paymentDate: payload.toBe.paidDate || payload.toBe.paymentDate || new Date().toISOString().split('T')[0],
+                paymentMethod: payload.toBe.paymentMethod || '계좌이체',
+                bankAccount: payload.toBe.bankAccount,
+                memo: payload.toBe.memo || payload?.reason
+              });
+            } else {
+              await confirmPurchaseSettlement(reqItem.target_record_id);
+            }
+            refreshAllData();
+          }
+
+          // ⑩ 소모품 매입 검수 확정 자동 반영
+          else if (reqItem.target_table === 'consumable_purchases') {
+            db.updateRow<any>('consumablePurchases', reqItem.target_record_id, {
+              status: 'ACCEPTED',
               updatedAt: new Date().toISOString()
             });
             await db.awaitPendingWrites();
             refreshAllData();
+          }
+
+          // ⑪ 주기장 유상 수리비 청구 또는 현장 유상 AS 청구 자동 반영
+          else if (reqItem.target_table === 'repairs' || reqItem.target_table === 'field_as_tickets') {
+            if (payload?.toBe?.source === 'YARD_REPAIR' && payload?.toBe?.repairPayload) {
+              await registerRepair(payload.toBe.repairPayload, payload.toBe.usedConsumables || []);
+              refreshAllData();
+            } else if (payload?.toBe?.source === 'FIELD_AS' && payload?.toBe?.ticketId && payload?.toBe?.completePayload) {
+              await completeFieldAsTicket(payload.toBe.ticketId, payload.toBe.completePayload);
+              refreshAllData();
+            }
           }
         }
       }
@@ -889,6 +1044,91 @@ const ApprovalInbox: React.FC = () => {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                    )}
+
+                    {/* ⑤ 고객 등록 / 계약 체결 / 계약 승계 / 계약의 해제 / 매각·폐기 / 실사·급여·정산·유상수리·대손·연차 요약 */}
+                    {!['CUSTOM_BILLING_CREATE', 'CONTRACT_EXTEND', 'CONTRACT_SHORTEN', 'CONTRACT_MODIFY', 'CONTRACT_DISCOUNT'].includes(payload.actionType || '') && (
+                      <div style={{ marginTop: '6px', padding: '10px 12px', borderRadius: '6px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {payload.actionType === 'CUSTOMER_REGISTRATION' && (
+                          <>
+                            <div>신규 등록 고객사: <strong>{payload.toBe?.name || '-'}</strong> (사업자번호: {payload.toBe?.bizRegNo || '-'})</div>
+                            <div style={{ color: 'var(--text-muted)' }}>승인 시 거래차단 해제 및 배차·출고 정상 허용</div>
+                          </>
+                        )}
+                        {payload.actionType === 'CONTRACT_SIGN' && (
+                          <>
+                            <div>계약번호: <strong>{payload.toBe?.contractNo || '-'}</strong> / 고객사: <strong>{payload.toBe?.customerName || '-'}</strong></div>
+                            <div>계약기간: <strong>{payload.toBe?.startDate || '-'} ~ {payload.toBe?.endDate || '미정'}</strong></div>
+                            <div style={{ color: 'var(--text-muted)' }}>승인 시 장비 할당, 배차, 출고검수 잠금 즉시 해제</div>
+                          </>
+                        )}
+                        {(payload.actionType === 'CONTRACT_SUCCEED' || payload.eventCode === 'CONTRACT_SUCCEED') && (
+                          <>
+                            <div>승계 방향: <strong>{payload.asIs?.customerName || '기존 고객'}</strong> ➔ <strong style={{ color: '#4f46e5' }}>{payload.toBe?.successorCustomerName || payload.toBe?.newCustomerName || '신규 승계 고객'}</strong></div>
+                            <div>승계 기준일: <strong>{payload.toBe?.successionDate || payload.toBe?.transferDate || '-'}</strong> / 승계 대상 장비: <strong>{payload.asIs?.assetCount || (payload.toBe?.selectedAssetIds || payload.toBe?.targetAssetIds || []).length}대</strong></div>
+                          </>
+                        )}
+                        {(payload.actionType === 'CONTRACT_TERMINATE' || payload.eventCode === 'CONTRACT_TERMINATE') && (
+                          <>
+                            <div>해제 대상 계약: <strong>{payload.asIs?.contractNo || summary}</strong></div>
+                            <div>기발생 운송비 처리: <strong style={{ color: '#dc2626' }}>
+                              {payload.toBe?.freightOption === 'CUSTOMER'
+                                ? `고객 청구 (₩${(Number(payload.toBe?.customerFreightAmount) || 0).toLocaleString()})`
+                                : (payload.toBe?.freightOption === 'COMPANY' || payload.toBe?.freightOption === 'OURS')
+                                ? '당사 부담 (청구 0원)'
+                                : '운송비 없음 (미출고 취소)'}
+                            </strong></div>
+                            <div style={{ color: 'var(--text-muted)' }}>승인 시 체결 자산 즉시 임대가능 원상복구 및 렌탈료·유상옵션 청구 0원 무효화</div>
+                          </>
+                        )}
+                        {payload.actionType === 'ASSET_DISPOSAL' && (
+                          <>
+                            <div>매각 일자: <strong>{payload.toBe?.saleDate || '-'}</strong> / 매수처: <strong>{payload.toBe?.buyerName || '-'} ({payload.toBe?.buyerBizNo || '-'})</strong></div>
+                            <div>매각 대수: <strong>{(payload.toBe?.items || []).length}대</strong> / 총 매각 공급가액: <strong style={{ color: '#4f46e5' }}>₩{(payload.toBe?.items || []).reduce((acc: number, cur: any) => acc + (Number(cur.saleAmount) || 0), 0).toLocaleString()}</strong></div>
+                          </>
+                        )}
+                        {payload.actionType === 'ASSET_WRITE_OFF' && (
+                          <>
+                            <div>폐기/망실 일자: <strong>{payload.toBe?.disposalDate || '-'}</strong> / 대상 장비: <strong>{(payload.toBe?.assets || []).map((a: any) => a.assetNo).join(', ') || '1대'}</strong></div>
+                          </>
+                        )}
+                        {payload.actionType === 'STOCK_AUDIT_REPORT' && (
+                          <>
+                            <div>실사 기준월: <strong>{payload.toBe?.auditMonth || '-'}</strong> / 실사 제목: <strong>{payload.toBe?.title || '-'}</strong></div>
+                            <div>자산 실사: <strong>{payload.toBe?.assetTotal || 0}건</strong> (불일치 {payload.toBe?.assetDiscrepancy || 0}건) / 소모품 실사: <strong>{payload.toBe?.consumableTotal || 0}건</strong> (차이 {payload.toBe?.consumableVariance || 0}건)</div>
+                          </>
+                        )}
+                        {payload.actionType === 'PAYROLL_PAYMENT' && (
+                          <>
+                            <div>귀속 연월: <strong>{payload.toBe?.yearMonth || '-'}</strong> / 대상 인원: <strong>{payload.toBe?.headcount || 0}명</strong></div>
+                            <div>실지급 총액: <strong style={{ color: '#4f46e5' }}>₩{(Number(payload.toBe?.totalNetPay) || 0).toLocaleString()}</strong> (지급총액 ₩{(Number(payload.toBe?.totalGrossPay) || 0).toLocaleString()} / 공제 ₩{(Number(payload.toBe?.totalDeductions) || 0).toLocaleString()})</div>
+                          </>
+                        )}
+                        {(payload.actionType === 'DISPATCH_PAYMENT' || payload.actionType === 'CONSUMABLE_PURCHASE_PAYMENT' || payload.actionType === 'RENT_PAYMENT') && (
+                          <>
+                            <div>정산 구분: <strong>{ruleName}</strong> / 거래처: <strong>{payload.toBe?.vendorName || payload.asIs?.vendorName || '다수 거래처'}</strong></div>
+                            <div>집행 금액: <strong style={{ color: '#4f46e5' }}>₩{(Number(payload.toBe?.paidAmount ?? payload.toBe?.totalAmount ?? 0)).toLocaleString()}</strong></div>
+                          </>
+                        )}
+                        {payload.actionType === 'REPAIR_BILLING' && (
+                          <>
+                            <div>수리 구분: <strong>{payload.toBe?.source === 'FIELD_AS' ? '현장 유상 AS 청구' : '주기장 유상 수리비 청구'}</strong> / 장비: <strong>{payload.toBe?.assetNo || '-'} ({payload.toBe?.modelName || '-'})</strong></div>
+                            <div>고객 청구 금액: <strong style={{ color: '#dc2626' }}>₩{(Number(payload.toBe?.customerBillableAmount) || 0).toLocaleString()}</strong></div>
+                          </>
+                        )}
+                        {payload.actionType === 'DELINQUENCY_WRITE_OFF' && (
+                          <>
+                            <div>대상 연체 고객사: <strong>{payload.toBe?.customerName || '-'}</strong> (경과일수: {payload.asIs?.overdueDays || 0}일)</div>
+                            <div>대손 상각 금액: <strong style={{ color: '#dc2626' }}>₩{(Number(payload.toBe?.writeOffAmount) || 0).toLocaleString()}</strong></div>
+                          </>
+                        )}
+                        {payload.actionType === 'LEAVE_APPLICATION' && (
+                          <>
+                            <div>신청자: <strong>{payload.toBe?.userName || '-'}</strong> / 휴가 구분: <strong>{payload.toBe?.leaveType || '-'}</strong></div>
+                            <div>신청 기간: <strong>{payload.toBe?.startDate || '-'} ~ {payload.toBe?.endDate || '-'} ({payload.toBe?.usedDays || 0}일)</strong></div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

@@ -13,6 +13,7 @@ import { getRoleTemplatePermission } from '../config/role_templates';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 
 export const Repairs: React.FC = () => {
   const {
@@ -20,6 +21,7 @@ export const Repairs: React.FC = () => {
     hasPermission, users, permissions, currentUser, vendors, assetInOutLogs, showErrorModal,
     inspectionChecklistItems
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   const canSave = hasPermission('repair', 'save');
 
@@ -685,9 +687,34 @@ export const Repairs: React.FC = () => {
         inboundNo: inboundMeta?.inboundNo
       };
 
-      await registerRepair(payload, usedConsumables);
-      await db.awaitPendingWrites();
-      showToast(`${selectedAsset.assetNo} 정비 완료: '임대가능' 복원 및 소모품 차감 완료`);
+      if (billableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING')) {
+        const billAmt = Math.max(0, Number(billableAmount) || 0);
+        if (billAmt <= 0) {
+          showToast('유상 수리비 청구 금액을 0원보다 크게 입력해 주십시오.', 'error');
+          setIsSubmittingRepair(false);
+          return;
+        }
+        await createApprovalRequest({
+          eventCode: 'REPAIR_BILLING',
+          targetTable: 'repairs',
+          targetId: selectedRepairId || selectedAsset.id,
+          amount: billAmt,
+          payload: {
+            actionType: 'REPAIR_BILLING',
+            reason: `[${selectedAsset.assetNo}] 주기장 정비 유상 수리비 청구 품의 (₩${billAmt.toLocaleString()}원 / ${repairDetails.trim()})`,
+            toBe: {
+              source: 'YARD_REPAIR',
+              repairPayload: payload,
+              usedConsumables
+            }
+          }
+        });
+        showToast(`${selectedAsset.assetNo} 유상 수리비 청구 품의가 상신되었습니다. (전결권자 승인 후 정비 완료 및 청구 반영)`);
+      } else {
+        await registerRepair(payload, usedConsumables);
+        await db.awaitPendingWrites();
+        showToast(`${selectedAsset.assetNo} 정비 완료: '임대가능' 복원 및 소모품 차감 완료`);
+      }
 
       // 폼 초기화
       setSelectedAssetId('');
@@ -1680,10 +1707,10 @@ export const Repairs: React.FC = () => {
                           type="button"
                           className="btn-primary"
                           onClick={handleCompleteRepair}
-                          disabled={!canSave || isProcessingImage || isSubmittingRepair}
+                          disabled={!canSave || isProcessingImage || isSubmittingRepair || !repairDetails.trim() || (billableType === 'BILLABLE' && !(Number(billableAmount) > 0))}
                           style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
-                          <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : '외주 정비 완료 (임대가능 복원)'}
+                          <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : (billableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING') ? '상신' : '외주 정비 완료 (임대가능 복원)')}
                         </button>
                       ) : (
                         <button data-hs-trigger="Register"
@@ -1703,10 +1730,10 @@ export const Repairs: React.FC = () => {
                         type="button"
                         className="btn-primary"
                         onClick={handleCompleteRepair}
-                        disabled={!canSave || isProcessingImage || isSubmittingRepair}
+                        disabled={!canSave || isProcessingImage || isSubmittingRepair || !repairDetails.trim() || (billableType === 'BILLABLE' && !(Number(billableAmount) > 0))}
                         style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
-                        <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : '정비 완료 (임대가능 복원)'}
+                        <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : (billableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING') ? '상신' : '정비 완료 (임대가능 복원)')}
                       </button>
                     )}
                   </div>

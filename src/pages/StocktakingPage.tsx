@@ -3,15 +3,18 @@ import { useApp } from '../context/AppContext';
 import { StocktakingAudit, StocktakingAuditItem, db } from '../services/db';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { useApproval } from '../hooks/useApproval';
 
 export const StocktakingPage: React.FC = () => {
   const {
     stocktakingAudits,
     stocktakingAuditItems,
     createStocktakingAudit,
-    confirmStocktakingAudit
+    confirmStocktakingAudit,
+    showErrorModal
 
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   const [activeAudit, setActiveAudit] = useState<StocktakingAudit | null>(null);
   const [items, setItems] = useState<StocktakingAuditItem[]>([]);
@@ -97,11 +100,45 @@ const [barcodeInput, setBarcodeInput] = useState('');
     // Check if any item has variance but no reason
     const pendingReasons = items.some(i => i.diffQty !== 0 && !i.diffReason);
     if (pendingReasons) {
-      alert('차이가 발생한 품목에 대해 사유를 모두 입력해야 결재상신이 가능합니다.');
+      showErrorModal('차이가 발생한 품목에 대해 사유를 모두 입력해야 처리 가능합니다.');
       return;
     }
 
-    if (confirm('실사 결과를 최종 확정하고 회계 원장 및 장비 상태에 반영(상신)하시겠습니까?')) {
+    if (isRuleEnabled('STOCK_AUDIT_REPORT')) {
+      const totalDiffAmt = Math.abs(items.reduce((s, i) => s + (i.diffAmount || 0), 0));
+      await createApprovalRequest({
+        eventCode: 'STOCK_AUDIT_REPORT',
+        targetTable: 'stocktaking_audits',
+        targetId: activeAudit.id,
+        amount: totalDiffAmt,
+        payload: {
+          actionType: 'STOCK_AUDIT_REPORT',
+          reason: `재고실사 결과 보고 (${activeAudit.targetType === 'HQ' ? '본사 주기장' : `${activeAudit.mechanicName || ''} 차량`}, 차이 ${varianceCount}건)`,
+          toBe: {
+            auditId: activeAudit.id,
+            targetType: activeAudit.targetType,
+            mechanicName: activeAudit.mechanicName,
+            varianceCount,
+            totalDiffAmt,
+            items: items.filter(i => i.diffQty !== 0).map(i => ({
+              id: i.id,
+              itemType: i.itemType,
+              assetNo: i.assetNo,
+              consumableId: i.consumableId,
+              modelName: i.modelName,
+              systemQty: i.systemQty,
+              actualQty: i.actualQty,
+              diffQty: i.diffQty,
+              diffAmount: i.diffAmount,
+              diffReason: i.diffReason
+            }))
+          }
+        }
+      });
+      return;
+    }
+
+    if (confirm('실사 결과를 최종 확정하고 회계 원장 및 장비 상태에 반영하시겠습니까?')) {
       await confirmStocktakingAudit(activeAudit.id);
       alert('실사 확정 및 재무/상태 반영이 완료되었습니다.');
     }
@@ -242,7 +279,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
               cursor: 'pointer' 
             }}
           >
-            결재상신 및 확정
+            {isRuleEnabled('STOCK_AUDIT_REPORT') ? '상신' : '실사 확정'}
           </button>
         </div>
       </footer>

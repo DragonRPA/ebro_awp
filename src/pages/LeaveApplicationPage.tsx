@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import * as XLSX from 'xlsx';
 import { Calendar, Trash2, Download, Info, AlertCircle } from 'lucide-react';
-import { User as UserType } from '../services/db';
+import { User as UserType, db } from '../services/db';
 import { calculateLeaveDaysInfo } from '../utils/holidayUtils';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { useApproval } from '../hooks/useApproval';
 
 export const LeaveApplicationPage: React.FC = () => {
   const {
@@ -18,6 +19,7 @@ export const LeaveApplicationPage: React.FC = () => {
     addLeaveUsage,
     deleteLeaveUsage
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   // 토스트 알림 상태 (헌장 5.2)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -178,6 +180,7 @@ export const LeaveApplicationPage: React.FC = () => {
     }
 
     try {
+      const ruleActive = isRuleEnabled('LEAVE_APPLICATION');
       await addLeaveUsage({
         userId: submitUserId,
         leaveType,
@@ -185,11 +188,38 @@ export const LeaveApplicationPage: React.FC = () => {
         startDate: leaveStartDate,
         endDate: actualEndDate,
         reason: leaveReason.trim(),
-        status: 'APPROVED'
+        status: ruleActive ? 'PENDING' : 'APPROVED'
       });
 
-      setLeaveReason('');
-      showToast(`연차/반차 신청 내역(${usedDays}일 차감)이 정상 등록되었습니다.`);
+      if (ruleActive) {
+        const createdLeave = [...(db.leaveUsages || [])]
+          .reverse()
+          .find(l => l.userId === submitUserId && l.startDate === leaveStartDate && l.endDate === actualEndDate);
+        await createApprovalRequest({
+          eventCode: 'LEAVE_APPLICATION',
+          targetTable: 'leave_usages',
+          targetId: createdLeave?.id || `LV-${Date.now()}`,
+          amount: 0,
+          payload: {
+            actionType: 'LEAVE_APPLICATION',
+            reason: leaveReason.trim(),
+            toBe: {
+              userId: submitUserId,
+              userName: getApplicantDisplayName(targetUser),
+              leaveType,
+              startDate: leaveStartDate,
+              endDate: actualEndDate,
+              usedDays,
+              reason: leaveReason.trim()
+            }
+          }
+        });
+        setLeaveReason('');
+        showToast(`연차/반차 품의가 상신되었습니다. (전결권자 승인 후 확정됩니다)`);
+      } else {
+        setLeaveReason('');
+        showToast(`연차/반차 신청 내역(${usedDays}일 차감)이 정상 등록되었습니다.`);
+      }
     } catch (err: any) {
       showErrorModal(err?.message || '연차 신청 등록 중 오류가 발생했습니다.');
     }
@@ -600,9 +630,9 @@ export const LeaveApplicationPage: React.FC = () => {
               type="submit"
               className="btn btn-primary"
               style={{ fontSize: '13px', marginTop: '6px' }}
-              disabled={!calcResult.isValid || requestedDays <= 0 || requestedDays > mySummary.remainingDays}
+              disabled={!leaveReason.trim() || !calcResult.isValid || requestedDays <= 0 || requestedDays > mySummary.remainingDays}
             >
-              연차 / 반차 신청
+              {isRuleEnabled('LEAVE_APPLICATION') ? '상신' : '연차 / 반차 신청'}
             </button>
           </form>
         </div>
@@ -699,6 +729,16 @@ export const LeaveApplicationPage: React.FC = () => {
                           }}>
                             {typeLabel}
                           </span>
+                          {l.status === 'PENDING' && (
+                            <span style={{ marginLeft: '6px', padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.16)', color: '#d97706' }}>
+                              결재대기
+                            </span>
+                          )}
+                          {l.status === 'REJECTED' && (
+                            <span style={{ marginLeft: '6px', padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }}>
+                              반려
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center', fontWeight: 'bold', color: 'var(--danger)' }}>
                           -{l.usedDays} 일

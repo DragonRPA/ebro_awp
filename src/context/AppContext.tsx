@@ -330,7 +330,8 @@ interface AppContextType {
   logFieldAsTimelineEvent: (ticketId: string, eventType: 'CALL_MADE' | 'TRANSIT_START' | 'ARRIVED' | 'COMPLETED', detail?: string) => Promise<void>;
   
   // Contract Mutators
-  createContract: (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]) => Promise<void>;
+  createContract: (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]) => Promise<Contract>;
+  rescindContract: (params: { contractId: string; reason: string; freightOption: 'NONE' | 'CUSTOMER' | 'OURS'; customerFreightAmount?: number }) => Promise<void>;
   extendContract: (contractId: string, newEndDate: string, description: string) => Promise<void> | void;
   shortenContract: (contractId: string, newEndDate: string, description: string) => Promise<void> | void;
   succeedContract: (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string, selectedAssetIds?: string[]) => Promise<void> | void;
@@ -7969,7 +7970,148 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites(); refreshAllData(); };
+    await db.awaitPendingWrites();
+    refreshAllData();
+    return contract;
+  };
+
+  const getPendingCustomerOrContractBlockReason = (contractId?: string, customerId?: string): string | null => {
+    const targetContract = contractId ? db.contracts.find(c => c.id === contractId) : undefined;
+    const resolvedCustomerId = customerId || targetContract?.customerId;
+    const targetCustomer = resolvedCustomerId ? db.customers.find(c => c.id === resolvedCustomerId) : undefined;
+    const pendingRequests = ((db as any).approvalRequests || []).filter((r: any) => r.status === 'PENDING');
+
+    if (targetCustomer) {
+      const hasCustomerPendingReq = pendingRequests.some((r: any) =>
+        (r.target_record_id === targetCustomer.id || r.targetRecordId === targetCustomer.id) &&
+        (r.payload?.eventCode === 'CUSTOMER_REGISTRATION' || r.target_table === 'customers' || r.targetTable === 'customers')
+      );
+      if (hasCustomerPendingReq || targetCustomer.transactionStatus === 'BLOCKED_ALL') {
+        return `고객사(${targetCustomer.name})의 [고객 등록] 결재가 아직 승인되지 않았거나 거래차단 상태이므로 배차·장비할당·출고 업무를 진행할 수 없습니다.`;
+      }
+    }
+
+    if (targetContract) {
+      const hasContractSignPendingReq = targetContract.approvalStatus === 'PENDING' || pendingRequests.some((r: any) =>
+        (r.target_record_id === targetContract.id || r.targetRecordId === targetContract.id) &&
+        r.payload?.eventCode === 'CONTRACT_SIGN'
+      );
+      if (hasContractSignPendingReq) {
+        return `해당 계약(${targetContract.contractNo || targetContract.id})의 [계약 체결] 결재가 아직 승인 대기 중이므로 배차·장비할당·출고 업무를 진행할 수 없습니다.`;
+      }
+    }
+
+    return null;
+  };
+
+  const rescindContract = async (params: {
+    contractId: string;
+    reason: string;
+    freightOption: 'NONE' | 'CUSTOMER' | 'OURS';
+    customerFreightAmount?: number;
+  }) => {
+    const { contractId, reason, freightOption, customerFreightAmount = 0 } = params;
+    const contract = db.contracts.find(c => c.id === contractId);
+    if (!contract) {
+      showErrorModal('해제 대상 계약을 찾을 수 없습니다.');
+      throw new Error('해제 대상 계약을 찾을 수 없습니다.');
+    }
+    const nowIso = new Date().toISOString();
+    const today = nowIso.split('T')[0];
+    const effectiveRescindDate = contract.startDate || today;
+
+    // 1. 계약 본체 상태 COMPLETED(해제 종결) 및 무효화 업데이트
+    db.updateRow<Contract>('contracts', contractId, {
+      status: 'COMPLETED',
+      endDate: effectiveRescindDate,
+      approvalStatus: 'APPROVED',
+      updatedAt: nowIso
+    });
+
+    // 2. 연결된 체결 자산 일괄 원상복구 (렌탈료 0원 소급 무효화 + 실물 자산 즉시 임대가능 AVAILABLE 전환)
+    const linkedContractAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
+    linkedContractAssets.forEach(ca => {
+      db.updateRow<ContractAsset>('contractAssets', ca.id, {
+        status: 'RETURNED',
+        monthlyRentalFee: 0,
+        dailyRentalFee: 0,
+        endDate: effectiveRescindDate,
+        actualReturnDate: effectiveRescindDate,
+        updatedAt: nowIso
+      });
+      if (ca.assetId) {
+        db.updateRow<Asset>('assets', ca.assetId, {
+          status: 'AVAILABLE',
+          currentCustomerId: '',
+          currentSiteId: '',
+          contractStart: '',
+          contractEnd: '',
+          updatedAt: nowIso
+        });
+      }
+    });
+
+    // 3. 미완료 출고검수 레코드 삭제
+    db.outboundInspections
+      .filter(ins => ins.contractId === contractId && ins.status !== 'COMPLETED')
+      .forEach(ins => db.deleteRow('outboundInspections', ins.id));
+
+    // 4. 연결된 배차/출고 요청 취소 처리
+    const linkedDeliveries = db.deliveries.filter(d => d.contractId === contractId && d.status !== 'CANCELLED');
+    linkedDeliveries.forEach(d => {
+      db.updateRow<Delivery>('deliveries', d.id, {
+        status: 'CANCELLED',
+        updatedAt: nowIso
+      });
+    });
+
+    // 5. 기발행 미수금/청구서 중 렌탈료·유상옵션 청구 0원 소급 무효화
+    const linkedBillings = db.billings.filter(b => b.contractId === contractId && b.status !== 'PAID' && b.status !== 'REJECTED');
+    linkedBillings.forEach(b => {
+      db.updateRow<Billing>('billings', b.id, {
+        status: 'REJECTED',
+        totalAmount: 0,
+        rejectReason: `[계약의 해제] 렌탈료·유상옵션 청구 0원 소급 무효화 (${reason})`,
+        updatedAt: nowIso
+      });
+    });
+
+    // 6. 기발생 운송비(회차비) 고객 청구 선택 시 운송비 채권(Receivable) 생성
+    if (freightOption === 'CUSTOMER' && customerFreightAmount > 0) {
+      db.insertRow<Receivable>('receivables', {
+        contractId: contract.id,
+        customerId: contract.customerId,
+        type: 'TRANSPORT',
+        occurredDate: today,
+        totalAmount: customerFreightAmount,
+        billedAmount: 0,
+        status: 'PENDING',
+        displayName: '계약 해제 회차 운송비',
+        internalDescription: `[계약의 해제 고객 귀책 운송비] ${reason}`,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    // 7. 계약 변경 이력 기록
+    const freightLabel = freightOption === 'CUSTOMER'
+      ? `기발생 운송비 고객 청구 (₩${customerFreightAmount.toLocaleString()})`
+      : freightOption === 'OURS'
+      ? '기발생 운송비 당사 부담'
+      : '기발생 운송비 없음';
+    db.insertRow<ContractHistory>('contractHistory', {
+      contractId: contract.id,
+      changeType: 'TERMINATE',
+      changeDate: today,
+      prevEndDate: contract.endDate,
+      newEndDate: effectiveRescindDate,
+      description: `[계약의 해제] 체결 자산 임대가능 원상복구 및 렌탈료 0원 소급 무효화 (${freightLabel}) / 사유: ${reason}`,
+      createdAt: nowIso
+    });
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
 
   const extendContract = async (contractId: string, newEndDate: string, description: string) => {
     const contract = db.contracts.find(c => c.id === contractId);
@@ -8746,6 +8888,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         contract = db.contracts.find(c => c.id === origCa.contractId);
       }
 
+      const blockReason = getPendingCustomerOrContractBlockReason(origCa.contractId, contract?.customerId);
+      if (blockReason) {
+        showErrorModal(blockReason, '결재 미승인 업무 제한');
+        throw new Error(blockReason);
+      }
+
       if (!origAsset) throw new Error('할당할 대상 장비를 찾을 수 없습니다.');
 
       const nowIso = new Date().toISOString();
@@ -8855,6 +9003,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       for (const pair of pairs) {
         const origCa = db.contractAssets.find(c => c.id === pair.contractAssetId);
         if (!origCa) throw new Error(`계약 슬롯(${pair.contractAssetId})을 찾을 수 없습니다.`);
+        const cObj = db.contracts.find(c => c.id === origCa.contractId);
+        const blockReason = getPendingCustomerOrContractBlockReason(origCa.contractId, cObj?.customerId);
+        if (blockReason) {
+          showErrorModal(blockReason, '결재 미승인 업무 제한');
+          throw new Error(blockReason);
+        }
         caSnapshots.push({ id: origCa.id, snapshot: { ...origCa } });
 
         const origAsset = db.assets.find(a => a.id === pair.assetId);
@@ -11445,6 +11599,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
   ) => {
     const existingDel = db.deliveries.find(d => d.id === deliveryId);
+    if (existingDel?.contractId) {
+      const blockReason = getPendingCustomerOrContractBlockReason(existingDel.contractId);
+      if (blockReason) {
+        showErrorModal(blockReason, '결재 미승인 배차 제한');
+        return;
+      }
+    }
     const keepCompleted = existingDel?.status === 'DELIVERED' || existingDel?.status === 'COMPLETED';
     db.updateRow<Delivery>('deliveries', deliveryId, {
       scheduledDate: dispatchData.scheduledDate,
@@ -11487,6 +11648,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   const completeDelivery = async (deliveryId: string) => {
     const delivery = db.deliveries.find(d => d.id === deliveryId);
     if (!delivery) return;
+
+    if (delivery.contractId) {
+      const blockReason = getPendingCustomerOrContractBlockReason(delivery.contractId);
+      if (blockReason) {
+        showErrorModal(blockReason, '결재 미승인 운송완료 제한');
+        throw new Error(blockReason);
+      }
+    }
 
     const isOutboundLike =
       delivery.type === 'OUTBOUND' ||
@@ -13890,7 +14059,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       purchaseConsumable, useConsumable, transferConsumableToMechanic, returnConsumableToHq, transferConsumableBetweenMechanics, addConsumable, updateConsumable, deleteConsumable,
       createStocktakingAudit, updateStocktakingItem, confirmStocktakingAudit, cancelStocktakingAudit, processCollectedPart,
       requestConsumablePurchase, updatePurchaseUnitPrice, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
-      createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
+      createContract, rescindContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,

@@ -1044,7 +1044,7 @@ export const Customers: React.FC = () => {
     setShowCustModal(true);
   };
 
-  const { createApprovalRequest, fetchRuleForEvent } = useApproval();
+  const { createApprovalRequest, fetchRuleForEvent, isRuleEnabled } = useApproval();
 
   const handleSaveCustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1053,11 +1053,14 @@ export const Customers: React.FC = () => {
     try {
       setIsSubmittingCust(true);
       const isNew = !editingCust.id;
+      const { rule: custRegRule } = isNew ? await fetchRuleForEvent('CUSTOMER_REGISTRATION') : { rule: null };
+      const isCustApprovalRequired = Boolean(isNew && custRegRule && custRegRule.id && custRegRule.is_enabled);
       const resolvedPayMethod: PaymentMethodType = (editingCust.defaultPaymentMethod === 'BILL' || editingCust.defaultPaymentMethod === 'BOND') ? editingCust.defaultPaymentMethod : 'CASH';
       const resolvedPayNote = (editingCust.defaultPaymentTermsNote || '').trim();
       const rawBillingDay = editingCust.defaultBillingDay !== undefined && editingCust.defaultBillingDay !== null ? Number(editingCust.defaultBillingDay) : 30;
       const sanitizedCust = {
         ...editingCust,
+        transactionStatus: isCustApprovalRequired ? ('BLOCKED_ALL' as const) : (editingCust.transactionStatus || 'ALLOWED'),
         defaultBillingDay: rawBillingDay === 0 ? 0 : Math.min(31, Math.max(1, rawBillingDay || 30)),
         defaultStatementClosingDay: Math.min(31, Math.max(1, Number(editingCust.defaultStatementClosingDay) || 25)),
         paymentDueDay: Math.min(31, Math.max(1, Number(editingCust.paymentDueDay) || 25)),
@@ -1074,24 +1077,40 @@ export const Customers: React.FC = () => {
       };
       const saved = await saveCustomer(sanitizedCust as Omit<Customer, 'id' | 'createdAt'>);
       
-      // 결재선(RWTT 용): 신규 고객 등록 시 CUSTOMER_REGISTRATION 결재 태우기
-      if (isNew) {
-        const { rule } = await fetchRuleForEvent('CUSTOMER_REGISTRATION');
-        if (rule) {
-          const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
-            ? currentUser.id
-            : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
-          await createApprovalRequest(
-            rule.id!,
-            validOriginatorId,
-            saved.id!,
-            'customers',
-            rule.required_tier // 기본 결재선 티어
-          );
-        }
+      // 결재선: 신규 고객 등록 시 CUSTOMER_REGISTRATION 결재 상신 (승인 전까지 BLOCKED_ALL로 배차/출고 차단)
+      if (isCustApprovalRequired && custRegRule?.id) {
+        const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
+          ? currentUser.id
+          : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
+        await createApprovalRequest(
+          custRegRule.id,
+          validOriginatorId,
+          saved.id!,
+          'customers',
+          custRegRule.required_tier,
+          {
+            actionType: 'CUSTOMER_REGISTRATION',
+            targetTable: 'customers',
+            targetId: saved.id!,
+            asIs: { transactionStatus: 'BLOCKED_ALL' },
+            toBe: {
+              name: saved.name,
+              bizRegNo: saved.bizRegNo || '-',
+              representative: saved.representative || '-',
+              address: saved.address || '-',
+              transactionStatus: 'ALLOWED'
+            },
+            reason: '신규 고객 등록 품의 상신',
+            summaryText: `[고객 등록] ${saved.name} (${saved.bizRegNo || '사업자번호 미입력'})`
+          }
+        );
       }
 
-      showToast(`고객사 [${saved.name}] 정보가 저장되었습니다.${isNew ? ' (결재 상신 완료)' : ''}`);
+      showToast(
+        isCustApprovalRequired
+          ? `신규 고객사 [${saved.name}] 등록 품의가 상신되었습니다. 결재 승인 전까지 배차 및 출고가 보류됩니다.`
+          : `고객사 [${saved.name}] 정보가 저장되었습니다.`
+      );
       setShowCustModal(false);
       setEditingCust(null);
       setSelectedCustomerId(saved.id);
@@ -3180,8 +3199,16 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowCustModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button data-hs-trigger="Save" type="submit" className="btn-primary" disabled={isSubmittingCust} style={{ padding: '5px 16px', fontSize: '12px' }}>
-                  {isSubmittingCust ? '저장중...' : '저장'}
+                <button
+                  data-hs-trigger="Save"
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSubmittingCust || !editingCust?.name?.trim()}
+                  style={{ padding: '5px 16px', fontSize: '12px', opacity: (!editingCust?.name?.trim() || isSubmittingCust) ? 0.55 : 1 }}
+                >
+                  {isSubmittingCust
+                    ? (!editingCust?.id && isRuleEnabled('CUSTOMER_REGISTRATION') ? '상신중...' : '저장중...')
+                    : (!editingCust?.id && isRuleEnabled('CUSTOMER_REGISTRATION') ? '상신' : '저장')}
                 </button>
               </div>
             </div>

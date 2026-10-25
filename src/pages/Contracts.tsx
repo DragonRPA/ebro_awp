@@ -21,7 +21,7 @@ import { useApproval } from '../hooks/useApproval';
 export const Contracts: React.FC = () => {
   const {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
-    createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
+    createContract, rescindContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
     standardOptions, updateOutboundRequestPricing, linkReceivableToBilling,
     currentTenant, toggleTenantContractTradeOutbound,
@@ -44,7 +44,14 @@ export const Contracts: React.FC = () => {
 
   const canSave = hasPermission('contract', 'save');
   const canGeneratePackage = hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한
-  const { fetchRuleForEvent, createApprovalRequest } = useApproval();
+  const { fetchRuleForEvent, createApprovalRequest, isRuleEnabled } = useApproval();
+
+  // 계약의 해제 모달 상태 (CONTRACT_TERMINATE)
+  const [showRescindModal, setShowRescindModal] = useState(false);
+  const [rescindReason, setRescindReason] = useState('');
+  const [rescindFreightOption, setRescindFreightOption] = useState<'NONE' | 'CUSTOMER' | 'OURS'>('NONE');
+  const [rescindCustomerFreightAmount, setRescindCustomerFreightAmount] = useState<number>(0);
+  const [isSubmittingRescind, setIsSubmittingRescind] = useState(false);
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -1571,11 +1578,184 @@ export const Contracts: React.FC = () => {
     try {
       // Feature 5: selectedSuccessionAssetIds가 비어 있으면 전체 승계, 있으면 선택 자산만 승계
       const selectedIds = selectedSuccessionAssetIds.size > 0 ? Array.from(selectedSuccessionAssetIds) : undefined;
+      const { rule } = await fetchRuleForEvent('CONTRACT_SUCCEED');
+      if (rule && rule.is_enabled) {
+        const oldCust = customers.find(c => c.id === activeContract.customerId);
+        const oldSite = sites.find(s => s.id === activeContract.siteId);
+        const newCust = customers.find(c => c.id === succCustId);
+        const newSite = sites.find(s => s.id === succSiteId);
+        const targetCount = selectedIds ? selectedIds.length : activeContractAssets.length;
+        const originatorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id))
+          ? currentUser.id
+          : (db.users[0]?.id || 'u-1');
+
+        db.updateRow<Contract>('contracts', activeContract.id, {
+          approvalStatus: 'PENDING',
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+
+        const approvalPayload: ApprovalPayload = {
+          version: 1,
+          eventCode: 'CONTRACT_SUCCEED',
+          title: `[계약 승계] ${oldCust?.name || '-'} ➔ ${newCust?.name || '-'} (${activeContract.contractNo})`,
+          summary: `승계일자 ${succDate} 기준 체결 자산 ${targetCount}대 승계 (${oldSite?.name || '-'} ➔ ${newSite?.name || '-'})`,
+          reason: succDesc.trim() || '고객사 변경에 따른 계약 승계',
+          targetTable: 'contracts',
+          targetRecordId: activeContract.id,
+          asIs: {
+            customerId: activeContract.customerId,
+            customerName: oldCust?.name || '-',
+            siteId: activeContract.siteId || '',
+            siteName: oldSite?.name || '-',
+            assetCount: targetCount
+          },
+          toBe: {
+            contractId: activeContract.id,
+            successorCustomerId: succCustId,
+            successorCustomerName: newCust?.name || '-',
+            successorContactId: succContactId,
+            successorSiteId: succSiteId,
+            successorSiteName: newSite?.name || '-',
+            successionDate: succDate,
+            description: succDesc.trim() || '계약 승계',
+            selectedAssetIds: selectedIds
+          },
+          diffSummary: [
+            { field: 'customerName', label: '고객사', before: oldCust?.name || '-', after: newCust?.name || '-' },
+            { field: 'siteName', label: '현장명', before: oldSite?.name || '-', after: newSite?.name || '-' },
+            { field: 'successionDate', label: '승계 일자', before: activeContract.startDate, after: succDate },
+            { field: 'assetCount', label: '승계 자산 수량', before: `${activeContractAssets.length}대`, after: `${targetCount}대` }
+          ]
+        };
+
+        await createApprovalRequest(
+          rule.id || '',
+          originatorId,
+          activeContract.id,
+          'contracts',
+          0,
+          approvalPayload
+        );
+        refreshAllData();
+        showToast('계약 승계 결재가 상신되었습니다. 최종 승인 시 승계가 자동 반영됩니다.');
+        setShowTransferModal(false);
+        return;
+      }
+
       await succeedContract(activeContract.id, succCustId, succContactId, succSiteId, succDate, succDesc, selectedIds);
       showToast('계약 승계가 완료되었습니다.');
       setShowTransferModal(false);
     } catch (err: any) {
       showToast(`승계 실패: ${err?.message || err}`, 'error');
+    }
+  };
+
+  // 계약의 해제 모달 오픈 및 저장 핸들러 (CONTRACT_TERMINATE)
+  const handleOpenRescindModal = () => {
+    if (!activeContract) return;
+    setRescindReason('');
+    setRescindFreightOption('NONE');
+    const existingDeliv = deliveries.find(d => d.contractId === activeContract.id && d.status !== 'CANCELLED');
+    setRescindCustomerFreightAmount(existingDeliv?.deliveryCostConfirmed || existingDeliv?.deliveryCost || 0);
+    setShowRescindModal(true);
+  };
+
+  const handleSaveRescind = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeContract || isSubmittingRescind) return;
+    if (!rescindReason.trim()) {
+      showToast('계약의 해제 사유를 입력해 주십시오.', 'error');
+      return;
+    }
+    if (rescindFreightOption === 'CUSTOMER' && (!rescindCustomerFreightAmount || rescindCustomerFreightAmount <= 0)) {
+      showToast('고객에게 청구할 기발생 운송비(회차비) 금액을 입력해 주십시오.', 'error');
+      return;
+    }
+
+    setIsSubmittingRescind(true);
+    try {
+      const { rule } = await fetchRuleForEvent('CONTRACT_TERMINATE');
+      const custObj = customers.find(c => c.id === activeContract.customerId);
+      const siteObj = sites.find(s => s.id === activeContract.siteId);
+      const monthlyTotal = activeContractAssets.reduce((s, ca) => s + (ca.monthlyRentalFee || 0), 0);
+      const freightOptionLabel =
+        rescindFreightOption === 'CUSTOMER'
+          ? `고객 청구 (₩${rescindCustomerFreightAmount.toLocaleString()}원)`
+          : rescindFreightOption === 'OURS'
+          ? '당사 부담'
+          : '없음 (출고 전 취소)';
+
+      if (rule && rule.is_enabled) {
+        const originatorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id))
+          ? currentUser.id
+          : (db.users[0]?.id || 'u-1');
+
+        db.updateRow<Contract>('contracts', activeContract.id, {
+          approvalStatus: 'PENDING',
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+
+        const approvalPayload: ApprovalPayload = {
+          version: 1,
+          eventCode: 'CONTRACT_TERMINATE',
+          title: `[계약의 해제] ${custObj?.name || '-'} (${siteObj?.name || '-'}) - ${activeContract.contractNo}`,
+          summary: `체결 자산 ${activeContractAssets.length}대 임대가능 원상복구 및 렌탈료 0원 소급 무효화 / 운송비: ${freightOptionLabel}`,
+          reason: rescindReason.trim(),
+          targetTable: 'contracts',
+          targetRecordId: activeContract.id,
+          asIs: {
+            contractNo: activeContract.contractNo,
+            customerName: custObj?.name || '-',
+            siteName: siteObj?.name || '-',
+            status: activeContract.status,
+            assetCount: activeContractAssets.length,
+            monthlyRentalTotal: monthlyTotal
+          },
+          toBe: {
+            contractId: activeContract.id,
+            status: 'COMPLETED',
+            assetStatus: 'AVAILABLE',
+            monthlyRentalTotal: 0,
+            freightOption: rescindFreightOption,
+            customerFreightAmount: rescindFreightOption === 'CUSTOMER' ? rescindCustomerFreightAmount : 0,
+            reason: rescindReason.trim()
+          },
+          diffSummary: [
+            { field: 'status', label: '계약 및 출고 상태', before: '진행중', after: '계약의 해제 (즉시 취소 종결)' },
+            { field: 'assetStatus', label: '체결 자산 상태', before: `체결 자산 ${activeContractAssets.length}대`, after: '전수 임대가능 원상복구' },
+            { field: 'monthlyRentalTotal', label: '렌탈료·유상옵션 청구', before: `월 ₩${monthlyTotal.toLocaleString()}원`, after: '₩0원 (소급 무효화)' },
+            { field: 'freightOption', label: '기발생 운송비 처리', before: '-', after: freightOptionLabel }
+          ]
+        };
+
+        await createApprovalRequest(
+          rule.id || '',
+          originatorId,
+          activeContract.id,
+          'contracts',
+          0,
+          approvalPayload
+        );
+        refreshAllData();
+        showToast('계약의 해제 결재가 상신되었습니다. 승인 시 체결 자산 원상복구 및 렌탈료 무효화가 자동 반영됩니다.');
+        setShowRescindModal(false);
+        return;
+      }
+
+      await rescindContract({
+        contractId: activeContract.id,
+        reason: rescindReason.trim(),
+        freightOption: rescindFreightOption,
+        customerFreightAmount: rescindFreightOption === 'CUSTOMER' ? rescindCustomerFreightAmount : 0
+      });
+      showToast('계약의 해제 및 체결 자산 원상복구가 완료되었습니다.');
+      setShowRescindModal(false);
+    } catch (err: any) {
+      showToast(`계약의 해제 처리 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingRescind(false);
     }
   };
 
@@ -2284,7 +2464,7 @@ export const Contracts: React.FC = () => {
       }
       // ────────────────────────────────────────────────────────────────────────
 
-      createContract({
+      const createdContract = await createContract({
         customerId: finalCustomerId,
         contactId: finalContactId && finalContactId !== 'NEW' ? finalContactId : undefined,
         siteId: finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined,
@@ -2298,7 +2478,61 @@ export const Contracts: React.FC = () => {
         status: 'ACTIVE'
       }, cleanedBasket);
 
-      showToast('계약 등록이 완료되었습니다.');
+      const { rule: signRule } = await fetchRuleForEvent('CONTRACT_SIGN');
+      if (signRule && signRule.is_enabled && createdContract?.id) {
+        const custObj = db.customers.find(c => c.id === finalCustomerId);
+        const siteObj = finalSiteId ? db.sites.find(s => s.id === finalSiteId) : undefined;
+        const monthlySum = cleanedBasket.reduce((s, b) => s + (Number(b.monthlyRentalFee) || 0), 0);
+        const originatorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id))
+          ? currentUser.id
+          : (db.users[0]?.id || 'u-1');
+
+        db.updateRow<Contract>('contracts', createdContract.id, {
+          approvalStatus: 'PENDING',
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+
+        const signPayload: ApprovalPayload = {
+          version: 1,
+          eventCode: 'CONTRACT_SIGN',
+          title: `[계약 체결] ${custObj?.name || '-'} (${siteObj?.name || '-'}) - 총 ${cleanedBasket.length}대`,
+          summary: `개시일 ${startDate} / 월 렌탈료 합계 ₩${monthlySum.toLocaleString()}원`,
+          reason: '신규 렌탈 계약 체결 품의 상신',
+          targetTable: 'contracts',
+          targetRecordId: createdContract.id,
+          asIs: { status: '미체결' },
+          toBe: {
+            contractId: createdContract.id,
+            contractNo: createdContract.contractNo,
+            customerName: custObj?.name || '-',
+            siteName: siteObj?.name || '-',
+            startDate,
+            endDate: isEndDateOpen ? '미정' : endDate,
+            assetCount: cleanedBasket.length,
+            monthlyRentalTotal: monthlySum
+          },
+          diffSummary: [
+            { field: 'customerName', label: '고객사 / 현장', before: '-', after: `${custObj?.name || '-'} / ${siteObj?.name || '-'}` },
+            { field: 'period', label: '계약 기간', before: '-', after: `${startDate} ~ ${isEndDateOpen ? '미정' : endDate}` },
+            { field: 'assetCount', label: '체결 자산 수량', before: '0대', after: `총 ${cleanedBasket.length}대` },
+            { field: 'monthlyRentalTotal', label: '월 렌탈료 합계', before: '₩0원', after: `₩${monthlySum.toLocaleString()}원` }
+          ]
+        };
+
+        await createApprovalRequest(
+          signRule.id || '',
+          originatorId,
+          createdContract.id,
+          'contracts',
+          0,
+          signPayload
+        );
+        refreshAllData();
+        showToast('계약 체결 결재가 상신되었습니다. 최종 승인 전까지 배차 및 출고가 보류됩니다.');
+      } else {
+        showToast('계약 등록이 완료되었습니다.');
+      }
       setActiveTab('ALL_LIST');
       setViewMode('LIST');
       setBasket([]);
@@ -3316,6 +3550,27 @@ export const Contracts: React.FC = () => {
                   <button className="btn-secondary" onClick={handleOpenTransferModal} style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <ArrowLeftRight size={14} /> 계약 승계
                   </button>
+
+                  {activeContract.status !== 'COMPLETED' && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={handleOpenRescindModal}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: 'var(--danger)',
+                        borderColor: 'rgba(239, 68, 68, 0.45)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        fontWeight: 700
+                      }}
+                    >
+                      <AlertTriangle size={14} /> 계약의 해제
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -4801,7 +5056,14 @@ export const Contracts: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowExtendModal(false)}>취소</button>
-              <button data-hs-trigger="Save" type="submit" className="btn-primary">저장</button>
+              <button
+                data-hs-trigger="Save"
+                type="submit"
+                className="btn-primary"
+                disabled={(!modIsOpen && !modNewEndDate) || !modDesc.trim()}
+              >
+                {isRuleEnabled('CONTRACT_EXTEND') ? '상신' : '저장'}
+              </button>
             </div>
           </form>
         </div>
@@ -5119,11 +5381,11 @@ export const Contracts: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmittingDiscount}
+                    disabled={isSubmittingDiscount || selectedItems.length === 0 || !discountEffectiveDate || !discountReason.trim()}
                     className="btn-primary"
                     style={{ backgroundColor: '#7c3aed', borderColor: '#7c3aed', fontWeight: 700, padding: '8px 16px' }}
                   >
-                    {isSubmittingDiscount ? '상신 처리중...' : '계약의 할인 결재 상신'}
+                    {isSubmittingDiscount ? '처리중...' : (isRuleEnabled('CONTRACT_DISCOUNT') ? '상신' : '저장')}
                   </button>
                 </div>
               </div>
@@ -5365,7 +5627,14 @@ export const Contracts: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowTransferModal(false)}>취소</button>
-              <button data-hs-trigger="Process" type="submit" className="btn-primary" disabled={!succCustId}>승계 처리</button>
+              <button
+                data-hs-trigger="Process"
+                type="submit"
+                className="btn-primary"
+                disabled={!succCustId || !succSiteId || !succDate}
+              >
+                {isRuleEnabled('CONTRACT_SUCCEED') ? '상신' : '승계 처리'}
+              </button>
             </div>
           </form>
         </div>
@@ -5717,7 +5986,15 @@ export const Contracts: React.FC = () => {
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-secondary" onClick={() => setActiveTab('ALL_LIST')}>취소</button>
-            <button data-hs-trigger="Register" type="submit" data-mid="create-contract-submit" className="btn-success">계약 등록</button>
+            <button
+              data-hs-trigger="Register"
+              type="submit"
+              data-mid="create-contract-submit"
+              className="btn-success"
+              disabled={isSubmittingContract || basket.length === 0 || !custSelect || (custSelect === 'NEW' && !newCustName.trim()) || !startDate || (!isEndDateOpen && !endDate)}
+            >
+              {isSubmittingContract ? '처리중...' : (isRuleEnabled('CONTRACT_SIGN') ? '상신' : '계약 등록')}
+            </button>
           </div>
         </form>
       )}
@@ -6599,6 +6876,163 @@ export const Contracts: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* 모달 9: 계약의 해제 (CONTRACT_TERMINATE) */}
+      {showRescindModal && activeContract && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            zIndex: 3200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowRescindModal(false)}
+        >
+          <form
+            onSubmit={handleSaveRescind}
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: '520px',
+              backgroundColor: 'var(--bg-card)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <h3 className="card-title" style={{ margin: 0, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle size={18} /> 계약의 해제
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowRescindModal(false)}
+                style={{ border: 'none', background: 'none', color: 'var(--text-muted)', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '12.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>대상 계약:</span>{' '}
+                <strong>{activeContract.contractNo}</strong> ({getCustName(activeContract.customerId)} / {getSiteName(activeContract.siteId)})
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>체결 자산 수량:</span>{' '}
+                <strong>총 {activeContractAssets.length}대</strong> (승인 즉시 전수 <strong style={{ color: 'var(--success)' }}>임대가능</strong> 상태로 일괄 원상복구)
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>렌탈료·유상옵션 청구:</span>{' '}
+                <strong style={{ color: 'var(--danger)' }}>₩0원 소급 무효화</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                기발생 운송비(회차비) 처리 방식 *
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {([
+                  { id: 'NONE', label: '없음 (출고 전 취소)' },
+                  { id: 'CUSTOMER', label: '고객 청구 (귀책)' },
+                  { id: 'OURS', label: '당사 부담' }
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setRescindFreightOption(opt.id)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: rescindFreightOption === opt.id ? 700 : 500,
+                      cursor: 'pointer',
+                      border: rescindFreightOption === opt.id ? '1px solid var(--danger)' : '1px solid var(--border-color)',
+                      backgroundColor: rescindFreightOption === opt.id ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-app)',
+                      color: rescindFreightOption === opt.id ? 'var(--danger)' : 'var(--text-primary)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {rescindFreightOption === 'CUSTOMER' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  고객 청구 운송비(회차비) 금액 (원) *
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={rescindCustomerFreightAmount}
+                  onChange={e => setRescindCustomerFreightAmount(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="예: 150000"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    fontSize: '13px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                계약의 해제 사유 *
+              </label>
+              <input
+                type="text"
+                value={rescindReason}
+                onChange={e => setRescindReason(e.target.value)}
+                placeholder="예: 현장 착공 취소로 인한 인도 직후 계약 해제"
+                required
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowRescindModal(false)}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={isSubmittingRescind || !rescindReason.trim() || (rescindFreightOption === 'CUSTOMER' && rescindCustomerFreightAmount <= 0)}
+                style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)', fontWeight: 700 }}
+              >
+                {isSubmittingRescind ? '처리중...' : (isRuleEnabled('CONTRACT_TERMINATE') ? '상신' : '계약의 해제 확정')}
+              </button>
+            </div>
+          </form>
         </div>
       )}
       {/* 스타일 */}

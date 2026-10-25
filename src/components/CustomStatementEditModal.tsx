@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Edit3, Plus } from 'lucide-react';
 import { Billing, Contract, Customer, SiteMaster, CustomStatementItem } from '../services/db';
+import { useApproval } from '../hooks/useApproval';
 
 interface CustomStatementEditModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const CustomStatementEditModal: React.FC<CustomStatementEditModalProps> =
   onRestore,
 }) => {
   // 모달 자체의 독립 로컬 상태 (부모 거대 컴포넌트의 리렌더링 차단)
+  const { isRuleEnabled } = useApproval();
   const [reasonInput, setReasonInput] = useState(initialReason);
   const [itemsDraft, setItemsDraft] = useState<CustomStatementItem[]>(initialItems);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -498,7 +500,7 @@ export const CustomStatementEditModal: React.FC<CustomStatementEditModalProps> =
                   : '특수 거래명세서 품목 저장'
               }
             >
-              {isSubmitting ? '저장 중...' : '명세서 저장'}
+              {isSubmitting ? '처리중...' : (isRuleEnabled('CUSTOM_BILLING_CREATE') ? '상신' : '명세서 저장')}
             </button>
           </div>
         </div>

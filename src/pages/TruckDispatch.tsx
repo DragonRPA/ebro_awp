@@ -40,6 +40,7 @@ import {
   deleteTransportCall
 } from '../services/transportCallService';
 import { useSpecialFeature, SpecialFeatureGuard } from '../utils/specialFeatureGuard';
+import { useApproval } from '../hooks/useApproval';
 
 export { VEHICLE_TYPE_OPTIONS };
 
@@ -1158,6 +1159,7 @@ export const TruckDispatch: React.FC = () => {
   };
 
   const isAuditSettleGranted = useSpecialFeature('tab:truck_dispatch:audit_settle');
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
 
   const [activeTab, setActiveTabState] = useState<'DISPATCH' | 'NEGOTIATION' | 'RECONCILIATION'>(() => {
     if (typeof window !== 'undefined') {
@@ -2752,6 +2754,7 @@ export const TruckDispatch: React.FC = () => {
 
     try {
       // 1. 월말 매입 정산 마스터 레코드 생성
+      const ruleActive = isRuleEnabled('DISPATCH_PAYMENT');
       const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
       const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
         id: settlementId,
@@ -2760,9 +2763,9 @@ export const TruckDispatch: React.FC = () => {
         vendorName: rawVendorName,
         totalAmount: totalBundleCost,
         paidAmount: 0,
-        status: 'CONFIRMED',
-        confirmedAt: nowIso,
-        confirmedBy: currentUser?.name || '운송대사담당',
+        status: ruleActive ? 'PENDING' : 'CONFIRMED',
+        confirmedAt: ruleActive ? undefined : nowIso,
+        confirmedBy: ruleActive ? undefined : (currentUser?.name || '운송대사담당'),
         itemCount: reconciledPairs.length,
         memo: `[운송료 대사 완결] ${bundleCode} | ${reconciledPairs.length}건 지급 요청`,
         createdAt: nowIso,
@@ -2793,6 +2796,27 @@ export const TruckDispatch: React.FC = () => {
             memo: `[통합지급요청: ${bundleCode}] ${pair.memo || pair.systemDelivery.memo || ''}`
           } as any);
         }
+      }
+
+      if (ruleActive) {
+        await createApprovalRequest({
+          eventCode: 'DISPATCH_PAYMENT',
+          targetTable: 'purchase_settlements',
+          targetId: settlement.id,
+          amount: totalBundleCost,
+          payload: {
+            actionType: 'DISPATCH_PAYMENT',
+            reason: `[${rawVendorName}] ${targetYm} 운송료 대사 통합 지급 품의 (${reconciledPairs.length}건 / ₩${totalBundleCost.toLocaleString()}원)`,
+            toBe: {
+              settlementId: settlement.id,
+              vendorName: rawVendorName,
+              settlementType: 'TRANSPORT',
+              totalAmount: totalBundleCost,
+              itemCount: reconciledPairs.length,
+              bundleCode
+            }
+          }
+        });
       }
 
       await db.awaitPendingWrites();
@@ -8906,7 +8930,7 @@ export const TruckDispatch: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}
               >
-                <Send size={15} /> 대사 완료 {reconStats.matchedCount}건 통합 지급요청 생성 ➔
+                <Send size={15} /> {isRuleEnabled('DISPATCH_PAYMENT') ? '상신' : `대사 완료 ${reconStats.matchedCount}건 통합 지급요청 생성 ➔`}
               </button>
             </SpecialFeatureGuard>
           </div>

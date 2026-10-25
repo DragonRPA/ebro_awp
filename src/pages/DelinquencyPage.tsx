@@ -15,6 +15,7 @@ import {
   X, ShieldX, Truck, RefreshCw
 } from 'lucide-react';
 import { LegalNoticeStudioModal } from '../components/LegalNoticeStudioModal';
+import { useApproval } from '../hooks/useApproval';
 
 interface CalculatedDelinquency {
   id: string;
@@ -56,6 +57,95 @@ export const DelinquencyPage: React.FC = () => {
     currentTenant, setActiveTab, setNavigationPayload
   } = useApp();
   const canSave = hasPermission('delinquency', 'save') || hasPermission('billing', 'save');
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
+
+  // ─── [연체금 대손 상각 모달 상태] ───
+  const [showWriteOffModal, setShowWriteOffModal] = useState(false);
+  const [writeOffTargetDel, setWriteOffTargetDel] = useState<CalculatedDelinquency | null>(null);
+  const [writeOffAmount, setWriteOffAmount] = useState<number>(0);
+  const [writeOffReason, setWriteOffReason] = useState<string>('');
+  const [isWriteOffSubmitting, setIsWriteOffSubmitting] = useState(false);
+
+  const handleOpenWriteOffModal = (del: CalculatedDelinquency) => {
+    setWriteOffTargetDel(del);
+    setWriteOffAmount(del.totalOverdueAmount);
+    setWriteOffReason('');
+    setShowWriteOffModal(true);
+  };
+
+  const handleExecuteWriteOff = async () => {
+    if (!writeOffTargetDel) return;
+    if (!writeOffReason.trim()) {
+      showErrorModal('필수 입력 누락', '대손 상각 사유를 입력해주세요.');
+      return;
+    }
+    if (!writeOffAmount || writeOffAmount <= 0) {
+      showErrorModal('입력 오류', '대손 상각 금액은 0원보다 커야 합니다.');
+      return;
+    }
+    const writeOffRuleEnabled = isRuleEnabled('DELINQUENCY_WRITE_OFF');
+    setIsWriteOffSubmitting(true);
+    try {
+      const targetUnpaidBillings = billings.filter(b => b.customerId === writeOffTargetDel.customerId && b.status !== 'PAID' && b.status !== 'REJECTED');
+      if (writeOffRuleEnabled && currentUser) {
+        const { blocked, message } = await createApprovalRequest({
+          eventCode: 'DELINQUENCY_WRITE_OFF',
+          targetTable: 'customers',
+          targetRecordId: writeOffTargetDel.customerId,
+          userId: currentUser.id,
+          userTier: (currentUser as any).tier_level ?? 0,
+          payload: {
+            actionType: 'DELINQUENCY_WRITE_OFF',
+            reason: writeOffReason.trim(),
+            asIs: {
+              customerId: writeOffTargetDel.customerId,
+              customerName: writeOffTargetDel.customerName,
+              totalOverdueAmount: writeOffTargetDel.totalOverdueAmount,
+              overdueDays: writeOffTargetDel.overdueDays,
+              unpaidBillingIds: targetUnpaidBillings.map(b => b.id)
+            },
+            toBe: {
+              customerId: writeOffTargetDel.customerId,
+              customerName: writeOffTargetDel.customerName,
+              writeOffAmount,
+              reason: writeOffReason.trim(),
+              unpaidBillingIds: targetUnpaidBillings.map(b => b.id)
+            }
+          }
+        });
+        if (blocked) {
+          showToast(message || '연체금 대손 상각 품의가 상신되었습니다. 승인 후 대손 상각이 확정됩니다.', 'warning');
+          setShowWriteOffModal(false);
+          setWriteOffTargetDel(null);
+          return;
+        }
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      targetUnpaidBillings.forEach(b => {
+        db.updateRow<Billing>('billings', b.id, {
+          status: 'PAID',
+          paidAmount: b.totalAmount,
+          updatedAt: new Date().toISOString()
+        });
+      });
+      await saveDelinquencyAction({
+        customerId: writeOffTargetDel.customerId,
+        actionDate: todayStr,
+        actionType: 'LEGAL',
+        actionDetails: `[대손 상각 확정] 상각액: ₩${writeOffAmount.toLocaleString()} / 사유: ${writeOffReason.trim()}`,
+        recordedBy: currentUser?.name || '관리자',
+        mandateType: 'CEO_AUTO_MANDATE'
+      });
+      await db.awaitPendingWrites();
+      refreshAllData();
+      setShowWriteOffModal(false);
+      setWriteOffTargetDel(null);
+      showToast(`${writeOffTargetDel.customerName} 연체금 ₩${writeOffAmount.toLocaleString()} 대손 상각 처리가 완료되었습니다.`, 'success');
+    } finally {
+      setIsWriteOffSubmitting(false);
+    }
+  };
 
   // ─── [거래처 제재 차단 2종 모달 상태] ───
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -1381,6 +1471,16 @@ export const DelinquencyPage: React.FC = () => {
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  data-mid="btn-open-writeoff-modal"
+                  onClick={() => handleOpenWriteOffModal(selectedDelinquency)}
+                  style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: '#dc2626', fontWeight: 700 }}
+                  title="회수 불능 연체 채권 대손 상각 처리"
+                >
+                  <Trash2 size={12} /> 대손 상각
+                </button>
                 <button 
                   type="button" 
                   className="btn-primary" 
@@ -1924,6 +2024,88 @@ export const DelinquencyPage: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* ─── [연체금 대손 상각 모달] ─── */}
+      {showWriteOffModal && writeOffTargetDel && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)', zIndex: 10000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)', borderRadius: '10px', width: '500px', maxWidth: '100%',
+              padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.35)', border: '1px solid var(--border-color)',
+              display: 'flex', flexDirection: 'column', gap: '14px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '15px', color: '#dc2626' }}>
+                <Trash2 size={18} />
+                <span>연체금 대손 상각 — {writeOffTargetDel.customerName}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowWriteOffModal(false); setWriteOffTargetDel(null); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>현재 총 연체 금액 ({writeOffTargetDel.overdueDays}일 경과)</span>
+              <strong style={{ fontSize: '14px', color: '#dc2626' }}>₩{writeOffTargetDel.totalOverdueAmount.toLocaleString()}</strong>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>대손 상각 금액 (원) *</label>
+              <input
+                type="number"
+                className="form-input"
+                value={writeOffAmount || ''}
+                onChange={e => setWriteOffAmount(Number(e.target.value) || 0)}
+                style={{ fontSize: '13px', fontWeight: 700 }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>대손 상각 사유 (폐업, 파산, 법적 회수 불능 사유 등) *</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                value={writeOffReason}
+                onChange={e => setWriteOffReason(e.target.value)}
+                placeholder="대손 상각 처리 사유 및 법적 근거를 입력하세요"
+                style={{ fontSize: '12.5px', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => { setShowWriteOffModal(false); setWriteOffTargetDel(null); }}
+                style={{ padding: '6px 14px', fontSize: '12px' }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                data-mid="delinquency-writeoff-submit-btn"
+                disabled={isWriteOffSubmitting || !writeOffReason.trim() || !writeOffAmount || writeOffAmount <= 0}
+                onClick={handleExecuteWriteOff}
+                style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 700 }}
+              >
+                {isRuleEnabled('DELINQUENCY_WRITE_OFF') ? '상신' : '대손 상각 확정'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

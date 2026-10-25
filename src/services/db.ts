@@ -424,11 +424,17 @@ export interface RuleConsensus {
 }
 
 export interface ApprovalPayload {
-  actionType: 'CUSTOM_BILLING_CREATE' | 'CONTRACT_EXTEND' | 'CONTRACT_SHORTEN' | string;
-  targetTable: string;
-  targetId: string;
-  asIs: Record<string, any>;
-  toBe: Record<string, any>;
+  version?: string | number;
+  actionType?: 'CUSTOM_BILLING_CREATE' | 'CONTRACT_EXTEND' | 'CONTRACT_SHORTEN' | string;
+  eventCode?: string;
+  title?: string;
+  summary?: string;
+  targetTable?: string;
+  targetId?: string;
+  targetRecordId?: string;
+  asIs?: Record<string, any>;
+  toBe?: Record<string, any>;
+  diffSummary?: any[];
   reason?: string;
   summaryText?: string;
 }
@@ -705,7 +711,7 @@ export const APPROVAL_EVENT_REGISTRY = [
   // ── 2. 계약 / 청구 (8) ──
   { code: 'CONTRACT_SIGN',               name: '계약 체결',                         targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_MODIFY',             name: '계약의 수정(완결된 출고의 수정)',     targetTable: 'deliveries',          category: '계약' },
-  { code: 'CONTRACT_TERMINATE',          name: '계약 해지',                         targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_TERMINATE',          name: '계약의 해제',                       targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_EXTEND',             name: '계약 연장',                         targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_SUCCEED',            name: '계약 승계',                         targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_DISCOUNT',           name: '계약의 할인',                       targetTable: 'contracts',           category: '계약' },

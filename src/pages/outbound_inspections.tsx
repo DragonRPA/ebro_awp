@@ -607,6 +607,29 @@ export const OutboundInspections: React.FC = () => {
       return;
     }
 
+    // 🔴 [결재 대기 차단 가드] 고객 등록 또는 계약 체결 결재가 미승인(PENDING)인 경우 출고검수 승인 차단
+    const pendingReqs = ((db as any).approvalRequests || []).filter((r: any) => r.status === 'PENDING');
+    if (customer) {
+      const custPending = pendingReqs.some((r: any) =>
+        (r.target_record_id === customer.id || r.targetRecordId === customer.id) &&
+        (r.payload?.eventCode === 'CUSTOMER_REGISTRATION' || r.target_table === 'customers' || r.targetTable === 'customers')
+      );
+      if (custPending) {
+        showErrorModal(`고객사(${customer.name})의 [고객 등록] 결재가 아직 승인 대기 중이므로 출고검수 승인을 진행할 수 없습니다.`, '결재 미승인 출고 제한');
+        return;
+      }
+    }
+    if (contract) {
+      const contractPending = contract.approvalStatus === 'PENDING' || pendingReqs.some((r: any) =>
+        (r.target_record_id === contract.id || r.targetRecordId === contract.id) &&
+        r.payload?.eventCode === 'CONTRACT_SIGN'
+      );
+      if (contractPending) {
+        showErrorModal(`해당 계약(${contract.contractNo || contract.id})의 [계약 체결] 결재가 아직 승인 대기 중이므로 출고검수 승인을 진행할 수 없습니다.`, '결재 미승인 출고 제한');
+        return;
+      }
+    }
+
     // 🔴 [절차적 무결성 가드 1]: 해당 출고 요청(배차/계약)의 전체 요청 수량 중 미할당 슬롯이 1대라도 남아있으면 승인 원천 차단
     if ((selectedGroup.unassignedSlotCount || 0) > 0) {
       showErrorModal(

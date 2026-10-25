@@ -9,9 +9,11 @@ import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 
 export const PayrollPage: React.FC = () => {
   const { users, leaveUsages, overtimeRecords, payrollClosings, currentUser, hasPermission, setPayrollClosingStatus, saveUser } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
   const canSave = hasPermission('payroll', 'save');
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
@@ -235,20 +237,44 @@ export const PayrollPage: React.FC = () => {
     showToast('세무회계법인 수취 4대보험/소득세 확정액 데이터가 성공적으로 대조 적재되었습니다.');
   };
 
-  // 최종 결재 승인 (월별 Lock 상태 DB 저장)
+  // 최종 결재 승인 (월별 Lock 상태 DB 저장 또는 결재선 사용 시 품의 상신)
   const handleApprovePayroll = () => {
     if (!isTaxDataUploaded) {
       showToast('세무회계법인의 공제액 엑셀 파일을 먼저 업로드해 주십시오.', 'error');
       return;
     }
 
+    const ruleActive = isRuleEnabled('PAYROLL_PAYMENT');
     setConfirmModal({
       isOpen: true,
-      title: '급여 대장 최종 결재 마감 승인',
-      message: `[${selectedMonth}] 귀속월 급여 대장을 최종 마감 승인하시겠습니까?\n\n승인 시 해당 월의 급여 데이터가 수정 불가능한 읽기 전용 상태로 설정됩니다.`,
-      confirmText: '마감 승인',
+      title: ruleActive ? '급여 대장 지급 품의 상신' : '급여 대장 최종 결재 마감 승인',
+      message: ruleActive
+        ? `[${selectedMonth}] 귀속월 급여 대장 지급 품의를 상신하시겠습니까?\n\n전결권자 승인 완료 시 해당 월의 급여 정산 대장이 최종 마감 승인됩니다.`
+        : `[${selectedMonth}] 귀속월 급여 대장을 최종 마감 승인하시겠습니까?\n\n승인 시 해당 월의 급여 데이터가 수정 불가능한 읽기 전용 상태로 설정됩니다.`,
+      confirmText: ruleActive ? '상신' : '마감 승인',
       onConfirm: async () => {
         setConfirmModal(null);
+        if (ruleActive) {
+          const totalNet = payrollList.reduce((acc, p) => acc + (p.netSalary || 0), 0);
+          await createApprovalRequest({
+            eventCode: 'PAYROLL_PAYMENT',
+            targetTable: 'payroll_closings',
+            targetId: selectedMonth,
+            amount: totalNet,
+            payload: {
+              actionType: 'PAYROLL_PAYMENT',
+              reason: `[${selectedMonth}] 귀속월 급여 대장 지급 승인 요청 (총 ${payrollList.length}명 / 실지급 합계 ₩${totalNet.toLocaleString()}원)`,
+              toBe: {
+                month: selectedMonth,
+                approvedBy: currentUser?.name,
+                totalCount: payrollList.length,
+                totalNet
+              }
+            }
+          });
+          showToast(`[${selectedMonth}] 귀속월 급여 지급 품의가 상신되었습니다.`);
+          return;
+        }
         await setPayrollClosingStatus(selectedMonth, 'APPROVED', currentUser?.name);
         await db.awaitPendingWrites();
         showToast(`[${selectedMonth}] 귀속월 급여 정산 대장이 최종 승인 마감되었습니다.`);
@@ -402,9 +428,9 @@ export const PayrollPage: React.FC = () => {
               className="btn-success" 
               onClick={handleApprovePayroll}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px', fontWeight: 'bold' }}
-              disabled={!canSave}
+              disabled={!canSave || !isTaxDataUploaded}
             >
-              <LockOpen size={16} /> [{selectedMonth}] 결재 마감 승인
+              <LockOpen size={16} /> {isRuleEnabled('PAYROLL_PAYMENT') ? '상신' : `[${selectedMonth}] 결재 마감 승인`}
             </button>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

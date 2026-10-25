@@ -11,6 +11,7 @@ import {
   ChevronDown, ChevronUp, FileText, AlertCircle, RefreshCw, X, Download, ExternalLink, Eye, Wrench, Database
 } from 'lucide-react';
 import { HometaxPurchaseInvoiceModal } from '../components/HometaxPurchaseInvoiceModal';
+import { useApproval } from '../hooks/useApproval';
 
 // 정산 유형 탭 정의
 const SETTLEMENT_TYPES: { id: PurchaseSettlementType | 'ALL'; label: string; icon: React.ReactNode }[] = [
@@ -48,6 +49,13 @@ export const PurchaseSettlementPage: React.FC = () => {
     savePurchaseSettlement,
     showErrorModal
   } = useApp();
+  const { isRuleEnabled, createApprovalRequest } = useApproval();
+
+  const getSettlementRuleCode = (type?: PurchaseSettlementType) => {
+    if (type === 'TRANSPORT') return 'DISPATCH_PAYMENT';
+    if (type === 'EQUIPMENT_LEASE') return 'RENT_PAYMENT';
+    return 'CONSUMABLE_PURCHASE_PAYMENT';
+  };
 
   // 현재 연월 기본 선택
   const now = new Date();
@@ -60,7 +68,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   const [expandedId, setExpandedId]                = useState<string | null>(null);
   const [isGenerating, setIsGenerating]            = useState(false);
   const [generateResult, setGenerateResult]        = useState<string | null>(null);
-  const [paymentModal, setPaymentModal]            = useState<{ id: string; totalAmount: number; paidAmount: number; vendorName: string } | null>(null);
+  const [paymentModal, setPaymentModal]            = useState<{ id: string; totalAmount: number; paidAmount: number; vendorName: string; settlementType?: PurchaseSettlementType } | null>(null);
   const [paymentForm, setPaymentForm]              = useState({ paidAmount: '', paymentDate: currentYm.slice(0,7) + '-' + String(now.getDate()).padStart(2,'0'), paymentMethod: '계좌이체', bankAccount: '', memo: '' });
   const [selectedBankTxId, setSelectedBankTxId]    = useState<string | null>(null);
 
@@ -285,6 +293,35 @@ export const PurchaseSettlementPage: React.FC = () => {
 
     setIsSubmittingPayment(true);
     try {
+      const ruleCode = getSettlementRuleCode(paymentModal.settlementType);
+      if (isRuleEnabled(ruleCode)) {
+        await createApprovalRequest({
+          eventCode: ruleCode,
+          targetTable: 'purchase_settlements',
+          targetId: paymentModal.id,
+          amount: amt,
+          payload: {
+            actionType: ruleCode,
+            reason: paymentForm.memo || `[${paymentModal.vendorName}] ${TYPE_LABEL[paymentModal.settlementType || 'CONSUMABLE'] || '매입정산'} 지급 품의`,
+            toBe: {
+              settlementId: paymentModal.id,
+              vendorName: paymentModal.vendorName,
+              settlementType: paymentModal.settlementType,
+              paidAmount: amt,
+              paymentDate: paymentForm.paymentDate,
+              paymentMethod: paymentForm.paymentMethod,
+              bankAccount: paymentForm.bankAccount || undefined,
+              bankTransactionId: selectedBankTxId || undefined,
+              memo: paymentForm.memo || undefined
+            }
+          }
+        });
+        showToast(`[${paymentModal.vendorName}] ${amt.toLocaleString()}원 지급 품의가 상신되었습니다. (전결권자 승인 후 지급 완료 반영)`);
+        setPaymentModal(null);
+        setSelectedBankTxId(null);
+        return;
+      }
+
       await recordPurchaseSettlementPayment(paymentModal.id, {
         paidAmount: amt,
         paymentDate: paymentForm.paymentDate,
@@ -693,7 +730,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                               data-hs-trigger="Process"
                               onClick={() => {
                                 setSelectedBankTxId(null);
-                                setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName });
+                                setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName, settlementType: p.settlementType });
                                 setPaymentForm(prev => ({ ...prev, paidAmount: (p.totalAmount - p.paidAmount).toString() }));
                               }}
                               style={{
@@ -1072,10 +1109,10 @@ export const PurchaseSettlementPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button data-hs-trigger="Approve"
                 onClick={handlePaymentSubmit}
-                disabled={isSubmittingPayment}
-                style={{ flex: 1, height: '40px', background: isSubmittingPayment ? 'var(--text-muted)' : 'var(--success)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: isSubmittingPayment ? 'not-allowed' : 'pointer' }}
+                disabled={isSubmittingPayment || !(parseFloat(paymentForm.paidAmount) > 0) || !paymentForm.paymentDate || !paymentForm.paymentMethod.trim()}
+                style={{ flex: 1, height: '40px', background: (isSubmittingPayment || !(parseFloat(paymentForm.paidAmount) > 0) || !paymentForm.paymentDate || !paymentForm.paymentMethod.trim()) ? 'var(--text-muted)' : 'var(--success)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: (isSubmittingPayment || !(parseFloat(paymentForm.paidAmount) > 0) || !paymentForm.paymentDate || !paymentForm.paymentMethod.trim()) ? 'not-allowed' : 'pointer' }}
               >
-                {isSubmittingPayment ? '지급 대사 승인 중...' : '지급 대사 완료 승인'}
+                {isSubmittingPayment ? '처리중...' : (isRuleEnabled(getSettlementRuleCode(paymentModal.settlementType)) ? '상신' : '지급 대사 완료 승인')}
               </button>
               <button
                 onClick={() => { setPaymentModal(null); setSelectedBankTxId(null); }}
