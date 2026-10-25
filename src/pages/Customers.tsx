@@ -636,6 +636,20 @@ export const Customers: React.FC = () => {
     return allCustomerSites;
   }, [allCustomerSites, siteViewMode]);
 
+  const customerSitesTotalStats = useMemo(() => {
+    return customerSites.reduce(
+      (acc, cs) => {
+        const st = siteContractAssetStatsMap.get(cs.id);
+        if (st) {
+          acc.contractCount += st.contractCount;
+          acc.assetCount += st.assetCount;
+        }
+        return acc;
+      },
+      { contractCount: 0, assetCount: 0 }
+    );
+  }, [customerSites, siteContractAssetStatsMap]);
+
   const { items: sortedCustomerContacts, requestSort: requestSortContacts, sortConfig: sortConfigContacts } = useSortableData(customerContacts);
   const { items: sortedCustomerSites, requestSort: requestSortSites, sortConfig: sortConfigSites } = useSortableData(customerSites);
 
@@ -2402,7 +2416,30 @@ const handleDeleteAccount = async (accId: string) => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                       <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                        <SortableTh label="현장명" sortKey="name" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh
+                          label="현장명"
+                          extraContent={
+                            <span
+                              style={{
+                                marginLeft: '6px',
+                                padding: '1px 7px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(37, 99, 235, 0.10)',
+                                color: '#1d4ed8',
+                                border: '1px solid rgba(37, 99, 235, 0.28)',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              총 계약 {customerSitesTotalStats.contractCount.toLocaleString()}건 / 합계 {customerSitesTotalStats.assetCount.toLocaleString()}대
+                            </span>
+                          }
+                          sortKey="name"
+                          currentSort={sortConfigSites}
+                          onSort={requestSortSites}
+                          style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}
+                        />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
                         <SortableTh label="현장 주소" sortKey="address" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
                         <SortableTh label="현장 소장/담당" sortKey="contactName" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />

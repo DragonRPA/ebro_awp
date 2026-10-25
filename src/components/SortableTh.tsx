@@ -4,6 +4,7 @@ import { SortConfig, SortDirection } from '../hooks/useSortableData';
 export interface SortableThProps {
   label?: React.ReactNode;
   children?: React.ReactNode;
+  extraContent?: React.ReactNode;
   sortKey?: string;
   columnKey?: string;
   currentSort?: SortConfig | null;
@@ -25,6 +26,7 @@ export interface SortableThProps {
 export const SortableTh: React.FC<SortableThProps> = ({ 
   label, 
   children,
+  extraContent,
   sortKey, 
   columnKey,
   currentSort, 
@@ -88,6 +90,7 @@ export const SortableTh: React.FC<SortableThProps> = ({
         }}>
           {direction === 'asc' ? '▲' : direction === 'desc' ? '▼' : '↕'}
         </span>
+        {extraContent}
       </div>
     </th>
   );
