@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileAsList.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Search, Plus, Wrench, MapPin, User, Phone, Package, AlertTriangle, Clock, Image as ImageIcon, ChevronRight, BookOpen } from 'lucide-react';
 import { safePhoneCall, resolveSiteDetailedAddress } from '../../utils/nativeLauncher';
@@ -19,7 +19,7 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
   onOpenManual,
   initialMode = 'FIELD_AS',
 }) => {
-  const { fieldAsTickets, repairs, assets, sites, customers, contracts, contractAssets, refreshAllData } = useApp();
+  const { fieldAsTickets, repairs, assets, sites, customers, contracts, contractAssets, refreshAllData, navigationPayload, setNavigationPayload } = useApp();
   
   // ── 상단 탭 모드: 'FIELD_AS' (현장 출동) vs 'YARD_REPAIR' (주기장 정비) ──
   const [activeMode, setActiveMode] = useState<'FIELD_AS' | 'YARD_REPAIR'>(initialMode);
@@ -37,6 +37,48 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
   const [selectedYardAsset, setSelectedYardAsset] = useState<Asset | null>(null);
   const [selectedYardRepair, setSelectedYardRepair] = useState<Repair | null>(null);
   const [isYardModalOpen, setIsYardModalOpen] = useState(false);
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택 연동
+  useEffect(() => {
+    if (!navigationPayload) return;
+    const { ticketId, repairId, assetId, entityId, taskCategory } = navigationPayload;
+    const targetTicketId = ticketId || entityId || '';
+    const targetRepairId = repairId || entityId || '';
+
+    // 1. 현장 AS 티켓 매칭
+    if (targetTicketId && (fieldAsTickets || []).length > 0) {
+      const matchedTicket = fieldAsTickets.find(tk => tk.id === targetTicketId || tk.ticketNo === targetTicketId);
+      if (matchedTicket) {
+        setActiveMode('FIELD_AS');
+        setFieldStatusFilter('ALL');
+        setSearchTerm('');
+        onSelectTicket(matchedTicket.id);
+        if (setNavigationPayload) setNavigationPayload(null);
+        return;
+      }
+    }
+
+    // 2. 주기장 입고 정비 자산/수리 매칭
+    const matchedRepair = targetRepairId ? (repairs || []).find(r => r.id === targetRepairId) : undefined;
+    const resolvedAssetId = matchedRepair?.assetId || assetId || entityId || '';
+    const matchedAsset = resolvedAssetId ? (assets || []).find(a => a.id === resolvedAssetId || a.assetNo === resolvedAssetId) : undefined;
+
+    if (matchedAsset || matchedRepair || taskCategory === 'INBOUND_REPAIR_DEFECT') {
+      setActiveMode('YARD_REPAIR');
+      setYardFilter('ALL');
+      setSearchTerm('');
+      if (matchedAsset) {
+        const pendingOutbound = (repairs || []).find(r => r.assetId === matchedAsset.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
+        const pendingInbound = (repairs || []).find(r => r.assetId === matchedAsset.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
+        const unresolvedRepair = (repairs || []).find(r => r.assetId === matchedAsset.id && r.status === 'UNRESOLVED');
+        const generalPending = (repairs || []).find(r => r.assetId === matchedAsset.id && (r.status === 'PENDING' || r.status === 'IN_PROGRESS'));
+        setSelectedYardAsset(matchedAsset);
+        setSelectedYardRepair(matchedRepair || pendingOutbound || pendingInbound || unresolvedRepair || generalPending || null);
+        setIsYardModalOpen(true);
+      }
+      if (setNavigationPayload) setNavigationPayload(null);
+    }
+  }, [navigationPayload, fieldAsTickets, repairs, assets]);
 
   // 1. 주기장 정비 대상 자산 집계
   const yardAssets = useMemo(() => {

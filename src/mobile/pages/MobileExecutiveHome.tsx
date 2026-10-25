@@ -1,39 +1,76 @@
 // src/mobile/pages/MobileExecutiveHome.tsx
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Todo, Customer, DelinquencyActionLog, ConsumablePurchaseRequest, PurchaseSettlement } from '../../services/db';
+import { db, Todo, Customer, DelinquencyActionLog, ConsumablePurchaseRequest, PurchaseSettlement, isVirtualAsset } from '../../services/db';
 import { 
   Crown, TrendingUp, AlertTriangle, ShieldCheck, CreditCard, 
-  Clock, CheckCircle2, ChevronRight, Ban, Send, ArrowRight, Users, Car, Fuel, Boxes, Bell, CheckSquare
+  Clock, CheckCircle2, ChevronRight, Ban, Send, ArrowRight, Users, Car, Fuel, Boxes, Bell, CheckSquare, FileText
 } from 'lucide-react';
 import { MobileTabType } from '../MobileBottomNav';
-import { findActiveTasksForUser, buildTaskNavigationPayload } from '../../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask, getTaskDisplayBadges, resolveTaskMenuId } from '../../utils/taskHandoverPipeline';
+import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
+import { ContractDocumentBundleModal } from '../../components/ContractDocumentBundleModal';
 
 interface MobileExecutiveHomeProps {
   onNavigate: (tab: MobileTabType) => void;
   onOpenAsDetail?: (ticketId: string) => void;
 }
 
-export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavigate }) => {
+export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavigate, onOpenAsDetail }) => {
   const { 
-    assets, contracts, contractAssets, deliveries, outboundInspections, repairs,
+    products, assets, contracts, contractAssets, deliveries, outboundInspections, repairs, fieldAsTickets,
     billings, bankTransactions, bankInitialBalances, customers, 
     currentUser, saveCustomer, refreshAllData,
     consumablePurchases, purchaseSettlements, payrollClosings, setPayrollClosingStatus, showErrorModal,
-    todos, hasPermission, completeTodo, setNavigationPayload
+    todos, hasPermission, completeTodo, resolveExecutiveDirective, setNavigationPayload
   } = useApp();
 
   const [toast, setToast] = useState<string | null>(null);
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState<'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'>('ALL');
+  const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
+  const [showBundleModal, setShowBundleModal] = useState(false);
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 경영진 미결 업무/보고 피드 (실물 완료 건 자동 제외)
+  // 경영진 미결 업무/보고 피드 (실물 완료 건 자동 제외, PC 대시보드와 100% 동일 조건)
   const executiveTodos = useMemo(() => {
     return findActiveTasksForUser(todos || [], currentUser, hasPermission, 'EXECUTIVE');
-  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, billings, consumablePurchases, purchaseSettlements]);
+  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, fieldAsTickets, billings, consumablePurchases, purchaseSettlements]);
+
+  const taskGroupCounts = useMemo(() => {
+    let assign = 0;
+    let inspection = 0;
+    let dispatch = 0;
+    let other = 0;
+    executiveTodos.forEach(t => {
+      const mId = resolveTaskMenuId(t);
+      if (mId === 'dispatch_assign') assign += 1;
+      else if (mId === 'outbound_inspections') inspection += 1;
+      else if (mId === 'delivery') dispatch += 1;
+      else other += 1;
+    });
+    return { all: executiveTodos.length, assign, inspection, dispatch, other };
+  }, [executiveTodos]);
+
+  const filteredExecutiveTodos = useMemo(() => {
+    if (taskCategoryFilter === 'ALL') return executiveTodos;
+    return executiveTodos.filter(t => {
+      const mId = resolveTaskMenuId(t);
+      if (taskCategoryFilter === 'ASSIGN') return mId === 'dispatch_assign';
+      if (taskCategoryFilter === 'INSPECTION') return mId === 'outbound_inspections';
+      if (taskCategoryFilter === 'DISPATCH') return mId === 'delivery';
+      return mId !== 'dispatch_assign' && mId !== 'outbound_inspections' && mId !== 'delivery';
+    });
+  }, [executiveTodos, taskCategoryFilter]);
+
+  const handleResolveDirective = async (task: Todo) => {
+    const note = prompt('조치 결과 내용을 입력해주세요:', '확인 및 조치 완료');
+    if (note === null) return;
+    await resolveExecutiveDirective(task.id, note || '조치 완료');
+  };
 
   const handleBulkCompleteTodos = async () => {
     if (executiveTodos.length === 0) return;
@@ -47,73 +84,21 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
     triggerToast('대기 알림이 일괄 완료 처리되었습니다.');
   };
 
-  // 0. 가용재고 및 출고예정 실시간 요약 (경영진 전용 노출)
+  // 0. 가용재고 및 출고예정 실시간 요약 (SSOT 단일 엔진 연동: 가용재고조회 화면과 100% 일치)
   const availableInventorySummary = useMemo(() => {
-    const activeAssets = (assets || []).filter(a => {
-      if ((a as any).isDeleted) return false;
-      const st = a.status as string;
-      if (st === 'SOLD' || st === 'SCRAPPED' || st === 'DISPOSED' || st === 'RENTED_RETURNED') return false;
-      if (a.ownerType === 'RENTED' && a.actualRentReturnDate) return false;
-      return true;
-    });
+    return calculateAvailableInventorySSOT({
+      products,
+      assets,
+      contracts,
+      contractAssets,
+      deliveries,
+      outboundInspections,
+    }).summary;
+  }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
 
-    let stockOurs = 0;
-    let stockSub = 0;
-    activeAssets.forEach(a => {
-      if (a.status !== 'RENTED') {
-        if (a.ownerType === 'RENTED') stockSub += 1;
-        else stockOurs += 1;
-      }
-    });
-
-    const contractMap = new Map((contracts || []).map(c => [c.id, c]));
-    const assetMap = new Map(activeAssets.map(a => [a.id, a]));
-
-    let scheduledOurs = 0;
-    let scheduledSub = 0;
-    let unassignedScheduledCount = 0;
-
-    (contractAssets || []).forEach(ca => {
-      const parentContract = contractMap.get(ca.contractId);
-      if (!parentContract) return;
-      const cStatus = parentContract.status as string;
-      if (cStatus === 'CANCELLED' || cStatus === 'TERMINATED' || cStatus === 'COMPLETED') return;
-      const caStatus = ca.status as string;
-      if (caStatus === 'RETURNED' || caStatus === 'CANCELLED' || caStatus === 'REPLACED' || caStatus === 'RENTED' || caStatus === 'SOLD') return;
-      if (ca.actualReturnDate) return;
-
-      if (ca.assetId) {
-        const linkedAsset = assetMap.get(ca.assetId);
-        if (linkedAsset && linkedAsset.status === 'RENTED') return;
-        const isSub = linkedAsset ? linkedAsset.ownerType === 'RENTED' : Boolean((ca as any).isSubleased);
-        if (isSub) scheduledSub += 1;
-        else scheduledOurs += 1;
-      } else {
-        unassignedScheduledCount += 1;
-        if ((ca as any).isSubleased) scheduledSub += 1;
-        else scheduledOurs += 1;
-      }
-    });
-
-    const totalStock = stockOurs + stockSub;
-    const scheduledTotal = scheduledOurs + scheduledSub;
-    const contractableTotal = totalStock - scheduledTotal;
-
-    return {
-      stockOurs,
-      stockSub,
-      totalStock,
-      scheduledOurs,
-      scheduledSub,
-      scheduledTotal,
-      unassignedScheduledCount,
-      contractableTotal,
-    };
-  }, [assets, contracts, contractAssets]);
-
-  // 1. 자사 실물 자산 가동률 집계 (타사 임차 제외)
+  // 1. 자사 실물 자산 가동률 집계 (타사 임차 및 가상 자산 제외)
   const assetStats = useMemo(() => {
-    const ownedAssets = assets.filter(a => a.ownerType !== 'RENTED' && a.status !== 'DISPOSED' && (a.status as string) !== 'SOLD' && (a.status as string) !== 'SCRAPPED');
+    const ownedAssets = assets.filter(a => !isVirtualAsset(a) && a.ownerType !== 'RENTED' && a.status !== 'DISPOSED' && (a.status as string) !== 'SOLD' && (a.status as string) !== 'SCRAPPED');
     const totalCount = ownedAssets.length;
     const rentedCount = ownedAssets.filter(a => a.status === 'RENTED').length;
     const availableCount = ownedAssets.filter(a => a.status === 'AVAILABLE').length;
@@ -385,43 +370,146 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
             </div>
           </div>
 
+          {/* 유형별 필터 칩 (PC 대시보드와 동일 조건) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {([
+              { id: 'ALL', label: `전체 ${taskGroupCounts.all}` },
+              { id: 'ASSIGN', label: `장비 할당 ${taskGroupCounts.assign}` },
+              { id: 'INSPECTION', label: `출고 검수 ${taskGroupCounts.inspection}` },
+              { id: 'DISPATCH', label: `배차·운송 ${taskGroupCounts.dispatch}` },
+              { id: 'OTHER', label: `정비·기타 ${taskGroupCounts.other}` },
+            ] as { id: 'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'; label: string }[]).map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setTaskCategoryFilter(tab.id)}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-black border transition-all ${
+                  taskCategoryFilter === tab.id
+                    ? 'bg-amber-600 text-white border-amber-500'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col gap-2">
-            {executiveTodos.map(task => {
-              const url = (task.actionUrl || '').toLowerCase();
-              const cat = (task.taskCategory || '').toUpperCase();
-              const et = (task.entityType || '').toUpperCase();
-              let targetTab: MobileTabType | null = null;
-              if (url.includes('dispatch_assign') || cat.includes('ASSIGN')) targetTab = 'assignment';
-              else if (url.includes('dispatch') || cat.includes('DISPATCH') || et === 'DELIVERY') targetTab = 'dispatch';
-              else if (url.includes('outbound_inspections') || cat.includes('INSPECTION') || et === 'INSPECTION') targetTab = 'inspection';
-              else if (url.includes('repairs') || url.includes('field_as') || cat.includes('AS') || cat.includes('REPAIR') || et === 'REPAIR') targetTab = 'as';
-              else if (url.includes('contract') || cat.includes('CONTRACT')) targetTab = 'my_contracts';
-              else if (url.includes('customers') || cat.includes('CUSTOMER') || et === 'CUSTOMER') targetTab = 'customers';
-              else if (url.includes('delinquency') || url.includes('receivables') || url.includes('billings') || et === 'BILLING') targetTab = 'delinquency';
+            {filteredExecutiveTodos.map(task => {
+              const targetTab = resolveMobileTabForTask(task) as MobileTabType | null;
+              const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
+              const isPackageResend = task.taskCategory === 'CONTRACT_PACKAGE_RESEND';
+              const { menuLabel, deptLabel } = getTaskDisplayBadges(task);
+              const priorityBg = task.priority === 'URGENT'
+                ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                : task.priority === 'HIGH'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-blue-500/20 text-blue-300 border-blue-500/40';
 
               return (
-                <div key={task.id} className="p-3 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-between gap-2">
+                <div
+                  key={task.id}
+                  className={`p-3 rounded-xl border flex flex-col gap-2 ${
+                    isDirective
+                      ? 'bg-red-950/40 border-red-500/60'
+                      : isPackageResend
+                      ? 'bg-indigo-950/40 border-indigo-500/60'
+                      : 'bg-slate-800 border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {isDirective ? (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-red-600 text-white" style={{ whiteSpace: 'nowrap' }}>
+                          특별지시
+                        </span>
+                      ) : isPackageResend ? (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-indigo-600 text-white flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
+                          <FileText className="w-3 h-3" /> 패키지 재발송
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${priorityBg}`} style={{ whiteSpace: 'nowrap' }}>
+                          {task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반'}
+                        </span>
+                      )}
+                      {menuLabel && (
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40" style={{ whiteSpace: 'nowrap' }}>
+                          {menuLabel}
+                        </span>
+                      )}
+                      {task.dueDate && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap' }}>
+                          마감 {task.dueDate}
+                        </span>
+                      )}
+                    </div>
+                    {task.createdAt && (
+                      <span className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {task.createdAt.substring(5, 10)}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white leading-snug">{task.title}</div>
                     {task.content && (
-                      <div className="text-[11px] text-slate-200 mt-0.5 line-clamp-2 whitespace-pre-line">{task.content}</div>
+                      <div className="text-[11px] text-slate-200 mt-1 whitespace-pre-line">{task.content}</div>
                     )}
+                    <div className="text-[10px] text-slate-300 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>발행: {task.senderName || '시스템'}</span>
+                      {deptLabel && <span>담당부서: {deptLabel}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+
+                  <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-700">
+                    {isPackageResend && task.entityId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBundleTargetContractId(task.entityId);
+                          setShowBundleModal(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        <FileText className="w-3 h-3" />
+                        <span>패키지 재발송</span>
+                      </button>
+                    )}
                     {targetTab && (
                       <button
                         type="button"
                         onClick={() => {
+                          const payload = buildTaskNavigationPayload(task);
                           if (setNavigationPayload) {
-                            setNavigationPayload(buildTaskNavigationPayload(task));
+                            setNavigationPayload(payload);
                           }
-                          onNavigate(targetTab!);
+                          if (onOpenAsDetail && payload.ticketId && (fieldAsTickets || []).some(tk => tk.id === payload.ticketId || tk.ticketNo === payload.ticketId)) {
+                            const matchedTk = (fieldAsTickets || []).find(tk => tk.id === payload.ticketId || tk.ticketNo === payload.ticketId);
+                            if (matchedTk) {
+                              onOpenAsDetail(matchedTk.id);
+                              return;
+                            }
+                          }
+                          onNavigate(targetTab);
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
                         style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
                         <span>처리 이동</span>
                         <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                    {isDirective && (
+                      <button
+                        type="button"
+                        onClick={() => handleResolveDirective(task)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        <CheckSquare className="w-3 h-3" />
+                        <span>보고 및 완료</span>
                       </button>
                     )}
                   </div>
@@ -429,6 +517,16 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
               );
             })}
           </div>
+          {showBundleModal && (
+            <ContractDocumentBundleModal
+              isOpen={showBundleModal}
+              onClose={() => {
+                setShowBundleModal(false);
+                setBundleTargetContractId(undefined);
+              }}
+              initialContractId={bundleTargetContractId}
+            />
+          )}
         </div>
       )}
 
@@ -453,25 +551,22 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
       {/* ── [신규 핵심] 경영진 가용재고 및 출고예정 실시간 조회 카드 ── */}
       <div
         onClick={() => onNavigate('assets')}
-        className="p-4 rounded-2xl bg-slate-900 border-2 border-sky-500/50 flex flex-col gap-3 shadow-xl cursor-pointer active:scale-98 transition-all"
+        className="p-4 rounded-2xl bg-slate-900 border-2 border-sky-500/50 flex flex-col gap-3 shadow-xl cursor-pointer active:scale-98 transition-all overflow-hidden"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-300 flex-shrink-0">
               <Boxes className="w-4 h-4" />
             </div>
-            <div>
-              <div className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-black text-white truncate">
                 가용재고 및 출고예정 현황
-              </div>
-              <div className="text-[11px] text-slate-300" style={{ whiteSpace: 'nowrap' }}>
-                피트·모델별 계약가능 재고 및 출고예정 대장
               </div>
             </div>
           </div>
           <span
-            className="px-2.5 py-1 rounded-lg bg-sky-600 text-white text-xs font-black flex items-center gap-1"
-            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+            className="px-2.5 py-1 rounded-lg bg-sky-600 text-white text-xs font-black flex items-center gap-1 flex-shrink-0"
+            style={{ whiteSpace: 'nowrap', flexShrink: 0, color: '#ffffff' }}
           >
             <span>가용재고조회</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -479,28 +574,31 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600">
-            <div className="text-[10px] font-bold text-sky-300" style={{ whiteSpace: 'nowrap' }}>계약가능 재고</div>
-            <div className={`text-lg font-black font-mono mt-0.5 ${availableInventorySummary.contractableTotal < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600 flex flex-col justify-between">
+            <div className="text-[10.5px] font-extrabold text-sky-300" style={{ whiteSpace: 'nowrap', color: '#7dd3fc' }}>계약가능 재고</div>
+            <div className={`text-lg font-black font-mono mt-0.5 ${availableInventorySummary.contractableTotal < 0 ? 'text-rose-400' : 'text-emerald-400'}`} style={{ whiteSpace: 'nowrap' }}>
               {availableInventorySummary.contractableTotal}대
             </div>
+            <div className="text-[10px] text-slate-200 font-bold" style={{ whiteSpace: 'nowrap', color: '#cbd5e1' }}>
+              재고 - 출고예정
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600">
-            <div className="text-[10px] font-bold text-slate-300" style={{ whiteSpace: 'nowrap' }}>주기장 현재고</div>
-            <div className="text-lg font-black font-mono text-white mt-0.5">
+          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600 flex flex-col justify-between">
+            <div className="text-[10.5px] font-extrabold text-emerald-300" style={{ whiteSpace: 'nowrap', color: '#6ee7b7' }}>주기장 현재고</div>
+            <div className="text-lg font-black font-mono text-white mt-0.5" style={{ whiteSpace: 'nowrap', color: '#ffffff' }}>
               {availableInventorySummary.totalStock}대
             </div>
-            <div className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap' }}>
+            <div className="text-[10px] text-slate-200 font-mono font-bold" style={{ whiteSpace: 'nowrap', color: '#e2e8f0' }}>
               당사 {availableInventorySummary.stockOurs} · 임차 {availableInventorySummary.stockSub}
             </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600">
-            <div className="text-[10px] font-bold text-amber-300" style={{ whiteSpace: 'nowrap' }}>출고예정</div>
-            <div className="text-lg font-black font-mono text-amber-400 mt-0.5">
+          <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600 flex flex-col justify-between">
+            <div className="text-[10.5px] font-extrabold text-amber-300" style={{ whiteSpace: 'nowrap', color: '#fcd34d' }}>출고예정</div>
+            <div className="text-lg font-black font-mono text-amber-400 mt-0.5" style={{ whiteSpace: 'nowrap', color: '#fbbf24' }}>
               {availableInventorySummary.scheduledTotal}대
             </div>
-            <div className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap' }}>
-              미할당 {availableInventorySummary.unassignedScheduledCount}대
+            <div className="text-[10px] text-slate-200 font-mono font-bold" style={{ whiteSpace: 'nowrap', color: '#e2e8f0' }}>
+              당사 {availableInventorySummary.scheduledOurs} · 임차 {availableInventorySummary.scheduledSub}
             </div>
           </div>
         </div>

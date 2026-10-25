@@ -2,23 +2,26 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Activity, CheckCircle, Bell, ArrowRight, FileText, CheckSquare, RefreshCw, ClipboardList, Package } from 'lucide-react';
 import { isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
-import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload, resolveTaskMenuId } from '../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload, resolveTaskMenuId, getTaskDisplayBadges } from '../utils/taskHandoverPipeline';
 import { normalizeMenuId } from '../config/menu_config';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
-import { Todo, isVirtualAsset } from '../services/db';
+import { Todo } from '../services/db';
+import { calculateAvailableInventorySSOT } from '../utils/availableInventoryCalculator';
 
 export const Dashboard: React.FC = () => {
   const { 
     currentUser, 
     hasPermission, 
     todos, 
+    products,
     assets,
     contracts,
     contractAssets,
     deliveries,
     outboundInspections,
     repairs,
+    fieldAsTickets,
     customers,
     sites,
     completeTodo, 
@@ -58,7 +61,7 @@ export const Dashboard: React.FC = () => {
 
   const activeTasks = useMemo(
     () => findActiveTasksForUser(todos, currentUser, hasPermission),
-    [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, repairs, assets, customers, sites]
+    [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, repairs, fieldAsTickets, assets, customers, sites]
   );
 
   const taskGroupCounts = useMemo(() => {
@@ -93,54 +96,24 @@ export const Dashboard: React.FC = () => {
     });
   }, [activeTasks, taskCategoryFilter]);
 
-  // 영업부 / 경영진 / 출고·관리부 공통 가용재고 및 미완결 출고예정 실시간 요약
+  // 영업부 / 경영진 / 출고·관리부 공통 가용재고 및 미완결 출고예정 실시간 요약 (SSOT 연동)
   const inventorySummary = useMemo(() => {
-    let stockOwned = 0;
-    let stockRented = 0;
-    const assetMap = new Map((assets || []).map(a => [a.id, a]));
-
-    (assets || []).forEach(a => {
-      if (isVirtualAsset(a)) return;
-      if (a.actualRentReturnDate) return;
-      if (a.status !== 'AVAILABLE') return;
-      if (a.ownerType === 'RENTED') {
-        stockRented += 1;
-      } else {
-        stockOwned += 1;
-      }
+    const { summary } = calculateAvailableInventorySSOT({
+      products,
+      assets,
+      contracts,
+      contractAssets,
+      deliveries,
+      outboundInspections,
     });
-
-    const completedInspCaIds = new Set<string>();
-    (outboundInspections || []).forEach(ins => {
-      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
-        completedInspCaIds.add((ins as any).contractAssetId);
-      }
-    });
-
-    let pendingUnassignedCount = 0;
-    (contractAssets || []).forEach(ca => {
-      if (!ca.contractId) return;
-      if (ca.status === 'RETURNED' || ca.status === 'SOLD' || ca.status === 'RENTED') return;
-      if (completedInspCaIds.has(ca.id)) return;
-      if (ca.assetId) {
-        const assigned = assetMap.get(ca.assetId);
-        if (assigned?.status === 'RENTED') return;
-        return;
-      }
-      pendingUnassignedCount += 1;
-    });
-
-    const totalStock = stockOwned + stockRented;
-    const availableContractQty = totalStock - pendingUnassignedCount;
-
     return {
-      stockOwned,
-      stockRented,
-      totalStock,
-      pendingUnassignedCount,
-      availableContractQty
+      stockOwned: summary.stockOurs,
+      stockRented: summary.stockSub,
+      totalStock: summary.totalStock,
+      pendingUnassignedCount: summary.scheduledTotal,
+      availableContractQty: summary.contractableTotal,
     };
-  }, [assets, contractAssets, outboundInspections]);
+  }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
 
   const resolveTaskTargetMenu = (actionUrl?: string, task?: Todo): string => {
     if (task) {
@@ -443,32 +416,7 @@ export const Dashboard: React.FC = () => {
                 const priorityColor = task.priority === 'URGENT' ? 'var(--danger)' : task.priority === 'HIGH' ? 'var(--warning)' : 'var(--primary)';
                 const priorityLabel = task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반';
                 const targetMenuId = resolveTaskMenuId(task);
-                const menuBadgeLabel =
-                  targetMenuId === 'dispatch_assign'
-                    ? '장비 할당'
-                    : targetMenuId === 'outbound_inspections'
-                    ? '출고 검수'
-                    : targetMenuId === 'delivery'
-                    ? '배차 관리'
-                    : targetMenuId === 'field_as'
-                    ? '현장 정비'
-                    : targetMenuId === 'repair'
-                    ? '입고 정비'
-                    : targetMenuId === 'contract'
-                    ? '계약 관리'
-                    : '';
-                const deptLabel =
-                  task.targetDept === 'YARD'
-                    ? '출고팀'
-                    : task.targetDept === 'DISPATCH'
-                    ? '배차/관리부'
-                    : task.targetDept === 'AS'
-                    ? 'AS팀'
-                    : task.targetDept === 'SALES'
-                    ? '영업부'
-                    : task.targetDept === 'ACCOUNTING'
-                    ? '관리부'
-                    : task.targetDept || '';
+                const { menuLabel: menuBadgeLabel, deptLabel } = getTaskDisplayBadges(task);
                 
                 return (
                   <div key={task.id} style={{

@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileCustomerManage.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db, Customer, CustomerContact, CustomerSite, DelinquencyActionLog } from '../../services/db';
 import { 
@@ -19,7 +19,7 @@ interface MobileCustomerManageProps {
 export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNavigateToOrder }) => {
   const { 
     customers, contacts, sites, siteMasters, assets, contracts, billings, currentUser,
-    saveCustomer, refreshAllData, showErrorModal 
+    saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload 
   } = useApp();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +35,25 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
   
   // 고객사 정보 간이 수정 모달 상태 (헌장 1.1 & 2.1)
   const [editingCustomer, setEditingCustomer] = useState<Partial<Customer> | null>(null);
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택 연동
+  useEffect(() => {
+    if (!navigationPayload || customers.length === 0) return;
+    const targetCustId = navigationPayload.customerId || navigationPayload.editCustomerId || navigationPayload.entityId || '';
+    if (!targetCustId) return;
+
+    const matched = customers.find(c => c.id === targetCustId || c.name === targetCustId);
+    if (matched) {
+      setStatusFilter('ALL');
+      setChosungFilter('전체');
+      setSearchTerm(matched.name || '');
+      setExpandedCustomerId(matched.id);
+      if (navigationPayload.editCustomerId || navigationPayload.taskCategory?.includes('MISSING')) {
+        setEditingCustomer(matched);
+      }
+      if (setNavigationPayload) setNavigationPayload(null);
+    }
+  }, [navigationPayload, customers]);
 
   // 신규 고객사 등록 모달 상태 (과제 9)
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);

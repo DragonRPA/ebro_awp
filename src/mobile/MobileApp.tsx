@@ -275,8 +275,9 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     return (deliveries || []).filter((d) => {
       const st = (d.status || '').toUpperCase();
       if (st === 'CANCELLED' || st === 'DELIVERED' || st === 'COMPLETED') return false;
+      if (d.contractId && !activeContractIdSet.has(d.contractId)) return false;
       if (d.unloadingCompletedAt || d.loadingCompletedAt) return false;
-      if (d.type === 'OUTBOUND' && d.contractId) {
+      if (d.type !== 'INBOUND' && d.contractId) {
         const cAssets = (contractAssets || []).filter(ca => ca.contractId === d.contractId);
         if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
           return false;
@@ -284,7 +285,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       }
       return st === 'PENDING' || st === 'REQUESTED' || st === 'DISPATCHED';
     }).length;
-  }, [deliveries, contractAssets]);
+  }, [deliveries, contractAssets, activeContractIdSet]);
 
   // 4) 미완료 출고검수 건수 (취소된 배차 또는 이미 RENTED/RETURNED 전환된 슬롯 제외)
   const pendingInspectionCount = useMemo(() => {
@@ -292,7 +293,8 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       (deliveries || []).filter(d => d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED').map(d => d.id)
     );
     return (outboundInspections || []).filter((ins) => {
-      if (ins.status !== 'PENDING') return false;
+      if (ins.status !== 'PENDING' && ins.status !== 'IN_PROGRESS') return false;
+      if (ins.contractId && !activeContractIdSet.has(ins.contractId)) return false;
       if (ins.deliveryId && cancelledDelivIds.has(ins.deliveryId)) return false;
       if ((ins as any).contractAssetId) {
         const ca = (contractAssets || []).find(c => c.id === (ins as any).contractAssetId);
@@ -304,7 +306,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       }
       return true;
     }).length;
-  }, [outboundInspections, deliveries, contractAssets, assetMap]);
+  }, [outboundInspections, deliveries, contractAssets, assetMap, activeContractIdSet]);
 
   // 네비게이션 핸들러
   const handleTabChange = (tab: MobileTabType) => {

@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileDelinquencyManage.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked } from '../../services/db';
 import { 
@@ -38,7 +38,7 @@ const QUICK_DIRECTIVE_PRESETS = [
 export const MobileDelinquencyManage: React.FC = () => {
   const { 
     customers, sites, billings, contracts, users, todos, delinquencyActionLogs, 
-    currentUser, saveCustomer, refreshAllData, showErrorModal 
+    currentUser, saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload 
   } = useApp();
 
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'HIGH_RISK' | 'OVERDUE_30' | 'OVERDUE_60' | 'BLOCKED' | 'NEGLECTED'>('ALL');
@@ -60,6 +60,27 @@ export const MobileDelinquencyManage: React.FC = () => {
   };
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택 연동
+  useEffect(() => {
+    if (!navigationPayload || customers.length === 0) return;
+    const { customerId, billingId, entityId } = navigationPayload;
+    let resolvedCustomerId = customerId || '';
+    if (!resolvedCustomerId && (billingId || entityId)) {
+      const targetBillId = billingId || entityId;
+      const b = billings.find(x => x.id === targetBillId);
+      if (b?.customerId) resolvedCustomerId = b.customerId;
+      else if (customers.some(c => c.id === entityId)) resolvedCustomerId = entityId;
+    }
+    if (resolvedCustomerId) {
+      const cust = customers.find(c => c.id === resolvedCustomerId);
+      if (cust) {
+        setActiveFilter('ALL');
+        setSearchTerm(cust.name || '');
+      }
+      if (setNavigationPayload) setNavigationPayload(null);
+    }
+  }, [navigationPayload, customers, billings]);
   const today = useMemo(() => new Date(), []);
 
   // 헌장 4.1 & 5.1 준수: 고객현장 ➔ 계약 ➔ 고객사 우선순위 기반 약정 납기일 정밀 동적 산출 함수

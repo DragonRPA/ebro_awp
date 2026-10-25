@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileMyContracts.tsx
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Building2, MapPin, Phone, Calendar, Clock, Layers, 
@@ -14,7 +14,7 @@ interface MobileMyContractsProps {
 }
 
 export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCreateAsForAsset }) => {
-  const { contracts, contractAssets, customers, sites, assets, currentUser } = useApp();
+  const { contracts, contractAssets, customers, sites, assets, currentUser, navigationPayload, setNavigationPayload } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL'>('ACTIVE');
   const [selectedContract, setSelectedContract] = useState<any | null>(null);
@@ -101,6 +101,21 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
         };
       });
   }, [contracts, contractAssets, customers, sites, assets, filterStatus, searchTerm, todayStr]);
+
+  // 대시보드 [처리 이동] 딥링크 자동 선택 연동
+  useEffect(() => {
+    if (!navigationPayload || contracts.length === 0) return;
+    const targetContractId = navigationPayload.contractId || navigationPayload.entityId || '';
+    if (!targetContractId) return;
+
+    const matched = myContractList.find(c => c.id === targetContractId || c.contractNo === targetContractId);
+    if (matched) {
+      setSelectedContract(matched);
+      if (setNavigationPayload) setNavigationPayload(null);
+    } else if (filterStatus !== 'ALL' && contracts.some(c => c.id === targetContractId || c.contractNo === targetContractId)) {
+      setFilterStatus('ALL');
+    }
+  }, [navigationPayload, contracts, myContractList, filterStatus]);
 
   return (
     <div className="flex flex-col gap-3.5 pb-24 p-4 font-sans text-slate-100">

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MobileTabType } from '../MobileBottomNav';
 import { db, BankTransaction, Todo, PaymentDepositLink } from '../../services/db';
-import { findActiveTasksForUser, buildTaskNavigationPayload } from '../../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask, getTaskDisplayBadges } from '../../utils/taskHandoverPipeline';
 
 interface MobileAdminHomeProps {
   onNavigate: (tab: MobileTabType) => void;
@@ -25,12 +25,14 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
     contractAssets,
     outboundInspections,
     repairs,
+    fieldAsTickets,
     bankTransactions,
     matchTransactionManual,
     showErrorModal,
     todos,
     hasPermission,
     completeTodo,
+    resolveExecutiveDirective,
     refreshAllData,
     setNavigationPayload
   } = useApp();
@@ -44,7 +46,13 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
   // 관리부 미결 업무 피드 (실물 완료 건 자동 제외)
   const adminTodos = useMemo(() => {
     return findActiveTasksForUser(todos || [], currentUser, hasPermission, 'ADMIN');
-  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, billings]);
+  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, fieldAsTickets, billings]);
+
+  const handleResolveDirective = async (task: Todo) => {
+    const note = prompt('조치 결과 내용을 입력해주세요:', '확인 및 조치 완료');
+    if (note === null) return;
+    await resolveExecutiveDirective(task.id, note || '조치 완료');
+  };
 
   const handleBulkCompleteTodos = async () => {
     if (adminTodos.length === 0) return;
@@ -64,19 +72,33 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
     return subleaseAssets.filter(a => a.status !== 'RENTED').length;
   }, [subleaseAssets]);
 
-  // 미완료 배차 건수 (이미 상차/하차 완료되었거나 대여중/반납완료된 건 제외)
+  // 미완료 배차 건수 (PC 대시보드 및 모바일 하단 배지와 100% 동일 조건)
   const pendingDispatchCount = useMemo(() => {
+    const activeContractIdSet = new Set(
+      (contracts || [])
+        .filter(c => {
+          const st = (c.status || '').toUpperCase();
+          return st !== 'CANCELLED' && st !== 'TERMINATED' && st !== 'COMPLETED';
+        })
+        .map(c => c.id)
+    );
     return (deliveries || []).filter(d => {
-      if (d.status !== 'PENDING' && d.status !== 'REQUESTED' && d.status !== 'DISPATCHED') return false;
-      if (d.loadingCompletedAt || d.unloadingCompletedAt) return false;
-      const caId = (d as any).contractAssetId;
-      if (caId) {
-        const ca = (contractAssets || []).find(c => c.id === caId);
-        if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || (ca.status as string) === 'CANCELLED')) return false;
+      if (d.status !== 'PENDING' && d.status !== 'REQUESTED') return false;
+      if (!d.contractId || !activeContractIdSet.has(d.contractId)) return false;
+      if (d.driverName || d.vehicleNo || d.loadingCompletedAt || d.unloadingCompletedAt) return false;
+      const cAssets = (contractAssets || []).filter(ca => ca.contractId === d.contractId);
+      if (d.type !== 'INBOUND') {
+        if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+          return false;
+        }
+      } else {
+        if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+          return false;
+        }
       }
       return true;
     }).length;
-  }, [deliveries, contractAssets]);
+  }, [deliveries, contracts, contractAssets]);
 
   // 1. 오늘/이번 주 마감 도래 업체 목록 및 D-Day 실연산
   const closingDueCustomers = useMemo(() => {
@@ -210,26 +232,63 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
 
           <div className="flex flex-col gap-2">
             {adminTodos.map(task => {
-              const url = (task.actionUrl || '').toLowerCase();
-              const cat = (task.taskCategory || '').toUpperCase();
-              const et = (task.entityType || '').toUpperCase();
-              let targetTab: MobileTabType | null = null;
-              if (url.includes('dispatch_assign') || cat.includes('ASSIGN')) targetTab = 'assignment';
-              else if (url.includes('dispatch') || cat.includes('DISPATCH') || et === 'DELIVERY') targetTab = 'dispatch';
-              else if (url.includes('outbound_inspections') || cat.includes('INSPECTION') || et === 'INSPECTION') targetTab = 'inspection';
-              else if (url.includes('contract') || cat.includes('CONTRACT')) targetTab = 'my_contracts';
-              else if (url.includes('customers') || cat.includes('CUSTOMER') || et === 'CUSTOMER') targetTab = 'customers';
-              else if (url.includes('delinquency') || url.includes('receivables') || url.includes('billings') || et === 'BILLING') targetTab = 'delinquency';
+              const targetTab = resolveMobileTabForTask(task) as MobileTabType | null;
+              const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
+              const { menuLabel, deptLabel } = getTaskDisplayBadges(task);
+              const priorityBg = task.priority === 'URGENT'
+                ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                : task.priority === 'HIGH'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-blue-500/20 text-blue-300 border-blue-500/40';
 
               return (
-                <div key={task.id} className="p-3 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-between gap-2">
+                <div
+                  key={task.id}
+                  className={`p-3 rounded-xl border flex flex-col gap-2 ${
+                    isDirective ? 'bg-red-950/40 border-red-500/60' : 'bg-slate-800 border-slate-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {isDirective ? (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-red-600 text-white" style={{ whiteSpace: 'nowrap' }}>
+                          특별지시
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${priorityBg}`} style={{ whiteSpace: 'nowrap' }}>
+                          {task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반'}
+                        </span>
+                      )}
+                      {menuLabel && (
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40" style={{ whiteSpace: 'nowrap' }}>
+                          {menuLabel}
+                        </span>
+                      )}
+                      {task.dueDate && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap' }}>
+                          마감 {task.dueDate}
+                        </span>
+                      )}
+                    </div>
+                    {task.createdAt && (
+                      <span className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {task.createdAt.substring(5, 10)}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white leading-snug">{task.title}</div>
                     {task.content && (
-                      <div className="text-[11px] text-slate-200 mt-0.5 line-clamp-2 whitespace-pre-line">{task.content}</div>
+                      <div className="text-[11px] text-slate-200 mt-1 whitespace-pre-line">{task.content}</div>
                     )}
+                    <div className="text-[10px] text-slate-300 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>발행: {task.senderName || '시스템'}</span>
+                      {deptLabel && <span>담당부서: {deptLabel}</span>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+
+                  <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-700">
                     {targetTab && (
                       <button
                         type="button"
@@ -237,13 +296,24 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
                           if (setNavigationPayload) {
                             setNavigationPayload(buildTaskNavigationPayload(task));
                           }
-                          onNavigate(targetTab!);
+                          onNavigate(targetTab);
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
                         style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
                         <span>처리 이동</span>
                         <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                    {isDirective && (
+                      <button
+                        type="button"
+                        onClick={() => handleResolveDirective(task)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        <CheckSquare className="w-3 h-3" />
+                        <span>보고 및 완료</span>
                       </button>
                     )}
                   </div>

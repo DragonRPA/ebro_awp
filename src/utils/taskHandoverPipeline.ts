@@ -361,15 +361,48 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
     return false;
   }
 
-  // 5. 정비 / AS (REPAIR 관련)
-  if (etype === 'REPAIR' || cat.includes('REPAIR') || cat.includes('AS')) {
+  // 5. 정비 / AS (FIELD_AS 및 REPAIR 관련)
+  if (etype === 'REPAIR' || etype === 'FIELD_AS' || cat.includes('REPAIR') || cat.includes('AS')) {
     if (!eid) return true;
+    const isFieldAsTask =
+      cat === 'AS_DISPATCH_REPAIR' ||
+      etype === 'FIELD_AS' ||
+      eid.startsWith('FAS-') ||
+      (t.actionUrl || '').toLowerCase().includes('field_as');
+
+    // 5-A. 현장 정비(fieldAsTickets) 원장 확인
+    if ((db.fieldAsTickets || []).length > 0) {
+      const ticket = db.fieldAsTickets.find(tk => tk.id === eid || tk.ticketNo === eid);
+      if (ticket) {
+        const tkStatus = (ticket.status || '').toUpperCase();
+        if (tkStatus === 'COMPLETED' || tkStatus === 'CANCELED' || tkStatus === 'CANCELLED') return true;
+        return false;
+      }
+      if (isFieldAsTask) {
+        const activeTickets = db.fieldAsTickets.filter(
+          tk =>
+            (tk.assetId === eid || tk.contractId === eid || tk.assetNo === eid) &&
+            tk.status !== 'COMPLETED' &&
+            tk.status !== 'CANCELED' &&
+            (tk.status as string) !== 'CANCELLED'
+        );
+        if (activeTickets.length > 0) return false;
+      }
+    } else if (isFieldAsTask && db.repairs.length === 0) {
+      return false;
+    }
+
+    // 5-B. 주기장/일반 수리(repairs) 원장 확인
     if (db.repairs.length === 0) return false;
     const rep = db.repairs.find(r => r.id === eid);
     if (rep) {
       const rStatus = (rep.status || '').toUpperCase();
       if (rStatus === 'COMPLETED' || rStatus === 'CANCELLED' || rStatus === 'WAIVED' || rStatus === 'RESOLVED') return true;
       return false;
+    }
+    // 현장 AS 전용 티켓(FAS-...)인데 fieldAsTickets가 아직 로드 전이면 보류, 로드 후에도 없으면 완료 처리
+    if (eid.startsWith('FAS-')) {
+      return (db.fieldAsTickets || []).length > 0;
     }
     // eid가 assetId 또는 contractId인 경우 미완료 수리 건 존재 여부 확인
     const activeRepairs = db.repairs.filter(
@@ -697,17 +730,132 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
     });
   });
 
-  // ── 3. [현장 정비 요청 / 입고 수리] (field_as / repair 직결) ──
-  (db.repairs || []).forEach(rep => {
-    const rSt = (rep.status || '').toUpperCase();
-    if (rSt === 'COMPLETED' || rSt === 'CANCELLED' || rSt === 'RESOLVED' || rSt === 'WAIVED') return;
+  // ── 2.5 [배차 관리] (delivery / TruckDispatch.tsx / MobileDispatchList.tsx 직결) ──
+  (db.deliveries || []).forEach(d => {
+    const dSt = (d.status || '').toUpperCase();
+    if (dSt !== 'PENDING' && dSt !== 'REQUESTED') return;
+    if (!d.contractId || !contractMap.has(d.contractId)) return;
+    const c = contractMap.get(d.contractId)!;
+    const cSt = (c.status || '').toUpperCase();
+    if (cSt === 'CANCELLED' || cSt === 'TERMINATED' || cSt === 'COMPLETED') return;
+    if (d.driverName || d.vehicleNo || d.loadingCompletedAt || d.unloadingCompletedAt) return;
+
+    const cAssets = (db.contractAssets || []).filter(ca => ca.contractId === d.contractId);
+    if (d.type !== 'INBOUND') {
+      if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+        return;
+      }
+    } else {
+      if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+        return;
+      }
+    }
 
     const alreadyExists = existingOpenTodos.some(t => {
       const cat = (t.taskCategory || '').toUpperCase();
       const et = (t.entityType || '').toUpperCase();
-      if (et !== 'REPAIR' && !cat.includes('REPAIR') && !cat.includes('AS')) return false;
-      return t.entityId === rep.id || t.relatedEntityId === rep.id || (rep.assetId && t.entityId === rep.assetId);
+      if (et !== 'DELIVERY' && !cat.includes('DISPATCH')) return false;
+      if (cat.includes('ASSIGN') && !cat.includes('VEHICLE')) return false;
+      return t.entityId === d.id || t.relatedEntityId === d.id || (t.entityId === d.contractId && et === 'DELIVERY');
     });
+    if (alreadyExists) return;
+
+    const custName = (c.customerId && customerMap.get(c.customerId)?.name) || (c as any).customerName || '고객사';
+    const siteName = (c.siteId && siteMap.get(c.siteId)?.name) || (c as any).siteName || '현장';
+    const isExchange =
+      d.type === 'EXCHANGE' ||
+      d.dispatchCategory === '교환' ||
+      (db.contractHistory || []).some(h => h.contractId === c.id && h.changeType === 'EXCHANGE');
+    const dispatchTypeLabel = isExchange
+      ? '교환'
+      : d.type === 'INBOUND' || d.dispatchCategory === '회수' || d.dispatchCategory === '입고'
+      ? '회수'
+      : '출고';
+    const schedDate = (d.loadingDate || d.scheduledDate || d.requestDate || c.startDate || '').slice(0, 10);
+    const salespersonName = (c.salespersonId && userMap.get(c.salespersonId)?.name) || '영업부';
+
+    synthesized.push({
+      id: `SYNTH-DISP-${d.id}`,
+      userId: 'u-1',
+      targetType: 'DEPT',
+      targetDept: 'DISPATCH',
+      taskCategory: 'DISPATCH_VEHICLE_ASSIGN',
+      type: isExchange ? 'URGENT' : 'GENERAL',
+      priority: isExchange ? 'URGENT' : 'HIGH',
+      title: `[배차 관리] ${custName} (${dispatchTypeLabel} 배차 대기)`,
+      content: `${siteName}${d.vehicleType ? ` | 요청차종: ${d.vehicleType}` : ''}${schedDate ? ` | 예정일: ${schedDate}` : ''}`,
+      dueDate: schedDate || undefined,
+      actionUrl: `/admin/delivery?deliveryId=${d.id}&contractId=${c.id}`,
+      entityType: 'DELIVERY',
+      entityId: d.id,
+      relatedEntityId: c.id,
+      senderName: salespersonName,
+      isCompleted: false,
+      createdAt: d.createdAt || c.createdAt || nowIso,
+      updatedAt: d.updatedAt || c.updatedAt || nowIso,
+    });
+  });
+
+  // ── 3-A. [현장 정비 요청] (field_as / FieldAsManagement.tsx / MobileAsList.tsx 직결) ──
+  (db.fieldAsTickets || []).forEach(tk => {
+    const tkSt = (tk.status || '').toUpperCase();
+    if (tkSt === 'COMPLETED' || tkSt === 'CANCELED' || tkSt === 'CANCELLED') return;
+
+    const alreadyExists = existingOpenTodos.some(t => {
+      const cat = (t.taskCategory || '').toUpperCase();
+      const et = (t.entityType || '').toUpperCase();
+      if (et !== 'REPAIR' && et !== 'FIELD_AS' && !cat.includes('REPAIR') && !cat.includes('AS')) return false;
+      return (
+        t.entityId === tk.id ||
+        t.entityId === tk.ticketNo ||
+        t.relatedEntityId === tk.id ||
+        (tk.assetId && t.entityId === tk.assetId && cat === 'AS_DISPATCH_REPAIR')
+      );
+    });
+    if (alreadyExists) return;
+
+    const custName = tk.customerName || (tk.customerId && customerMap.get(tk.customerId)?.name) || '고객사';
+    const siteName = tk.siteName || (tk.siteId && siteMap.get(tk.siteId)?.name) || '현장';
+    const assetLabel = tk.assetNo || (tk.assetId && assetMap.get(tk.assetId)?.assetNo) || tk.modelName || '장비';
+    const symptom = tk.category || tk.issueDescription || '현장점검';
+    const isUrgent = tk.priority === 'URGENT';
+    const schedDate = (tk.visitScheduledDate || tk.requestDate || '').slice(0, 10);
+
+    synthesized.push({
+      id: `SYNTH-FAS-${tk.id}`,
+      userId: 'u-1',
+      targetType: 'DEPT',
+      targetDept: 'AS',
+      taskCategory: 'AS_DISPATCH_REPAIR',
+      type: isUrgent ? 'URGENT' : 'GENERAL',
+      priority: isUrgent ? 'URGENT' : 'HIGH',
+      title: `[현장 정비 요청] ${custName} (${assetLabel} · ${symptom})`,
+      content: `${siteName} | 증상: ${tk.issueDescription || symptom}${tk.requestDate ? ` | 접수일: ${tk.requestDate.slice(0, 10)}` : ''}`,
+      dueDate: schedDate || undefined,
+      actionUrl: `/admin/field_as?ticketId=${tk.id}`,
+      entityType: 'REPAIR',
+      entityId: tk.id,
+      relatedEntityId: tk.contractId || tk.id,
+      senderName: tk.reporterName || '현장접수',
+      isCompleted: false,
+      createdAt: tk.createdAt || nowIso,
+      updatedAt: tk.updatedAt || tk.createdAt || nowIso,
+    });
+  });
+
+  // ── 3-B. [입고 수리 / 현장 정비 보조] (repairs 직결) ──
+  (db.repairs || []).forEach(rep => {
+    const rSt = (rep.status || '').toUpperCase();
+    if (rSt === 'COMPLETED' || rSt === 'CANCELLED' || rSt === 'RESOLVED' || rSt === 'WAIVED') return;
+
+    const alreadyExists =
+      existingOpenTodos.some(t => {
+        const cat = (t.taskCategory || '').toUpperCase();
+        const et = (t.entityType || '').toUpperCase();
+        if (et !== 'REPAIR' && !cat.includes('REPAIR') && !cat.includes('AS')) return false;
+        return t.entityId === rep.id || t.relatedEntityId === rep.id || (rep.assetId && t.entityId === rep.assetId);
+      }) ||
+      synthesized.some(t => t.entityId === rep.id || (rep.assetId && t.relatedEntityId === rep.assetId && t.taskCategory === 'INBOUND_REPAIR_DEFECT'));
     if (alreadyExists) return;
 
     const isFieldAs = (rep as any).workCategory === 'FIELD_AS' || (rep as any).workLocation === 'SITE';
@@ -767,14 +915,18 @@ export function resolveTaskMenuId(t: Todo): string {
   const cat = (t.taskCategory || '').toUpperCase();
   const etype = (t.entityType || '').toUpperCase();
   const url = (t.actionUrl || '').toLowerCase();
+  const eid = (t.entityId || t.relatedEntityId || '').toUpperCase();
 
-  if (cat.includes('ASSIGN') || url.includes('dispatch_assign') || url.includes('asset_assignment')) {
+  if (cat.includes('ASSIGN') && !cat.includes('VEHICLE')) {
+    return 'dispatch_assign';
+  }
+  if (url.includes('dispatch_assign') || url.includes('asset_assignment')) {
     return 'dispatch_assign';
   }
   if (etype === 'INSPECTION' || cat.includes('INSPECTION') || cat.includes('PDI') || url.includes('outbound_inspections')) {
     return 'outbound_inspections';
   }
-  if (cat === 'AS_DISPATCH_REPAIR' || url.includes('field_as')) {
+  if (cat === 'AS_DISPATCH_REPAIR' || etype === 'FIELD_AS' || eid.startsWith('FAS-') || url.includes('field_as')) {
     return 'field_as';
   }
   if (etype === 'REPAIR' || cat.includes('REPAIR') || url.includes('repairs') || url.includes('/repair')) {
@@ -783,25 +935,170 @@ export function resolveTaskMenuId(t: Todo): string {
   if (etype === 'DELIVERY' || cat.includes('DISPATCH') || cat.includes('SHIPMENT') || url.includes('/dispatch') || url.includes('/delivery')) {
     return 'delivery';
   }
+  if (cat.includes('DELINQUEN') || url.includes('delinquency')) {
+    return 'delinquency';
+  }
   if (cat === 'CONTRACT_PACKAGE_RESEND' || cat === 'SITE_ARRIVAL_CONFIRM' || etype === 'CONTRACT' || url.includes('contract')) {
     return 'contract';
   }
-  if (etype === 'BILLING' || cat.includes('BILLING') || url.includes('billing')) {
+  if (etype === 'BILLING' || cat.includes('BILLING') || cat.includes('COLLECTION') || url.includes('billing') || url.includes('receivables')) {
     return 'billing';
   }
   if (etype === 'SETTLEMENT' || cat.includes('SETTLEMENT') || url.includes('purchase_settlement')) {
     return 'purchase_settlement';
   }
-  if (etype === 'CONSUMABLE' || cat.includes('CONSUMABLE') || url.includes('consumable_purchase')) {
+  if (etype === 'CONSUMABLE' || cat.includes('CONSUMABLE') || url.includes('consumable_purchase') || url.includes('consumable')) {
     return 'consumable_purchase';
   }
   if (etype === 'LEAVE' || cat.includes('LEAVE') || url.includes('leave')) {
     return 'leave_management';
   }
-  if (etype === 'CUSTOMER' || url.includes('customer')) {
+  if (etype === 'CUSTOMER' || t.type === 'MISSING_INFO' || url.includes('customer')) {
     return 'customer';
   }
   return '';
+}
+
+/**
+ * 🏛️ 부서 모드('SALES' | 'OUTBOUND' | 'AS' | 'ADMIN' | 'EXECUTIVE')별 단일 업무 매칭 SSOT
+ * PC 대시보드(Dashboard.tsx)와 모바일 웹앱(MobileHome / MobileAdminHome / MobileExecutiveHome)이
+ * 100% 동일한 조건으로 부서별 담당 업무를 판별하도록 보장한다.
+ */
+export function matchesDepartmentTask(
+  t: Todo,
+  deptMode: 'SALES' | 'OUTBOUND' | 'AS' | 'ADMIN' | 'EXECUTIVE'
+): boolean {
+  if (deptMode === 'EXECUTIVE') return true;
+
+  const taskMenuId = resolveTaskMenuId(t);
+  const cat = (t.taskCategory || '').toUpperCase();
+  const td = (t.targetDept || '').toUpperCase();
+  const title = t.title || '';
+
+  if (deptMode === 'SALES') {
+    return (
+      td === 'SALES' ||
+      td.includes('영업') ||
+      cat === 'CONTRACT_PACKAGE_RESEND' ||
+      cat === 'SITE_ARRIVAL_CONFIRM' ||
+      taskMenuId === 'contract' ||
+      taskMenuId === 'delinquency' ||
+      (taskMenuId === 'customer' && td !== 'ADMIN' && td !== 'ACCOUNTING')
+    );
+  }
+
+  if (deptMode === 'OUTBOUND') {
+    return (
+      taskMenuId === 'dispatch_assign' ||
+      taskMenuId === 'outbound_inspections' ||
+      taskMenuId === 'repair' ||
+      cat === 'OUTBOUND_SHIPMENT_START' ||
+      title.includes('상차 출발') ||
+      td === 'YARD' ||
+      td.includes('출고') ||
+      td.includes('주기장')
+    );
+  }
+
+  if (deptMode === 'AS') {
+    return (
+      taskMenuId === 'field_as' ||
+      taskMenuId === 'repair' ||
+      td === 'AS' ||
+      td.includes('정비')
+    );
+  }
+
+  if (deptMode === 'ADMIN') {
+    return (
+      taskMenuId === 'delivery' ||
+      taskMenuId === 'billing' ||
+      taskMenuId === 'delinquency' ||
+      taskMenuId === 'purchase_settlement' ||
+      taskMenuId === 'consumable_purchase' ||
+      taskMenuId === 'leave_management' ||
+      taskMenuId === 'customer' ||
+      td === 'DISPATCH' ||
+      td === 'ACCOUNTING' ||
+      td === 'ADMIN' ||
+      td.includes('관리') ||
+      td.includes('배차') ||
+      td.includes('회계') ||
+      td.includes('총무')
+    );
+  }
+
+  return false;
+}
+
+/**
+ * 📱 모바일 웹앱에서 각 업무(Todo)의 `[처리 이동]` 클릭 시 연결될 모바일 탭 ID 반환 SSOT
+ */
+export function resolveMobileTabForTask(t: Todo): string {
+  const menuId = resolveTaskMenuId(t);
+  const cat = (t.taskCategory || '').toUpperCase();
+  const url = (t.actionUrl || '').toLowerCase();
+
+  if (menuId === 'dispatch_assign') return 'assignment';
+  if (menuId === 'outbound_inspections') return 'inspection';
+  if (menuId === 'delivery') return 'dispatch';
+  if (menuId === 'field_as' || menuId === 'repair') return 'as';
+  if (menuId === 'contract') return 'my_contracts';
+  if (menuId === 'customer') return 'customers';
+  if (menuId === 'delinquency' || menuId === 'billing' || cat.includes('DELINQUEN') || cat.includes('COLLECTION')) {
+    return 'delinquency';
+  }
+  if (url.includes('inbound_register') || url.includes('asset_inout') || cat.includes('INBOUND_REGISTER')) {
+    return 'inbound_register';
+  }
+  if (menuId === 'consumable_purchase' || url.includes('consumable')) {
+    return 'consumable_stock';
+  }
+  if (url.includes('rent_asset') || url.includes('sublease') || cat.includes('SUBLEASE')) {
+    return 'sublease';
+  }
+  if (url.includes('sales_order') || url.includes('smart_dispatch')) {
+    return 'sales_order';
+  }
+  return 'assets';
+}
+
+/**
+ * 🏷️ PC 대시보드 및 모바일 웹앱 공통 업무 배지(메뉴명 + 담당부서명) 반환 SSOT
+ */
+export function getTaskDisplayBadges(t: Todo): { menuLabel: string; deptLabel: string; categoryKey: 'ASSIGN' | 'INSPECT' | 'DISPATCH' | 'REPAIR' } {
+  const menuId = resolveTaskMenuId(t);
+  const td = (t.targetDept || '').toUpperCase();
+
+  const menuLabel =
+    menuId === 'dispatch_assign' ? '장비 할당' :
+    menuId === 'outbound_inspections' ? '출고 검수' :
+    menuId === 'delivery' ? '배차 관리' :
+    menuId === 'field_as' ? '현장 정비' :
+    menuId === 'repair' ? '입고 정비' :
+    menuId === 'contract' ? '계약 관리' :
+    menuId === 'delinquency' ? '연체 관리' :
+    menuId === 'billing' ? '청구/수납' :
+    menuId === 'purchase_settlement' ? '매입 정산' :
+    menuId === 'consumable_purchase' ? '소모품 관리' :
+    menuId === 'leave_management' ? '근태 결재' :
+    menuId === 'customer' ? '고객 관리' : '일반 업무';
+
+  const deptLabel =
+    td === 'YARD' || menuId === 'dispatch_assign' || menuId === 'outbound_inspections' ? '출고팀' :
+    td === 'DISPATCH' || menuId === 'delivery' ? '배차/관리부' :
+    td === 'AS' || menuId === 'field_as' ? 'AS팀' :
+    menuId === 'repair' ? '출고/AS팀' :
+    td === 'SALES' || menuId === 'contract' ? '영업부' :
+    td === 'ACCOUNTING' || td === 'ADMIN' || menuId === 'billing' || menuId === 'delinquency' || menuId === 'purchase_settlement' ? '관리부' :
+    t.targetDept || '공통';
+
+  const categoryKey: 'ASSIGN' | 'INSPECT' | 'DISPATCH' | 'REPAIR' =
+    menuId === 'dispatch_assign' ? 'ASSIGN' :
+    menuId === 'outbound_inspections' ? 'INSPECT' :
+    menuId === 'delivery' ? 'DISPATCH' : 'REPAIR';
+
+  return { menuLabel, deptLabel, categoryKey };
 }
 
 /**
@@ -826,104 +1123,77 @@ export function findActiveTasksForUser(
     rawRole === 'EXECUTIVE' ||
     rawRole === 'DEVELOPER';
 
-  // 🏛️ overrideDeptMode(모바일 부서 퀵체인저 등)가 지정된 경우 해당 부서 시뮬레이션 모드 강제 적용
-  const activeMode = overrideDeptMode?.toUpperCase();
-  const isSimulation = !!activeMode && activeMode !== 'EXECUTIVE';
-  const isExec = !isSimulation && rawIsExec;
+  // 사용자의 실제 소속 부서 판별
+  const naturalSales = rawDept.includes('SALES') || rawDept.includes('영업') || rawRole.includes('SALES');
+  const naturalYard = rawDept.includes('YARD') || rawDept.includes('출고') || rawDept.includes('주기장');
+  const naturalAs = rawDept.includes('AS') || rawDept.includes('정비') || rawRole.includes('MECHANIC');
+  const naturalDispatch = rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS');
+  const naturalAdmin = rawDept.includes('관리') || rawDept.includes('총무') || rawDept.includes('회계') || naturalDispatch;
 
-  // 🏛️ 유효 부서 식별 플래그
-  const isSalesDept = isSimulation ? (activeMode === 'SALES') : (rawDept.includes('SALES') || rawDept.includes('영업') || rawRole.includes('SALES'));
-  const isYardDept = isSimulation ? (activeMode === 'OUTBOUND') : (rawDept.includes('YARD') || rawDept.includes('출고') || rawDept.includes('주기장'));
-  const isAsDept = isSimulation ? (activeMode === 'AS') : (rawDept.includes('AS') || rawDept.includes('정비') || rawRole.includes('MECHANIC'));
-  const isAdminDept = isSimulation ? (activeMode === 'ADMIN') : (rawDept.includes('관리') || rawDept.includes('총무') || rawDept.includes('회계') || rawRole.includes('ADMIN'));
-  const isDispatchDept = isSimulation ? (activeMode === 'ADMIN') : (isAdminDept || rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS'));
+  // 🏛️ overrideDeptMode(모바일 부서 퀵체인저 등)가 지정된 경우 해당 부서 모드 적용
+  const activeMode = overrideDeptMode?.toUpperCase() as ('SALES' | 'OUTBOUND' | 'AS' | 'ADMIN' | 'EXECUTIVE' | undefined);
+  const isDeptOverride = !!activeMode && activeMode !== 'EXECUTIVE';
+  const isExec = !isDeptOverride && (activeMode === 'EXECUTIVE' || rawIsExec);
+
+  // 현재 조회 모드가 로그인 사용자의 실제 소속 부서와 일치하는지 확인 (일치 시 개인 지정 ToDo도 함께 표시)
+  const isOwnDeptView =
+    !isDeptOverride ||
+    (activeMode === 'SALES' && naturalSales) ||
+    (activeMode === 'OUTBOUND' && naturalYard) ||
+    (activeMode === 'AS' && naturalAs) ||
+    (activeMode === 'ADMIN' && naturalAdmin);
 
   // 1. DB todos 중 미완료 + 원장 교차검증 통과 건 추출
   const openDbTodos = (todos || []).filter(t => !t.isCompleted && !isTaskEntityAlreadyResolved(t));
 
-  // 2. 실시간 도메인 원장(장비 할당, 출고 검수, 현장 AS, 입고 정비)에서 누락된 미완결 업무 자동 합성 병합
+  // 2. 실시간 도메인 원장(장비 할당, 출고 검수, 배차 관리, 현장 AS, 입고 정비)에서 누락된 미완결 업무 자동 합성 병합
   const synthesizedTodos = synthesizeMissingDomainTasks(openDbTodos);
   const combinedOpenTodos = [...openDbTodos, ...synthesizedTodos];
 
   const filtered = combinedOpenTodos.filter(t => {
     const taskMenuId = resolveTaskMenuId(t);
-    const cat = (t.taskCategory || '').toUpperCase();
     const td = (t.targetDept || '').toUpperCase();
 
-    // 1. 개인 지정 ToDo: 본인에게 직접 지정된 경우 (시뮬레이션 모드가 아닐 때만)
-    if (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id) return true;
-
-    // 1-1. 특정 개인에게 지정된 건은 타 일반 직원은 볼 수 없음 (격리)
+    // 1. 특정 개인에게 지정된 건은 타 일반 직원은 볼 수 없음 (격리)
     if (t.targetType === 'USER' && t.assignedUserId && t.assignedUserId !== currentUser.id) {
       return isExec;
     }
 
-    // 2. 최고관리자/경영진/개발자는 전사 미결 업무를 모두 조망 가능 (부서 시뮬레이션 모드가 아닐 때)
+    // 2. 최고관리자/경영진/개발자는 전사 미결 업무를 모두 조망 가능 (부서 특정 모드가 아닐 때)
     if (isExec) return true;
 
-    // 3. 모바일 부서 전환 시뮬레이션 모드(overrideDeptMode)일 때는 해당 부서 R&R 기준으로 필터링
-    if (isSimulation) {
-      if (activeMode === 'SALES') {
-        return td === 'SALES' || cat === 'CONTRACT_PACKAGE_RESEND' || cat === 'SITE_ARRIVAL_CONFIRM';
-      }
-      if (activeMode === 'OUTBOUND') {
-        return (
-          taskMenuId === 'dispatch_assign' ||
-          taskMenuId === 'outbound_inspections' ||
-          taskMenuId === 'repair' ||
-          td === 'YARD'
-        );
-      }
-      if (activeMode === 'AS') {
-        return taskMenuId === 'field_as' || taskMenuId === 'repair' || td === 'AS';
-      }
-      if (activeMode === 'ADMIN') {
-        return (
-          taskMenuId === 'delivery' ||
-          taskMenuId === 'billing' ||
-          taskMenuId === 'purchase_settlement' ||
-          td === 'DISPATCH' ||
-          td === 'ACCOUNTING' ||
-          td === 'ADMIN'
-        );
-      }
+    // 3. 본인에게 직접 지정된 개인 ToDo (본인 소속 부서 뷰이거나 해당 부서 성격에 부합할 때)
+    if (t.assignedUserId && t.assignedUserId === currentUser.id) {
+      if (isOwnDeptView) return true;
+      if (activeMode && matchesDepartmentTask(t, activeMode)) return true;
     }
 
-    // 4. 🛡️ [전사 표준 헌장 2.1 영업 부서와 출고/배차/자산 부서 간 R&R 엄격 분리]
-    // 영업부 소속 임직원은 배차·장비할당·출고검수·정비 실무 과제가 대시보드에 섞이지 않도록 분리
-    if (isSalesDept) {
-      if (
-        cat === 'CONTRACT_PACKAGE_RESEND' ||
-        cat === 'SITE_ARRIVAL_CONFIRM' ||
-        td === 'SALES' ||
-        taskMenuId === 'contract' ||
-        taskMenuId === 'customer'
-      ) {
-        return true;
-      }
-      return false;
+    // 4. 부서 모드(overrideDeptMode)가 명시된 경우 단일 부서 매칭 SSOT(matchesDepartmentTask) 적용
+    if (isDeptOverride && activeMode) {
+      return matchesDepartmentTask(t, activeMode);
     }
 
-    // 5. 🎯 [권한 기반 대시보드 직결 원칙]:
-    // 로그인한 담당자가 해당 업무 처리 화면(장비 할당, 출고 검수, 배차 운송 관리, 현장 정비 요청, 입고 수리/정비 등)의
-    // 메뉴 권한(hasPermission)을 보유하고 있다면 즉시 대시보드에 노출!
+    // 5. 🛡️ PC 대시보드(overrideDeptMode 미지정)에서도 로그인 사용자의 소속 부서 R&R과 100% 동일한 조건 적용
+    if (naturalSales && !naturalYard && !naturalAs && !naturalAdmin) {
+      return matchesDepartmentTask(t, 'SALES');
+    }
+
+    let matchedByDept = false;
+    if (naturalSales && matchesDepartmentTask(t, 'SALES')) matchedByDept = true;
+    if (naturalYard && matchesDepartmentTask(t, 'OUTBOUND')) matchedByDept = true;
+    if (naturalAs && matchesDepartmentTask(t, 'AS')) matchedByDept = true;
+    if (naturalAdmin && matchesDepartmentTask(t, 'ADMIN')) matchedByDept = true;
+    if (matchedByDept) return true;
+
+    // 6. 🎯 권한 기반 대시보드 직결 (소속 부서가 미지정이거나 복합 권한 담당자인 경우)
     if (hasPermission && taskMenuId) {
       if (hasPermission(taskMenuId, 'view')) {
         return true;
       }
     }
 
-    // 6. 타겟 부서 매칭 (권한 함수 미전달 시 폴백 또는 부서 공통 과제)
-    if (td) {
-      if (td === 'DISPATCH' && isDispatchDept) return true;
-      if (td === 'YARD' && (isYardDept || rawRole.includes('YARD') || rawRole.includes('MECHANIC'))) return true;
-      if (td === 'AS' && (isAsDept || rawRole.includes('MECHANIC'))) return true;
-      if (td === 'ACCOUNTING' && isAdminDept) return true;
-      if (td === 'ADMIN' && isAdminDept) return true;
-      if (rawDept.includes(td)) return true;
-    }
-
-    // 7. 타겟 역할 매칭
+    // 7. 타겟 부서/역할 폴백 매칭
+    if (td && rawDept.includes(td)) return true;
     if (t.targetRole) {
       const tr = t.targetRole.toUpperCase();
       if (rawRole.includes(tr)) return true;
@@ -1019,14 +1289,19 @@ export function buildTaskNavigationPayload(task: Todo): TaskNavigationPayload {
       }
     } else if (eid.startsWith('CONT') || etype === 'CONTRACT') {
       payload.contractId = payload.contractId || eid;
+    } else if (eid.startsWith('FAS-') || eid.startsWith('AS-') || etype === 'FIELD_AS' || cat === 'AS_DISPATCH_REPAIR') {
+      payload.ticketId = payload.ticketId || eid;
+      const tk = (db.fieldAsTickets || []).find(x => x.id === eid || x.ticketNo === eid);
+      if (tk?.assetId && !payload.assetId) payload.assetId = tk.assetId;
+      if (tk?.contractId && !payload.contractId) payload.contractId = tk.contractId;
     } else if (eid.startsWith('REP-') || etype === 'REPAIR') {
       payload.repairId = payload.repairId || eid;
       const rep = db.repairs.find(x => x.id === eid);
       if (rep?.assetId && !payload.assetId) payload.assetId = rep.assetId;
-    } else if (eid.startsWith('FAS-') || eid.startsWith('AS-') || cat.includes('AS')) {
-      payload.ticketId = payload.ticketId || eid;
     } else if (eid.startsWith('BILL-') || eid.startsWith('BIL-') || etype === 'BILLING') {
       payload.billingId = payload.billingId || eid;
+      const bill = (db.billings || []).find(x => x.id === eid);
+      if (bill?.customerId && !payload.customerId) payload.customerId = bill.customerId;
     } else if (eid.startsWith('CUST-') || etype === 'CUSTOMER') {
       payload.customerId = payload.customerId || eid;
     } else if (eid.startsWith('AST-') || etype === 'ASSET') {
