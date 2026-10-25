@@ -334,8 +334,8 @@ const ApprovalRulesManage: React.FC = () => {
             .insert({
               event_code: ev.code,
               event_name: ev.name,
-              required_tier: 3,
-              is_enabled: true,
+              required_tier: 4,
+              is_enabled: false,
             })
             .select()
             .single();
@@ -375,7 +375,31 @@ const ApprovalRulesManage: React.FC = () => {
     }
 
     if (error) alert('저장 오류: ' + error.message);
-    else refreshGlobalApprovalRules();
+    else {
+      // 결재선 사용 여부를 '사용 안함(false)'으로 변경 시, 해당 규칙의 미결 결재 요청/스텝 자동 취소 마감
+      if (field === 'is_enabled' && value === false) {
+        try {
+          const { data: pendingReqs } = await supabase
+            .from('approval_requests')
+            .select('id')
+            .eq('rule_id', ruleId)
+            .eq('status', 'PENDING');
+          const reqIds = (pendingReqs || []).map((r: any) => r.id).filter(Boolean);
+          if (reqIds.length > 0) {
+            await supabase
+              .from('approval_steps')
+              .update({ status: 'CANCELLED' })
+              .in('request_id', reqIds)
+              .in('status', ['PENDING', 'WAITING']);
+            await supabase
+              .from('approval_requests')
+              .update({ status: 'CANCELLED' })
+              .in('id', reqIds);
+          }
+        } catch {}
+      }
+      refreshGlobalApprovalRules();
+    }
     setSavingIds(prev => { const s = new Set(prev); s.delete(ruleId); return s; });
   };
 

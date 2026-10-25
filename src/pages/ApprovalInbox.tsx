@@ -13,13 +13,14 @@ interface InboxStep {
   acted_at?: string;
   approval_requests: {
     id: string;
+    event_code?: string;
     target_table: string;
     target_record_id: string;
     status: string;
     current_step: number;
     originator_id: string;
     payload?: ApprovalPayload;
-    approval_rules: { event_name: string; required_tier: number } | null;
+    approval_rules: { event_code?: string; event_name: string; required_tier: number; is_enabled?: boolean } | null;
   } | null;
 }
 
@@ -41,6 +42,20 @@ const ApprovalInbox: React.FC = () => {
     if (!currentUser || !supabase) return;
     setLoading(true);
 
+    const liveRuleMap: Record<string, boolean> = {};
+    try {
+      const { data: ruleRows } = await supabase
+        .from('approval_rules')
+        .select('event_code, is_enabled');
+      if (Array.isArray(ruleRows)) {
+        ruleRows.forEach((r: any) => {
+          if (r && r.event_code) {
+            liveRuleMap[r.event_code] = Boolean(r.is_enabled);
+          }
+        });
+      }
+    } catch {}
+
     let rawData: any[] | null = null;
     try {
       // 1. payload 포함 select 시도
@@ -49,8 +64,8 @@ const ApprovalInbox: React.FC = () => {
         .select(`
           *,
           approval_requests (
-            id, target_table, target_record_id, status, current_step, originator_id, payload,
-            approval_rules ( event_name, required_tier )
+            id, event_code, target_table, target_record_id, status, current_step, originator_id, payload,
+            approval_rules ( event_code, event_name, required_tier, is_enabled )
           )
         `)
         .eq('approver_id', currentUser.id)
@@ -67,8 +82,8 @@ const ApprovalInbox: React.FC = () => {
           .select(`
             *,
             approval_requests (
-              id, target_table, target_record_id, status, current_step, originator_id,
-              approval_rules ( event_name, required_tier )
+              id, event_code, target_table, target_record_id, status, current_step, originator_id,
+              approval_rules ( event_code, event_name, required_tier, is_enabled )
             )
           `)
           .eq('approver_id', currentUser.id)
@@ -81,19 +96,29 @@ const ApprovalInbox: React.FC = () => {
     }
 
     if (rawData) {
-      // 로컬스토리지 보존 payload 병합 (무누락 보장)
-      const mergedSteps: InboxStep[] = rawData.map(st => {
-        const req = st.approval_requests;
-        if (req && !req.payload) {
-          try {
-            const cachedPayload = localStorage.getItem(`approval_payload_${req.id}`);
-            if (cachedPayload) {
-              req.payload = JSON.parse(cachedPayload);
-            }
-          } catch {}
-        }
-        return st;
-      });
+      // 🛡️ 결재선 설정에서 사용 안함(is_enabled === false) 항목 제외 + 로컬스토리지 보존 payload 병합
+      const mergedSteps: InboxStep[] = rawData
+        .filter(st => {
+          const req = st.approval_requests;
+          if (!req || (req.status && req.status !== 'PENDING')) return false;
+          const rule = req.approval_rules;
+          if (!rule || rule.is_enabled === false) return false;
+          const evCode = rule.event_code || req.event_code;
+          if (evCode && liveRuleMap[evCode] === false) return false;
+          return true;
+        })
+        .map(st => {
+          const req = st.approval_requests;
+          if (req && !req.payload) {
+            try {
+              const cachedPayload = localStorage.getItem(`approval_payload_${req.id}`);
+              if (cachedPayload) {
+                req.payload = JSON.parse(cachedPayload);
+              }
+            } catch {}
+          }
+          return st;
+        });
       setSteps(mergedSteps);
       mergedSteps.forEach(st => {
         if (st.approval_requests?.id) {

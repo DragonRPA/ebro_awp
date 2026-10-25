@@ -32,13 +32,14 @@ interface InboxStep {
   acted_at?: string;
   approval_requests: {
     id: string;
+    event_code?: string;
     target_table: string;
     target_record_id: string;
     status: string;
     current_step: number;
     originator_id: string;
     payload?: ApprovalPayload;
-    approval_rules: { event_name: string; required_tier: number } | null;
+    approval_rules: { event_code?: string; event_name: string; required_tier: number; is_enabled?: boolean } | null;
   } | null;
 }
 
@@ -81,6 +82,7 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
 
   const [steps, setSteps] = useState<InboxStep[]>([]);
   const [stepMap, setStepMap] = useState<Record<string, any[]>>({});
+  const [enabledRuleMap, setEnabledRuleMap] = useState<Record<string, { is_enabled: boolean; required_tier: number }>>({});
   const [loading, setLoading] = useState(false);
   const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -149,6 +151,25 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
     if (!currentUser || !supabase) return;
     setLoading(true);
 
+    // 1. 결재선 설정(approval_rules)의 최신 활성(is_enabled) 상태 로드
+    const liveRuleMap: Record<string, { is_enabled: boolean; required_tier: number }> = {};
+    try {
+      const { data: ruleRows } = await supabase
+        .from('approval_rules')
+        .select('id, event_code, required_tier, is_enabled');
+      if (Array.isArray(ruleRows)) {
+        ruleRows.forEach((r: any) => {
+          if (r && r.event_code) {
+            liveRuleMap[r.event_code] = {
+              is_enabled: Boolean(r.is_enabled),
+              required_tier: Number(r.required_tier) || 0,
+            };
+          }
+        });
+        setEnabledRuleMap(liveRuleMap);
+      }
+    } catch {}
+
     let rawData: any[] | null = null;
     try {
       const { data, error } = await supabase
@@ -156,8 +177,8 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
         .select(`
           *,
           approval_requests (
-            id, target_table, target_record_id, status, current_step, originator_id, payload,
-            approval_rules ( event_name, required_tier )
+            id, event_code, target_table, target_record_id, status, current_step, originator_id, payload,
+            approval_rules ( event_code, event_name, required_tier, is_enabled )
           )
         `)
         .eq('approver_id', currentUser.id)
@@ -173,8 +194,8 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
           .select(`
             *,
             approval_requests (
-              id, target_table, target_record_id, status, current_step, originator_id,
-              approval_rules ( event_name, required_tier )
+              id, event_code, target_table, target_record_id, status, current_step, originator_id,
+              approval_rules ( event_code, event_name, required_tier, is_enabled )
             )
           `)
           .eq('approver_id', currentUser.id)
@@ -187,20 +208,34 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
     }
 
     if (rawData) {
-      const mergedSteps: InboxStep[] = rawData.map(st => {
-        const req = st.approval_requests;
-        if (req && !req.payload) {
-          try {
-            const cachedPayload = localStorage.getItem(`approval_payload_${req.id}`);
-            if (cachedPayload) {
-              req.payload = JSON.parse(cachedPayload);
-            }
-          } catch {}
-        }
-        return st;
-      });
-      setSteps(mergedSteps);
-      mergedSteps.forEach(st => {
+      // 🛡️ 결재선 설정에서 사용 안함(is_enabled === false)으로 설정된 항목은 수신 결재함 노출 원천 차단
+      const activeSteps: InboxStep[] = rawData
+        .filter(st => {
+          const req = st.approval_requests;
+          if (!req || (req.status && req.status !== 'PENDING')) return false;
+          const rule = req.approval_rules;
+          if (!rule || rule.is_enabled === false) return false;
+          const evCode = rule.event_code || req.event_code;
+          if (evCode && liveRuleMap[evCode] && !liveRuleMap[evCode].is_enabled) {
+            return false;
+          }
+          return true;
+        })
+        .map(st => {
+          const req = st.approval_requests;
+          if (req && !req.payload) {
+            try {
+              const cachedPayload = localStorage.getItem(`approval_payload_${req.id}`);
+              if (cachedPayload) {
+                req.payload = JSON.parse(cachedPayload);
+              }
+            } catch {}
+          }
+          return st;
+        });
+
+      setSteps(activeSteps);
+      activeSteps.forEach(st => {
         if (st.approval_requests?.id) {
           fetchAllSteps(st.approval_requests.id);
         }
@@ -774,13 +809,22 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
     setLoading(false);
   };
 
-  // 부서 모드별 전자결재 스텝 필터링 (타 부서 및 경영진 전용 결재가 일반 부서 홈에 노출되는 현상 차단)
+  // 부서 모드별 전자결재 스텝 필터링 (결재선 미사용 항목 및 타 부서 결재 원천 차단)
   const filteredSteps = useMemo(() => {
-    if (deptMode === 'EXECUTIVE') return steps;
     return steps.filter(s => {
       const req = s.approval_requests;
-      if (!req) return false;
-      const requiredTier = req.approval_rules?.required_tier ?? (s as any).approver_tier ?? 0;
+      if (!req || (req.status && req.status !== 'PENDING')) return false;
+      const rule = req.approval_rules;
+      if (!rule || rule.is_enabled === false) return false;
+      const evCode = rule.event_code || req.event_code;
+      if (evCode && enabledRuleMap[evCode] && !enabledRuleMap[evCode].is_enabled) {
+        return false;
+      }
+
+      const requiredTier = rule.required_tier ?? (s as any).approver_tier ?? 0;
+      if (deptMode === 'EXECUTIVE') {
+        return true;
+      }
       // 임원/대표이사(Tier 6 이상) 결재 단계 또는 개발자 계정에 귀속된 경영진 결재는 오직 경영진(EXECUTIVE) 탭에서만 노출
       if (requiredTier >= 6 || currentUser?.id === 'u-1' || currentUser?.id === 'sys-admin') {
         return false;
@@ -808,9 +852,10 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
       }
       return false;
     });
-  }, [steps, deptMode, currentUser?.id]);
+  }, [steps, deptMode, currentUser?.id, enabledRuleMap]);
 
-  // 경영진/최고결재자용 직접 결재 대기 항목 (부품구매 / 매입정산 / 급여마감은 오직 경영진 탭에서만 노출)
+  // 경영진/최고결재자용 직접 결재 대기 항목
+  // 🛡️ 결재선 규칙(approval_rules)에서 해당 이벤트가 '사용(is_enabled === true)'이고 경영진 티어(6 이상)로 설정된 경우에만 노출
   const directPendingApprovals = useMemo(() => {
     if (!isExecutiveOrAdmin || deptMode !== 'EXECUTIVE') return [];
     const stepTargetIds = new Set(steps.map(s => s.approval_requests?.target_record_id).filter(Boolean));
@@ -823,46 +868,64 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
       amount?: number;
     }> = [];
 
-    (consumablePurchases || [])
-      .filter(p => p.status === 'REQUESTED' && !stepTargetIds.has(p.id))
-      .forEach(p => {
-        list.push({
-          id: p.id,
-          category: 'CONSUMABLE',
-          categoryLabel: '부품구매',
-          title: `[${p.sellerName || '공급처'}] ${p.modelName} ${p.requestedQty}개`,
-          subText: `단가 ₩${(p.unitPrice || 0).toLocaleString()}원 • 신청: ${p.requesterName || '정비팀'}`,
-          amount: (p.unitPrice || 0) * (p.requestedQty || 1),
-        });
-      });
+    const isConsumableRuleActiveForExec =
+      Boolean(enabledRuleMap['CONSUMABLE_PURCHASE_PAYMENT']?.is_enabled) &&
+      (enabledRuleMap['CONSUMABLE_PURCHASE_PAYMENT']?.required_tier ?? 0) >= 6;
 
-    (purchaseSettlements || [])
-      .filter(s => s.status === 'PENDING' && !stepTargetIds.has(s.id))
-      .forEach(s => {
-        list.push({
-          id: s.id,
-          category: 'SETTLEMENT',
-          categoryLabel: '매입정산',
-          title: `[${s.vendorName || '매입처'}] ${s.settlementYm || ''} 정산 승인`,
-          subText: `청구총액 ₩${(s.totalAmount || 0).toLocaleString()}원 • ${s.settlementType || '매입'}`,
-          amount: s.totalAmount || 0,
-        });
-      });
+    const isSettlementRuleActiveForExec =
+      (Boolean(enabledRuleMap['RENT_PAYMENT']?.is_enabled) && (enabledRuleMap['RENT_PAYMENT']?.required_tier ?? 0) >= 6) ||
+      (Boolean(enabledRuleMap['DISPATCH_PAYMENT']?.is_enabled) && (enabledRuleMap['DISPATCH_PAYMENT']?.required_tier ?? 0) >= 6);
 
-    (payrollClosings || [])
-      .filter(pc => pc.status === 'DRAFT' && !stepTargetIds.has(pc.month))
-      .forEach(pc => {
-        list.push({
-          id: pc.month,
-          category: 'PAYROLL',
-          categoryLabel: '급여마감',
-          title: `${pc.month} 정기 급여 마감 승인`,
-          subText: `상태: 임시 저장 • 경영진 최종 승인 필요`,
+    const isPayrollRuleActiveForExec =
+      Boolean(enabledRuleMap['PAYROLL_PAYMENT']?.is_enabled) &&
+      (enabledRuleMap['PAYROLL_PAYMENT']?.required_tier ?? 0) >= 6;
+
+    if (isConsumableRuleActiveForExec) {
+      (consumablePurchases || [])
+        .filter(p => p.status === 'REQUESTED' && !stepTargetIds.has(p.id))
+        .forEach(p => {
+          list.push({
+            id: p.id,
+            category: 'CONSUMABLE',
+            categoryLabel: '부품구매',
+            title: `[${p.sellerName || '공급처'}] ${p.modelName} ${p.requestedQty}개`,
+            subText: `단가 ₩${(p.unitPrice || 0).toLocaleString()}원 • 신청: ${p.requesterName || '정비팀'}`,
+            amount: (p.unitPrice || 0) * (p.requestedQty || 1),
+          });
         });
-      });
+    }
+
+    if (isSettlementRuleActiveForExec) {
+      (purchaseSettlements || [])
+        .filter(s => s.status === 'PENDING' && !stepTargetIds.has(s.id))
+        .forEach(s => {
+          list.push({
+            id: s.id,
+            category: 'SETTLEMENT',
+            categoryLabel: '매입정산',
+            title: `[${s.vendorName || '매입처'}] ${s.settlementYm || ''} 정산 승인`,
+            subText: `청구총액 ₩${(s.totalAmount || 0).toLocaleString()}원 • ${s.settlementType || '매입'}`,
+            amount: s.totalAmount || 0,
+          });
+        });
+    }
+
+    if (isPayrollRuleActiveForExec) {
+      (payrollClosings || [])
+        .filter(pc => pc.status === 'DRAFT' && !stepTargetIds.has(pc.month))
+        .forEach(pc => {
+          list.push({
+            id: pc.month,
+            category: 'PAYROLL',
+            categoryLabel: '급여마감',
+            title: `${pc.month} 정기 급여 마감 승인`,
+            subText: `상태: 임시 저장 • 경영진 최종 승인 필요`,
+          });
+        });
+    }
 
     return list;
-  }, [isExecutiveOrAdmin, deptMode, steps, consumablePurchases, purchaseSettlements, payrollClosings]);
+  }, [isExecutiveOrAdmin, deptMode, steps, consumablePurchases, purchaseSettlements, payrollClosings, enabledRuleMap]);
 
   const handleApproveDirectItem = async (item: (typeof directPendingApprovals)[0]) => {
     try {
