@@ -45,10 +45,13 @@ interface InboxStep {
 interface MobileApprovalInboxSectionProps {
   /** 결재 대기 건이 0건일 때도 빈 상태 카드를 노출할지 여부 (전용 탭이거나 경영진 홈일 때 true) */
   alwaysShowEmpty?: boolean;
+  /** 현재 선택된 모바일 부서 모드 (부서별 무관한 결재 건 노출 원천 차단) */
+  deptMode?: 'SALES' | 'OUTBOUND' | 'AS' | 'ADMIN' | 'EXECUTIVE' | 'TEST';
 }
 
 export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProps> = ({
   alwaysShowEmpty = false,
+  deptMode = 'EXECUTIVE',
 }) => {
   const {
     currentUser,
@@ -771,9 +774,45 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
     setLoading(false);
   };
 
-  // 경영진/최고결재자용 직접 결재 대기 항목 (전자결재 스텝 외 직접 요청 건)
+  // 부서 모드별 전자결재 스텝 필터링 (타 부서 및 경영진 전용 결재가 일반 부서 홈에 노출되는 현상 차단)
+  const filteredSteps = useMemo(() => {
+    if (deptMode === 'EXECUTIVE') return steps;
+    return steps.filter(s => {
+      const req = s.approval_requests;
+      if (!req) return false;
+      const requiredTier = req.approval_rules?.required_tier ?? (s as any).approver_tier ?? 0;
+      // 임원/대표이사(Tier 6 이상) 결재 단계 또는 개발자 계정에 귀속된 경영진 결재는 오직 경영진(EXECUTIVE) 탭에서만 노출
+      if (requiredTier >= 6 || currentUser?.id === 'u-1' || currentUser?.id === 'sys-admin') {
+        return false;
+      }
+      const tbl = (req.target_table || '').toLowerCase();
+      if (deptMode === 'SALES') {
+        return tbl === 'contracts' || tbl === 'customers';
+      }
+      if (deptMode === 'OUTBOUND') {
+        return tbl === 'assets' || tbl === 'stocktaking_audits' || tbl === 'outbound_inspections';
+      }
+      if (deptMode === 'AS') {
+        return tbl === 'repairs' || tbl === 'field_as_tickets';
+      }
+      if (deptMode === 'ADMIN') {
+        return (
+          tbl === 'billings' ||
+          tbl === 'deliveries' ||
+          tbl === 'purchase_settlements' ||
+          tbl === 'consumable_purchases' ||
+          tbl === 'payroll_closings' ||
+          tbl === 'leave_requests' ||
+          tbl === 'leave_usages'
+        );
+      }
+      return false;
+    });
+  }, [steps, deptMode, currentUser?.id]);
+
+  // 경영진/최고결재자용 직접 결재 대기 항목 (부품구매 / 매입정산 / 급여마감은 오직 경영진 탭에서만 노출)
   const directPendingApprovals = useMemo(() => {
-    if (!isExecutiveOrAdmin) return [];
+    if (!isExecutiveOrAdmin || deptMode !== 'EXECUTIVE') return [];
     const stepTargetIds = new Set(steps.map(s => s.approval_requests?.target_record_id).filter(Boolean));
     const list: Array<{
       id: string;
@@ -823,7 +862,7 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
       });
 
     return list;
-  }, [isExecutiveOrAdmin, steps, consumablePurchases, purchaseSettlements, payrollClosings]);
+  }, [isExecutiveOrAdmin, deptMode, steps, consumablePurchases, purchaseSettlements, payrollClosings]);
 
   const handleApproveDirectItem = async (item: (typeof directPendingApprovals)[0]) => {
     try {
@@ -862,7 +901,7 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
     }
   };
 
-  const totalPendingCount = steps.length + directPendingApprovals.length;
+  const totalPendingCount = filteredSteps.length + directPendingApprovals.length;
 
   if (!alwaysShowEmpty && totalPendingCount === 0) {
     return null;
@@ -929,7 +968,7 @@ export const MobileApprovalInboxSection: React.FC<MobileApprovalInboxSectionProp
       ) : (
         <div className="flex flex-col gap-2.5">
           {/* 1. 전자결재 스텝 (approval_steps) */}
-          {steps.map(s => {
+          {filteredSteps.map(s => {
             const req = s.approval_requests;
             if (!req) return null;
             const ruleName = req.approval_rules?.event_name || '전자결재 품의';

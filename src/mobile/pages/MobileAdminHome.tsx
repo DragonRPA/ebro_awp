@@ -212,8 +212,8 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
         </div>
       )}
 
-      {/* ── 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 ── */}
-      <MobileApprovalInboxSection />
+      {/* ── 관리부 소속 결재자 전용 수신 결재 대기함 ── */}
+      <MobileApprovalInboxSection deptMode="ADMIN" />
 
       {/* ── 0. 관리부 미결 업무 피드 ── */}
       {adminTodos.length > 0 && (

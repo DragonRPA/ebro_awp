@@ -979,6 +979,7 @@ export function matchesDepartmentTask(
   }
 
   if (deptMode === 'SALES') {
+    if (td === 'YARD' || td === 'DISPATCH' || td === 'AS' || td === 'ADMIN' || td === 'ACCOUNTING') return false;
     return (
       td === 'SALES' ||
       td.includes('영업') ||
@@ -991,10 +992,11 @@ export function matchesDepartmentTask(
   }
 
   if (deptMode === 'OUTBOUND') {
+    if (td === 'SALES' || td === 'DISPATCH' || td === 'ADMIN' || td === 'ACCOUNTING') return false;
     return (
       taskMenuId === 'dispatch_assign' ||
       taskMenuId === 'outbound_inspections' ||
-      taskMenuId === 'repair' ||
+      (taskMenuId === 'repair' && td !== 'AS') ||
       cat === 'OUTBOUND_SHIPMENT_START' ||
       title.includes('상차 출발') ||
       td === 'YARD' ||
@@ -1004,6 +1006,7 @@ export function matchesDepartmentTask(
   }
 
   if (deptMode === 'AS') {
+    if (td === 'SALES' || td === 'DISPATCH' || td === 'ADMIN' || td === 'ACCOUNTING') return false;
     return (
       taskMenuId === 'field_as' ||
       taskMenuId === 'repair' ||
@@ -1013,6 +1016,7 @@ export function matchesDepartmentTask(
   }
 
   if (deptMode === 'ADMIN') {
+    if (td === 'YARD' || td === 'AS' || td === 'SALES') return false;
     return (
       taskMenuId === 'delivery' ||
       taskMenuId === 'billing' ||
@@ -1168,15 +1172,14 @@ export function findActiveTasksForUser(
       return matchesDepartmentTask(t, 'EXECUTIVE');
     }
 
-    // 3. 본인에게 직접 지정된 개인 ToDo (본인 소속 부서 뷰이거나 해당 부서 성격에 부합할 때)
-    if (t.assignedUserId && t.assignedUserId === currentUser.id) {
-      if (isOwnDeptView) return true;
-      if (activeMode && matchesDepartmentTask(t, activeMode)) return true;
-    }
-
-    // 4. 부서 모드(overrideDeptMode)가 명시된 경우 단일 부서 매칭 SSOT(matchesDepartmentTask) 적용
+    // 3. 부서 모드(overrideDeptMode)가 명시된 경우 단일 부서 매칭 SSOT(matchesDepartmentTask) 최우선 적용
     if (isDeptOverride && activeMode) {
       return matchesDepartmentTask(t, activeMode);
+    }
+
+    // 4. 본인에게 직접 지정된 개인 ToDo (PC 대시보드 또는 본인 소속 부서 뷰일 때)
+    if (t.assignedUserId && t.assignedUserId === currentUser.id) {
+      if (isOwnDeptView) return true;
     }
 
     // 5. 🛡️ PC 대시보드(overrideDeptMode 미지정)에서도 로그인 사용자의 소속 부서 R&R과 100% 동일한 조건 적용

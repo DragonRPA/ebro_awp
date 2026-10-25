@@ -195,7 +195,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
       )}
 
       {/* ── 0. 전사 결재자 통합 수신 결재 대기함 (전자결재 + 즉시결재 승인/반려) ── */}
-      <MobileApprovalInboxSection alwaysShowEmpty={true} />
+      <MobileApprovalInboxSection deptMode="EXECUTIVE" alwaysShowEmpty={true} />
 
       {/* ── 1. 상단 경영진 헤더 ── */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950/70 to-slate-950 border border-amber-500/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden">

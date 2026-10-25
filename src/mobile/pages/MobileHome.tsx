@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileHome.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Wrench, Truck, CheckSquare, Search, Send, Building2, 
@@ -53,7 +53,11 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   } = useApp();
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [taskCategoryFilter, setTaskCategoryFilter] = useState<'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'>('ALL');
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    setTaskCategoryFilter('ALL');
+  }, [deptMode]);
 
   // ── 로그인 사용자 직무 맞춤형 ToDo 필터링 (헌장 3.3 정책 & 실물 엔티티 완료 교차검증) ──
   const userTodos = useMemo(() => {
@@ -177,20 +181,55 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
     ).length;
   }, [assets, repairs]);
 
-  const taskGroupCounts = useMemo(() => {
-    let assign = 0;
-    let inspection = 0;
-    let dispatch = 0;
-    let other = 0;
+  const deptFilterTabs = useMemo(() => {
+    if (deptMode === 'OUTBOUND') {
+      let assign = 0;
+      let inspection = 0;
+      let repair = 0;
+      userTodos.forEach(t => {
+        const mId = resolveTaskMenuId(t);
+        if (mId === 'dispatch_assign') assign += 1;
+        else if (mId === 'outbound_inspections') inspection += 1;
+        else repair += 1;
+      });
+      return [
+        { id: 'ALL', label: `전체 ${userTodos.length}` },
+        ...(assign > 0 ? [{ id: 'ASSIGN', label: `장비 할당 ${assign}` }] : []),
+        ...(inspection > 0 ? [{ id: 'INSPECTION', label: `출고 검수 ${inspection}` }] : []),
+        ...(repair > 0 ? [{ id: 'REPAIR', label: `입고 정비 ${repair}` }] : []),
+      ];
+    }
+    if (deptMode === 'AS') {
+      let fieldAs = 0;
+      let repair = 0;
+      userTodos.forEach(t => {
+        const mId = resolveTaskMenuId(t);
+        if (mId === 'field_as') fieldAs += 1;
+        else repair += 1;
+      });
+      return [
+        { id: 'ALL', label: `전체 ${userTodos.length}` },
+        ...(fieldAs > 0 ? [{ id: 'FIELD_AS', label: `현장 정비 ${fieldAs}` }] : []),
+        ...(repair > 0 ? [{ id: 'REPAIR', label: `입고 정비 ${repair}` }] : []),
+      ];
+    }
+    // SALES
+    let contract = 0;
+    let delinquency = 0;
+    let customer = 0;
     userTodos.forEach(t => {
       const mId = resolveTaskMenuId(t);
-      if (mId === 'dispatch_assign') assign += 1;
-      else if (mId === 'outbound_inspections') inspection += 1;
-      else if (mId === 'delivery') dispatch += 1;
-      else other += 1;
+      if (mId === 'contract') contract += 1;
+      else if (mId === 'delinquency' || mId === 'billing') delinquency += 1;
+      else customer += 1;
     });
-    return { all: userTodos.length, assign, inspection, dispatch, other };
-  }, [userTodos]);
+    return [
+      { id: 'ALL', label: `전체 ${userTodos.length}` },
+      ...(contract > 0 ? [{ id: 'CONTRACT', label: `계약 관리 ${contract}` }] : []),
+      ...(delinquency > 0 ? [{ id: 'DELINQUENCY', label: `연체 관리 ${delinquency}` }] : []),
+      ...(customer > 0 ? [{ id: 'CUSTOMER', label: `고객 관리 ${customer}` }] : []),
+    ];
+  }, [userTodos, deptMode]);
 
   const filteredUserTodos = useMemo(() => {
     if (taskCategoryFilter === 'ALL') return userTodos;
@@ -198,10 +237,18 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
       const mId = resolveTaskMenuId(t);
       if (taskCategoryFilter === 'ASSIGN') return mId === 'dispatch_assign';
       if (taskCategoryFilter === 'INSPECTION') return mId === 'outbound_inspections';
-      if (taskCategoryFilter === 'DISPATCH') return mId === 'delivery';
-      return mId !== 'dispatch_assign' && mId !== 'outbound_inspections' && mId !== 'delivery';
+      if (taskCategoryFilter === 'FIELD_AS') return mId === 'field_as';
+      if (taskCategoryFilter === 'REPAIR') return mId !== 'dispatch_assign' && mId !== 'outbound_inspections' && mId !== 'field_as';
+      if (taskCategoryFilter === 'CONTRACT') return mId === 'contract';
+      if (taskCategoryFilter === 'DELINQUENCY') return mId === 'delinquency' || mId === 'billing';
+      if (taskCategoryFilter === 'CUSTOMER') return mId !== 'contract' && mId !== 'delinquency' && mId !== 'billing';
+      return true;
     });
   }, [userTodos, taskCategoryFilter]);
+
+  const deptTodoSectionTitle =
+    deptMode === 'OUTBOUND' ? '출고팀 담당 업무' :
+    deptMode === 'AS' ? 'AS팀 담당 업무' : '영업부 담당 업무';
 
   // ── 공통 업무 목록(ToDo) 렌더링 블록 ──
   const renderTodoFeedSection = (accentColor: 'indigo' | 'emerald' | 'amber') => {
@@ -221,7 +268,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               <Bell className="w-4 h-4" />
             </div>
             <span className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
-              담당 업무
+              {deptTodoSectionTitle}
             </span>
           </div>
           <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
@@ -231,15 +278,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           </div>
         </summary>
         <div className="details-content mt-2">
-          {/* 유형별 필터 칩 (PC 대시보드와 동일 조건) */}
+          {/* 부서별 맞춤형 유형 필터 칩 */}
           <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
-            {([
-              { id: 'ALL', label: `전체 ${taskGroupCounts.all}` },
-              ...(taskGroupCounts.assign > 0 ? [{ id: 'ASSIGN', label: `장비 할당 ${taskGroupCounts.assign}` }] : []),
-              ...(taskGroupCounts.inspection > 0 ? [{ id: 'INSPECTION', label: `출고 검수 ${taskGroupCounts.inspection}` }] : []),
-              ...(taskGroupCounts.dispatch > 0 ? [{ id: 'DISPATCH', label: `배차·운송 ${taskGroupCounts.dispatch}` }] : []),
-              ...(taskGroupCounts.other > 0 ? [{ id: 'OTHER', label: `정비·기타 ${taskGroupCounts.other}` }] : []),
-            ] as { id: 'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'; label: string }[]).map(tab => (
+            {deptFilterTabs.map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -400,12 +441,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         `}} />
 
-        {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
-        <MobileApprovalInboxSection />
-
-        {/* 직무 맞춤형 미결 과제 ToDo 피드 */}
-        {renderTodoFeedSection('indigo')}
-
         {/* 상단 현장 피드 배너 */}
         <div className="bg-gradient-to-br from-blue-900/70 to-slate-900 border border-blue-500/50 rounded-3xl p-5 shadow-xl">
           <div className="flex items-center justify-between mb-2">
@@ -420,6 +455,12 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             가동 계약 <span className="text-sky-400">{activeContracts.length}건</span> 운용 중
           </h2>
         </div>
+
+        {/* 영업부 직무 맞춤형 미결 과제 ToDo 피드 */}
+        {renderTodoFeedSection('indigo')}
+
+        {/* 영업부 소속 결재자(팀장/부장) 전용 수신 결재 대기함 */}
+        <MobileApprovalInboxSection deptMode="SALES" />
 
         {/* [신규 핵심] 영업부 가용재고 및 출고예정 실시간 조회 카드 */}
         <div
@@ -576,12 +617,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         `}} />
 
-        {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
-        <MobileApprovalInboxSection />
-
-        {/* 직무 맞춤형 당면 과제 ToDo 피드 */}
-        {renderTodoFeedSection('emerald')}
-
         <div className="bg-gradient-to-br from-emerald-950/70 to-slate-900 border border-emerald-500/50 rounded-3xl p-5 shadow-xl">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-emerald-300 tracking-wider">주기장 출고 피드</span>
@@ -609,14 +644,20 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate('dispatch')}
+              onClick={() => onNavigate('as')}
               className="p-2.5 rounded-2xl bg-slate-900/80 border border-amber-500/40 flex flex-col items-center justify-center active:scale-95 transition-all"
             >
-              <span className="text-[11px] font-bold text-slate-300" style={{ whiteSpace: 'nowrap' }}>배차 대기</span>
-              <span className="text-lg font-black text-amber-400 font-mono mt-0.5">{pendingDeliveries.length}건</span>
+              <span className="text-[11px] font-bold text-slate-300" style={{ whiteSpace: 'nowrap' }}>입고정비 대기</span>
+              <span className="text-lg font-black text-amber-400 font-mono mt-0.5">{yardRepairAssets.length}대</span>
             </button>
           </div>
         </div>
+
+        {/* 출고팀 직무 맞춤형 당면 과제 ToDo 피드 */}
+        {renderTodoFeedSection('emerald')}
+
+        {/* 출고팀 소속 결재자 전용 수신 결재 대기함 */}
+        <MobileApprovalInboxSection deptMode="OUTBOUND" />
 
         {/* 가용재고조회 바로가기 배너 */}
         <div
@@ -742,12 +783,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
         @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
       `}} />
 
-      {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
-      <MobileApprovalInboxSection />
-
-      {/* 직무 맞춤형 당면 과제 ToDo 피드 */}
-      {renderTodoFeedSection('amber')}
-
       {/* 상단 현장 AS 출동 피드 배너 */}
       <div className="bg-gradient-to-br from-amber-950/70 to-slate-900 border border-amber-500/50 rounded-3xl p-5 shadow-xl">
         <div className="flex items-center justify-between mb-2">
@@ -762,6 +797,12 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           출동 대기 과제 <span className="text-amber-400">{pendingAsTickets.length}건</span>
         </h2>
       </div>
+
+      {/* AS팀 직무 맞춤형 당면 과제 ToDo 피드 */}
+      {renderTodoFeedSection('amber')}
+
+      {/* AS팀 소속 결재자 전용 수신 결재 대기함 */}
+      <MobileApprovalInboxSection deptMode="AS" />
 
       {/* 긴급 AS 등록 버튼 */}
       <button
