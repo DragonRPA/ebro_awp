@@ -733,7 +733,7 @@ export const MobileOutboundHistoryTab: React.FC<MobileOutboundHistoryTabProps> =
                       onClick={() => openEditModeForRow(selectedRow)}
                       className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold whitespace-nowrap"
                     >
-                      {selectedRow.canEditPreInspection ? '출고 요청 수정' : '계약의 수정'}
+                      {selectedRow.canEditPreInspection ? '출고 요청 수정' : '계약수정'}
                     </button>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -1133,9 +1133,20 @@ export const MobileOutboundHistoryTab: React.FC<MobileOutboundHistoryTabProps> =
                   출고 요청 취소
                 </button>
               ) : (
-                <span className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-bold whitespace-nowrap">
-                  {selectedRow.cancelBlockBadge}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-amber-300 text-xs font-bold whitespace-nowrap">
+                    {selectedRow.cancelBlockBadge}
+                  </span>
+                  {canSave && !selectedRow.canEditPreInspection && hasFinancialAccess && !isEditingPrices && (
+                    <button
+                      type="button"
+                      onClick={() => openEditModeForRow(selectedRow)}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 border border-indigo-400 text-white text-xs font-bold whitespace-nowrap"
+                    >
+                      계약수정
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 

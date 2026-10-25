@@ -8187,7 +8187,7 @@ export const SmartDispatch4: React.FC = () => {
                             }`}
                             style={{ height: '28px', padding: '0 10px', fontSize: '11.5px', flexShrink: 0 }}
                           >
-                            {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '계약의 수정(완결된 출고의 수정)'}
+                            {selectedRow.canEditPreInspection ? '요청 내역 · 단가 수정' : '계약수정'}
                           </button>
                         ) : (
                           <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
@@ -9520,7 +9520,7 @@ export const SmartDispatch4: React.FC = () => {
                             }}
                             className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white text-xs font-bold transition whitespace-nowrap cursor-pointer"
                           >
-                            계약의 수정(완결된 출고의 수정)
+                            계약수정
                           </button>
                         )}
                       </>
