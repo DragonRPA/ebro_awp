@@ -20,9 +20,14 @@ import {
   Flag,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { AsRouteEventType, AsRouteLog, Repair } from '../services/db';
+import { AsRouteEventType, AsPartsSourcingType, AsRouteLog, Repair } from '../services/db';
 import {
   AS_ROUTE_EVENT_META,
+  AS_PARTS_SOURCING_TYPE_LABELS,
+  COMMON_AS_PARTS_PRESETS,
+  COMMON_REVISIT_REASON_PRESETS,
+  getTicketAssetSourcingInfo,
+  getQuickRevisitDateOptions,
   getAllUnifiedAsRouteLogs,
   getTicketRouteSummary,
   getLocalWorkDateStr,
@@ -44,6 +49,8 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
   const {
     fieldAsTickets,
     repairs,
+    assets,
+    vendors,
     users,
     departments,
     currentUser,
@@ -64,6 +71,23 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
   const [moveNextTargetTicket, setMoveNextTargetTicket] = useState<Repair | null>(null);
   const [selectedNextTicketId, setSelectedNextTicketId] = useState<string>('');
   const [customNextSiteName, setCustomNextSiteName] = useState<string>('');
+
+  // 부품 수급 이동 모달 상태 (당사 주기장 / 타 차량 접선 / 임차처 방문 + 재방문 일정 연동)
+  const [partsSourcingTargetTicket, setPartsSourcingTargetTicket] = useState<Repair | null>(null);
+  const [sourcingType, setSourcingType] = useState<AsPartsSourcingType>('HQ_YARD');
+  const [sourcingTargetName, setSourcingTargetName] = useState<string>('');
+  const [sourcingPartName, setSourcingPartName] = useState<string>('');
+  const [sourcingMemo, setSourcingMemo] = useState<string>('');
+  const [sourcingWithRevisit, setSourcingWithRevisit] = useState<boolean>(false);
+  const [sourcingRevisitDate, setSourcingRevisitDate] = useState<string>('');
+  const [sourcingMechanicOverride, setSourcingMechanicOverride] = useState<{ id?: string; name?: string }>({});
+
+  // 재방문 스케줄 단독 등록 모달 상태
+  const [revisitTargetTicket, setRevisitTargetTicket] = useState<Repair | null>(null);
+  const [revisitDateInput, setRevisitDateInput] = useState<string>('');
+  const [revisitReasonInput, setRevisitReasonInput] = useState<string>('');
+  const [revisitPartNameInput, setRevisitPartNameInput] = useState<string>('');
+  const [revisitMechanicOverride, setRevisitMechanicOverride] = useState<{ id?: string; name?: string }>({});
 
   const handleSyncRemote = useCallback(async () => {
     setIsSyncing(true);
@@ -171,6 +195,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
         if (t.status === 'CANCELED') return false;
         const reqMatch = (t.requestDate || '').slice(0, 10) === selectedDate;
         const visitMatch = (t.visitDate || t.scheduleDate || '').slice(0, 10) === selectedDate;
+        const revisitMatch = (t.revisitDate || '').slice(0, 10) === selectedDate;
         const compMatch = (t.completedDate || '').slice(0, 10) === selectedDate;
         const logMatch = ticketIdsInLogs.has(t.id);
         const activeTodayMatch =
@@ -180,7 +205,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
             t.status === 'IN_PROGRESS' ||
             t.status === 'REVISIT');
 
-        if (!(reqMatch || visitMatch || compMatch || logMatch || activeTodayMatch)) {
+        if (!(reqMatch || visitMatch || revisitMatch || compMatch || logMatch || activeTodayMatch)) {
           return false;
         }
 
@@ -316,6 +341,19 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
           liveStateColor = '#f59e0b';
           liveStateBg = 'rgba(245, 158, 11, 0.16)';
           currentSiteLabel = siteStr ? `${siteStr} (${lastLog.modelName || lastLog.assetNo || '장비'})` : '작업중';
+        } else if (lastLog.eventType === 'PARTS_SOURCING') {
+          liveStateLabel = '부품 수급 이동중';
+          liveStateColor = '#06b6d4';
+          liveStateBg = 'rgba(6, 182, 212, 0.16)';
+          const targetDest = lastLog.sourcingTargetName || lastLog.nextSiteName || '부품수급처';
+          currentSiteLabel = siteStr ? `${siteStr} ➔ ${targetDest}` : targetDest;
+        } else if (lastLog.eventType === 'REVISIT_SCHEDULED') {
+          liveStateLabel = '재방문 예약 완료';
+          liveStateColor = '#fb7185';
+          liveStateBg = 'rgba(244, 63, 94, 0.16)';
+          currentSiteLabel = siteStr
+            ? `${siteStr} (재방문: ${lastLog.revisitDate || '-'})`
+            : `재방문 예정 (${lastLog.revisitDate || '-'})`;
         } else if (lastLog.eventType === 'WORK_COMPLETE') {
           liveStateLabel = '작업 완료';
           liveStateColor = '#22c55e';
@@ -471,6 +509,118 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
       setMoveNextTargetTicket(null);
       setSelectedNextTicketId('');
       setCustomNextSiteName('');
+      setSyncVersion(v => v + 1);
+    } finally {
+      setRecordingKey(null);
+    }
+  };
+
+  // 부품 수급 이동 모달 열기 (자산 소유구분에 따라 당사 주기장 vs 임차처 자동 세팅)
+  const handleOpenPartsSourcingModal = (
+    ticket: Repair,
+    overrideMechId?: string,
+    overrideMechName?: string
+  ) => {
+    const assetInfo = getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
+    const quickDates = getQuickRevisitDateOptions(selectedDate);
+    setPartsSourcingTargetTicket(ticket);
+    setSourcingType(assetInfo.defaultSourcingType);
+    setSourcingTargetName(assetInfo.defaultSourcingTargetName);
+    setSourcingPartName('');
+    setSourcingMemo('');
+    setSourcingWithRevisit(false);
+    setSourcingRevisitDate(ticket.revisitDate || quickDates[0]?.dateStr || '');
+    setSourcingMechanicOverride({ id: overrideMechId, name: overrideMechName });
+  };
+
+  // 부품 수급 이동 유형 전환 시 기본 이동지 명칭 자동 전환
+  const handleSelectSourcingType = (nextType: AsPartsSourcingType) => {
+    setSourcingType(nextType);
+    const assetInfo = getTicketAssetSourcingInfo(partsSourcingTargetTicket, assets || [], vendors || []);
+    if (nextType === 'HQ_YARD') {
+      setSourcingTargetName(assetInfo.yardName ? `당사 주기장 (${assetInfo.yardName})` : '당사 주기장');
+    } else if (nextType === 'RENTAL_VENDOR') {
+      setSourcingTargetName(assetInfo.vendorName ? `임차처 (${assetInfo.vendorName})` : '임차처');
+    } else {
+      const colleague = asMechanics.find(
+        m => m.id !== (sourcingMechanicOverride.id || partsSourcingTargetTicket?.mechanicId || currentUser?.id)
+      );
+      setSourcingTargetName(colleague ? `${colleague.name} 기사 차량 접선` : '타 차량 접선');
+    }
+  };
+
+  // 부품 수급 이동 저장 핸들러
+  const handleConfirmPartsSourcing = async () => {
+    if (!partsSourcingTargetTicket) return;
+    setRecordingKey(`PARTS_SOURCING-${partsSourcingTargetTicket.id}`);
+    try {
+      await recordAsRouteEvent({
+        eventType: 'PARTS_SOURCING',
+        ticketId: partsSourcingTargetTicket.id,
+        sourcingType,
+        sourcingTargetName: sourcingTargetName.trim() || AS_PARTS_SOURCING_TYPE_LABELS[sourcingType],
+        partName: sourcingPartName.trim() || undefined,
+        revisitDate: sourcingWithRevisit && sourcingRevisitDate ? sourcingRevisitDate : undefined,
+        memo: sourcingMemo.trim() || undefined,
+        mechanicId:
+          sourcingMechanicOverride.id ||
+          partsSourcingTargetTicket.mechanicId ||
+          partsSourcingTargetTicket.assignedMechanicId ||
+          currentUser?.id,
+        mechanicName:
+          sourcingMechanicOverride.name ||
+          partsSourcingTargetTicket.mechanicName ||
+          currentUser?.name,
+      });
+      setPartsSourcingTargetTicket(null);
+      setSyncVersion(v => v + 1);
+    } finally {
+      setRecordingKey(null);
+    }
+  };
+
+  // 재방문 스케줄 단독 모달 열기
+  const handleOpenRevisitModal = (
+    ticket: Repair,
+    overrideMechId?: string,
+    overrideMechName?: string
+  ) => {
+    const assetInfo = getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
+    const quickDates = getQuickRevisitDateOptions(selectedDate);
+    setRevisitTargetTicket(ticket);
+    setRevisitDateInput(ticket.revisitDate || quickDates[0]?.dateStr || '');
+    setRevisitReasonInput(
+      ticket.revisitReason ||
+        (assetInfo.ownerType === 'RENTED'
+          ? `부품 부족 (${assetInfo.defaultSourcingTargetName} 부품 수령 후 재방문)`
+          : '부품 부족 (당사 주기장 수급 후 재방문)')
+    );
+    setRevisitPartNameInput('');
+    setRevisitMechanicOverride({ id: overrideMechId, name: overrideMechName });
+  };
+
+  // 재방문 스케줄 단독 확정 핸들러
+  const handleConfirmRevisitSchedule = async () => {
+    if (!revisitTargetTicket || !revisitDateInput) return;
+    setRecordingKey(`REVISIT_SCHEDULED-${revisitTargetTicket.id}`);
+    try {
+      await recordAsRouteEvent({
+        eventType: 'REVISIT_SCHEDULED',
+        ticketId: revisitTargetTicket.id,
+        revisitDate: revisitDateInput,
+        partName: revisitPartNameInput.trim() || undefined,
+        memo: revisitReasonInput.trim() || '당일 미완결 재방문 예약',
+        mechanicId:
+          revisitMechanicOverride.id ||
+          revisitTargetTicket.mechanicId ||
+          revisitTargetTicket.assignedMechanicId ||
+          currentUser?.id,
+        mechanicName:
+          revisitMechanicOverride.name ||
+          revisitTargetTicket.mechanicName ||
+          currentUser?.name,
+      });
+      setRevisitTargetTicket(null);
       setSyncVersion(v => v + 1);
     } finally {
       setRecordingKey(null);
@@ -870,6 +1020,8 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
               <option value="DEPART_TO_SITE">현장 출발</option>
               <option value="ARRIVE_AT_SITE">현장 도착</option>
               <option value="WORK_START">작업 시작</option>
+              <option value="PARTS_SOURCING">부품수급 이동</option>
+              <option value="REVISIT_SCHEDULED">재방문 예약</option>
               <option value="WORK_COMPLETE">작업 완료</option>
               <option value="MOVE_NEXT_SITE">다음 현장 이동</option>
               <option value="RETURN_TO_YARD">주기장 복귀</option>
@@ -1276,6 +1428,29 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                                   ➔ {log.nextSiteName}
                                 </span>
                               )}
+                              {log.eventType === 'PARTS_SOURCING' && (
+                                <span
+                                  style={{
+                                    color: '#fb923c',
+                                    fontWeight: 800,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  ➔ {log.sourcingTargetName || log.nextSiteName || '부품수급처'}
+                                  {log.partName ? ` [${log.partName}]` : ''}
+                                </span>
+                              )}
+                              {log.eventType === 'REVISIT_SCHEDULED' && log.revisitDate && (
+                                <span
+                                  style={{
+                                    color: '#f472b6',
+                                    fontWeight: 800,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  📅 재방문: {log.revisitDate}
+                                </span>
+                              )}
                               {typeof log.durationMinutes === 'number' && log.durationMinutes > 0 && (
                                 <span
                                   style={{
@@ -1314,7 +1489,9 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                         담당 현장AS 건별 단계 기록 ({assignedTickets.length}건)
                       </div>
                       {assignedTickets.map(ticket => {
-                        const routeSum = getTicketRouteSummary(ticket, allUnifiedLogs);
+                        const routeSum = getTicketRouteSummary(ticket, allUnifiedLogs, selectedDate);
+                        const assetSourcing = getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
+                        const revisitDateLabel = ticket.revisitDate || routeSum.revisitScheduledFor;
                         return (
                           <div
                             key={ticket.id}
@@ -1335,7 +1512,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px',
+                                gap: '7px',
                                 flexWrap: 'wrap',
                                 cursor: onOpenTicketDetail ? 'pointer' : 'default',
                               }}
@@ -1370,6 +1547,28 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                               >
                                 [{ticket.assetNo || '현장확인'} / {ticket.modelName || '-'}]
                               </span>
+                              {/* 당사자산 vs 임차자산 배지 */}
+                              <span
+                                style={{
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  background:
+                                    assetSourcing.ownerType === 'RENTED'
+                                      ? 'rgba(249, 115, 22, 0.16)'
+                                      : 'rgba(16, 185, 129, 0.14)',
+                                  color:
+                                    assetSourcing.ownerType === 'RENTED' ? '#fb923c' : '#34d399',
+                                  border:
+                                    assetSourcing.ownerType === 'RENTED'
+                                      ? '1px solid rgba(249, 115, 22, 0.35)'
+                                      : '1px solid rgba(16, 185, 129, 0.35)',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {assetSourcing.ownerLabel}
+                              </span>
                               <span
                                 style={{
                                   padding: '2px 7px',
@@ -1383,9 +1582,25 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                               >
                                 {routeSum.currentStageLabel}
                               </span>
+                              {revisitDateLabel && (
+                                <span
+                                  style={{
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(236, 72, 153, 0.16)',
+                                    color: '#f472b6',
+                                    border: '1px solid rgba(236, 72, 153, 0.35)',
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  재방문예정 {revisitDateLabel}
+                                </span>
+                              )}
                             </div>
 
-                            {/* 5단계 원클릭 기록 버튼 + 기록시각 */}
+                            {/* 원클릭 기록 버튼 + 부품수급 / 재방문예약 */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                               <button
                                 type="button"
@@ -1457,6 +1672,64 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                                 }}
                               >
                                 작업시작 {routeSum.workStartedAt ? formatTimeHm(routeSum.workStartedAt) : '기록'}
+                              </button>
+
+                              {/* 부품 수급 이동 (당사 주기장 / 타 차량 접선 / 임차처 방문) */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenPartsSourcingModal(ticket, mechanic.id, mechanic.name)
+                                }
+                                style={{
+                                  padding: '4px 9px',
+                                  borderRadius: '6px',
+                                  border: routeSum.partsSourcingAt
+                                    ? '1px solid #f97316'
+                                    : '1px solid rgba(249, 115, 22, 0.45)',
+                                  background: routeSum.partsSourcingAt
+                                    ? 'rgba(249, 115, 22, 0.22)'
+                                    : 'rgba(249, 115, 22, 0.09)',
+                                  color: '#fb923c',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                부품수급{' '}
+                                {routeSum.partsSourcingAt
+                                  ? formatTimeHm(routeSum.partsSourcingAt)
+                                  : assetSourcing.ownerType === 'RENTED'
+                                    ? '(임차처)'
+                                    : '(주기장/차량)'}
+                              </button>
+
+                              {/* 당일 미완결 시 타 일자 재방문 스케줄 원클릭 예약 */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenRevisitModal(ticket, mechanic.id, mechanic.name)
+                                }
+                                style={{
+                                  padding: '4px 9px',
+                                  borderRadius: '6px',
+                                  border:
+                                    routeSum.revisitScheduledAt || ticket.status === 'REVISIT'
+                                      ? '1px solid #ec4899'
+                                      : '1px solid rgba(236, 72, 153, 0.45)',
+                                  background:
+                                    routeSum.revisitScheduledAt || ticket.status === 'REVISIT'
+                                      ? 'rgba(236, 72, 153, 0.22)'
+                                      : 'rgba(236, 72, 153, 0.09)',
+                                  color: '#f472b6',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                재방문예약{' '}
+                                {revisitDateLabel ? revisitDateLabel.slice(5) : ''}
                               </button>
 
                               <button
@@ -1552,20 +1825,21 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                 <th style={{ padding: '10px 12px' }}>접수번호</th>
                 <th style={{ padding: '10px 12px' }}>담당기사</th>
                 <th style={{ padding: '10px 12px' }}>고객사 / 현장명</th>
-                <th style={{ padding: '10px 12px' }}>장비 (자산번호 · 모델)</th>
+                <th style={{ padding: '10px 12px' }}>장비 (자산구분 · 모델)</th>
                 <th style={{ padding: '10px 12px' }}>현재 단계</th>
                 <th style={{ padding: '10px 12px' }}>1. 현장 출발</th>
                 <th style={{ padding: '10px 12px' }}>2. 현장 도착 (이동시간)</th>
                 <th style={{ padding: '10px 12px' }}>3. 작업 시작</th>
-                <th style={{ padding: '10px 12px' }}>4. 작업 완료 (작업시간)</th>
-                <th style={{ padding: '10px 12px' }}>5. 다음 현장 이동</th>
+                <th style={{ padding: '10px 12px' }}>4. 부품수급 / 재방문예약</th>
+                <th style={{ padding: '10px 12px' }}>5. 작업 완료 (작업시간)</th>
+                <th style={{ padding: '10px 12px' }}>6. 다음 현장 이동</th>
               </tr>
             </thead>
             <tbody>
               {targetTickets.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     style={{
                       padding: '28px',
                       textAlign: 'center',
@@ -1577,7 +1851,9 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                 </tr>
               ) : (
                 targetTickets.map(ticket => {
-                  const sum = getTicketRouteSummary(ticket, allUnifiedLogs);
+                  const sum = getTicketRouteSummary(ticket, allUnifiedLogs, selectedDate);
+                  const assetSourcing = getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
+                  const revisitDateLabel = ticket.revisitDate || sum.revisitScheduledFor;
                   return (
                     <tr
                       key={ticket.id}
@@ -1607,24 +1883,58 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                         </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <span style={{ fontWeight: 800 }}>{ticket.assetNo || '현장확인'}</span>{' '}
-                        <span style={{ color: 'var(--text-muted, #94a3b8)' }}>
-                          ({ticket.modelName || '-'})
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 800 }}>{ticket.assetNo || '현장확인'}</span>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>
+                            ({ticket.modelName || '-'})
+                          </span>
+                          <span
+                            style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background:
+                                assetSourcing.ownerType === 'RENTED'
+                                  ? 'rgba(249, 115, 22, 0.16)'
+                                  : 'rgba(16, 185, 129, 0.14)',
+                              color:
+                                assetSourcing.ownerType === 'RENTED' ? '#fb923c' : '#34d399',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                            }}
+                          >
+                            {assetSourcing.ownerLabel}
+                          </span>
+                        </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            background: 'rgba(59, 130, 246, 0.15)',
-                            color: '#60a5fa',
-                            fontWeight: 800,
-                            fontSize: '11px',
-                          }}
-                        >
-                          {sum.currentStageLabel}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(59, 130, 246, 0.15)',
+                              color: '#60a5fa',
+                              fontWeight: 800,
+                              fontSize: '11px',
+                            }}
+                          >
+                            {sum.currentStageLabel}
+                          </span>
+                          {revisitDateLabel && (
+                            <span
+                              style={{
+                                padding: '3px 7px',
+                                borderRadius: '6px',
+                                background: 'rgba(236, 72, 153, 0.16)',
+                                color: '#f472b6',
+                                fontWeight: 800,
+                                fontSize: '10px',
+                              }}
+                            >
+                              재방문 {revisitDateLabel.slice(5)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <button
@@ -1687,6 +1997,51 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                         >
                           {sum.workStartedAt ? `🔧 ${formatTimeHm(sum.workStartedAt)}` : '[작업시작]'}
                         </button>
+                      </td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPartsSourcingModal(ticket)}
+                            style={{
+                              padding: '5px 9px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(249, 115, 22, 0.45)',
+                              background: sum.partsSourcingAt
+                                ? 'rgba(249, 115, 22, 0.2)'
+                                : 'transparent',
+                              color: '#fb923c',
+                              fontWeight: 800,
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {sum.partsSourcingAt
+                              ? `📦 ${formatTimeHm(sum.partsSourcingAt)} (${sum.sourcingTargetName || '부품수급'})`
+                              : '[부품수급]'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRevisitModal(ticket)}
+                            style={{
+                              padding: '5px 9px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(236, 72, 153, 0.45)',
+                              background:
+                                sum.revisitScheduledAt || ticket.status === 'REVISIT'
+                                  ? 'rgba(236, 72, 153, 0.2)'
+                                  : 'transparent',
+                              color: '#f472b6',
+                              fontWeight: 800,
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {revisitDateLabel
+                              ? `📅 재방문 (${revisitDateLabel.slice(5)})`
+                              : '[재방문예약]'}
+                          </button>
+                        </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         <button
@@ -1781,7 +2136,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                 <th style={{ padding: '10px 12px' }}>고객사</th>
                 <th style={{ padding: '10px 12px' }}>현장명</th>
                 <th style={{ padding: '10px 12px' }}>자산번호 / 모델</th>
-                <th style={{ padding: '10px 12px' }}>다음 이동지</th>
+                <th style={{ padding: '10px 12px' }}>다음 이동지 / 수급·재방문</th>
                 <th style={{ padding: '10px 12px' }}>비고</th>
                 <th style={{ padding: '10px 12px' }}>삭제</th>
               </tr>
@@ -1850,8 +2205,23 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                       <td style={{ padding: '9px 12px' }}>
                         {log.assetNo ? `${log.assetNo} (${log.modelName || '-'})` : '-'}
                       </td>
-                      <td style={{ padding: '9px 12px', color: '#c4b5fd', fontWeight: 700 }}>
-                        {log.nextSiteName || '-'}
+                      <td
+                        style={{
+                          padding: '9px 12px',
+                          color:
+                            log.eventType === 'PARTS_SOURCING'
+                              ? '#fb923c'
+                              : log.eventType === 'REVISIT_SCHEDULED'
+                                ? '#f472b6'
+                                : '#c4b5fd',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {log.eventType === 'PARTS_SOURCING'
+                          ? `${log.sourcingTargetName || log.nextSiteName || '부품수급처'}${log.partName ? ` [${log.partName}]` : ''}`
+                          : log.eventType === 'REVISIT_SCHEDULED'
+                            ? `재방문 예정: ${log.revisitDate || '-'}`
+                            : log.nextSiteName || '-'}
                       </td>
                       <td style={{ padding: '9px 12px', color: 'var(--text-muted, #94a3b8)' }}>
                         {log.memo || '-'}
@@ -2010,6 +2380,637 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* 부품 수급 이동 및 재방문 스케줄 입력 모달 */}
+      {partsSourcingTargetTicket && (() => {
+        const sourcingInfo = getTicketAssetSourcingInfo(
+          partsSourcingTargetTicket,
+          assets || [],
+          vendors || []
+        );
+        const quickDateOptions = getQuickRevisitDateOptions(selectedDate);
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(2, 6, 23, 0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '520px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '14px',
+                padding: '18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                color: '#f8fafc',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 900, color: '#fb923c' }}>
+                  부품 수급 이동 기록
+                </div>
+                <span
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: '999px',
+                    background:
+                      sourcingInfo.ownerType === 'RENTED'
+                        ? 'rgba(249, 115, 22, 0.18)'
+                        : 'rgba(16, 185, 129, 0.16)',
+                    color: sourcingInfo.ownerType === 'RENTED' ? '#fb923c' : '#34d399',
+                    border:
+                      sourcingInfo.ownerType === 'RENTED'
+                        ? '1px solid rgba(249, 115, 22, 0.45)'
+                        : '1px solid rgba(16, 185, 129, 0.4)',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {sourcingInfo.ownerLabel}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  padding: '9px 11px',
+                  borderRadius: '8px',
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  fontSize: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                }}
+              >
+                <div>
+                  현장:{' '}
+                  <strong style={{ color: '#ffffff' }}>
+                    {partsSourcingTargetTicket.customerName || '-'} ·{' '}
+                    {partsSourcingTargetTicket.siteName || '현장'}
+                  </strong>
+                </div>
+                <div style={{ color: '#94a3b8', fontSize: '11px' }}>
+                  장비: {partsSourcingTargetTicket.assetNo || '현장확인'} (
+                  {partsSourcingTargetTicket.modelName || '-'})
+                  {sourcingInfo.ownerType === 'RENTED'
+                    ? ` · 임차처: ${sourcingInfo.vendorName}`
+                    : ` · 주기장: ${sourcingInfo.yardName}`}
+                </div>
+              </div>
+
+              {/* 1. 수급 방식 원클릭 선택 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  부품 수급 이동지 구분 ({sourcingInfo.ownerType === 'RENTED' ? '임차자산 → 임차처 자동 매칭' : '당사자산 → 당사 주기장 또는 타 차량 접선'})
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  {(
+                    [
+                      {
+                        type: 'HQ_YARD' as AsPartsSourcingType,
+                        title: '당사 주기장 수급',
+                        sub: sourcingInfo.yardName || '당사 주기장',
+                        recommended: sourcingInfo.ownerType === 'OWNED',
+                      },
+                      {
+                        type: 'COLLEAGUE_VAN' as AsPartsSourcingType,
+                        title: '타 차량 접선 수급',
+                        sub: '동료 AS차량 부픔 수령',
+                        recommended: sourcingInfo.ownerType === 'OWNED',
+                      },
+                      {
+                        type: 'RENTAL_VENDOR' as AsPartsSourcingType,
+                        title: '임차처 방문 수급',
+                        sub:
+                          sourcingInfo.ownerType === 'RENTED'
+                            ? sourcingInfo.vendorName
+                            : '임차처 부품 수령',
+                        recommended: sourcingInfo.ownerType === 'RENTED',
+                      },
+                    ]
+                  ).map(opt => {
+                    const active = sourcingType === opt.type;
+                    return (
+                      <button
+                        key={opt.type}
+                        type="button"
+                        onClick={() => handleSelectSourcingType(opt.type)}
+                        style={{
+                          padding: '9px 8px',
+                          borderRadius: '8px',
+                          border: active
+                            ? '2px solid #f97316'
+                            : opt.recommended
+                              ? '1px solid rgba(249, 115, 22, 0.45)'
+                              : '1px solid #334155',
+                          background: active
+                            ? 'rgba(249, 115, 22, 0.2)'
+                            : '#1e293b',
+                          color: active ? '#fdba74' : '#e2e8f0',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: '2px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <span style={{ fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                          {opt.title}
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                          {opt.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 타 차량 접선 선택 시 동료 AS 기사 빠른 선택 */}
+              {sourcingType === 'COLLEAGUE_VAN' && asMechanics.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                    접선할 동료 AS차량 빠른 선택
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {asMechanics
+                      .filter(m => m.id !== sourcingMechanicOverride.id)
+                      .map(m => {
+                        const targetLabel = `${m.name} 차량 접선`;
+                        const selected = sourcingTargetName === targetLabel;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setSourcingTargetName(targetLabel)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              border: selected ? '1px solid #f97316' : '1px solid #334155',
+                              background: selected ? 'rgba(249, 115, 22, 0.22)' : '#1e293b',
+                              color: selected ? '#fdba74' : '#cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            🚐 {m.name} {m.position || ''}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* 임차처 방문 선택 시 등록된 매입처/임차처 빠른 선택 (임차처 미지정 자산 대비) */}
+              {sourcingType === 'RENTAL_VENDOR' && (vendors || []).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                    임차처 선택 (장비 임차처 자동 입력됨 · 변경 가능)
+                  </label>
+                  <select
+                    value={sourcingTargetName}
+                    onChange={e => setSourcingTargetName(e.target.value)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #334155',
+                      background: '#1e293b',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                    }}
+                  >
+                    {sourcingInfo.vendorName && (
+                      <option value={sourcingInfo.vendorName}>
+                        {sourcingInfo.vendorName} (해당 장비 임차처)
+                      </option>
+                    )}
+                    {(vendors || []).map(v => (
+                      <option key={v.id} value={v.name}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* 수급 이동지 상세 명칭 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  수급 이동지 명칭
+                </label>
+                <input
+                  type="text"
+                  value={sourcingTargetName}
+                  onChange={e => setSourcingTargetName(e.target.value)}
+                  placeholder="예: 당사 주기장, 김기사 차량 접선, OO렌탈 주기장"
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+
+              {/* 2. 수급 대상 부품 빠른 칩 선택 + 입력 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  수급 필요 부품 (칩 선택 또는 직접 입력)
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '4px' }}>
+                  {COMMON_AS_PARTS_PRESETS.map(part => {
+                    const selected = sourcingPartName.includes(part);
+                    return (
+                      <button
+                        key={part}
+                        type="button"
+                        onClick={() => {
+                          if (!sourcingPartName) {
+                            setSourcingPartName(part);
+                          } else if (sourcingPartName.includes(part)) {
+                            setSourcingPartName(
+                              sourcingPartName
+                                .split(',')
+                                .map(s => s.trim())
+                                .filter(s => s && s !== part)
+                                .join(', ')
+                            );
+                          } else {
+                            setSourcingPartName(`${sourcingPartName}, ${part}`);
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: selected ? '1px solid #f97316' : '1px solid #334155',
+                          background: selected ? 'rgba(249, 115, 22, 0.2)' : '#1e293b',
+                          color: selected ? '#fdba74' : '#cbd5e1',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {part}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  value={sourcingPartName}
+                  onChange={e => setSourcingPartName(e.target.value)}
+                  placeholder="수급할 부품명 입력 (예: 상부 조이스틱, 유압 호스)"
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+
+              {/* 3. 당일 미완결 시 다음날/타일자 재방문 스케줄 동시 등록 옵션 */}
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: sourcingWithRevisit
+                    ? 'rgba(236, 72, 153, 0.12)'
+                    : 'rgba(15, 23, 42, 0.65)',
+                  border: sourcingWithRevisit
+                    ? '1px solid rgba(236, 72, 153, 0.45)'
+                    : '1px solid #334155',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    color: sourcingWithRevisit ? '#f472b6' : '#cbd5e1',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={sourcingWithRevisit}
+                    onChange={e => setSourcingWithRevisit(e.target.checked)}
+                  />
+                  당일 완결 불가 — 다음날/다른 날짜 재방문 스케줄 함께 등록
+                </label>
+
+                {sourcingWithRevisit && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      {quickDateOptions.map(opt => {
+                        const active = sourcingRevisitDate === opt.date;
+                        return (
+                          <button
+                            key={opt.date}
+                            type="button"
+                            onClick={() => setSourcingRevisitDate(opt.date)}
+                            style={{
+                              padding: '5px 9px',
+                              borderRadius: '6px',
+                              border: active ? '1px solid #ec4899' : '1px solid #334155',
+                              background: active ? 'rgba(236, 72, 153, 0.24)' : '#1e293b',
+                              color: active ? '#f9a8d4' : '#cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {opt.label} ({opt.subLabel})
+                          </button>
+                        );
+                      })}
+                      <input
+                        type="date"
+                        value={sourcingRevisitDate}
+                        onChange={e => setSourcingRevisitDate(e.target.value)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #334155',
+                          background: '#1e293b',
+                          color: '#ffffff',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={sourcingMemo}
+                      onChange={e => setSourcingMemo(e.target.value)}
+                      placeholder="재방문 메모 (예: 부품 수급 후 익일 오전 재방문)"
+                      style={{
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #334155',
+                        background: '#1e293b',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPartsSourcingTargetTicket(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#cbd5e1',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPartsSourcing}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#ea580c',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {sourcingWithRevisit
+                    ? '부품수급 이동 + 재방문 일정 동시 기록'
+                    : '부품수급 이동 기록'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 당일 미완결 시 다음날/타일자 재방문 스케줄 원클릭 등록 모달 */}
+      {revisitTargetTicket && (() => {
+        const quickDateOptions = getQuickRevisitDateOptions(selectedDate);
+        const reasonPresets = [
+          '부품 수급 후 재방문',
+          '임차처 부품 입고 대기 후 재방문',
+          '현장 작업시간 종료로 익일 재방문',
+          '추가 정밀 진단/장비 교환 검토',
+        ];
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(2, 6, 23, 0.78)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '460px',
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '14px',
+                padding: '18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                color: '#f8fafc',
+              }}
+            >
+              <div style={{ fontSize: '15px', fontWeight: 900, color: '#f472b6' }}>
+                재방문 스케줄 등록
+              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                대상 현장:{' '}
+                <strong style={{ color: '#ffffff' }}>
+                  {revisitTargetTicket.customerName || '-'} · {revisitTargetTicket.siteName || '현장'}
+                </strong>{' '}
+                ({revisitTargetTicket.assetNo || '현장확인'})
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  재방문 예정일 빠른 선택
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                  {quickDateOptions.map(opt => {
+                    const active = revisitDateInput === opt.date;
+                    return (
+                      <button
+                        key={opt.date}
+                        type="button"
+                        onClick={() => setRevisitDateInput(opt.date)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: active ? '2px solid #ec4899' : '1px solid #334155',
+                          background: active ? 'rgba(236, 72, 153, 0.22)' : '#1e293b',
+                          color: active ? '#f9a8d4' : '#e2e8f0',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>{opt.subLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  또는 달력에서 날짜 직접 지정
+                </label>
+                <input
+                  type="date"
+                  value={revisitDateInput}
+                  onChange={e => setRevisitDateInput(e.target.value)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>
+                  재방문 사유 선택 또는 직접 입력
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '4px' }}>
+                  {reasonPresets.map(reason => {
+                    const active = revisitReasonInput === reason;
+                    return (
+                      <button
+                        key={reason}
+                        type="button"
+                        onClick={() => setRevisitReasonInput(reason)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: active ? '1px solid #ec4899' : '1px solid #334155',
+                          background: active ? 'rgba(236, 72, 153, 0.2)' : '#1e293b',
+                          color: active ? '#f9a8d4' : '#cbd5e1',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {reason}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  value={revisitReasonInput}
+                  onChange={e => setRevisitReasonInput(e.target.value)}
+                  placeholder="재방문 사유 및 필요 부품 메모"
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setRevisitTargetTicket(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: '#cbd5e1',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRevisitSchedule}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#db2777',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  재방문 일정 확정
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

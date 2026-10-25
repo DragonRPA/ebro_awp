@@ -7,7 +7,7 @@ import {
   Truck, ShieldAlert, FileText, ChevronRight, Layers, MessageSquare, ExternalLink, ArrowDownLeft,
   PhoneCall, Navigation, Smartphone, Monitor, Minus, Copy, BookOpen
 } from 'lucide-react';
-import { db, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart } from '../services/db';
+import { db, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, AsPartsSourcingType } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
@@ -18,6 +18,12 @@ import { getRoleTemplatePermission } from '../config/role_templates';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { FieldAsCreateModal, FieldAsCreatePayload } from '../components/FieldAsCreateModal';
 import { useApproval } from '../hooks/useApproval';
+import {
+  getTicketAssetSourcingInfo,
+  getQuickRevisitDateOptions,
+  AS_COMMON_PART_PRESETS,
+  getLocalWorkDateStr,
+} from '../services/asRouteTrackingService';
 
 // 자주 쓰이는 조치 내용 프리셋 태그 (5,518건 빅데이터 기반)
 const QUICK_ACTION_TAGS = [
@@ -89,8 +95,8 @@ export function calculateDatePresetRange(preset: DatePreset): { startDate: strin
 export const FieldAsManagement: React.FC = () => {
   const {
     fieldAsTickets, createFieldAsTicket, updateFieldAsTicketStatus, completeFieldAsTicket,
-    createRevisitAsTicket, importBandAsHistory, logFieldAsTimelineEvent,
-    users, permissions, customers, sites, assets, consumables, mechanicConsumableStocks,
+    createRevisitAsTicket, importBandAsHistory, logFieldAsTimelineEvent, recordAsRouteEvent,
+    users, permissions, customers, vendors, sites, assets, consumables, mechanicConsumableStocks,
     transferConsumableToMechanic, currentUser, hasPermission, showErrorModal, setActiveTab,
     inspectionChecklistItems, equipmentManuals, navigationPayload, setNavigationPayload
   } = useApp();
@@ -98,6 +104,19 @@ export const FieldAsManagement: React.FC = () => {
 
   const canSave = hasPermission('field_as', 'save');
   const isMechanic = currentUser?.role === 'MECHANIC';
+  const todayStr = useMemo(() => getLocalWorkDateStr(), []);
+  const quickRevisitDateList = useMemo(() => getQuickRevisitDateOptions(todayStr), [todayStr]);
+
+  // 부품 수급 이동 및 빠른 재방문 스케줄 등록 상태 (스튜디오 우측 패널)
+  const [studioSourcingOpen, setStudioSourcingOpen] = useState(false);
+  const [studioSourcingType, setStudioSourcingType] = useState<AsPartsSourcingType>('HQ_YARD');
+  const [studioSourcingTarget, setStudioSourcingTarget] = useState('');
+  const [studioSourcingPart, setStudioSourcingPart] = useState('');
+  const [studioSourcingAlsoRevisit, setStudioSourcingAlsoRevisit] = useState(false);
+  const [studioSourcingRevisitDate, setStudioSourcingRevisitDate] = useState('');
+  const [studioQuickRevisitOpen, setStudioQuickRevisitOpen] = useState(false);
+  const [studioQuickRevisitDate, setStudioQuickRevisitDate] = useState('');
+  const [studioQuickRevisitReason, setStudioQuickRevisitReason] = useState('');
 
   // 3대 메인 탭: 'STUDIO' (접수/출동 스튜디오), 'LEDGER' (AS 처리 대장), 'VEHICLE_STOCK' (차량별 부품 적재 현황)
   const [mainTab, setMainTab] = useState<'STUDIO' | 'CALENDAR' | 'ANALYTICS' | 'LEDGER' | 'VEHICLE_STOCK'>('STUDIO');
@@ -2068,13 +2087,38 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '2px 6px', borderRadius: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
                           {selectedTicket.ticketNo}
                         </span>
                         <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                           {selectedTicket.siteName}
                         </h2>
+                        {(() => {
+                          const sInfo = getTicketAssetSourcingInfo(selectedTicket as any, assets || [], vendors || []);
+                          return (
+                            <span
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                backgroundColor:
+                                  sInfo.ownerType === 'RENTED'
+                                    ? 'rgba(249, 115, 22, 0.16)'
+                                    : 'rgba(16, 185, 129, 0.14)',
+                                color: sInfo.ownerType === 'RENTED' ? '#ea580c' : '#059669',
+                                border:
+                                  sInfo.ownerType === 'RENTED'
+                                    ? '1px solid rgba(249, 115, 22, 0.4)'
+                                    : '1px solid rgba(16, 185, 129, 0.4)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {sInfo.ownerLabel}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
                         업체명: <strong>{selectedTicket.customerName}</strong> {selectedTicket.locationDetail ? `| 위치: ${selectedTicket.locationDetail}` : ''}
@@ -2226,6 +2270,374 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     />
                   </div>
                 </div>
+
+                {/* 2-1. 부품 수급 이동 (당사 주기장 / 타 차량 접선 / 임차처 방문) 및 당일 미완결 재방문 스케줄 빠른 기록 */}
+                {(() => {
+                  const sInfo = getTicketAssetSourcingInfo(selectedTicket as any, assets || [], vendors || []);
+                  return (
+                    <div
+                      style={{
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                            부품 수급 이동 · 재방문 스케줄 빠른 기록
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            ({sInfo.ownerType === 'RENTED' ? `임차자산 → 임차처(${sInfo.vendorName}) 수급` : `당사자산 → ${sInfo.yardName} 또는 타 차량 접선 수급`})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!studioSourcingOpen) {
+                                setStudioSourcingType(sInfo.defaultSourcingType);
+                                setStudioSourcingTarget(sInfo.defaultTargetName);
+                                setStudioSourcingPart('');
+                                setStudioSourcingAlsoRevisit(false);
+                                setStudioSourcingRevisitDate(selectedTicket.revisitDate || quickRevisitDateList[0]?.date || todayStr);
+                              }
+                              setStudioSourcingOpen(!studioSourcingOpen);
+                              setStudioQuickRevisitOpen(false);
+                            }}
+                            style={{
+                              padding: '6px 11px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(249, 115, 22, 0.45)',
+                              backgroundColor: studioSourcingOpen ? '#ea580c' : 'rgba(249, 115, 22, 0.12)',
+                              color: studioSourcingOpen ? '#ffffff' : '#ea580c',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            📦 부품수급 이동 기록
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!studioQuickRevisitOpen) {
+                                setStudioQuickRevisitDate(selectedTicket.revisitDate || quickRevisitDateList[0]?.date || todayStr);
+                                setStudioQuickRevisitReason(selectedTicket.revisitReason || '부품 수급 후 재방문');
+                              }
+                              setStudioQuickRevisitOpen(!studioQuickRevisitOpen);
+                              setStudioSourcingOpen(false);
+                            }}
+                            style={{
+                              padding: '6px 11px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(236, 72, 153, 0.45)',
+                              backgroundColor: studioQuickRevisitOpen ? '#db2777' : 'rgba(236, 72, 153, 0.12)',
+                              color: studioQuickRevisitOpen ? '#ffffff' : '#db2777',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            📅 타일자 재방문 스케줄 등록
+                          </button>
+                        </div>
+                      </div>
+
+                      {studioSourcingOpen && (
+                        <div
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: 'var(--bg-card)',
+                            border: '1px solid rgba(249, 115, 22, 0.4)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                          }}
+                        >
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                            {[
+                              {
+                                type: 'HQ_YARD' as AsPartsSourcingType,
+                                label: '당사 주기장 수급',
+                                target: sInfo.yardName || '당사 주기장',
+                              },
+                              {
+                                type: 'COLLEAGUE_VAN' as AsPartsSourcingType,
+                                label: '타 차량 접선 수급',
+                                target: '동료 AS차량 접선',
+                              },
+                              {
+                                type: 'RENTAL_VENDOR' as AsPartsSourcingType,
+                                label: '임차처 방문 수급',
+                                target: sInfo.vendorName || '임차처 부품수급',
+                              },
+                            ].map(opt => {
+                              const active = studioSourcingType === opt.type;
+                              return (
+                                <button
+                                  key={opt.type}
+                                  type="button"
+                                  onClick={() => {
+                                    setStudioSourcingType(opt.type);
+                                    setStudioSourcingTarget(opt.target);
+                                  }}
+                                  style={{
+                                    padding: '8px 10px',
+                                    borderRadius: '6px',
+                                    border: active ? '2px solid #ea580c' : '1px solid var(--border-color)',
+                                    backgroundColor: active ? 'rgba(249, 115, 22, 0.15)' : 'var(--bg-app)',
+                                    color: active ? '#ea580c' : 'var(--text-main)',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                수급 이동지 명칭
+                              </label>
+                              <input
+                                type="text"
+                                value={studioSourcingTarget}
+                                onChange={e => setStudioSourcingTarget(e.target.value)}
+                                placeholder="예: 당사 주기장, 김기사 차량 접선, OO렌탈"
+                                style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                수급 필요 부품명
+                              </label>
+                              <input
+                                type="text"
+                                value={studioSourcingPart}
+                                onChange={e => setStudioSourcingPart(e.target.value)}
+                                placeholder="예: 상부 조이스틱, 방지봉"
+                                style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {AS_COMMON_PART_PRESETS.map(p => (
+                              <button
+                                key={p}
+                                type="button"
+                                onClick={() =>
+                                  setStudioSourcingPart(prev =>
+                                    !prev ? p : prev.includes(p) ? prev : `${prev}, ${p}`
+                                  )
+                                }
+                                style={{
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid var(--border-color)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  fontSize: '11px',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                + {p}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input
+                                type="checkbox"
+                                checked={studioSourcingAlsoRevisit}
+                                onChange={e => setStudioSourcingAlsoRevisit(e.target.checked)}
+                              />
+                              당일 미완결 — 타 일자 재방문 스케줄 동시 등록
+                            </label>
+                            {studioSourcingAlsoRevisit && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                {quickRevisitDateList.map(opt => (
+                                  <button
+                                    key={opt.date}
+                                    type="button"
+                                    onClick={() => setStudioSourcingRevisitDate(opt.date)}
+                                    style={{
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      border: studioSourcingRevisitDate === opt.date ? '1px solid #db2777' : '1px solid var(--border-color)',
+                                      backgroundColor: studioSourcingRevisitDate === opt.date ? 'rgba(236, 72, 153, 0.15)' : 'var(--bg-app)',
+                                      color: studioSourcingRevisitDate === opt.date ? '#db2777' : 'var(--text-main)',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {opt.label} ({opt.subLabel})
+                                  </button>
+                                ))}
+                                <input
+                                  type="date"
+                                  value={studioSourcingRevisitDate}
+                                  onChange={e => setStudioSourcingRevisitDate(e.target.value)}
+                                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                                />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await recordAsRouteEvent({
+                                  eventType: 'PARTS_SOURCING',
+                                  ticketId: selectedTicket.id,
+                                  mechanicId: actionAssignMechanicId || selectedTicket.assignedMechanicId || currentUser?.id,
+                                  sourcingType: studioSourcingType,
+                                  sourcingTargetName: studioSourcingTarget.trim() || undefined,
+                                  partName: studioSourcingPart.trim() || undefined,
+                                  revisitDate: studioSourcingAlsoRevisit ? studioSourcingRevisitDate : undefined,
+                                });
+                                setStudioSourcingOpen(false);
+                                showToast('부품 수급 이동 동선이 기록되었습니다.');
+                              }}
+                              style={{
+                                padding: '7px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                backgroundColor: '#ea580c',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {studioSourcingAlsoRevisit ? '부품수급 + 재방문일정 저장' : '부품수급 이동 저장'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {studioQuickRevisitOpen && (
+                        <div
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            backgroundColor: 'var(--bg-card)',
+                            border: '1px solid rgba(236, 72, 153, 0.4)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#db2777', whiteSpace: 'nowrap' }}>
+                              재방문 예정일 선택:
+                            </span>
+                            {quickRevisitDateList.map(opt => (
+                              <button
+                                key={opt.date}
+                                type="button"
+                                onClick={() => {
+                                  setStudioQuickRevisitDate(opt.date);
+                                  setActionRevisitDate(opt.date);
+                                  setActionVisitDate(opt.date);
+                                }}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  border: studioQuickRevisitDate === opt.date ? '2px solid #db2777' : '1px solid var(--border-color)',
+                                  backgroundColor: studioQuickRevisitDate === opt.date ? 'rgba(236, 72, 153, 0.15)' : 'var(--bg-app)',
+                                  color: studioQuickRevisitDate === opt.date ? '#db2777' : 'var(--text-main)',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {opt.label} ({opt.subLabel})
+                              </button>
+                            ))}
+                            <input
+                              type="date"
+                              value={studioQuickRevisitDate}
+                              onChange={e => {
+                                setStudioQuickRevisitDate(e.target.value);
+                                setActionRevisitDate(e.target.value);
+                                setActionVisitDate(e.target.value);
+                              }}
+                              style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="text"
+                              value={studioQuickRevisitReason}
+                              onChange={e => {
+                                setStudioQuickRevisitReason(e.target.value);
+                                setActionRevisitReason(e.target.value);
+                              }}
+                              placeholder="재방문 사유 (예: 당사 주기장 부품 수급 후 익일 재방문, 임차처 부품 입고 대기)"
+                              style={{ flex: 1, padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!studioQuickRevisitDate) return;
+                                await recordAsRouteEvent({
+                                  eventType: 'REVISIT_SCHEDULED',
+                                  ticketId: selectedTicket.id,
+                                  mechanicId: actionAssignMechanicId || selectedTicket.assignedMechanicId || currentUser?.id,
+                                  revisitDate: studioQuickRevisitDate,
+                                  memo: studioQuickRevisitReason.trim() || '재방문 예정',
+                                });
+                                setActionResolutionType('REVISIT_NEEDED');
+                                setActionRevisitDate(studioQuickRevisitDate);
+                                setActionVisitDate(studioQuickRevisitDate);
+                                setStudioQuickRevisitOpen(false);
+                                showToast(`재방문 스케줄(${studioQuickRevisitDate})이 등록되었습니다.`);
+                              }}
+                              style={{
+                                padding: '7px 14px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                backgroundColor: '#db2777',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              재방문 일정 즉시 확정
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 3. 현장 조치 내용 입력 (프리셋 태그 연동) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2425,9 +2837,33 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
                   {/* 재방문 선택 시 후속 일정 입력창 노출 */}
                   {actionResolutionType === 'REVISIT_NEEDED' && (
-                    <div style={{ backgroundColor: 'var(--warning-light)', border: '1px solid #fde68a', borderRadius: '6px', padding: '12px', marginTop: '10px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', marginBottom: '8px', whiteSpace: 'nowrap' }}>
-                        후속 재방문 일정
+                    <div style={{ backgroundColor: 'var(--warning-light)', border: '1px solid #fde68a', borderRadius: '6px', padding: '12px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', whiteSpace: 'nowrap' }}>
+                          후속 재방문 일정
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          {quickRevisitDateList.map(opt => (
+                            <button
+                              key={opt.date}
+                              type="button"
+                              onClick={() => setActionRevisitDate(opt.date)}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                border: actionRevisitDate === opt.date ? '1px solid #b45309' : '1px solid #fcd34d',
+                                backgroundColor: actionRevisitDate === opt.date ? '#d97706' : '#ffffff',
+                                color: actionRevisitDate === opt.date ? '#ffffff' : '#92400e',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {opt.label} ({opt.subLabel})
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '10px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2450,10 +2886,37 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                           />
                         </div>
                       </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {[
+                          '당사 주기장 부품 수급 후 재방문',
+                          '타 차량 접선 부품 수령 후 재방문',
+                          '임차처 부품 수급 후 재방문',
+                          '현장 작업시간 종료로 익일 재방문',
+                        ].map(preset => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setActionRevisitReason(preset)}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #fcd34d',
+                              backgroundColor: actionRevisitReason === preset ? '#fef3c7' : '#ffffff',
+                              color: '#92400e',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            + {preset}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* 대차 건의 체크박스 */}
+                  {/* 교환 건의 체크박스 */}
                   <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="checkbox"
@@ -2462,7 +2925,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                       onChange={(e) => setActionExchangeSuggested(e.target.checked)}
                     />
                     <label htmlFor="chkExchange" style={{ fontSize: '13px', color: 'var(--danger)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      현장 수리 불가 대차(장비 교체) 건의
+                      현장 수리 불가 장비 교환 건의
                     </label>
                   </div>
                 </div>

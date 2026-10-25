@@ -4,11 +4,16 @@ import { useApp } from '../../context/AppContext';
 import { CameraUploader } from '../components/CameraUploader';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Navigation, Phone, CheckCircle2, Wrench, Plus, Trash2, ChevronDown, MapPin } from 'lucide-react';
-import { db, RepairPartUsed, AsRouteEventType } from '../../services/db';
+import { db, RepairPartUsed, AsRouteEventType, AsPartsSourcingType } from '../../services/db';
 import { launchNavigation, safePhoneCall, resolveSiteDetailedAddress, copyToClipboard, NavAppType } from '../../utils/nativeLauncher';
+import { getUserDepartmentName } from '../../utils/userDepartmentHelper';
 import {
   getAllUnifiedAsRouteLogs,
   getTicketRouteSummary,
+  getTicketAssetSourcingInfo,
+  getQuickRevisitDateOptions,
+  AS_COMMON_PART_PRESETS,
+  getLocalWorkDateStr,
   formatTimeHm,
 } from '../../services/asRouteTrackingService';
 
@@ -33,6 +38,10 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   const {
     fieldAsTickets,
     repairs,
+    assets,
+    vendors,
+    users,
+    departments,
     completeFieldAsTicket,
     updateFieldAsTicketStatus,
     recordAsRouteEvent,
@@ -43,16 +52,55 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   } = useApp();
 
   const ticket = fieldAsTickets.find((t) => t.id === ticketId);
+  const todayStr = useMemo(() => getLocalWorkDateStr(), []);
+  const quickRevisitOptions = useMemo(() => getQuickRevisitDateOptions(todayStr), [todayStr]);
+  const assetSourcingInfo = useMemo(() => {
+    if (!ticket) return null;
+    return getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
+  }, [ticket, assets, vendors]);
+
+  const asTeamMechanics = useMemo(() => {
+    return (users || []).filter((emp) => {
+      if (emp.status && emp.status !== 'ACTIVE') return false;
+      const dept = (getUserDepartmentName(emp, departments) || '').trim().toUpperCase().replace(/\s+/g, '');
+      return dept === 'AS팀' || dept === 'A/S팀' || dept.includes('AS팀');
+    });
+  }, [users, departments]);
+
   const [routeStepLoading, setRouteStepLoading] = useState<string | null>(null);
   const [showMoveNextSheet, setShowMoveNextSheet] = useState(false);
   const [selectedNextTicketId, setSelectedNextTicketId] = useState('');
   const [customNextSiteName, setCustomNextSiteName] = useState('');
 
+  // 부품 수급 이동 시트 상태
+  const [showPartsSourcingSheet, setShowPartsSourcingSheet] = useState(false);
+  const [sourcingType, setSourcingType] = useState<AsPartsSourcingType>(
+    assetSourcingInfo?.defaultSourcingType || 'HQ_YARD'
+  );
+  const [sourcingTargetName, setSourcingTargetName] = useState<string>(
+    assetSourcingInfo?.defaultTargetName || '당사 주기장'
+  );
+  const [sourcingPartName, setSourcingPartName] = useState<string>('');
+  const [sourcingAlsoRevisit, setSourcingAlsoRevisit] = useState<boolean>(false);
+  const [sourcingRevisitDate, setSourcingRevisitDate] = useState<string>(
+    ticket?.revisitDate || quickRevisitOptions[0]?.date || todayStr
+  );
+  const [sourcingRevisitReason, setSourcingRevisitReason] = useState<string>('');
+
+  // 빠른 재방문 예약 시트 상태
+  const [showQuickRevisitSheet, setShowQuickRevisitSheet] = useState(false);
+  const [quickRevisitDate, setQuickRevisitDate] = useState<string>(
+    ticket?.revisitDate || quickRevisitOptions[0]?.date || todayStr
+  );
+  const [quickRevisitReason, setQuickRevisitReason] = useState<string>(
+    ticket?.unresolvedReason || '부품 수급 후 재방문'
+  );
+
   const routeSummary = useMemo(() => {
     if (!ticket) return null;
     const allLogs = getAllUnifiedAsRouteLogs(repairs);
-    return getTicketRouteSummary(ticket, allLogs);
-  }, [ticket, repairs]);
+    return getTicketRouteSummary(ticket, allLogs, todayStr);
+  }, [ticket, repairs, todayStr]);
 
   const handleRecordRouteStep = async (eventType: AsRouteEventType) => {
     if (!ticket || routeStepLoading) return;
@@ -80,6 +128,70 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
       setShowMoveNextSheet(false);
       setSelectedNextTicketId('');
       setCustomNextSiteName('');
+    } finally {
+      setRouteStepLoading(null);
+    }
+  };
+
+  const handleTogglePartsSourcingSheet = () => {
+    if (!showPartsSourcingSheet && ticket && assetSourcingInfo) {
+      setSourcingType(assetSourcingInfo.defaultSourcingType);
+      setSourcingTargetName(assetSourcingInfo.defaultTargetName);
+      setSourcingPartName((ticket.partsUsed || []).map(p => p.modelName).filter(Boolean).join(', '));
+      setSourcingAlsoRevisit(false);
+      setSourcingRevisitDate(ticket.revisitDate || quickRevisitOptions[0]?.date || todayStr);
+      setSourcingRevisitReason('');
+    }
+    setShowPartsSourcingSheet(!showPartsSourcingSheet);
+    setShowQuickRevisitSheet(false);
+    setShowMoveNextSheet(false);
+  };
+
+  const handleSelectSourcingTypeInDetail = (type: AsPartsSourcingType) => {
+    setSourcingType(type);
+    if (type === 'HQ_YARD') {
+      setSourcingTargetName(assetSourcingInfo?.yardName || '당사 주기장');
+    } else if (type === 'RENTAL_VENDOR') {
+      setSourcingTargetName(assetSourcingInfo?.vendorName || '임차처 부품수급');
+    } else if (type === 'COLLEAGUE_VAN') {
+      const colleague = asTeamMechanics.find((m) => m.id !== currentUser?.id);
+      setSourcingTargetName(colleague ? `${colleague.name} 차량 접선` : '타 차량 접선');
+    }
+  };
+
+  const handleConfirmPartsSourcingInDetail = async () => {
+    if (!ticket || routeStepLoading) return;
+    setRouteStepLoading('PARTS_SOURCING');
+    try {
+      await recordAsRouteEvent({
+        eventType: 'PARTS_SOURCING',
+        ticketId: ticket.id,
+        sourcingType,
+        sourcingTargetName: sourcingTargetName.trim() || undefined,
+        partName: sourcingPartName.trim() || undefined,
+        revisitDate: sourcingAlsoRevisit && sourcingRevisitDate ? sourcingRevisitDate : undefined,
+        memo:
+          sourcingAlsoRevisit && sourcingRevisitReason.trim()
+            ? sourcingRevisitReason.trim()
+            : undefined,
+      });
+      setShowPartsSourcingSheet(false);
+    } finally {
+      setRouteStepLoading(null);
+    }
+  };
+
+  const handleConfirmQuickRevisitInDetail = async () => {
+    if (!ticket || !quickRevisitDate || routeStepLoading) return;
+    setRouteStepLoading('REVISIT_SCHEDULED');
+    try {
+      await recordAsRouteEvent({
+        eventType: 'REVISIT_SCHEDULED',
+        ticketId: ticket.id,
+        revisitDate: quickRevisitDate,
+        memo: quickRevisitReason.trim() || '재방문 예정',
+      });
+      setShowQuickRevisitSheet(false);
     } finally {
       setRouteStepLoading(null);
     }
@@ -273,15 +385,34 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
 
       {/* 장비 및 현장 요약 카드 */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-xl bg-blue-500/20 text-blue-400 text-sm font-black font-mono border border-blue-500/30">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="px-3 py-1 rounded-xl bg-blue-500/20 text-blue-400 text-sm font-black font-mono border border-blue-500/30 whitespace-nowrap">
               {ticket.assetNo || '장비번호미상'}
             </span>
-            <span className="text-sm font-bold text-white">{ticket.modelName || ''}</span>
+            <span className="text-sm font-bold text-white whitespace-nowrap">{ticket.modelName || ''}</span>
+            {assetSourcingInfo && (
+              <span
+                className={`text-[11px] px-2.5 py-0.5 rounded-full font-extrabold border whitespace-nowrap ${
+                  assetSourcingInfo.ownerType === 'RENTED'
+                    ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                }`}
+              >
+                {assetSourcingInfo.ownerLabel}
+              </span>
+            )}
           </div>
-          <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-            {ticket.status}
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 whitespace-nowrap">
+            {ticket.status === 'COMPLETED'
+              ? '조치완료'
+              : ticket.status === 'REVISIT'
+                ? `재방문 (${ticket.revisitDate || '일정예약'})`
+                : ticket.status === 'SCHEDULED'
+                  ? '방문예정'
+                  : ticket.status === 'IN_PROGRESS'
+                    ? '작업중'
+                    : '접수대기'}
           </span>
         </div>
 
@@ -403,15 +534,22 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
           </div>
         )}
 
-        {/* 🚐 현장 동선 단계 원클릭 기록 패널 (출발 ➔ 도착 ➔ 작업시작 ➔ 다음현장 이동 ➔ 퇴근) */}
+        {/* 🚐 현장 동선 단계 원클릭 기록 패널 (출발 ➔ 도착 ➔ 작업시작 ➔ 부품수급/재방문 ➔ 다음현장 이동 ➔ 퇴근) */}
         <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs font-extrabold text-white whitespace-nowrap">
-              실시간 동선 단계 기록
+              동선 단계 기록
             </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-extrabold whitespace-nowrap">
-              {routeSummary?.currentStageLabel || '출동 대기'}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(ticket.revisitDate || routeSummary?.revisitScheduledFor) && (
+                <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/35 text-[11px] font-extrabold whitespace-nowrap">
+                  재방문예정 {ticket.revisitDate || routeSummary?.revisitScheduledFor}
+                </span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-extrabold whitespace-nowrap">
+                {routeSummary?.currentStageLabel || '출동 대기'}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-1.5">
@@ -463,7 +601,11 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
             <button
               type="button"
               disabled={!!routeStepLoading}
-              onClick={() => setShowMoveNextSheet(!showMoveNextSheet)}
+              onClick={() => {
+                setShowMoveNextSheet(!showMoveNextSheet);
+                setShowPartsSourcingSheet(false);
+                setShowQuickRevisitSheet(false);
+              }}
               className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
                 routeSummary?.movedNextAt
                   ? 'bg-purple-600 text-white border-purple-400 shadow'
@@ -473,6 +615,45 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
               {routeSummary?.movedNextAt
                 ? `4. 다음현장 (${formatTimeHm(routeSummary.movedNextAt)})`
                 : '4. 다음 현장 이동'}
+            </button>
+          </div>
+
+          {/* 📦 부품 수급 이동 (당사 주기장/타 차량 or 임차처) & 📅 당일 미완결 재방문 예약 */}
+          <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80">
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={handleTogglePartsSourcingSheet}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.partsSourcingAt
+                  ? 'bg-orange-600 text-white border-orange-400 shadow'
+                  : 'bg-orange-950/40 text-orange-300 border-orange-500/40'
+              }`}
+            >
+              {routeSummary?.partsSourcingAt
+                ? `📦 부품수급 (${formatTimeHm(routeSummary.partsSourcingAt)})`
+                : assetSourcingInfo?.ownerType === 'RENTED'
+                  ? `📦 부품수급 (임차처)`
+                  : '📦 부품수급 (주기장/차량)'}
+            </button>
+
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => {
+                setShowQuickRevisitSheet(!showQuickRevisitSheet);
+                setShowPartsSourcingSheet(false);
+                setShowMoveNextSheet(false);
+              }}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.revisitScheduledAt || ticket.status === 'REVISIT'
+                  ? 'bg-pink-600 text-white border-pink-400 shadow'
+                  : 'bg-pink-950/40 text-pink-300 border-pink-500/40'
+              }`}
+            >
+              {ticket.revisitDate || routeSummary?.revisitScheduledFor
+                ? `📅 재방문 (${(ticket.revisitDate || routeSummary?.revisitScheduledFor || '').slice(5)})`
+                : '📅 재방문 스케줄 예약'}
             </button>
           </div>
 
@@ -494,6 +675,272 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
               금일 퇴근 기록
             </button>
           </div>
+
+          {/* 부품 수급 이동 인라인 시트 */}
+          {showPartsSourcingSheet && assetSourcingInfo && (
+            <div className="mt-1 p-3 rounded-xl bg-slate-900 border border-orange-500/45 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-orange-300">
+                  부품 수급 이동지 및 필요 부품 기록
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 font-bold">
+                  {assetSourcingInfo.ownerLabel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  {
+                    type: 'HQ_YARD' as AsPartsSourcingType,
+                    title: '당사 주기장',
+                    sub: assetSourcingInfo.yardName || '주기장 수령',
+                  },
+                  {
+                    type: 'COLLEAGUE_VAN' as AsPartsSourcingType,
+                    title: '타 차량 접선',
+                    sub: '동료차량 수령',
+                  },
+                  {
+                    type: 'RENTAL_VENDOR' as AsPartsSourcingType,
+                    title: '임차처 방문',
+                    sub:
+                      assetSourcingInfo.ownerType === 'RENTED'
+                        ? assetSourcingInfo.vendorName
+                        : '임차처 수령',
+                  },
+                ].map((opt) => {
+                  const active = sourcingType === opt.type;
+                  return (
+                    <button
+                      key={opt.type}
+                      type="button"
+                      onClick={() => handleSelectSourcingTypeInDetail(opt.type)}
+                      className={`p-2 rounded-lg border text-left flex flex-col gap-0.5 ${
+                        active
+                          ? 'bg-orange-600/25 border-orange-400 text-orange-200'
+                          : 'bg-slate-950 border-slate-800 text-slate-300'
+                      }`}
+                    >
+                      <span className="text-[11px] font-extrabold whitespace-nowrap">{opt.title}</span>
+                      <span className="text-[10px] text-slate-400 truncate">{opt.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {sourcingType === 'COLLEAGUE_VAN' && asTeamMechanics.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {asTeamMechanics
+                    .filter((m) => m.id !== currentUser?.id)
+                    .map((m) => {
+                      const label = `${m.name} 차량 접선`;
+                      const active = sourcingTargetName === label;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setSourcingTargetName(label)}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap ${
+                            active
+                              ? 'bg-orange-600 text-white border-orange-400'
+                              : 'bg-slate-950 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          🚐 {m.name}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+
+              <input
+                type="text"
+                value={sourcingTargetName}
+                onChange={(e) => setSourcingTargetName(e.target.value)}
+                placeholder="수급 이동지 명칭 (예: 당사 주기장, 김기사 차량 접선, OO렌탈)"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+              />
+
+              <div className="flex flex-wrap gap-1">
+                {AS_COMMON_PART_PRESETS.map((part) => {
+                  const active = sourcingPartName.includes(part);
+                  return (
+                    <button
+                      key={part}
+                      type="button"
+                      onClick={() => {
+                        if (!sourcingPartName) {
+                          setSourcingPartName(part);
+                        } else if (sourcingPartName.includes(part)) {
+                          setSourcingPartName(
+                            sourcingPartName
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter((s) => s && s !== part)
+                              .join(', ')
+                          );
+                        } else {
+                          setSourcingPartName(`${sourcingPartName}, ${part}`);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap ${
+                        active
+                          ? 'bg-orange-600/30 text-orange-200 border-orange-400'
+                          : 'bg-slate-950 text-slate-300 border-slate-800'
+                      }`}
+                    >
+                      {part}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <input
+                type="text"
+                value={sourcingPartName}
+                onChange={(e) => setSourcingPartName(e.target.value)}
+                placeholder="수급 필요 부품명"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+              />
+
+              <label className="flex items-center gap-2 text-xs font-extrabold text-pink-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sourcingAlsoRevisit}
+                  onChange={(e) => setSourcingAlsoRevisit(e.target.checked)}
+                />
+                <span>당일 미완결 — 타 일자 재방문 일정 동시 등록</span>
+              </label>
+
+              {sourcingAlsoRevisit && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="grid grid-cols-2 gap-1">
+                    {quickRevisitOptions.map((opt) => (
+                      <button
+                        key={opt.date}
+                        type="button"
+                        onClick={() => setSourcingRevisitDate(opt.date)}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-bold border flex items-center justify-between ${
+                          sourcingRevisitDate === opt.date
+                            ? 'bg-pink-600/30 text-pink-200 border-pink-400'
+                            : 'bg-slate-950 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        <span className="text-[10px] text-slate-400">{opt.subLabel}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="date"
+                    value={sourcingRevisitDate}
+                    onChange={(e) => setSourcingRevisitDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+                  />
+                  <input
+                    type="text"
+                    value={sourcingRevisitReason}
+                    onChange={(e) => setSourcingRevisitReason(e.target.value)}
+                    placeholder="재방문 메모 (예: 부품 수급 후 익일 재방문)"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPartsSourcingSheet(false)}
+                  className="py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmPartsSourcingInDetail}
+                  className="py-2 rounded-lg bg-orange-600 text-white text-xs font-extrabold"
+                >
+                  {sourcingAlsoRevisit ? '수급이동 + 재방문 저장' : '부품수급 이동 저장'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 당일 미완결 시 빠른 재방문 스케줄 등록 시트 */}
+          {showQuickRevisitSheet && (
+            <div className="mt-1 p-3 rounded-xl bg-slate-900 border border-pink-500/45 flex flex-col gap-2">
+              <div className="text-xs font-extrabold text-pink-300">
+                당일 미완결 — 타 일자 재방문 스케줄 빠른 등록
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {quickRevisitOptions.map((opt) => (
+                  <button
+                    key={opt.date}
+                    type="button"
+                    onClick={() => setQuickRevisitDate(opt.date)}
+                    className={`py-2 px-2 rounded-lg text-xs font-extrabold border flex items-center justify-between ${
+                      quickRevisitDate === opt.date
+                        ? 'bg-pink-600/30 text-pink-200 border-pink-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    <span className="text-[10px] text-slate-400">{opt.subLabel}</span>
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={quickRevisitDate}
+                onChange={(e) => setQuickRevisitDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+              />
+              <div className="flex flex-wrap gap-1">
+                {[
+                  '부품 수급 후 재방문',
+                  '임차처 부품 입고 대기',
+                  '현장 작업시간 종료로 익일 재방문',
+                  '교환/타장비 대체 검토',
+                ].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setQuickRevisitReason(r)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap ${
+                      quickRevisitReason === r
+                        ? 'bg-pink-600/30 text-pink-200 border-pink-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-800'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={quickRevisitReason}
+                onChange={(e) => setQuickRevisitReason(e.target.value)}
+                placeholder="재방문 사유 및 필요 부품 입력"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickRevisitSheet(false)}
+                  className="py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmQuickRevisitInDetail}
+                  className="py-2 rounded-lg bg-pink-600 text-white text-xs font-extrabold"
+                >
+                  재방문 일정 확정
+                </button>
+              </div>
+            </div>
+          )}
 
           {showMoveNextSheet && (
             <div className="mt-1 p-3 rounded-xl bg-slate-900 border border-purple-500/40 flex flex-col gap-2">
@@ -649,8 +1096,29 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
         {/* 재방문 필요 시 세부 설정 */}
         {resolutionType === 'REVISIT_NEEDED' && (
           <div className="flex flex-col gap-3 p-3 rounded-xl bg-rose-950/20 border border-rose-500/30 animate-in fade-in">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-rose-300">재방문 사유 <span className="text-rose-400">*</span></label>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  '당사 주기장 부품 수급 후 재방문',
+                  '타 차량 부품 수령 후 재방문',
+                  '임차처 부품 수급 후 재방문',
+                  '현장 작업시간 종료로 익일 재방문',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setRevisitReason(preset)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-bold border whitespace-nowrap ${
+                      revisitReason === preset
+                        ? 'bg-rose-600/30 text-rose-200 border-rose-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-800'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
               <input
                 type="text"
                 value={revisitReason}
@@ -660,8 +1128,24 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-slate-300">재방문 예정일</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-slate-300">재방문 예정일 (빠른 선택 또는 달력)</label>
+              <div className="grid grid-cols-4 gap-1">
+                {quickRevisitOptions.map((opt) => (
+                  <button
+                    key={opt.date}
+                    type="button"
+                    onClick={() => setRevisitDate(opt.date)}
+                    className={`py-1.5 px-1 rounded-lg text-[11px] font-extrabold border whitespace-nowrap ${
+                      revisitDate === opt.date
+                        ? 'bg-rose-600 text-white border-rose-400'
+                        : 'bg-slate-950 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <input
                 type="date"
                 value={revisitDate}

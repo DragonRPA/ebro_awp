@@ -2,10 +2,13 @@ import {
   db,
   supabase,
   AsRouteEventType,
+  AsPartsSourcingType,
   AsRouteStage,
   AsRouteLog,
   Repair,
   RepairTimelineEvent,
+  Asset,
+  Vendor,
 } from './db';
 import { clockIn, clockOut } from './workStatusService';
 
@@ -63,19 +66,19 @@ export const AS_ROUTE_EVENT_META: Record<AsRouteEventType, AsRouteEventMeta> = {
     type: 'PARTS_SOURCING',
     label: '부품 수급 이동',
     shortLabel: '부품수급',
-    badgeBg: 'rgba(236, 72, 153, 0.16)',
-    badgeColor: '#ec4899',
-    badgeBorder: 'rgba(236, 72, 153, 0.4)',
-    dotColor: '#ec4899',
+    badgeBg: 'rgba(6, 182, 212, 0.16)',
+    badgeColor: '#06b6d4',
+    badgeBorder: 'rgba(6, 182, 212, 0.42)',
+    dotColor: '#06b6d4',
   },
   REVISIT_SCHEDULED: {
     type: 'REVISIT_SCHEDULED',
     label: '재방문 일정 등록',
     shortLabel: '재방문예약',
-    badgeBg: 'rgba(249, 115, 22, 0.16)',
-    badgeColor: '#f97316',
-    badgeBorder: 'rgba(249, 115, 22, 0.4)',
-    dotColor: '#f97316',
+    badgeBg: 'rgba(244, 63, 94, 0.16)',
+    badgeColor: '#fb7185',
+    badgeBorder: 'rgba(244, 63, 94, 0.42)',
+    dotColor: '#fb7185',
   },
   WORK_COMPLETE: {
     type: 'WORK_COMPLETE',
@@ -115,6 +118,156 @@ export const AS_ROUTE_EVENT_META: Record<AsRouteEventType, AsRouteEventMeta> = {
   },
 };
 
+export const AS_PARTS_SOURCING_TYPE_LABELS: Record<AsPartsSourcingType, string> = {
+  HQ_YARD: '당사 주기장 수급',
+  COLLEAGUE_VAN: '타 차량 접선 수급',
+  RENTAL_VENDOR: '임차처 방문 수급',
+};
+
+export const COMMON_AS_PARTS_PRESETS: string[] = [
+  '조이스틱/컨트롤러',
+  '방지봉/협착센서',
+  '충전기/전원선',
+  '유압호스/실린더',
+  '키박스/스위치',
+  '메인보드/릴레이',
+  '바퀴/타이어',
+  '배터리/단자',
+];
+
+export const AS_COMMON_PART_PRESETS: string[] = COMMON_AS_PARTS_PRESETS;
+
+export const COMMON_REVISIT_REASON_PRESETS: string[] = [
+  '부품 부족 (당사 주기장 수급 후 재방문)',
+  '부품 부족 (타 차량 접선 수급 후 재방문)',
+  '부품 부족 (임차처 부품 수령 후 재방문)',
+  '현장 작업시간 종료로 익일 재방문',
+  '특수 부품 발주 대기 후 재방문',
+  '현장 여건/우천으로 일정 연기',
+];
+
+export interface TicketAssetSourcingInfo {
+  ownerType: 'OWNED' | 'RENTED';
+  ownerTypeLabel: '당사자산' | '임차자산';
+  ownerLabel: string;
+  vendorId?: string;
+  vendorName: string;
+  yardName: string;
+  defaultSourcingType: AsPartsSourcingType;
+  defaultSourcingTargetName: string;
+  defaultTargetName: string;
+}
+
+/**
+ * 티켓의 자산번호/자산ID를 기반으로 당사자산 vs 임차자산 여부 및 기본 부품 수급처(당사 주기장 vs 임차처)를 자동 판별합니다.
+ */
+export function getTicketAssetSourcingInfo(
+  ticket?: Repair | null,
+  assets?: Asset[],
+  vendors?: Vendor[]
+): TicketAssetSourcingInfo {
+  const assetList = assets || db.assets || [];
+  const vendorList = vendors || db.vendors || [];
+
+  let matchedAsset: Asset | undefined;
+  if (ticket?.assetId) {
+    matchedAsset = assetList.find(a => a && a.id === ticket.assetId);
+  }
+  if (!matchedAsset && ticket?.assetNo) {
+    const normNo = ticket.assetNo.trim().toUpperCase();
+    matchedAsset = assetList.find(
+      a => a && a.assetNo && a.assetNo.trim().toUpperCase() === normNo
+    );
+  }
+
+  const isRented = matchedAsset?.ownerType === 'RENTED';
+  let vendorName = matchedAsset?.renter?.trim() || '';
+  if (!vendorName && matchedAsset?.vendorId) {
+    const v = vendorList.find(vnd => vnd && vnd.id === matchedAsset?.vendorId);
+    if (v?.name) vendorName = v.name.trim();
+  }
+
+  const yardName = matchedAsset?.yard?.trim() || '당사 주기장';
+
+  if (isRented) {
+    const targetLabel = vendorName ? `임차처 (${vendorName})` : '임차처';
+    return {
+      ownerType: 'RENTED',
+      ownerTypeLabel: '임차자산',
+      ownerLabel: vendorName ? `임차자산 · ${vendorName}` : '임차자산',
+      vendorId: matchedAsset?.vendorId,
+      vendorName: vendorName || '임차처',
+      yardName,
+      defaultSourcingType: 'RENTAL_VENDOR',
+      defaultSourcingTargetName: targetLabel,
+      defaultTargetName: targetLabel,
+    };
+  }
+
+  const ownTargetLabel = yardName && yardName !== '당사 주기장' ? `당사 주기장 (${yardName})` : '당사 주기장';
+  return {
+    ownerType: 'OWNED',
+    ownerTypeLabel: '당사자산',
+    ownerLabel: '당사자산',
+    vendorId: matchedAsset?.vendorId,
+    vendorName: vendorName || '',
+    yardName,
+    defaultSourcingType: 'HQ_YARD',
+    defaultSourcingTargetName: ownTargetLabel,
+    defaultTargetName: ownTargetLabel,
+  };
+}
+
+export interface QuickRevisitDateOption {
+  label: string;
+  subLabel: string;
+  dateStr: string;
+  date: string;
+}
+
+/**
+ * 기준일(기본: 오늘)로부터 원클릭 재방문 스케줄 날짜 옵션(내일, 모레, 3일 후, 다음주 월요일)을 생성합니다.
+ */
+export function getQuickRevisitDateOptions(baseDateStr?: string): QuickRevisitDateOption[] {
+  const base = baseDateStr ? new Date(`${baseDateStr}T00:00:00`) : new Date();
+  const safeBase = isNaN(base.getTime()) ? new Date() : base;
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+  const makeOpt = (addDays: number, label: string): QuickRevisitDateOption => {
+    const d = new Date(safeBase);
+    d.setDate(d.getDate() + addDays);
+    const ds = getLocalWorkDateStr(d);
+    const mmdd = ds.slice(5).replace('-', '/');
+    const dow = dayNames[d.getDay()];
+    return {
+      label,
+      subLabel: `${mmdd}(${dow})`,
+      dateStr: ds,
+      date: ds,
+    };
+  };
+
+  // 다음주 월요일 계산
+  const nextMon = new Date(safeBase);
+  const currentDay = nextMon.getDay(); // 0(일) ~ 6(토)
+  const daysUntilNextMon = currentDay === 0 ? 1 : 8 - currentDay;
+  nextMon.setDate(nextMon.getDate() + daysUntilNextMon);
+  const nextMonStr = getLocalWorkDateStr(nextMon);
+  const nextMonMmDd = nextMonStr.slice(5).replace('-', '/');
+
+  return [
+    makeOpt(1, '내일'),
+    makeOpt(2, '모레'),
+    makeOpt(3, '3일 후'),
+    {
+      label: '다음주 월요일',
+      subLabel: `${nextMonMmDd}(월)`,
+      dateStr: nextMonStr,
+      date: nextMonStr,
+    },
+  ];
+}
+
 export interface TicketRouteSummary {
   repairId: string;
   currentStage: AsRouteStage;
@@ -122,6 +275,13 @@ export interface TicketRouteSummary {
   departedAt?: string;
   arrivedAt?: string;
   workStartedAt?: string;
+  partsSourcingAt?: string;
+  sourcingType?: AsPartsSourcingType;
+  sourcingTargetName?: string;
+  partName?: string;
+  revisitScheduledAt?: string;
+  revisitDate?: string;
+  revisitScheduledFor?: string;
   workCompletedAt?: string;
   movedNextAt?: string;
   nextRepairId?: string;
@@ -284,6 +444,8 @@ export function getAllUnifiedAsRouteLogs(
         evt.eventType === 'DEPART_TO_SITE' ||
         evt.eventType === 'ARRIVE_AT_SITE' ||
         evt.eventType === 'WORK_START' ||
+        evt.eventType === 'PARTS_SOURCING' ||
+        evt.eventType === 'REVISIT_SCHEDULED' ||
         evt.eventType === 'WORK_COMPLETE' ||
         evt.eventType === 'MOVE_NEXT_SITE' ||
         evt.eventType === 'RETURN_TO_YARD' ||
@@ -322,7 +484,11 @@ export function getAllUnifiedAsRouteLogs(
         assetNo: evt.assetNo || ticket.assetNo,
         modelName: evt.modelName || ticket.modelName,
         nextRepairId: evt.nextRepairId,
-        nextSiteName: evt.nextSiteName,
+        nextSiteName: evt.nextSiteName || evt.sourcingTargetName,
+        sourcingType: evt.sourcingType,
+        sourcingTargetName: evt.sourcingTargetName,
+        partName: evt.partName,
+        revisitDate: evt.revisitDate,
         durationMinutes: evt.durationMinutes,
         memo: evt.detail || '',
         recordedAt: evt.timestamp,
@@ -361,16 +527,30 @@ export function getAllUnifiedAsRouteLogs(
 }
 
 /**
- * 개별 현장AS 티켓의 동선 단계 요약(출발/도착/작업시작/작업완료/다음현장이동 시각 및 현재 단계)을 계산합니다.
+ * 개별 현장AS 티켓의 동선 단계 요약(출발/도착/작업시작/부품수급/재방문예약/작업완료/다음현장이동 시각 및 현재 단계)을 계산합니다.
+ * workDateFilter를 전달하면 해당 근무일자의 동선 로그 기준으로 단계 버튼을 계산하여, 익일 재방문 시 버튼이 새롭게 시작되도록 지원합니다.
  */
-export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): TicketRouteSummary {
-  const logsForTicket = (allLogs || getAllUnifiedAsRouteLogs([ticket])).filter(
+export function getTicketRouteSummary(
+  ticket: Repair,
+  allLogs?: AsRouteLog[],
+  workDateFilter?: string
+): TicketRouteSummary {
+  const rawLogsForTicket = (allLogs || getAllUnifiedAsRouteLogs([ticket])).filter(
     l => l.repairId === ticket.id
   );
+  const logsForTicket = workDateFilter
+    ? rawLogsForTicket.filter(l => l.workDate === workDateFilter)
+    : rawLogsForTicket;
 
   let departedAt: string | undefined;
   let arrivedAt: string | undefined;
   let workStartedAt: string | undefined;
+  let partsSourcingAt: string | undefined;
+  let sourcingType: AsPartsSourcingType | undefined;
+  let sourcingTargetName: string | undefined;
+  let partName: string | undefined;
+  let revisitScheduledAt: string | undefined;
+  let revisitDate: string | undefined = ticket.revisitDate || (ticket.status === 'REVISIT' ? ticket.visitDate : undefined);
   let workCompletedAt: string | undefined;
   let movedNextAt: string | undefined;
   let nextRepairId: string | undefined;
@@ -385,6 +565,17 @@ export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): T
       arrivedAt = log.recordedAt;
     } else if (log.eventType === 'WORK_START') {
       workStartedAt = log.recordedAt;
+    } else if (log.eventType === 'PARTS_SOURCING') {
+      partsSourcingAt = log.recordedAt;
+      if (log.sourcingType) sourcingType = log.sourcingType;
+      if (log.sourcingTargetName || log.nextSiteName) {
+        sourcingTargetName = log.sourcingTargetName || log.nextSiteName;
+      }
+      if (log.partName) partName = log.partName;
+      if (log.revisitDate) revisitDate = log.revisitDate;
+    } else if (log.eventType === 'REVISIT_SCHEDULED') {
+      revisitScheduledAt = log.recordedAt;
+      if (log.revisitDate) revisitDate = log.revisitDate;
     } else if (log.eventType === 'WORK_COMPLETE') {
       workCompletedAt = log.recordedAt;
     } else if (log.eventType === 'MOVE_NEXT_SITE') {
@@ -395,11 +586,21 @@ export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): T
   }
 
   if (!workCompletedAt && ticket.status === 'COMPLETED' && ticket.updatedAt) {
-    workCompletedAt = ticket.updatedAt;
+    const compDate = (ticket.completedDate || ticket.updatedAt).slice(0, 10);
+    if (!workDateFilter || compDate === workDateFilter) {
+      workCompletedAt = ticket.updatedAt;
+    }
   }
 
+  const lastEvent = logsForTicket.length > 0 ? logsForTicket[logsForTicket.length - 1] : undefined;
+
   let currentStage: AsRouteStage = 'WAITING';
-  let currentStageLabel = '출동 대기';
+  let currentStageLabel =
+    ticket.status === 'REVISIT'
+      ? revisitDate
+        ? `재방문 예정 (${revisitDate.slice(5)})`
+        : '재방문 출동 대기'
+      : '출동 대기';
 
   if (ticket.status === 'COMPLETED' || workCompletedAt) {
     if (movedNextAt) {
@@ -409,9 +610,15 @@ export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): T
       currentStage = 'COMPLETED';
       currentStageLabel = '작업 완료';
     }
-  } else if (movedNextAt) {
+  } else if (lastEvent?.eventType === 'MOVE_NEXT_SITE' || movedNextAt) {
     currentStage = 'MOVING_NEXT';
     currentStageLabel = nextSiteName ? `다음 이동 (${nextSiteName})` : '다음 현장 이동';
+  } else if (lastEvent?.eventType === 'REVISIT_SCHEDULED') {
+    currentStage = 'REVISIT_SCHEDULED';
+    currentStageLabel = revisitDate ? `재방문 예약 (${revisitDate.slice(5)})` : '재방문 예약';
+  } else if (lastEvent?.eventType === 'PARTS_SOURCING') {
+    currentStage = 'PARTS_SOURCING';
+    currentStageLabel = sourcingTargetName ? `부품수급 (${sourcingTargetName})` : '부품 수급 이동';
   } else if (workStartedAt) {
     currentStage = 'WORKING';
     currentStageLabel = '작업 진행중';
@@ -421,10 +628,19 @@ export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): T
   } else if (departedAt) {
     currentStage = 'DEPARTED';
     currentStageLabel = '현장 이동중';
+  } else if (revisitScheduledAt) {
+    currentStage = 'REVISIT_SCHEDULED';
+    currentStageLabel = revisitDate ? `재방문 예약 (${revisitDate.slice(5)})` : '재방문 예약';
+  } else if (partsSourcingAt) {
+    currentStage = 'PARTS_SOURCING';
+    currentStageLabel = sourcingTargetName ? `부품수급 (${sourcingTargetName})` : '부품 수급 이동';
   }
 
   const travelMinutes = calcDiffMinutes(departedAt, arrivedAt);
-  const workMinutes = calcDiffMinutes(workStartedAt || arrivedAt, workCompletedAt || movedNextAt);
+  const workMinutes = calcDiffMinutes(
+    workStartedAt || arrivedAt,
+    workCompletedAt || movedNextAt || partsSourcingAt || revisitScheduledAt
+  );
 
   return {
     repairId: ticket.id,
@@ -433,6 +649,13 @@ export function getTicketRouteSummary(ticket: Repair, allLogs?: AsRouteLog[]): T
     departedAt,
     arrivedAt,
     workStartedAt,
+    partsSourcingAt,
+    sourcingType,
+    sourcingTargetName,
+    partName,
+    revisitScheduledAt,
+    revisitDate,
+    revisitScheduledFor: revisitDate,
     workCompletedAt,
     movedNextAt,
     nextRepairId,
@@ -453,13 +676,17 @@ export async function recordAsRouteStep(params: {
   ticket?: Repair | null;
   nextTicket?: Repair | null;
   nextSiteCustomName?: string;
+  sourcingType?: AsPartsSourcingType;
+  sourcingTargetName?: string;
+  partName?: string;
+  revisitDate?: string;
   memo?: string;
   customRecordedAt?: string;
 }): Promise<AsRouteLog> {
   const nowIso = params.customRecordedAt || new Date().toISOString();
   const workDate = getLocalWorkDateStr(nowIso);
   const meta = AS_ROUTE_EVENT_META[params.eventType];
-  const ticket = params.ticket || (params.ticket === undefined ? null : null);
+  const ticket = params.ticket || null;
   const nextTicket = params.nextTicket || null;
 
   // 직전 단계 대비 소요시간(분) 자동 계산
@@ -472,7 +699,9 @@ export async function recordAsRouteStep(params: {
       .find(
         l =>
           (ticket ? l.repairId === ticket.id : true) &&
-          (l.eventType === 'DEPART_TO_SITE' || l.eventType === 'MOVE_NEXT_SITE')
+          (l.eventType === 'DEPART_TO_SITE' ||
+            l.eventType === 'MOVE_NEXT_SITE' ||
+            l.eventType === 'PARTS_SOURCING')
       );
     if (prevDepart) {
       durationMinutes = calcDiffMinutes(prevDepart.recordedAt, nowIso);
@@ -484,7 +713,11 @@ export async function recordAsRouteStep(params: {
     if (prevArrive) {
       durationMinutes = calcDiffMinutes(prevArrive.recordedAt, nowIso);
     }
-  } else if (params.eventType === 'WORK_COMPLETE' || params.eventType === 'MOVE_NEXT_SITE') {
+  } else if (
+    params.eventType === 'WORK_COMPLETE' ||
+    params.eventType === 'MOVE_NEXT_SITE' ||
+    params.eventType === 'PARTS_SOURCING'
+  ) {
     const prevStart = [...todayMechanicLogs]
       .reverse()
       .find(
@@ -497,11 +730,70 @@ export async function recordAsRouteStep(params: {
     }
   }
 
+  let resolvedSourcingType = params.sourcingType;
+  let resolvedSourcingTargetName = params.sourcingTargetName?.trim();
+
+  if (params.eventType === 'PARTS_SOURCING') {
+    const assetInfo = getTicketAssetSourcingInfo(ticket);
+    if (!resolvedSourcingType) {
+      resolvedSourcingType = assetInfo.defaultSourcingType;
+    }
+    if (!resolvedSourcingTargetName) {
+      if (resolvedSourcingType === 'HQ_YARD') {
+        resolvedSourcingTargetName = assetInfo.yardName
+          ? `당사 주기장 (${assetInfo.yardName})`
+          : '당사 주기장';
+      } else if (resolvedSourcingType === 'RENTAL_VENDOR') {
+        resolvedSourcingTargetName = assetInfo.vendorName
+          ? `임차처 (${assetInfo.vendorName})`
+          : '임차처';
+      } else {
+        resolvedSourcingTargetName = '타 차량 접선';
+      }
+    }
+  }
+
   const nextSiteNameResolved =
-    nextTicket?.siteName ||
-    nextTicket?.customerName ||
-    params.nextSiteCustomName ||
-    undefined;
+    params.eventType === 'PARTS_SOURCING'
+      ? resolvedSourcingTargetName
+      : params.eventType === 'REVISIT_SCHEDULED'
+      ? params.revisitDate
+        ? `재방문 (${params.revisitDate})`
+        : '재방문 예정'
+      : nextTicket?.siteName ||
+        nextTicket?.customerName ||
+        params.nextSiteCustomName ||
+        undefined;
+
+  let resolvedMemo = params.memo?.trim() || '';
+  if (params.eventType === 'PARTS_SOURCING') {
+    const parts: string[] = [];
+    if (resolvedSourcingType) {
+      parts.push(`[${AS_PARTS_SOURCING_TYPE_LABELS[resolvedSourcingType]}] ${resolvedSourcingTargetName || ''}`.trim());
+    }
+    if (params.partName?.trim()) {
+      parts.push(`수급부품: ${params.partName.trim()}`);
+    }
+    if (params.revisitDate) {
+      parts.push(`재방문예정: ${params.revisitDate}`);
+    }
+    if (resolvedMemo) {
+      parts.push(resolvedMemo);
+    }
+    resolvedMemo = parts.join(' | ');
+  } else if (params.eventType === 'REVISIT_SCHEDULED') {
+    const parts: string[] = [];
+    if (params.revisitDate) {
+      parts.push(`재방문일: ${params.revisitDate}`);
+    }
+    if (params.partName?.trim()) {
+      parts.push(`필요부품: ${params.partName.trim()}`);
+    }
+    if (resolvedMemo) {
+      parts.push(`사유: ${resolvedMemo}`);
+    }
+    resolvedMemo = parts.join(' | ');
+  }
 
   const newLogId = `ARL-${workDate.replace(/-/g, '')}-${Date.now().toString(36).toUpperCase()}-${Math.random()
     .toString(36)
@@ -527,8 +819,12 @@ export async function recordAsRouteStep(params: {
     modelName: ticket?.modelName,
     nextRepairId: nextTicket?.id,
     nextSiteName: nextSiteNameResolved,
+    sourcingType: resolvedSourcingType,
+    sourcingTargetName: resolvedSourcingTargetName,
+    partName: params.partName?.trim() || undefined,
+    revisitDate: params.revisitDate || undefined,
     durationMinutes,
-    memo: params.memo || '',
+    memo: resolvedMemo,
     recordedAt: nowIso,
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -545,7 +841,7 @@ export async function recordAsRouteStep(params: {
     console.warn('[asRouteTrackingService] asRouteLogs insert fallback:', e);
   }
 
-  // 2. 티켓이 연결된 경우 repairs.timelineEvents 및 티켓 상태/담당자 자동 갱신
+  // 2. 티켓이 연결된 경우 repairs.timelineEvents 및 티켓 상태/일정/담당자 자동 갱신
   if (ticket) {
     const latestTicket = db.repairs.find(r => r.id === ticket.id) || ticket;
     const hm = formatTimeHm(nowIso);
@@ -554,10 +850,22 @@ export async function recordAsRouteStep(params: {
       labelText += ` (이동 ${durationMinutes}분)`;
     } else if (params.eventType === 'WORK_COMPLETE' && durationMinutes) {
       labelText += ` (작업 ${durationMinutes}분)`;
+    } else if (params.eventType === 'PARTS_SOURCING') {
+      labelText += ` ➔ ${resolvedSourcingTargetName || '부품수급처'}`;
+      if (params.partName?.trim()) {
+        labelText += ` (${params.partName.trim()})`;
+      }
+      if (params.revisitDate) {
+        labelText += ` [재방문: ${params.revisitDate}]`;
+      }
+    } else if (params.eventType === 'REVISIT_SCHEDULED') {
+      if (params.revisitDate) {
+        labelText += ` ➔ ${params.revisitDate}`;
+      }
     } else if (params.eventType === 'MOVE_NEXT_SITE' && nextSiteNameResolved) {
       labelText += ` ➔ ${nextSiteNameResolved}`;
     }
-    if (params.memo) {
+    if (params.memo && params.eventType !== 'PARTS_SOURCING') {
       labelText += ` - ${params.memo}`;
     }
 
@@ -567,7 +875,7 @@ export async function recordAsRouteStep(params: {
       label: labelText,
       mechanicId: params.mechanicId,
       mechanicName: params.mechanicName,
-      detail: params.memo || (nextSiteNameResolved ? `다음 현장: ${nextSiteNameResolved}` : undefined),
+      detail: resolvedMemo || (nextSiteNameResolved ? `이동지: ${nextSiteNameResolved}` : undefined),
       timestamp: nowIso,
       workDate,
       repairId: latestTicket.id,
@@ -582,18 +890,46 @@ export async function recordAsRouteStep(params: {
       modelName: latestTicket.modelName,
       nextRepairId: nextTicket?.id,
       nextSiteName: nextSiteNameResolved,
+      sourcingType: resolvedSourcingType,
+      sourcingTargetName: resolvedSourcingTargetName,
+      partName: params.partName?.trim() || undefined,
+      revisitDate: params.revisitDate || undefined,
       durationMinutes,
     };
 
     const prevEvents = Array.isArray(latestTicket.timelineEvents) ? latestTicket.timelineEvents : [];
     let nextStatus = latestTicket.status;
+    let nextVisitDate = latestTicket.visitDate || workDate;
+    let nextScheduleDate = latestTicket.scheduleDate || nextVisitDate;
+    let nextRevisitDate = latestTicket.revisitDate;
+    let nextRevisitReason = latestTicket.revisitReason;
+
     if (
       (params.eventType === 'DEPART_TO_SITE' ||
         params.eventType === 'ARRIVE_AT_SITE' ||
         params.eventType === 'WORK_START') &&
-      (latestTicket.status === 'REQUESTED' || latestTicket.status === 'SCHEDULED')
+      (latestTicket.status === 'REQUESTED' ||
+        latestTicket.status === 'SCHEDULED' ||
+        latestTicket.status === 'REVISIT')
     ) {
       nextStatus = 'IN_PROGRESS';
+    } else if (params.eventType === 'REVISIT_SCHEDULED' || (params.eventType === 'PARTS_SOURCING' && params.revisitDate)) {
+      nextStatus = 'REVISIT';
+      if (params.revisitDate) {
+        nextRevisitDate = params.revisitDate;
+        nextVisitDate = params.revisitDate;
+        nextScheduleDate = params.revisitDate;
+      }
+      const reasonParts: string[] = [];
+      if (params.eventType === 'PARTS_SOURCING' && resolvedSourcingTargetName) {
+        reasonParts.push(`부품수급(${resolvedSourcingTargetName}${params.partName ? ` - ${params.partName}` : ''})`);
+      } else if (params.partName) {
+        reasonParts.push(`필요부품: ${params.partName}`);
+      }
+      if (params.memo?.trim()) {
+        reasonParts.push(params.memo.trim());
+      }
+      nextRevisitReason = reasonParts.join(' / ') || nextRevisitReason || '부품 수급 후 재방문';
     }
 
     const assignedMechId = latestTicket.mechanicId || latestTicket.assignedMechanicId || params.mechanicId;
@@ -604,7 +940,10 @@ export async function recordAsRouteStep(params: {
       mechanicId: assignedMechId,
       assignedMechanicId: assignedMechId,
       mechanicName: assignedMechName,
-      visitDate: latestTicket.visitDate || workDate,
+      visitDate: nextVisitDate,
+      scheduleDate: nextScheduleDate,
+      revisitDate: nextRevisitDate,
+      revisitReason: nextRevisitReason,
       timelineEvents: [...prevEvents, timelineEvt],
       updatedAt: nowIso,
     });
