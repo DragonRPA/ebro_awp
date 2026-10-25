@@ -450,6 +450,45 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
 
   const mappedAssetIds = useMemo(() => Object.values(slotAssetMap).filter(Boolean), [slotAssetMap]);
 
+  // 모델별 그룹 요약 (개별 슬롯 나열 대신 모델 + 수량으로 간결 표시)
+  const modelSlotGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        modelKey: string;
+        modelName: string;
+        slots: typeof activeUnassignedSlots;
+        mappedPairs: Array<{ caId: string; asset: Asset }>;
+      }
+    >();
+
+    activeUnassignedSlots.forEach(ca => {
+      const raw = (ca.expectedModel || '미지정').trim();
+      const key = normalizeModelKey(raw);
+      let grp = map.get(key);
+      if (!grp) {
+        grp = {
+          modelKey: key,
+          modelName: raw,
+          slots: [],
+          mappedPairs: []
+        };
+        map.set(key, grp);
+      }
+      if (raw.includes('-') && !grp.modelName.includes('-')) {
+        grp.modelName = raw;
+      }
+      grp.slots.push(ca);
+      const mappedId = slotAssetMap[ca.id];
+      if (mappedId) {
+        const a = assetMap.get(mappedId);
+        if (a) grp.mappedPairs.push({ caId: ca.id, asset: a });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [activeUnassignedSlots, slotAssetMap, assetMap]);
+
   // 전체 임대가능 실물 장비 풀 (가상자산 제외, 정비점수 오름차순)
   const allAvailableAssets = useMemo(() => {
     return (assets || [])
@@ -463,29 +502,23 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       .sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
   }, [assets]);
 
-  // 현재 요청에 포함된 고유 요구 모델 목록 (엄격 매칭용)
-  const requestedModelsInTask = useMemo(() => {
-    const list: string[] = [];
-    const seen = new Set<string>();
-    activeUnassignedSlots.forEach(ca => {
-      const m = (ca.expectedModel || '').trim();
-      if (!m) return;
-      const key = normalizeModelKey(m);
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push(m);
-      }
-    });
-    return list;
-  }, [activeUnassignedSlots]);
+  // 현재 요청에 포함된 고유 요구 모델 목록
+  const requestedModelsInTask = useMemo(
+    () => modelSlotGroups.map(g => g.modelName),
+    [modelSlotGroups]
+  );
 
-  // 현재 활성 타겟 슬롯의 모델 (없으면 첫 번째 요구 모델)
+  // 현재 활성 타겟 모델 (포커스된 슬롯 또는 첫 번째 미할당 슬롯의 모델)
   const activeTargetModel = useMemo(() => {
+    if (focusedSlotCaId) {
+      const fSlot = activeUnassignedSlots.find(ca => ca.id === focusedSlotCaId);
+      if (fSlot?.expectedModel) return fSlot.expectedModel;
+    }
     if (nextTargetSlot?.expectedModel) return nextTargetSlot.expectedModel;
     return requestedModelsInTask[0] || '';
-  }, [nextTargetSlot, requestedModelsInTask]);
+  }, [focusedSlotCaId, activeUnassignedSlots, nextTargetSlot, requestedModelsInTask]);
 
-  // 현재 요청의 모든 요구 모델에 정확히 일치하는 가용 장비 풀 (자동채움/카메라용)
+  // 현재 요청의 모든 요구 모델에 정확히 일치하는 가용 장비 풀
   const availableAssetsForActiveTask = useMemo(() => {
     if (activeUnassignedSlots.length === 0 || requestedModelsInTask.length === 0) return [];
     return allAvailableAssets.filter(a =>
@@ -493,7 +526,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     );
   }, [allAvailableAssets, activeUnassignedSlots.length, requestedModelsInTask, products]);
 
-  // 화면 하단 후보 목록: 현재 타겟 슬롯 모델(activeTargetModel)과 100% 일치하는 장비만 노출
+  // 화면 하단 후보 목록: 현재 타겟 모델(activeTargetModel)과 100% 일치하는 장비만 출력
   const candidateAssetsForTargetModel = useMemo(() => {
     if (!activeTargetModel) return [];
     const q = quickInputText.trim().toLowerCase();
@@ -539,15 +572,23 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       }
 
       if (!targetCaId) {
-        showToast(`${asset.assetNo} (${asset.modelName})에 해당하는 빈 슬롯이 없습니다.`, 'error');
+        showToast(`${asset.assetNo} (${asset.modelName}) 모델의 빈 수량이 없습니다.`, 'error');
         return;
       }
 
-      setSlotAssetMap(prev => ({
-        ...prev,
-        [targetCaId!]: asset.id
-      }));
-      setFocusedSlotCaId(null);
+      const nextMap = {
+        ...slotAssetMap,
+        [targetCaId]: asset.id
+      };
+      setSlotAssetMap(nextMap);
+
+      // 같은 모델에 아직 빈 슬롯이 남아있으면 그 슬롯으로 포커스 유지, 다 채워졌으면 다음 빈 슬롯으로 자동 이동
+      const sameModelNextEmpty = activeUnassignedSlots.find(
+        ca =>
+          !nextMap[ca.id] &&
+          isModelMatch(asset.modelName, ca.expectedModel, products)
+      );
+      setFocusedSlotCaId(sameModelNextEmpty ? sameModelNextEmpty.id : null);
     },
     [slotAssetMap, activeUnassignedSlots, focusedSlotCaId, products, showToast]
   );
@@ -715,7 +756,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       )}
 
       <main className="flex-1 px-3 py-2 flex flex-col gap-2.5">
-        {/* 1. 출고 요청 목록 */}
+        {/* 1. 출고 요청 목록 (좌측 정렬 + 자연 줄바꿈) */}
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
@@ -747,7 +788,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
               미할당 출고 요청이 없습니다.
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-0.5">
+            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-0.5">
               {pendingGroups.map(grp => {
                 const c = grp.contract;
                 const isSelected = activeGroup?.groupKey === grp.groupKey;
@@ -755,37 +796,45 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                 const outDate = (grp.scheduledDate || c.startDate || '').slice(5) || '-';
 
                 return (
-                  <button
+                  <div
                     key={grp.groupKey}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelectContract(grp.groupKey)}
-                    className={`w-full text-left rounded-lg px-2.5 py-2 flex flex-col gap-1 border transition-colors ${
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectContract(grp.groupKey);
+                      }
+                    }}
+                    className={`w-full text-left rounded-lg px-3 py-2 flex flex-col items-stretch gap-1 border cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-blue-950/60 border-blue-500'
                         : 'bg-slate-950 border-slate-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex items-start justify-between gap-2 w-full">
+                      <div
+                        className="text-xs text-slate-100 leading-snug text-left flex-1 min-w-0"
+                        style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                      >
                         {grp.isExchange && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold whitespace-nowrap shrink-0">
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 mr-1.5 rounded bg-rose-600 text-white font-bold align-middle">
                             교환
                           </span>
                         )}
-                        <span className="text-xs font-bold text-slate-100 truncate">
+                        <strong className="font-bold text-slate-100">
                           {getCustomerName(c.customerId)}
-                        </span>
-                        <span className="text-xs text-slate-400 truncate">
-                          · {getSiteName(c.siteId)}
-                        </span>
+                        </strong>
+                        <span className="text-slate-300"> · {getSiteName(c.siteId)}</span>
                       </div>
-                      <span className="text-[11px] text-slate-300 font-mono whitespace-nowrap shrink-0">
+                      <span className="text-[11px] text-slate-300 font-mono whitespace-nowrap shrink-0 pt-0.5">
                         {outDate}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-wrap gap-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 w-full flex-wrap">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left min-w-0">
                         {modelSummaries.map(m => (
                           <span
                             key={m.name}
@@ -799,19 +848,19 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                         미할당 {grp.pendingCount}대
                       </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           )}
         </section>
 
-        {/* 2. 할당 슬롯 및 단일 카메라 창 */}
+        {/* 2. 모델별 할당 수량 요약 (개별 슬롯 나열 대신 모델 + 수량으로 간결화) */}
         {activeContract && activeUnassignedSlots.length > 0 && (
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
-                할당 슬롯 ({mappedAssetIds.length}/{activeUnassignedSlots.length})
+                할당 현황 ({mappedAssetIds.length}/{activeUnassignedSlots.length}대)
               </span>
 
               <div className="flex items-center gap-1 shrink-0">
@@ -866,61 +915,82 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
               }}
             />
 
-            {/* 슬롯 목록 */}
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto pr-0.5">
-              {activeUnassignedSlots.map((ca, idx) => {
-                const mappedAssetId = slotAssetMap[ca.id];
-                const mappedAsset = mappedAssetId ? assetMap.get(mappedAssetId) : undefined;
-                const isNextTarget = !mappedAsset && nextTargetSlot?.caId === ca.id;
+            {/* 모델 + 수량 단위 행 목록 */}
+            <div className="flex flex-col gap-1.5">
+              {modelSlotGroups.map(mGrp => {
+                const totalQty = mGrp.slots.length;
+                const filledQty = mGrp.mappedPairs.length;
+                const isComplete = filledQty >= totalQty;
+                const isTargetModel =
+                  normalizeModelKey(mGrp.modelName) === normalizeModelKey(activeTargetModel);
 
                 return (
                   <div
-                    key={ca.id}
+                    key={mGrp.modelKey}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
-                      if (!mappedAsset) setFocusedSlotCaId(ca.id);
+                      const firstEmpty = mGrp.slots.find(ca => !slotAssetMap[ca.id]);
+                      setFocusedSlotCaId((firstEmpty || mGrp.slots[0])?.id || null);
                     }}
-                    className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between gap-2 cursor-pointer ${
-                      mappedAsset
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const firstEmpty = mGrp.slots.find(ca => !slotAssetMap[ca.id]);
+                        setFocusedSlotCaId((firstEmpty || mGrp.slots[0])?.id || null);
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg border flex flex-col items-stretch gap-1.5 cursor-pointer transition-colors ${
+                      isComplete
                         ? 'bg-emerald-950/40 border-emerald-600'
-                        : isNextTarget
+                        : isTargetModel
                         ? 'bg-cyan-950/50 border-cyan-400'
                         : 'bg-slate-950 border-slate-800'
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
-                        #{idx + 1}
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <span
+                        className="text-xs font-bold text-slate-100 text-left flex-1 min-w-0"
+                        style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                      >
+                        {mGrp.modelName}
                       </span>
-                      <span className="text-xs font-bold text-slate-100 truncate">
-                        {ca.expectedModel || '미지정'}
+                      <span
+                        className={`text-xs font-bold whitespace-nowrap shrink-0 ${
+                          isComplete
+                            ? 'text-emerald-300'
+                            : isTargetModel
+                            ? 'text-cyan-300'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {filledQty} / {totalQty}대
                       </span>
                     </div>
 
-                    {mappedAsset ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs font-mono font-black text-emerald-300 whitespace-nowrap">
-                          {mappedAsset.assetNo}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleClearSlotMapping(ca.id);
-                          }}
-                          className="p-0.5 rounded text-slate-400 hover:text-rose-300"
-                          aria-label="해제"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                    {/* 선택된 관리번호 칩 표시 (있을 때만 줄바꿈 노출) */}
+                    {mGrp.mappedPairs.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 w-full">
+                        {mGrp.mappedPairs.map(({ caId, asset }) => (
+                          <span
+                            key={caId}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-900/70 border border-emerald-600 text-emerald-200 text-[11px] font-mono font-bold"
+                          >
+                            <span>{asset.assetNo}</span>
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleClearSlotMapping(caId);
+                              }}
+                              className="text-emerald-300 hover:text-rose-300 p-0.5"
+                              aria-label="해제"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
                       </div>
-                    ) : (
-                      <span
-                        className={`text-[11px] font-bold whitespace-nowrap shrink-0 ${
-                          isNextTarget ? 'text-cyan-300' : 'text-slate-500'
-                        }`}
-                      >
-                        {isNextTarget ? '선택 대기' : '미할당'}
-                      </span>
                     )}
                   </div>
                 );
@@ -929,48 +999,20 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
           </section>
         )}
 
-        {/* 3. 할당 후보 장비 (현재 타겟 슬롯의 요구 모델만 엄격 출력) */}
+        {/* 3. 할당 후보 장비 (선택된 모델의 임대가능 재고만 출력) */}
         {activeContract && activeUnassignedSlots.length > 0 && (
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
-                  할당 후보
-                </span>
-                <span className="text-xs font-bold text-cyan-300 truncate">
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div
+                className="text-xs font-bold text-slate-200 text-left flex-1 min-w-0"
+                style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+              >
+                <span>할당 후보</span>
+                <span className="text-cyan-300">
+                  {' '}
                   · {activeTargetModel} ({candidateAssetsForTargetModel.length}대)
                 </span>
               </div>
-
-              {/* 요청 내 복수 모델이 있을 때만 모델 전환 탭 표시 */}
-              {requestedModelsInTask.length > 1 && (
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                  {requestedModelsInTask.map(m => {
-                    const isActiveModel = normalizeModelKey(m) === normalizeModelKey(activeTargetModel);
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => {
-                          const slot = activeUnassignedSlots.find(
-                            ca =>
-                              !slotAssetMap[ca.id] &&
-                              normalizeModelKey(ca.expectedModel) === normalizeModelKey(m)
-                          );
-                          if (slot) setFocusedSlotCaId(slot.id);
-                        }}
-                        className={`px-2 py-0.5 rounded text-[11px] font-bold border whitespace-nowrap ${
-                          isActiveModel
-                            ? 'bg-cyan-600 text-white border-cyan-400'
-                            : 'bg-slate-950 text-slate-400 border-slate-800'
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* 관리번호 직접 입력 / 필터 */}
@@ -1006,7 +1048,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
               </button>
             </div>
 
-            {/* 3열 컴팩트 장비 그리드 (터치 즉시 슬롯 채움) */}
+            {/* 3열 컴팩트 장비 그리드 (터치 즉시 해당 모델 수량 채움) */}
             {candidateAssetsForTargetModel.length === 0 ? (
               <div className="py-4 text-center text-xs text-slate-400 bg-slate-950 rounded-lg border border-slate-800">
                 {activeTargetModel} 임대가능 재고가 없습니다.
