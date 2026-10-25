@@ -665,10 +665,11 @@ export const SalesJournalPage: React.FC = () => {
             flexDirection: 'column',
             gap: '5px',
             overflow: 'hidden',
+            height: '100%',
             minHeight: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileText size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
               <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
@@ -677,19 +678,20 @@ export const SalesJournalPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 1. 자연어 원문 입력 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          {/* 1. 자연어 원문 입력 (하단 여백만큼 가변 확장하여 스크롤바 없이 카드 높이를 꽉 채움) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minHeight: '60px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
               자연어 상담 원문
             </label>
             <textarea
               value={rawContent}
               onChange={e => setRawContent(e.target.value)}
-              rows={2}
               placeholder="고객명, 상대방 이름·직책, 상담 내용(영업개시/제안/견적/거래개시), 다음 일정 입력"
               style={{
                 width: '100%',
-                height: '52px',
+                flex: 1,
+                height: '100%',
+                minHeight: '52px',
                 padding: '6px 8px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-color)',
@@ -704,7 +706,7 @@ export const SalesJournalPage: React.FC = () => {
           </div>
 
           {/* Groq LLM 추출 실행 버튼 바 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', flexShrink: 0 }}>
             <button
               type="button"
               disabled={isExtracting || isSaving}
@@ -762,6 +764,7 @@ export const SalesJournalPage: React.FC = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
+              flexShrink: 0,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1104,7 +1107,7 @@ export const SalesJournalPage: React.FC = () => {
         </div>
 
         {/* ─── 우측: 영업일지 조회 그리드 및 상세 열람 패널 ─── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, height: '100%', minHeight: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, height: '100%', maxHeight: '100%', minHeight: 0, overflow: 'hidden' }}>
           {/* 필터 바 (헌장 3.4 상하 스택 레이블 구조) */}
           <div
             style={{
@@ -1280,11 +1283,13 @@ export const SalesJournalPage: React.FC = () => {
                 background: 'var(--bg-card)',
                 border: '1.5px solid #2563eb',
                 borderRadius: '8px',
-                padding: '10px 12px',
+                padding: '8px 12px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '6px',
                 flexShrink: 0,
+                maxHeight: '140px',
+                overflowY: 'auto',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
@@ -1435,7 +1440,8 @@ export const SalesJournalPage: React.FC = () => {
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              flex: 1,
+              flex: '1 1 0',
+              height: '100%',
               minHeight: 0,
             }}
           >
@@ -1454,7 +1460,7 @@ export const SalesJournalPage: React.FC = () => {
               </span>
             </div>
 
-            <div style={{ overflow: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ overflowY: 'scroll', overflowX: 'auto', flex: '1 1 0', minHeight: 0 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 1 }}>
