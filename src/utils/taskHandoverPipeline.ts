@@ -506,6 +506,121 @@ export function reconcileCompletedTodosInDb(): number {
   return cleanedCount;
 }
 
+const SYSTEM_PLACEHOLDER_NAMES = new Set([
+  '장비할당시스템',
+  '출고검수시스템',
+  '시스템',
+  '본사 담당자',
+  '영업부',
+  '관리자',
+  '시스템관리자',
+  '개발자',
+]);
+const VIRTUAL_USER_ID_SET = new Set(['u-1', 'sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
+
+/**
+ * 계약·배차·고객사 정보를 바탕으로 담당 영업사원 성명을 추출하는 단일 헬퍼 (SSOT)
+ */
+export function resolveContractSalespersonName(
+  contract?: any,
+  delivery?: any,
+  customer?: any,
+  fallback: string = '영업부'
+): string {
+  const users = db.users || [];
+  const findRealUserName = (idOrName?: string, allowVirtualAdmin = false): string | undefined => {
+    if (!idOrName || typeof idOrName !== 'string') return undefined;
+    const trimmed = idOrName.trim();
+    if (!trimmed) return undefined;
+    if (!allowVirtualAdmin && VIRTUAL_USER_ID_SET.has(trimmed)) return undefined;
+    const matched = users.find(u => u.id === trimmed || u.name === trimmed || u.email === trimmed);
+    if (matched?.name) {
+      if (!allowVirtualAdmin && (VIRTUAL_USER_ID_SET.has(matched.id) || SYSTEM_PLACEHOLDER_NAMES.has(matched.name.trim()))) {
+        return undefined;
+      }
+      return matched.name.trim();
+    }
+    if (
+      !trimmed.startsWith('u-') &&
+      !trimmed.startsWith('usr-') &&
+      !trimmed.startsWith('sys-') &&
+      !SYSTEM_PLACEHOLDER_NAMES.has(trimmed)
+    ) {
+      return trimmed;
+    }
+    return undefined;
+  };
+
+  // 1. 계약(contract)에 지정된 영업사원 성명 (가상 관리자 ID 제외 실명 최우선)
+  const contractSp =
+    findRealUserName(contract?.salespersonId) ||
+    findRealUserName(contract?.salespersonName) ||
+    findRealUserName(contract?.salesperson);
+  if (contractSp) return contractSp;
+
+  // 2. 배차 요청(delivery.cargoItems.requestMeta)에 기록된 출고요청 영업사원 확인
+  if (delivery?.cargoItems) {
+    try {
+      const rawCargo = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+      if (Array.isArray(rawCargo)) {
+        for (const ci of rawCargo) {
+          const metaSp =
+            findRealUserName(ci?.requestMeta?.requesterId) ||
+            findRealUserName(ci?.requestMeta?.requesterName);
+          if (metaSp) return metaSp;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. 배차 자체의 요청자 필드 확인
+  const delivSp =
+    findRealUserName(delivery?.salespersonId) ||
+    findRealUserName(delivery?.requesterId) ||
+    findRealUserName(delivery?.requesterName) ||
+    findRealUserName(delivery?.requestedByName);
+  if (delivSp) return delivSp;
+
+  // 4. 고객사(customer) 전담 영업사원 또는 동일 고객사의 다른 계약 영업사원 확인
+  const custId = contract?.customerId || delivery?.customerId || customer?.id;
+  const custObj = customer || (custId ? (db.customers || []).find(c => c.id === custId) : undefined);
+  const custSp =
+    findRealUserName(custObj?.salespersonId) ||
+    findRealUserName(custObj?.salespersonName);
+  if (custSp) return custSp;
+
+  if (custId) {
+    const otherContract = (db.contracts || []).find(
+      oc => oc.customerId === custId && oc.salespersonId && !VIRTUAL_USER_ID_SET.has(oc.salespersonId)
+    );
+    const otherSp = findRealUserName(otherContract?.salespersonId);
+    if (otherSp) return otherSp;
+  }
+
+  // 5. 가상 관리자 계정이라도 성명이 있으면 차선 폴백
+  const fallbackUserSp =
+    findRealUserName(contract?.salespersonId, true) ||
+    (delivery?.cargoItems
+      ? (() => {
+          try {
+            const rawCargo = typeof delivery.cargoItems === 'string' ? JSON.parse(delivery.cargoItems) : delivery.cargoItems;
+            if (Array.isArray(rawCargo) && rawCargo[0]?.requestMeta) {
+              return (
+                findRealUserName(rawCargo[0].requestMeta.requesterId, true) ||
+                findRealUserName(rawCargo[0].requestMeta.requesterName, true)
+              );
+            }
+          } catch {}
+          return undefined;
+        })()
+      : undefined);
+  if (fallbackUserSp && !SYSTEM_PLACEHOLDER_NAMES.has(fallbackUserSp)) return fallbackUserSp;
+
+  return fallback;
+}
+
 /**
  * 🔄 [2.7] 실시간 도메인 원장(장비 할당, 출고 검수, 배차 운송, 현장 AS, 입고 수리)에서
  * 실제 미완결 상태인 업무를 스캔하여, DB todos에 누락된 건이 있더라도 대시보드에 100% 직결 노출시키는 동기화 엔진
@@ -650,7 +765,12 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
         entityType: grp.delivery ? 'DELIVERY' : 'CONTRACT',
         entityId: targetEntityId,
         relatedEntityId: c.id,
-        senderName: salespersonName,
+        senderName: resolveContractSalespersonName(
+          c,
+          grp.delivery,
+          c.customerId ? customerMap.get(c.customerId) : undefined,
+          salespersonName
+        ),
         isCompleted: false,
         createdAt: grp.delivery?.createdAt || c.createdAt || nowIso,
         updatedAt: grp.delivery?.updatedAt || c.updatedAt || nowIso,
@@ -709,6 +829,11 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
       .map(i => (i.assetId ? assetMap.get(i.assetId)?.assetNo : undefined))
       .filter(Boolean)
       .join(', ');
+    const salespersonName = resolveContractSalespersonName(
+      c,
+      deliv,
+      c?.customerId ? customerMap.get(c.customerId) : undefined
+    );
 
     synthesized.push({
       id: `SYNTH-INSP-${groupKey}`,
@@ -725,7 +850,7 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
       entityType: 'INSPECTION',
       entityId: first.deliveryId || first.contractId || first.id,
       relatedEntityId: first.contractId,
-      senderName: '장비할당시스템',
+      senderName: salespersonName,
       isCompleted: false,
       createdAt: first.createdAt || deliv?.createdAt || nowIso,
       updatedAt: first.updatedAt || deliv?.updatedAt || nowIso,
@@ -774,7 +899,11 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
       ? '회수'
       : '출고';
     const schedDate = (d.loadingDate || d.scheduledDate || d.requestDate || c.startDate || '').slice(0, 10);
-    const salespersonName = (c.salespersonId && userMap.get(c.salespersonId)?.name) || '영업부';
+    const salespersonName = resolveContractSalespersonName(
+      c,
+      d,
+      c.customerId ? customerMap.get(c.customerId) : undefined
+    );
 
     synthesized.push({
       id: `SYNTH-DISP-${d.id}`,
@@ -1154,8 +1283,52 @@ export function findActiveTasksForUser(
     (activeMode === 'AS' && naturalAs) ||
     (activeMode === 'ADMIN' && naturalAdmin);
 
-  // 1. DB todos 중 미완료 + 원장 교차검증 통과 건 추출
-  const openDbTodos = (todos || []).filter(t => !t.isCompleted && !isTaskEntityAlreadyResolved(t));
+  // 1. DB todos 중 미완료 + 원장 교차검증 통과 건 추출 (출고 검수 건은 발행자를 계약 영업사원 이름으로 보정)
+  const openDbTodos = (todos || [])
+    .filter(t => !t.isCompleted && !isTaskEntityAlreadyResolved(t))
+    .map(t => {
+      const mId = resolveTaskMenuId(t);
+      if (mId === 'outbound_inspections') {
+        const eid = (t.entityId || '').trim();
+        const rid = (t.relatedEntityId || '').trim();
+        let urlContractId = '';
+        let urlDeliveryId = '';
+        if (t.actionUrl && t.actionUrl.includes('?')) {
+          try {
+            const qs = new URLSearchParams(t.actionUrl.split('?')[1]);
+            urlContractId = qs.get('contractId') || '';
+            urlDeliveryId = qs.get('deliveryId') || '';
+          } catch {}
+        }
+        const deliv = (db.deliveries || []).find(
+          d => d.id === eid || d.id === rid || (urlDeliveryId && d.id === urlDeliveryId)
+        );
+        const ins = (db.outboundInspections || []).find(
+          i =>
+            i.id === eid ||
+            i.deliveryId === eid ||
+            i.contractId === eid ||
+            (urlDeliveryId && i.deliveryId === urlDeliveryId)
+        );
+        const contractId =
+          urlContractId ||
+          deliv?.contractId ||
+          ins?.contractId ||
+          (rid.startsWith('CONT') ? rid : '') ||
+          (eid.startsWith('CONT') ? eid : '');
+        const contract = contractId ? (db.contracts || []).find(c => c.id === contractId) : undefined;
+        const resolvedSp = resolveContractSalespersonName(
+          contract,
+          deliv,
+          contract?.customerId ? (db.customers || []).find(c => c.id === contract.customerId) : undefined,
+          t.senderName && !SYSTEM_PLACEHOLDER_NAMES.has(t.senderName) ? t.senderName : '영업부'
+        );
+        if (resolvedSp && resolvedSp !== t.senderName) {
+          return { ...t, senderName: resolvedSp };
+        }
+      }
+      return t;
+    });
 
   // 2. 실시간 도메인 원장(장비 할당, 출고 검수, 배차 관리, 현장 AS, 입고 정비)에서 누락된 미완결 업무 자동 합성 병합
   const synthesizedTodos = synthesizeMissingDomainTasks(openDbTodos);

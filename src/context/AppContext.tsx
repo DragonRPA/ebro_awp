@@ -9314,6 +9314,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           const pendingInspCount = db.outboundInspections.filter(
             i => (matchedDelivery ? i.deliveryId === matchedDelivery.id : i.contractId === origCa.contractId) && (i.status === 'PENDING' || i.status === 'IN_PROGRESS')
           ).length;
+          const spUser = contract?.salespersonId ? db.users.find(u => u.id === contract.salespersonId) : undefined;
+          const spName = spUser?.name || (contract as any)?.salespersonName || currentUser?.name || '영업부';
           await issueHandoverTask({
             category: 'OUTBOUND_PDI_INSPECTION',
             title: `[출고 검수] ${custObj?.name || '고객사'} (${pendingInspCount || 1}대 검수 대기${matchedDelivery?.driverName ? ` · ${matchedDelivery.driverName} 배정` : ''})`,
@@ -9324,8 +9326,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             actionUrl: `/admin/outbound_inspections?deliveryId=${matchedDelivery?.id || ''}&contractId=${origCa.contractId}`,
             entityType: 'INSPECTION',
             entityId: targetEntityId,
-            senderId: currentUser?.id,
-            senderName: currentUser?.name || '장비할당시스템'
+            senderId: contract?.salespersonId || currentUser?.id,
+            senderName: spName
           });
         }
       } catch (todoErr) {
@@ -9504,6 +9506,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             const pendingInspCount = db.outboundInspections.filter(
               i => (matchedDeliv ? i.deliveryId === matchedDeliv.id : i.contractId === cid) && (i.status === 'PENDING' || i.status === 'IN_PROGRESS')
             ).length;
+            const spUser = contract?.salespersonId ? db.users.find(u => u.id === contract.salespersonId) : undefined;
+            const spName = spUser?.name || (contract as any)?.salespersonName || currentUser?.name || '영업부';
             await issueHandoverTask({
               category: 'OUTBOUND_PDI_INSPECTION',
               title: `[출고 검수] ${custObj?.name || '고객사'} (${pendingInspCount || pairs.length}대 검수 대기${matchedDeliv?.driverName ? ` · ${matchedDeliv.driverName} 배정` : ''})`,
@@ -9514,8 +9518,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
               actionUrl: `/admin/outbound_inspections?deliveryId=${matchedDeliv?.id || ''}&contractId=${cid}`,
               entityType: 'INSPECTION',
               entityId: targetEntityId,
-              senderId: currentUser?.id,
-              senderName: currentUser?.name || '장비할당시스템'
+              senderId: contract?.salespersonId || currentUser?.id,
+              senderName: spName
             });
           }
         }
