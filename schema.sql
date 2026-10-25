@@ -931,6 +931,47 @@ CREATE TABLE repairs (
 
 ALTER TABLE outbound_inspections ADD CONSTRAINT fk_outbound_inspections_repair FOREIGN KEY ("repairId") REFERENCES repairs(id) ON DELETE SET NULL;
 
+-- 4-2. AS팀 일자별 현장 동선 및 업무단계 실시간 기록 대장 (as_route_logs)
+CREATE TABLE as_route_logs (
+    id                    TEXT PRIMARY KEY,
+    "workDate"            TEXT NOT NULL,               -- 근무일자 (YYYY-MM-DD)
+    "mechanicId"          TEXT REFERENCES users(id) ON DELETE SET NULL,
+    "mechanicName"        TEXT NOT NULL,               -- 담당 정비사 성명
+    "eventType"           TEXT NOT NULL CHECK ("eventType" IN (
+                            'CLOCK_IN',                -- 출근
+                            'DEPART_TO_SITE',          -- 현장 출발
+                            'ARRIVE_AT_SITE',          -- 현장 도착
+                            'WORK_START',              -- 작업 시작
+                            'WORK_COMPLETE',           -- 작업 완료
+                            'MOVE_NEXT_SITE',          -- 다음 현장 이동
+                            'RETURN_TO_YARD',          -- 주기장 복귀
+                            'CLOCK_OUT'                -- 퇴근
+                          )),
+    "eventLabel"          TEXT NOT NULL,               -- 단계 명칭 (현장 출발, 현장 도착 등)
+    "repairId"            TEXT REFERENCES repairs(id) ON DELETE SET NULL,
+    "ticketNo"            TEXT,                        -- AS 접수번호 (예: AS-261025-001)
+    "customerId"          TEXT,
+    "customerName"        TEXT,                        -- 고객사명
+    "siteId"              TEXT,
+    "siteName"            TEXT,                        -- 현장명
+    "siteAddress"         TEXT,                        -- 현장 도로명 주소
+    "assetId"             TEXT,
+    "assetNo"             TEXT,                        -- 자산번호
+    "modelName"           TEXT,                        -- 모델명
+    "nextRepairId"        TEXT,                        -- 다음 이동 대상 AS ID
+    "nextSiteName"        TEXT,                        -- 다음 이동 현장명
+    "durationMinutes"     INTEGER,                     -- 직전 단계 대비 소요시간(분)
+    memo                  TEXT,                        -- 비고/상세내역
+    "recordedAt"          TEXT NOT NULL,               -- 기록 일시 (ISO 8601)
+    "createdAt"           TEXT NOT NULL,
+    "updatedAt"           TEXT NOT NULL,
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
+);
+
+CREATE INDEX IF NOT EXISTS idx_as_route_logs_work_date ON as_route_logs("workDate");
+CREATE INDEX IF NOT EXISTS idx_as_route_logs_mechanic ON as_route_logs("mechanicId", "workDate");
+CREATE INDEX IF NOT EXISTS idx_as_route_logs_repair ON as_route_logs("repairId");
+
 
 
 -- 4-3. 수리 투입 자재 (repair_consumables)

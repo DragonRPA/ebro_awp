@@ -134,7 +134,9 @@ export const AvailableInventoryPage: React.FC = () => {
     const contractAssetsByContract = new Map<string, typeof contractAssets>();
     (contractAssets || []).forEach(ca => {
       if (!ca.contractId) return;
-      if (ca.status === 'RETURNED' || ca.status === 'SOLD') return;
+      const caStatus = (ca.status || '') as string;
+      if (caStatus === 'RETURNED' || caStatus === 'SOLD' || caStatus === 'CANCELLED' || caStatus === 'REPLACED') return;
+      if (ca.actualReturnDate) return;
 
       if (ca.assetId) {
         const assignedAsset = assetMap.get(ca.assetId);
@@ -187,6 +189,8 @@ export const AvailableInventoryPage: React.FC = () => {
 
     for (let i = 0; i < (contracts || []).length; i++) {
       const c = contracts[i];
+      const cStatus = ((c.status || '') as string).toUpperCase();
+      if (cStatus === 'CANCELLED' || cStatus === 'TERMINATED' || cStatus === 'COMPLETED') continue;
       const activePreInspSlots = contractAssetsByContract.get(c.id) || [];
       if (activePreInspSlots.length === 0) continue;
 
@@ -378,6 +382,7 @@ export const AvailableInventoryPage: React.FC = () => {
 
     // 2. 실물 자산 재고 집계 (AVAILABLE 상태 및 필요 시 ASSIGNED 상태)
     (assets || []).forEach(a => {
+      if ((a as any).isDeleted) return;
       if (isVirtualAsset(a)) return;
       if (a.actualRentReturnDate) return;
       if (yardFilter !== 'ALL' && (a.yard || '용인') !== yardFilter) return;

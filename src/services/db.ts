@@ -400,6 +400,59 @@ export async function autoApplyAssetsDdl(): Promise<boolean> {
   }
 }
 
+/** 🚐 as_route_logs 테이블 자동 생성 DDL 및 PostgREST 스키마 캐시 자동 반영 헬퍼 */
+export const AS_ROUTE_LOGS_DDL_STATEMENTS: string[] = [
+  `CREATE TABLE IF NOT EXISTS "as_route_logs" (
+    "id" TEXT PRIMARY KEY,
+    "workDate" TEXT NOT NULL,
+    "mechanicId" TEXT,
+    "mechanicName" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL,
+    "eventLabel" TEXT NOT NULL,
+    "repairId" TEXT,
+    "ticketNo" TEXT,
+    "customerId" TEXT,
+    "customerName" TEXT,
+    "siteId" TEXT,
+    "siteName" TEXT,
+    "siteAddress" TEXT,
+    "assetId" TEXT,
+    "assetNo" TEXT,
+    "modelName" TEXT,
+    "nextRepairId" TEXT,
+    "nextSiteName" TEXT,
+    "durationMinutes" INTEGER,
+    "memo" TEXT,
+    "recordedAt" TEXT NOT NULL,
+    "createdAt" TEXT NOT NULL,
+    "updatedAt" TEXT NOT NULL,
+    "tenant_id" TEXT NOT NULL DEFAULT 'giyeonlift'
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_as_route_logs_work_date ON "as_route_logs"("workDate");`,
+  `CREATE INDEX IF NOT EXISTS idx_as_route_logs_mechanic ON "as_route_logs"("mechanicId", "workDate");`,
+  `CREATE INDEX IF NOT EXISTS idx_as_route_logs_repair ON "as_route_logs"("repairId");`,
+  `ALTER TABLE "as_route_logs" ENABLE ROW LEVEL SECURITY;`,
+  `DROP POLICY IF EXISTS "allow_all_as_route_logs" ON "as_route_logs";`,
+  `CREATE POLICY "allow_all_as_route_logs" ON "as_route_logs" FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);`,
+  `NOTIFY pgrst, 'reload schema';`
+];
+
+export async function autoApplyAsRouteLogsDdl(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('dev_exec_ddl', { statements: AS_ROUTE_LOGS_DDL_STATEMENTS });
+    if (!error) {
+      console.log('[autoApplyAsRouteLogsDdl] as_route_logs DDL 실행 및 PostgREST 스키마 캐시 갱신 성공:', data);
+      return true;
+    }
+    console.warn('[autoApplyAsRouteLogsDdl] dev_exec_ddl RPC 실행 실패 (Fallback 전환):', error?.message || error);
+    return false;
+  } catch (e: any) {
+    console.warn('[autoApplyAsRouteLogsDdl] dev_exec_ddl RPC 호출 예외 (Fallback 전환):', e?.message || e);
+    return false;
+  }
+}
+
 export interface ApprovalRule {
   id?: string;
   tenant_id?: string;
@@ -1448,10 +1501,13 @@ export interface Asset {
   updatedAt: string;
 }
 
-/** 실물/가상 자산 판별 헬퍼 (assetNature 컬럼 최우선, 미지정 시 memo 내 '가상' 여부로 판정) */
+/** 실물/가상 자산 판별 헬퍼 (assetNature 컬럼, 자산번호 '가상' 표기, memo 내 '가상' 여부 통합 판정) */
 export function isVirtualAsset(a?: Partial<Asset> | null): boolean {
   if (!a) return false;
   if (a.assetNature === 'VIRTUAL') return true;
+  if ((a as any).isVirtual === true) return true;
+  if (a.assetNo && String(a.assetNo).includes('가상')) return true;
+  if ((a as any).managementNo && String((a as any).managementNo).includes('가상')) return true;
   if (a.assetNature === 'PHYSICAL') return false;
   return Boolean(a.memo && String(a.memo).includes('가상'));
 }
@@ -1866,13 +1922,59 @@ export interface Billing {
 }
 
 
+/** 입고 불량 증상별 청구 항목 (증상당 사진 최대 2장 및 예상/합의 수리비용) */
+export interface InboundClaimDefectItem {
+  id: string;
+  checkitemId?: string;        // 정비항목관리 마스터 ID
+  category: string;            // 정비 구분 (외관/파손, 전장/배터리 등)
+  symptomName: string;         // 불량 증상명
+  estimatedCost: number;       // 증상당 예상 수리비용
+  agreedCost?: number;         // 협상 후 조정/합의 수리비용
+  photos: string[];            // 증상당 사진 (최대 2장)
+  memo?: string;               // 증상 상세 비고
+}
+
+export type ClaimNegotiationStatus = 'PENDING_NEGOTIATION' | 'SENT_TO_CUSTOMER' | 'AGREED';
+
+/** 입고 불량 수리비 청구 통합 메타데이터 (repairs.defectsJson 및 외상미수금 대장 1:1 연동) */
+export interface InboundDefectClaimMeta {
+  kind: 'INBOUND_DEFECT_CLAIM_V1';
+  receivableId: string;
+  repairId?: string;
+  assetId?: string;
+  assetNo: string;
+  modelName?: string;
+  customerId?: string;
+  customerName: string;
+  siteId?: string;
+  siteName: string;
+  contractId?: string;
+  contractNo?: string;
+  inboundDate: string;                  // 최근 입고일자
+  salespersonId?: string;
+  salespersonName?: string;
+  registeredById?: string;
+  registeredByName?: string;
+  registeredAt: string;
+  initialEstimatedAmount: number;       // 최초 예상 수리비 합계
+  agreedAmount: number;                 // 최종 합의(조정) 수리비 합계
+  negotiationStatus: ClaimNegotiationStatus;
+  sentAt?: string;                      // 고객 전달(이메일/카톡) 일시
+  sentChannel?: 'EMAIL' | 'KAKAO_SHARE' | 'PDF_DOWNLOAD';
+  sentToEmail?: string;
+  agreedAt?: string;                    // 최종 합의 완료 일시
+  agreedBy?: string;                    // 합의 처리 담당자명
+  negotiationMemo?: string;             // 고객 협상 및 수리비 조정 사유 메모
+  defectItems: InboundClaimDefectItem[]; // 불량 증상 목록 (증상당 사진 최대 2장, 예상 수리비용)
+}
+
 /** 외상미수금 대장 — 운송료·수리비·청소비·타사구상금 분할 청산 관리 */
 export interface Receivable {
   id: string;
   contractId?: string;
   customerId?: string;
   type: 'TRANSPORT' | 'REPAIR' | 'CLEANING' | 'VENDOR_CLAIM' | 'OTHER';
-  totalAmount: number;        // 외상 총액
+  totalAmount: number;        // 외상 총액 (수리비 협상 완료 시 최종 합의 금액으로 갱신)
   billedAmount: number;       // 청구된 누적 금액
   // remainingAmount = totalAmount - billedAmount (계산값)
   internalDescription: string; // 내부 장부 기재명
@@ -1882,6 +1984,7 @@ export interface Receivable {
   repairId?: string;           // 수리비 연동 시 repairs.id
   vendorName?: string;         // 타사 구상금인 경우 임차처명
   assetNo?: string;            // 대상 장비번호
+  claimMeta?: InboundDefectClaimMeta; // 런타임/로컬 캐시용 입고 불량 청구 상세 메타
   createdAt: string;
   updatedAt: string;
 }
@@ -2270,6 +2373,75 @@ export interface Repair {
   defectsJson?: string;
   memo?: string;
   timelineEvents?: RepairTimelineEvent[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AsRouteEventType =
+  | 'CLOCK_IN'        // 출근
+  | 'DEPART_TO_SITE'  // 현장 출발
+  | 'ARRIVE_AT_SITE'  // 현장 도착
+  | 'WORK_START'      // 작업 시작
+  | 'WORK_COMPLETE'   // 작업 완료
+  | 'MOVE_NEXT_SITE'  // 다음 현장 이동
+  | 'RETURN_TO_YARD'  // 주기장 복귀
+  | 'CLOCK_OUT';      // 퇴근
+
+export type AsRouteStage =
+  | 'WAITING'
+  | 'DEPARTED'
+  | 'ARRIVED'
+  | 'WORKING'
+  | 'MOVING_NEXT'
+  | 'COMPLETED';
+
+export interface RepairTimelineEvent {
+  id: string;
+  eventType: 'CALL_MADE' | 'TRANSIT_START' | 'ARRIVED' | 'COMPLETED' | AsRouteEventType | string;
+  label: string;
+  mechanicId?: string;
+  mechanicName?: string;
+  detail?: string;
+  timestamp: string;
+  workDate?: string;
+  repairId?: string;
+  ticketNo?: string;
+  customerId?: string;
+  customerName?: string;
+  siteId?: string;
+  siteName?: string;
+  siteAddress?: string;
+  assetId?: string;
+  assetNo?: string;
+  modelName?: string;
+  nextRepairId?: string;
+  nextSiteName?: string;
+  durationMinutes?: number;
+}
+
+/** 🚐 AS팀 일자별 현장 동선 및 업무단계 실시간 기록 모델 (as_route_logs) */
+export interface AsRouteLog {
+  id: string;
+  workDate: string;          // YYYY-MM-DD
+  mechanicId: string;
+  mechanicName: string;
+  eventType: AsRouteEventType;
+  eventLabel: string;        // 출근 | 현장 출발 | 현장 도착 | 작업 시작 | 작업 완료 | 다음 현장 이동 | 주기장 복귀 | 퇴근
+  repairId?: string;
+  ticketNo?: string;
+  customerId?: string;
+  customerName?: string;
+  siteId?: string;
+  siteName?: string;
+  siteAddress?: string;
+  assetId?: string;
+  assetNo?: string;
+  modelName?: string;
+  nextRepairId?: string;
+  nextSiteName?: string;
+  durationMinutes?: number;  // 직전 단계 대비 소요시간(분)
+  memo?: string;
+  recordedAt: string;        // ISO 8601
   createdAt: string;
   updatedAt: string;
 }
@@ -4851,6 +5023,7 @@ const SEED_ROLE_CONFIG: Record<string, Record<string, { canView: boolean; canSav
     dashboard: { canView: true, canSave: false },
     repairs: { canView: true, canSave: true },
     field_as: { canView: true, canSave: true },
+    as_route_tracking: { canView: true, canSave: true },
     inspection_checklist: { canView: true, canSave: true },
     consumable_purchase: { canView: true, canSave: true },
     consumable_inout: { canView: true, canSave: true },
@@ -6758,9 +6931,13 @@ class LocalDB {
   get salesJournals() { return this.get<SalesJournal>('salesJournals', []); }
   set salesJournals(val: SalesJournal[]) { this.set('salesJournals', val); }
 
+  get asRouteLogs() { return this.get<AsRouteLog>('asRouteLogs', []); }
+  set asRouteLogs(val: AsRouteLog[]) { this.set('asRouteLogs', val); }
+
   // Supabase 테이블 맵핑
   private mapToSupabaseTable(key: string): string {
     const mapping: Record<string, string> = {
+      asRouteLogs: 'as_route_logs',
       salesJournals: 'sales_journals',
       monthlyIncomeStatements: 'monthly_income_statements',
       errorReports: 'error_reports',
@@ -7188,6 +7365,11 @@ class LocalDB {
       }
 
       if (lastError) {
+        const errMsg = String(lastError?.message || lastError || '');
+        if (tableName === 'as_route_logs' && (errMsg.includes('Could not find') || errMsg.includes('relation') || lastError?.code === 'PGRST205' || lastError?.code === '42P01')) {
+          await autoApplyAsRouteLogsDdl();
+          return [];
+        }
         console.error(`[db.ts] Supabase fetchAllRows failed for ${tableName} (range ${from}-${from + PAGE_SIZE - 1}):`, lastError);
         throw new Error(`[Supabase DB 조회 실패] ${tableName}\n\n사유: ${lastError.message || String(lastError)}`);
       }
@@ -7608,6 +7790,10 @@ class LocalDB {
       }
       // users 테이블 전용 허용 컬럼 방어벽 (유령 스키마 paidOptions, protection, checkedSpecs 원천 차단)
       if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'tier_level', 'department', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
+        continue;
+      }
+      // receivables 테이블 전용 허용 컬럼 방어벽 (런타임 claimMeta 등 가상 프로퍼티 원천 격리)
+      if (resolvedTable === 'receivables' && !['id', 'contractId', 'customerId', 'vendorName', 'assetNo', 'type', 'occurredDate', 'internalDescription', 'displayName', 'totalAmount', 'billedAmount', 'status', 'repairId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
 
@@ -8162,6 +8348,8 @@ class LocalDB {
       developerAuthorizedDevices: 'developerAuthorizedDevices',
       sales_journals: 'salesJournals',
       salesJournals: 'salesJournals',
+      as_route_logs: 'asRouteLogs',
+      asRouteLogs: 'asRouteLogs',
     };
     return (reverseMapping[key] || key) as keyof LocalDB;
   }
@@ -8268,6 +8456,18 @@ class LocalDB {
                   return retryRes.data;
                 }
               }
+            }
+
+            if (tableName === 'as_route_logs' && (msg.includes('Could not find') || msg.includes('relation') || msg.includes('as_route_logs') || error.code === 'PGRST205' || error.code === '42P01')) {
+              const applied = await autoApplyAsRouteLogsDdl();
+              if (applied) {
+                await new Promise(r => setTimeout(r, 200));
+                const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+                if (!retryRes.error) {
+                  return retryRes.data;
+                }
+              }
+              return null;
             }
 
             if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column') || msg.includes('Could not find'))) {

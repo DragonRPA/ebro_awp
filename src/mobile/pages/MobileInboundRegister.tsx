@@ -44,11 +44,13 @@ const FALLBACK_DEFECT_PRESETS: DefectOption[] = [
 interface MobileInboundRegisterProps {
   onSuccess?: () => void;
   onBack?: () => void;
+  onOpenDefectClaim?: () => void;
 }
 
 export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
   onSuccess,
   onBack,
+  onOpenDefectClaim,
 }) => {
   const { 
     assets, 
@@ -335,6 +337,16 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
             <p className="text-xs text-slate-400 mt-0.5">회수 장비 기능 점검 및 정비 자동 연동</p>
           </div>
         </div>
+        {onOpenDefectClaim && (
+          <button
+            type="button"
+            onClick={onOpenDefectClaim}
+            className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-extrabold whitespace-nowrap flex items-center gap-1.5"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>미처리 불량·청구 등록</span>
+          </button>
+        )}
       </div>
 
       {/* ── 1. 대상 자산 선택 카드 ── */}

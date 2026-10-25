@@ -91,6 +91,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'consumable_inout', name: '소모품 입출고' },
       { id: 'consumable_stock', name: '소모품 재고' },
       { id: 'field_as', name: '현장 정비 관리' },
+      { id: 'as_route_tracking', name: '현장정비 동선 관리' },
       { id: 'repair', name: '주기장 정비 관리' },
       { id: 'inspection_checklist_manage', name: '정비 항목 관리' }
     ]
@@ -168,6 +169,8 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'consumable-stock': 'consumable_stock',
   'repairs': 'repair',
   'repairing': 'repair',
+  'as_route_tracking': 'as_route_tracking',
+  'asRouteTracking': 'as_route_tracking',
   'billings': 'billing',
   'contracts': 'contract',
   'customers': 'customer',

@@ -1,7 +1,7 @@
 // src/pages/asset_assignment.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Asset } from '../services/db';
+import { Asset, isVirtualAsset } from '../services/db';
 import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
 import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download, Calendar, RotateCcw } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
@@ -87,7 +87,8 @@ export const AssetAssignment: React.FC = () => {
   const contractMap = useMemo(() => new Map((contracts || []).map(c => [c.id, c])), [contracts]);
   const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
   const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
-  const availablePool = useMemo(() => (assets || []).filter(a => a.status === 'AVAILABLE'), [assets]);
+  // 🌟 가상자산은 관리부 전용(회계/일괄 정산용)이므로 현장 실물 장비 할당 풀에서 영구 제외
+  const availablePool = useMemo(() => (assets || []).filter(a => !(a as any).isDeleted && !isVirtualAsset(a) && !a.actualRentReturnDate && a.status === 'AVAILABLE'), [assets]);
 
   // 이미 출고검수 승인 완료(COMPLETED)된 슬롯 ID 집합 (헌장 1.3: 기출고 대여중 장비는 할당 작업대에서 제외)
   const completedInspectionCaIdSet = useMemo(() => {

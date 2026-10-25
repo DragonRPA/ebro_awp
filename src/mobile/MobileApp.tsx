@@ -17,6 +17,7 @@ import { MobileDispatchOrderCreate } from './pages/MobileDispatchOrderCreate';
 import { MobileMyContracts } from './pages/MobileMyContracts';
 import { MobileVehicleStock } from './pages/MobileVehicleStock';
 import { MobileInboundRegister } from './pages/MobileInboundRegister';
+import { MobileInboundDefectClaim } from './pages/MobileInboundDefectClaim';
 import { MobileSubleaseManage } from './pages/MobileSubleaseManage';
 import { MobileCustomerManage } from './pages/MobileCustomerManage';
 import { MobileDelinquencyManage } from './pages/MobileDelinquencyManage';
@@ -25,6 +26,7 @@ import { MobileManualViewer } from './pages/MobileManualViewer';
 import { MobileYardConsumableStock } from './pages/MobileYardConsumableStock';
 import { MobileTestLabHome } from './pages/MobileTestLabHome';
 import { SalesJournalPage } from '../pages/SalesJournalPage';
+import { AsRouteTrackingPage } from '../pages/AsRouteTrackingPage';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { MobileWalkieTalkieModal } from './components/MobileWalkieTalkieModal';
 import { MobileApkMonitorModal } from './components/MobileApkMonitorModal';
@@ -52,6 +54,21 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   } = useApp();
 
   const isDeveloper = useMemo(() => isDeveloperUser(currentUser), [currentUser]);
+
+  // 모바일 웹앱 진입 시 전역 다크 테마(High-Contrast Field Dark Mode) 강제 동기화
+  useEffect(() => {
+    const prevTheme = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-mobile-view', 'true');
+    return () => {
+      document.documentElement.removeAttribute('data-mobile-view');
+      if (prevTheme) {
+        document.documentElement.setAttribute('data-theme', prevTheme);
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    };
+  }, []);
 
   // 기완료 ToDo 상시 자동 상계 동기화
   useEffect(() => {
@@ -330,7 +347,10 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   };
 
   return (
-    <div className="mobile-app-root min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full overflow-x-hidden">
+    <div
+      data-theme="dark"
+      className="mobile-app-root min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full overflow-x-hidden"
+    >
       {/* 상단 모바일 헤더 + 부서 퀵 체인저 + 무전기 버튼 */}
       <MobileHeader 
         deptMode={deptMode}
@@ -415,6 +435,12 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
             onSelectTicket={handleOpenAsDetail}
             onOpenCreate={handleOpenCreateAs}
             onOpenManual={() => handleTabChange('manual_viewer')}
+            onOpenRouteTracking={() => handleTabChange('as_route_tracking')}
+          />
+        ) : activeTab === 'as_route_tracking' ? (
+          <AsRouteTrackingPage
+            isMobileEmbedded
+            onOpenTicketDetail={handleOpenAsDetail}
           />
         ) : activeTab === 'dispatch' ? (
           <MobileDispatchList />
@@ -443,6 +469,12 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           <MobileInboundRegister 
             onSuccess={() => handleTabChange('inspection')}
             onBack={() => handleTabChange('home')}
+            onOpenDefectClaim={() => handleTabChange('inbound_defect_claim')}
+          />
+        ) : activeTab === 'inbound_defect_claim' ? (
+          <MobileInboundDefectClaim
+            onNavigate={handleTabChange}
+            initialViewMode={deptMode === 'SALES' ? 'NEGOTIATE' : 'REGISTER'}
           />
         ) : activeTab === 'vehicle_log' ? (
           <MobileVehicleLog onBack={() => handleTabChange('home')} />

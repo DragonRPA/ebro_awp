@@ -14,6 +14,8 @@ const HometaxBatchExportModal = React.lazy(() => import('../modules/hometax-tax-
 import { matchHangul } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 import { calculatePaidOptionBillingItems } from '../types/siteOption';
+import { resolveReceivableClaimMeta } from '../utils/inboundDefectClaimHelper';
+import { downloadRepairClaimPdf } from '../utils/repairClaimPdfBuilder';
 
 // 🏦 테넌트 주거래 입금 계좌 조회 및 동적 포맷팅 헬퍼 (헌장 1.4: SSOT 표준화)
 export const getTenantPrimaryBankAccount = (tenant?: Tenant | null): TenantBankAccount | null => {
@@ -4862,19 +4864,24 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                   {/* 💡 미청구 외상미수금 대장 자동 추천 패널 */}
                   {(() => {
-                    const unbilledReceivables = receivables.filter(r => 
-                      r.status !== 'CLEARED' &&
-                      (r.contractId === selectedContractForWizard.id || r.contractId === undefined) &&
-                      r.customerId === selectedContractForWizard.customerId &&
-                      !selectedReceivablesForWizard.find(sr => sr.receivableId === r.id)
-                    );
+                    const unbilledReceivables = receivables.filter(r => {
+                      if (r.status === 'CLEARED') return false;
+                      if (selectedReceivablesForWizard.find(sr => sr.receivableId === r.id)) return false;
+                      if (r.contractId === selectedContractForWizard.id) return true;
+                      if (!r.contractId) {
+                        if (r.customerId && r.customerId === selectedContractForWizard.customerId) return true;
+                        const meta = r.type === 'REPAIR' ? resolveReceivableClaimMeta(r, { repairs, assets, customers, sites, contracts }) : null;
+                        if (meta && meta.customerName && meta.customerName === selectedContractForWizard.customerName) return true;
+                      }
+                      return false;
+                    });
 
                     if (unbilledReceivables.length === 0) return null;
 
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)', marginBottom: '14px' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--primary)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>이 계약/고객사의 미청구 외상미수금 {unbilledReceivables.length}건 발견</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>이 계약/고객사의 미청구 외상미수금 {unbilledReceivables.length}건 발견 (입고 수리비·운송료 등)</span>
                           {unbilledReceivables.length > 1 && (
                             <button
                               type="button"
@@ -4910,32 +4917,79 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           {unbilledReceivables.map(rcv => {
                             const remaining = rcv.totalAmount - rcv.billedAmount;
+                            const typeLabel =
+                              rcv.type === 'REPAIR' ? '수리비' :
+                              rcv.type === 'TRANSPORT' ? '운송료' :
+                              rcv.type === 'CLEANING' ? '청소비' :
+                              rcv.type === 'VENDOR_CLAIM' ? '타사구상금' : '기타';
+                            const claimMeta = rcv.type === 'REPAIR'
+                              ? resolveReceivableClaimMeta(rcv, { repairs, assets, customers, sites, contracts })
+                              : null;
+
                             return (
-                              <div key={rcv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', backgroundColor: 'var(--bg-card)', padding: '6px 10px', borderRadius: '6px' }}>
-                                <div>
-                                  <strong>[{rcv.type}]</strong> {rcv.internalDescription} <span className="text-muted">(잔액: {remaining.toLocaleString()}원)</span>
+                              <div key={rcv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', backgroundColor: 'var(--bg-card)', padding: '8px 10px', borderRadius: '6px', gap: '8px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <strong>[{typeLabel}]</strong>
+                                  {claimMeta && (
+                                    <span style={{
+                                      fontSize: '10.5px',
+                                      fontWeight: 700,
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      backgroundColor: claimMeta.negotiationStatus === 'AGREED' ? 'rgba(16, 185, 129, 0.15)' : claimMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? 'rgba(14, 165, 233, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                      color: claimMeta.negotiationStatus === 'AGREED' ? '#10b981' : claimMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? '#0ea5e9' : '#f59e0b',
+                                      border: `1px solid ${claimMeta.negotiationStatus === 'AGREED' ? 'rgba(16, 185, 129, 0.35)' : claimMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`
+                                    }}>
+                                      {claimMeta.negotiationStatus === 'AGREED' ? '합의완료' : claimMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? '고객전달' : '협상대기'}
+                                    </span>
+                                  )}
+                                  {claimMeta?.assetNo && (
+                                    <span style={{ fontSize: '10.5px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6' }}>
+                                      자산 {claimMeta.assetNo}
+                                    </span>
+                                  )}
+                                  <span>{rcv.displayName || rcv.internalDescription}</span>
+                                  {claimMeta && claimMeta.initialEstimatedAmount !== rcv.totalAmount ? (
+                                    <span className="text-muted">
+                                      (최초예상: {claimMeta.initialEstimatedAmount.toLocaleString()}원 ➔ 합의잔액: <strong style={{ color: 'var(--danger)' }}>{remaining.toLocaleString()}원</strong>)
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted">(잔액: <strong style={{ color: 'var(--danger)' }}>{remaining.toLocaleString()}원</strong>)</span>
+                                  )}
                                 </div>
-                                <button
-                                  type="button"
-                                  className="btn-secondary"
-                                  onClick={() => {
-                                    setSelectedReceivablesForWizard([...selectedReceivablesForWizard, {
-                                      receivableId: rcv.id,
-                                      amount: remaining,
-                                      displayName: rcv.displayName || rcv.internalDescription
-                                    }]);
-                                    setExtraCharges([...extraCharges, {
-                                      id: `EXTRA-RCV-${rcv.id}`,
-                                      category: rcv.type === 'TRANSPORT' ? 'TRANSPORT_ONEWAY' : rcv.type === 'REPAIR' ? 'REPAIR' : 'OTHER',
-                                      customName: `[외상청구] ${rcv.displayName || rcv.internalDescription}`,
-                                      quantity: 1,
-                                      unitPrice: remaining
-                                    }]);
-                                  }}
-                                  style={{ fontSize: '11.5px', padding: '3px 8px', color: 'var(--primary)', fontWeight: 'bold' }}
-                                >
-                                  + 청구 항목에 추가
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {claimMeta && (
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => downloadRepairClaimPdf(claimMeta)}
+                                      style={{ fontSize: '11px', padding: '3px 8px', fontWeight: 600 }}
+                                    >
+                                      수리비 내역서 PDF
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={() => {
+                                      setSelectedReceivablesForWizard([...selectedReceivablesForWizard, {
+                                        receivableId: rcv.id,
+                                        amount: remaining,
+                                        displayName: rcv.displayName || rcv.internalDescription
+                                      }]);
+                                      setExtraCharges([...extraCharges, {
+                                        id: `EXTRA-RCV-${rcv.id}`,
+                                        category: rcv.type === 'TRANSPORT' ? 'TRANSPORT_ONEWAY' : rcv.type === 'REPAIR' ? 'REPAIR' : 'OTHER',
+                                        customName: `[외상청구] ${rcv.displayName || rcv.internalDescription}`,
+                                        quantity: 1,
+                                        unitPrice: remaining
+                                      }]);
+                                    }}
+                                    style={{ fontSize: '11.5px', padding: '3px 8px', color: 'var(--primary)', fontWeight: 'bold' }}
+                                  >
+                                    + 당월 청구에 포함
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}

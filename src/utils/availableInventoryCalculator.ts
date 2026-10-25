@@ -114,8 +114,11 @@ export function calculateAvailableInventorySSOT(params: {
     }
     if (ca.actualReturnDate) return;
 
+    if (ca.expectedModel && String(ca.expectedModel).includes('가상')) return;
+
     if (ca.assetId) {
       const assignedAsset = assetMap.get(ca.assetId);
+      if (assignedAsset && isVirtualAsset(assignedAsset)) return;
       const isAlreadyRented =
         ca.status === 'RENTED' ||
         assignedAsset?.status === 'RENTED' ||

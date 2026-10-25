@@ -1093,6 +1093,24 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             <h2 data-mid="field_as-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
               현장 AS 관리
             </h2>
+            <button
+              type="button"
+              onClick={() => setActiveTab('as_route_tracking')}
+              style={{
+                padding: '5px 11px',
+                borderRadius: '7px',
+                border: '1px solid rgba(37, 99, 235, 0.35)',
+                background: 'rgba(37, 99, 235, 0.08)',
+                color: 'var(--primary)',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              현장정비 동선 관리 ➔
+            </button>
           </div>
 
           {/* 5대 메인 탭 전환 버튼 (헌장 3.1 무수식어 건조 표준) */}

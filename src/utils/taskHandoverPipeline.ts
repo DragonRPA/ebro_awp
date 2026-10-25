@@ -1046,6 +1046,9 @@ export function resolveMobileTabForTask(t: Todo): string {
   const cat = (t.taskCategory || '').toUpperCase();
   const url = (t.actionUrl || '').toLowerCase();
 
+  if (cat === 'CLAIM_DAMAGE_BILLING' || (t.entityType || '').toUpperCase() === 'RECEIVABLE' || url.includes('receivables')) {
+    return 'inbound_defect_claim';
+  }
   if (menuId === 'dispatch_assign') return 'assignment';
   if (menuId === 'outbound_inspections') return 'inspection';
   if (menuId === 'delivery') return 'dispatch';

@@ -10,7 +10,7 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2, Network, Package, ShieldCheck
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, Receivable, Billing, TradeSalesOrder, TradeProduct, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, Receivable, Billing, TradeSalesOrder, TradeProduct, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload, isVirtualAsset } from '../services/db';
 import { splitMasterAwareOptions } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -2316,7 +2316,18 @@ export const Contracts: React.FC = () => {
     exportToExcel(excelData, `계약대장_${todayStr}`, '계약목록');
   };
 
-  const availableAssets = useMemo(() => assets.filter(a => a.status === 'AVAILABLE'), [assets]);
+  // 🌟 가상자산은 관리부(관리/회계/경리/ADMIN/SUPER_ADMIN)만 계약 자산으로 선택 가능 (타 부서는 실물 임대가능 자산만 노출)
+  const canUseVirtualAssetInContract = useMemo(() => {
+    if (!currentUser) return false;
+    const dept = String(currentUser.department || '');
+    const rg = String((currentUser as any).roleGroup || currentUser.role || '');
+    return dept.includes('관리') || dept.includes('회계') || dept.includes('경리') || rg === 'ADMIN' || rg === 'SUPER_ADMIN';
+  }, [currentUser]);
+
+  const availableAssets = useMemo(
+    () => assets.filter(a => !(a as any).isDeleted && !a.actualRentReturnDate && a.status === 'AVAILABLE' && (canUseVirtualAssetInContract || !isVirtualAsset(a))),
+    [assets, canUseVirtualAssetInContract]
+  );
   const oldAssetToExchange = useMemo(() => (exchangeOldAssetId ? assetMap.get(exchangeOldAssetId) : undefined), [assetMap, exchangeOldAssetId]);
   const filteredAvailableAssets = useMemo(
     () => availableAssets.filter(a => (oldAssetToExchange ? a.modelName === oldAssetToExchange.modelName : true)),

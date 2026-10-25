@@ -490,12 +490,12 @@ input:not([type="checkbox"]):not([type="radio"]), select, textarea {
   appearance: none;
 }
 
-[data-theme='light'] input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
-[data-theme='light'] select,
-[data-theme='light'] textarea:not(.system-error-terminal),
-:root:not([data-theme='dark']) input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
-:root:not([data-theme='dark']) select,
-:root:not([data-theme='dark']) textarea:not(.system-error-terminal) {
+[data-theme='light']:not([data-mobile-view='true']) input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
+[data-theme='light']:not([data-mobile-view='true']) select,
+[data-theme='light']:not([data-mobile-view='true']) textarea:not(.system-error-terminal),
+:root:not([data-theme='dark']):not([data-mobile-view='true']) input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
+:root:not([data-theme='dark']):not([data-mobile-view='true']) select,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) textarea:not(.system-error-terminal) {
   background-color: var(--bg-app) !important;
   background-image: var(--paper-texture) !important;
   background-repeat: repeat !important;
@@ -515,8 +515,8 @@ pre.system-error-terminal {
   letter-spacing: -0.01em;
 }
 
-[data-theme='light'] select option,
-:root:not([data-theme='dark']) select option {
+[data-theme='light']:not([data-mobile-view='true']) select option,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) select option {
   background-color: #ebe5d8 !important;
   color: #0f172a !important;
 }
@@ -649,53 +649,53 @@ label {
   color: var(--text-secondary);
 }
 
-/* 🌟 라이트 모드 고시인성 먹색(Deep Slate Ink) 표준: 회색 글씨 라이트 모드에서만 고대비 먹색 변환 (다크 모드 침범 방지, 버튼/배경 라벨 제외) */
-[data-theme='light'] label:not(.btn):not([class*="btn"]):not([style*="background"]):not([class*="bg-"]):not([style*="color: #fff"]):not([style*="color: #FFF"]):not([style*="color: white"]):not([style*="color: rgb(255"]),
-:root:not([data-theme='dark']) label:not(.btn):not([class*="btn"]):not([style*="background"]):not([class*="bg-"]):not([style*="color: #fff"]):not([style*="color: #FFF"]):not([style*="color: white"]):not([style*="color: rgb(255"]) {
+/* 🌟 라이트 모드 고시인성 먹색(Deep Slate Ink) 표준: 회색 글씨 라이트 모드에서만 고대비 먹색 변환 (다크 모드 및 모바일 웹앱 침범 방지, 버튼/배경 라벨 제외) */
+[data-theme='light']:not([data-mobile-view='true']) label:not(.btn):not([class*="btn"]):not([style*="background"]):not([class*="bg-"]):not([style*="color: #fff"]):not([style*="color: #FFF"]):not([style*="color: white"]):not([style*="color: rgb(255"]),
+:root:not([data-theme='dark']):not([data-mobile-view='true']) label:not(.btn):not([class*="btn"]):not([style*="background"]):not([class*="bg-"]):not([style*="color: #fff"]):not([style*="color: #FFF"]):not([style*="color: white"]):not([style*="color: rgb(255"]) {
   color: #0f172a !important;
 }
 
-[data-theme='light'] th,
-:root:not([data-theme='dark']) th {
+[data-theme='light']:not([data-mobile-view='true']) th,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) th {
   color: #0f172a !important;
 }
 
-[data-theme='light'] .text-muted,
-:root:not([data-theme='dark']) .text-muted,
-[data-theme='light'] .text-secondary,
-:root:not([data-theme='dark']) .text-secondary,
-[data-theme='light'] .text-slate-300,
-:root:not([data-theme='dark']) .text-slate-300,
-[data-theme='light'] .text-slate-400,
-:root:not([data-theme='dark']) .text-slate-400,
-[data-theme='light'] .text-slate-500,
-:root:not([data-theme='dark']) .text-slate-500,
-[data-theme='light'] .text-slate-600,
-:root:not([data-theme='dark']) .text-slate-600,
-[data-theme='light'] .text-gray-300,
-:root:not([data-theme='dark']) .text-gray-300,
-[data-theme='light'] .text-gray-400,
-:root:not([data-theme='dark']) .text-gray-400,
-[data-theme='light'] .text-gray-500,
-:root:not([data-theme='dark']) .text-gray-500,
-[data-theme='light'] .text-gray-600,
-:root:not([data-theme='dark']) .text-gray-600 {
+[data-theme='light']:not([data-mobile-view='true']) .text-muted,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-muted,
+[data-theme='light']:not([data-mobile-view='true']) .text-secondary,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-secondary,
+[data-theme='light']:not([data-mobile-view='true']) .text-slate-300,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-slate-300,
+[data-theme='light']:not([data-mobile-view='true']) .text-slate-400,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-slate-400,
+[data-theme='light']:not([data-mobile-view='true']) .text-slate-500,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-slate-500,
+[data-theme='light']:not([data-mobile-view='true']) .text-slate-600,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-slate-600,
+[data-theme='light']:not([data-mobile-view='true']) .text-gray-300,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-gray-300,
+[data-theme='light']:not([data-mobile-view='true']) .text-gray-400,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-gray-400,
+[data-theme='light']:not([data-mobile-view='true']) .text-gray-500,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-gray-500,
+[data-theme='light']:not([data-mobile-view='true']) .text-gray-600,
+:root:not([data-theme='dark']):not([data-mobile-view='true']) .text-gray-600 {
   color: #0f172a !important;
 }
 
-/* 인라인 스타일로 지정된 흐린 회색 글씨: 오직 라이트 모드에서만 먹색 변환 */
-[data-theme='light'] [style*="color: #64748b"],
-[data-theme='light'] [style*="color: #475569"],
-[data-theme='light'] [style*="color: #94a3b8"],
-[data-theme='light'] [style*="color: #334155"],
-[data-theme='light'] [style*="color: #6b7280"],
-[data-theme='light'] [style*="color: #9ca3af"],
-[data-theme='light'] [style*="color: rgb(100, 116, 139)"],
-[data-theme='light'] [style*="color: rgb(71, 85, 105)"],
-[data-theme='light'] [style*="color: rgb(148, 163, 184)"],
-[data-theme='light'] [style*="color: rgb(51, 65, 85)"],
-[data-theme='light'] [style*="color: rgb(107, 114, 128)"],
-[data-theme='light'] [style*="color: rgb(156, 163, 175)"] {
+/* 인라인 스타일로 지정된 흐린 회색 글씨: 오직 PC 라이트 모드에서만 먹색 변환 */
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #64748b"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #475569"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #94a3b8"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #334155"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #6b7280"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: #9ca3af"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(100, 116, 139)"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(71, 85, 105)"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(148, 163, 184)"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(51, 65, 85)"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(107, 114, 128)"],
+[data-theme='light']:not([data-mobile-view='true']) [style*="color: rgb(156, 163, 175)"] {
   color: #0f172a !important;
 }
 

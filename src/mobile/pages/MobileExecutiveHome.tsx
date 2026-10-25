@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { db, Todo, Customer, DelinquencyActionLog, isVirtualAsset } from '../../services/db';
 import { 
   Crown, TrendingUp, AlertTriangle, CreditCard, 
-  Clock, ChevronRight, Ban, Send, ArrowRight, Fuel, Boxes
+  Clock, ChevronRight, Ban, Send, ArrowRight, Fuel, Boxes, Wrench
 } from 'lucide-react';
 import { MobileTabType } from '../MobileBottomNav';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
@@ -425,7 +425,29 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         )}
       </div>
 
-      {/* ── 6. 법인차량 주유영수증 등록 ── */}
+      {/* ── 6. 현장정비 동선 관리 바로가기 ── */}
+      <div
+        onClick={() => onNavigate('as_route_tracking')}
+        className="p-4 rounded-2xl bg-slate-900 border border-blue-500/50 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 flex-shrink-0">
+            <Wrench className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+              <span style={{ whiteSpace: 'nowrap' }}>현장정비 동선 관리</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold" style={{ whiteSpace: 'nowrap' }}>
+                AS팀 일자별 동선
+              </span>
+            </div>
+            <div className="text-xs text-slate-300 mt-0.5">누가 언제 출발·도착·작업시작·다음현장 이동·퇴근했는지 조회</div>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-blue-400" />
+      </div>
+
+      {/* ── 7. 법인차량 주유영수증 등록 ── */}
       <div
         onClick={() => onNavigate('vehicle_log')}
         className="p-4 rounded-2xl bg-slate-900 border border-amber-500/50 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-md"

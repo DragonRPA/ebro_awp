@@ -75,6 +75,7 @@ const TransportMaster = React.lazy(() => import('./pages/TransportMaster').then(
 const Repairs = React.lazy(() => import('./pages/Repairs').then(module => ({ default: module.Repairs })));
 const SmartAsRequest = React.lazy(() => import('./pages/SmartAsRequest').then(module => ({ default: module.SmartAsRequest })));
 const FieldAsManagement = React.lazy(() => import('./pages/FieldAsManagement').then(module => ({ default: module.FieldAsManagement })));
+const AsRouteTrackingPage = React.lazy(() => import('./pages/AsRouteTrackingPage').then(module => ({ default: module.AsRouteTrackingPage })));
 const OrganizationSettings = React.lazy(() => import('./pages/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
 const TenantManagementPage = React.lazy(() => import('./pages/TenantManagementPage').then(module => ({ default: module.TenantManagementPage })));
 const OtManagementPage = React.lazy(() => import('./pages/OtManagementPage').then(module => ({ default: module.OtManagementPage })));
@@ -738,6 +739,7 @@ const App: React.FC = () => {
         { id: 'consumable_inout', name: '소모품 입출고', icon: <PackagePlus size={16} />, component: <ConsumableInOutPage /> },
         { id: 'consumable_stock', name: '소모품 재고', icon: <Boxes size={16} />, component: <ConsumableStockPage /> },
         { id: 'field_as', name: '현장 정비 관리', icon: <Wrench size={16} />, component: <FieldAsManagement /> },
+        { id: 'as_route_tracking', name: '현장정비 동선 관리', icon: <Clock size={16} />, component: <AsRouteTrackingPage /> },
         { id: 'repair', name: '주기장 정비 관리', icon: <Wrench size={16} />, component: <Repairs /> },
         { id: 'inspection_checklist_manage', name: '정비 항목 관리', icon: <Shield size={16} />, component: <InspectionChecklistManage /> },
       ]

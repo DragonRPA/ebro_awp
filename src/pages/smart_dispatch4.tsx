@@ -14,7 +14,9 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useApproval } from '../hooks/useApproval';
-import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel, CustomerTransactionStatus, isCustomerRestricted, isCustomerClosedBlocked, getCustomerTransactionStatusLabel } from '../services/db';
+import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel, CustomerTransactionStatus, isCustomerRestricted, isCustomerClosedBlocked, getCustomerTransactionStatusLabel, isVirtualAsset } from '../services/db';
+import { getCanonicalModelKey } from '../utils/modelUtils';
+import { calculateAvailableInventorySSOT } from '../utils/availableInventoryCalculator';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
 import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import {
@@ -930,7 +932,19 @@ export const SmartDispatch4: React.FC = () => {
   const [activeFt, setActiveFt] = useState(FT_GROUPS[0] || '19ft');
   const [modelSearchQuery, setModelSearchQuery] = useState('');
 
-  // 🌟 전사 제품 마스터(53종), 자산 대장, 제원 매트릭스 100% 통합 풀링 (O(A) 단일 패스 집계)
+  // 🌟 전사 가용재고 SSOT 엔진 연동 (가상자산 100% 제외, 계약가능재고 = 실물현재고 - 출고예정)
+  const inventorySSOT = useMemo(() => {
+    return calculateAvailableInventorySSOT({
+      products: products && products.length > 0 ? products : db.products,
+      assets: assets && assets.length > 0 ? assets : db.assets,
+      contracts,
+      contractAssets,
+      deliveries,
+      outboundInspections,
+    });
+  }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
+
+  // 🌟 전사 제품 마스터(53종), 자산 대장(실물만), 제원 매트릭스 100% 통합 풀링 (가상자산 원천 제외)
   const catalogModels = useMemo(() => {
     const map = new Map<string, {
       modelName: string;
@@ -939,74 +953,101 @@ export const SmartDispatch4: React.FC = () => {
       manufacturer?: string;
       spec?: string;
       availableCount: number;
+      stockCount: number;
+      scheduledCount: number;
     }>();
 
     const allProds = products && products.length > 0 ? products : db.products;
     const allAssets = assets && assets.length > 0 ? assets : db.assets;
 
-    // 0. 가용 자산 모델별 수량 O(A) 1-Pass 사전 집계 (대소문자 무관 정규화 키)
-    const availableCountByModel = new Map<string, number>();
-    for (const a of allAssets) {
-      if (a.modelName && a.status === 'AVAILABLE') {
-        const uKey = a.modelName.trim().toUpperCase();
-        availableCountByModel.set(uKey, (availableCountByModel.get(uKey) || 0) + 1);
-      }
+    // 0. SSOT 가용재고(계약가능 재고 = 실물 현재고 - 출고예정) 모델별 매핑 (정규화 키 기준, 가상자산 제외됨)
+    const ssotByCanonical = new Map<string, { avail: number; stock: number; scheduled: number; feet?: number; manufacturer?: string }>();
+    for (const r of inventorySSOT.allInventoryRows) {
+      const cKey = getCanonicalModelKey(r.modelName);
+      const uKey = r.modelName.trim().toUpperCase();
+      const entry = {
+        avail: Math.max(0, r.availableContractQty),
+        stock: r.stockOwned + r.stockRented,
+        scheduled: r.scheduledOwned + r.scheduledRented,
+        feet: r.feet > 0 ? r.feet : undefined,
+        manufacturer: r.manufacturer && r.manufacturer !== '-' ? r.manufacturer : undefined,
+      };
+      if (cKey) ssotByCanonical.set(cKey, entry);
+      if (uKey) ssotByCanonical.set(uKey, entry);
     }
 
-    const seenUpperModels = new Set<string>();
+    const resolveStats = (mName: string) => {
+      const cKey = getCanonicalModelKey(mName);
+      const uKey = mName.trim().toUpperCase();
+      return ssotByCanonical.get(cKey) || ssotByCanonical.get(uKey) || { avail: 0, stock: 0, scheduled: 0 };
+    };
 
-    // 1. 등록 제품 마스터 (53종) 100% 등록 (소문자 m 등 원본 표기 보존)
+    const seenCanonicalModels = new Set<string>();
+
+    // 1. 등록 제품 마스터 (53종) 100% 등록 (소문자 m 등 원본 표기 보존, 가상 모델 제외)
     for (const p of allProds) {
-      if (!p.modelName) continue;
-      const uKey = p.modelName.trim().toUpperCase();
-      seenUpperModels.add(uKey);
-      const ftGroup = getFtGroup(p.feet, p.modelName);
-      const avail = availableCountByModel.get(uKey) || 0;
+      if (!p.modelName || String(p.modelName).includes('가상')) continue;
+      const cKey = getCanonicalModelKey(p.modelName) || p.modelName.trim().toUpperCase();
+      seenCanonicalModels.add(cKey);
+      const stats = resolveStats(p.modelName);
+      const effFeet = p.feet || stats.feet;
+      const ftGroup = getFtGroup(effFeet, p.modelName);
       map.set(p.modelName, {
         modelName: p.modelName,
         ftGroup,
-        feet: p.feet,
-        manufacturer: p.manufacturer,
+        feet: effFeet,
+        manufacturer: p.manufacturer || stats.manufacturer,
         spec: p.spec,
-        availableCount: avail,
+        availableCount: stats.avail,
+        stockCount: stats.stock,
+        scheduledCount: stats.scheduled,
       });
     }
 
     // 2. 제원 매트릭스 (Skyjack 등)
     for (const s of EQUIPMENT_SPEC_MATRIX) {
-      const uKey = s.modelName.trim().toUpperCase();
-      if (!seenUpperModels.has(uKey)) {
-        seenUpperModels.add(uKey);
-        const avail = availableCountByModel.get(uKey) || 0;
+      if (!s.modelName || String(s.modelName).includes('가상')) continue;
+      const cKey = getCanonicalModelKey(s.modelName) || s.modelName.trim().toUpperCase();
+      if (!seenCanonicalModels.has(cKey)) {
+        seenCanonicalModels.add(cKey);
+        const stats = resolveStats(s.modelName);
+        const effFeet = parseInt(s.ft) || stats.feet || undefined;
         map.set(s.modelName, {
           modelName: s.modelName,
-          ftGroup: getFtGroup(undefined, s.modelName),
-          feet: parseInt(s.ft) || undefined,
-          manufacturer: s.manufacturer,
+          ftGroup: getFtGroup(effFeet, s.modelName),
+          feet: effFeet,
+          manufacturer: s.manufacturer || stats.manufacturer,
           spec: s.displayName,
-          availableCount: avail,
+          availableCount: stats.avail,
+          stockCount: stats.stock,
+          scheduledCount: stats.scheduled,
         });
       }
     }
 
-    // 3. 자산 대장 등록 모델
+    // 3. 자산 대장 등록 모델 (가상자산 및 삭제/반납완료 자산 100% 제외!)
     for (const a of allAssets) {
-      if (a.modelName) {
-        const uKey = a.modelName.trim().toUpperCase();
-        if (!seenUpperModels.has(uKey)) {
-          seenUpperModels.add(uKey);
-          const avail = availableCountByModel.get(uKey) || 0;
+      if ((a as any).isDeleted || isVirtualAsset(a) || a.actualRentReturnDate) continue;
+      if (a.modelName && !String(a.modelName).includes('가상')) {
+        const cKey = getCanonicalModelKey(a.modelName) || a.modelName.trim().toUpperCase();
+        if (!seenCanonicalModels.has(cKey)) {
+          seenCanonicalModels.add(cKey);
+          const stats = resolveStats(a.modelName);
           map.set(a.modelName, {
             modelName: a.modelName,
-            ftGroup: getFtGroup(undefined, a.modelName),
-            availableCount: avail,
+            ftGroup: getFtGroup(stats.feet, a.modelName),
+            feet: stats.feet,
+            manufacturer: a.manufacturer || stats.manufacturer,
+            availableCount: stats.avail,
+            stockCount: stats.stock,
+            scheduledCount: stats.scheduled,
           });
         }
       }
     }
 
     return Array.from(map.values());
-  }, [products, assets]);
+  }, [products, assets, inventorySSOT]);
 
   const catalogModelMap = useMemo(() => {
     const map = new Map<string, typeof catalogModels[0]>();

@@ -4,8 +4,13 @@ import { useApp } from '../../context/AppContext';
 import { CameraUploader } from '../components/CameraUploader';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Navigation, Phone, CheckCircle2, Wrench, Plus, Trash2, ChevronDown, MapPin } from 'lucide-react';
-import { db, RepairPartUsed } from '../../services/db';
+import { db, RepairPartUsed, AsRouteEventType } from '../../services/db';
 import { launchNavigation, safePhoneCall, resolveSiteDetailedAddress, copyToClipboard, NavAppType } from '../../utils/nativeLauncher';
+import {
+  getAllUnifiedAsRouteLogs,
+  getTicketRouteSummary,
+  formatTimeHm,
+} from '../../services/asRouteTrackingService';
 
 interface MobileAsDetailProps {
   ticketId: string;
@@ -27,8 +32,10 @@ const QUICK_TAGS = [
 export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack }) => {
   const {
     fieldAsTickets,
+    repairs,
     completeFieldAsTicket,
     updateFieldAsTicketStatus,
+    recordAsRouteEvent,
     mechanicConsumableStocks,
     consumables,
     currentUser,
@@ -36,6 +43,47 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   } = useApp();
 
   const ticket = fieldAsTickets.find((t) => t.id === ticketId);
+  const [routeStepLoading, setRouteStepLoading] = useState<string | null>(null);
+  const [showMoveNextSheet, setShowMoveNextSheet] = useState(false);
+  const [selectedNextTicketId, setSelectedNextTicketId] = useState('');
+  const [customNextSiteName, setCustomNextSiteName] = useState('');
+
+  const routeSummary = useMemo(() => {
+    if (!ticket) return null;
+    const allLogs = getAllUnifiedAsRouteLogs(repairs);
+    return getTicketRouteSummary(ticket, allLogs);
+  }, [ticket, repairs]);
+
+  const handleRecordRouteStep = async (eventType: AsRouteEventType) => {
+    if (!ticket || routeStepLoading) return;
+    setRouteStepLoading(eventType);
+    try {
+      await recordAsRouteEvent({
+        eventType,
+        ticketId: eventType === 'CLOCK_OUT' || eventType === 'RETURN_TO_YARD' ? undefined : ticket.id,
+      });
+    } finally {
+      setRouteStepLoading(null);
+    }
+  };
+
+  const handleConfirmMoveNextInDetail = async () => {
+    if (!ticket || routeStepLoading) return;
+    setRouteStepLoading('MOVE_NEXT_SITE');
+    try {
+      await recordAsRouteEvent({
+        eventType: 'MOVE_NEXT_SITE',
+        ticketId: ticket.id,
+        nextTicketId: selectedNextTicketId || undefined,
+        nextSiteCustomName: customNextSiteName.trim() || undefined,
+      });
+      setShowMoveNextSheet(false);
+      setSelectedNextTicketId('');
+      setCustomNextSiteName('');
+    } finally {
+      setRouteStepLoading(null);
+    }
+  };
 
   const [actionTaken, setActionTaken] = useState(ticket?.actionTaken || '');
   const [resolutionType, setResolutionType] = useState<'REPAIR_DONE' | 'REVISIT_NEEDED' | 'GUIDED_END'>('REPAIR_DONE');
@@ -95,8 +143,15 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
     );
   }
 
-  // 안전한 길안내 열기 (현장명 대신 실제 상세 도로명 주소 우선 전송)
+  // 안전한 길안내 열기 (현장명 대신 실제 상세 도로명 주소 우선 전송 + 출발 미기록 시 자동 출발 기록)
   const handleOpenNav = (app: NavAppType = selectedNavApp) => {
+    if (!routeSummary?.departedAt) {
+      recordAsRouteEvent({
+        eventType: 'DEPART_TO_SITE',
+        ticketId: ticket.id,
+        memo: `${app === 'TMAP' ? 'T맵' : app === 'KAKAO' ? '카카오내비' : '네이버지도'} 길안내 출발`,
+      }).catch(() => {});
+    }
     const destination = ticket.siteAddress || resolvedAddress || ticket.siteName || ticket.locationDetail || ticket.customerName || '현장';
     launchNavigation(destination, app);
   };
@@ -347,6 +402,151 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
             </div>
           </div>
         )}
+
+        {/* 🚐 현장 동선 단계 원클릭 기록 패널 (출발 ➔ 도착 ➔ 작업시작 ➔ 다음현장 이동 ➔ 퇴근) */}
+        <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold text-white whitespace-nowrap">
+              실시간 동선 단계 기록
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-extrabold whitespace-nowrap">
+              {routeSummary?.currentStageLabel || '출동 대기'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => handleRecordRouteStep('DEPART_TO_SITE')}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.departedAt
+                  ? 'bg-blue-600 text-white border-blue-400 shadow'
+                  : 'bg-blue-950/40 text-blue-300 border-blue-500/40'
+              }`}
+            >
+              {routeSummary?.departedAt
+                ? `1. 현장 출발 (${formatTimeHm(routeSummary.departedAt)})`
+                : '1. 현장 출발 기록'}
+            </button>
+
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => handleRecordRouteStep('ARRIVE_AT_SITE')}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.arrivedAt
+                  ? 'bg-sky-600 text-white border-sky-400 shadow'
+                  : 'bg-sky-950/40 text-sky-300 border-sky-500/40'
+              }`}
+            >
+              {routeSummary?.arrivedAt
+                ? `2. 현장 도착 (${formatTimeHm(routeSummary.arrivedAt)})`
+                : '2. 현장 도착 기록'}
+            </button>
+
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => handleRecordRouteStep('WORK_START')}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.workStartedAt
+                  ? 'bg-amber-600 text-white border-amber-400 shadow'
+                  : 'bg-amber-950/40 text-amber-300 border-amber-500/40'
+              }`}
+            >
+              {routeSummary?.workStartedAt
+                ? `3. 작업 시작 (${formatTimeHm(routeSummary.workStartedAt)})`
+                : '3. 작업 시작 기록'}
+            </button>
+
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => setShowMoveNextSheet(!showMoveNextSheet)}
+              className={`py-2.5 px-2 rounded-xl text-xs font-extrabold border transition-all active:scale-95 whitespace-nowrap ${
+                routeSummary?.movedNextAt
+                  ? 'bg-purple-600 text-white border-purple-400 shadow'
+                  : 'bg-purple-950/40 text-purple-300 border-purple-500/40'
+              }`}
+            >
+              {routeSummary?.movedNextAt
+                ? `4. 다음현장 (${formatTimeHm(routeSummary.movedNextAt)})`
+                : '4. 다음 현장 이동'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80">
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => handleRecordRouteStep('RETURN_TO_YARD')}
+              className="py-2 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-bold active:scale-95 whitespace-nowrap"
+            >
+              주기장 복귀 기록
+            </button>
+            <button
+              type="button"
+              disabled={!!routeStepLoading}
+              onClick={() => handleRecordRouteStep('CLOCK_OUT')}
+              className="py-2 px-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-500/40 text-[11px] font-extrabold active:scale-95 whitespace-nowrap"
+            >
+              금일 퇴근 기록
+            </button>
+          </div>
+
+          {showMoveNextSheet && (
+            <div className="mt-1 p-3 rounded-xl bg-slate-900 border border-purple-500/40 flex flex-col gap-2">
+              <div className="text-xs font-bold text-purple-300">
+                다음 이동 대상 현장AS 선택
+              </div>
+              <select
+                value={selectedNextTicketId}
+                onChange={(e) => setSelectedNextTicketId(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+              >
+                <option value="">직접 입력 또는 미지정 이동</option>
+                {fieldAsTickets
+                  .filter(
+                    (t) =>
+                      t.id !== ticket.id &&
+                      t.status !== 'COMPLETED' &&
+                      t.status !== 'CANCELED'
+                  )
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      [{t.assetNo || '장비'}] {t.customerName || '-'} · {t.siteName || '-'}
+                    </option>
+                  ))}
+              </select>
+              {!selectedNextTicketId && (
+                <input
+                  type="text"
+                  value={customNextSiteName}
+                  onChange={(e) => setCustomNextSiteName(e.target.value)}
+                  placeholder="다음 이동지 직접 입력 (선택사항)"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"
+                />
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMoveNextSheet(false)}
+                  className="py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmMoveNextInDetail}
+                  className="py-2 rounded-lg bg-purple-600 text-white text-xs font-extrabold"
+                >
+                  이동 기록 저장
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 조치 내용 입력 섹션 */}

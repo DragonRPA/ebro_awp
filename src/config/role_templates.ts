@@ -58,6 +58,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   consumable_inout: { canView: true, canSave: true },
   consumable_stock: { canView: true, canSave: true },
   consumable: { canView: true, canSave: true },
+  as_route_tracking: { canView: true, canSave: false },
   // 에이전트 배지: 관리부 로컬 출력 및 전자문서 연동 허용
   agent_badge: { canView: true, canSave: false }
 };
@@ -73,6 +74,7 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   smart_dispatch4: { canView: true, canSave: true },
   smart_return: { canView: true, canSave: true },
   smart_as_request: { canView: true, canSave: true },
+  as_route_tracking: { canView: true, canSave: false },
   receivable: { canView: true, canSave: true }, // 외상미수금 확인 및 독촉
   delinquency: { canView: true, canSave: true }, // 미수 채권 연체 관리
   public_construction_permits: { canView: true, canSave: true }, // 인허가 건축공정 조회
@@ -120,6 +122,7 @@ export const MECHANIC_TEMPLATE: PermissionRuleMap = {
   consumable_stock: { canView: true, canSave: true },
   consumable: { canView: true, canSave: true },
   field_as: { canView: true, canSave: true },
+  as_route_tracking: { canView: true, canSave: true },
   repair: { canView: true, canSave: true },
   inspection_checklist_manage: { canView: true, canSave: true },
   smart_as_request: { canView: true, canSave: true },

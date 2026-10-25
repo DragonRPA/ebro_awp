@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Fuel, BookOpen, ClipboardList } from 'lucide-react';
+import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Fuel, BookOpen, ClipboardList, Navigation } from 'lucide-react';
 import { MobileDeptMode } from './MobileHeader';
 
 export type MobileTabType = 
@@ -10,6 +10,7 @@ export type MobileTabType =
   | 'my_contracts' 
   | 'as_create' 
   | 'as' 
+  | 'as_route_tracking'
   | 'dispatch' 
   | 'inspection'
   | 'vehicle_stock'
@@ -20,7 +21,8 @@ export type MobileTabType =
   | 'vehicle_log'
   | 'manual_viewer'
   | 'consumable_stock'
-  | 'sales_journal';
+  | 'sales_journal'
+  | 'inbound_defect_claim';
 
 interface MobileBottomNavProps {
   deptMode: MobileDeptMode;
@@ -59,6 +61,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     sales_order: 'smart_dispatch4',
     my_contracts: 'contract',
     as: 'field_as',
+    as_route_tracking: 'as_route_tracking',
     as_create: 'smart_as_request',
     vehicle_stock: 'consumable_stock',
     assignment: 'dispatch_assign',
@@ -81,6 +84,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
       { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
+      { id: 'inbound_defect_claim', label: '수리비협상', icon: AlertTriangle, badge: 0 },
       { id: 'my_contracts', label: '내현장', icon: Building2, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
@@ -90,6 +94,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'as', label: '현장정비', icon: Wrench, badge: pendingAsCount },
+      { id: 'as_route_tracking', label: '동선관리', icon: Navigation, badge: 0 },
       { id: 'as_create', label: '정비요청', icon: PlusCircle, badge: 0 },
       { id: 'vehicle_stock', label: '차량재고', icon: Boxes, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
@@ -101,6 +106,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assignment', label: '장비할당', icon: Layers, badge: pendingAssignmentCount },
       { id: 'inspection', label: '출고검수', icon: CheckSquare, badge: pendingInspectionCount },
       { id: 'inbound_register', label: '입고등록', icon: ArrowDownToLine, badge: 0 },
+      { id: 'inbound_defect_claim', label: '불량청구', icon: AlertTriangle, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
   } else if (deptMode === 'EXECUTIVE') {

@@ -1,6 +1,7 @@
 // src/mobile/pages/MobileAssetAssignment.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { isVirtualAsset } from '../../services/db';
 import { isModelMatch, normalizeModelKey } from '../../utils/modelUtils';
 import { 
   CheckSquare, 
@@ -210,10 +211,10 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     }
   }, [navigationPayload, contracts, deliveries, contractAssets]);
 
-  // 10. 가용 장비 풀 필터링 (선택된 슬롯 요구모델 매칭 & 정비점수 오름차순)
+  // 10. 가용 장비 풀 필터링 (선택된 슬롯 요구모델 매칭 & 정비점수 오름차순, 가상자산 제외)
   const availableAssets = useMemo(() => {
     if (!selectedContractId) return [];
-    let list = assets.filter(a => a.status === 'AVAILABLE');
+    let list = assets.filter(a => !(a as any).isDeleted && !isVirtualAsset(a) && !a.actualRentReturnDate && a.status === 'AVAILABLE');
 
     // 선택된 슬롯이 있는 경우 해당 슬롯 요구모델로 필터링
     const targetSlots = selectedCaIds.length > 0

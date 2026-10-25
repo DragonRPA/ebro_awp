@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { isVirtualAsset } from '../../services/db';
-import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from '../../utils/modelUtils';
+import { getCanonicalModelKey, isModelMatch } from '../../utils/modelUtils';
+import { calculateAvailableInventorySSOT, InventoryModelRow } from '../../utils/availableInventoryCalculator';
 import { 
   Search, RefreshCw, CheckCircle2, 
   Clock, MapPin, ChevronRight, X, Wrench, ClipboardList, Copy, Check, Layers
@@ -62,20 +63,6 @@ const SPEC_PRESETS: SpecPreset[] = [
     modelMatchRegex: /(53|1612|1614|5390)/i,
   },
 ];
-
-interface InventoryModelRow {
-  key: string;
-  feet: number;
-  feetLabel: string;
-  manufacturer: string;
-  modelName: string;
-  shortName: string;
-  availableContractQty: number;
-  stockOwned: number;
-  stockRented: number;
-  scheduledOwned: number;
-  scheduledRented: number;
-}
 
 interface ScheduledOutboundLine {
   groupKey: string;
@@ -175,340 +162,26 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     setTimeout(() => setIsSyncing(false), 400);
   };
 
-  // ── PC 가용재고조회(AvailableInventoryPage)와 100% 동일한 모델별 재고 및 미완결 출고예정 연산 ──
+  // ── 전사 가용재고 SSOT 엔진 연동 (모바일 홈·경영진 홈·PC 가용재고조회와 100% 동일 연산) ──
   const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
   const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
   const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
 
-  const completedInspectionCaIdSet = useMemo(() => {
-    const set = new Set<string>();
-    (outboundInspections || []).forEach(ins => {
-      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
-        set.add((ins as any).contractAssetId);
-      }
+  const {
+    allInventoryRows,
+    uniqueFeetList,
+    shortNameByCanonicalMap,
+    unfinishedRequestGroups,
+  } = useMemo(() => {
+    return calculateAvailableInventorySSOT({
+      products,
+      assets,
+      contracts,
+      contractAssets,
+      deliveries,
+      outboundInspections,
     });
-    return set;
-  }, [outboundInspections]);
-
-  const extractCaIdsFromDelivery = (d: any): string[] => {
-    if (!d?.cargoItems) return [];
-    try {
-      const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
-      if (!Array.isArray(raw)) return [];
-      const ids: string[] = [];
-      raw.forEach((ci: any) => {
-        if (Array.isArray(ci?.contractAssetIds)) {
-          ids.push(...ci.contractAssetIds.filter(Boolean));
-        }
-      });
-      return ids;
-    } catch {
-      return [];
-    }
-  };
-
-  const { unfinishedRequestGroups, targetPendingSlots } = useMemo(() => {
-    const contractAssetsByContract = new Map<string, typeof contractAssets>();
-    (contractAssets || []).forEach(ca => {
-      if (!ca.contractId) return;
-      if (ca.status === 'RETURNED' || ca.status === 'SOLD') return;
-
-      if (ca.assetId) {
-        const assignedAsset = assetMap.get(ca.assetId);
-        const isAlreadyRented =
-          ca.status === 'RENTED' ||
-          assignedAsset?.status === 'RENTED' ||
-          completedInspectionCaIdSet.has(ca.id);
-        if (isAlreadyRented) return;
-      }
-
-      let list = contractAssetsByContract.get(ca.contractId);
-      if (!list) {
-        list = [];
-        contractAssetsByContract.set(ca.contractId, list);
-      }
-      list.push(ca);
-    });
-
-    const outboundDeliveriesByContract = new Map<string, typeof deliveries>();
-    (deliveries || []).forEach(d => {
-      if (!d.contractId || d.status === 'CANCELLED') return;
-      const isOutOrEx =
-        d.type === 'OUTBOUND' ||
-        d.type === 'EXCHANGE' ||
-        d.dispatchCategory === '출고' ||
-        d.dispatchCategory === '교환' ||
-        (d as any).originalDispatchCategory === '출고' ||
-        (d as any).originalDispatchCategory === '교환';
-      if (!isOutOrEx) return;
-      let list = outboundDeliveriesByContract.get(d.contractId);
-      if (!list) {
-        list = [];
-        outboundDeliveriesByContract.set(d.contractId, list);
-      }
-      list.push(d);
-    });
-
-    interface RawReqGroup {
-      groupKey: string;
-      contract: (typeof contracts)[number];
-      delivery?: (typeof deliveries)[number];
-      slots: typeof contractAssets;
-      unassignedSlots: typeof contractAssets;
-      scheduledDate: string;
-      createdAt: string;
-    }
-
-    const groups: RawReqGroup[] = [];
-    const slotsForCount: typeof contractAssets = [];
-
-    for (let i = 0; i < (contracts || []).length; i++) {
-      const c = contracts[i];
-      const activePreInspSlots = contractAssetsByContract.get(c.id) || [];
-      if (activePreInspSlots.length === 0) continue;
-
-      const cDeliveries = (outboundDeliveriesByContract.get(c.id) || []).slice().sort((a, b) => {
-        return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
-      });
-
-      const claimedCaIds = new Set<string>();
-      const contractGroups: RawReqGroup[] = [];
-
-      for (const d of cDeliveries) {
-        const dCaIds = extractCaIdsFromDelivery(d);
-        if (dCaIds.length === 0) continue;
-        const dCaIdSet = new Set(dCaIds);
-        const matchedSlots = activePreInspSlots.filter(ca => dCaIdSet.has(ca.id) && !claimedCaIds.has(ca.id));
-        if (matchedSlots.length === 0) continue;
-        matchedSlots.forEach(ca => claimedCaIds.add(ca.id));
-
-        const unassigned = matchedSlots.filter(ca => !ca.assetId);
-        const schedDate = (
-          d.loadingDate ||
-          d.scheduledDate ||
-          matchedSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
-          c.startDate ||
-          ''
-        ).slice(0, 10);
-
-        contractGroups.push({
-          groupKey: `DLV:${d.id}`,
-          contract: c,
-          delivery: d,
-          slots: matchedSlots,
-          unassignedSlots: unassigned,
-          scheduledDate: schedDate,
-          createdAt: d.createdAt || d.requestDate || c.createdAt || ''
-        });
-      }
-
-      const remainingSlots = activePreInspSlots.filter(ca => !claimedCaIds.has(ca.id));
-      if (remainingSlots.length > 0) {
-        const fallbackDeliv = cDeliveries.find(d => extractCaIdsFromDelivery(d).length === 0) || (contractGroups.length === 0 ? cDeliveries[0] : undefined);
-        const unassigned = remainingSlots.filter(ca => !ca.assetId);
-        const schedDate = (
-          fallbackDeliv?.loadingDate ||
-          fallbackDeliv?.scheduledDate ||
-          remainingSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
-          c.startDate ||
-          ''
-        ).slice(0, 10);
-
-        contractGroups.push({
-          groupKey: c.id,
-          contract: c,
-          delivery: fallbackDeliv,
-          slots: remainingSlots,
-          unassignedSlots: unassigned,
-          scheduledDate: schedDate,
-          createdAt: fallbackDeliv?.createdAt || c.createdAt || ''
-        });
-      }
-
-      for (const grp of contractGroups) {
-        if (grp.unassignedSlots.length > 0) {
-          groups.push(grp);
-          slotsForCount.push(...grp.unassignedSlots);
-        }
-      }
-    }
-
-    return { unfinishedRequestGroups: groups, targetPendingSlots: slotsForCount };
-  }, [contracts, deliveries, contractAssets, assetMap, completedInspectionCaIdSet]);
-
-  const { allInventoryRows, uniqueFeetList, shortNameByCanonicalMap } = useMemo(() => {
-    interface ModelAccumulator {
-      key: string;
-      feet: number;
-      manufacturer: string;
-      modelName: string;
-      shortName: string;
-      stockOwned: number;
-      stockRented: number;
-      assignedPreInspOwned: number;
-      assignedPreInspRented: number;
-      unassignedPendingCount: number;
-    }
-
-    const modelMap = new Map<string, ModelAccumulator>();
-    const exactModelToKey = new Map<string, string>();
-    const shortNameToKey = new Map<string, string>();
-    const canonicalToKey = new Map<string, string>();
-    const shortByCanon = new Map<string, string>();
-
-    (products || []).forEach(p => {
-      if (p.isActive === false) return;
-      const cKey = getCanonicalModelKey(p.modelName) || (p.modelName || '').trim().toUpperCase();
-      if (!cKey) return;
-
-      const meta = CANONICAL_MODEL_META[cKey];
-      const feetVal = Number(p.feet) || meta?.feet || 0;
-      const mfgVal = (p.manufacturer || meta?.manufacturer || '-').trim();
-      const shortVal = (p.shortName || meta?.shortName || '').trim();
-      if (shortVal) shortByCanon.set(cKey, shortVal);
-
-      const existing = modelMap.get(cKey);
-      if (!existing) {
-        modelMap.set(cKey, {
-          key: cKey,
-          feet: feetVal,
-          manufacturer: mfgVal,
-          modelName: p.modelName,
-          shortName: shortVal,
-          stockOwned: 0,
-          stockRented: 0,
-          assignedPreInspOwned: 0,
-          assignedPreInspRented: 0,
-          unassignedPendingCount: 0
-        });
-      } else {
-        if (!existing.feet && feetVal) existing.feet = feetVal;
-        if ((existing.manufacturer === '-' || !existing.manufacturer) && mfgVal !== '-') existing.manufacturer = mfgVal;
-        if (p.modelName.includes('-') && !existing.modelName.includes('-')) existing.modelName = p.modelName;
-        if (!existing.shortName && shortVal) existing.shortName = shortVal;
-      }
-
-      exactModelToKey.set((p.modelName || '').trim().toUpperCase(), cKey);
-      canonicalToKey.set(cKey, cKey);
-      if (shortVal) {
-        shortNameToKey.set(shortVal.toUpperCase(), cKey);
-        const sCanon = getCanonicalModelKey(shortVal);
-        if (sCanon) canonicalToKey.set(sCanon, cKey);
-      }
-    });
-
-    const resolveOrAddModelBucket = (rawModelName?: string, fallbackMfg?: string): ModelAccumulator => {
-      const cleanRaw = (rawModelName || '미지정').trim();
-      const upper = cleanRaw.toUpperCase();
-      const cKey = getCanonicalModelKey(cleanRaw) || upper;
-
-      const matchedKey =
-        exactModelToKey.get(upper) ||
-        shortNameToKey.get(upper) ||
-        canonicalToKey.get(cKey);
-
-      if (matchedKey && modelMap.has(matchedKey)) {
-        return modelMap.get(matchedKey)!;
-      }
-
-      for (const [k, bucket] of modelMap.entries()) {
-        if (isModelMatch(cleanRaw, bucket.modelName, products)) {
-          canonicalToKey.set(cKey, k);
-          return bucket;
-        }
-      }
-
-      const meta = CANONICAL_MODEL_META[cKey];
-      const newBucket: ModelAccumulator = {
-        key: cKey,
-        feet: meta?.feet || 0,
-        manufacturer: fallbackMfg || meta?.manufacturer || '-',
-        modelName: meta?.modelName || cleanRaw,
-        shortName: meta?.shortName || '',
-        stockOwned: 0,
-        stockRented: 0,
-        assignedPreInspOwned: 0,
-        assignedPreInspRented: 0,
-        unassignedPendingCount: 0
-      };
-      modelMap.set(cKey, newBucket);
-      canonicalToKey.set(cKey, cKey);
-      return newBucket;
-    };
-
-    (assets || []).forEach(a => {
-      if (isVirtualAsset(a)) return;
-      if (a.actualRentReturnDate) return;
-      if (a.status !== 'AVAILABLE') return;
-
-      const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
-      if (a.ownerType === 'RENTED') {
-        bucket.stockRented += 1;
-      } else {
-        bucket.stockOwned += 1;
-      }
-    });
-
-    targetPendingSlots.forEach(ca => {
-      const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-      const modelStr = ca.expectedModel || assignedAsset?.modelName || '미지정';
-      const bucket = resolveOrAddModelBucket(modelStr, assignedAsset?.manufacturer);
-
-      if (assignedAsset) {
-        if (assignedAsset.ownerType === 'RENTED') {
-          bucket.assignedPreInspRented += 1;
-        } else {
-          bucket.assignedPreInspOwned += 1;
-        }
-      } else {
-        bucket.unassignedPendingCount += 1;
-      }
-    });
-
-    const rows: InventoryModelRow[] = [];
-    const feetSet = new Set<number>();
-
-    modelMap.forEach(b => {
-      const remOwnedStock = Math.max(0, b.stockOwned - b.assignedPreInspOwned);
-      const remRentedStock = Math.max(0, b.stockRented - b.assignedPreInspRented);
-
-      let unalloc = b.unassignedPendingCount;
-      const allocToOwned = Math.min(unalloc, remOwnedStock);
-      unalloc -= allocToOwned;
-
-      const allocToRented = Math.min(unalloc, remRentedStock);
-      unalloc -= allocToRented;
-
-      const scheduledOwned = b.assignedPreInspOwned + allocToOwned + unalloc;
-      const scheduledRented = b.assignedPreInspRented + allocToRented;
-
-      const totalStock = b.stockOwned + b.stockRented;
-      const totalScheduled = scheduledOwned + scheduledRented;
-      const availableContractQty = totalStock - totalScheduled;
-
-      if (b.feet > 0) feetSet.add(b.feet);
-
-      rows.push({
-        key: b.key,
-        feet: b.feet,
-        feetLabel: b.feet > 0 ? `${b.feet}` : '-',
-        manufacturer: b.manufacturer || '-',
-        modelName: b.modelName,
-        shortName: b.shortName,
-        availableContractQty,
-        stockOwned: b.stockOwned,
-        stockRented: b.stockRented,
-        scheduledOwned,
-        scheduledRented
-      });
-    });
-
-    return {
-      allInventoryRows: rows,
-      uniqueFeetList: Array.from(feetSet).sort((a, b) => a - b),
-      shortNameByCanonicalMap: shortByCanon
-    };
-  }, [products, assets, targetPendingSlots, assetMap]);
+  }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
 
   const filteredInventoryRows = useMemo(() => {
     const q = searchTerm.trim();
@@ -647,9 +320,9 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     } catch {}
   };
 
-  // ── 규격·개별장비 조회용 집계 ──
+  // ── 규격·개별장비 조회용 집계 (가상자산·삭제자산·반납완료 임차자산 100% 제외) ──
   const yardFilteredAssets = useMemo(() => {
-    return (assets || []).filter(a => !isVirtualAsset(a) && !a.actualRentReturnDate);
+    return (assets || []).filter(a => !(a as any).isDeleted && !isVirtualAsset(a) && !a.actualRentReturnDate);
   }, [assets]);
 
   const upcomingReturns = useMemo(() => {
@@ -678,14 +351,38 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
   }, [contracts, contractAssets, sites]);
 
   const specStats = useMemo(() => {
+    const feetByCanonical = new Map<string, number>();
+    allInventoryRows.forEach(r => {
+      if (r.feet > 0) feetByCanonical.set(r.key, r.feet);
+    });
+    (products || []).forEach(p => {
+      if (p.modelName && p.feet) feetByCanonical.set(getCanonicalModelKey(p.modelName), p.feet);
+    });
+
+    const resolveAssetFeet = (modelName?: string): number => {
+      if (!modelName) return 0;
+      const cKey = getCanonicalModelKey(modelName);
+      const known = feetByCanonical.get(cKey);
+      if (known && known > 0) return known;
+      const m = modelName.toLowerCase();
+      if (/(53|1612|1614|5390)/.test(m)) return 53;
+      if (/(46|1412|4655|1414)/.test(m)) return 46;
+      if (/(40|1212|4047|4069)/.test(m)) return 40;
+      if (/(32|1012|3246|1008)/.test(m) && !m.includes('3215') && !m.includes('3219')) return 32;
+      if (/(26|0812|3219|2646|0808)/.test(m)) return 26;
+      if (/(19|1330|3215|0608|1230)/.test(m) && !m.includes('3219')) return 19;
+      return 0;
+    };
+
     return SPEC_PRESETS.map(preset => {
-      const matchedAssets = yardFilteredAssets.filter(a => {
-        const m = (a.modelName || '').toLowerCase();
-        return preset.modelMatchRegex.test(m);
-      });
+      const targetFeet = parseInt(preset.ft, 10) || 0;
+      const matchedAssets = yardFilteredAssets.filter(a => resolveAssetFeet(a.modelName) === targetFeet);
       const availableAssets = matchedAssets.filter(a => a.status === 'AVAILABLE');
       const rentedAssets = matchedAssets.filter(a => a.status === 'RENTED');
       const returnDueAssets = matchedAssets.filter(a => a.id && upcomingReturns[a.id]);
+      const ssotContractableSum = allInventoryRows
+        .filter(r => r.feet === targetFeet)
+        .reduce((sum, r) => sum + Math.max(0, r.availableContractQty), 0);
 
       return {
         ...preset,
@@ -693,10 +390,10 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         availableAssets,
         rentedCount: rentedAssets.length,
         returnDueCount: returnDueAssets.length,
-        availableCount: availableAssets.length,
+        availableCount: ssotContractableSum,
       };
     });
-  }, [yardFilteredAssets, upcomingReturns]);
+  }, [yardFilteredAssets, upcomingReturns, allInventoryRows, products]);
 
   const searchResults = useMemo(() => {
     if (!searchTerm.trim()) return [];
@@ -861,36 +558,36 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
             </div>
           </div>
 
-          {/* 표 1: 모델별 가용재고 2단 헤더 테이블 */}
-          <div className="rounded-xl overflow-hidden border border-slate-600 bg-slate-900 shadow-lg">
-            <div className="overflow-x-auto">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+          {/* 표 1: 모델별 가용재고 2단 헤더 테이블 (고대비 다크 솔리드 배색) */}
+          <div className="rounded-xl overflow-hidden border border-slate-600 bg-slate-900 shadow-lg" style={{ backgroundColor: '#0f172a', backgroundImage: 'none' }}>
+            <div className="overflow-x-auto" style={{ backgroundColor: '#0f172a', backgroundImage: 'none' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', backgroundColor: '#0f172a', backgroundImage: 'none' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#1e293b', color: '#ffffff', borderBottom: '1px solid #475569' }}>
-                    <th rowSpan={2} style={{ padding: '7px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>피트</th>
-                    <th rowSpan={2} style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>제조사</th>
-                    <th rowSpan={2} style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>모델명</th>
-                    <th rowSpan={2} style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 900, backgroundColor: '#172554', color: '#93c5fd', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <th rowSpan={2} style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 800, color: '#f8fafc', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>피트</th>
+                    <th rowSpan={2} style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 800, color: '#f8fafc', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>제조사</th>
+                    <th rowSpan={2} style={{ padding: '6px 6px', textAlign: 'left', fontWeight: 800, color: '#ffffff', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>모델명</th>
+                    <th rowSpan={2} style={{ padding: '6px 5px', textAlign: 'center', fontWeight: 900, backgroundColor: '#172554', color: '#7dd3fc', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
                       계약가능<br/>재고
                     </th>
-                    <th colSpan={2} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 800, backgroundColor: '#064e3b', color: '#a7f3d0', borderRight: '1px solid #334155', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <th colSpan={2} style={{ padding: '4px 3px', textAlign: 'center', fontWeight: 800, backgroundColor: '#064e3b', color: '#6ee7b7', borderRight: '1px solid #334155', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
                       재고
                     </th>
-                    <th colSpan={2} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 800, backgroundColor: '#78350f', color: '#fde68a', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <th colSpan={2} style={{ padding: '4px 3px', textAlign: 'center', fontWeight: 800, backgroundColor: '#78350f', color: '#fde68a', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
                       출고예정
                     </th>
                   </tr>
-                  <tr style={{ backgroundColor: '#1e293b', color: '#e2e8f0', borderBottom: '2px solid #475569' }}>
-                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>당사</th>
-                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>임차</th>
-                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>당사</th>
-                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, whiteSpace: 'nowrap', fontSize: '10.5px' }}>임차</th>
+                  <tr style={{ backgroundColor: '#1e293b', color: '#f8fafc', borderBottom: '2px solid #475569' }}>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#a7f3d0', backgroundColor: '#064e3b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>당사</th>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#a7f3d0', backgroundColor: '#064e3b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>임차</th>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>당사</th>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', whiteSpace: 'nowrap', fontSize: '10px' }}>임차</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredInventoryRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={{ padding: '24px 12px', textAlign: 'center', color: '#cbd5e1', fontWeight: 600 }}>
+                    <tr style={{ backgroundColor: '#0f172a' }}>
+                      <td colSpan={8} style={{ padding: '24px 12px', textAlign: 'center', color: '#e2e8f0', backgroundColor: '#0f172a', fontWeight: 700 }}>
                         조건에 일치하는 모델 재고 내역이 없습니다.
                       </td>
                     </tr>
@@ -899,44 +596,44 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                       const isNegative = row.availableContractQty < 0;
                       const isPositive = row.availableContractQty > 0;
                       const rowBg = isNegative
-                        ? 'rgba(136, 19, 55, 0.35)'
+                        ? '#2d0a1a'
                         : idx % 2 === 0
                         ? '#132038'
                         : '#0f1a2e';
 
                       return (
                         <tr key={row.key} style={{ backgroundColor: rowBg, borderBottom: '1px solid #26354d' }}>
-                          <td style={{ padding: '7px 5px', textAlign: 'center', fontWeight: 800, color: '#cbd5e1', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 800, color: isNegative ? '#fecdd3' : '#e2e8f0', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.feetLabel}
                           </td>
-                          <td style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 700, color: '#e2e8f0', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 700, color: isNegative ? '#fecdd3' : '#f1f5f9', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.manufacturer}
                           </td>
-                          <td style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 800, color: '#ffffff', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 6px', textAlign: 'left', fontWeight: 800, color: '#ffffff', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.modelName}
                           </td>
                           <td style={{
-                            padding: '7px 6px',
+                            padding: '6px 5px',
                             textAlign: 'right',
                             fontWeight: 900,
-                            fontSize: '12.5px',
-                            color: isNegative ? '#fb7185' : isPositive ? '#60a5fa' : '#94a3b8',
-                            backgroundColor: isNegative ? 'rgba(225, 29, 72, 0.22)' : 'rgba(30, 58, 138, 0.22)',
+                            fontSize: '12px',
+                            color: isNegative ? '#ffffff' : isPositive ? '#7dd3fc' : '#cbd5e1',
+                            backgroundColor: isNegative ? '#be123c' : '#172554',
                             borderRight: '1px solid #26354d',
                             whiteSpace: 'nowrap'
                           }}>
                             {row.availableContractQty !== 0 ? row.availableContractQty : ''}
                           </td>
-                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.stockOwned > 0 ? '#34d399' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.stockOwned > 0 ? '#34d399' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.stockOwned > 0 ? row.stockOwned : ''}
                           </td>
-                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.stockRented > 0 ? '#6ee7b7' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.stockRented > 0 ? '#6ee7b7' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.stockRented > 0 ? row.stockRented : ''}
                           </td>
-                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.scheduledOwned > 0 ? '#fbbf24' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledOwned > 0 ? '#fbbf24' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.scheduledOwned > 0 ? row.scheduledOwned : ''}
                           </td>
-                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.scheduledRented > 0 ? '#fcd34d' : '#64748b', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledRented > 0 ? '#fcd34d' : '#64748b', backgroundColor: rowBg, whiteSpace: 'nowrap' }}>
                             {row.scheduledRented > 0 ? row.scheduledRented : ''}
                           </td>
                         </tr>
@@ -946,22 +643,22 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                 </tbody>
                 <tfoot>
                   <tr style={{ backgroundColor: '#1e293b', borderTop: '2px solid #64748b', color: '#ffffff', fontWeight: 900 }}>
-                    <td colSpan={3} style={{ padding: '8px 8px', textAlign: 'center', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <td colSpan={3} style={{ padding: '8px 6px', textAlign: 'left', color: '#ffffff', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
                       합계 ({filteredInventoryRows.length}개 모델)
                     </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'right', color: inventoryTotals.availableContractQty < 0 ? '#fb7185' : '#60a5fa', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '12.5px' }}>
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: inventoryTotals.availableContractQty < 0 ? '#fda4af' : '#7dd3fc', backgroundColor: '#172554', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '12px', fontWeight: 900 }}>
                       {inventoryTotals.availableContractQty}
                     </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#34d399', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: '#34d399', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontWeight: 900 }}>
                       {inventoryTotals.stockOwned}
                     </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#6ee7b7', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: '#6ee7b7', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontWeight: 900 }}>
                       {inventoryTotals.stockRented}
                     </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#fbbf24', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: '#fbbf24', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontWeight: 900 }}>
                       {inventoryTotals.scheduledOwned}
                     </td>
-                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#fcd34d', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: '#fcd34d', backgroundColor: '#1e293b', whiteSpace: 'nowrap', fontWeight: 900 }}>
                       {inventoryTotals.scheduledRented}
                     </td>
                   </tr>

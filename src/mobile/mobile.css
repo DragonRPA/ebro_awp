@@ -2,11 +2,28 @@
 
 /* Global container & resets for mobile app */
 .mobile-app-root {
+  --paper-texture: none !important;
+  --bg-app: #091122 !important;
+  --bg-sidebar: #0f172a !important;
+  --bg-card: #132038 !important;
+  --bg-header: #1e293b !important;
+  --border-color: #475569 !important;
+  --table-border-color: #475569 !important;
+  --table-row-border: #26354d !important;
+  --scrollbar-track: #0f172a !important;
+  --scrollbar-thumb: #475569 !important;
+  --scrollbar-thumb-hover: #60a5fa !important;
+  --scrollbar-thumb-border: #0f172a !important;
+  --text-main: #ffffff !important;
+  --text-primary: #ffffff !important;
+  --text-secondary: #e2e8f0 !important;
+  --text-muted: #cbd5e1 !important;
   min-height: 100vh;
   min-height: 100dvh;
-  background-color: #091122;
-  color: #ffffff;
-  color-scheme: dark;
+  background-color: #091122 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  color-scheme: dark !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
   -webkit-font-smoothing: antialiased;
   padding-bottom: 85px;
@@ -51,6 +68,17 @@
 .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.grid-cols-7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.grid-cols-8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.col-span-1 { grid-column: span 1 / span 1; }
+.col-span-2 { grid-column: span 2 / span 2; }
+.col-span-3 { grid-column: span 3 / span 3; }
+.col-span-4 { grid-column: span 4 / span 4; }
+.col-span-5 { grid-column: span 5 / span 5; }
+.col-span-6 { grid-column: span 6 / span 6; }
+.col-span-12 { grid-column: span 12 / span 12; }
 
 /* Gaps */
 .gap-1 { gap: 4px; }
@@ -577,26 +605,33 @@
 }
 
 /* Form Controls in Mobile */
-.mobile-app-root input,
+.mobile-app-root input:not([type="checkbox"]):not([type="radio"]),
 .mobile-app-root textarea,
 .mobile-app-root select {
   font-family: inherit;
   font-size: 13.5px;
-  background-color: #132038 !important;
+  background-color: #0f172a !important;
+  background-image: none !important;
   border: 1px solid #475569 !important;
   color: #ffffff !important;
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 10px;
+  padding: 9px 12px;
   outline: none;
   width: 100%;
   box-sizing: border-box;
   color-scheme: dark !important;
 }
 
+.mobile-app-root select option {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
 .mobile-app-root input[type="date"],
 .mobile-app-root input[type="time"],
 .mobile-app-root input[type="datetime-local"] {
-  background-color: #132038 !important;
+  background-color: #0f172a !important;
+  background-image: none !important;
   color: #ffffff !important;
   color-scheme: dark !important;
 }
@@ -611,12 +646,33 @@
 .mobile-app-root textarea:focus,
 .mobile-app-root select:focus {
   border-color: #60a5fa !important;
-  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28) !important;
 }
 
 .mobile-app-root button {
   font-family: inherit;
   cursor: pointer;
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.mobile-app-root button.whitespace-normal,
+.mobile-app-root button .whitespace-normal {
+  white-space: normal !important;
+}
+
+/* 미선택 다크 버튼/칩 시인성 강화: 어두운 카드(#132038) 위에서 명확히 구분되는 슬레이트 표면과 밝은 글씨 */
+:root .mobile-app-root.mobile-app-root button.bg-slate-950,
+:root .mobile-app-root.mobile-app-root button.bg-slate-900 {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+:root .mobile-app-root.mobile-app-root button.bg-slate-800 {
+  background-color: #26354d !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
 }
 
 /* Positioning & Z-Index Utilities */
@@ -636,3 +692,110 @@
 .z-30 { z-index: 30 !important; }
 .z-40 { z-index: 40 !important; }
 .z-50 { z-index: 50 !important; }
+
+/* ─────────────────────────────────────────────────────────────
+   🛡️ 모바일 다크 모드 시인성 절대 보호 가드 (High-Specificity Contrast Guard)
+   전역 라이트 테마(index.css / tailwind_polyfill.css)의 :root:not([data-theme='dark']) 규칙이
+   모바일 다크 화면의 텍스트·표·배경을 검은색(#0f172a)이나 종이 질감으로 오염시키는 것을 원천 차단
+   ───────────────────────────────────────────────────────────── */
+:root .mobile-app-root.mobile-app-root .text-white,
+:root .mobile-app-root.mobile-app-root .text-slate-100,
+:root .mobile-app-root.mobile-app-root .text-gray-100 {
+  color: #ffffff !important;
+}
+
+:root .mobile-app-root.mobile-app-root .text-slate-200,
+:root .mobile-app-root.mobile-app-root .text-gray-200 {
+  color: #f8fafc !important;
+}
+
+:root .mobile-app-root.mobile-app-root .text-slate-300,
+:root .mobile-app-root.mobile-app-root .text-gray-300,
+:root .mobile-app-root.mobile-app-root .text-secondary {
+  color: #e2e8f0 !important;
+}
+
+:root .mobile-app-root.mobile-app-root .text-slate-400,
+:root .mobile-app-root.mobile-app-root .text-gray-400,
+:root .mobile-app-root.mobile-app-root .text-muted {
+  color: #cbd5e1 !important;
+}
+
+:root .mobile-app-root.mobile-app-root .text-slate-500,
+:root .mobile-app-root.mobile-app-root .text-slate-600,
+:root .mobile-app-root.mobile-app-root .text-gray-500,
+:root .mobile-app-root.mobile-app-root .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+:root .mobile-app-root.mobile-app-root .text-sky-200 { color: #bae6fd !important; }
+:root .mobile-app-root.mobile-app-root .text-sky-300 { color: #7dd3fc !important; }
+:root .mobile-app-root.mobile-app-root .text-sky-400 { color: #38bdf8 !important; }
+:root .mobile-app-root.mobile-app-root .text-cyan-100 { color: #cffafe !important; }
+:root .mobile-app-root.mobile-app-root .text-cyan-200 { color: #a5f3fc !important; }
+:root .mobile-app-root.mobile-app-root .text-cyan-300 { color: #67e8f9 !important; }
+:root .mobile-app-root.mobile-app-root .text-cyan-400 { color: #22d3ee !important; }
+:root .mobile-app-root.mobile-app-root .text-blue-100 { color: #dbeafe !important; }
+:root .mobile-app-root.mobile-app-root .text-blue-200 { color: #bfdbfe !important; }
+:root .mobile-app-root.mobile-app-root .text-blue-300 { color: #93c5fd !important; }
+:root .mobile-app-root.mobile-app-root .text-blue-400 { color: #60a5fa !important; }
+:root .mobile-app-root.mobile-app-root .text-indigo-200 { color: #c7d2fe !important; }
+:root .mobile-app-root.mobile-app-root .text-indigo-300 { color: #a5b4fc !important; }
+:root .mobile-app-root.mobile-app-root .text-indigo-400 { color: #818cf8 !important; }
+:root .mobile-app-root.mobile-app-root .text-purple-100 { color: #f3e8ff !important; }
+:root .mobile-app-root.mobile-app-root .text-purple-200 { color: #e9d5ff !important; }
+:root .mobile-app-root.mobile-app-root .text-purple-300 { color: #d8b4fe !important; }
+:root .mobile-app-root.mobile-app-root .text-purple-400 { color: #c084fc !important; }
+:root .mobile-app-root.mobile-app-root .text-emerald-100 { color: #d1fae5 !important; }
+:root .mobile-app-root.mobile-app-root .text-emerald-200 { color: #a7f3d0 !important; }
+:root .mobile-app-root.mobile-app-root .text-emerald-300 { color: #6ee7b7 !important; }
+:root .mobile-app-root.mobile-app-root .text-emerald-400 { color: #34d399 !important; }
+:root .mobile-app-root.mobile-app-root .text-amber-100 { color: #fef3c7 !important; }
+:root .mobile-app-root.mobile-app-root .text-amber-200 { color: #fde68a !important; }
+:root .mobile-app-root.mobile-app-root .text-amber-300 { color: #fcd34d !important; }
+:root .mobile-app-root.mobile-app-root .text-amber-400 { color: #fbbf24 !important; }
+:root .mobile-app-root.mobile-app-root .text-rose-100 { color: #ffe4e6 !important; }
+:root .mobile-app-root.mobile-app-root .text-rose-200 { color: #fecdd3 !important; }
+:root .mobile-app-root.mobile-app-root .text-rose-300 { color: #fda4af !important; }
+:root .mobile-app-root.mobile-app-root .text-rose-400 { color: #fb7185 !important; }
+:root .mobile-app-root.mobile-app-root .text-red-100 { color: #fee2e2 !important; }
+:root .mobile-app-root.mobile-app-root .text-red-200 { color: #fecaca !important; }
+:root .mobile-app-root.mobile-app-root .text-red-300 { color: #fca5a5 !important; }
+:root .mobile-app-root.mobile-app-root .text-red-400 { color: #f87171 !important; }
+
+:root .mobile-app-root.mobile-app-root table,
+:root .mobile-app-root.mobile-app-root .table-container,
+:root .mobile-app-root.mobile-app-root .table-wrapper {
+  background-color: #0f172a !important;
+  background-image: none !important;
+}
+
+:root .mobile-app-root.mobile-app-root th {
+  color: #f8fafc !important;
+  background-image: none !important;
+}
+
+:root .mobile-app-root.mobile-app-root td {
+  color: #f1f5f9 !important;
+  background-image: none !important;
+}
+
+:root .mobile-app-root.mobile-app-root label {
+  color: #f1f5f9 !important;
+  font-weight: 700;
+}
+
+:root .mobile-app-root.mobile-app-root ::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+:root .mobile-app-root.mobile-app-root ::-webkit-scrollbar-track {
+  background: #0f172a !important;
+}
+
+:root .mobile-app-root.mobile-app-root ::-webkit-scrollbar-thumb {
+  background: #475569 !important;
+  border-radius: 9999px !important;
+  border: none !important;
+}

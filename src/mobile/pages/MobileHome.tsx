@@ -596,6 +596,23 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           <ArrowRight className="w-5 h-5 text-slate-300" />
         </div>
 
+        {/* [핵심 5] 입고 파손 수리비 PDF 전달 및 고객 협상 합의 배너 */}
+        <div
+          onClick={() => onNavigate('inbound_defect_claim')}
+          className="p-4 rounded-2xl bg-slate-900 border border-rose-500/50 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 flex-shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white" style={{ whiteSpace: 'nowrap' }}>입고 파손 수리비 협상·PDF 전달</div>
+              <div className="text-xs text-slate-300">수리비 내역서 PDF 카톡·이메일 전달 및 합의 금액 확정</div>
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-rose-400" />
+        </div>
+
         <CallAudioUploadModal
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
@@ -703,6 +720,28 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             </div>
           </div>
           <ArrowRight className="w-5 h-5 text-red-400" />
+        </div>
+
+        {/* 입고 후 미처리 불량 상태 및 수리비 청구 등록 배너 */}
+        <div
+          onClick={() => onNavigate('inbound_defect_claim')}
+          className="p-4 rounded-2xl bg-slate-900 border border-rose-500/50 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-md"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 flex-shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                <span style={{ whiteSpace: 'nowrap' }}>입고 불량 상태·수리비 청구 등록</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold" style={{ whiteSpace: 'nowrap' }}>
+                  외상미수금 1건 연동
+                </span>
+              </div>
+              <div className="text-xs text-slate-300">관리번호 입력 ➔ 증상·사진(2장)·예상수리비 ➔ 영업부 인계</div>
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-rose-400" />
         </div>
 
         {/* 주기장 소모품 재고조회 */}
@@ -818,6 +857,28 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
         </div>
         <ArrowRight className="w-5 h-5" />
       </button>
+
+      {/* [현장정비 동선 관리] 바로가기 카드 */}
+      <div
+        onClick={() => onNavigate('as_route_tracking')}
+        className="p-4 rounded-2xl bg-slate-900 border border-emerald-500/50 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+              <span style={{ whiteSpace: 'nowrap' }}>현장정비 동선 관리</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold" style={{ whiteSpace: 'nowrap' }}>
+                출발·도착·작업·퇴근
+              </span>
+            </div>
+            <div className="text-xs text-slate-300 mt-0.5">일자별 AS팀 업무처리 동선 기록 및 조회</div>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-emerald-400" />
+      </div>
 
       {/* [장비 매뉴얼 관리] 바로가기 카드 */}
       <div

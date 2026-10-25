@@ -273,11 +273,11 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
                   border: '1px solid rgba(59, 130, 246, 0.3)',
                   flexShrink: 0
                 }}>
-                  FIELD
+                  현장
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                <span style={{ fontSize: '10px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>
+                <span style={{ fontSize: '10.5px', color: '#e2e8f0', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>
                   {currentUser?.name || '담당자'} ({currentUser?.role === 'ADMIN' ? '개발자' : currentUser?.role === 'MECHANIC' ? '정비기사' : '임직원'})
                 </span>
                 {/* 🌟 컴팩트 출근/퇴근 토글 버튼 (헌장 3.1 무수식어 건조 표준) */}
@@ -354,7 +354,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
                     fontSize: '11px',
                     fontWeight: isActive ? '800' : '500',
                     backgroundColor: isActive ? item.activeColor : 'transparent',
-                    color: isActive ? '#ffffff' : '#94a3b8',
+                    color: isActive ? '#ffffff' : '#cbd5e1',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap'
