@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Building2, MapPin, Phone, Calendar, Clock, Layers, 
-  Search, ChevronRight, AlertCircle, Wrench, X, Copy, Navigation
+  Search, ChevronRight, ChevronDown, ChevronUp, ArrowUpDown, AlertCircle, Wrench, X, Copy, Navigation
 } from 'lucide-react';
 import { matchHangul } from '../../utils/hangulSearch';
 import { launchNavigation, copyToClipboard } from '../../utils/nativeLauncher';
@@ -19,8 +19,23 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
   const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL'>('ACTIVE');
+  const [sortBy, setSortBy] = useState<'CUSTOMER_SITE' | 'SITE' | 'COUNT' | 'EXPIRY'>('CUSTOMER_SITE');
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(() => new Set());
+  const [isModalAssetsExpanded, setIsModalAssetsExpanded] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+
+  const toggleCardAssets = (contractId: string) => {
+    setExpandedCardIds(prev => {
+      const next = new Set(prev);
+      if (next.has(contractId)) {
+        next.delete(contractId);
+      } else {
+        next.add(contractId);
+      }
+      return next;
+    });
+  };
 
   // 더블터치 감지용 Ref
   const lastTapRef = useRef<{ time: number; id: string }>({ time: 0, id: '' });
@@ -28,6 +43,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
   const handleCardTap = (c: any) => {
     const now = Date.now();
     if (lastTapRef.current.id === c.id && (now - lastTapRef.current.time) < 350) {
+      setIsModalAssetsExpanded(false);
       setSelectedContract(c);
       lastTapRef.current = { time: 0, id: '' };
     } else {
@@ -38,10 +54,10 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
   // 오늘 날짜
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // 계약 리스트 정제
+  // 계약 리스트 정제 및 고객현장 정렬
   const myContractList = useMemo(() => {
     // 1. 활성 계약 필터링
-    return contracts
+    const mapped = contracts
       .filter(c => {
         if (filterStatus === 'ACTIVE' && c.status !== 'ACTIVE' && c.status !== 'EXTENDED') {
           return false;
@@ -60,23 +76,40 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
       .map(c => {
         const cust = customers.find(cu => cu.id === c.customerId);
         const site = sites.find(s => s.id === c.siteId);
-        // 계약에 매핑된 자산들
+        // 계약에 매핑된 자산들 (모델명·자산번호 순 정렬)
         const myCas = contractAssets.filter(ca => ca.contractId === c.id);
-        const assignedAssets = myCas.map(ca => {
-          const ast = assets.find(a => a.id === ca.assetId);
-          return {
-            caId: ca.id,
-            assetNo: ast?.assetNo || ca.expectedModel || '미지정',
-            modelName: ast?.modelName || ca.expectedModel || '-',
-            status: ast?.status || 'ASSIGNED'
-          };
+        const assignedAssets = myCas
+          .map(ca => {
+            const ast = assets.find(a => a.id === ca.assetId);
+            return {
+              caId: ca.id,
+              assetNo: ast?.assetNo || ca.expectedModel || '미지정',
+              modelName: ast?.modelName || ca.expectedModel || '-',
+              status: ast?.status || 'ASSIGNED'
+            };
+          })
+          .sort((a, b) =>
+            a.modelName.localeCompare(b.modelName, 'ko', { numeric: true }) ||
+            a.assetNo.localeCompare(b.assetNo, 'ko', { numeric: true })
+          );
+
+        // 모델별 수량 요약 (접힘 상태 표시용)
+        const modelCounts = new Map<string, number>();
+        assignedAssets.forEach(ast => {
+          const key = ast.modelName && ast.modelName !== '-' ? ast.modelName : ast.assetNo;
+          modelCounts.set(key, (modelCounts.get(key) || 0) + 1);
         });
+        const modelSummary = Array.from(modelCounts.entries())
+          .map(([model, cnt]) => `${model}×${cnt}`)
+          .join(', ');
 
         // 만료 잔여일 계산
         let dDayText = '';
         let isUrgent = false;
+        let diffDaysNum = 999999;
         if (c.endDate && !isIndefiniteEndDate(c.endDate)) {
           const diffDays = Math.ceil((new Date(c.endDate).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24));
+          diffDaysNum = diffDays;
           if (diffDays < 0) {
             dDayText = `만료도과 (${Math.abs(diffDays)}일)`;
             isUrgent = true;
@@ -92,17 +125,57 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
 
         return {
           ...c,
-          customerName: cust?.name || '거래처',
-          siteName: site?.name || '현장',
+          customerName: (cust?.name || '거래처').trim(),
+          siteName: (site?.name || '현장').trim(),
           siteAddress: site?.address || '',
           siteContact: site?.contactName || '',
           sitePhone: site?.contact || '',
           assignedAssets,
+          modelSummary,
           dDayText,
+          diffDaysNum,
           isUrgent
         };
       });
-  }, [contracts, contractAssets, customers, sites, assets, filterStatus, searchTerm, todayStr]);
+
+    const compareName = (a: string, b: string, fallback: string) => {
+      const aEmpty = !a || a === fallback;
+      const bEmpty = !b || b === fallback;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      return a.localeCompare(b, 'ko', { numeric: true, sensitivity: 'base' });
+    };
+
+    return mapped.sort((a, b) => {
+      if (sortBy === 'SITE') {
+        return (
+          compareName(a.siteName, b.siteName, '현장') ||
+          compareName(a.customerName, b.customerName, '거래처') ||
+          (b.startDate || '').localeCompare(a.startDate || '')
+        );
+      }
+      if (sortBy === 'COUNT') {
+        return (
+          b.assignedAssets.length - a.assignedAssets.length ||
+          compareName(a.customerName, b.customerName, '거래처') ||
+          compareName(a.siteName, b.siteName, '현장')
+        );
+      }
+      if (sortBy === 'EXPIRY') {
+        return (
+          a.diffDaysNum - b.diffDaysNum ||
+          compareName(a.customerName, b.customerName, '거래처') ||
+          compareName(a.siteName, b.siteName, '현장')
+        );
+      }
+      // 기본값: 고객사 ➔ 고객현장 가나다순 정렬
+      return (
+        compareName(a.customerName, b.customerName, '거래처') ||
+        compareName(a.siteName, b.siteName, '현장') ||
+        (b.startDate || '').localeCompare(a.startDate || '')
+      );
+    });
+  }, [contracts, contractAssets, customers, sites, assets, filterStatus, searchTerm, sortBy, todayStr]);
 
   // 대시보드 [처리 이동] 딥링크 자동 선택 연동
   useEffect(() => {
@@ -160,16 +233,58 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
         </div>
       </div>
 
-      {/* 검색창 */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="거래처명, 현장명, 계약번호 검색..."
-          className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-slate-500"
-        />
+      {/* 검색창 및 정렬 바 */}
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="거래처명, 현장명, 계약번호 검색..."
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-slate-500"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mr-1 whitespace-nowrap">
+              <ArrowUpDown className="w-3 h-3 text-blue-400" />
+              정렬
+            </span>
+            {(
+              [
+                { id: 'CUSTOMER_SITE', label: '고객·현장순' },
+                { id: 'SITE', label: '현장명순' },
+                { id: 'COUNT', label: '대수순' },
+                { id: 'EXPIRY', label: '만료임박순' },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSortBy(opt.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border transition-all ${
+                  sortBy === opt.id
+                    ? 'bg-blue-600/25 text-blue-300 border-blue-500/50'
+                    : 'bg-slate-900 text-slate-400 border-slate-800'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {expandedCardIds.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpandedCardIds(new Set())}
+              className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[10.5px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0"
+            >
+              전체 접기
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 계약 목록 */}
@@ -179,11 +294,16 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
             조회된 계약 내역이 없습니다.
           </div>
         ) : (
-          myContractList.map(c => (
+          myContractList.map(c => {
+            const isAssetsExpanded = expandedCardIds.has(c.id);
+            return (
             <div 
               key={c.id} 
               onClick={() => handleCardTap(c)}
-              onDoubleClick={() => setSelectedContract(c)}
+              onDoubleClick={() => {
+                setIsModalAssetsExpanded(false);
+                setSelectedContract(c);
+              }}
               className="bg-slate-900 border border-slate-800 hover:border-slate-700 active:border-blue-500/50 rounded-2xl p-4 flex flex-col gap-3 shadow-lg cursor-pointer transition-all select-none"
             >
               {/* 상단: 고객사 & 현장명 & D-Day & 상세 버튼 */}
@@ -213,6 +333,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      setIsModalAssetsExpanded(false);
                       setSelectedContract(c);
                     }}
                     className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all flex-shrink-0"
@@ -223,28 +344,63 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                 </div>
               </div>
 
-              {/* 투입 장비 목록 */}
+              {/* 투입 장비 목록 (기본상태: 접힘) */}
               <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1.5">
-                <div className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
-                  <span>투입 장비 ({c.assignedAssets.length}대)</span>
-                  <span className="text-[10px] text-slate-500">{c.startDate} ~ {formatContractEndDate(c.endDate)}</span>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {c.assignedAssets.length === 0 ? (
-                    <span className="text-[11px] text-slate-500">배정 진행 중...</span>
-                  ) : (
-                    c.assignedAssets.map((ast, i) => (
-                      <span 
-                        key={i}
-                        className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-slate-200 flex items-center gap-1"
-                      >
-                        <span className="text-sky-400">{ast.assetNo}</span>
-                        <span className="text-[10px] text-slate-400 font-sans font-normal">({ast.modelName})</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleCardAssets(c.id);
+                  }}
+                  className="w-full text-left flex items-center justify-between gap-2"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">
+                      투입 장비 ({c.assignedAssets.length}대)
+                    </span>
+                    {!isAssetsExpanded && c.modelSummary && (
+                      <span className="text-[10.5px] font-mono text-sky-400 truncate">
+                        · {c.modelSummary}
                       </span>
-                    ))
-                  )}
-                </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                      {c.startDate} ~ {formatContractEndDate(c.endDate)}
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300 whitespace-nowrap">
+                      {isAssetsExpanded ? (
+                        <>
+                          <span>접기</span>
+                          <ChevronUp className="w-3 h-3" />
+                        </>
+                      ) : (
+                        <>
+                          <span>펼치기</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </button>
+
+                {isAssetsExpanded && (
+                  <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-slate-800/80 mt-0.5">
+                    {c.assignedAssets.length === 0 ? (
+                      <span className="text-[11px] text-slate-500">배정 진행 중...</span>
+                    ) : (
+                      c.assignedAssets.map((ast, i) => (
+                        <span 
+                          key={i}
+                          className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-slate-200 flex items-center gap-1"
+                        >
+                          <span className="text-sky-400">{ast.assetNo}</span>
+                          <span className="text-[10px] text-slate-400 font-sans font-normal">({ast.modelName})</span>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 현장 담당자 및 원터치 전화걸기 */}
@@ -264,7 +420,8 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                 </div>
               )}
             </div>
-          ))
+          );
+          })
         )}
       </div>
 
@@ -448,55 +605,79 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                   </div>
                 </div>
 
-                {/* 4. 투입 장비 목록 & 개별 AS 접수 */}
+                {/* 4. 투입 장비 목록 & 개별 AS 접수 (기본상태: 접힘) */}
                 <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                      <Layers className="w-3.5 h-3.5 text-sky-400" />
-                      <span>투입 장비 ({selectedContract.assignedAssets.length}대)</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalAssetsExpanded(prev => !prev)}
+                    className="w-full text-left flex items-center justify-between gap-2"
+                  >
+                    <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5 min-w-0">
+                      <Layers className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+                      <span className="whitespace-nowrap">투입 장비 ({selectedContract.assignedAssets.length}대)</span>
+                      {!isModalAssetsExpanded && selectedContract.modelSummary && (
+                        <span className="text-[10.5px] font-mono text-sky-400 truncate">
+                          · {selectedContract.modelSummary}
+                        </span>
+                      )}
                     </div>
-                  </div>
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+                      {isModalAssetsExpanded ? (
+                        <>
+                          <span>접기</span>
+                          <ChevronUp className="w-3 h-3" />
+                        </>
+                      ) : (
+                        <>
+                          <span>펼치기</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </>
+                      )}
+                    </span>
+                  </button>
 
-                  <div className="flex flex-col gap-2 mt-1">
-                    {selectedContract.assignedAssets.length === 0 ? (
-                      <div className="text-center py-4 text-slate-500 text-xs">
-                        배정된 장비가 없습니다.
-                      </div>
-                    ) : (
-                      selectedContract.assignedAssets.map((ast: any, idx: number) => (
-                        <div 
-                          key={idx}
-                          className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-black text-sm text-sky-400">
-                              {ast.assetNo}
-                            </span>
-                            <span className="text-[11px] text-slate-300">
-                              {ast.modelName}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
-                              {ast.status}
-                            </span>
-                          </div>
-
-                          {onOpenCreateAsForAsset && ast.assetNo !== '미지정' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onOpenCreateAsForAsset(ast.assetNo, selectedContract.siteId);
-                                setSelectedContract(null);
-                              }}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold active:scale-95 transition-all"
-                            >
-                              <Wrench className="w-3 h-3" />
-                              <span>AS접수</span>
-                            </button>
-                          )}
+                  {isModalAssetsExpanded && (
+                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80 mt-0.5">
+                      {selectedContract.assignedAssets.length === 0 ? (
+                        <div className="text-center py-4 text-slate-500 text-xs">
+                          배정된 장비가 없습니다.
                         </div>
-                      ))
-                    )}
-                  </div>
+                      ) : (
+                        selectedContract.assignedAssets.map((ast: any, idx: number) => (
+                          <div 
+                            key={idx}
+                            className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-sm text-sky-400">
+                                {ast.assetNo}
+                              </span>
+                              <span className="text-[11px] text-slate-300">
+                                {ast.modelName}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                {ast.status}
+                              </span>
+                            </div>
+
+                            {onOpenCreateAsForAsset && ast.assetNo !== '미지정' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onOpenCreateAsForAsset(ast.assetNo, selectedContract.siteId);
+                                  setSelectedContract(null);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold active:scale-95 transition-all"
+                              >
+                                <Wrench className="w-3 h-3" />
+                                <span>AS접수</span>
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 5. 현장 특이사항 / 옵션 (있을 경우만) */}
