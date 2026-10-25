@@ -489,7 +489,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
         ) : activeTab === 'consumable_stock' ? (
           <MobileYardConsumableStock onBack={() => handleTabChange('home')} />
         ) : activeTab === 'sales_journal' ? (
-          <div style={{ padding: '8px 4px' }}><SalesJournalPage /></div>
+          <SalesJournalPage isMobileEmbedded />
         ) : (
           <MobileAssetSearch
             onNavigateToOrder={(specFt) => {

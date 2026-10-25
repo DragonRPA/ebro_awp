@@ -446,7 +446,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
                       type="button"
-                      style={{ display: canControlBlock ? undefined : 'none' }}
+                      style={{ display: 'none' }}
                       onClick={(e) => handleToggleBlock(c, e)}
                       className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 whitespace-nowrap flex-shrink-0 ${
                         isBlk 

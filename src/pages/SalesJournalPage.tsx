@@ -55,7 +55,17 @@ const STAGE_STYLE_MAP: Record<SalesJournalStage, { bg: string; text: string; bor
   },
 };
 
-export const SalesJournalPage: React.FC = () => {
+export interface SalesJournalPageProps {
+  isMobileEmbedded?: boolean;
+}
+
+export const SalesJournalPage: React.FC<SalesJournalPageProps> = ({ isMobileEmbedded = false }) => {
+  const isMobile =
+    isMobileEmbedded ||
+    (typeof window !== 'undefined' &&
+      (window.innerWidth < 768 ||
+        document.documentElement.getAttribute('data-mobile-view') === 'true'));
+  const [mobileTab, setMobileTab] = useState<'WRITE' | 'LIST'>('WRITE');
   const {
     currentUser,
     users,
@@ -373,6 +383,7 @@ export const SalesJournalPage: React.FC = () => {
       }
     );
     setUsedAiModel(item.aiModel || '');
+    setMobileTab('WRITE');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -503,6 +514,501 @@ export const SalesJournalPage: React.FC = () => {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
         영업일지는 영업부 및 경영진만 열람할 수 있습니다.
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col gap-2.5 pb-28 w-full max-w-full overflow-x-hidden font-sans px-1 pt-1">
+        {/* 1. 상단 헤더 + 작성/목록 탭 전환 */}
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <BookOpen className="w-4 h-4 text-blue-400 shrink-0" />
+              <h2 className="text-sm font-bold text-slate-100 whitespace-nowrap">영업일지</h2>
+              <span className="text-[11px] font-bold text-cyan-300 whitespace-nowrap">
+                총 {stageStats.total}건
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMobileTab('WRITE')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                  mobileTab === 'WRITE'
+                    ? 'bg-blue-600 text-white border-blue-500'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+              >
+                {editingId ? '일지 수정' : '일지 작성'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('LIST')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                  mobileTab === 'LIST'
+                    ? 'bg-blue-600 text-white border-blue-500'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+              >
+                일지 목록 ({filteredJournals.length})
+              </button>
+            </div>
+          </div>
+
+          {/* 4단계 요약 2x2 그리드 (핸드폰 가로폭 100% 맞춤) */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {SALES_JOURNAL_STAGES.map((stg, idx) => {
+              const count = stageStats.counts[stg] || 0;
+              const isSelected = selectedStageFilter === stg;
+              return (
+                <button
+                  key={stg}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStageFilter(isSelected ? 'ALL' : stg);
+                    setMobileTab('LIST');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-xs font-bold transition-colors ${
+                    isSelected
+                      ? 'bg-blue-950/70 border-blue-500 text-blue-200'
+                      : 'bg-slate-950 border-slate-800 text-slate-300'
+                  }`}
+                >
+                  <span className="whitespace-nowrap">
+                    {idx + 1}. {stg}
+                  </span>
+                  <span className="font-mono font-black text-cyan-300 whitespace-nowrap">
+                    {count}건
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* 2-A. 모바일 일지 작성/수정 폼 */}
+        {mobileTab === 'WRITE' && (
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+                {editingId ? '영업일지 수정' : '영업일지 작성'}
+              </span>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleResetForm}
+                  className="text-[11px] font-bold text-slate-400 underline whitespace-nowrap"
+                >
+                  신규 작성으로 전환
+                </button>
+              )}
+            </div>
+
+            {/* 상담내용 원문 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                상담내용 (자연어 입력)
+              </label>
+              <textarea
+                rows={3}
+                value={rawContent}
+                onChange={e => setRawContent(e.target.value)}
+                placeholder="고객명, 상대방 이름·직책, 상담 내용(영업개시/제안/견적/거래개시), 다음 일정 입력"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 text-xs leading-relaxed focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* 자동 추출 버튼 2열 */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                disabled={isExtracting || isSaving}
+                onClick={() => handleExtractFromRaw(false)}
+                className="py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-700/60 text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap"
+              >
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span>{isExtracting ? '추출 중...' : '자동 항목 추출'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={isExtracting || isSaving}
+                onClick={() => handleExtractFromRaw(true)}
+                className="py-2 px-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{isExtracting || isSaving ? '처리 중...' : '추출 후 즉시 저장'}</span>
+              </button>
+            </div>
+
+            {/* 작성일 & 담당 영업사원 */}
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  작성일
+                </label>
+                <input
+                  type="date"
+                  value={journalDate}
+                  onChange={e => setJournalDate(e.target.value)}
+                  className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  담당 영업사원
+                </label>
+                <select
+                  value={salespersonId}
+                  onChange={e => setSalespersonId(e.target.value)}
+                  className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                >
+                  {salespersonOptions.map(sp => (
+                    <option key={sp.id} value={sp.id}>
+                      {sp.name} {sp.position ? `(${sp.position})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 고객명 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  고객명
+                </label>
+                {customerName.trim() && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${
+                      matchedCustomer
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                        : 'bg-amber-950 text-amber-300 border border-amber-700'
+                    }`}
+                  >
+                    {matchedCustomer ? '등록 고객 연동됨' : '신규 가망고객'}
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                list="sales-journal-mobile-customer-list"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder="고객사 상호 입력"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+              />
+              <datalist id="sales-journal-mobile-customer-list">
+                {(customers || []).map(c => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+
+            {/* 상대방 이름 & 직책 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  상대방 이름
+                </label>
+                <input
+                  type="text"
+                  value={contactName}
+                  onChange={e => setContactName(e.target.value)}
+                  placeholder="성명"
+                  className="w-full min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  상대방 직책
+                </label>
+                <input
+                  type="text"
+                  value={contactTitle}
+                  onChange={e => setContactTitle(e.target.value)}
+                  placeholder="소장, 부장, 대표"
+                  className="w-full min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+                />
+              </div>
+            </div>
+
+            {/* 상담내용 구분 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                상담 구분
+              </label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {SALES_JOURNAL_STAGES.map(stg => {
+                  const active = stage === stg;
+                  return (
+                    <button
+                      key={stg}
+                      type="button"
+                      onClick={() => setStage(stg)}
+                      className={`py-1.5 px-1 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                        active
+                          ? 'bg-blue-600 text-white border-blue-400'
+                          : 'bg-slate-950 text-slate-400 border-slate-800'
+                      }`}
+                    >
+                      {stg}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 상담내용 요약 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                상담내용 요약
+              </label>
+              <textarea
+                rows={2}
+                value={summary}
+                onChange={e => setSummary(e.target.value)}
+                placeholder="핵심 상담내용 요약"
+                className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+              />
+            </div>
+
+            {/* 다음 일정 & 다음 일정일 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  다음 일정
+                </label>
+                <input
+                  type="text"
+                  value={nextSchedule}
+                  onChange={e => setNextSchedule(e.target.value)}
+                  placeholder="후속 조치 사항"
+                  className="w-full min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1 min-w-0">
+                <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                  다음 일정일
+                </label>
+                <input
+                  type="date"
+                  value={nextScheduleDate}
+                  onChange={e => setNextScheduleDate(e.target.value)}
+                  className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                />
+              </div>
+            </div>
+
+            {/* 하단 저장 및 초기화 버튼 */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleResetForm}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>초기화</span>
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || isExtracting}
+                onClick={handleSaveButtonClick}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <Save className="w-4 h-4" />
+                <span>{editingId ? '수정 저장' : '영업일지 저장'}</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* 2-B. 모바일 일지 목록 및 검색 필터 */}
+        {mobileTab === 'LIST' && (
+          <section className="flex flex-col gap-2">
+            {/* 모바일 맞춤 필터 카드 */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                    조회 시작일
+                  </label>
+                  <input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={e => setStartDateFilter(e.target.value)}
+                    className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                    조회 종료일
+                  </label>
+                  <input
+                    type="date"
+                    value={endDateFilter}
+                    onChange={e => setEndDateFilter(e.target.value)}
+                    className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                    영업사원
+                  </label>
+                  <select
+                    value={selectedSalespersonFilter}
+                    onChange={e => setSelectedSalespersonFilter(e.target.value)}
+                    className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                  >
+                    <option value="ALL">전체 영업사원</option>
+                    {salespersonOptions.map(sp => (
+                      <option key={sp.id} value={sp.id}>
+                        {sp.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                    상담 구분
+                  </label>
+                  <select
+                    value={selectedStageFilter}
+                    onChange={e => setSelectedStageFilter(e.target.value)}
+                    className="w-full min-w-0 px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100"
+                  >
+                    <option value="ALL">전체 구분</option>
+                    {SALES_JOURNAL_STAGES.map(stg => (
+                      <option key={stg} value={stg}>
+                        {stg}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={e => setSearchKeyword(e.target.value)}
+                  placeholder="고객명, 상대방, 요약, 원문 검색"
+                  className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500"
+                />
+                {searchKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchKeyword('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 일지 카드 리스트 (핸드폰 가로폭 맞춤, 좌측 정렬 + 자연 줄바꿈) */}
+            {filteredJournals.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 bg-slate-900 border border-slate-800 rounded-xl">
+                등록된 영업일지가 없습니다.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {filteredJournals.map(item => {
+                  const isExpanded = detailJournal?.id === item.id;
+                  const contactDisplay = [item.contactName, item.contactTitle]
+                    .filter(Boolean)
+                    .join(' ');
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-1.5 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2 w-full">
+                        <div
+                          className="text-xs text-slate-100 flex-1 min-w-0 text-left"
+                          style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                        >
+                          <span className="inline-block px-1.5 py-0.5 mr-1.5 rounded bg-blue-950 border border-blue-700 text-blue-200 text-[10px] font-bold align-middle">
+                            {item.stage}
+                          </span>
+                          <strong className="font-bold text-slate-100">{item.customerName}</strong>
+                          {contactDisplay && (
+                            <span className="text-slate-400"> · {contactDisplay}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-mono whitespace-nowrap shrink-0">
+                          {(item.journalDate || '').slice(5)} · {item.salespersonName}
+                        </span>
+                      </div>
+
+                      <div
+                        className="text-xs text-slate-200 leading-relaxed text-left"
+                        style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                      >
+                        {item.summary}
+                      </div>
+
+                      {item.nextSchedule && (
+                        <div
+                          className="text-[11px] text-emerald-300 font-bold text-left"
+                          style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                        >
+                          다음 일정:{' '}
+                          {item.nextScheduleDate ? `[${item.nextScheduleDate}] ` : ''}
+                          {item.nextSchedule}
+                        </div>
+                      )}
+
+                      {isExpanded && item.rawContent && (
+                        <div
+                          className="mt-1 p-2 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300 text-left"
+                          style={{ whiteSpace: 'pre-wrap', wordBreak: 'keep-all' }}
+                        >
+                          {item.rawContent}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-800/80">
+                        <button
+                          type="button"
+                          onClick={() => setDetailJournal(isExpanded ? null : item)}
+                          className="text-[11px] font-bold text-cyan-300 whitespace-nowrap"
+                        >
+                          {isExpanded ? '원문 접기' : '원문 보기'}
+                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadForEdit(item)}
+                            className="px-2.5 py-1 rounded bg-slate-800 text-slate-200 border border-slate-700 text-[11px] font-bold whitespace-nowrap"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(item)}
+                            className="px-2.5 py-1 rounded bg-rose-950/70 text-rose-300 border border-rose-800 text-[11px] font-bold whitespace-nowrap"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     );
   }
