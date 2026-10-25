@@ -144,8 +144,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     ];
   }
 
-  // 홈 및 가용재고 탭은 영업부·경영진 포함 전 임직원 상시 허용
+  // 홈 및 가용재고 탭은 영업부·경영진 포함 전 임직원 상시 허용 (주유관리는 코드는 보존하되 웹앱 전 부서에서 숨김 처리)
   const navItems = rawNavItems.filter(item => {
+    if (item.id === 'vehicle_log') return false;
     if (item.id === 'home' || item.id === 'assets') return true;
     if (isDeveloper) return true;
     if (!hasPermission) return true;
