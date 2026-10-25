@@ -375,21 +375,12 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
                 <Bell className="w-4 h-4" />
               </div>
               <span className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
-                경영진 보고 및 미결 알림
+                경영진 보고 및 미결 업무
               </span>
             </div>
             <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={handleBulkCompleteTodos}
-                className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 flex items-center gap-1"
-                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>일괄 확인 완료</span>
-              </button>
               <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {executiveTodos.length}건
+                {executiveTodos.length}건 대기
               </span>
             </div>
           </div>
@@ -433,15 +424,6 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => completeTodo(task.id)}
-                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
-                      style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      <CheckSquare className="w-3 h-3" />
-                      <span>확인</span>
-                    </button>
                   </div>
                 </div>
               );

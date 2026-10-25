@@ -202,17 +202,8 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
               </span>
             </div>
             <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={handleBulkCompleteTodos}
-                className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 flex items-center gap-1"
-                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>알림 일괄 완료</span>
-              </button>
               <span className="text-xs font-black px-2 py-0.5 rounded-md bg-sky-500/20 text-sky-300 border border-sky-500/40" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {adminTodos.length}건
+                {adminTodos.length}건 대기
               </span>
             </div>
           </div>
@@ -255,15 +246,6 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => completeTodo(task.id)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
-                      style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      <CheckSquare className="w-3 h-3" />
-                      <span>완료</span>
-                    </button>
                   </div>
                 </div>
               );

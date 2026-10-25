@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Activity, Layers, CheckCircle, Bell, ArrowRight, FileText, CheckSquare, RefreshCw, ClipboardList, Package } from 'lucide-react';
+import { Activity, CheckCircle, Bell, ArrowRight, FileText, CheckSquare, RefreshCw, ClipboardList, Package } from 'lucide-react';
 import { isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
-import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload } from '../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload, resolveTaskMenuId } from '../utils/taskHandoverPipeline';
 import { normalizeMenuId } from '../config/menu_config';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -14,8 +14,13 @@ export const Dashboard: React.FC = () => {
     hasPermission, 
     todos, 
     assets,
+    contracts,
     contractAssets,
+    deliveries,
     outboundInspections,
+    repairs,
+    customers,
+    sites,
     completeTodo, 
     resolveExecutiveDirective,
     setActiveTab,
@@ -27,6 +32,7 @@ export const Dashboard: React.FC = () => {
   const [reportingDirectiveTodo, setReportingDirectiveTodo] = useState<Todo | null>(null);
   const [directiveReportNote, setDirectiveReportNote] = useState<string>('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [taskCategoryFilter, setTaskCategoryFilter] = useState<'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'>('ALL');
 
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
@@ -50,7 +56,42 @@ export const Dashboard: React.FC = () => {
     });
   }, []);
 
-  const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
+  const activeTasks = useMemo(
+    () => findActiveTasksForUser(todos, currentUser, hasPermission),
+    [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, repairs, assets, customers, sites]
+  );
+
+  const taskGroupCounts = useMemo(() => {
+    let assign = 0;
+    let inspection = 0;
+    let dispatch = 0;
+    let other = 0;
+    activeTasks.forEach(t => {
+      const mId = resolveTaskMenuId(t);
+      if (mId === 'dispatch_assign') assign += 1;
+      else if (mId === 'outbound_inspections') inspection += 1;
+      else if (mId === 'delivery') dispatch += 1;
+      else other += 1;
+    });
+    return {
+      all: activeTasks.length,
+      assign,
+      inspection,
+      dispatch,
+      other
+    };
+  }, [activeTasks]);
+
+  const filteredActiveTasks = useMemo(() => {
+    if (taskCategoryFilter === 'ALL') return activeTasks;
+    return activeTasks.filter(t => {
+      const mId = resolveTaskMenuId(t);
+      if (taskCategoryFilter === 'ASSIGN') return mId === 'dispatch_assign';
+      if (taskCategoryFilter === 'INSPECTION') return mId === 'outbound_inspections';
+      if (taskCategoryFilter === 'DISPATCH') return mId === 'delivery';
+      return mId !== 'dispatch_assign' && mId !== 'outbound_inspections' && mId !== 'delivery';
+    });
+  }, [activeTasks, taskCategoryFilter]);
 
   // 영업부 / 경영진 / 출고·관리부 공통 가용재고 및 미완결 출고예정 실시간 요약
   const inventorySummary = useMemo(() => {
@@ -102,7 +143,11 @@ export const Dashboard: React.FC = () => {
   }, [assets, contractAssets, outboundInspections]);
 
   const resolveTaskTargetMenu = (actionUrl?: string, task?: Todo): string => {
-    const raw = (actionUrl || '').trim();
+    if (task) {
+      const byTask = resolveTaskMenuId(task);
+      if (byTask) return byTask;
+    }
+    const raw = (actionUrl || '').trim().split('?')[0];
     const tabMap: Record<string, string> = {
       '/admin/dispatch': 'delivery',
       '/admin/delivery': 'delivery',
@@ -161,15 +206,6 @@ export const Dashboard: React.FC = () => {
     if (task?.entityType === 'BILLING') return 'billing';
     if (task?.entityType === 'CONTRACT') return 'contract';
     return 'dashboard';
-  };
-
-  const handleBatchCompleteNonDirectives = async () => {
-    reconcileCompletedTodosInDb();
-    const targetList = activeTasks.filter(t => t.taskCategory !== 'EXECUTIVE_DIRECTIVE');
-    for (const t of targetList) {
-      await completeTodo(t.id);
-    }
-    refreshAllData();
   };
 
   const handleConfirmDirectiveReport = async () => {
@@ -323,15 +359,6 @@ export const Dashboard: React.FC = () => {
               출고 요청 이동
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setActiveTab('available_inventory')}
-            className="btn btn-primary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap', fontWeight: 800 }}
-          >
-            <Layers size={14} />
-            가용재고조회 상세 <ArrowRight size={13} />
-          </button>
         </div>
       </div>
 
@@ -341,7 +368,7 @@ export const Dashboard: React.FC = () => {
           borderLeft: '5px solid var(--primary)', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
         }}>
           <summary style={{ cursor: 'pointer', listStyle: 'none', outline: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'var(--primary-light)', padding: '3px 9px', borderRadius: '4px' }}>
                 담당 업무
               </span>
@@ -349,32 +376,99 @@ export const Dashboard: React.FC = () => {
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   총 <strong>{activeTasks.length}건</strong> 대기
                 </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleBatchCompleteNonDirectives();
-                  }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '11.5px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-                >
-                  <CheckSquare size={12} /> 일반 알림 일괄 완료
-                </button>
               </div>
             </div>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Bell size={18} color="var(--primary)" /> 업무 목록
-            </h4>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+                <Bell size={18} color="var(--primary)" /> 업무 목록
+              </h4>
+              <div
+                onClick={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}
+              >
+                {[
+                  { key: 'ALL' as const, label: '전체', count: taskGroupCounts.all },
+                  { key: 'ASSIGN' as const, label: '장비 할당', count: taskGroupCounts.assign },
+                  { key: 'INSPECTION' as const, label: '출고 검수', count: taskGroupCounts.inspection },
+                  { key: 'DISPATCH' as const, label: '배차·운송', count: taskGroupCounts.dispatch },
+                  { key: 'OTHER' as const, label: '정비·기타', count: taskGroupCounts.other },
+                ].map(tab => {
+                  const isActive = taskCategoryFilter === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setTaskCategoryFilter(tab.key)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: isActive ? 800 : 700,
+                        border: isActive ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                        backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-app)',
+                        color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span>{tab.label}</span>
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '0 5px',
+                        borderRadius: '4px',
+                        backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'var(--bg-secondary)',
+                        color: isActive ? '#ffffff' : 'var(--text-main)'
+                      }}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </summary>
 
           <div className="details-content">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-              {activeTasks.slice(0, 12).map(task => {
+              {filteredActiveTasks.map(task => {
                 const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
                 const isPackageResend = task.taskCategory === 'CONTRACT_PACKAGE_RESEND';
                 const priorityColor = task.priority === 'URGENT' ? 'var(--danger)' : task.priority === 'HIGH' ? 'var(--warning)' : 'var(--primary)';
                 const priorityLabel = task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반';
+                const targetMenuId = resolveTaskMenuId(task);
+                const menuBadgeLabel =
+                  targetMenuId === 'dispatch_assign'
+                    ? '장비 할당'
+                    : targetMenuId === 'outbound_inspections'
+                    ? '출고 검수'
+                    : targetMenuId === 'delivery'
+                    ? '배차 관리'
+                    : targetMenuId === 'field_as'
+                    ? '현장 정비'
+                    : targetMenuId === 'repair'
+                    ? '입고 정비'
+                    : targetMenuId === 'contract'
+                    ? '계약 관리'
+                    : '';
+                const deptLabel =
+                  task.targetDept === 'YARD'
+                    ? '출고팀'
+                    : task.targetDept === 'DISPATCH'
+                    ? '배차/관리부'
+                    : task.targetDept === 'AS'
+                    ? 'AS팀'
+                    : task.targetDept === 'SALES'
+                    ? '영업부'
+                    : task.targetDept === 'ACCOUNTING'
+                    ? '관리부'
+                    : task.targetDept || '';
                 
                 return (
                   <div key={task.id} style={{
@@ -408,6 +502,15 @@ export const Dashboard: React.FC = () => {
                           </span>
                         )}
 
+                        {menuBadgeLabel && (
+                          <span style={{
+                            fontSize: '11px', fontWeight: '800', padding: '2px 7px', borderRadius: '4px',
+                            backgroundColor: 'var(--primary-light)', color: 'var(--primary)', whiteSpace: 'nowrap'
+                          }}>
+                            {menuBadgeLabel}
+                          </span>
+                        )}
+
                         {task.dueDate && (
                           <span style={{
                             fontSize: '11px', fontWeight: '700', padding: '2px 6px', borderRadius: '4px',
@@ -429,8 +532,8 @@ export const Dashboard: React.FC = () => {
                       )}
 
                       <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', gap: '12px', marginTop: '2px', flexWrap: 'wrap' }}>
-                        <span>발행자: <strong>{task.senderName || '경영진'}</strong></span>
-                        {task.targetDept && <span>대상부서: {task.targetDept}</span>}
+                        <span>발행자: <strong>{task.senderName || '시스템'}</strong></span>
+                        {deptLabel && <span>담당부서: {deptLabel}</span>}
                         <span>발행일시: {task.createdAt ? task.createdAt.substring(0, 16).replace('T', ' ') : '-'}</span>
                       </div>
                     </div>
@@ -469,7 +572,7 @@ export const Dashboard: React.FC = () => {
                         </button>
                       )}
 
-                      {isDirective ? (
+                      {isDirective && (
                         <button
                           onClick={() => {
                             setReportingDirectiveTodo(task);
@@ -483,18 +586,6 @@ export const Dashboard: React.FC = () => {
                           }}
                         >
                           <CheckSquare size={13} /> 조치 결과 보고 & 완료
-                        </button>
-                      ) : (
-                        <button data-hs-trigger="Process"
-                          onClick={() => completeTodo(task.id)}
-                          style={{
-                            fontSize: '12px', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)',
-                            backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-                            whiteSpace: 'nowrap'
-                          }}
-                          title="수동 완료 처리"
-                        >
-                          <CheckSquare size={12} /> 완료
                         </button>
                       )}
                     </div>

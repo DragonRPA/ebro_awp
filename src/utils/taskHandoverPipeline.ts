@@ -145,11 +145,16 @@ export async function clearHandoverTasks(params: ClearHandoverTasksParams): Prom
 export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   if (!t || t.isCompleted) return true;
 
+  // 초기 부팅 중 도메인 테이블이 아직 로드되지 않은 상태에서는 오판 상계 방지를 위해 false 반환
+  if (db.contracts.length === 0 && db.deliveries.length === 0 && db.assets.length === 0) {
+    return false;
+  }
+
   const eid = (t.entityId || t.relatedEntityId || '').trim();
   const cat = (t.taskCategory || '').toUpperCase();
   const etype = (t.entityType || '').toUpperCase();
 
-  // 0. 경영진 특별지시(EXECUTIVE_DIRECTIVE)는 명시적 완료 처리 전까지 유지 (단, 연결된 대상 엔티티가 삭제된 경우는 제외)
+  // 0. 경영진 특별지시(EXECUTIVE_DIRECTIVE)는 명시적 완료 처리 전까지 유지
   if (cat === 'EXECUTIVE_DIRECTIVE') {
     return false;
   }
@@ -157,6 +162,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 1. 계약서패키지 재발송 (CONTRACT_PACKAGE_RESEND)
   if (cat === 'CONTRACT_PACKAGE_RESEND') {
     if (!eid) return true;
+    if (db.contracts.length === 0 || db.contractAssets.length === 0) return false;
     const contract = db.contracts.find(c => c.id === eid);
     if (!contract) return true;
     const cStatus = (contract.status || '').toUpperCase();
@@ -184,6 +190,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 2. 장비 할당 요청 (ASSIGN 관련 카테고리)
   if (cat.includes('ASSIGN')) {
     if (!eid) return true;
+    if (db.contracts.length === 0 || db.contractAssets.length === 0) return false;
     const deliv = db.deliveries.find(d => d.id === eid);
     if (deliv) {
       const dStatus = (deliv.status || '').toUpperCase();
@@ -201,9 +208,10 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
             if (caIds.length > 0) {
               const hasUnassigned = caIds.some(id => {
                 const ca = db.contractAssets.find(c => c.id === id);
-                return ca && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.assetId;
+                return ca && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && ca.status !== 'RENTED' && !ca.assetId;
               });
               if (!hasUnassigned) return true;
+              return false;
             }
           }
         } catch {}
@@ -215,12 +223,12 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
       const cStatus = (contract.status || '').toUpperCase();
       if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
       const unassignedSlots = db.contractAssets.filter(
-        ca => ca.contractId === contract.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.assetId
+        ca => ca.contractId === contract.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && ca.status !== 'RENTED' && !ca.assetId
       );
       if (unassignedSlots.length === 0) return true;
     } else if (!deliv) {
       const slot = db.contractAssets.find(ca => ca.id === eid);
-      if (!slot || Boolean(slot.assetId) || slot.status === 'RETURNED' || slot.status === 'SOLD') return true;
+      if (!slot || Boolean(slot.assetId) || slot.status === 'RETURNED' || slot.status === 'SOLD' || slot.status === 'RENTED') return true;
     }
     return false;
   }
@@ -228,6 +236,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 3. 출고검수 / PDI (INSPECTION 관련)
   if (etype === 'INSPECTION' || cat.includes('INSPECTION') || cat.includes('PDI')) {
     if (!eid) return true;
+    if (db.outboundInspections.length === 0) return false;
     const directInsp = db.outboundInspections.find(i => i.id === eid);
     if (directInsp) {
       const iStatus = (directInsp.status || '').toUpperCase();
@@ -238,7 +247,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
       }
       if ((directInsp as any).contractAssetId) {
         const ca = db.contractAssets.find(c => c.id === (directInsp as any).contractAssetId);
-        if (!ca || ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD') return true;
+        if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) return true;
       }
       if (directInsp.assetId) {
         const asset = db.assets.find(a => a.id === directInsp.assetId);
@@ -258,7 +267,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
           const d = db.deliveries.find(x => x.id === i.deliveryId);
           if (d && d.status === 'CANCELLED') return false;
         }
-        if ((i as any).contractAssetId) {
+        if ((i as any).contractAssetId && db.contractAssets.length > 0) {
           const ca = db.contractAssets.find(c => c.id === (i as any).contractAssetId);
           if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) return false;
         }
@@ -281,6 +290,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 4. 배차 / 운송 / 상차 / 하차 (DELIVERY 관련)
   if (etype === 'DELIVERY' || cat.includes('DISPATCH') || cat.includes('SHIPMENT')) {
     if (!eid) return true;
+    if (db.deliveries.length === 0) return false;
     const deliv = db.deliveries.find(d => d.id === eid);
     if (deliv) {
       const dStatus = (deliv.status || '').toUpperCase();
@@ -324,14 +334,14 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
       }
 
       // 출고 배차인데 연결된 체결자산이 이미 모두 대여중(RENTED) 또는 반납완료(RETURNED)이고 상차까지 끝난 경우
-      if (deliv.type === 'OUTBOUND' && deliv.contractId && deliv.loadingCompletedAt) {
+      if (deliv.type === 'OUTBOUND' && deliv.contractId && deliv.loadingCompletedAt && db.contractAssets.length > 0) {
         const cAssets = db.contractAssets.filter(ca => ca.contractId === deliv.contractId);
         if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
           return true;
         }
       }
       // 회수/입고 배차인데 연결된 자산이 이미 주기장 입고 완료된 경우
-      if (deliv.type === 'INBOUND' && deliv.contractId) {
+      if (deliv.type === 'INBOUND' && deliv.contractId && db.contractAssets.length > 0) {
         const cAssets = db.contractAssets.filter(ca => ca.contractId === deliv.contractId);
         if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RETURNED' || ca.status === 'SOLD')) {
           return true;
@@ -354,6 +364,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 5. 정비 / AS (REPAIR 관련)
   if (etype === 'REPAIR' || cat.includes('REPAIR') || cat.includes('AS')) {
     if (!eid) return true;
+    if (db.repairs.length === 0) return false;
     const rep = db.repairs.find(r => r.id === eid);
     if (rep) {
       const rStatus = (rep.status || '').toUpperCase();
@@ -371,6 +382,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 6. 청구 / 수납 (BILLING 관련)
   if (etype === 'BILLING' || cat.includes('BILLING') || cat.includes('COLLECTION')) {
     if (!eid) return true;
+    if (db.billings.length === 0) return false;
     const bill = db.billings.find(b => b.id === eid);
     if (!bill) return true;
     const bStatus = (bill.status || '').toUpperCase();
@@ -381,6 +393,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 7. 매입 정산 (SETTLEMENT 관련)
   if (etype === 'SETTLEMENT' || cat.includes('SETTLEMENT')) {
     if (!eid) return true;
+    if (db.purchaseSettlements.length === 0) return false;
     const stl = db.purchaseSettlements.find(s => s.id === eid);
     if (!stl) return true;
     const sStatus = (stl.status || '').toUpperCase();
@@ -391,6 +404,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 8. 고객 정보 보완 (CUSTOMER / MISSING_INFO)
   if (etype === 'CUSTOMER' || t.type === 'MISSING_INFO') {
     if (!eid) return true;
+    if (db.customers.length === 0) return false;
     const cust = db.customers.find(c => c.id === eid);
     if (!cust) return true;
     if (cust.bizRegNo && cust.bizRegNo !== '미상' && cust.bizRegNo.trim() !== '') return true;
@@ -400,6 +414,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 9. 소모품 구매/입고 (CONSUMABLE)
   if (etype === 'CONSUMABLE' || cat.includes('CONSUMABLE')) {
     if (!eid) return true;
+    if (db.consumablePurchases.length === 0) return false;
     const cp = db.consumablePurchases.find(p => p.id === eid);
     if (!cp) return true;
     const cpStatus = (cp.status || '').toUpperCase();
@@ -410,6 +425,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 10. 연차 신청 (LEAVE)
   if (etype === 'LEAVE' || cat.includes('LEAVE')) {
     if (!eid) return true;
+    if (db.leaveUsages.length === 0) return false;
     const lv = db.leaveUsages.find(l => l.id === eid);
     if (!lv) return true;
     const lvStatus = ((lv as any).status || '').toUpperCase();
@@ -420,11 +436,12 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
   // 11. 계약 일반 (CONTRACT)
   if (etype === 'CONTRACT') {
     if (!eid) return true;
+    if (db.contracts.length === 0) return false;
     const contract = db.contracts.find(c => c.id === eid);
     if (!contract) return true;
     const cStatus = (contract.status || '').toUpperCase();
     if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
-    if (cat === 'SITE_ARRIVAL_CONFIRM') {
+    if (cat === 'SITE_ARRIVAL_CONFIRM' && db.contractAssets.length > 0) {
       const cAssets = db.contractAssets.filter(ca => ca.contractId === contract.id);
       if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
         return true;
@@ -456,7 +473,339 @@ export function reconcileCompletedTodosInDb(): number {
 }
 
 /**
- * 🔍 [3] 로그인 사용자의 직무·부서에 특화된 활성 ToDo 필터링 헬퍼
+ * 🔄 [2.7] 실시간 도메인 원장(장비 할당, 출고 검수, 배차 운송, 현장 AS, 입고 수리)에서
+ * 실제 미완결 상태인 업무를 스캔하여, DB todos에 누락된 건이 있더라도 대시보드에 100% 직결 노출시키는 동기화 엔진
+ */
+export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] {
+  const synthesized: Todo[] = [];
+  const nowIso = new Date().toISOString();
+
+  const contractMap = new Map((db.contracts || []).map(c => [c.id, c]));
+  const customerMap = new Map((db.customers || []).map(c => [c.id, c]));
+  const siteMap = new Map((db.sites || []).map(s => [s.id, s]));
+  const assetMap = new Map((db.assets || []).map(a => [a.id, a]));
+  const userMap = new Map((db.users || []).map(u => [u.id, u]));
+
+  const extractCaIdsFromDelivery = (d: any): string[] => {
+    if (!d?.cargoItems) return [];
+    try {
+      const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+      if (!Array.isArray(raw)) return [];
+      const ids: string[] = [];
+      raw.forEach((ci: any) => {
+        if (Array.isArray(ci?.contractAssetIds)) {
+          ids.push(...ci.contractAssetIds.filter(Boolean));
+        }
+      });
+      return ids;
+    } catch {
+      return [];
+    }
+  };
+
+  // ── 1. [장비 할당] (dispatch_assign / asset_assignment.tsx 직결) ──
+  const completedInspCaIds = new Set<string>();
+  (db.outboundInspections || []).forEach(ins => {
+    if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
+      completedInspCaIds.add((ins as any).contractAssetId);
+    }
+  });
+
+  const unassignedByContract = new Map<string, typeof db.contractAssets>();
+  (db.contractAssets || []).forEach(ca => {
+    if (!ca.contractId) return;
+    if (ca.status === 'RETURNED' || ca.status === 'SOLD' || ca.status === 'RENTED') return;
+    if (completedInspCaIds.has(ca.id)) return;
+    if (ca.assetId) return; // 미할당 슬롯만 추출
+    const c = contractMap.get(ca.contractId);
+    if (!c) return;
+    const cSt = (c.status || '').toUpperCase();
+    if (cSt === 'CANCELLED' || cSt === 'TERMINATED' || cSt === 'COMPLETED') return;
+    const list = unassignedByContract.get(ca.contractId) || [];
+    list.push(ca);
+    unassignedByContract.set(ca.contractId, list);
+  });
+
+  const outboundDeliveriesByContract = new Map<string, typeof db.deliveries>();
+  (db.deliveries || []).forEach(d => {
+    if (!d.contractId || d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED') return;
+    const isOutOrEx =
+      d.type === 'OUTBOUND' ||
+      d.type === 'EXCHANGE' ||
+      d.dispatchCategory === '출고' ||
+      d.dispatchCategory === '교환' ||
+      (d as any).originalDispatchCategory === '출고' ||
+      (d as any).originalDispatchCategory === '교환';
+    if (!isOutOrEx) return;
+    const list = outboundDeliveriesByContract.get(d.contractId) || [];
+    list.push(d);
+    outboundDeliveriesByContract.set(d.contractId, list);
+  });
+
+  unassignedByContract.forEach((unassignedSlots, contractId) => {
+    const c = contractMap.get(contractId);
+    if (!c) return;
+    const custName = (c.customerId && customerMap.get(c.customerId)?.name) || (c as any).customerName || '고객사';
+    const siteName = (c.siteId && siteMap.get(c.siteId)?.name) || (c as any).siteName || '현장';
+    const salespersonName = (c.salespersonId && userMap.get(c.salespersonId)?.name) || '영업부';
+
+    const cDeliveries = (outboundDeliveriesByContract.get(contractId) || []).slice().sort((a, b) =>
+      (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '')
+    );
+
+    const claimedCaIds = new Set<string>();
+    const groups: { delivery?: (typeof db.deliveries)[number]; slots: typeof db.contractAssets }[] = [];
+
+    for (const d of cDeliveries) {
+      const dCaIds = new Set(extractCaIdsFromDelivery(d));
+      if (dCaIds.size === 0) continue;
+      const matched = unassignedSlots.filter(ca => dCaIds.has(ca.id) && !claimedCaIds.has(ca.id));
+      if (matched.length === 0) continue;
+      matched.forEach(ca => claimedCaIds.add(ca.id));
+      groups.push({ delivery: d, slots: matched });
+    }
+
+    const remaining = unassignedSlots.filter(ca => !claimedCaIds.has(ca.id));
+    if (remaining.length > 0) {
+      const fallbackDeliv = cDeliveries.find(d => extractCaIdsFromDelivery(d).length === 0) || (groups.length === 0 ? cDeliveries[0] : undefined);
+      groups.push({ delivery: fallbackDeliv, slots: remaining });
+    }
+
+    groups.forEach(grp => {
+      const targetEntityId = grp.delivery?.id || c.id;
+      const alreadyExists = existingOpenTodos.some(
+        t =>
+          (t.taskCategory || '').toUpperCase().includes('ASSIGN') &&
+          (t.entityId === targetEntityId || t.relatedEntityId === targetEntityId || t.entityId === c.id)
+      );
+      if (alreadyExists) return;
+
+      const modelCounts = new Map<string, number>();
+      grp.slots.forEach(s => {
+        const m = s.expectedModel || '미지정';
+        modelCounts.set(m, (modelCounts.get(m) || 0) + 1);
+      });
+      const modelSummary = Array.from(modelCounts.entries())
+        .map(([m, cnt]) => `${m} × ${cnt}대`)
+        .join(', ');
+      const schedDate = (
+        grp.delivery?.loadingDate ||
+        grp.delivery?.scheduledDate ||
+        grp.slots.map(s => s.startDate).filter(Boolean).sort().pop() ||
+        c.startDate ||
+        ''
+      ).slice(0, 10);
+      const isExchange =
+        grp.delivery?.type === 'EXCHANGE' ||
+        grp.delivery?.dispatchCategory === '교환' ||
+        (db.contractHistory || []).some(h => h.contractId === c.id && h.changeType === 'EXCHANGE');
+
+      synthesized.push({
+        id: `SYNTH-ASSIGN-${targetEntityId}`,
+        userId: 'u-1',
+        targetType: 'DEPT',
+        targetDept: 'YARD',
+        taskCategory: 'ASSET_ASSIGNMENT',
+        type: isExchange ? 'URGENT' : 'GENERAL',
+        priority: isExchange ? 'URGENT' : 'HIGH',
+        title: `[장비 할당] ${custName} (미할당 ${grp.slots.length}대)`,
+        content: `${siteName} | 미할당 요구: ${modelSummary}${schedDate ? ` | 출고예정: ${schedDate}` : ''}`,
+        dueDate: schedDate || undefined,
+        actionUrl: `/admin/dispatch_assign?contractId=${c.id}${grp.delivery ? `&deliveryId=${grp.delivery.id}` : ''}`,
+        entityType: grp.delivery ? 'DELIVERY' : 'CONTRACT',
+        entityId: targetEntityId,
+        relatedEntityId: c.id,
+        senderName: salespersonName,
+        isCompleted: false,
+        createdAt: grp.delivery?.createdAt || c.createdAt || nowIso,
+        updatedAt: grp.delivery?.updatedAt || c.updatedAt || nowIso,
+      });
+    });
+  });
+
+  // ── 2. [출고 검수] (outbound_inspections / outbound_inspections.tsx 직결) ──
+  const pendingInsGroups = new Map<string, typeof db.outboundInspections>();
+  (db.outboundInspections || []).forEach(ins => {
+    if (ins.status !== 'PENDING' && ins.status !== 'IN_PROGRESS') return;
+    if (!ins.contractId || !contractMap.has(ins.contractId)) return;
+    if (ins.deliveryId) {
+      const d = (db.deliveries || []).find(x => x.id === ins.deliveryId);
+      if (d && (d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED')) return;
+    }
+    if ((ins as any).contractAssetId) {
+      const ca = (db.contractAssets || []).find(x => x.id === (ins as any).contractAssetId);
+      if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) return;
+    }
+    if (ins.assetId) {
+      const a = assetMap.get(ins.assetId);
+      if (a && a.status === 'RENTED') return;
+    }
+    const key = ins.deliveryId || ins.contractId;
+    const list = pendingInsGroups.get(key) || [];
+    list.push(ins);
+    pendingInsGroups.set(key, list);
+  });
+
+  pendingInsGroups.forEach((insList, groupKey) => {
+    const first = insList[0];
+    const c = first.contractId ? contractMap.get(first.contractId) : undefined;
+    const deliv = first.deliveryId ? (db.deliveries || []).find(d => d.id === first.deliveryId) : undefined;
+    const alreadyExists = existingOpenTodos.some(t => {
+      const cat = (t.taskCategory || '').toUpperCase();
+      const et = (t.entityType || '').toUpperCase();
+      if (et !== 'INSPECTION' && !cat.includes('INSPECTION') && !cat.includes('PDI')) return false;
+      return (
+        t.entityId === groupKey ||
+        t.relatedEntityId === groupKey ||
+        (first.deliveryId && (t.entityId === first.deliveryId || t.relatedEntityId === first.deliveryId)) ||
+        (first.contractId && t.entityId === first.contractId && !first.deliveryId) ||
+        insList.some(i => i.id === t.entityId)
+      );
+    });
+    if (alreadyExists) return;
+
+    const custName = (c?.customerId && customerMap.get(c.customerId)?.name) || (c as any)?.customerName || '고객사';
+    const siteName = (c?.siteId && siteMap.get(c.siteId)?.name) || (c as any)?.siteName || '현장';
+    const hasInProgress = insList.some(i => i.status === 'IN_PROGRESS');
+    const statusLabel = hasInProgress ? '검수 진행중' : '검수 대기';
+    const driverLabel = deliv?.driverName ? ` · ${deliv.driverName} 배정` : '';
+    const loadingDate = (deliv?.loadingDate || deliv?.scheduledDate || c?.startDate || '').slice(0, 10);
+    const assetNos = insList
+      .map(i => (i.assetId ? assetMap.get(i.assetId)?.assetNo : undefined))
+      .filter(Boolean)
+      .join(', ');
+
+    synthesized.push({
+      id: `SYNTH-INSP-${groupKey}`,
+      userId: 'u-1',
+      targetType: 'DEPT',
+      targetDept: 'YARD',
+      taskCategory: 'OUTBOUND_PDI_INSPECTION',
+      type: 'GENERAL',
+      priority: 'HIGH',
+      title: `[출고 검수] ${custName} (${insList.length}대 ${statusLabel}${driverLabel})`,
+      content: `${siteName}${assetNos ? ` | 할당장비: ${assetNos}` : ''}${loadingDate ? ` | 상차예정: ${loadingDate}` : ''}`,
+      dueDate: loadingDate || undefined,
+      actionUrl: `/admin/outbound_inspections?deliveryId=${first.deliveryId || ''}&contractId=${first.contractId || ''}`,
+      entityType: 'INSPECTION',
+      entityId: first.deliveryId || first.contractId || first.id,
+      relatedEntityId: first.contractId,
+      senderName: '장비할당시스템',
+      isCompleted: false,
+      createdAt: first.createdAt || deliv?.createdAt || nowIso,
+      updatedAt: first.updatedAt || deliv?.updatedAt || nowIso,
+    });
+  });
+
+  // ── 3. [현장 정비 요청 / 입고 수리] (field_as / repair 직결) ──
+  (db.repairs || []).forEach(rep => {
+    const rSt = (rep.status || '').toUpperCase();
+    if (rSt === 'COMPLETED' || rSt === 'CANCELLED' || rSt === 'RESOLVED' || rSt === 'WAIVED') return;
+
+    const alreadyExists = existingOpenTodos.some(t => {
+      const cat = (t.taskCategory || '').toUpperCase();
+      const et = (t.entityType || '').toUpperCase();
+      if (et !== 'REPAIR' && !cat.includes('REPAIR') && !cat.includes('AS')) return false;
+      return t.entityId === rep.id || t.relatedEntityId === rep.id || (rep.assetId && t.entityId === rep.assetId);
+    });
+    if (alreadyExists) return;
+
+    const isFieldAs = (rep as any).workCategory === 'FIELD_AS' || (rep as any).workLocation === 'SITE';
+    const custName = (rep as any).customerName || (rep.contractId && contractMap.get(rep.contractId)?.customerId && customerMap.get(contractMap.get(rep.contractId)!.customerId)?.name) || '고객사';
+    const siteName = (rep as any).siteName || (rep.contractId && contractMap.get(rep.contractId)?.siteId && siteMap.get(contractMap.get(rep.contractId)!.siteId!)?.name) || '현장';
+    const assetLabel = (rep as any).assetNo || (rep.assetId && assetMap.get(rep.assetId)?.assetNo) || (rep as any).modelName || '장비';
+    const symptom = (rep as any).issueCategory || rep.issueDescription || (rep as any).symptom || '점검 요망';
+
+    if (isFieldAs) {
+      synthesized.push({
+        id: `SYNTH-AS-${rep.id}`,
+        userId: 'u-1',
+        targetType: 'DEPT',
+        targetDept: 'AS',
+        taskCategory: 'AS_DISPATCH_REPAIR',
+        type: 'URGENT',
+        priority: 'HIGH',
+        title: `[현장 정비 요청] ${custName} (${assetLabel} · ${symptom})`,
+        content: `${siteName} | 증상: ${symptom}${(rep as any).requestDate ? ` | 접수일: ${(rep as any).requestDate}` : ''}`,
+        dueDate: (rep as any).scheduleDate || (rep as any).requestDate || undefined,
+        actionUrl: `/admin/field_as?ticketId=${rep.id}`,
+        entityType: 'REPAIR',
+        entityId: rep.id,
+        relatedEntityId: rep.contractId || rep.id,
+        senderName: (rep as any).reporterName || '현장접수',
+        isCompleted: false,
+        createdAt: rep.createdAt || nowIso,
+        updatedAt: (rep as any).updatedAt || rep.createdAt || nowIso,
+      });
+    } else {
+      synthesized.push({
+        id: `SYNTH-REP-${rep.id}`,
+        userId: 'u-1',
+        targetType: 'DEPT',
+        targetDept: 'YARD',
+        taskCategory: 'INBOUND_REPAIR_DEFECT',
+        type: 'GENERAL',
+        priority: 'HIGH',
+        title: `[입고 수리/정비] ${assetLabel} (${symptom})`,
+        content: `주기장 입고 정비 대기 | 사유: ${symptom}`,
+        actionUrl: `/admin/repairs?repairId=${rep.id}${rep.assetId ? `&assetId=${rep.assetId}` : ''}`,
+        entityType: 'REPAIR',
+        entityId: rep.id,
+        relatedEntityId: rep.assetId || rep.id,
+        senderName: '입고검수시스템',
+        isCompleted: false,
+        createdAt: rep.createdAt || nowIso,
+        updatedAt: (rep as any).updatedAt || rep.createdAt || nowIso,
+      });
+    }
+  });
+
+  return synthesized;
+}
+
+export function resolveTaskMenuId(t: Todo): string {
+  const cat = (t.taskCategory || '').toUpperCase();
+  const etype = (t.entityType || '').toUpperCase();
+  const url = (t.actionUrl || '').toLowerCase();
+
+  if (cat.includes('ASSIGN') || url.includes('dispatch_assign') || url.includes('asset_assignment')) {
+    return 'dispatch_assign';
+  }
+  if (etype === 'INSPECTION' || cat.includes('INSPECTION') || cat.includes('PDI') || url.includes('outbound_inspections')) {
+    return 'outbound_inspections';
+  }
+  if (cat === 'AS_DISPATCH_REPAIR' || url.includes('field_as')) {
+    return 'field_as';
+  }
+  if (etype === 'REPAIR' || cat.includes('REPAIR') || url.includes('repairs') || url.includes('/repair')) {
+    return 'repair';
+  }
+  if (etype === 'DELIVERY' || cat.includes('DISPATCH') || cat.includes('SHIPMENT') || url.includes('/dispatch') || url.includes('/delivery')) {
+    return 'delivery';
+  }
+  if (cat === 'CONTRACT_PACKAGE_RESEND' || cat === 'SITE_ARRIVAL_CONFIRM' || etype === 'CONTRACT' || url.includes('contract')) {
+    return 'contract';
+  }
+  if (etype === 'BILLING' || cat.includes('BILLING') || url.includes('billing')) {
+    return 'billing';
+  }
+  if (etype === 'SETTLEMENT' || cat.includes('SETTLEMENT') || url.includes('purchase_settlement')) {
+    return 'purchase_settlement';
+  }
+  if (etype === 'CONSUMABLE' || cat.includes('CONSUMABLE') || url.includes('consumable_purchase')) {
+    return 'consumable_purchase';
+  }
+  if (etype === 'LEAVE' || cat.includes('LEAVE') || url.includes('leave')) {
+    return 'leave_management';
+  }
+  if (etype === 'CUSTOMER' || url.includes('customer')) {
+    return 'customer';
+  }
+  return '';
+}
+
+/**
+ * 🔍 [3] 로그인 사용자의 직무·권한·부서에 특화된 활성 ToDo 필터링 헬퍼
  */
 export function findActiveTasksForUser(
   todos: Todo[],
@@ -464,7 +813,7 @@ export function findActiveTasksForUser(
   hasPermission?: (menuId: string, action: 'view' | 'save') => boolean,
   overrideDeptMode?: string
 ): Todo[] {
-  if (!currentUser || !todos) return [];
+  if (!currentUser) return [];
 
   const rawDept = (currentUser.department || '').toUpperCase();
   const rawRole = (currentUser.role || '').toUpperCase();
@@ -478,7 +827,6 @@ export function findActiveTasksForUser(
     rawRole === 'DEVELOPER';
 
   // 🏛️ overrideDeptMode(모바일 부서 퀵체인저 등)가 지정된 경우 해당 부서 시뮬레이션 모드 강제 적용
-  // 사용자가 특정 부서 탭을 선택하여 보고 있을 때는 관리자/경영진이라도 해당 부서의 R&R 렌즈로 격리 필터링
   const activeMode = overrideDeptMode?.toUpperCase();
   const isSimulation = !!activeMode && activeMode !== 'EXECUTIVE';
   const isExec = !isSimulation && rawIsExec;
@@ -488,123 +836,97 @@ export function findActiveTasksForUser(
   const isYardDept = isSimulation ? (activeMode === 'OUTBOUND') : (rawDept.includes('YARD') || rawDept.includes('출고') || rawDept.includes('주기장'));
   const isAsDept = isSimulation ? (activeMode === 'AS') : (rawDept.includes('AS') || rawDept.includes('정비') || rawRole.includes('MECHANIC'));
   const isAdminDept = isSimulation ? (activeMode === 'ADMIN') : (rawDept.includes('관리') || rawDept.includes('총무') || rawDept.includes('회계') || rawRole.includes('ADMIN'));
-  // 🚚 [기연리프트 R&R] 배차 업무는 관리부 소관
   const isDispatchDept = isSimulation ? (activeMode === 'ADMIN') : (isAdminDept || rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS'));
 
-  const filtered = todos.filter(t => {
-    if (t.isCompleted) return false;
-    // 원장 엔티티 상태와 교차 검증하여 이미 처리 완료된 업무는 즉시 제외
-    if (isTaskEntityAlreadyResolved(t)) return false;
+  // 1. DB todos 중 미완료 + 원장 교차검증 통과 건 추출
+  const openDbTodos = (todos || []).filter(t => !t.isCompleted && !isTaskEntityAlreadyResolved(t));
 
-    // 0. 🛡️ [전사 표준 헌장 2.1 영업 부서와 출고/배차/자산 부서 간 R&R 엄격 분리]
-    // 일반 부서원 또는 부서 시뮬레이션 모드에서는 자신의 R&R과 무관한 타 부서 전용 업무가 노출되지 않도록 상위에서 강력 차단
-    if (!isExec) {
-      // 0-1. 영업부 모드/임직원:
-      // 배차, 주기장, 정비 타겟 업무는 절대 영업부 대시보드에 노출되지 않음
-      if (isSalesDept) {
-        const isSalesPermitted = 
-          t.taskCategory === 'CONTRACT_PACKAGE_RESEND' ||
-          t.taskCategory === 'SITE_ARRIVAL_CONFIRM' ||
-          t.targetDept === 'SALES' ||
-          (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id);
+  // 2. 실시간 도메인 원장(장비 할당, 출고 검수, 현장 AS, 입고 정비)에서 누락된 미완결 업무 자동 합성 병합
+  const synthesizedTodos = synthesizeMissingDomainTasks(openDbTodos);
+  const combinedOpenTodos = [...openDbTodos, ...synthesizedTodos];
 
-        if (!isSalesPermitted) {
-          // 배차 의뢰, 상차 출발, PDI 검수, 수리 등은 배차/출고/AS팀 전용
-          if (t.targetDept === 'DISPATCH' || t.targetDept === 'YARD' || t.targetDept === 'AS' ||
-              t.taskCategory?.includes('DISPATCH') || t.taskCategory?.includes('SHIPMENT') ||
-              t.taskCategory?.includes('INSPECTION') || t.taskCategory?.includes('PDI') ||
-              t.taskCategory?.includes('REPAIR') || t.entityType === 'DELIVERY' || t.entityType === 'INSPECTION' || t.entityType === 'REPAIR') {
-            return false;
-          }
-        }
-      }
-
-      // 0-2. AS팀 모드/임직원:
-      // 배차, 주기장, 영업 타겟 업무는 절대 AS팀 대시보드에 노출되지 않음
-      if (isAsDept) {
-        const isAsPermitted = 
-          t.targetDept === 'AS' ||
-          t.taskCategory?.includes('AS') ||
-          t.taskCategory?.includes('REPAIR') ||
-          t.entityType === 'REPAIR' ||
-          (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id);
-
-        if (!isAsPermitted) {
-          return false;
-        }
-      }
-
-      // 0-3. 출고팀(주기장) 모드/임직원:
-      // 배차, 정비, 영업 타겟 업무는 출고팀 대시보드에서 차단
-      if (isYardDept && !isAdminDept) {
-        if (t.targetDept === 'DISPATCH' || t.targetDept === 'AS' || t.targetDept === 'SALES' ||
-            t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY' ||
-            (!t.targetDept && (t.taskCategory?.includes('AS') || t.taskCategory?.includes('CONTRACT')))) {
-          if (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id) {
-            // 본인 직접 할당 예외
-          } else {
-            return false;
-          }
-        }
-      }
-
-      // 0-4. 타겟 부서가 명시되어 있고 현재 활성 부서와 다른 경우 차단
-      if (t.targetDept && (isSimulation || !t.assignedUserId || t.assignedUserId !== currentUser.id)) {
-        const td = t.targetDept.toUpperCase();
-        if (td === 'DISPATCH' && !isDispatchDept) return false;
-        if (td === 'YARD' && !isYardDept) return false;
-        if (td === 'AS' && !isAsDept) return false;
-        if (td === 'SALES' && !isSalesDept) return false;
-        if (td === 'ACCOUNTING' && !isAdminDept) return false;
-        if (td === 'ADMIN' && !isAdminDept) return false;
-      }
-    }
+  const filtered = combinedOpenTodos.filter(t => {
+    const taskMenuId = resolveTaskMenuId(t);
+    const cat = (t.taskCategory || '').toUpperCase();
+    const td = (t.targetDept || '').toUpperCase();
 
     // 1. 개인 지정 ToDo: 본인에게 직접 지정된 경우 (시뮬레이션 모드가 아닐 때만)
     if (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id) return true;
 
     // 1-1. 특정 개인에게 지정된 건은 타 일반 직원은 볼 수 없음 (격리)
     if (t.targetType === 'USER' && t.assignedUserId && t.assignedUserId !== currentUser.id) {
-      return isExec; // 경영진만 감독 목적으로 조회 가능
+      return isExec;
     }
 
-    // 2. 최고관리자/경영진은 전사 미결 ToDo 모두 조망 가능 (단, overrideDeptMode 시뮬레이션 중이 아닐 때)
+    // 2. 최고관리자/경영진/개발자는 전사 미결 업무를 모두 조망 가능 (부서 시뮬레이션 모드가 아닐 때)
     if (isExec) return true;
 
-    // 3. 타겟 부서 매칭
-    if (t.targetDept) {
-      const td = t.targetDept.toUpperCase();
+    // 3. 모바일 부서 전환 시뮬레이션 모드(overrideDeptMode)일 때는 해당 부서 R&R 기준으로 필터링
+    if (isSimulation) {
+      if (activeMode === 'SALES') {
+        return td === 'SALES' || cat === 'CONTRACT_PACKAGE_RESEND' || cat === 'SITE_ARRIVAL_CONFIRM';
+      }
+      if (activeMode === 'OUTBOUND') {
+        return (
+          taskMenuId === 'dispatch_assign' ||
+          taskMenuId === 'outbound_inspections' ||
+          taskMenuId === 'repair' ||
+          td === 'YARD'
+        );
+      }
+      if (activeMode === 'AS') {
+        return taskMenuId === 'field_as' || taskMenuId === 'repair' || td === 'AS';
+      }
+      if (activeMode === 'ADMIN') {
+        return (
+          taskMenuId === 'delivery' ||
+          taskMenuId === 'billing' ||
+          taskMenuId === 'purchase_settlement' ||
+          td === 'DISPATCH' ||
+          td === 'ACCOUNTING' ||
+          td === 'ADMIN'
+        );
+      }
+    }
+
+    // 4. 🛡️ [전사 표준 헌장 2.1 영업 부서와 출고/배차/자산 부서 간 R&R 엄격 분리]
+    // 영업부 소속 임직원은 배차·장비할당·출고검수·정비 실무 과제가 대시보드에 섞이지 않도록 분리
+    if (isSalesDept) {
+      if (
+        cat === 'CONTRACT_PACKAGE_RESEND' ||
+        cat === 'SITE_ARRIVAL_CONFIRM' ||
+        td === 'SALES' ||
+        taskMenuId === 'contract' ||
+        taskMenuId === 'customer'
+      ) {
+        return true;
+      }
+      return false;
+    }
+
+    // 5. 🎯 [권한 기반 대시보드 직결 원칙]:
+    // 로그인한 담당자가 해당 업무 처리 화면(장비 할당, 출고 검수, 배차 운송 관리, 현장 정비 요청, 입고 수리/정비 등)의
+    // 메뉴 권한(hasPermission)을 보유하고 있다면 즉시 대시보드에 노출!
+    if (hasPermission && taskMenuId) {
+      if (hasPermission(taskMenuId, 'view')) {
+        return true;
+      }
+    }
+
+    // 6. 타겟 부서 매칭 (권한 함수 미전달 시 폴백 또는 부서 공통 과제)
+    if (td) {
       if (td === 'DISPATCH' && isDispatchDept) return true;
       if (td === 'YARD' && (isYardDept || rawRole.includes('YARD') || rawRole.includes('MECHANIC'))) return true;
       if (td === 'AS' && (isAsDept || rawRole.includes('MECHANIC'))) return true;
       if (td === 'ACCOUNTING' && isAdminDept) return true;
-      if (td === 'SALES' && isSalesDept) return true;
       if (td === 'ADMIN' && isAdminDept) return true;
-      if (!isSimulation && rawDept.includes(td)) return true;
+      if (rawDept.includes(td)) return true;
     }
 
-    // 4. 타겟 역할 매칭
-    if (!isSimulation && t.targetRole) {
+    // 7. 타겟 역할 매칭
+    if (t.targetRole) {
       const tr = t.targetRole.toUpperCase();
       if (rawRole.includes(tr)) return true;
-    }
-
-    // 5. 🌟 계약서패키지 재발송 ToDo: 발송 권한 보유자 또는 영업/출고 부서원 매칭
-    if (t.taskCategory === 'CONTRACT_PACKAGE_RESEND') {
-      if (t.assignedUserId && t.assignedUserId === currentUser.id) return true;
-      if (isSalesDept) return true;
-      if (isDispatchDept || isYardDept) return true;
-      if (hasPermission && (hasPermission('contract', 'view') || hasPermission('agent_badge', 'view'))) return true;
-    }
-
-    // 6. 업무 카테고리별 시스템 메뉴 권한 매칭 (해당 부서 업무에 한함)
-    if (hasPermission) {
-      if (isDispatchDept && (t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY') && hasPermission('delivery', 'view')) return true;
-      if ((isYardDept || isAsDept) && (t.taskCategory?.includes('INSPECTION') || t.entityType === 'INSPECTION') && (hasPermission('outbound_inspections', 'view') || hasPermission('repair', 'view'))) return true;
-      if (isYardDept && t.taskCategory?.includes('ASSIGN') && hasPermission('dispatch_assign', 'view')) return true;
-      if (isAsDept && (t.taskCategory?.includes('AS') || t.entityType === 'REPAIR') && (hasPermission('repair', 'view') || hasPermission('field_as', 'view'))) return true;
-      if (t.entityType === 'BILLING' && hasPermission('billing', 'view')) return true;
-      if (isSalesDept && t.entityType === 'CONTRACT' && hasPermission('contract', 'view')) return true;
     }
 
     return false;

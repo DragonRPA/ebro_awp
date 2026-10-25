@@ -1418,7 +1418,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 메뉴별 관련 테이블만 Supabase pull (메뉴 전환 시 호출 — 최신 데이터 보장)
   const MENU_TABLE_MAP: Record<string, string[]> = {
-    'dashboard':            ['deliveries', 'contracts', 'billings', 'todos', 'assets', 'users', 'departments', 'permissions', 'customRoles', 'rolePermissions'],
+    'dashboard':            ['deliveries', 'contracts', 'contractAssets', 'outboundInspections', 'repairs', 'customers', 'sites', 'contractHistory', 'billings', 'todos', 'assets', 'consumablePurchases', 'purchaseSettlements', 'leaveUsages', 'users', 'departments', 'permissions', 'customRoles', 'rolePermissions'],
     'delivery':             ['deliveries', 'transportCompanies', 'transportDrivers', 'contracts', 'assets', 'sites', 'siteMasters', 'standardOptions', 'printStations', 'printQueue'],
     'transport_master':     ['transportCompanies', 'transportDrivers'],
     'field_as':             ['repairs', 'assets', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'siteMasters', 'contracts'],
@@ -4055,8 +4055,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     refreshAllData();
 
-    // 🚀 [단일 업무 인계 파이프라인] 배차팀에 물리 ToDo 영구 적재 + 실시간 브로드캐스트
+    // 🚀 [단일 업무 인계 파이프라인] 배차팀(배차 의뢰) 및 출고/주기장팀(장비 할당)에 물리 ToDo 영구 적재 + 실시간 브로드캐스트
     const totalEqCount = (data.equipments || []).reduce((acc: number, eq: any) => acc + (Number(eq.qty) || 1), 0);
+    const modelSummaryStr = (data.equipments || [])
+      .map((eq: any) => `${eq.modelName || '미지정'} × ${Number(eq.qty) || 1}대`)
+      .join(', ');
+
+    await issueHandoverTask({
+      category: 'ASSET_ASSIGNMENT' as any,
+      title: `[장비 할당] ${data.customerName || '고객사'} (미할당 ${totalEqCount}대)`,
+      content: `${data.siteName || '현장'} | 미할당 요구: ${modelSummaryStr || `${totalEqCount}대`} | 출고예정: ${(data.loadingTime || '').slice(0, 10) || '미정'}`,
+      targetDept: 'YARD',
+      priority: 'HIGH',
+      dueDate: (data.loadingTime || '').slice(0, 10) || undefined,
+      actionUrl: `/admin/dispatch_assign?contractId=${contract.id}&deliveryId=${createdDelivery.id}`,
+      entityType: 'DELIVERY',
+      entityId: createdDelivery.id,
+      senderId: currentUser?.id,
+      senderName: currentUser?.name
+    });
+
     await issueHandoverTask({
       category: 'DISPATCH_REQUEST',
       title: `[출고 배차 의뢰] ${data.customerName || '고객사'} (${totalEqCount}대)`,
@@ -8965,6 +8983,51 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
       createdInspectionId = createdInsp.id;
 
+      // 3-1. 장비 할당 완료 여부 확인 -> [장비 할당] ToDo 상계 및 [출고 검수] ToDo 발행
+      try {
+        const targetEntityId = matchedDelivery?.id || origCa.contractId;
+        const remainingUnassigned = db.contractAssets.filter(
+          c => c.contractId === origCa.contractId && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+        );
+        if (remainingUnassigned.length === 0) {
+          await clearHandoverTasks({
+            entityId: targetEntityId,
+            category: 'ASSET_ASSIGNMENT' as any,
+            completedByUserId: currentUser?.id,
+            completedByName: currentUser?.name,
+            completionAction: 'ASSET_ASSIGNED'
+          });
+        }
+        const existingPdiTodo = db.todos.find(
+          t =>
+            !t.isCompleted &&
+            ((t.taskCategory || '').includes('INSPECTION') || (t.taskCategory || '').includes('PDI')) &&
+            (t.entityId === targetEntityId || t.relatedEntityId === targetEntityId)
+        );
+        if (!existingPdiTodo) {
+          const custObj = contract?.customerId ? db.customers.find(c => c.id === contract.customerId) : undefined;
+          const siteObj = contract?.siteId ? db.sites.find(s => s.id === contract.siteId) : undefined;
+          const pendingInspCount = db.outboundInspections.filter(
+            i => (matchedDelivery ? i.deliveryId === matchedDelivery.id : i.contractId === origCa.contractId) && (i.status === 'PENDING' || i.status === 'IN_PROGRESS')
+          ).length;
+          await issueHandoverTask({
+            category: 'OUTBOUND_PDI_INSPECTION',
+            title: `[출고 검수] ${custObj?.name || '고객사'} (${pendingInspCount || 1}대 검수 대기${matchedDelivery?.driverName ? ` · ${matchedDelivery.driverName} 배정` : ''})`,
+            content: `${siteObj?.name || '현장'} | 상차예정: ${(matchedDelivery?.loadingDate || contract?.startDate || '').slice(0, 10) || '미정'}`,
+            targetDept: 'YARD',
+            priority: 'HIGH',
+            dueDate: (matchedDelivery?.loadingDate || contract?.startDate || '').slice(0, 10) || undefined,
+            actionUrl: `/admin/outbound_inspections?deliveryId=${matchedDelivery?.id || ''}&contractId=${origCa.contractId}`,
+            entityType: 'INSPECTION',
+            entityId: targetEntityId,
+            senderId: currentUser?.id,
+            senderName: currentUser?.name || '장비할당시스템'
+          });
+        }
+      } catch (todoErr) {
+        console.warn('assignAssetToContract todo sync warning:', todoErr);
+      }
+
       // 4. Supabase 원격 DB 쓰기 100% 완결 동기 대기 (실패 시 catch 블록에서 자동 롤백!)
       await db.awaitPendingWrites();
       refreshAllData();
@@ -9102,6 +9165,58 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             console.warn('계약서패키지 재발송 ToDo 발행 경고 (무시):', taskErr);
           }
         }
+      }
+
+      // 2-5. 일괄 할당된 계약/배차건에 대해 [장비 할당] ToDo 상계 및 [출고 검수] ToDo 발행
+      try {
+        const affectedContractIds = Array.from(new Set(pairs.map(p => db.contractAssets.find(c => c.id === p.contractAssetId)?.contractId).filter(Boolean))) as string[];
+        for (const cid of affectedContractIds) {
+          const contract = db.contracts.find(c => c.id === cid);
+          const matchedDeliv = db.deliveries.find(
+            d => d.contractId === cid && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') && d.status !== 'DELIVERED'
+          );
+          const targetEntityId = matchedDeliv?.id || cid;
+          const remainingUnassigned = db.contractAssets.filter(
+            c => c.contractId === cid && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+          );
+          if (remainingUnassigned.length === 0) {
+            await clearHandoverTasks({
+              entityId: targetEntityId,
+              category: 'ASSET_ASSIGNMENT' as any,
+              completedByUserId: currentUser?.id,
+              completedByName: currentUser?.name,
+              completionAction: 'ASSET_ASSIGNED'
+            });
+          }
+          const existingPdiTodo = db.todos.find(
+            t =>
+              !t.isCompleted &&
+              ((t.taskCategory || '').includes('INSPECTION') || (t.taskCategory || '').includes('PDI')) &&
+              (t.entityId === targetEntityId || t.relatedEntityId === targetEntityId)
+          );
+          if (!existingPdiTodo) {
+            const custObj = contract?.customerId ? db.customers.find(c => c.id === contract.customerId) : undefined;
+            const siteObj = contract?.siteId ? db.sites.find(s => s.id === contract.siteId) : undefined;
+            const pendingInspCount = db.outboundInspections.filter(
+              i => (matchedDeliv ? i.deliveryId === matchedDeliv.id : i.contractId === cid) && (i.status === 'PENDING' || i.status === 'IN_PROGRESS')
+            ).length;
+            await issueHandoverTask({
+              category: 'OUTBOUND_PDI_INSPECTION',
+              title: `[출고 검수] ${custObj?.name || '고객사'} (${pendingInspCount || pairs.length}대 검수 대기${matchedDeliv?.driverName ? ` · ${matchedDeliv.driverName} 배정` : ''})`,
+              content: `${siteObj?.name || '현장'} | 상차예정: ${(matchedDeliv?.loadingDate || contract?.startDate || '').slice(0, 10) || '미정'}`,
+              targetDept: 'YARD',
+              priority: 'HIGH',
+              dueDate: (matchedDeliv?.loadingDate || contract?.startDate || '').slice(0, 10) || undefined,
+              actionUrl: `/admin/outbound_inspections?deliveryId=${matchedDeliv?.id || ''}&contractId=${cid}`,
+              entityType: 'INSPECTION',
+              entityId: targetEntityId,
+              senderId: currentUser?.id,
+              senderName: currentUser?.name || '장비할당시스템'
+            });
+          }
+        }
+      } catch (todoErr) {
+        console.warn('batchAssignAssetsToContract todo sync warning:', todoErr);
       }
 
       // 3. 단 1회의 원격 DB 쓰기 완결 동기 대기 & 단 1회의 전역 리렌더링!

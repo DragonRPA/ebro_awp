@@ -211,7 +211,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   // ── 공통 업무 목록(ToDo) 렌더링 블록 ──
   const renderTodoFeedSection = (accentColor: 'indigo' | 'emerald' | 'amber') => {
     if (userTodos.length === 0) return null;
-    const normalCount = userTodos.filter(t => t.taskCategory !== 'EXECUTIVE_DIRECTIVE').length;
 
     const borderClass = accentColor === 'emerald'
       ? 'border-emerald-500/60'
@@ -231,21 +230,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-            {normalCount > 0 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleBulkCompleteNormalTodos();
-                }}
-                className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 flex items-center gap-1"
-                style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span>알림 일괄 완료</span>
-              </button>
-            )}
             <span className="text-xs font-black px-2 py-0.5 rounded-md bg-blue-500/20 text-sky-300 border border-blue-500/40" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
               {userTodos.length}건 대기
             </span>
@@ -340,7 +324,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                       );
                     })()}
 
-                    {isDirective ? (
+                    {isDirective && (
                       <button
                         type="button"
                         onClick={() => handleResolveDirective(task)}
@@ -349,16 +333,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                       >
                         <CheckSquare className="w-3 h-3" />
                         <span>보고 및 완료</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => completeTodo(task.id)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        <CheckSquare className="w-3 h-3" />
-                        <span>완료</span>
                       </button>
                     )}
                   </div>

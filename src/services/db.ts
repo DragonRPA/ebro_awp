@@ -2328,7 +2328,8 @@ export function extractYoutubeVideoId(url: string): string | null {
 }
 
 export type TaskCategory = 
-  | 'DISPATCH_REQUEST'            // 출고/회수/대차 배차 지시
+  | 'DISPATCH_REQUEST'            // 출고/회수/교환 배차 지시
+  | 'ASSET_ASSIGNMENT'            // 출고 요청 장비 할당
   | 'OUTBOUND_PDI_INSPECTION'     // 출고 전 PDI 기능 및 안전옵션 검수
   | 'OUTBOUND_SHIPMENT_START'     // PDI 합격 장비 상차 및 화물 출발
   | 'SITE_ARRIVAL_CONFIRM'        // 현장 도착 하차 및 가동 개시 확인
