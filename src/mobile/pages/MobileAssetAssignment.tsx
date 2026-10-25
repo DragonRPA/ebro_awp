@@ -73,8 +73,8 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
   // 사용자가 특정 빈 슬롯을 터치하여 지정한 우선 타겟 슬롯 ID
   const [focusedSlotCaId, setFocusedSlotCaId] = useState<string | null>(null);
 
-  // 하단 인라인 카메라 창 열림 상태 (기본 열림: 위에는 할당 목록, 아래에는 작은 카메라 창)
-  const [isInlineCameraOpen, setIsInlineCameraOpen] = useState<boolean>(true);
+  // 하단 인라인 카메라 창 열림 상태 (기본 꺼짐: 사용자가 필요할 때만 버튼을 눌러 켬)
+  const [isInlineCameraOpen, setIsInlineCameraOpen] = useState<boolean>(false);
   // 하단 수동 가용장비 목록 펼침 상태
   const [showManualAssetList, setShowManualAssetList] = useState<boolean>(true);
   const [quickInputText, setQuickInputText] = useState('');

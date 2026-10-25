@@ -10,8 +10,7 @@ import {
   Play,
   Flashlight,
   Upload,
-  ChevronUp,
-  ChevronDown
+  Power
 } from 'lucide-react';
 import { Asset } from '../../services/db';
 import {
@@ -37,6 +36,51 @@ interface MobileInlineCameraAssetScannerProps {
   onSequentialFill: (asset: Asset, targetCaId: string, recognizedText: string) => void;
 }
 
+/**
+ * 카메라 ROI 캔버스 이미지를 고대비 흑백(Grayscale + Contrast Stretching)으로 전처리하여
+ * 브라우저 내장 온디바이스 OCR(Tesseract WASM)의 관리번호 인식률을 극대화한다.
+ */
+function preprocessCanvasForLocalOcr(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const imgData = ctx.getImageData(0, 0, width, height);
+  const data = imgData.data;
+
+  // 명암 대비 강화를 위한 최소/최대 휘도 계산
+  let minLum = 255;
+  let maxLum = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    if (lum < minLum) minLum = lum;
+    if (lum > maxLum) maxLum = lum;
+  }
+  const range = Math.max(1, maxLum - minLum);
+
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    // 정규화 및 S-커브 대비 강화
+    const norm = ((lum - minLum) / range) * 255;
+    const contrasted = Math.max(0, Math.min(255, (norm - 128) * 1.45 + 128));
+    data[i] = contrasted;
+    data[i + 1] = contrasted;
+    data[i + 2] = contrasted;
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+}
+
+/**
+ * 로컬 OCR 텍스트에서 관리번호/자산번호 후보 토큰 추출
+ */
+function extractAlphanumericTokens(rawText: string): string[] {
+  if (!rawText) return [];
+  const cleaned = rawText
+    .toUpperCase()
+    .replace(/[^0-9A-Z-\s]/g, ' ')
+    .split(/\s+/)
+    .map(t => t.replace(/^-+|-+$/g, '').trim())
+    .filter(t => t.length >= 2 && /[0-9]/.test(t));
+  return Array.from(new Set(cleaned));
+}
+
 export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetScannerProps> = ({
   isOpen,
   onToggleOpen,
@@ -52,11 +96,14 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
   const streamRef = useRef<MediaStream | null>(null);
   const inFlightRef = useRef<boolean>(false);
   const cooldownUntilRef = useRef<number>(0);
+  const tesseractWorkerRef = useRef<any>(null);
+  const workerInitializingRef = useRef<boolean>(false);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [autoScanActive, setAutoScanActive] = useState(true);
   const [isScanningFrame, setIsScanningFrame] = useState(false);
+  const [localOcrReady, setLocalOcrReady] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
 
@@ -65,7 +112,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     text: string;
   }>({
     type: 'info',
-    text: '장비의 관리번호 스티커·명판을 가이드 박스 안에 비추면 위 슬롯에 순서대로 자동 입력됩니다.'
+    text: '브라우저 내장 OCR(VLM 미호출 · 비용 0원)로 관리번호를 실시간 판독하여 위 슬롯에 순차 입력합니다.'
   });
   const [ambiguousCandidates, setAmbiguousCandidates] = useState<Asset[]>([]);
 
@@ -103,6 +150,29 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     },
     [currentTargetSlot, unfilledSlots]
   );
+
+  // 브라우저 내장 WebAssembly OCR 워커 초기화 (카메라가 켜질 때만 지연 로드)
+  const ensureLocalOcrWorker = useCallback(async () => {
+    if (tesseractWorkerRef.current) return tesseractWorkerRef.current;
+    if (workerInitializingRef.current) return null;
+    workerInitializingRef.current = true;
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',
+        tessedit_pageseg_mode: '6' as any
+      });
+      tesseractWorkerRef.current = worker;
+      setLocalOcrReady(true);
+      return worker;
+    } catch (err) {
+      console.warn('[MobileInlineCameraAssetScanner] 로컬 WASM OCR 초기화 실패:', err);
+      return null;
+    } finally {
+      workerInitializingRef.current = false;
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -158,28 +228,39 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     }
   }, [stopCamera]);
 
+  // 사용자가 카메라 열기(isOpen=true)를 눌렀고 빈 슬롯이 있을 때만 카메라 및 로컬 OCR 가동
   useEffect(() => {
     if (isOpen && unfilledSlots.length > 0) {
       setAutoScanActive(true);
       startCamera();
+      ensureLocalOcrWorker();
     } else {
       stopCamera();
     }
     return () => {
       stopCamera();
     };
-  }, [isOpen, unfilledSlots.length > 0, startCamera, stopCamera]);
+  }, [isOpen, unfilledSlots.length > 0, startCamera, stopCamera, ensureLocalOcrWorker]);
 
-  // 모든 슬롯이 채워지면 자동 일시정지 안내
+  // 컴포넌트 언마운트 시 로컬 WASM 워커 메모리 해제
   useEffect(() => {
-    if (unfilledSlots.length === 0) {
-      setBannerState({
-        type: 'success',
-        text: '모든 할당 대상 슬롯이 채워졌습니다! 아래 [장비 할당 확정] 버튼을 눌러 저장하세요.'
-      });
-      setAmbiguousCandidates([]);
+    return () => {
+      if (tesseractWorkerRef.current) {
+        try {
+          tesseractWorkerRef.current.terminate();
+        } catch {}
+        tesseractWorkerRef.current = null;
+      }
+    };
+  }, []);
+
+  // 모든 슬롯이 채워지면 카메라를 즉시 자동 종료하여 불필요한 켜짐 방지
+  useEffect(() => {
+    if (isOpen && unfilledSlots.length === 0) {
+      stopCamera();
+      onToggleOpen();
     }
-  }, [unfilledSlots.length]);
+  }, [isOpen, unfilledSlots.length, stopCamera, onToggleOpen]);
 
   const toggleTorch = async () => {
     if (!streamRef.current) return;
@@ -194,8 +275,8 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   // 인식 결과 처리 및 순차 슬롯 자동 채움
   const processRecognizedResult = useCallback(
-    (ocrResult: AssetNumberOcrResult) => {
-      if (unfilledSlots.length === 0 || !ocrResult.success) return;
+    (ocrResult: AssetNumberOcrResult, isSilenceOnMiss = false) => {
+      if (unfilledSlots.length === 0 || !ocrResult.success) return false;
 
       const rawDisplay =
         ocrResult.matchedCandidate ||
@@ -203,9 +284,9 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         ocrResult.serialNo ||
         ocrResult.rawTokens?.[0] ||
         '';
-      if (!rawDisplay) return;
+      if (!rawDisplay) return false;
 
-      // 1. 먼저 이미 현재 슬롯들에 매핑 완료된 장비인지 확인
+      // 1. 이미 현재 슬롯들에 매핑 완료된 장비인지 확인
       const alreadyMappedPool = allAvailableAssets.filter(a => mappedAssetIds.includes(a.id));
       const alreadyMatched = matchRecognizedAssetFromPool(ocrResult, alreadyMappedPool, []);
       if (alreadyMatched.exactMatch) {
@@ -214,7 +295,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           type: 'info',
           text: `이미 슬롯에 채워진 관리번호입니다: ${dupAsset.assetNo} (${dupAsset.modelName}) — 다음 장비를 비춰주세요.`
         });
-        return;
+        return true;
       }
 
       // 2. 할당해야 할 대상 모델 풀(targetModelAvailableAssets)에서 매칭 검사
@@ -236,24 +317,22 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
             type: 'success',
             text: `[슬롯 #${slot.slotNumber} 자동 채움] 관리번호 ${matchedAsset.assetNo} (${matchedAsset.modelName}) 매핑 완료!`
           });
-          // 다음 장비로 카메라를 옮길 수 있도록 1.4초 쿨다운 후 자동 연속 스캔 유지
           cooldownUntilRef.current = Date.now() + 1400;
           onSequentialFill(matchedAsset, slot.caId, rawDisplay);
-          return;
+          return true;
         }
       }
 
       if (targetMatches.candidates.length > 0) {
-        // 유사 번호 후보가 여러 대인 경우 하단 원터치 선택 칩 노출
         setAmbiguousCandidates(targetMatches.candidates.slice(0, 4));
         setBannerState({
           type: 'warn',
-          text: `'${rawDisplay}' 인식됨 — 유사 관리번호 후보 ${targetMatches.candidates.length}건 중 터치하여 슬롯에 채우세요.`
+          text: `'${rawDisplay}' 인식됨 — 아래 후보 중 터치하여 슬롯에 채우세요.`
         });
-        return;
+        return true;
       }
 
-      // 3. 대상 모델에는 없지만 전체 가용 장비 중에 존재하는 다른 모델 장비인지 확인
+      // 3. 다른 모델 장비인지 확인
       const otherModelMatches = matchRecognizedAssetFromPool(
         ocrResult,
         allAvailableAssets,
@@ -264,15 +343,18 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         setAmbiguousCandidates([]);
         setBannerState({
           type: 'error',
-          text: `모델 불일치: 스캔된 ${wrongAsset.assetNo}(${wrongAsset.modelName})는 할당 대상 모델(${targetExpectedModels.join(', ')})이 아닙니다.`
+          text: `모델 불일치: 스캔된 ${wrongAsset.assetNo}(${wrongAsset.modelName})는 대상 모델(${targetExpectedModels.join(', ')})이 아닙니다.`
         });
-        return;
+        return true;
       }
 
-      setBannerState({
-        type: 'warn',
-        text: `인식된 번호 '${rawDisplay}'와 일치하는 임대가능(${targetExpectedModels.join(', ')}) 장비가 없습니다.`
-      });
+      if (!isSilenceOnMiss) {
+        setBannerState({
+          type: 'warn',
+          text: `인식된 '${rawDisplay}'와 일치하는 임대가능(${targetExpectedModels.join(', ')}) 장비가 없습니다.`
+        });
+      }
+      return false;
     },
     [
       unfilledSlots.length,
@@ -285,108 +367,185 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     ]
   );
 
-  // 비디오 중앙 ROI 영역 캡처 및 OCR 실행
-  const captureAndAnalyzeFrame = useCallback(
-    async (isManualTrigger = false) => {
-      if (inFlightRef.current || unfilledSlots.length === 0) return;
-      if (!isManualTrigger && Date.now() < cooldownUntilRef.current) return;
+  /**
+   * 100% 브라우저 내장 온디바이스 프레임 스캔 (VLM 호출 0건, 비용 0원)
+   * 순서: 1) BarcodeDetector (QR/바코드) -> 2) Native TextDetector (Shape Detection API) -> 3) Tesseract WASM
+   */
+  const captureAndAnalyzeLocalFrame = useCallback(async () => {
+    if (inFlightRef.current || unfilledSlots.length === 0) return;
+    if (Date.now() < cooldownUntilRef.current) return;
 
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState < 2) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2) return;
 
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      if (!vw || !vh) return;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return;
 
-      inFlightRef.current = true;
-      setIsScanningFrame(true);
+    inFlightRef.current = true;
+    setIsScanningFrame(true);
 
-      try {
-        // 1) 내장 BarcodeDetector 우선 체크 (지연 0ms, 비용 0원)
-        if ('BarcodeDetector' in window) {
-          try {
-            const BarcodeDetectorCls = (window as any).BarcodeDetector;
-            const detector = new BarcodeDetectorCls({
-              formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
-            });
-            const barcodes = await detector.detect(video);
-            if (Array.isArray(barcodes) && barcodes.length > 0) {
-              const rawVal = String(barcodes[0].rawValue || '').trim();
-              if (rawVal) {
-                processRecognizedResult({
+    try {
+      // 1단계: 브라우저 내장 BarcodeDetector (0ms, 비용 0원)
+      if ('BarcodeDetector' in window) {
+        try {
+          const BarcodeDetectorCls = (window as any).BarcodeDetector;
+          const detector = new BarcodeDetectorCls({
+            formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
+          });
+          const barcodes = await detector.detect(video);
+          if (Array.isArray(barcodes) && barcodes.length > 0) {
+            const rawVal = String(barcodes[0].rawValue || '').trim();
+            if (rawVal) {
+              processRecognizedResult(
+                {
                   success: true,
                   assetNo: rawVal,
                   rawTokens: [rawVal]
-                });
-                return;
-              }
+                },
+                true
+              );
+              return;
             }
-          } catch {}
-        }
-
-        // 2) 중앙 스캔 가이드 영역(ROI: 가로 82%, 세로 48%)만 640x260 크롭
-        const cropW = Math.floor(vw * 0.82);
-        const cropH = Math.floor(vh * 0.48);
-        const cropX = Math.floor((vw - cropW) / 2);
-        const cropY = Math.floor((vh - cropH) / 2);
-
-        const targetW = Math.min(640, cropW);
-        const targetH = Math.max(180, Math.floor((cropH / cropW) * targetW));
-        canvas.width = targetW;
-        canvas.height = targetH;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        const candidateAssetNos = targetModelAvailableAssets
-          .map(a => a.assetNo)
-          .filter(Boolean)
-          .slice(0, 80);
-
-        const ocrResult = await analyzeAssetNumberFrame(dataUrl, {
-          expectedModels: targetExpectedModels,
-          candidateAssetNos
-        });
-        processRecognizedResult(ocrResult);
-      } catch (err: any) {
-        if (isManualTrigger) {
-          setBannerState({
-            type: 'error',
-            text: `판독 오류: ${err?.message || '다시 비춰주세요'}`
-          });
-        }
-      } finally {
-        inFlightRef.current = false;
-        setIsScanningFrame(false);
+          }
+        } catch {}
       }
-    },
-    [
-      unfilledSlots.length,
-      processRecognizedResult,
-      targetModelAvailableAssets,
-      targetExpectedModels
-    ]
-  );
 
-  // 1.8초 주기 연속 자동 스캔 루프
+      // 중앙 스캔 가이드 영역(ROI: 가로 82%, 세로 46%) 크롭
+      const cropW = Math.floor(vw * 0.82);
+      const cropH = Math.floor(vh * 0.46);
+      const cropX = Math.floor((vw - cropW) / 2);
+      const cropY = Math.floor((vh - cropH) / 2);
+
+      const targetW = Math.min(600, cropW);
+      const targetH = Math.max(160, Math.floor((cropH / cropW) * targetW));
+      canvas.width = targetW;
+      canvas.height = targetH;
+
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
+
+      // 2단계: 브라우저 내장 OS TextDetector (Shape Detection API 지원 시 즉시 판독)
+      if ('TextDetector' in window) {
+        try {
+          const TextDetectorCls = (window as any).TextDetector;
+          const textDetector = new TextDetectorCls();
+          const detectedBlocks = await textDetector.detect(canvas);
+          if (Array.isArray(detectedBlocks) && detectedBlocks.length > 0) {
+            const joined = detectedBlocks.map((b: any) => String(b.rawValue || '')).join(' ');
+            const tokens = extractAlphanumericTokens(joined);
+            if (tokens.length > 0) {
+              const matched = processRecognizedResult(
+                {
+                  success: true,
+                  assetNo: tokens[0],
+                  rawTokens: tokens
+                },
+                true
+              );
+              if (matched) return;
+            }
+          }
+        } catch {}
+      }
+
+      // 3단계: 브라우저 내장 WebAssembly OCR (Tesseract.js - 외부 서버 통신 없음)
+      preprocessCanvasForLocalOcr(ctx, targetW, targetH);
+      const worker = await ensureLocalOcrWorker();
+      if (worker) {
+        const { data } = await worker.recognize(canvas);
+        const tokens = extractAlphanumericTokens(data?.text || '');
+        if (tokens.length > 0) {
+          processRecognizedResult(
+            {
+              success: true,
+              assetNo: tokens[0],
+              rawTokens: tokens
+            },
+            true
+          );
+        }
+      }
+    } catch {
+      // 로컬 프레임 스캔 중 일시 오류는 무시하고 다음 프레임 계속 진행
+    } finally {
+      inFlightRef.current = false;
+      setIsScanningFrame(false);
+    }
+  }, [unfilledSlots.length, processRecognizedResult, ensureLocalOcrWorker]);
+
+  // 0.75초 주기 브라우저 내장 온디바이스 연속 스캔 루프 (VLM 호출 0건)
   useEffect(() => {
     if (!isOpen || !cameraReady || !autoScanActive || unfilledSlots.length === 0) return;
     const timer = setInterval(() => {
-      captureAndAnalyzeFrame(false);
-    }, 1800);
+      captureAndAnalyzeLocalFrame();
+    }, 750);
     return () => clearInterval(timer);
-  }, [isOpen, cameraReady, autoScanActive, unfilledSlots.length, captureAndAnalyzeFrame]);
+  }, [isOpen, cameraReady, autoScanActive, unfilledSlots.length, captureAndAnalyzeLocalFrame]);
 
-  // 고화질 사진 촬영 폴백
+  // (보조) 훼손 명판용 수동 1회 AI 정밀판독 버튼 (사용자가 직접 누를 때만 1회 호출)
+  const handleManualAiFallback = async () => {
+    if (inFlightRef.current || unfilledSlots.length === 0) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2) return;
+
+    inFlightRef.current = true;
+    setIsScanningFrame(true);
+    try {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const cropW = Math.floor(vw * 0.82);
+      const cropH = Math.floor(vh * 0.48);
+      const cropX = Math.floor((vw - cropW) / 2);
+      const cropY = Math.floor((vh - cropH) / 2);
+      canvas.width = Math.min(640, cropW);
+      canvas.height = Math.max(180, Math.floor((cropH / cropW) * canvas.width));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
+      const candidateAssetNos = targetModelAvailableAssets
+        .map(a => a.assetNo)
+        .filter(Boolean)
+        .slice(0, 80);
+      const ocrResult = await analyzeAssetNumberFrame(dataUrl, {
+        expectedModels: targetExpectedModels,
+        candidateAssetNos
+      });
+      processRecognizedResult(ocrResult, false);
+    } finally {
+      inFlightRef.current = false;
+      setIsScanningFrame(false);
+    }
+  };
+
+  // 사진 촬영/선택 시에도 브라우저 내장 OCR 우선 판독
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsScanningFrame(true);
     inFlightRef.current = true;
     try {
+      const worker = await ensureLocalOcrWorker();
+      if (worker) {
+        const { data } = await worker.recognize(file);
+        const tokens = extractAlphanumericTokens(data?.text || '');
+        if (tokens.length > 0) {
+          const hit = processRecognizedResult(
+            {
+              success: true,
+              assetNo: tokens[0],
+              rawTokens: tokens
+            },
+            false
+          );
+          if (hit) return;
+        }
+      }
+      // 로컬 OCR로 매칭되지 않은 경우에만 1회 보조 판독
       const candidateAssetNos = targetModelAvailableAssets
         .map(a => a.assetNo)
         .filter(Boolean)
@@ -395,7 +554,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         expectedModels: targetExpectedModels,
         candidateAssetNos
       });
-      processRecognizedResult(ocrResult);
+      processRecognizedResult(ocrResult, false);
     } catch (err: any) {
       setBannerState({
         type: 'error',
@@ -408,6 +567,35 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     }
   };
 
+  // 카메라가 꺼져 있을 때: 깔끔한 1줄 실행 바만 노출 (무의미하게 상시 켜져 있지 않음)
+  if (!isOpen) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-slate-800 text-cyan-400 flex items-center justify-center shrink-0 border border-slate-700">
+            <Camera className="w-4 h-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+              카메라 관리번호 스캔 (현재 꺼짐 · 브라우저 내장 OCR)
+            </span>
+            <span className="text-[11px] text-slate-400 truncate">
+              필요할 때만 카메라를 켜서 위 슬롯({targetExpectedModels.join(', ')})을 순차 채웁니다
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 border border-cyan-400/60 shadow-sm whitespace-nowrap shrink-0"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>카메라 켜기</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slate-900 border-2 border-cyan-600/80 rounded-xl overflow-hidden shadow-lg flex flex-col">
       {/* ── 상단 컨트롤 바 (한 줄 컴팩트 헤더) ── */}
@@ -418,32 +606,19 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           </div>
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-xs font-black text-slate-100 whitespace-nowrap shrink-0">
-              실시간 카메라 스캔
+              내장 OCR 스캔
             </span>
-            {currentTargetSlot ? (
+            {currentTargetSlot && (
               <span className="text-[11px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700 font-bold whitespace-nowrap shrink-0">
-                슬롯 #{currentTargetSlot.slotNumber} ({currentTargetSlot.expectedModel}) 대기중
-              </span>
-            ) : (
-              <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold whitespace-nowrap shrink-0">
-                전체 슬롯 매핑 완료
+                슬롯 #{currentTargetSlot.slotNumber} ({currentTargetSlot.expectedModel})
               </span>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {isOpen && unfilledSlots.length > 0 && (
+          {unfilledSlots.length > 0 && (
             <>
-              <button
-                type="button"
-                onClick={() => captureAndAnalyzeFrame(true)}
-                disabled={!cameraReady || isScanningFrame}
-                className="px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
-              >
-                <Zap className="w-3 h-3" />
-                <span>즉시판독</span>
-              </button>
               <button
                 type="button"
                 onClick={() => setAutoScanActive(prev => !prev)}
@@ -454,7 +629,17 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
                 }`}
               >
                 {autoScanActive ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                <span>{autoScanActive ? '일시정지' : '자동재개'}</span>
+                <span>{autoScanActive ? '일시정지' : '재개'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleManualAiFallback}
+                disabled={!cameraReady || isScanningFrame}
+                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
+                title="글자가 훼손되어 내장 OCR로 안 읽힐 때만 1회 정밀 판독"
+              >
+                <Zap className="w-3 h-3" />
+                <span>정밀판독</span>
               </button>
               {torchSupported && (
                 <button
@@ -483,145 +668,145 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           <button
             type="button"
             onClick={onToggleOpen}
-            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold flex items-center gap-0.5 whitespace-nowrap shrink-0"
+            className="px-2 py-1 rounded bg-rose-900/80 hover:bg-rose-800 text-rose-100 border border-rose-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
           >
-            {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            <span>{isOpen ? '접기' : '열기'}</span>
+            <Power className="w-3 h-3" />
+            <span>카메라 끄기</span>
           </button>
         </div>
       </div>
 
-      {/* ── 하단 컴팩트 카메라 뷰파인더 영역 (위 목록이 함께 보이도록 165px 고정 높이) ── */}
-      {isOpen && (
-        <div className="flex flex-col">
-          {unfilledSlots.length > 0 ? (
-            <div className="relative w-full h-44 bg-black overflow-hidden flex items-center justify-center">
-              <video
-                ref={videoRef}
-                playsInline
-                muted
-                autoPlay
-                className="w-full h-full object-cover"
-              />
-              <canvas ref={canvasRef} className="hidden" />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+      {/* ── 하단 컴팩트 카메라 뷰파인더 영역 (165px 고정 높이) ── */}
+      <div className="flex flex-col">
+        {unfilledSlots.length > 0 ? (
+          <div className="relative w-full h-44 bg-black overflow-hidden flex items-center justify-center">
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              className="w-full h-full object-cover"
+            />
+            <canvas ref={canvasRef} className="hidden" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
 
-              {/* 중앙 스캔 타겟 가이드 박스 */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-[82%] h-[54%] border-2 border-cyan-400 rounded-xl shadow-[0_0_0_9999px_rgba(2,6,23,0.48)] relative flex flex-col justify-between p-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded bg-cyan-500 text-slate-950 text-[10px] font-black whitespace-nowrap">
-                      관리번호 스캔 영역 {currentTargetSlot ? `➔ 슬롯 #${currentTargetSlot.slotNumber} (${currentTargetSlot.expectedModel})` : ''}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex items-center gap-1 ${
-                        isScanningFrame
-                          ? 'bg-amber-500 text-slate-950'
-                          : autoScanActive
-                          ? 'bg-emerald-600/90 text-white'
-                          : 'bg-slate-800/90 text-slate-300'
-                      }`}
-                    >
-                      {isScanningFrame ? (
-                        <>
-                          <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                          <span>판독중</span>
-                        </>
-                      ) : autoScanActive ? (
-                        <span>자동스캔 켜짐</span>
-                      ) : (
-                        <span>일시정지됨</span>
-                      )}
-                    </span>
-                  </div>
+            {/* 중앙 스캔 타겟 가이드 박스 */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="w-[82%] h-[54%] border-2 border-cyan-400 rounded-xl shadow-[0_0_0_9999px_rgba(2,6,23,0.48)] relative flex flex-col justify-between p-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded bg-cyan-500 text-slate-950 text-[10px] font-black whitespace-nowrap">
+                    관리번호 스캔 영역{' '}
+                    {currentTargetSlot
+                      ? `➔ 슬롯 #${currentTargetSlot.slotNumber} (${currentTargetSlot.expectedModel})`
+                      : ''}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex items-center gap-1 ${
+                      isScanningFrame
+                        ? 'bg-cyan-500 text-slate-950'
+                        : autoScanActive
+                        ? 'bg-emerald-600/90 text-white'
+                        : 'bg-slate-800/90 text-slate-300'
+                    }`}
+                  >
+                    {isScanningFrame ? (
+                      <>
+                        <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                        <span>내장OCR 판독중</span>
+                      </>
+                    ) : autoScanActive ? (
+                      <span>{localOcrReady ? '내장OCR 가동중' : 'OCR 엔진 준비중'}</span>
+                    ) : (
+                      <span>일시정지됨</span>
+                    )}
+                  </span>
+                </div>
 
-                  {/* 스캔 레이저 애니메이션 라인 */}
-                  {autoScanActive && cameraReady && (
-                    <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
-                  )}
+                {autoScanActive && cameraReady && (
+                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
+                )}
 
-                  <div className="text-center text-[10px] text-cyan-200 font-semibold drop-shadow">
-                    대상 모델({targetExpectedModels.join(', ')})의 관리번호가 맞으면 위 슬롯에 하나씩 자동 채워집니다
-                  </div>
+                <div className="text-center text-[10px] text-cyan-200 font-semibold drop-shadow">
+                  대상 모델({targetExpectedModels.join(', ')}) 관리번호 일치 시 위 슬롯에 순차 자동 입력
                 </div>
               </div>
-
-              {cameraError && (
-                <div className="absolute inset-0 bg-slate-950/90 p-3 flex flex-col items-center justify-center text-center gap-2">
-                  <AlertTriangle className="w-6 h-6 text-amber-400" />
-                  <p className="text-xs font-bold text-slate-200">{cameraError}</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs flex items-center gap-1.5"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>카메라 사진 촬영으로 판독</span>
-                  </button>
-                </div>
-              )}
             </div>
-          ) : null}
 
-          {/* 실시간 판독 상태 피드백 바 */}
-          <div
-            className={`px-3 py-2 text-xs font-bold flex items-center gap-2 border-t ${
-              bannerState.type === 'success'
-                ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
-                : bannerState.type === 'error'
-                ? 'bg-rose-950/90 text-rose-200 border-rose-700'
-                : bannerState.type === 'warn'
-                ? 'bg-amber-950/90 text-amber-200 border-amber-700'
-                : 'bg-slate-950 text-slate-300 border-slate-800'
-            }`}
-          >
-            {bannerState.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            ) : bannerState.type === 'error' || bannerState.type === 'warn' ? (
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            ) : (
-              <Camera className="w-4 h-4 text-cyan-400 shrink-0" />
-            )}
-            <span className="flex-1 leading-snug">{bannerState.text}</span>
-          </div>
-
-          {/* 유사 번호 복수 후보 발생 시 1줄 원터치 선택 바 */}
-          {ambiguousCandidates.length > 0 && (
-            <div className="px-3 py-2 bg-slate-950 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <span className="text-[11px] font-bold text-amber-300 whitespace-nowrap shrink-0">
-                후보 선택:
-              </span>
-              {ambiguousCandidates.map(candAsset => (
+            {cameraError && (
+              <div className="absolute inset-0 bg-slate-950/90 p-3 flex flex-col items-center justify-center text-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-amber-400" />
+                <p className="text-xs font-bold text-slate-200">{cameraError}</p>
                 <button
-                  key={candAsset.id}
                   type="button"
-                  onClick={() => {
-                    const slot = resolveTargetSlotForAsset(candAsset);
-                    if (slot) {
-                      setAmbiguousCandidates([]);
-                      setBannerState({
-                        type: 'success',
-                        text: `[슬롯 #${slot.slotNumber} 채움] 관리번호 ${candAsset.assetNo} (${candAsset.modelName}) 매핑 완료!`
-                      });
-                      onSequentialFill(candAsset, slot.caId, candAsset.assetNo);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-cyan-900/80 hover:bg-cyan-700 text-cyan-100 border border-cyan-500 text-xs font-black font-mono whitespace-nowrap shrink-0"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs flex items-center gap-1.5"
                 >
-                  {candAsset.assetNo} ({candAsset.modelName})
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>카메라 사진 촬영으로 판독</span>
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {/* 실시간 판독 상태 피드백 바 */}
+        <div
+          className={`px-3 py-2 text-xs font-bold flex items-center gap-2 border-t ${
+            bannerState.type === 'success'
+              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
+              : bannerState.type === 'error'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-700'
+              : bannerState.type === 'warn'
+              ? 'bg-amber-950/90 text-amber-200 border-amber-700'
+              : 'bg-slate-950 text-slate-300 border-slate-800'
+          }`}
+        >
+          {bannerState.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : bannerState.type === 'error' || bannerState.type === 'warn' ? (
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          ) : (
+            <Camera className="w-4 h-4 text-cyan-400 shrink-0" />
           )}
+          <span className="flex-1 leading-snug">{bannerState.text}</span>
         </div>
-      )}
+
+        {/* 유사 번호 복수 후보 발생 시 1줄 원터치 선택 바 */}
+        {ambiguousCandidates.length > 0 && (
+          <div className="px-3 py-2 bg-slate-950 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] font-bold text-amber-300 whitespace-nowrap shrink-0">
+              후보 선택:
+            </span>
+            {ambiguousCandidates.map(candAsset => (
+              <button
+                key={candAsset.id}
+                type="button"
+                onClick={() => {
+                  const slot = resolveTargetSlotForAsset(candAsset);
+                  if (slot) {
+                    setAmbiguousCandidates([]);
+                    setBannerState({
+                      type: 'success',
+                      text: `[슬롯 #${slot.slotNumber} 채움] 관리번호 ${candAsset.assetNo} (${candAsset.modelName}) 매핑 완료!`
+                    });
+                    onSequentialFill(candAsset, slot.caId, candAsset.assetNo);
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-cyan-900/80 hover:bg-cyan-700 text-cyan-100 border border-cyan-500 text-xs font-black font-mono whitespace-nowrap shrink-0"
+              >
+                {candAsset.assetNo} ({candAsset.modelName})
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
