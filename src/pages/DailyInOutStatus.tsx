@@ -68,20 +68,23 @@ export function classifyAssetCategory(asset?: Partial<Asset> | null): AssetOwner
 
 export interface InOutEventItem {
   id: string;
-  inOutType: 'INBOUND' | 'OUTBOUND';           // 확정 입고 vs 확정 출고
+  inOutType: 'INBOUND' | 'OUTBOUND';           // 입고 vs 출고
+  isScheduled?: boolean;                       // false/undefined: 확정 실적, true: 예정 사항
   assetCategory: AssetOwnershipCategory;       // 당사 실물자산 | 당사 가상자산 | 임차자산
   assetCategoryLabel: string;                  // 한글 표기
-  date: string;                                // YYYY-MM-DD (확정 일자)
+  date: string;                                // YYYY-MM-DD (확정 또는 예정 일자)
   time?: string;                               // HH:mm
+  unloadingDateTime?: string;                  // 하차일시 표기 (예: 10-02 오전 08:00)
   modelName: string;
   quantity: number;
   assetNos: string[];
   customerName?: string;
   siteName?: string;
   contractNo?: string;
+  deliveryId?: string;
   driverName?: string;
   transportCompany?: string;
-  statusText: string;                          // 입고 확정 | 출고 확정 | 임차반입 확정 | 임차반납 확정
+  statusText: string;                          // 입고 확정 | 출고 확정 | 입고 예정 | 출고 예정 등
   inboundNo?: string;
   memo?: string;
 }
@@ -108,8 +111,8 @@ export const DailyInOutStatus: React.FC = () => {
   };
   const todayStr = getTodayStr();
 
-  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) vs TABLE (표 형태)
-  const [viewMode, setViewMode] = useState<'SPLIT' | 'TABLE'>('SPLIT');
+  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) | TABLE (표 형태) | DETAIL_CALENDAR (상세보기: 엑셀형 월간 상세 캘린더)
+  const [viewMode, setViewMode] = useState<'SPLIT' | 'TABLE' | 'DETAIL_CALENDAR'>('SPLIT');
 
   // 2. 기준 연월 상태
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
@@ -119,6 +122,7 @@ export const DailyInOutStatus: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | AssetOwnershipCategory>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
   const [modelFilter, setModelFilter] = useState<string>('ALL');
+  const [includeScheduled, setIncludeScheduled] = useState<boolean>(false);
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
   // 4. 선택된 일자 (상세 패널용)
@@ -364,9 +368,28 @@ export const DailyInOutStatus: React.FC = () => {
         }
       }
 
-      const driverName = relDelivery?.driverName || undefined;
-      const transportCompany = relDelivery?.transportCompany || undefined;
+      const driverName = relDelivery?.driverName || (Array.isArray(relDelivery?.assignedVehicles) && relDelivery.assignedVehicles[0]?.driverName) || undefined;
+      const transportCompany = relDelivery?.transportCompany || (Array.isArray(relDelivery?.assignedVehicles) && relDelivery.assignedVehicles[0]?.transportCompany) || undefined;
       const contractNo = relContract?.contractNo || undefined;
+
+      // 하차일시 추출 (배차 정보 우선, 없으면 확정 일자 + 시간)
+      let unloadingDateTime = `${dateStr.slice(5)}${log.createdAt ? ' ' + log.createdAt.substring(11, 16) : ''}`.trim();
+      if (relDelivery) {
+        let snapUnloading = '';
+        if (relDelivery.cargoItems) {
+          try {
+            const parsed = typeof relDelivery.cargoItems === 'string' ? JSON.parse(relDelivery.cargoItems) : relDelivery.cargoItems;
+            if (Array.isArray(parsed) && parsed[0]?.requestMeta?.unloadingTime) {
+              snapUnloading = String(parsed[0].requestMeta.unloadingTime).trim();
+            }
+          } catch {
+            // ignore
+          }
+        }
+        const uDate = (relDelivery.unloadingDate || relDelivery.scheduledDate || relDelivery.loadingDate || dateStr).slice(5, 10);
+        const uSlot = (relDelivery.unloadingTimeSlot || snapUnloading.replace(/^\d{4}-\d{2}-\d{2}\s*/, '') || relDelivery.loadingTimeSlot || '').trim();
+        unloadingDateTime = uSlot ? `${uDate} ${uSlot}` : uDate;
+      }
 
       // 동일 일자 + 동일 입출구분 + 동일 자산번호 중복 로그 방어
       const dedupAssetKey = `${dateStr}|${inOutType}|${assetNo || log.assetId || log.id}`;
@@ -389,20 +412,29 @@ export const DailyInOutStatus: React.FC = () => {
         if (!existing.memo && log.memo) {
           existing.memo = log.memo;
         }
+        if (!existing.transportCompany && transportCompany) {
+          existing.transportCompany = transportCompany;
+        }
+        if (!existing.driverName && driverName) {
+          existing.driverName = driverName;
+        }
       } else {
         groupMap.set(groupKey, {
           id: `log-${log.id}`,
           inOutType,
+          isScheduled: false,
           assetCategory,
           assetCategoryLabel,
           date: dateStr,
           time: log.createdAt ? log.createdAt.substring(11, 16) : undefined,
+          unloadingDateTime,
           modelName,
           quantity: 1,
           assetNos: assetNo ? [assetNo] : [],
           customerName,
           siteName,
           contractNo,
+          deliveryId: relDelivery?.id || log.deliveryId,
           driverName,
           transportCompany,
           statusText,
@@ -418,26 +450,222 @@ export const DailyInOutStatus: React.FC = () => {
     deliveryMap, deliveries, rolledBackOutboundKeys, inspectionStateMap, todayStr
   ]);
 
+  // ── 예정된 입출고 내역 추출 파이프라인 (배차/출고요청 대기·진행 건 및 미래 예정 건) ──
+  const scheduledEvents = useMemo(() => {
+    const schedGroupMap = new Map<string, InOutEventItem>();
+
+    // 이미 확정된 (deliveryId + inOutType + modelName) 수량 및 (date + inOutType + assetNo) 집합
+    const confirmedDelivModelQty = new Map<string, number>();
+    const confirmedDateAssetSet = new Set<string>();
+    allEvents.forEach(ev => {
+      if (ev.deliveryId) {
+        const k = `${ev.deliveryId}|${ev.inOutType}|${ev.modelName}`;
+        confirmedDelivModelQty.set(k, (confirmedDelivModelQty.get(k) || 0) + ev.quantity);
+      }
+      ev.assetNos.forEach(no => {
+        if (no) confirmedDateAssetSet.add(`${ev.date}|${ev.inOutType}|${no}`);
+      });
+    });
+
+    const caMap = new Map<string, any>();
+    (contractAssets || []).forEach(ca => {
+      if (ca && ca.id) caMap.set(ca.id, ca);
+    });
+
+    (deliveries || []).forEach(d => {
+      if (!d || d.status === 'CANCELLED') return;
+
+      const isCompletedDeliv = d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED';
+      const rawDate = (d.unloadingDate || d.scheduledDate || d.loadingDate || d.requestDate || '').slice(0, 10);
+      if (!rawDate) return;
+
+      // 이미 운송완료되었고 과거/오늘 일자인 배차는 확정 로그에서 다루므로 스킵 (단, 미래 일자이거나 미완료 배차는 예정 사항으로 추출)
+      if (isCompletedDeliv && rawDate <= todayStr) return;
+
+      let parsedCargo: any[] = [];
+      if (d.cargoItems) {
+        try {
+          const parsed = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+          if (Array.isArray(parsed)) parsedCargo = parsed;
+        } catch {
+          parsedCargo = [];
+        }
+      }
+      const snapMeta = parsedCargo.find(ci => ci?.requestMeta)?.requestMeta || parsedCargo[0]?.requestMeta;
+      const relContract = d.contractId ? contractMap.get(d.contractId) : null;
+
+      const customerName =
+        snapMeta?.customerName ||
+        (relContract?.customerId ? customerMap.get(relContract.customerId) : undefined) ||
+        d.pickupVendorName ||
+        undefined;
+
+      const siteName =
+        snapMeta?.siteName ||
+        (d.siteMasterId ? siteMap.get(d.siteMasterId) : undefined) ||
+        (relContract?.siteId ? siteMap.get(relContract.siteId) : undefined) ||
+        d.destinationAddress ||
+        d.originAddress ||
+        undefined;
+
+      const driverName = d.driverName || (Array.isArray(d.assignedVehicles) && d.assignedVehicles[0]?.driverName) || undefined;
+      const transportCompany = d.transportCompany || (Array.isArray(d.assignedVehicles) && d.assignedVehicles[0]?.transportCompany) || undefined;
+      const contractNo = relContract?.contractNo || undefined;
+
+      const snapUnloadStr = String(snapMeta?.unloadingTime || '').trim();
+      const uSlot = (d.unloadingTimeSlot || snapUnloadStr.replace(/^\d{4}-\d{2}-\d{2}\s*/, '') || d.loadingTimeSlot || '오전').trim();
+      const unloadingDateTime = `${rawDate.slice(5)} ${uSlot}`.trim();
+
+      const addScheduledItem = (
+        inOutType: 'INBOUND' | 'OUTBOUND',
+        modelName: string,
+        qty: number,
+        assetCategory: AssetOwnershipCategory,
+        assetNos: string[],
+        statusLabel: string
+      ) => {
+        if (qty <= 0) return;
+        const cleanModel = (modelName || '미지정 모델').trim();
+        const groupKey = `sched|${rawDate}|${inOutType}|${assetCategory}|${cleanModel}|${customerName || ''}|${siteName || ''}|${d.id}`;
+        const existing = schedGroupMap.get(groupKey);
+        if (existing) {
+          existing.quantity += qty;
+          assetNos.forEach(no => {
+            if (no && !existing.assetNos.includes(no)) existing.assetNos.push(no);
+          });
+        } else {
+          schedGroupMap.set(groupKey, {
+            id: `sched-${d.id}-${inOutType}-${cleanModel}`,
+            inOutType,
+            isScheduled: true,
+            assetCategory,
+            assetCategoryLabel: ASSET_CATEGORY_META[assetCategory].label,
+            date: rawDate,
+            time: uSlot,
+            unloadingDateTime,
+            modelName: cleanModel,
+            quantity: qty,
+            assetNos: [...assetNos],
+            customerName,
+            siteName,
+            contractNo,
+            deliveryId: d.id,
+            driverName,
+            transportCompany,
+            statusText: statusLabel,
+            memo: d.memo || snapMeta?.userNote || undefined
+          });
+        }
+      };
+
+      // 1) 출고 예정 (OUTBOUND 또는 EXCHANGE의 투입 장비)
+      if (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') {
+        if (parsedCargo.length > 0) {
+          parsedCargo.forEach(ci => {
+            const mName = String(ci?.modelName || '기타 모델').trim();
+            const reqQty = Math.max(1, Number(ci?.count || ci?.qty || 1));
+            const alreadyConfirmed = confirmedDelivModelQty.get(`${d.id}|OUTBOUND|${mName}`) || 0;
+            const remainQty = Math.max(0, reqQty - alreadyConfirmed);
+            if (remainQty <= 0) return;
+
+            const caIds: string[] = Array.isArray(ci?.contractAssetIds) ? ci.contractAssetIds : [];
+            const assignedAssetNos: string[] = [];
+            let detectedCat: AssetOwnershipCategory = 'OWNED_PHYSICAL';
+            caIds.forEach(caId => {
+              const ca = caMap.get(caId);
+              if (ca?.assetId) {
+                const aObj = assetMap.get(ca.assetId);
+                if (aObj) {
+                  detectedCat = classifyAssetCategory(aObj);
+                  if (aObj.assetNo && !confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aObj.assetNo.trim()}`)) {
+                    assignedAssetNos.push(aObj.assetNo.trim());
+                  }
+                }
+              }
+            });
+
+            addScheduledItem('OUTBOUND', mName, remainQty, detectedCat, assignedAssetNos, '출고 예정');
+          });
+        } else if (d.assetIds) {
+          const rawTokens = String(d.assetIds).split(',').map(s => s.trim()).filter(Boolean);
+          rawTokens.forEach(tok => {
+            const aObj = assetMap.get(tok) || assetByNoMap.get(tok);
+            const aNo = aObj?.assetNo?.trim() || tok;
+            if (confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aNo}`)) return;
+            const cat = classifyAssetCategory(aObj);
+            addScheduledItem('OUTBOUND', aObj?.modelName || '기타 모델', 1, cat, aObj?.assetNo ? [aObj.assetNo.trim()] : [], '출고 예정');
+          });
+        }
+      }
+
+      // 2) 입고 예정 (INBOUND, RETURN 또는 EXCHANGE의 회수 장비)
+      if (d.type === 'INBOUND' || d.type === 'RETURN' || d.type === 'EXCHANGE') {
+        const statusLabel = d.type === 'RETURN' ? '반납 예정' : '입고 예정';
+        if (d.type === 'EXCHANGE') {
+          const retrievalIds: string[] = Array.isArray(snapMeta?.retrievalAssetIds) ? snapMeta.retrievalAssetIds : [];
+          retrievalIds.forEach(rId => {
+            const aObj = assetMap.get(rId) || assetByNoMap.get(rId);
+            const aNo = aObj?.assetNo?.trim() || rId;
+            if (confirmedDateAssetSet.has(`${rawDate}|INBOUND|${aNo}`)) return;
+            const cat = classifyAssetCategory(aObj);
+            addScheduledItem('INBOUND', aObj?.modelName || '회수 장비', 1, cat, aObj?.assetNo ? [aObj.assetNo.trim()] : [], '교환회수 예정');
+          });
+        } else {
+          const rawTokens = d.assetIds ? String(d.assetIds).split(',').map(s => s.trim()).filter(Boolean) : [];
+          if (rawTokens.length > 0) {
+            rawTokens.forEach(tok => {
+              const aObj = assetMap.get(tok) || assetByNoMap.get(tok);
+              const aNo = aObj?.assetNo?.trim() || tok;
+              if (confirmedDateAssetSet.has(`${rawDate}|INBOUND|${aNo}`)) return;
+              const cat = classifyAssetCategory(aObj);
+              addScheduledItem('INBOUND', aObj?.modelName || '입고 장비', 1, cat, aObj?.assetNo ? [aObj.assetNo.trim()] : [], statusLabel);
+            });
+          } else if (parsedCargo.length > 0) {
+            parsedCargo.forEach(ci => {
+              const mName = String(ci?.modelName || '입고 장비').trim();
+              const reqQty = Math.max(1, Number(ci?.count || ci?.qty || 1));
+              const alreadyConfirmed = confirmedDelivModelQty.get(`${d.id}|INBOUND|${mName}`) || 0;
+              const remainQty = Math.max(0, reqQty - alreadyConfirmed);
+              if (remainQty > 0) {
+                addScheduledItem('INBOUND', mName, remainQty, 'OWNED_PHYSICAL', [], statusLabel);
+              }
+            });
+          }
+        }
+      }
+    });
+
+    return Array.from(schedGroupMap.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [deliveries, allEvents, contractAssets, assetMap, assetByNoMap, contractMap, customerMap, siteMap, todayStr]);
+
+  // ── 확정 + (체크 시) 예정 통합 이벤트 풀 ──
+  const activeEventsPool = useMemo(() => {
+    return includeScheduled ? [...allEvents, ...scheduledEvents] : allEvents;
+  }, [includeScheduled, allEvents, scheduledEvents]);
+
   // ── 전체 모델명 목록 추출 (필터 드롭다운용) ──
   const uniqueModelList = useMemo(() => {
     const set = new Set<string>();
     allEvents.forEach(e => {
       if (e.modelName) set.add(e.modelName);
     });
+    scheduledEvents.forEach(e => {
+      if (e.modelName) set.add(e.modelName);
+    });
     (assets || []).forEach(a => {
       if (a.modelName) set.add(a.modelName);
     });
     return Array.from(set).sort();
-  }, [allEvents, assets]);
+  }, [allEvents, scheduledEvents, assets]);
 
-  // ── 월간 기준 전체 확정 이벤트 (자산구분 카드 통계 산출용 - 자산구분 필터 적용 전) ──
+  // ── 월간 기준 이벤트 (자산구분 카드 통계 산출용 - 자산구분 필터 적용 전) ──
   const monthPrefix = `${calYear}-${String(calMonth).padStart(2, '0')}`;
 
   const baseMonthEvents = useMemo(() => {
     const kw = searchKeyword.trim();
     const matcher = kw ? createHangulMatcher(kw) : null;
 
-    return allEvents.filter(e => {
+    return activeEventsPool.filter(e => {
       if (!e.date.startsWith(monthPrefix)) return false;
       if (filterType !== 'ALL' && e.inOutType !== filterType) return false;
       if (modelFilter !== 'ALL' && e.modelName !== modelFilter) return false;
@@ -447,31 +675,43 @@ export const DailyInOutStatus: React.FC = () => {
           matcher.test(e.customerName) ||
           matcher.test(e.siteName) ||
           matcher.test(e.contractNo) ||
+          matcher.test(e.transportCompany) ||
           matcher.test(e.assetCategoryLabel) ||
           e.assetNos.some(no => matcher.test(no));
         if (!matched) return false;
       }
       return true;
     });
-  }, [allEvents, monthPrefix, filterType, modelFilter, searchKeyword]);
+  }, [activeEventsPool, monthPrefix, filterType, modelFilter, searchKeyword]);
 
-  // ── 자산속성 3대 구분별 당월 확정 통계 ──
+  // ── 자산속성 3대 구분별 당월 확정/예정 통계 ──
   const categoryMonthStats = useMemo(() => {
+    const makeEmpty = () => ({ inQty: 0, outQty: 0, schedInQty: 0, schedOutQty: 0, net: 0, count: 0 });
     const stats = {
-      ALL: { inQty: 0, outQty: 0, net: 0, count: 0 },
-      OWNED_PHYSICAL: { inQty: 0, outQty: 0, net: 0, count: 0 },
-      OWNED_VIRTUAL: { inQty: 0, outQty: 0, net: 0, count: 0 },
-      RENTED: { inQty: 0, outQty: 0, net: 0, count: 0 }
+      ALL: makeEmpty(),
+      OWNED_PHYSICAL: makeEmpty(),
+      OWNED_VIRTUAL: makeEmpty(),
+      RENTED: makeEmpty()
     };
 
     baseMonthEvents.forEach(e => {
       const target = stats[e.assetCategory];
-      if (e.inOutType === 'INBOUND') {
-        target.inQty += e.quantity;
-        stats.ALL.inQty += e.quantity;
+      if (e.isScheduled) {
+        if (e.inOutType === 'INBOUND') {
+          target.schedInQty += e.quantity;
+          stats.ALL.schedInQty += e.quantity;
+        } else {
+          target.schedOutQty += e.quantity;
+          stats.ALL.schedOutQty += e.quantity;
+        }
       } else {
-        target.outQty += e.quantity;
-        stats.ALL.outQty += e.quantity;
+        if (e.inOutType === 'INBOUND') {
+          target.inQty += e.quantity;
+          stats.ALL.inQty += e.quantity;
+        } else {
+          target.outQty += e.quantity;
+          stats.ALL.outQty += e.quantity;
+        }
       }
       target.count += 1;
       stats.ALL.count += 1;
@@ -485,7 +725,7 @@ export const DailyInOutStatus: React.FC = () => {
     return stats;
   }, [baseMonthEvents]);
 
-  // ── 자산구분 필터까지 적용된 당월 확정 이벤트 목록 ──
+  // ── 자산구분 필터까지 적용된 당월 이벤트 목록 ──
   const currentMonthEvents = useMemo(() => {
     if (categoryFilter === 'ALL') return baseMonthEvents;
     return baseMonthEvents.filter(e => e.assetCategory === categoryFilter);
@@ -496,13 +736,17 @@ export const DailyInOutStatus: React.FC = () => {
     { key: 'date', direction: 'desc' }
   );
 
-  // ── 일자별 확정 통계 및 자산속성·모델 요약 집계 ──
+  // ── 일자별 확정/예정 통계 및 자산속성·모델 요약 집계 ──
   const eventsByDateMap = useMemo(() => {
     const map = new Map<string, {
       inEvents: InOutEventItem[];
       outEvents: InOutEventItem[];
+      schedInEvents: InOutEventItem[];
+      schedOutEvents: InOutEventItem[];
       totalIn: number;
       totalOut: number;
+      totalSchedIn: number;
+      totalSchedOut: number;
       inByCat: Record<AssetOwnershipCategory, number>;
       outByCat: Record<AssetOwnershipCategory, number>;
       inModelSummary: string;
@@ -513,22 +757,36 @@ export const DailyInOutStatus: React.FC = () => {
       const cur = map.get(e.date) || {
         inEvents: [],
         outEvents: [],
+        schedInEvents: [],
+        schedOutEvents: [],
         totalIn: 0,
         totalOut: 0,
+        totalSchedIn: 0,
+        totalSchedOut: 0,
         inByCat: { OWNED_PHYSICAL: 0, OWNED_VIRTUAL: 0, RENTED: 0 },
         outByCat: { OWNED_PHYSICAL: 0, OWNED_VIRTUAL: 0, RENTED: 0 },
         inModelSummary: '',
         outModelSummary: ''
       };
 
-      if (e.inOutType === 'INBOUND') {
-        cur.inEvents.push(e);
-        cur.totalIn += e.quantity;
-        cur.inByCat[e.assetCategory] += e.quantity;
+      if (e.isScheduled) {
+        if (e.inOutType === 'INBOUND') {
+          cur.schedInEvents.push(e);
+          cur.totalSchedIn += e.quantity;
+        } else {
+          cur.schedOutEvents.push(e);
+          cur.totalSchedOut += e.quantity;
+        }
       } else {
-        cur.outEvents.push(e);
-        cur.totalOut += e.quantity;
-        cur.outByCat[e.assetCategory] += e.quantity;
+        if (e.inOutType === 'INBOUND') {
+          cur.inEvents.push(e);
+          cur.totalIn += e.quantity;
+          cur.inByCat[e.assetCategory] += e.quantity;
+        } else {
+          cur.outEvents.push(e);
+          cur.totalOut += e.quantity;
+          cur.outByCat[e.assetCategory] += e.quantity;
+        }
       }
 
       map.set(e.date, cur);
@@ -536,7 +794,7 @@ export const DailyInOutStatus: React.FC = () => {
 
     map.forEach(val => {
       const inModelCount = new Map<string, number>();
-      val.inEvents.forEach(e => {
+      [...val.inEvents, ...val.schedInEvents].forEach(e => {
         inModelCount.set(e.modelName, (inModelCount.get(e.modelName) || 0) + e.quantity);
       });
       val.inModelSummary = Array.from(inModelCount.entries())
@@ -544,7 +802,7 @@ export const DailyInOutStatus: React.FC = () => {
         .join(', ');
 
       const outModelCount = new Map<string, number>();
-      val.outEvents.forEach(e => {
+      [...val.outEvents, ...val.schedOutEvents].forEach(e => {
         outModelCount.set(e.modelName, (outModelCount.get(e.modelName) || 0) + e.quantity);
       });
       val.outModelSummary = Array.from(outModelCount.entries())
@@ -559,6 +817,8 @@ export const DailyInOutStatus: React.FC = () => {
   const monthStats = useMemo(() => {
     let totalIn = 0;
     let totalOut = 0;
+    let totalSchedIn = 0;
+    let totalSchedOut = 0;
     const catBreakdown: Record<AssetOwnershipCategory, { inQty: number; outQty: number }> = {
       OWNED_PHYSICAL: { inQty: 0, outQty: 0 },
       OWNED_VIRTUAL: { inQty: 0, outQty: 0 },
@@ -566,12 +826,17 @@ export const DailyInOutStatus: React.FC = () => {
     };
 
     currentMonthEvents.forEach(e => {
-      if (e.inOutType === 'INBOUND') {
-        totalIn += e.quantity;
-        catBreakdown[e.assetCategory].inQty += e.quantity;
+      if (e.isScheduled) {
+        if (e.inOutType === 'INBOUND') totalSchedIn += e.quantity;
+        else totalSchedOut += e.quantity;
       } else {
-        totalOut += e.quantity;
-        catBreakdown[e.assetCategory].outQty += e.quantity;
+        if (e.inOutType === 'INBOUND') {
+          totalIn += e.quantity;
+          catBreakdown[e.assetCategory].inQty += e.quantity;
+        } else {
+          totalOut += e.quantity;
+          catBreakdown[e.assetCategory].outQty += e.quantity;
+        }
       }
     });
 
@@ -579,6 +844,8 @@ export const DailyInOutStatus: React.FC = () => {
     return {
       totalIn,
       totalOut,
+      totalSchedIn,
+      totalSchedOut,
       netYardMovement,
       catBreakdown,
       eventCount: currentMonthEvents.length
@@ -595,27 +862,33 @@ export const DailyInOutStatus: React.FC = () => {
     const dayData = eventsByDateMap.get(selectedDate);
     const inEvents = dayData?.inEvents || [];
     const outEvents = dayData?.outEvents || [];
+    const schedInEvents = dayData?.schedInEvents || [];
+    const schedOutEvents = dayData?.schedOutEvents || [];
     return {
       date: selectedDate,
       totalIn: dayData?.totalIn || 0,
       totalOut: dayData?.totalOut || 0,
+      totalSchedIn: dayData?.totalSchedIn || 0,
+      totalSchedOut: dayData?.totalSchedOut || 0,
       inByCat: dayData?.inByCat || { OWNED_PHYSICAL: 0, OWNED_VIRTUAL: 0, RENTED: 0 },
       outByCat: dayData?.outByCat || { OWNED_PHYSICAL: 0, OWNED_VIRTUAL: 0, RENTED: 0 },
       inModelSummary: dayData?.inModelSummary || '입고 없음',
       outModelSummary: dayData?.outModelSummary || '출고 없음',
-      allList: [...inEvents, ...outEvents]
+      allList: [...inEvents, ...outEvents, ...schedInEvents, ...schedOutEvents]
     };
   }, [selectedDate, eventsByDateMap]);
 
   // ── 엑셀 내보내기 ──
   const handleExportExcel = () => {
     const rows = sortedEvents.map(e => ({
-      '확정일자': e.date,
+      '기준일자': e.date,
+      '하차일시': e.unloadingDateTime || e.date,
+      '구분': e.isScheduled ? '예정' : '확정',
       '입출구분': e.inOutType === 'INBOUND' ? '입고' : '출고',
       '자산속성': e.assetCategoryLabel,
       '소유구분': ASSET_CATEGORY_META[e.assetCategory].ownerLabel,
       '실물구분': ASSET_CATEGORY_META[e.assetCategory].natureLabel,
-      '확정상태': e.statusText,
+      '상태': e.statusText,
       '모델명': e.modelName,
       '수량': e.quantity,
       '모델명 * 수량': `${e.modelName} * ${e.quantity}대`,
@@ -629,7 +902,7 @@ export const DailyInOutStatus: React.FC = () => {
       '비고': e.memo || '-'
     }));
 
-    exportToExcel(rows, `일일입출고확정대장_${calYear}년${calMonth}월_${todayStr}`);
+    exportToExcel(rows, `일일입출고대장_${calYear}년${calMonth}월_${todayStr}`);
   };
 
   const renderCategoryBadge = (cat: AssetOwnershipCategory) => {
@@ -732,10 +1005,13 @@ export const DailyInOutStatus: React.FC = () => {
           const dayData = eventsByDateMap.get(dateStr);
           const totalIn = dayData?.totalIn || 0;
           const totalOut = dayData?.totalOut || 0;
+          const totalSchedIn = dayData?.totalSchedIn || 0;
+          const totalSchedOut = dayData?.totalSchedOut || 0;
           const isToday = dateStr === todayStr;
           const isSelected = selectedDate === dateStr;
           const dayOfWeek = (firstDayOfWeek + day - 1) % 7;
           const netMovement = totalIn - totalOut;
+          const hasAnyEvent = totalIn > 0 || totalOut > 0 || totalSchedIn > 0 || totalSchedOut > 0;
 
           return (
             <div
@@ -758,13 +1034,13 @@ export const DailyInOutStatus: React.FC = () => {
                 padding: '4px 5px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px',
+                gap: '3px',
                 cursor: 'pointer',
                 transition: 'all 0.12s ease',
                 position: 'relative',
                 overflow: 'hidden'
               }}
-              title={`${dateStr}${totalIn > 0 ? `\n입고: ${totalIn}대` : ''}${totalOut > 0 ? `\n출고: ${totalOut}대` : ''}`}
+              title={`${dateStr}${totalIn > 0 ? `\n입고 확정: ${totalIn}대` : ''}${totalOut > 0 ? `\n출고 확정: ${totalOut}대` : ''}${totalSchedIn > 0 ? `\n입고 예정: ${totalSchedIn}대` : ''}${totalSchedOut > 0 ? `\n출고 예정: ${totalSchedOut}대` : ''}`}
             >
               {/* 셀 상단: 일자 번호 & 순유동 배지 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2px' }}>
@@ -807,7 +1083,7 @@ export const DailyInOutStatus: React.FC = () => {
                 )}
               </div>
 
-              {/* 🔵 입고 확정 칩 (심플 대수 표시) */}
+              {/* 🔵 입고 확정 칩 */}
               {totalIn > 0 && (
                 <div
                   data-mid="chip-inbound"
@@ -815,11 +1091,11 @@ export const DailyInOutStatus: React.FC = () => {
                     backgroundColor: isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.12)',
                     border: isDark ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(37, 99, 235, 0.3)',
                     borderRadius: '4px',
-                    padding: '3px 6px',
+                    padding: '2px 5px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    fontSize: '11px',
+                    fontSize: '10.5px',
                     fontWeight: 800,
                     color: isDark ? '#ffffff' : '#1e3a8a',
                     lineHeight: '1.2',
@@ -827,13 +1103,13 @@ export const DailyInOutStatus: React.FC = () => {
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
-                    <ArrowDownLeft size={11} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
+                    <ArrowDownLeft size={10} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
                   </span>
                   <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
                 </div>
               )}
 
-              {/* 🔴 출고 확정 칩 (심플 대수 표시) */}
+              {/* 🔴 출고 확정 칩 */}
               {totalOut > 0 && (
                 <div
                   data-mid="chip-outbound"
@@ -841,11 +1117,11 @@ export const DailyInOutStatus: React.FC = () => {
                     backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
                     border: isDark ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(220, 38, 38, 0.28)',
                     borderRadius: '4px',
-                    padding: '3px 6px',
+                    padding: '2px 5px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    fontSize: '11px',
+                    fontSize: '10.5px',
                     fontWeight: 800,
                     color: isDark ? '#ffffff' : '#111827',
                     lineHeight: '1.2',
@@ -853,13 +1129,65 @@ export const DailyInOutStatus: React.FC = () => {
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
-                    <ArrowUpRight size={11} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
+                    <ArrowUpRight size={10} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
                   </span>
                   <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
                 </div>
               )}
 
-              {totalIn === 0 && totalOut === 0 && (
+              {/* 🟢 입고 예정 칩 (기존 입고와 구분되는 청록/에메랄드 컬러) */}
+              {includeScheduled && totalSchedIn > 0 && (
+                <div
+                  data-mid="chip-scheduled-inbound"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(13, 148, 136, 0.32)' : 'rgba(13, 148, 136, 0.14)',
+                    border: isDark ? '1px dashed rgba(45, 212, 191, 0.7)' : '1px dashed rgba(13, 148, 136, 0.65)',
+                    borderRadius: '4px',
+                    padding: '2px 5px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '10.5px',
+                    fontWeight: 800,
+                    color: isDark ? '#5eead4' : '#0f766e',
+                    lineHeight: '1.2',
+                    minWidth: 0
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
+                    <ArrowDownLeft size={10} color={isDark ? '#5eead4' : '#0f766e'} /> 입고예정
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', fontWeight: 800 }}>{totalSchedIn}대</span>
+                </div>
+              )}
+
+              {/* 🟠 출고 예정 칩 (기존 출고와 구분되는 주황/앰버 컬러) */}
+              {includeScheduled && totalSchedOut > 0 && (
+                <div
+                  data-mid="chip-scheduled-outbound"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(217, 119, 6, 0.32)' : 'rgba(245, 158, 11, 0.16)',
+                    border: isDark ? '1px dashed rgba(251, 191, 36, 0.7)' : '1px dashed rgba(217, 119, 6, 0.65)',
+                    borderRadius: '4px',
+                    padding: '2px 5px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '10.5px',
+                    fontWeight: 800,
+                    color: isDark ? '#fcd34d' : '#b45309',
+                    lineHeight: '1.2',
+                    minWidth: 0
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
+                    <ArrowUpRight size={10} color={isDark ? '#fcd34d' : '#b45309'} /> 출고예정
+                  </span>
+                  <span style={{ whiteSpace: 'nowrap', fontWeight: 800 }}>{totalSchedOut}대</span>
+                </div>
+              )}
+
+              {!hasAnyEvent && (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', opacity: 0.4 }}>-</span>
                 </div>
@@ -966,6 +1294,34 @@ export const DailyInOutStatus: React.FC = () => {
           }}>
             🔴 출고 확정 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong>
           </span>
+          {includeScheduled && (
+            <>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: isDark ? 'rgba(13, 148, 136, 0.3)' : 'rgba(13, 148, 136, 0.14)',
+                border: '1px dashed rgba(13, 148, 136, 0.6)',
+                color: isDark ? '#5eead4' : '#0f766e',
+                fontSize: '11px',
+                fontWeight: 800,
+                whiteSpace: 'nowrap'
+              }}>
+                🟢 입고 예정 <strong>{selectedDateData.totalSchedIn}대</strong>
+              </span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                backgroundColor: isDark ? 'rgba(217, 119, 6, 0.3)' : 'rgba(245, 158, 11, 0.15)',
+                border: '1px dashed rgba(217, 119, 6, 0.6)',
+                color: isDark ? '#fcd34d' : '#b45309',
+                fontSize: '11px',
+                fontWeight: 800,
+                whiteSpace: 'nowrap'
+              }}>
+                🟠 출고 예정 <strong>{selectedDateData.totalSchedOut}대</strong>
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -982,9 +1338,9 @@ export const DailyInOutStatus: React.FC = () => {
         <table style={{ width: '100%', minWidth: isSplitMode ? '620px' : '820px', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '64px', backgroundColor: 'var(--bg-secondary)' }}>입출구분</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '76px', backgroundColor: 'var(--bg-secondary)' }}>입출구분</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '96px', backgroundColor: 'var(--bg-secondary)' }}>자산속성</th>
-              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '82px', backgroundColor: 'var(--bg-secondary)' }}>확정상태</th>
+              <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '82px', backgroundColor: 'var(--bg-secondary)' }}>상태</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '125px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '48px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
               <th style={{ padding: '5px 8px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>관리번호</th>
@@ -996,18 +1352,21 @@ export const DailyInOutStatus: React.FC = () => {
             {selectedDateData.allList.length === 0 ? (
               <tr>
                 <td colSpan={8} style={{ padding: '36px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                  해당 일자({selectedDate})에는 확정된 입고·출고 내역이 없습니다.
+                  해당 일자({selectedDate})에는 {includeScheduled ? '확정 또는 예정된' : '확정된'} 입고·출고 내역이 없습니다.
                 </td>
               </tr>
             ) : (
               selectedDateData.allList.map(item => {
                 const isIn = item.inOutType === 'INBOUND';
+                const isSched = Boolean(item.isScheduled);
                 return (
                   <tr
                     key={item.id}
                     style={{
                       borderBottom: '1px solid var(--border-color)',
-                      backgroundColor: isIn ? 'rgba(37, 99, 235, 0.02)' : 'rgba(220, 38, 38, 0.02)'
+                      backgroundColor: isSched
+                        ? (isIn ? 'rgba(13, 148, 136, 0.05)' : 'rgba(245, 158, 11, 0.05)')
+                        : (isIn ? 'rgba(37, 99, 235, 0.02)' : 'rgba(220, 38, 38, 0.02)')
                     }}
                   >
                     <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
@@ -1016,22 +1375,33 @@ export const DailyInOutStatus: React.FC = () => {
                         borderRadius: '4px',
                         fontSize: '10.5px',
                         fontWeight: 800,
-                        backgroundColor: isIn
-                          ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
-                          : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
-                        color: isIn
-                          ? (isDark ? '#ffffff' : '#1e3a8a')
-                          : (isDark ? '#fde047' : '#111827')
+                        border: isSched
+                          ? (isIn ? '1px dashed rgba(13, 148, 136, 0.65)' : '1px dashed rgba(217, 119, 6, 0.65)')
+                          : 'none',
+                        backgroundColor: isSched
+                          ? (isIn
+                              ? (isDark ? 'rgba(13, 148, 136, 0.35)' : 'rgba(13, 148, 136, 0.15)')
+                              : (isDark ? 'rgba(217, 119, 6, 0.35)' : 'rgba(245, 158, 11, 0.16)'))
+                          : (isIn
+                              ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
+                              : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)')),
+                        color: isSched
+                          ? (isIn
+                              ? (isDark ? '#5eead4' : '#0f766e')
+                              : (isDark ? '#fcd34d' : '#b45309'))
+                          : (isIn
+                              ? (isDark ? '#ffffff' : '#1e3a8a')
+                              : (isDark ? '#fde047' : '#111827'))
                       }}>
-                        {isIn ? '🔵 입고' : '🔴 출고'}
+                        {isSched ? (isIn ? '🟢 입고예정' : '🟠 출고예정') : (isIn ? '🔵 입고' : '🔴 출고')}
                       </span>
                     </td>
                     <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
                       {renderCategoryBadge(item.assetCategory)}
                     </td>
                     <td style={{ padding: '5px 8px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#10b981' }}>
-                        ● {item.statusText}
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: isSched ? (isIn ? '#0d9488' : '#d97706') : '#10b981' }}>
+                        {isSched ? '◌' : '●'} {item.statusText}
                       </span>
                     </td>
                     <td style={{ padding: '5px 8px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -1066,6 +1436,402 @@ export const DailyInOutStatus: React.FC = () => {
     </div>
   );
 
+  // ── [상세보기: 엑셀 양식 참고 월간 입출고 상세 일정표] ──
+  // 최소 폰트 크기 10px 이상 보장, 1개 항목을 2~3행으로 길게 가독성 있게 작성:
+  // 작성 순서: 1행 고객명 (현장명) -> 2행 하차일시, 운송거래처명 -> 3행 자산모델명 * 수량
+  const renderDetailedCalendarSheet = () => {
+    const groupDayItems = (items: InOutEventItem[]) => {
+      const grouped = new Map<string, {
+        customerSiteText: string;
+        unloadingText: string;
+        transportText: string;
+        models: Map<string, number>;
+        isScheduled: boolean;
+        inOutType: 'INBOUND' | 'OUTBOUND';
+      }>();
+
+      items.forEach(ev => {
+        const cust = (ev.customerName || '고객사 미지정').trim();
+        const site = (ev.siteName || '').trim();
+        const customerSiteText = site ? `${cust} (${site})` : cust;
+        const unloadingText = (ev.unloadingDateTime || ev.date.slice(5)).trim();
+        const transportText = ev.transportCompany
+          ? (ev.driverName ? `${ev.transportCompany}(${ev.driverName})` : ev.transportCompany)
+          : (ev.driverName || '배차미정');
+        const key = `${Boolean(ev.isScheduled)}|${customerSiteText}|${unloadingText}|${transportText}`;
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.models.set(ev.modelName, (existing.models.get(ev.modelName) || 0) + ev.quantity);
+        } else {
+          const m = new Map<string, number>();
+          m.set(ev.modelName, ev.quantity);
+          grouped.set(key, {
+            customerSiteText,
+            unloadingText,
+            transportText,
+            models: m,
+            isScheduled: Boolean(ev.isScheduled),
+            inOutType: ev.inOutType
+          });
+        }
+      });
+
+      return Array.from(grouped.values()).map(g => ({
+        ...g,
+        modelSummaryText: Array.from(g.models.entries())
+          .map(([mName, cnt]) => `${mName} * ${cnt}`)
+          .join(', ')
+      }));
+    };
+
+    return (
+      <div
+        data-mid="detail-calendar-sheet"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          backgroundColor: 'var(--bg-card)',
+          borderRadius: '10px',
+          border: '1px solid var(--border-color)',
+          padding: '8px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          overflow: 'hidden'
+        }}
+      >
+        {/* 상세보기 상단 안내 및 색상 범례 바 */}
+        <div style={{
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '8px',
+          paddingBottom: '4px',
+          borderBottom: '1px solid var(--border-color)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              {calYear}년 {calMonth}월 입출고 상세 일정표
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              표기 순서: 고객명 (현장명) ➔ 하차일시, 운송거래처명 ➔ 자산모델명 * 수량
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '11px', fontWeight: 700 }}>
+            <span style={{
+              padding: '2px 7px',
+              borderRadius: '4px',
+              backgroundColor: isDark ? 'rgba(234, 179, 8, 0.25)' : '#fef9c3',
+              border: '1px solid #eab308',
+              color: isDark ? '#fde047' : '#854d0e',
+              whiteSpace: 'nowrap'
+            }}>
+              상단: 출고 확정
+            </span>
+            <span style={{
+              padding: '2px 7px',
+              borderRadius: '4px',
+              backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#dbeafe',
+              border: '1px solid #3b82f6',
+              color: isDark ? '#93c5fd' : '#1e3a8a',
+              whiteSpace: 'nowrap'
+            }}>
+              하단: 입고 확정
+            </span>
+            {includeScheduled && (
+              <>
+                <span style={{
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(217, 119, 6, 0.28)' : '#ffedd5',
+                  border: '1px dashed #d97706',
+                  color: isDark ? '#fcd34d' : '#9a3412',
+                  whiteSpace: 'nowrap'
+                }}>
+                  출고 예정
+                </span>
+                <span style={{
+                  padding: '2px 7px',
+                  borderRadius: '4px',
+                  backgroundColor: isDark ? 'rgba(13, 148, 136, 0.28)' : '#ccfbf1',
+                  border: '1px dashed #0d9488',
+                  color: isDark ? '#5eead4' : '#115e59',
+                  whiteSpace: 'nowrap'
+                }}>
+                  입고 예정
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 7열 월간 상세 캘린더 테이블 (가로/세로 스크롤 및 전 항목 최소 10.5px 이상 보장) */}
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'auto'
+        }}>
+          <div style={{ minWidth: '1360px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {/* 요일 헤더 */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, minmax(190px, 1fr))',
+              gap: '4px',
+              position: 'sticky',
+              top: 0,
+              zIndex: 5,
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              padding: '6px 0',
+              textAlign: 'center',
+              fontSize: '12px',
+              fontWeight: 800
+            }}>
+              <div style={{ color: '#ef4444' }}>일요일</div>
+              <div style={{ color: 'var(--text-primary)' }}>월요일</div>
+              <div style={{ color: 'var(--text-primary)' }}>화요일</div>
+              <div style={{ color: 'var(--text-primary)' }}>수요일</div>
+              <div style={{ color: 'var(--text-primary)' }}>목요일</div>
+              <div style={{ color: 'var(--text-primary)' }}>금요일</div>
+              <div style={{ color: '#3b82f6' }}>토요일</div>
+            </div>
+
+            {/* 일자별 상세 셀 그리드 */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, minmax(190px, 1fr))',
+              gridAutoRows: 'minmax(175px, auto)',
+              gap: '4px'
+            }}>
+              {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
+                <div
+                  key={`detail-empty-${idx}`}
+                  style={{
+                    minHeight: '175px',
+                    backgroundColor: 'var(--bg-main)',
+                    borderRadius: '6px',
+                    opacity: 0.25,
+                    border: '1px dashed var(--border-color)'
+                  }}
+                />
+              ))}
+
+              {daysArray.map(day => {
+                const dayStr = String(day).padStart(2, '0');
+                const monthStr = String(calMonth).padStart(2, '0');
+                const dateStr = `${calYear}-${monthStr}-${dayStr}`;
+                const dayData = eventsByDateMap.get(dateStr);
+                const isToday = dateStr === todayStr;
+                const isSelected = selectedDate === dateStr;
+                const dayOfWeek = (firstDayOfWeek + day - 1) % 7;
+
+                const outboundRaw = [
+                  ...(dayData?.outEvents || []),
+                  ...(includeScheduled ? (dayData?.schedOutEvents || []) : [])
+                ];
+                const inboundRaw = [
+                  ...(dayData?.inEvents || []),
+                  ...(includeScheduled ? (dayData?.schedInEvents || []) : [])
+                ];
+
+                const outboundGroups = groupDayItems(outboundRaw);
+                const inboundGroups = groupDayItems(inboundRaw);
+                const totalOutCnt = (dayData?.totalOut || 0) + (includeScheduled ? (dayData?.totalSchedOut || 0) : 0);
+                const totalInCnt = (dayData?.totalIn || 0) + (includeScheduled ? (dayData?.totalSchedIn || 0) : 0);
+
+                return (
+                  <div
+                    key={`detail-${dateStr}`}
+                    onClick={() => setSelectedDate(dateStr)}
+                    style={{
+                      minHeight: '175px',
+                      borderRadius: '6px',
+                      border: isSelected
+                        ? '2px solid var(--primary)'
+                        : isToday
+                          ? '1.5px solid #3b82f6'
+                          : '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {/* 일자 헤더 바 */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '4px 7px',
+                      backgroundColor: isToday
+                        ? 'rgba(59, 130, 246, 0.15)'
+                        : dayOfWeek === 0
+                          ? 'rgba(239, 68, 68, 0.08)'
+                          : 'var(--bg-secondary)',
+                      borderBottom: '1px solid var(--border-color)'
+                    }}>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: dayOfWeek === 0 ? '#ef4444' : dayOfWeek === 6 ? '#3b82f6' : 'var(--text-primary)'
+                      }}>
+                        {day}일
+                      </span>
+                      {(totalOutCnt > 0 || totalInCnt > 0) && (
+                        <div style={{ display: 'flex', gap: '4px', fontSize: '10.5px', fontWeight: 800 }}>
+                          {totalOutCnt > 0 && (
+                            <span style={{ color: '#dc2626' }}>출 {totalOutCnt}</span>
+                          )}
+                          {totalInCnt > 0 && (
+                            <span style={{ color: '#2563eb' }}>입 {totalInCnt}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 상단 섹션: 출고 내역 (1, 2, 3...) */}
+                    <div style={{
+                      flex: '1 0 auto',
+                      padding: '5px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      borderBottom: '1.5px dashed var(--border-color)'
+                    }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#b45309', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>[출고]</span>
+                        {outboundGroups.length === 0 && (
+                          <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>없음</span>
+                        )}
+                      </div>
+                      {outboundGroups.map((g, idx) => (
+                        <div
+                          key={`out-g-${idx}`}
+                          style={{
+                            padding: '4px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: g.isScheduled
+                              ? (isDark ? 'rgba(217, 119, 6, 0.24)' : '#ffedd5')
+                              : (isDark ? 'rgba(234, 179, 8, 0.2)' : '#fef9c3'),
+                            border: g.isScheduled
+                              ? '1px dashed #d97706'
+                              : '1px solid #eab308',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            fontSize: '10.5px',
+                            lineHeight: '1.35',
+                            color: isDark ? '#f8fafc' : '#111827'
+                          }}
+                        >
+                          {/* 1행: 순번. 고객명 (현장명) */}
+                          <div style={{ fontWeight: 800, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            {idx + 1}. {g.customerSiteText}
+                            {g.isScheduled && (
+                              <span style={{
+                                marginLeft: '4px',
+                                padding: '0 4px',
+                                borderRadius: '3px',
+                                backgroundColor: '#d97706',
+                                color: '#ffffff',
+                                fontSize: '10px',
+                                fontWeight: 800
+                              }}>
+                                출고예정
+                              </span>
+                            )}
+                          </div>
+                          {/* 2행: 하차일시, 운송거래처명 */}
+                          <div style={{ fontSize: '10.5px', fontWeight: 600, color: isDark ? '#cbd5e1' : '#334155', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            하차: {g.unloadingText} · {g.transportText}
+                          </div>
+                          {/* 3행: 자산모델명 * 수량 */}
+                          <div style={{ fontSize: '11px', fontWeight: 800, color: g.isScheduled ? (isDark ? '#fcd34d' : '#9a3412') : (isDark ? '#fde047' : '#b91c1c'), wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            {g.modelSummaryText}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 하단 섹션: 입고/반납 내역 */}
+                    <div style={{
+                      flex: '1 0 auto',
+                      padding: '5px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.35)' : 'rgba(241, 245, 249, 0.55)'
+                    }}>
+                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#1d4ed8', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>[입고]</span>
+                        {inboundGroups.length === 0 && (
+                          <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>없음</span>
+                        )}
+                      </div>
+                      {inboundGroups.map((g, idx) => (
+                        <div
+                          key={`in-g-${idx}`}
+                          style={{
+                            padding: '4px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: g.isScheduled
+                              ? (isDark ? 'rgba(13, 148, 136, 0.25)' : '#ccfbf1')
+                              : (isDark ? 'rgba(37, 99, 235, 0.22)' : '#dbeafe'),
+                            border: g.isScheduled
+                              ? '1px dashed #0d9488'
+                              : '1px solid #60a5fa',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            fontSize: '10.5px',
+                            lineHeight: '1.35',
+                            color: isDark ? '#f8fafc' : '#111827'
+                          }}
+                        >
+                          {/* 1행: 순번. 고객명 (현장명) */}
+                          <div style={{ fontWeight: 800, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            {idx + 1}. {g.customerSiteText}
+                            {g.isScheduled && (
+                              <span style={{
+                                marginLeft: '4px',
+                                padding: '0 4px',
+                                borderRadius: '3px',
+                                backgroundColor: '#0d9488',
+                                color: '#ffffff',
+                                fontSize: '10px',
+                                fontWeight: 800
+                              }}>
+                                입고예정
+                              </span>
+                            )}
+                          </div>
+                          {/* 2행: 하차일시, 운송거래처명 */}
+                          <div style={{ fontSize: '10.5px', fontWeight: 600, color: isDark ? '#cbd5e1' : '#334155', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            하차: {g.unloadingText} · {g.transportText}
+                          </div>
+                          {/* 3행: 자산모델명 * 수량 */}
+                          <div style={{ fontSize: '11px', fontWeight: 800, color: g.isScheduled ? (isDark ? '#5eead4' : '#0f766e') : (isDark ? '#93c5fd' : '#1e3a8a'), wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+                            {g.modelSummaryText}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       data-hs-observe="dailyinoutstatus"
@@ -1094,12 +1860,12 @@ export const DailyInOutStatus: React.FC = () => {
             fontWeight: 700,
             padding: '1px 7px',
             borderRadius: '4px',
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-            color: '#059669',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            backgroundColor: includeScheduled ? 'rgba(217, 119, 6, 0.14)' : 'rgba(16, 185, 129, 0.12)',
+            color: includeScheduled ? (isDark ? '#fcd34d' : '#b45309') : '#059669',
+            border: includeScheduled ? '1px solid rgba(217, 119, 6, 0.35)' : '1px solid rgba(16, 185, 129, 0.3)',
             whiteSpace: 'nowrap'
           }}>
-            입고·출고 확정 실적 전용
+            {includeScheduled ? '입고·출고 확정 + 예정사항 통합 표시' : '입고·출고 확정 실적 전용'}
           </span>
         </div>
         <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1402,9 +2168,9 @@ export const DailyInOutStatus: React.FC = () => {
                 minWidth: '115px'
               }}
             >
-              <option value="ALL">전체 (입·출고 확정)</option>
-              <option value="INBOUND">🔵 입고 확정만</option>
-              <option value="OUTBOUND">🔴 출고 확정만</option>
+              <option value="ALL">{includeScheduled ? '전체 (입·출고 확정+예정)' : '전체 (입·출고 확정)'}</option>
+              <option value="INBOUND">{includeScheduled ? '🔵 입고 (확정+예정)' : '🔵 입고 확정만'}</option>
+              <option value="OUTBOUND">{includeScheduled ? '🔴 출고 (확정+예정)' : '🔴 출고 확정만'}</option>
             </select>
           </div>
 
@@ -1434,6 +2200,74 @@ export const DailyInOutStatus: React.FC = () => {
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
+          </div>
+
+          {/* 🔴 [빨간색 표시 위치] 예정사항도 표시 체크박스 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              예정 포함
+            </span>
+            <label
+              data-mid="checkbox-include-scheduled"
+              style={{
+                height: '28px',
+                padding: '0 10px',
+                borderRadius: '5px',
+                border: includeScheduled ? '1.5px solid #d97706' : '1px solid var(--border-color)',
+                backgroundColor: includeScheduled
+                  ? (isDark ? 'rgba(217, 119, 6, 0.2)' : 'rgba(245, 158, 11, 0.12)')
+                  : 'var(--bg-surface)',
+                color: includeScheduled ? (isDark ? '#fcd34d' : '#b45309') : 'var(--text-primary)',
+                fontSize: '11.5px',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                userSelect: 'none',
+                whiteSpace: 'nowrap'
+              }}
+              title="체크 시 배차/출고 예정 및 반납/입고 예정 사항을 구분된 색상(청록/주황)으로 함께 표시합니다"
+            >
+              <input
+                type="checkbox"
+                checked={includeScheduled}
+                onChange={e => setIncludeScheduled(e.target.checked)}
+                style={{ width: '13px', height: '13px', accentColor: '#d97706', cursor: 'pointer', margin: 0 }}
+              />
+              예정사항도 표시
+            </label>
+          </div>
+
+          {/* 🔵 [파란색 표시 위치] 상세보기 버튼 (엑셀 양식 참고 월간 상세 캘린더) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              상세 일정표
+            </span>
+            <button
+              type="button"
+              data-mid="btn-detail-calendar-view"
+              onClick={() => setViewMode(prev => prev === 'DETAIL_CALENDAR' ? 'SPLIT' : 'DETAIL_CALENDAR')}
+              style={{
+                height: '28px',
+                padding: '0 12px',
+                borderRadius: '5px',
+                border: viewMode === 'DETAIL_CALENDAR' ? '1.5px solid #2563eb' : '1px solid #3b82f6',
+                backgroundColor: viewMode === 'DETAIL_CALENDAR' ? '#2563eb' : (isDark ? 'rgba(37, 99, 235, 0.22)' : 'rgba(37, 99, 235, 0.1)'),
+                color: viewMode === 'DETAIL_CALENDAR' ? '#ffffff' : (isDark ? '#93c5fd' : '#1d4ed8'),
+                fontSize: '11.5px',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+              title="월간 입출고 상세 일정표(고객명/현장명, 하차일시, 운송거래처명, 모델*수량) 화면으로 전환합니다"
+            >
+              <Calendar size={12} />
+              상세보기
+            </button>
           </div>
         </div>
 
@@ -1580,6 +2414,9 @@ export const DailyInOutStatus: React.FC = () => {
         </div>
       )}
 
+      {/* ── [모드 2: 상세보기 (엑셀 양식 참고 월간 입출고 상세 일정표)] ── */}
+      {viewMode === 'DETAIL_CALENDAR' && renderDetailedCalendarSheet()}
+
       {/* ── [모드 B: 표 형태 보기] (고밀도 1:1 확정 대사 그리드) ── */}
       {viewMode === 'TABLE' && (
         <div
@@ -1600,10 +2437,10 @@ export const DailyInOutStatus: React.FC = () => {
         >
           <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-              {calYear}년 {calMonth}월 입출고 확정 대장 (총 {currentMonthEvents.length}건)
+              {calYear}년 {calMonth}월 입출고 {includeScheduled ? '확정·예정 통합' : '확정'} 대장 (총 {currentMonthEvents.length}건)
             </span>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              확정된 입고·출고 실적만 표시됩니다 (예정 및 취소 건 제외)
+              {includeScheduled ? '확정 실적 및 예정 사항이 구분된 색상으로 함께 표시됩니다' : '확정된 입고·출고 실적만 표시됩니다 (예정 및 취소 건 제외)'}
             </span>
           </div>
 
@@ -1620,10 +2457,10 @@ export const DailyInOutStatus: React.FC = () => {
             <table style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <SortableTh label="확정일자" sortKey="date" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px', backgroundColor: 'var(--bg-secondary)' }} />
-                  <SortableTh label="입출구분" sortKey="inOutType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '75px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="기준일자" sortKey="date" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="입출구분" sortKey="inOutType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '85px', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="자산속성" sortKey="assetCategoryLabel" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '115px', backgroundColor: 'var(--bg-secondary)' }} />
-                  <SortableTh label="확정상태" sortKey="statusText" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '105px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="상태" sortKey="statusText" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '105px', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '150px', backgroundColor: 'var(--bg-secondary)' }} />
                   <SortableTh label="수량" sortKey="quantity" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }} align="center" />
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>관리번호</th>
@@ -1636,18 +2473,21 @@ export const DailyInOutStatus: React.FC = () => {
                 {currentMonthEvents.length === 0 ? (
                   <tr>
                     <td colSpan={10} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      조회 조건에 부합하는 확정 입출고 내역이 없습니다.
+                      조회 조건에 부합하는 입출고 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
                   sortedEvents.map(item => {
                     const isIn = item.inOutType === 'INBOUND';
+                    const isSched = Boolean(item.isScheduled);
                     return (
                       <tr
                         key={item.id}
                         style={{
                           borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: isIn ? 'rgba(37, 99, 235, 0.015)' : 'rgba(220, 38, 38, 0.015)'
+                          backgroundColor: isSched
+                            ? (isIn ? 'rgba(13, 148, 136, 0.04)' : 'rgba(245, 158, 11, 0.04)')
+                            : (isIn ? 'rgba(37, 99, 235, 0.015)' : 'rgba(220, 38, 38, 0.015)')
                         }}
                       >
                         <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1659,22 +2499,33 @@ export const DailyInOutStatus: React.FC = () => {
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 800,
-                            backgroundColor: isIn
-                              ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
-                              : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
-                            color: isIn
-                              ? (isDark ? '#ffffff' : '#1e3a8a')
-                              : (isDark ? '#fde047' : '#111827')
+                            border: isSched
+                              ? (isIn ? '1px dashed rgba(13, 148, 136, 0.65)' : '1px dashed rgba(217, 119, 6, 0.65)')
+                              : 'none',
+                            backgroundColor: isSched
+                              ? (isIn
+                                  ? (isDark ? 'rgba(13, 148, 136, 0.35)' : 'rgba(13, 148, 136, 0.15)')
+                                  : (isDark ? 'rgba(217, 119, 6, 0.35)' : 'rgba(245, 158, 11, 0.16)'))
+                              : (isIn
+                                  ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)')
+                                  : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)')),
+                            color: isSched
+                              ? (isIn
+                                  ? (isDark ? '#5eead4' : '#0f766e')
+                                  : (isDark ? '#fcd34d' : '#b45309'))
+                              : (isIn
+                                  ? (isDark ? '#ffffff' : '#1e3a8a')
+                                  : (isDark ? '#fde047' : '#111827'))
                           }}>
-                            {isIn ? '🔵 입고' : '🔴 출고'}
+                            {isSched ? (isIn ? '🟢 입고예정' : '🟠 출고예정') : (isIn ? '🔵 입고' : '🔴 출고')}
                           </span>
                         </td>
                         <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
                           {renderCategoryBadge(item.assetCategory)}
                         </td>
                         <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#10b981' }}>
-                            ● {item.statusText}
+                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: isSched ? (isIn ? '#0d9488' : '#d97706') : '#10b981' }}>
+                            {isSched ? '◌' : '●'} {item.statusText}
                           </span>
                         </td>
                         <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -1752,6 +2603,17 @@ export const DailyInOutStatus: React.FC = () => {
             </span>
           </div>
 
+          {includeScheduled && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                입고예정 총계:
+              </span>
+              <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0d9488', whiteSpace: 'nowrap' }}>
+                🟢 {monthStats.totalSchedIn}대
+              </span>
+            </div>
+          )}
+
           {/* 총 확정 출고 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
@@ -1761,6 +2623,17 @@ export const DailyInOutStatus: React.FC = () => {
               🔴 {monthStats.totalOut}대
             </span>
           </div>
+
+          {includeScheduled && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                출고예정 총계:
+              </span>
+              <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#d97706', whiteSpace: 'nowrap' }}>
+                🟠 {monthStats.totalSchedOut}대
+              </span>
+            </div>
+          )}
 
           <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-color)' }} />
 
