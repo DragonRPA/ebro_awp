@@ -260,7 +260,7 @@ const ContextualManualButton: React.FC = () => {
     fetchUrl();
 
     const findHeader = () => {
-      const main = document.querySelector('.main-content-area');
+      const main = document.querySelector('[data-active-tab-pane="true"]') || document.querySelector('.main-content-area');
       if (!main) return null;
       const headers = main.querySelectorAll('h2, h3');
       for (const h of headers) {
@@ -1004,22 +1004,59 @@ const App: React.FC = () => {
     document.body.setAttribute('data-active-menu', title);
   }, [activeTab, menuGroups, setBaseMenu]);
 
-  // 활성 페이지 컴포넌트 탐색
-  const getActiveComponent = () => {
-    if (activeTab === 'dashboard') return <Dashboard />;
-    if (activeTab === 'manual_dictionary') return <ManualDictionaryPage />;
-    if (activeTab === 'consumable' || activeTab === 'consumables') return <ConsumableStockPage />;
-    if (activeTab === 'leave_ot') return <LeaveOtPage />;
-    if (activeTab === 'trade_products') return <TradeProductsPage />;
-    if (activeTab === 'trade_purchases') return <TradePurchasesPage />;
-    if (activeTab === 'trade_contracts') return <TradeContractsPage />;
-    if (activeTab === 'trade_outbounds') return <TradeOutboundPage />;
-    if (activeTab === 'courier_dispatch') return <CourierDispatchPage />;
-    if (activeTab === 'trade_billing') return <TradeBillingPage />;
-    if (activeTab === 'trade_returns') return <TradeReturnsPage />;
-    if (activeTab === 'trade_profitability') return <TradeProfitabilityPage />;
+  // ── 🧭 메뉴 Keep-Alive 캐시: 이전(<) / 다음(>) 이동 시 직전 메뉴의 설정값·입력값 100% 보존 ──
+  // 좌측 메뉴그룹에서 직접 메뉴를 새로 클릭할 때만 해당 메뉴의 mountKey를 갱신하여 초기 상태로 열고,
+  // 상단 이전/다음(goBack/goForward) 이동 시에는 기존 마운트된 인스턴스를 그대로 복원한다.
+  const [tabMountKeys, setTabMountKeys] = useState<Record<string, number>>({});
+
+  const handleSidebarMenuSelect = useCallback((targetTabId: string) => {
+    if (manualMode !== 'off') setManualMode('off');
+    setTabMountKeys(prev => ({
+      ...prev,
+      [targetTabId]: (prev[targetTabId] || 0) + 1
+    }));
+    setActiveTab(targetTabId);
+    setMobileMenuOpen(false);
+  }, [manualMode, setManualMode, setActiveTab]);
+
+  // 히스토리 스택에 존재하는 최근 방문 메뉴 목록 (최대 10개까지 메모리에 살아있는 상태로 유지)
+  const keptAliveTabIds = useMemo(() => {
+    const unique: string[] = [];
+    (historyStack || []).forEach(entry => {
+      if (entry?.tab && hasPermission(entry.tab, 'view') && !unique.includes(entry.tab)) {
+        unique.push(entry.tab);
+      }
+    });
+    if (activeTab && hasPermission(activeTab, 'view') && !unique.includes(activeTab)) {
+      unique.push(activeTab);
+    }
+    const MAX_KEEP_ALIVE = 10;
+    if (unique.length > MAX_KEEP_ALIVE) {
+      const sliced = unique.slice(unique.length - MAX_KEEP_ALIVE);
+      if (activeTab && !sliced.includes(activeTab)) {
+        sliced[0] = activeTab;
+      }
+      return sliced;
+    }
+    return unique;
+  }, [historyStack, activeTab, hasPermission]);
+
+  // 탭 ID별 페이지 컴포넌트 탐색
+  const getComponentByTabId = (tabId: string) => {
+    if (tabId === 'dashboard') return <Dashboard />;
+    if (tabId === 'manual_dictionary') return <ManualDictionaryPage />;
+    if (tabId === 'consumable' || tabId === 'consumables') return <ConsumableStockPage />;
+    if (tabId === 'leave_ot') return <LeaveOtPage />;
+    if (tabId === 'trade_products') return <TradeProductsPage />;
+    if (tabId === 'trade_purchases') return <TradePurchasesPage />;
+    if (tabId === 'trade_contracts') return <TradeContractsPage />;
+    if (tabId === 'trade_outbounds') return <TradeOutboundPage />;
+    if (tabId === 'courier_dispatch') return <CourierDispatchPage />;
+    if (tabId === 'trade_billing') return <TradeBillingPage />;
+    if (tabId === 'trade_returns') return <TradeReturnsPage />;
+    if (tabId === 'trade_profitability') return <TradeProfitabilityPage />;
     for (const grp of menuGroups) {
-      const found = grp.items.find(item => item.id === activeTab);
+      const found = grp.items.find(item => item.id === tabId);
       if (found) return found.component;
     }
     return <Dashboard />;
@@ -2256,11 +2293,7 @@ const App: React.FC = () => {
           {hasPermission('dashboard', 'view') && (
             <button
               data-menu-id="dashboard"
-              onClick={() => {
-                if (manualMode !== 'off') setManualMode('off');
-                setActiveTab('dashboard');
-                setMobileMenuOpen(false);
-              }}
+              onClick={() => handleSidebarMenuSelect('dashboard')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -2373,11 +2406,7 @@ const App: React.FC = () => {
                         <button
                           key={item.id}
                           data-menu-id={item.id}
-                          onClick={() => {
-                            if (manualMode !== 'off') setManualMode('off');
-                            setActiveTab(item.id);
-                            setMobileMenuOpen(false);
-                          }}
+                          onClick={() => handleSidebarMenuSelect(item.id)}
                           style={{
                             display: 'grid',
                             gridTemplateColumns: '16px 1fr auto',
@@ -2467,7 +2496,25 @@ const App: React.FC = () => {
         <main style={{ flex: 1, height: '100%', minHeight: 0, padding: '16px 20px 5px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)' }} className="main-content-area">
           {userHasViewPerm ? (
             <React.Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>화면을 불러오는 중입니다...</div>}>
-              {getActiveComponent()}
+              {keptAliveTabIds.map(tabId => {
+                const isCurrent = tabId === activeTab;
+                return (
+                  <div
+                    key={`${tabId}-${tabMountKeys[tabId] || 0}`}
+                    data-active-tab-pane={isCurrent ? 'true' : 'false'}
+                    data-keepalive-tab={tabId}
+                    style={{
+                      display: isCurrent ? 'flex' : 'none',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minHeight: 0,
+                      width: '100%'
+                    }}
+                  >
+                    {getComponentByTabId(tabId)}
+                  </div>
+                );
+              })}
             </React.Suspense>
           ) : (
             <div className="card" style={{ textAlign: 'center', padding: '80px 0', color: 'var(--danger)', backgroundColor: 'var(--danger-light)' }}>
