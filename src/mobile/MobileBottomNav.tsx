@@ -128,14 +128,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'vehicle_log', label: '주유관리', icon: Fuel, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
-  } else if (deptMode === 'TEST') {
-    rawNavItems = [
-      { id: 'home', label: '랩홈', icon: Home, badge: 0 },
-      { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
-      { id: 'as', label: '현장정비', icon: Wrench, badge: pendingAsCount },
-      { id: 'inspection', label: '출고검수', icon: CheckSquare, badge: pendingInspectionCount },
-      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
-    ];
   } else {
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },

@@ -24,7 +24,6 @@ import { MobileDelinquencyManage } from './pages/MobileDelinquencyManage';
 import { MobileVehicleLog } from './pages/MobileVehicleLog';
 import { MobileManualViewer } from './pages/MobileManualViewer';
 import { MobileYardConsumableStock } from './pages/MobileYardConsumableStock';
-import { MobileTestLabHome } from './pages/MobileTestLabHome';
 import { SalesJournalPage } from '../pages/SalesJournalPage';
 import { AsRouteTrackingPage } from '../pages/AsRouteTrackingPage';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
@@ -143,7 +142,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   const [deptMode, setDeptMode] = useState<MobileDeptMode>(() => {
     if (!isDeveloper) return userResolvedMode;
     const saved = localStorage.getItem('erp_mobile_dept') as MobileDeptMode;
-    if (saved && (saved === 'SALES' || saved === 'AS' || saved === 'OUTBOUND' || saved === 'EXECUTIVE' || saved === 'ADMIN' || saved === 'TEST')) {
+    if (saved && (saved === 'SALES' || saved === 'AS' || saved === 'OUTBOUND' || saved === 'EXECUTIVE' || saved === 'ADMIN')) {
       return saved;
     }
     return userResolvedMode;
@@ -395,12 +394,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           ) : deptMode === 'ADMIN' ? (
             <MobileAdminHome
               onNavigate={handleTabChange}
-            />
-          ) : deptMode === 'TEST' ? (
-            <MobileTestLabHome
-              onNavigate={handleTabChange}
-              onOpenAsDetail={handleOpenAsDetail}
-              onOpenCreateAs={handleOpenCreateAs}
             />
           ) : (
             <MobileHome

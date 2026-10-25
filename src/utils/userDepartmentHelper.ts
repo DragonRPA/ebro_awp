@@ -1,7 +1,7 @@
 // src/utils/userDepartmentHelper.ts
 import { User, Department } from '../services/db';
 
-export type MobileDeptMode = 'SALES' | 'AS' | 'OUTBOUND' | 'EXECUTIVE' | 'ADMIN' | 'TEST';
+export type MobileDeptMode = 'SALES' | 'AS' | 'OUTBOUND' | 'EXECUTIVE' | 'ADMIN';
 
 /**
  * 🏛️ 조직도 기반 사용자의 소속 부서명 도출

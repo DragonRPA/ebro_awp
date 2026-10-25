@@ -62,7 +62,6 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
     { mode: 'OUTBOUND', label: '출고팀', activeColor: '#059669' },
     { mode: 'EXECUTIVE', label: '경영진', activeColor: '#7c3aed' },
     { mode: 'ADMIN', label: '관리부', activeColor: '#0284c7' },
-    { mode: 'TEST', label: '테스트랩', activeColor: '#ec4899' },
   ];
 
   return (
