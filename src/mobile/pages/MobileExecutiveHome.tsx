@@ -1,14 +1,14 @@
 // src/mobile/pages/MobileExecutiveHome.tsx
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Todo, Customer, DelinquencyActionLog, ConsumablePurchaseRequest, PurchaseSettlement, isVirtualAsset } from '../../services/db';
+import { db, Todo, Customer, DelinquencyActionLog, isVirtualAsset } from '../../services/db';
 import { 
-  Crown, TrendingUp, AlertTriangle, ShieldCheck, CreditCard, 
-  Clock, CheckCircle2, ChevronRight, Ban, Send, ArrowRight, Users, Car, Fuel, Boxes, Bell, CheckSquare, FileText
+  Crown, TrendingUp, AlertTriangle, CreditCard, 
+  Clock, ChevronRight, Ban, Send, ArrowRight, Fuel, Boxes
 } from 'lucide-react';
 import { MobileTabType } from '../MobileBottomNav';
-import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask, getTaskDisplayBadges, resolveTaskMenuId } from '../../utils/taskHandoverPipeline';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
+import { MobileApprovalInboxSection } from '../components/MobileApprovalInboxSection';
 
 
 interface MobileExecutiveHomeProps {
@@ -16,70 +16,18 @@ interface MobileExecutiveHomeProps {
   onOpenAsDetail?: (ticketId: string) => void;
 }
 
-export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavigate, onOpenAsDetail }) => {
+export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavigate }) => {
   const { 
-    products, assets, contracts, contractAssets, deliveries, outboundInspections, repairs, fieldAsTickets,
+    products, assets, contracts, contractAssets, deliveries, outboundInspections,
     billings, bankTransactions, bankInitialBalances, customers, 
-    currentUser, saveCustomer, refreshAllData,
-    consumablePurchases, purchaseSettlements, payrollClosings, setPayrollClosingStatus, showErrorModal,
-    todos, hasPermission, completeTodo, resolveExecutiveDirective, setNavigationPayload
+    currentUser, saveCustomer, refreshAllData
   } = useApp();
 
   const [toast, setToast] = useState<string | null>(null);
-  const [taskCategoryFilter, setTaskCategoryFilter] = useState<'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'>('ALL');
 
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
-  };
-
-  // 경영진 미결 업무/보고 피드 (실물 완료 건 자동 제외, PC 대시보드와 100% 동일 조건)
-  const executiveTodos = useMemo(() => {
-    return findActiveTasksForUser(todos || [], currentUser, hasPermission, 'EXECUTIVE');
-  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, fieldAsTickets, billings, consumablePurchases, purchaseSettlements]);
-
-  const taskGroupCounts = useMemo(() => {
-    let assign = 0;
-    let inspection = 0;
-    let dispatch = 0;
-    let other = 0;
-    executiveTodos.forEach(t => {
-      const mId = resolveTaskMenuId(t);
-      if (mId === 'dispatch_assign') assign += 1;
-      else if (mId === 'outbound_inspections') inspection += 1;
-      else if (mId === 'delivery') dispatch += 1;
-      else other += 1;
-    });
-    return { all: executiveTodos.length, assign, inspection, dispatch, other };
-  }, [executiveTodos]);
-
-  const filteredExecutiveTodos = useMemo(() => {
-    if (taskCategoryFilter === 'ALL') return executiveTodos;
-    return executiveTodos.filter(t => {
-      const mId = resolveTaskMenuId(t);
-      if (taskCategoryFilter === 'ASSIGN') return mId === 'dispatch_assign';
-      if (taskCategoryFilter === 'INSPECTION') return mId === 'outbound_inspections';
-      if (taskCategoryFilter === 'DISPATCH') return mId === 'delivery';
-      return mId !== 'dispatch_assign' && mId !== 'outbound_inspections' && mId !== 'delivery';
-    });
-  }, [executiveTodos, taskCategoryFilter]);
-
-  const handleResolveDirective = async (task: Todo) => {
-    const note = prompt('조치 결과 내용을 입력해주세요:', '확인 및 조치 완료');
-    if (note === null) return;
-    await resolveExecutiveDirective(task.id, note || '조치 완료');
-  };
-
-  const handleBulkCompleteTodos = async () => {
-    if (executiveTodos.length === 0) return;
-    for (const t of executiveTodos) {
-      db.updateRow<Todo>('todos', t.id, {
-        isCompleted: true,
-      });
-    }
-    await db.awaitPendingWrites();
-    refreshAllData();
-    triggerToast('대기 알림이 일괄 완료 처리되었습니다.');
   };
 
   // 0. 가용재고 및 출고예정 실시간 요약 (SSOT 단일 엔진 연동: 가용재고조회 화면과 100% 일치)
@@ -222,109 +170,6 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
     }
   };
 
-  // 5. 실데이터 기반 경영진 결재 대기 큐 집계 (소모품/정비부품 구매요청, 월말 매입정산, 급여마감)
-  const pendingApprovals = useMemo(() => {
-    const list: Array<{
-      id: string;
-      category: 'CONSUMABLE' | 'SETTLEMENT' | 'PAYROLL';
-      categoryLabel: string;
-      title: string;
-      subText: string;
-      amount?: number;
-      createdAt?: string;
-      rawItem: any;
-    }> = [];
-
-    // 1) 소모품 및 정비 부품 구매 결재 요청
-    (consumablePurchases || [])
-      .filter(p => p.status === 'REQUESTED')
-      .forEach(p => {
-        list.push({
-          id: p.id,
-          category: 'CONSUMABLE',
-          categoryLabel: '부품구매',
-          title: `[${p.sellerName || '공급처'}] ${p.modelName} ${p.requestedQty}개`,
-          subText: `단가 ₩${(p.unitPrice || 0).toLocaleString()}원 • 신청: ${p.requesterName || '정비팀'}`,
-          amount: (p.unitPrice || 0) * (p.requestedQty || 1),
-          createdAt: p.requestDate || p.createdAt,
-          rawItem: p,
-        });
-      });
-
-    // 2) 월말 매입 정산 승인 요청
-    (purchaseSettlements || [])
-      .filter(s => s.status === 'PENDING')
-      .forEach(s => {
-        list.push({
-          id: s.id,
-          category: 'SETTLEMENT',
-          categoryLabel: '매입정산',
-          title: `[${s.vendorName || '매입처'}] ${s.settlementYm || ''} 정산 승인`,
-          subText: `청구총액 ₩${(s.totalAmount || 0).toLocaleString()}원 • ${s.settlementType || '매입'}`,
-          amount: s.totalAmount || 0,
-          createdAt: s.createdAt,
-          rawItem: s,
-        });
-      });
-
-    // 3) 월별 급여 마감 승인 요청
-    (payrollClosings || [])
-      .filter(pc => pc.status === 'DRAFT')
-      .forEach(pc => {
-        list.push({
-          id: pc.month,
-          category: 'PAYROLL',
-          categoryLabel: '급여마감',
-          title: `${pc.month} 정기 급여 마감 승인`,
-          subText: `상태: 임시 저장 • 경영진 최종 승인 필요`,
-          createdAt: pc.createdAt,
-          rawItem: pc,
-        });
-      });
-
-    return list;
-  }, [consumablePurchases, purchaseSettlements, payrollClosings]);
-
-  // 실데이터 결재 승인 핸들러 (헌장 5.2 준수 + 연관 Todo 동시 완료)
-  const handleApproveItem = async (item: typeof pendingApprovals[0]) => {
-    try {
-      const nowIso = new Date().toISOString();
-      const approverName = currentUser?.name || '대표이사';
-
-      if (item.category === 'CONSUMABLE') {
-        db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', item.id, {
-          status: 'ACCEPTED',
-          acceptedDate: nowIso,
-          accepterId: currentUser?.id,
-          accepterName: approverName,
-          updatedAt: nowIso,
-        });
-      } else if (item.category === 'SETTLEMENT') {
-        db.updateRow<PurchaseSettlement>('purchaseSettlements', item.id, {
-          status: 'CONFIRMED',
-          confirmedAt: nowIso,
-          updatedAt: nowIso,
-        });
-      } else if (item.category === 'PAYROLL') {
-        await setPayrollClosingStatus(item.id, 'APPROVED', approverName);
-      }
-
-      // 연관 Todo 자동 완료 처리
-      const allTodos = db.todos || [];
-      allTodos.forEach((t: Todo) => {
-        if (!t.isCompleted && (t.entityId === item.id || t.relatedEntityId === item.id)) {
-          db.updateRow<Todo>('todos', t.id, { isCompleted: true });
-        }
-      });
-
-      await db.awaitPendingWrites();
-      refreshAllData();
-      triggerToast(`[${item.categoryLabel}] ${item.title} 건이 정식 승인되었습니다.`);
-    } catch (err: any) {
-      showErrorModal(`승인 처리 실패: ${err?.message || err}`);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4 pb-24 p-4 font-sans text-slate-100">
       {/* 토스트 */}
@@ -349,169 +194,8 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         </div>
       )}
 
-      {/* ── 0. 경영진 미결 업무/보고 피드 (있는 경우 최상단 표시) ── */}
-      {executiveTodos.length > 0 && (
-        <div className="bg-slate-900 border-2 border-amber-500/60 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
-                <Bell className="w-4 h-4" />
-              </div>
-              <span className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
-                경영진 보고 및 미결 업무
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-              <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {executiveTodos.length}건 대기
-              </span>
-            </div>
-          </div>
-
-          {/* 유형별 필터 칩 (PC 대시보드와 동일 조건) */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {([
-              { id: 'ALL', label: `전체 ${taskGroupCounts.all}` },
-              { id: 'ASSIGN', label: `장비 할당 ${taskGroupCounts.assign}` },
-              { id: 'INSPECTION', label: `출고 검수 ${taskGroupCounts.inspection}` },
-              { id: 'DISPATCH', label: `배차·운송 ${taskGroupCounts.dispatch}` },
-              { id: 'OTHER', label: `정비·기타 ${taskGroupCounts.other}` },
-            ] as { id: 'ALL' | 'ASSIGN' | 'INSPECTION' | 'DISPATCH' | 'OTHER'; label: string }[]).map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setTaskCategoryFilter(tab.id)}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-black border transition-all ${
-                  taskCategoryFilter === tab.id
-                    ? 'bg-amber-600 text-white border-amber-500'
-                    : 'bg-slate-800 text-slate-300 border-slate-700'
-                }`}
-                style={{ whiteSpace: 'nowrap' }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {filteredExecutiveTodos.map(task => {
-              const targetTab = resolveMobileTabForTask(task) as MobileTabType | null;
-              const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
-              const isPackageResend = task.taskCategory === 'CONTRACT_PACKAGE_RESEND';
-              const { menuLabel, deptLabel } = getTaskDisplayBadges(task);
-              const priorityBg = task.priority === 'URGENT'
-                ? 'bg-red-500/20 text-red-300 border-red-500/40'
-                : task.priority === 'HIGH'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-blue-500/20 text-blue-300 border-blue-500/40';
-
-              return (
-                <div
-                  key={task.id}
-                  className={`p-3 rounded-xl border flex flex-col gap-2 ${
-                    isDirective
-                      ? 'bg-red-950/40 border-red-500/60'
-                      : isPackageResend
-                      ? 'bg-indigo-950/40 border-indigo-500/60'
-                      : 'bg-slate-800 border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {isDirective ? (
-                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-red-600 text-white" style={{ whiteSpace: 'nowrap' }}>
-                          특별지시
-                        </span>
-                      ) : isPackageResend ? (
-                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-indigo-600 text-white flex items-center gap-1" style={{ whiteSpace: 'nowrap' }}>
-                          <FileText className="w-3 h-3" /> 패키지 재발송
-                        </span>
-                      ) : (
-                        <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border ${priorityBg}`} style={{ whiteSpace: 'nowrap' }}>
-                          {task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반'}
-                        </span>
-                      )}
-                      {menuLabel && (
-                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40" style={{ whiteSpace: 'nowrap' }}>
-                          {menuLabel}
-                        </span>
-                      )}
-                      {task.dueDate && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap' }}>
-                          마감 {task.dueDate}
-                        </span>
-                      )}
-                    </div>
-                    {task.createdAt && (
-                      <span className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {task.createdAt.substring(5, 10)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="text-xs font-black text-white leading-snug">{task.title}</div>
-                    {task.content && (
-                      <div className="text-[11px] text-slate-200 mt-1 whitespace-pre-line">{task.content}</div>
-                    )}
-                    <div className="text-[10px] text-slate-300 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>발행: {task.senderName || '시스템'}</span>
-                      {deptLabel && <span>담당부서: {deptLabel}</span>}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-700">
-                    {isPackageResend && (
-                      <span
-                        className="px-2 py-1 rounded-lg bg-slate-700/80 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center gap-1 flex-shrink-0"
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        <FileText className="w-3 h-3" />
-                        <span>PC 에이전트에서 발송</span>
-                      </span>
-                    )}
-                    {targetTab && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const payload = buildTaskNavigationPayload(task);
-                          if (setNavigationPayload) {
-                            setNavigationPayload(payload);
-                          }
-                          if (onOpenAsDetail && payload.ticketId && (fieldAsTickets || []).some(tk => tk.id === payload.ticketId || tk.ticketNo === payload.ticketId)) {
-                            const matchedTk = (fieldAsTickets || []).find(tk => tk.id === payload.ticketId || tk.ticketNo === payload.ticketId);
-                            if (matchedTk) {
-                              onOpenAsDetail(matchedTk.id);
-                              return;
-                            }
-                          }
-                          onNavigate(targetTab);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        <span>처리 이동</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    )}
-                    {isDirective && (
-                      <button
-                        type="button"
-                        onClick={() => handleResolveDirective(task)}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 flex-shrink-0"
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        <CheckSquare className="w-3 h-3" />
-                        <span>보고 및 완료</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── 0. 전사 결재자 통합 수신 결재 대기함 (전자결재 + 즉시결재 승인/반려) ── */}
+      <MobileApprovalInboxSection alwaysShowEmpty={true} />
 
       {/* ── 1. 상단 경영진 헤더 ── */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950/70 to-slate-950 border border-amber-500/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
@@ -656,46 +340,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         </button>
       </div>
 
-      {/* ── 4. 실데이터 기반 경영진 최종 결재 대기 큐 ── */}
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3 shadow-lg">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>경영진 최종 승인 대기</span>
-          </h3>
-          <span className="text-[11px] font-bold text-amber-400">결재 {pendingApprovals.length}건</span>
-        </div>
-
-        {pendingApprovals.length === 0 ? (
-          <div className="p-4 text-center text-xs text-slate-300 bg-slate-800 border border-slate-700 rounded-xl">
-            현재 경영진 최종 결재 대기 건이 없습니다.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {pendingApprovals.map((item) => (
-              <div key={item.id} className="p-3 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-between text-xs">
-                <div className="min-w-0 pr-2">
-                  <div className="font-bold text-white flex items-center gap-1.5 truncate">
-                    <span className="text-amber-300 font-mono flex-shrink-0">[{item.categoryLabel}]</span>
-                    <span className="truncate">{item.title}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-300 mt-0.5 truncate">{item.subText}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleApproveItem(item)}
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex-shrink-0 active:scale-95 transition-transform shadow-sm"
-                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  승인
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── 5. 고위험 상습연체 거래처 & 영업지시/출고금지 ── */}
+      {/* ── 4. 고위험 상습연체 거래처 & 영업지시/출고금지 ── */}
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-4 flex flex-col gap-3 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-rose-400 flex items-center gap-1.5">

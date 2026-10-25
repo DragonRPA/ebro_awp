@@ -8,6 +8,7 @@ import {
 import { MobileTabType } from '../MobileBottomNav';
 import { db, BankTransaction, Todo, PaymentDepositLink } from '../../services/db';
 import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask, getTaskDisplayBadges } from '../../utils/taskHandoverPipeline';
+import { MobileApprovalInboxSection } from '../components/MobileApprovalInboxSection';
 
 interface MobileAdminHomeProps {
   onNavigate: (tab: MobileTabType) => void;
@@ -210,6 +211,9 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
           {toast}
         </div>
       )}
+
+      {/* ── 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 ── */}
+      <MobileApprovalInboxSection />
 
       {/* ── 0. 관리부 미결 업무 피드 ── */}
       {adminTodos.length > 0 && (

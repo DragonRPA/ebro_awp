@@ -13,6 +13,7 @@ import { CallAudioUploadModal } from '../../components/CallAudioUploadModal';
 import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask as resolveCanonicalMobileTab, getTaskDisplayBadges, resolveTaskMenuId } from '../../utils/taskHandoverPipeline';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
 import { db, Todo } from '../../services/db';
+import { MobileApprovalInboxSection } from '../components/MobileApprovalInboxSection';
 
 interface MobileHomeProps {
   deptMode: MobileDeptMode;
@@ -399,6 +400,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         `}} />
 
+        {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
+        <MobileApprovalInboxSection />
+
         {/* 직무 맞춤형 미결 과제 ToDo 피드 */}
         {renderTodoFeedSection('indigo')}
 
@@ -572,6 +576,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         `}} />
 
+        {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
+        <MobileApprovalInboxSection />
+
         {/* 직무 맞춤형 당면 과제 ToDo 피드 */}
         {renderTodoFeedSection('emerald')}
 
@@ -734,6 +741,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
         details[open] summary ~ * { animation: slideDown 0.2s ease-out; }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
       `}} />
+
+      {/* 결재자(팀장/부장/임원/합의자) 수신 결재 대기함 */}
+      <MobileApprovalInboxSection />
 
       {/* 직무 맞춤형 당면 과제 ToDo 피드 */}
       {renderTodoFeedSection('amber')}

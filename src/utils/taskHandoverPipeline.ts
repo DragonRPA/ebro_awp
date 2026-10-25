@@ -969,12 +969,14 @@ export function matchesDepartmentTask(
   t: Todo,
   deptMode: 'SALES' | 'OUTBOUND' | 'AS' | 'ADMIN' | 'EXECUTIVE'
 ): boolean {
-  if (deptMode === 'EXECUTIVE') return true;
-
   const taskMenuId = resolveTaskMenuId(t);
   const cat = (t.taskCategory || '').toUpperCase();
   const td = (t.targetDept || '').toUpperCase();
   const title = t.title || '';
+
+  if (deptMode === 'EXECUTIVE') {
+    return td === 'EXECUTIVE' || td.includes('경영') || td.includes('대표');
+  }
 
   if (deptMode === 'SALES') {
     return (
@@ -1115,14 +1117,14 @@ export function findActiveTasksForUser(
 
   const rawDept = (currentUser.department || '').toUpperCase();
   const rawRole = (currentUser.role || '').toUpperCase();
+  const rawPos = ((currentUser as any).position || '').toUpperCase();
   const rawIsExec =
     rawDept.includes('경영') ||
     rawDept.includes('대표') ||
-    rawDept.includes('개발') ||
-    rawRole === 'ADMIN' ||
-    rawRole === 'MASTER' ||
-    rawRole === 'EXECUTIVE' ||
-    rawRole === 'DEVELOPER';
+    rawPos.includes('대표') ||
+    rawPos.includes('사장') ||
+    rawPos.includes('임원') ||
+    rawRole === 'EXECUTIVE';
 
   // 사용자의 실제 소속 부서 판별
   const naturalSales = rawDept.includes('SALES') || rawDept.includes('영업') || rawRole.includes('SALES');
@@ -1155,13 +1157,16 @@ export function findActiveTasksForUser(
     const taskMenuId = resolveTaskMenuId(t);
     const td = (t.targetDept || '').toUpperCase();
 
-    // 1. 특정 개인에게 지정된 건은 타 일반 직원은 볼 수 없음 (격리)
+    // 1. 특정 개인에게 지정된 건은 타 직원은 볼 수 없음 (격리)
     if (t.targetType === 'USER' && t.assignedUserId && t.assignedUserId !== currentUser.id) {
-      return isExec;
+      return false;
     }
 
-    // 2. 최고관리자/경영진/개발자는 전사 미결 업무를 모두 조망 가능 (부서 특정 모드가 아닐 때)
-    if (isExec) return true;
+    // 2. 경영진(EXECUTIVE)은 전사 모든 부서의 일반 미결 업무를 조회하지 않고, 경영진 직접 지정 건만 표시
+    if (isExec) {
+      if (t.assignedUserId && t.assignedUserId === currentUser.id) return true;
+      return matchesDepartmentTask(t, 'EXECUTIVE');
+    }
 
     // 3. 본인에게 직접 지정된 개인 ToDo (본인 소속 부서 뷰이거나 해당 부서 성격에 부합할 때)
     if (t.assignedUserId && t.assignedUserId === currentUser.id) {
