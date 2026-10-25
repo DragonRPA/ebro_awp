@@ -7,6 +7,7 @@ import {
   Clock, CheckCircle, Image as ImageIcon 
 } from 'lucide-react';
 import { CameraUploader } from './CameraUploader';
+import { canViewUnitPrice } from '../../utils/userDepartmentHelper';
 
 export interface MobileYardRepairModalProps {
   isOpen: boolean;
@@ -25,9 +26,11 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
   onCompleted
 }) => {
   const { 
-    consumables, registerRepair, currentUser, 
+    consumables, registerRepair, currentUser, departments,
     showErrorModal, inspectionChecklistItems 
   } = useApp();
+
+  const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
 
   const [repairDetails, setRepairDetails] = useState('');
   const [billableType, setBillableType] = useState<'FREE' | 'BILLABLE'>('FREE');
@@ -511,9 +514,15 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
                 <Package className="w-3.5 h-3.5 text-blue-400" />
                 주기장 재고 소모품 투입
               </span>
-              <span className="text-[11px] font-bold text-blue-400 font-mono">
-                소모품 합계: {totalConsumablesCost.toLocaleString()}원
-              </span>
+              {showUnitPrice ? (
+                <span className="text-[11px] font-bold text-blue-400 font-mono">
+                  소모품 합계: {totalConsumablesCost.toLocaleString()}원
+                </span>
+              ) : (
+                <span className="text-[11px] font-bold text-blue-400 font-mono">
+                  투입 품목: {usedConsumables.length}종
+                </span>
+              )}
             </div>
 
             {/* 품목 선택 & 수량 & 투입 */}
@@ -526,7 +535,9 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
                 <option value="">주기장 재고 소모품 선택...</option>
                 {consumables.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.modelName} (재고: {c.stockQty || 0} | ₩{c.unitPrice.toLocaleString()})
+                    {showUnitPrice
+                      ? `${c.modelName} (재고: ${c.stockQty || 0} | ₩${c.unitPrice.toLocaleString()})`
+                      : `${c.modelName} (재고: ${c.stockQty || 0}${c.unit || '개'})`}
                   </option>
                 ))}
               </select>
@@ -558,7 +569,9 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
                         {item?.modelName || uc.consumableId} ({uc.quantity}{item?.unit || '개'})
                       </span>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-slate-300">{subtotal.toLocaleString()}원</span>
+                        {showUnitPrice && (
+                          <span className="font-mono text-slate-300">{subtotal.toLocaleString()}원</span>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleRemoveConsumable(uc.consumableId)}

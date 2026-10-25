@@ -37,6 +37,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     customers,
     sites,
     contractHistory,
+    outboundInspections,
     batchAssignAssetsToContract,
     unassignAssetFromContract,
     showErrorModal,
@@ -88,59 +89,244 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     return s?.name || '현장 미지정';
   };
 
-  // 4. 교환 여부 판정
-  const isExchangeContract = (contractId: string): boolean => {
-    return (contractHistory || []).some(h => h.contractId === contractId && h.changeType === 'EXCHANGE');
+  // 4. O(1) 해시맵 및 기출고(대여중/검수완료/반납) 슬롯 원천 배제 (PC asset_assignment.tsx 100% 동기화)
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+
+  const activeContractIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (contracts || []).forEach(c => {
+      const st = (c.status || '').toUpperCase();
+      if (st !== 'TERMINATED' && st !== 'CANCELLED' && st !== 'COMPLETED') {
+        set.add(c.id);
+      }
+    });
+    return set;
+  }, [contracts]);
+
+  const completedInspectionCaIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (outboundInspections || []).forEach(ins => {
+      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
+        set.add((ins as any).contractAssetId);
+      }
+    });
+    return set;
+  }, [outboundInspections]);
+
+  // 과거 이미 출고 완료되어 대여중(RENTED)이거나 반납/매각된 슬롯은 장비할당 대상에서 원천 제외
+  const contractAssetsByContractMap = useMemo(() => {
+    const map = new Map<string, typeof contractAssets>();
+    (contractAssets || []).forEach(ca => {
+      if (!ca.contractId || !activeContractIdSet.has(ca.contractId)) return;
+      if (ca.status === 'RETURNED' || ca.status === 'SOLD') return;
+
+      if (ca.assetId) {
+        const assignedAsset = assetMap.get(ca.assetId);
+        const isAlreadyDispatched =
+          ca.status === 'RENTED' ||
+          assignedAsset?.status === 'RENTED' ||
+          completedInspectionCaIdSet.has(ca.id);
+        if (isAlreadyDispatched) return;
+      }
+
+      let list = map.get(ca.contractId);
+      if (!list) {
+        list = [];
+        map.set(ca.contractId, list);
+      }
+      list.push(ca);
+    });
+    return map;
+  }, [contractAssets, activeContractIdSet, assetMap, completedInspectionCaIdSet]);
+
+  const exchangeHistoryByContractMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (contractHistory || []).forEach(h => {
+      if (h.changeType === 'EXCHANGE' && h.contractId && !map.has(h.contractId)) {
+        map.set(h.contractId, h);
+      }
+    });
+    return map;
+  }, [contractHistory]);
+
+  const extractCaIdsFromDelivery = (d: any): string[] => {
+    if (!d?.cargoItems) return [];
+    try {
+      const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+      if (!Array.isArray(raw)) return [];
+      const ids: string[] = [];
+      raw.forEach((ci: any) => {
+        if (Array.isArray(ci?.contractAssetIds)) {
+          ids.push(...ci.contractAssetIds.filter(Boolean));
+        }
+      });
+      return ids;
+    } catch {
+      return [];
+    }
   };
 
-  // 5. 전사 미할당 슬롯 및 미할당 계약 집계
-  const allUnassignedSlots = useMemo(() => {
-    return contractAssets.filter(ca => !ca.assetId);
-  }, [contractAssets]);
+  interface MobileAssignmentRequestGroup {
+    groupKey: string;
+    contract: (typeof contracts)[number];
+    delivery?: (typeof deliveries)[number];
+    slots: typeof contractAssets;
+    pendingCount: number;
+    isExchange: boolean;
+    requestDate: string;
+    scheduledDate: string;
+    createdAt: string;
+  }
 
-  const unassignedContractIdSet = useMemo(() => {
-    return new Set(allUnassignedSlots.map(ca => ca.contractId));
-  }, [allUnassignedSlots]);
+  // 5. 출고 요청 건(Delivery) 단위 개별 그룹핑 (PC asset_assignment.tsx 동일 로직)
+  const { groupMap, pendingGroups, totalUnassignedContractsCount, totalUnassignedSlotsCount } = useMemo(() => {
+    const allGroups: MobileAssignmentRequestGroup[] = [];
+    const gMap = new Map<string, MobileAssignmentRequestGroup>();
 
-  const totalUnassignedContractsCount = unassignedContractIdSet.size;
-  const totalUnassignedSlotsCount = allUnassignedSlots.length;
+    const outboundDeliveriesByContract = new Map<string, typeof deliveries>();
+    (deliveries || []).forEach(d => {
+      if (!d.contractId || d.status === 'CANCELLED') return;
+      const isOutOrEx =
+        d.type === 'OUTBOUND' ||
+        d.type === 'EXCHANGE' ||
+        d.dispatchCategory === '출고' ||
+        d.dispatchCategory === '교환' ||
+        (d as any).originalDispatchCategory === '출고' ||
+        (d as any).originalDispatchCategory === '교환';
+      if (!isOutOrEx) return;
+      let list = outboundDeliveriesByContract.get(d.contractId);
+      if (!list) {
+        list = [];
+        outboundDeliveriesByContract.set(d.contractId, list);
+      }
+      list.push(d);
+    });
 
-  // 6. 미할당 계약 목록 (검색, 필터, 대차교체 최우선 정렬)
-  const pendingContracts = useMemo(() => {
-    let list = contracts.filter(c => unassignedContractIdSet.has(c.id));
+    for (let i = 0; i < contracts.length; i++) {
+      const c = contracts[i];
+      const activePreInspSlots = contractAssetsByContractMap.get(c.id) || [];
+      if (activePreInspSlots.length === 0) continue;
+
+      const cDeliveries = (outboundDeliveriesByContract.get(c.id) || []).slice().sort((a, b) => {
+        return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
+      });
+
+      const claimedCaIds = new Set<string>();
+      const contractGroups: MobileAssignmentRequestGroup[] = [];
+
+      for (const d of cDeliveries) {
+        const dCaIds = extractCaIdsFromDelivery(d);
+        if (dCaIds.length === 0) continue;
+        const dCaIdSet = new Set(dCaIds);
+        const matchedSlots = activePreInspSlots.filter(ca => dCaIdSet.has(ca.id) && !claimedCaIds.has(ca.id));
+        if (matchedSlots.length === 0) continue;
+        matchedSlots.forEach(ca => claimedCaIds.add(ca.id));
+
+        const pCount = matchedSlots.filter(ca => !ca.assetId).length;
+        const isEx =
+          d.type === 'EXCHANGE' ||
+          d.dispatchCategory === '교환' ||
+          (d as any).originalDispatchCategory === '교환' ||
+          (exchangeHistoryByContractMap.has(c.id) && pCount > 0 && cDeliveries.length === 1);
+        const schedDate = (
+          d.loadingDate ||
+          d.scheduledDate ||
+          matchedSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          ''
+        ).slice(0, 10);
+
+        contractGroups.push({
+          groupKey: `DLV:${d.id}`,
+          contract: c,
+          delivery: d,
+          slots: matchedSlots,
+          pendingCount: pCount,
+          isExchange: Boolean(isEx),
+          requestDate: (d.requestDate || (d.createdAt ? d.createdAt.slice(0, 10) : '')).slice(0, 10),
+          scheduledDate: schedDate,
+          createdAt: d.createdAt || d.requestDate || c.createdAt || ''
+        });
+      }
+
+      const remainingSlots = activePreInspSlots.filter(ca => !claimedCaIds.has(ca.id));
+      if (remainingSlots.length > 0) {
+        const fallbackDeliv = cDeliveries.find(d => extractCaIdsFromDelivery(d).length === 0) || (contractGroups.length === 0 ? cDeliveries[0] : undefined);
+        const pCount = remainingSlots.filter(ca => !ca.assetId).length;
+        const isEx =
+          (fallbackDeliv && (fallbackDeliv.type === 'EXCHANGE' || fallbackDeliv.dispatchCategory === '교환' || (fallbackDeliv as any).originalDispatchCategory === '교환')) ||
+          (exchangeHistoryByContractMap.has(c.id) && pCount > 0);
+        const schedDate = (
+          fallbackDeliv?.loadingDate ||
+          fallbackDeliv?.scheduledDate ||
+          remainingSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          ''
+        ).slice(0, 10);
+
+        contractGroups.push({
+          groupKey: c.id,
+          contract: c,
+          delivery: fallbackDeliv,
+          slots: remainingSlots,
+          pendingCount: pCount,
+          isExchange: Boolean(isEx),
+          requestDate: (fallbackDeliv?.requestDate || (c.createdAt ? c.createdAt.slice(0, 10) : '')).slice(0, 10),
+          scheduledDate: schedDate,
+          createdAt: fallbackDeliv?.createdAt || c.createdAt || ''
+        });
+      }
+
+      for (const grp of contractGroups) {
+        gMap.set(grp.groupKey, grp);
+        allGroups.push(grp);
+      }
+    }
+
+    // 미할당 슬롯이 남아있는 출고 요청 그룹만 기본 대상
+    const incompleteGroups = allGroups.filter(grp => grp.pendingCount > 0);
+    const totalPendingSlots = incompleteGroups.reduce((sum, g) => sum + g.pendingCount, 0);
+
+    let list = incompleteGroups.slice();
 
     // 검색어 필터링
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
-      list = list.filter(c => {
+      list = list.filter(grp => {
+        const c = grp.contract;
         const custName = getCustomerName(c.customerId).toLowerCase();
         const siteName = getSiteName(c.siteId).toLowerCase();
         const cNo = (c.contractNo || '').toLowerCase();
-        const slots = contractAssets.filter(ca => ca.contractId === c.id);
-        const modelMatch = slots.some(ca => (ca.expectedModel || '').toLowerCase().includes(q));
+        const modelMatch = grp.slots.some(ca => (ca.expectedModel || '').toLowerCase().includes(q));
         return custName.includes(q) || siteName.includes(q) || cNo.includes(q) || modelMatch;
       });
     }
 
     // 탭 필터링
     if (filterTab === 'EXCHANGE') {
-      list = list.filter(c => isExchangeContract(c.id));
+      list = list.filter(grp => grp.isExchange);
     } else if (filterTab === 'NORMAL') {
-      list = list.filter(c => !isExchangeContract(c.id));
+      list = list.filter(grp => !grp.isExchange);
     }
 
-    // 정렬: 교환 우선, 이후 출고일자 오름차순
-    return list.sort((a, b) => {
-      const aEx = isExchangeContract(a.id) ? 1 : 0;
-      const bEx = isExchangeContract(b.id) ? 1 : 0;
+    // 정렬: 교환 우선, 이후 최신 출고 요청일시 순
+    list.sort((a, b) => {
+      const aEx = a.isExchange ? 1 : 0;
+      const bEx = b.isExchange ? 1 : 0;
       if (aEx !== bEx) return bEx - aEx;
-      return (a.startDate || '').localeCompare(b.startDate || '');
+      return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
     });
-  }, [contracts, unassignedContractIdSet, searchQuery, filterTab, contractHistory, contractAssets, customers, sites]);
 
-  // 7. 특정 계약의 모델별 슬롯 요약 정보
-  const getContractModelSummary = (contractId: string) => {
-    const slots = contractAssets.filter(ca => ca.contractId === contractId);
+    return {
+      groupMap: gMap,
+      pendingGroups: list,
+      totalUnassignedContractsCount: incompleteGroups.length,
+      totalUnassignedSlotsCount: totalPendingSlots
+    };
+  }, [contracts, deliveries, contractAssetsByContractMap, exchangeHistoryByContractMap, searchQuery, filterTab, customers, sites]);
+
+  // 7. 특정 출고 요청 그룹의 모델별 슬롯 요약 정보 (이번 출고 요청 대상 슬롯만 집계)
+  const getGroupModelSummary = (slots: typeof contractAssets) => {
     const map = new Map<string, { total: number; pending: number; name: string }>();
     slots.forEach(slot => {
       const raw = slot.expectedModel || '미지정';
@@ -151,19 +337,34 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       if (raw.includes('-') && !curr.name.includes('-')) curr.name = raw;
       map.set(key, curr);
     });
-    return Array.from(map.values());
+    // 이번 출고 요청에서 미할당이 남아있는 모델 또는 이번 출고 요청 슬롯만 노출
+    const allModels = Array.from(map.values());
+    const hasPending = allModels.some(m => m.pending > 0);
+    return hasPending ? allModels.filter(m => m.pending > 0) : allModels;
   };
 
-  // 8. 현재 선택된 계약 정보 및 슬롯 목록
-  const activeContract = useMemo(() => {
+  // 8. 현재 선택된 출고 요청 그룹 및 슬롯 목록
+  const activeGroup = useMemo(() => {
     if (!selectedContractId) return null;
-    return contracts.find(c => c.id === selectedContractId) || null;
-  }, [contracts, selectedContractId]);
+    const direct = groupMap.get(selectedContractId);
+    if (direct) return direct;
+    // contractId로 넘어온 경우 해당 계약의 첫 번째 미할당 그룹 또는 첫 그룹 반환
+    const allForContract = Array.from(groupMap.values()).filter(g => g.contract.id === selectedContractId);
+    return allForContract.find(g => g.pendingCount > 0) || allForContract[0] || null;
+  }, [groupMap, selectedContractId]);
+
+  const activeContract = useMemo(() => {
+    if (activeGroup) return activeGroup.contract;
+    if (!selectedContractId) return null;
+    const rawId = selectedContractId.startsWith('DLV:') ? selectedContractId.slice(4) : selectedContractId;
+    return contracts.find(c => c.id === rawId) || null;
+  }, [activeGroup, contracts, selectedContractId]);
 
   const activeContractSlots = useMemo(() => {
+    if (activeGroup) return activeGroup.slots;
     if (!selectedContractId) return [];
-    return contractAssets.filter(ca => ca.contractId === selectedContractId);
-  }, [contractAssets, selectedContractId]);
+    return contractAssetsByContractMap.get(selectedContractId) || [];
+  }, [activeGroup, contractAssetsByContractMap, selectedContractId]);
 
   const activeUnassignedSlots = useMemo(() => {
     return activeContractSlots.filter(ca => !ca.assetId);
@@ -173,13 +374,14 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     return activeContractSlots.filter(ca => !!ca.assetId);
   }, [activeContractSlots]);
 
-  // 9. 계약 카드 탭 시 스튜디오 진입 (첫 번째 미할당 모델 슬롯 자동 포커스)
-  const handleSelectContract = (contractId: string) => {
-    setSelectedContractId(contractId);
+  // 9. 출고 요청 카드 탭 시 스튜디오 진입 (첫 번째 미할당 모델 슬롯 자동 포커스)
+  const handleSelectContract = (groupKey: string) => {
+    setSelectedContractId(groupKey);
     setSelectedAssetIds([]);
     setLastAssignedSuccessCount(null);
 
-    const slots = contractAssets.filter(ca => ca.contractId === contractId && !ca.assetId);
+    const grp = groupMap.get(groupKey) || Array.from(groupMap.values()).find(g => g.contract.id === groupKey && g.pendingCount > 0);
+    const slots = (grp ? grp.slots : (contractAssetsByContractMap.get(groupKey) || [])).filter(ca => !ca.assetId);
     if (slots.length > 0) {
       const firstModelKey = normalizeModelKey(slots[0].expectedModel);
       const firstModelSlotIds = slots
@@ -197,19 +399,28 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     const { contractId, deliveryId } = navigationPayload;
     if (!contractId && !deliveryId) return;
 
+    if (deliveryId && groupMap.has(`DLV:${deliveryId}`)) {
+      setFilterTab('ALL');
+      setSearchQuery('');
+      handleSelectContract(`DLV:${deliveryId}`);
+      setNavigationPayload(null);
+      return;
+    }
+
     let resolvedContractId = contractId;
     if (!resolvedContractId && deliveryId) {
       const del = (deliveries || []).find(d => d.id === deliveryId);
       if (del?.contractId) resolvedContractId = del.contractId;
     }
 
-    if (resolvedContractId && contracts.some(c => c.id === resolvedContractId)) {
+    if (resolvedContractId) {
+      const targetGrp = Array.from(groupMap.values()).find(g => g.contract.id === resolvedContractId && g.pendingCount > 0);
       setFilterTab('ALL');
       setSearchQuery('');
-      handleSelectContract(resolvedContractId);
+      handleSelectContract(targetGrp ? targetGrp.groupKey : resolvedContractId);
       setNavigationPayload(null);
     }
-  }, [navigationPayload, contracts, deliveries, contractAssets]);
+  }, [navigationPayload, contracts, deliveries, groupMap]);
 
   // 10. 가용 장비 풀 필터링 (선택된 슬롯 요구모델 매칭 & 정비점수 오름차순, 가상자산 제외)
   const availableAssets = useMemo(() => {
@@ -587,33 +798,35 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
               </div>
             </div>
 
-            {/* 계약 카드 목록 */}
+            {/* 출고 요청 카드 목록 */}
             <div className="flex flex-col gap-2.5">
-              {pendingContracts.length === 0 ? (
+              {pendingGroups.length === 0 ? (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 text-center text-slate-400 flex flex-col items-center gap-2">
                   <CheckCircle2 className="w-10 h-10 text-emerald-500/80 mb-1" />
-                  <div className="text-sm font-bold text-slate-200">미할당 계약 없음</div>
+                  <div className="text-sm font-bold text-slate-200">미할당 출고 요청 없음</div>
                   <div className="text-xs text-slate-400">
-                    {searchQuery ? '검색 조건과 일치하는 미할당 계약이 없습니다.' : '모든 계약의 장비 할당이 완료되었습니다.'}
+                    {searchQuery ? '검색 조건과 일치하는 출고 요청이 없습니다.' : '모든 출고 요청의 장비 할당이 완료되었습니다.'}
                   </div>
                 </div>
               ) : (
-                pendingContracts.map((c) => {
-                  const isEx = isExchangeContract(c.id);
-                  const modelSummaries = getContractModelSummary(c.id);
-                  const totalPendingForThis = modelSummaries.reduce((sum, m) => sum + m.pending, 0);
+                pendingGroups.map((grp) => {
+                  const c = grp.contract;
+                  const isEx = grp.isExchange;
+                  const modelSummaries = getGroupModelSummary(grp.slots);
+                  const totalPendingForThis = grp.pendingCount;
+                  const displayOutDate = grp.scheduledDate || c.startDate || '미정';
 
                   return (
                     <div
-                      key={c.id}
-                      onClick={() => handleSelectContract(c.id)}
+                      key={grp.groupKey}
+                      onClick={() => handleSelectContract(grp.groupKey)}
                       className={`rounded-xl p-3.5 flex flex-col gap-2.5 border shadow-sm active:scale-[0.99] transition-all cursor-pointer ${
                         isEx
                           ? 'bg-rose-950/15 border-rose-900/60 hover:border-rose-700'
                           : 'bg-slate-900 border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      {/* 카드 상단: 계약번호 & 대차교체 배지 & 미할당 카운트 */}
+                      {/* 카드 상단: 계약번호 & 교환 배지 & 미할당 카운트 */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           {isEx && (
@@ -651,14 +864,14 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           <span className="text-slate-400 whitespace-nowrap shrink-0">출고일:</span>
-                          <span className="font-semibold text-slate-200 whitespace-nowrap shrink-0">{c.startDate || '미정'}</span>
+                          <span className="font-semibold text-slate-200 whitespace-nowrap shrink-0">{displayOutDate}</span>
                         </div>
                         <div className="text-[11px] text-slate-400 whitespace-nowrap shrink-0">
-                          {c.startDate} ~ {c.endDate}
+                          {displayOutDate} ~ {c.endDate}
                         </div>
                       </div>
 
-                      {/* 모델별 슬롯 요약 배지 목록 */}
+                      {/* 이번 출고 요청 모델별 슬롯 요약 배지 목록 */}
                       <div className="flex flex-wrap gap-1 pt-1">
                         {modelSummaries.map((m) => (
                           <span
@@ -669,7 +882,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                                 : 'bg-slate-950/50 text-slate-400 border-slate-800 line-through'
                             }`}
                           >
-                            {m.name}: {m.pending}대 미할당 (총 {m.total}대)
+                            {m.name}: {m.pending}대 미할당 (요청 {m.total}대)
                           </span>
                         ))}
                       </div>
@@ -681,15 +894,15 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
           </>
         ) : (
           /* ========================================================================= */
-          /* 🛠️ 뷰 2: 선택된 계약의 장비 할당 스튜디오           */
+          /* 🛠️ 뷰 2: 선택된 출고 요청의 장비 할당 스튜디오           */
           /* ========================================================================= */
           <>
-            {/* 상단: 계약 컨텍스트 요약 카드 */}
+            {/* 상단: 출고 요청 컨텍스트 요약 카드 */}
             {activeContract && (
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    {isExchangeContract(activeContract.id) && (
+                    {activeGroup?.isExchange && (
                       <span className="text-[11px] px-2 py-0.5 rounded font-bold whitespace-nowrap shrink-0 bg-rose-600 text-white">
                         교환
                       </span>
@@ -709,7 +922,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                     }}
                     className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 whitespace-nowrap shrink-0"
                   >
-                    <span>계약 목록 변경</span>
+                    <span>요청 목록 변경</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -724,8 +937,8 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/80">
-                  <span>출고일: <strong className="text-slate-200">{activeContract.startDate}</strong></span>
-                  <span>기간: {activeContract.startDate} ~ {activeContract.endDate}</span>
+                  <span>출고일: <strong className="text-slate-200">{activeGroup?.scheduledDate || activeContract.startDate}</strong></span>
+                  <span>기간: {activeGroup?.scheduledDate || activeContract.startDate} ~ {activeContract.endDate}</span>
                 </div>
               </div>
             )}
@@ -755,13 +968,13 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
               </div>
             )}
 
-            {/* ── 섹션 1: 미할당 슬롯 선택 목록 ── */}
+            {/* ── 섹션 1: 이번 출고 요청 미할당 슬롯 선택 목록 ── */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <Layers className="w-4 h-4 text-blue-400 shrink-0" />
                   <span className="text-xs font-bold text-slate-200 whitespace-nowrap shrink-0">
-                    미할당 슬롯 ({activeUnassignedSlots.length}대 잔여)
+                    이번 출고 요청 미할당 슬롯 ({activeUnassignedSlots.length}대 잔여)
                   </span>
                 </div>
 
@@ -776,9 +989,44 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                 )}
               </div>
 
+              {/* 모델별 일괄 선택 칩 (이번 출고 요청 모델만 노출) */}
+              {activeUnassignedSlots.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {getGroupModelSummary(activeContractSlots)
+                    .filter(m => m.pending > 0)
+                    .map(m => {
+                      const modelKey = normalizeModelKey(m.name);
+                      const modelSlotIds = activeUnassignedSlots
+                        .filter(ca => normalizeModelKey(ca.expectedModel) === modelKey)
+                        .map(ca => ca.id);
+                      const isModelAllSelected =
+                        modelSlotIds.length > 0 &&
+                        modelSlotIds.every(id => selectedCaIds.includes(id)) &&
+                        selectedCaIds.length === modelSlotIds.length;
+                      return (
+                        <button
+                          key={m.name}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCaIds(modelSlotIds);
+                            setSelectedAssetIds([]);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap transition-colors ${
+                            isModelAllSelected
+                              ? 'bg-blue-600 text-white border-blue-500'
+                              : 'bg-slate-950 text-blue-300 border-slate-700 hover:border-blue-500'
+                          }`}
+                        >
+                          {m.name} ({m.pending}대 선택)
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+
               {activeUnassignedSlots.length === 0 ? (
                 <div className="p-4 text-center text-xs text-emerald-400 font-medium bg-emerald-950/20 border border-emerald-900/40 rounded-lg">
-                  ✓ 이 계약의 모든 슬롯 장비 할당이 완료되었습니다.
+                  ✓ 이번 출고 요청의 모든 슬롯 장비 할당이 완료되었습니다.
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-0.5">
@@ -805,7 +1053,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                               슬롯 #{idx + 1}: {ca.expectedModel || '모델 미지정'}
                             </span>
                             <span className="text-[11px] text-slate-400 font-mono">
-                              월 ₩{(ca.monthlyRentalFee || 0).toLocaleString()}
+                              출고예정일: {ca.startDate || activeGroup?.scheduledDate || '-'}
                             </span>
                           </div>
                         </div>
@@ -909,7 +1157,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                               </div>
                               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
                                 <span>{asset.ownerType === 'OWNED' ? '자사' : '전대'}</span>
-                                {asset.serialNo && <span>· S/N: {asset.serialNo}</span>}
+                                {asset.serialNo && <span>· 제조번호: {asset.serialNo}</span>}
                               </div>
                             </div>
                           </div>

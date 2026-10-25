@@ -9,12 +9,14 @@ import {
 } from 'lucide-react';
 import { Consumable, MechanicConsumableStock, ConsumableLog, CollectedPart, User, db } from '../../services/db';
 import { matchHangul } from '../../utils/hangulSearch';
+import { canViewUnitPrice } from '../../utils/userDepartmentHelper';
 
 export type StockProcessType = 'RESTOCK' | 'RETURN' | 'USE' | 'DEFECTIVE' | 'ADJUST';
 
 export const MobileVehicleStock: React.FC = () => {
   const { 
     currentUser, 
+    departments,
     users, 
     consumables, 
     mechanicConsumableStocks, 
@@ -28,6 +30,8 @@ export const MobileVehicleStock: React.FC = () => {
     refreshAllData,
     showErrorModal
   } = useApp();
+
+  const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
 
   // 1. 최고관리자 (개발자/총괄관리자) 판별 (헌장 2.1)
   const isAdmin = useMemo(() => {
@@ -415,12 +419,22 @@ export const MobileVehicleStock: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex flex-col items-center bg-slate-950/50 rounded-xl p-2 border border-slate-800/60">
-            <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">적재 자산가치</span>
-            <span className="text-xs font-black text-emerald-400 mt-1 truncate max-w-full whitespace-nowrap">
-              {stockSummary.totalValue > 0 ? `₩${Math.round(stockSummary.totalValue / 10000).toLocaleString('ko-KR')}만원` : '₩0원'}
-            </span>
-          </div>
+          {showUnitPrice ? (
+            <div className="flex flex-col items-center bg-slate-950/50 rounded-xl p-2 border border-slate-800/60">
+              <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">적재 자산가치</span>
+              <span className="text-xs font-black text-emerald-400 mt-1 truncate max-w-full whitespace-nowrap">
+                {stockSummary.totalValue > 0 ? `₩${Math.round(stockSummary.totalValue / 10000).toLocaleString('ko-KR')}만원` : '₩0원'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center bg-slate-950/50 rounded-xl p-2 border border-slate-800/60">
+              <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">전체 등록 품목</span>
+              <span className="text-base font-black text-emerald-400 mt-0.5 whitespace-nowrap">
+                {(consumables || []).length}
+                <span className="text-[10px] text-slate-400 font-normal ml-0.5">종</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 모바일 차량 재고실사 전표 원클릭 발의 액션 */}
@@ -565,8 +579,14 @@ export const MobileVehicleStock: React.FC = () => {
                           {c.modelName}
                         </div>
                         <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5 whitespace-nowrap">
-                          <span>단가 ₩{(c.unitPrice || 0).toLocaleString()}</span>
-                          {c.supplier && <span className="text-slate-500">• {c.supplier}</span>}
+                          {showUnitPrice ? (
+                            <>
+                              <span>단가 ₩{(c.unitPrice || 0).toLocaleString()}</span>
+                              {c.supplier && <span className="text-slate-500">• {c.supplier}</span>}
+                            </>
+                          ) : (
+                            <span>{c.category ? `분류: ${c.category}` : '소모품'}{c.supplier ? ` • ${c.supplier}` : ''}</span>
+                          )}
                         </div>
                       </div>
 

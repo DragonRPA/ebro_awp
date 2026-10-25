@@ -129,3 +129,62 @@ export function resolveUserMobileDeptMode(
 
   return 'SALES';
 }
+
+/**
+ * 🔒 영업정보 보호 및 부서 간 권한 분리 (Domain R&R Policy):
+ * 렌탈료 단가, 임차료 단가, 부품/소모품 단가 등 각종 단가 정보는
+ * 오직 '영업부(SALES)'와 '관리부(ADMIN)'(및 경영진 EXECUTIVE)에만 노출하며,
+ * 출고팀(OUTBOUND) 및 AS팀(AS) 등 타 부서 화면에서는 노출을 엄격히 차단한다.
+ */
+export function canViewUnitPrice(
+  user: User | { id?: string; loginId?: string; role?: string; position?: string; departmentId?: string | null; department?: string; name?: string } | null,
+  departments: Department[] = [],
+  activeMobileDeptMode?: MobileDeptMode
+): boolean {
+  if (!user) return false;
+
+  // 1. 모바일 웹앱에서 현재 활성화된 부서 모드가 출고팀(OUTBOUND) 또는 AS팀(AS)인 경우 단가 노출 전면 차단
+  let effectiveMobileMode = activeMobileDeptMode;
+  if (!effectiveMobileMode && typeof document !== 'undefined' && document.documentElement.getAttribute('data-mobile-view') === 'true') {
+    if (isDeveloperUser(user) && typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('erp_mobile_dept') as MobileDeptMode | null;
+      if (saved) effectiveMobileMode = saved;
+    }
+  }
+  if (effectiveMobileMode === 'OUTBOUND' || effectiveMobileMode === 'AS') {
+    return false;
+  }
+
+  // 2. 사용자의 실제 소속 부서/모드 판정: 영업부(SALES), 관리부(ADMIN), 경영진(EXECUTIVE)만 허용
+  const resolvedMode = resolveUserMobileDeptMode(user, departments);
+  if (resolvedMode === 'OUTBOUND' || resolvedMode === 'AS') {
+    return false;
+  }
+
+  const deptName = getUserDepartmentName(user, departments).toUpperCase();
+  const role = (user.role || '').toUpperCase();
+
+  if (
+    deptName.includes('출고') ||
+    deptName.includes('주기장') ||
+    deptName.includes('AS') ||
+    deptName.includes('정비') ||
+    deptName.includes('외국인') ||
+    role.includes('YARD') ||
+    role.includes('MECHANIC')
+  ) {
+    return false;
+  }
+
+  if (
+    resolvedMode === 'SALES' ||
+    resolvedMode === 'ADMIN' ||
+    resolvedMode === 'EXECUTIVE' ||
+    isDeveloperUser(user)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+

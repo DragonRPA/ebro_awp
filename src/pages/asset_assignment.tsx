@@ -6,6 +6,7 @@ import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
 import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download, Calendar, RotateCcw } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { canViewUnitPrice } from '../utils/userDepartmentHelper';
 
 type AssignmentStatusFilter = 'INCOMPLETE' | 'COMPLETED' | 'ALL';
 type AssignmentPeriodFilter = 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL' | 'CUSTOM';
@@ -18,7 +19,8 @@ const formatLocalYMD = (d: Date): string => {
 };
 
 export const AssetAssignment: React.FC = () => {
-  const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory, navigationPayload, setNavigationPayload } = useApp();
+  const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory, navigationPayload, setNavigationPayload, currentUser, departments } = useApp();
+  const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
   
   const [selectedContractId, setSelectedContractId] = useState<string>('');
   
@@ -749,7 +751,7 @@ export const AssetAssignment: React.FC = () => {
       const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
       grp.slots.forEach(ca => {
         const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-        exportRows.push({
+        const row: Record<string, any> = {
           '순번': seq++,
           '구분': grp.isExchange ? '교환' : '일반계약',
           '계약번호': contract?.contractNo || '미등록',
@@ -763,10 +765,13 @@ export const AssetAssignment: React.FC = () => {
           '할당장비번호': assignedAsset?.assetNo || '-',
           '할당장비모델': assignedAsset?.modelName || '-',
           '장비상태': assignedAsset?.status === 'AVAILABLE' ? '임대가능' : assignedAsset?.status === 'RENTED' ? '대여중' : assignedAsset?.status === 'ASSIGNED' ? '배정완료' : assignedAsset?.status === 'REPAIRING' ? '정비중' : (assignedAsset?.status || '-'),
-          '월 렌탈료(원)': ca.monthlyRentalFee || 0,
-          '일 렌탈료(원)': ca.dailyRentalFee || 0,
-          '슬롯식별자': ca.id
-        });
+        };
+        if (showUnitPrice) {
+          row['월 렌탈료(원)'] = ca.monthlyRentalFee || 0;
+          row['일 렌탈료(원)'] = ca.dailyRentalFee || 0;
+        }
+        row['슬롯식별자'] = ca.id;
+        exportRows.push(row);
       });
     });
 

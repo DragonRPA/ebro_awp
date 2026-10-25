@@ -8,13 +8,15 @@ import {
 import { matchHangul } from '../../utils/hangulSearch';
 import { launchNavigation, copyToClipboard } from '../../utils/nativeLauncher';
 import { formatContractEndDate, isIndefiniteEndDate } from '../../services/db';
+import { canViewUnitPrice } from '../../utils/userDepartmentHelper';
 
 interface MobileMyContractsProps {
   onOpenCreateAsForAsset?: (assetNo: string, siteId: string) => void;
 }
 
 export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCreateAsForAsset }) => {
-  const { contracts, contractAssets, customers, sites, assets, currentUser, navigationPayload, setNavigationPayload } = useApp();
+  const { contracts, contractAssets, customers, sites, assets, currentUser, departments, navigationPayload, setNavigationPayload } = useApp();
+  const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL'>('ACTIVE');
   const [selectedContract, setSelectedContract] = useState<any | null>(null);
@@ -344,18 +346,22 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                       <div className="text-[10px] text-slate-500">약정 결제일</div>
                       <div className="font-bold text-slate-200">매월 {selectedContract.paymentDueDay || 25}일</div>
                     </div>
-                    <div>
-                      <div className="text-[10px] text-slate-500">월 렌탈료 (단가합)</div>
-                      <div className="font-mono font-bold text-emerald-400">
-                        ₩{((selectedContract.items || []).reduce((s: number, it: any) => s + (it.monthlyRentalFee || 0), 0) || selectedContract.monthlyRentalFee || 0).toLocaleString()}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-slate-500">일 렌탈료 (단가합)</div>
-                      <div className="font-mono font-bold text-slate-300">
-                        ₩{((selectedContract.items || []).reduce((s: number, it: any) => s + (it.dailyRentalFee || 0), 0) || selectedContract.dailyRentalFee || 0).toLocaleString()}
-                      </div>
-                    </div>
+                    {showUnitPrice && (
+                      <>
+                        <div>
+                          <div className="text-[10px] text-slate-500">월 렌탈료 (단가합)</div>
+                          <div className="font-mono font-bold text-emerald-400">
+                            ₩{((selectedContract.items || []).reduce((s: number, it: any) => s + (it.monthlyRentalFee || 0), 0) || selectedContract.monthlyRentalFee || 0).toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-500">일 렌탈료 (단가합)</div>
+                          <div className="font-mono font-bold text-slate-300">
+                            ₩{((selectedContract.items || []).reduce((s: number, it: any) => s + (it.dailyRentalFee || 0), 0) || selectedContract.dailyRentalFee || 0).toLocaleString()}
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <div className="text-[10px] text-slate-500">만료 상태</div>
                       <div className="font-bold text-amber-300">{selectedContract.dDayText || '-'}</div>

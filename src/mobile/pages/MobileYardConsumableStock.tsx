@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { matchHangul } from '../../utils/hangulSearch';
 import { Consumable, MechanicConsumableStock, ConsumableLog } from '../../services/db';
+import { canViewUnitPrice } from '../../utils/userDepartmentHelper';
 
 interface MobileYardConsumableStockProps {
   onBack: () => void;
@@ -21,8 +22,12 @@ export const MobileYardConsumableStock: React.FC<MobileYardConsumableStockProps>
     users, 
     refreshAllData, 
     fullRefreshFromServer,
-    currentTenant 
+    currentTenant,
+    currentUser,
+    departments
   } = useApp();
+
+  const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
 
   const defaultYardName = currentTenant?.yards?.find((y: any) => y.isDefault)?.name || 
     (currentTenant?.tradeName ? `${currentTenant.tradeName} 주기장` : '본사 주기장');
@@ -426,10 +431,14 @@ export const MobileYardConsumableStock: React.FC<MobileYardConsumableStockProps>
                     </div>
 
                     <div className="flex items-center gap-1 text-slate-300 font-mono">
-                      {c.unitPrice > 0 ? (
-                        <span>₩{c.unitPrice.toLocaleString()}</span>
+                      {showUnitPrice ? (
+                        c.unitPrice > 0 ? (
+                          <span>₩{c.unitPrice.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-slate-500">단가미등록</span>
+                        )
                       ) : (
-                        <span className="text-slate-500">단가미등록</span>
+                        <span className="text-slate-400 font-sans">재고 상세</span>
                       )}
                       <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
                     </div>
