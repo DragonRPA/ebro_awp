@@ -419,7 +419,11 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           />
         ) : activeTab === 'my_contracts' ? (
           <MobileMyContracts
-            onOpenCreateAsForAsset={(assetNo, siteId) => handleOpenCreateAs(assetNo, siteId)}
+            onOpenCreateAsForAsset={
+              deptMode === 'SALES'
+                ? undefined
+                : (assetNo, siteId) => handleOpenCreateAs(assetNo, siteId)
+            }
           />
         ) : activeTab === 'as_create' ? (
           <MobileAsCreate

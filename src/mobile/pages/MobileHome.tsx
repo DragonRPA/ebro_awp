@@ -533,29 +533,31 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           <ArrowRight className="w-5 h-5" />
         </button>
 
-        {/* [핵심 2] 통화 녹음 직접 업로드 카드 */}
-        <div
-          onClick={() => setIsUploadModalOpen(true)}
-          className="cursor-pointer bg-slate-900 border border-blue-500/50 rounded-2xl p-4 flex items-center justify-between shadow-md active:scale-98 transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0 text-sky-400">
-              <UploadCloud className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xs font-black text-white flex items-center gap-1.5">
-                <span style={{ whiteSpace: 'nowrap' }}>통화 녹음 파일 업로드</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-sky-300 font-bold" style={{ whiteSpace: 'nowrap' }}>
-                  출고 요청 자동 생성
-                </span>
+        {/* [핵심 2] 통화 녹음 직접 업로드 카드 (영업부 홈 화면 숨김 처리) */}
+        {false && (
+          <div
+            onClick={() => setIsUploadModalOpen(true)}
+            className="cursor-pointer bg-slate-900 border border-blue-500/50 rounded-2xl p-4 flex items-center justify-between shadow-md active:scale-98 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0 text-sky-400">
+                <UploadCloud className="w-5 h-5" />
               </div>
-              <div className="text-[11px] text-slate-300 mt-0.5">
-                녹음 파일 선택 시 출고 요청 초안 등록
+              <div>
+                <div className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span style={{ whiteSpace: 'nowrap' }}>통화 녹음 파일 업로드</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-sky-300 font-bold" style={{ whiteSpace: 'nowrap' }}>
+                    출고 요청 자동 생성
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-300 mt-0.5">
+                  녹음 파일 선택 시 출고 요청 초안 등록
+                </div>
               </div>
             </div>
+            <ArrowRight className="w-4 h-4 text-sky-400 flex-shrink-0" />
           </div>
-          <ArrowRight className="w-4 h-4 text-sky-400 flex-shrink-0" />
-        </div>
+        )}
 
         {/* [핵심 3] 법인차량 주유영수증 촬영 카드 */}
         <div
@@ -577,23 +579,6 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             </div>
           </div>
           <ArrowRight className="w-5 h-5 text-amber-400" />
-        </div>
-
-        {/* [핵심 4] 고객 고장 AS 접수 배너 */}
-        <div
-          onClick={() => onOpenCreateAs()}
-          className="p-4 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-between active:scale-98 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-center text-amber-400">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-white" style={{ whiteSpace: 'nowrap' }}>현장 정비 요청 등록</div>
-              <div className="text-xs text-slate-300">고객 유선 클레임 수신 시 현장 정비 요청</div>
-            </div>
-          </div>
-          <ArrowRight className="w-5 h-5 text-slate-300" />
         </div>
 
         {/* [핵심 5] 입고 파손 수리비 PDF 전달 및 고객 협상 합의 배너 */}
