@@ -231,6 +231,7 @@ export const Customers: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'RESTRICT_NEW' | 'BLOCKED_ALL' | 'CLOSED'>('ALL');
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hoveredPaidOptKey, setHoveredPaidOptKey] = useState<string | null>(null);
 
   // 선택된 고객 상태
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(customers[0]?.id || null);
@@ -4250,29 +4251,64 @@ const handleDeleteAccount = async (accId: string) => {
                           {uninheritedPaidOpts.length === 0 ? (
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>모두 적용됨</span>
                           ) : (
-                            uninheritedPaidOpts.map(opt => (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => {
-                                  const updated = toggleOptionInString(editingSite.paidOptions, opt.name);
-                                  setEditingSite({ ...editingSite, paidOptions: updated });
-                                }}
-                                style={{
-                                  padding: '2px 8px',
-                                  fontSize: '11px',
-                                  borderRadius: '4px',
-                                  border: '1px dashed var(--border-color)',
-                                  backgroundColor: 'var(--bg-app)',
-                                  color: 'var(--text-main)',
-                                  fontWeight: 500,
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                + {opt.name}
-                              </button>
-                            ))
+                            uninheritedPaidOpts.map(opt => {
+                              const unitPrice = opt.defaultPrice ?? 0;
+                              const hoverKey = `inline-paid-${opt.id}`;
+                              const isHovered = hoveredPaidOptKey === hoverKey;
+                              return (
+                                <div
+                                  key={opt.id}
+                                  style={{ position: 'relative', display: 'inline-flex' }}
+                                  onMouseEnter={() => setHoveredPaidOptKey(hoverKey)}
+                                  onMouseLeave={() => setHoveredPaidOptKey(prev => (prev === hoverKey ? null : prev))}
+                                >
+                                  {isHovered && (
+                                    <div
+                                      style={{
+                                        position: 'absolute',
+                                        bottom: 'calc(100% + 5px)',
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        backgroundColor: '#1e293b',
+                                        color: '#ffffff',
+                                        padding: '3px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        whiteSpace: 'nowrap',
+                                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                                        zIndex: 50,
+                                        pointerEvents: 'none'
+                                      }}
+                                    >
+                                      단가: ₩{unitPrice.toLocaleString()}
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    title={`단가: ₩${unitPrice.toLocaleString()}`}
+                                    onClick={() => {
+                                      setHoveredPaidOptKey(null);
+                                      const updated = toggleOptionInString(editingSite.paidOptions, opt.name);
+                                      setEditingSite({ ...editingSite, paidOptions: updated });
+                                    }}
+                                    style={{
+                                      padding: '2px 8px',
+                                      fontSize: '11px',
+                                      borderRadius: '4px',
+                                      border: isHovered ? '1px solid #2563eb' : '1px dashed var(--border-color)',
+                                      backgroundColor: isHovered ? '#eff6ff' : 'var(--bg-app)',
+                                      color: isHovered ? '#1d4ed8' : 'var(--text-main)',
+                                      fontWeight: isHovered ? 700 : 500,
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    + {opt.name}
+                                  </button>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -5076,31 +5112,66 @@ const handleDeleteAccount = async (accId: string) => {
                         {uninheritedOpts.length === 0 ? (
                           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>모든 표준 유상옵션이 적용되었습니다.</span>
                         ) : (
-                          uninheritedOpts.map(opt => (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              onClick={() => {
-                                const updated = toggleOptionInString(siteOptionForm.paidOptions, opt.name);
-                                setSiteOptionForm({ ...siteOptionForm, paidOptions: updated });
-                              }}
-                              style={{
-                                padding: '2px 8px',
-                                fontSize: '11px',
-                                borderRadius: '4px',
-                                border: '1px dashed var(--border-color)',
-                                backgroundColor: 'var(--bg-card)',
-                                color: 'var(--text-main)',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px'
-                              }}
-                            >
-                              <Plus size={10} color="#2563eb" /> {opt.name}
-                            </button>
-                          ))
+                          uninheritedOpts.map(opt => {
+                            const unitPrice = opt.defaultPrice ?? 0;
+                            const hoverKey = `modal-paid-${opt.id}`;
+                            const isHovered = hoveredPaidOptKey === hoverKey;
+                            return (
+                              <div
+                                key={opt.id}
+                                style={{ position: 'relative', display: 'inline-flex' }}
+                                onMouseEnter={() => setHoveredPaidOptKey(hoverKey)}
+                                onMouseLeave={() => setHoveredPaidOptKey(prev => (prev === hoverKey ? null : prev))}
+                              >
+                                {isHovered && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      bottom: 'calc(100% + 5px)',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      backgroundColor: '#1e293b',
+                                      color: '#ffffff',
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      whiteSpace: 'nowrap',
+                                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                                      zIndex: 50,
+                                      pointerEvents: 'none'
+                                    }}
+                                  >
+                                    단가: ₩{unitPrice.toLocaleString()}
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  title={`단가: ₩${unitPrice.toLocaleString()}`}
+                                  onClick={() => {
+                                    setHoveredPaidOptKey(null);
+                                    const updated = toggleOptionInString(siteOptionForm.paidOptions, opt.name);
+                                    setSiteOptionForm({ ...siteOptionForm, paidOptions: updated });
+                                  }}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '11px',
+                                    borderRadius: '4px',
+                                    border: isHovered ? '1px solid #2563eb' : '1px dashed var(--border-color)',
+                                    backgroundColor: isHovered ? '#eff6ff' : 'var(--bg-card)',
+                                    color: isHovered ? '#1d4ed8' : 'var(--text-main)',
+                                    fontWeight: isHovered ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                >
+                                  <Plus size={10} color="#2563eb" /> {opt.name}
+                                </button>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>

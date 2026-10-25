@@ -43,6 +43,7 @@ export const SiteOptionManage: React.FC = () => {
 
   // 연결된 고객현장에 옵션 변경사항 일괄 전파 여부 (기본 true)
   const [propagateToLinkedSites, setPropagateToLinkedSites] = useState(true);
+  const [hoveredPaidOptionId, setHoveredPaidOptionId] = useState<string | null>(null);
 
   // --- Master Option Sort ---
   type SortKey = keyof StandardOption;
@@ -1403,27 +1404,64 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                      {paidDisabledOptions.map(item => (
-                        <button
-                          key={item.optionId}
-                          type="button"
-                          onClick={() => handleToggleOption(item.optionId)}
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '12px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--bg-app)',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            fontWeight: 500,
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          + {item.name}
-                        </button>
-                      ))}
+                      {paidDisabledOptions.map(item => {
+                        const unitPrice = item.defaultPrice ?? item.appliedPrice ?? 0;
+                        const isHovered = hoveredPaidOptionId === item.optionId;
+                        return (
+                          <div
+                            key={item.optionId}
+                            style={{ position: 'relative', display: 'inline-flex' }}
+                            onMouseEnter={() => setHoveredPaidOptionId(item.optionId)}
+                            onMouseLeave={() => setHoveredPaidOptionId(prev => (prev === item.optionId ? null : prev))}
+                          >
+                            {isHovered && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  bottom: 'calc(100% + 6px)',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  backgroundColor: '#1e293b',
+                                  color: '#ffffff',
+                                  padding: '4px 9px',
+                                  borderRadius: '5px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 4px 10px rgba(0,0,0,0.22)',
+                                  zIndex: 50,
+                                  pointerEvents: 'none',
+                                }}
+                              >
+                                단가: ₩{unitPrice.toLocaleString()}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              title={`단가: ₩${unitPrice.toLocaleString()}`}
+                              onClick={() => {
+                                setHoveredPaidOptionId(null);
+                                handleToggleOption(item.optionId);
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '12px',
+                                borderRadius: '6px',
+                                border: isHovered ? '1px solid #2563eb' : '1px solid var(--border-color)',
+                                backgroundColor: isHovered ? '#eff6ff' : 'var(--bg-app)',
+                                color: isHovered ? '#1d4ed8' : 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontWeight: isHovered ? 700 : 500,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.15s ease-out',
+                              }}
+                            >
+                              + {item.name}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
