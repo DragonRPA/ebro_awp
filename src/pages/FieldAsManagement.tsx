@@ -214,6 +214,8 @@ export const FieldAsManagement: React.FC = () => {
   // ─── [현장 조치 패널 상태 (스튜디오 우측)] ───
   const [actionAssignMechanicId, setActionAssignMechanicId] = useState(currentUser?.role === 'MECHANIC' ? currentUser.id : '');
   const [actionVisitDate, setActionVisitDate] = useState(new Date().toISOString().split('T')[0]);
+  const [actionAssetId, setActionAssetId] = useState('');
+  const [actionAssetNo, setActionAssetNo] = useState('');
   const [actionTakenText, setActionTakenText] = useState('');
   const [actionResolutionType, setActionResolutionType] = useState<FieldAsTicket['resolutionType']>('REPAIR_DONE');
   const [actionRevisitDate, setActionRevisitDate] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
@@ -433,7 +435,8 @@ export const FieldAsManagement: React.FC = () => {
       const list = byMech.get(s.mechanicId);
       if (list) list.push(s);
       else byMech.set(s.mechanicId, [s]);
-      qtyMap.set(`${s.mechanicId}_${s.consumableId}`, s.stockQty || 0);
+      const key = `${s.mechanicId}_${s.consumableId}`;
+      qtyMap.set(key, (qtyMap.get(key) || 0) + (s.stockQty || 0));
     }
     return { mechanicStocksByMechIdMap: byMech, mechanicStockQtyMap: qtyMap };
   }, [mechanicConsumableStocks]);
@@ -525,6 +528,70 @@ export const FieldAsManagement: React.FC = () => {
     }
     return studioFilteredTickets[0] || fieldAsTickets[0] || null;
   }, [ticketMap, fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
+
+  // 선택된 티켓의 현장/계약/고객사에 투입된 체결 자산 후보 목록 추출 (미지정 '현장확인' 티켓의 대상 자산 매핑 지원)
+  const siteCandidateAssets = useMemo(() => {
+    if (!selectedTicket) return [];
+    const candidateAssetIds = new Set<string>();
+
+    if (selectedTicket.assetId) candidateAssetIds.add(selectedTicket.assetId);
+    if (selectedTicket.assetNo && selectedTicket.assetNo !== '현장확인' && selectedTicket.assetNo !== '전체장비') {
+      const targetAssetNo = selectedTicket.assetNo.toUpperCase();
+      const direct = (assets || []).find(a => (a.assetNo || '').toUpperCase() === targetAssetNo);
+      if (direct) candidateAssetIds.add(direct.id);
+    }
+
+    if (selectedTicket.contractId) {
+      for (const ca of db.contractAssets || []) {
+        if (ca.contractId === selectedTicket.contractId && ca.status !== 'RETURNED' && ca.assetId) {
+          candidateAssetIds.add(ca.assetId);
+        }
+      }
+    }
+
+    const matchedContractIds = new Set<string>();
+    for (const c of db.contracts || []) {
+      if (c.status === 'COMPLETED') continue;
+      if (selectedTicket.siteId && c.siteId === selectedTicket.siteId) {
+        matchedContractIds.add(c.id);
+        continue;
+      }
+      if (selectedTicket.siteName) {
+        const siteObj = c.siteId ? (db.customerSites || []).find(s => s.id === c.siteId) : undefined;
+        if (siteObj?.name && siteObj.name.trim() === selectedTicket.siteName.trim()) {
+          matchedContractIds.add(c.id);
+          continue;
+        }
+      }
+      if (selectedTicket.customerId && c.customerId === selectedTicket.customerId) {
+        matchedContractIds.add(c.id);
+      } else if (selectedTicket.customerName && c.customerName && c.customerName.trim() === selectedTicket.customerName.trim()) {
+        matchedContractIds.add(c.id);
+      }
+    }
+    for (const ca of db.contractAssets || []) {
+      if (matchedContractIds.has(ca.contractId) && ca.status !== 'RETURNED' && ca.assetId) {
+        candidateAssetIds.add(ca.assetId);
+      }
+    }
+
+    return (assets || []).filter(a => candidateAssetIds.has(a.id));
+  }, [selectedTicket, assets]);
+
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const rawId = (selectedTicket.assetId || '').trim();
+    const rawNo = (selectedTicket.assetNo || '').trim();
+    let matched = rawId ? (assets || []).find(a => a.id === rawId) : undefined;
+    if (!matched && rawNo && rawNo !== '현장확인' && rawNo !== '전체장비') {
+      matched = (assets || []).find(a => (a.assetNo || '').toUpperCase() === rawNo.toUpperCase());
+    }
+    if (!matched && (!rawNo || rawNo === '현장확인') && siteCandidateAssets.length === 1) {
+      matched = siteCandidateAssets[0];
+    }
+    setActionAssetId(matched?.id || rawId || '');
+    setActionAssetNo(matched?.assetNo || rawNo || '현장확인');
+  }, [selectedTicket?.id, selectedTicket?.assetId, selectedTicket?.assetNo, siteCandidateAssets, assets]);
 
   // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 출장 AS 티켓을 즉시 탐색·포커스
   useEffect(() => {
@@ -745,6 +812,15 @@ export const FieldAsManagement: React.FC = () => {
     setStudioSelectedTicketId(t.id);
     setActionAssignMechanicId(t.assignedMechanicId || (currentUser?.role === 'MECHANIC' ? currentUser.id : ''));
     setActionVisitDate(t.visitDate || new Date().toISOString().split('T')[0]);
+    const rawId = (t.assetId || '').trim();
+    const rawNo = (t.assetNo || '').trim();
+    const matchedAsset = rawId
+      ? (assets || []).find(a => a.id === rawId)
+      : (rawNo && rawNo !== '현장확인' && rawNo !== '전체장비'
+          ? (assets || []).find(a => (a.assetNo || '').toUpperCase() === rawNo.toUpperCase())
+          : undefined);
+    setActionAssetId(matchedAsset?.id || rawId || '');
+    setActionAssetNo(matchedAsset?.assetNo || rawNo || '현장확인');
     setActionTakenText(t.actionTaken || '');
     setActionResolutionType(t.resolutionType || (t.status === 'COMPLETED' ? 'REPAIR_DONE' : 'REPAIR_DONE'));
     setActionRevisitDate(t.revisitDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]);
@@ -768,14 +844,15 @@ export const FieldAsManagement: React.FC = () => {
     const item = consumableMap.get(tempConsumableId);
     if (!item) return;
 
+    const existingIdx = actionPartsUsed.findIndex(p => p.consumableId === tempConsumableId);
+    const alreadyAddedQty = existingIdx >= 0 ? actionPartsUsed[existingIdx].quantity : 0;
     const availableStock = getMechanicVehicleStock(actionAssignMechanicId, tempConsumableId);
-    if (availableStock < tempPartQty) {
+    if (availableStock < alreadyAddedQty + tempPartQty) {
       const mechName = (actionAssignMechanicId ? userMap.get(actionAssignMechanicId) : '') || '기사';
-      showErrorModal(`[차량 재고 부족] ${mechName} 기사의 차량 재고에 "${item.modelName}"이(가) 부족합니다.\n(현재 차량 적재: ${availableStock}개 / 요청: ${tempPartQty}개)\n\n상단의 [차량 소모품 적재] 탭 또는 [소모품 관리] 메뉴에서 차량으로 먼저 보충 이동(불출) 등록을 진행해 주세요.`);
+      showErrorModal(`[차량 재고 부족] ${mechName} 기사의 차량 재고에 "${item.modelName}"이(가) 부족합니다.\n(현재 차량 적재: ${availableStock}개 / 누적 요청: ${alreadyAddedQty + tempPartQty}개)\n\n상단의 [차량 소모품 적재] 탭 또는 [소모품 관리] 메뉴에서 차량으로 먼저 보충 이동(불출) 등록을 진행해 주세요.`);
       return;
     }
 
-    const existingIdx = actionPartsUsed.findIndex(p => p.consumableId === tempConsumableId);
     if (existingIdx >= 0) {
       const updated = [...actionPartsUsed];
       updated[existingIdx].quantity += tempPartQty;
@@ -891,8 +968,20 @@ export const FieldAsManagement: React.FC = () => {
       return;
     }
 
+    const effectiveAssetNo = (actionAssetNo || selectedTicket.assetNo || '').trim();
+    const isUnmappedAsset = !effectiveAssetNo || effectiveAssetNo === '현장확인' || effectiveAssetNo === '전체장비';
+    if (actionPartsUsed.length > 0 && isUnmappedAsset && siteCandidateAssets.length > 0) {
+      showErrorModal('소모품을 사용한 현장 정비 건은 소모품 재고 소진 및 자산 정비이력 매핑을 위해 [정비 대상 자산]을 먼저 선택해 주세요.');
+      return;
+    }
+
     try {
       setIsCompletingTicket(true);
+      const matchedTargetAsset = actionAssetId
+        ? (assets || []).find(a => a.id === actionAssetId)
+        : (effectiveAssetNo && !isUnmappedAsset
+            ? (assets || []).find(a => (a.assetNo || '').toUpperCase() === effectiveAssetNo.toUpperCase())
+            : undefined);
       const completePayload = {
         mechanicId: actionAssignMechanicId,
         actionTaken: actionTakenText.trim(),
@@ -910,7 +999,11 @@ export const FieldAsManagement: React.FC = () => {
         inspectionItemCode: actionInspectionItemCode,
         durationMinutes: Math.max(0, actionDurationMinutes),
         spentManHours: actionDurationMinutes > 0 ? Number((Math.max(0, actionDurationMinutes) / 60).toFixed(2)) : undefined,
-        degradationScore: actionDegradationScore
+        degradationScore: actionDegradationScore,
+        assetId: matchedTargetAsset?.id || actionAssetId || selectedTicket.assetId,
+        assetNo: matchedTargetAsset?.assetNo || effectiveAssetNo || selectedTicket.assetNo,
+        modelName: matchedTargetAsset?.modelName || selectedTicket.modelName,
+        visitDate: actionVisitDate || selectedTicket.visitDate
       };
 
       if (actionBillableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING')) {
@@ -2229,8 +2322,8 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   </div>
                 </div>
 
-                {/* 2. 출동 담당자 지정 및 방문일정 설정 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {/* 2. 출동 담당자 지정, 방문일정 및 정비 대상 자산 매핑 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '12px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       담당자지정
@@ -2248,7 +2341,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     >
                       <option value="">담당자지정</option>
                       {eligibleAssignees.map(m => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+                        <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
                   </div>
@@ -2268,6 +2361,56 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                         fontSize: '14px'
                       }}
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: (!actionAssetNo || actionAssetNo === '현장확인') ? '#d97706' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      정비 대상 자산 {!actionAssetNo || actionAssetNo === '현장확인' ? '• 현장확인 매핑 필요' : ''}
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <select
+                        value={actionAssetId}
+                        onChange={(e) => {
+                          const selId = e.target.value;
+                          setActionAssetId(selId);
+                          if (!selId) {
+                            setActionAssetNo('현장확인');
+                          } else {
+                            const found = (assets || []).find(a => a.id === selId);
+                            if (found) setActionAssetNo(found.assetNo);
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '9px 10px',
+                          borderRadius: '6px',
+                          border: (!actionAssetNo || actionAssetNo === '현장확인') ? '1.5px solid #f59e0b' : '1px solid var(--border-color)',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          backgroundColor: 'var(--bg-card)'
+                        }}
+                      >
+                        <option value="">현장확인 / 미지정</option>
+                        {siteCandidateAssets.length > 0 && (
+                          <optgroup label="해당 현장/고객 투입 장비">
+                            {siteCandidateAssets.map(a => (
+                              <option key={a.id} value={a.id}>
+                                {a.assetNo} — {a.modelName} [{a.ownerType === 'RENTED' ? '임차' : '자사'}]
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="전체 등록 자산">
+                          {(assets || [])
+                            .filter(a => !siteCandidateAssets.some(sa => sa.id === a.id))
+                            .map(a => (
+                              <option key={a.id} value={a.id}>
+                                {a.assetNo} — {a.modelName}
+                              </option>
+                            ))}
+                        </optgroup>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -4420,6 +4563,56 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   </div>
                 );
               })()}
+            </div>
+
+            {/* 정비 대상 자산 매핑 (현장확인 건 매핑 지원) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 800, color: (!actionAssetNo || actionAssetNo === '현장확인') ? '#f59e0b' : 'var(--text-main)' }}>
+                정비 대상 자산 {!actionAssetNo || actionAssetNo === '현장확인' ? '• 현장확인 장비 선택' : ''}
+              </label>
+              <select
+                value={actionAssetId}
+                onChange={(e) => {
+                  const selId = e.target.value;
+                  setActionAssetId(selId);
+                  if (!selId) {
+                    setActionAssetNo('현장확인');
+                  } else {
+                    const found = (assets || []).find(a => a.id === selId);
+                    if (found) setActionAssetNo(found.assetNo);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: (!actionAssetNo || actionAssetNo === '현장확인') ? '1.5px solid #f59e0b' : '1px solid var(--border-color)',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-main)'
+                }}
+              >
+                <option value="">현장확인 / 미지정</option>
+                {siteCandidateAssets.length > 0 && (
+                  <optgroup label="해당 현장/고객 투입 장비">
+                    {siteCandidateAssets.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.assetNo} — {a.modelName} [{a.ownerType === 'RENTED' ? '임차' : '자사'}]
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="전체 등록 자산">
+                  {(assets || [])
+                    .filter(a => !siteCandidateAssets.some(sa => sa.id === a.id))
+                    .map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.assetNo} — {a.modelName}
+                      </option>
+                    ))}
+                </optgroup>
+              </select>
             </div>
 
             {/* 1️⃣ 사용 부품 선택 (50px 대형 스텝퍼 카트) */}

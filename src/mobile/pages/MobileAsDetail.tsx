@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileAsDetail.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CameraUploader } from '../components/CameraUploader';
 import { SignatureCanvas } from '../components/SignatureCanvas';
@@ -198,6 +198,8 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   };
 
   const [actionTaken, setActionTaken] = useState(ticket?.actionTaken || '');
+  const [selectedAssetId, setSelectedAssetId] = useState(ticket?.assetId || '');
+  const [selectedAssetNo, setSelectedAssetNo] = useState(ticket?.assetNo || '현장확인');
   const [resolutionType, setResolutionType] = useState<'REPAIR_DONE' | 'REVISIT_NEEDED' | 'GUIDED_END'>('REPAIR_DONE');
   const [isExchangeNeeded, setIsExchangeNeeded] = useState(ticket?.exchangeSuggested || false);
   const [revisitReason, setRevisitReason] = useState(ticket?.revisitReason || '');
@@ -218,6 +220,90 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   const [inspectionItemCode, setInspectionItemCode] = useState<string>(ticket?.inspectionItemCode || '');
   const [degradationScore, setDegradationScore] = useState<number>(ticket?.degradationScore || 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 해당 현장/계약/고객사에 투입된 체결 자산 후보 목록
+  const siteCandidateAssets = useMemo(() => {
+    if (!ticket) return [];
+    const candidateIds = new Set<string>();
+    const allAssets = db.assets || [];
+
+    if (ticket.assetId) candidateIds.add(ticket.assetId);
+    if (ticket.assetNo && ticket.assetNo !== '현장확인' && ticket.assetNo !== '전체장비') {
+      const direct = allAssets.find((a) => (a.assetNo || '').toUpperCase() === ticket.assetNo!.toUpperCase());
+      if (direct) candidateIds.add(direct.id);
+    }
+
+    if (ticket.contractId) {
+      for (const ca of db.contractAssets || []) {
+        if (ca.contractId === ticket.contractId && ca.status !== 'RETURNED' && ca.assetId) {
+          candidateIds.add(ca.assetId);
+        }
+      }
+    }
+
+    const matchedContractIds = new Set<string>();
+    for (const c of db.contracts || []) {
+      if (c.status === 'COMPLETED') continue;
+      if (ticket.siteId && c.siteId === ticket.siteId) {
+        matchedContractIds.add(c.id);
+        continue;
+      }
+      if (ticket.siteName) {
+        const siteObj = c.siteId ? (db.customerSites || []).find((s) => s.id === c.siteId) : undefined;
+        if (siteObj?.name && siteObj.name.trim() === ticket.siteName.trim()) {
+          matchedContractIds.add(c.id);
+          continue;
+        }
+      }
+      if (ticket.customerId && c.customerId === ticket.customerId) {
+        matchedContractIds.add(c.id);
+      } else if (ticket.customerName && c.customerName && c.customerName.trim() === ticket.customerName.trim()) {
+        matchedContractIds.add(c.id);
+      }
+    }
+    for (const ca of db.contractAssets || []) {
+      if (matchedContractIds.has(ca.contractId) && ca.status !== 'RETURNED' && ca.assetId) {
+        candidateIds.add(ca.assetId);
+      }
+    }
+
+    return allAssets.filter((a) => candidateIds.has(a.id));
+  }, [ticket, db.assets, db.contracts, db.contractAssets, db.customerSites]);
+
+  useEffect(() => {
+    if (!ticket) return;
+    const allAssets = db.assets || [];
+    const rawId = (ticket.assetId || '').trim();
+    const rawNo = (ticket.assetNo || '').trim();
+    let matched = rawId ? allAssets.find((a) => a.id === rawId) : undefined;
+    if (!matched && rawNo && rawNo !== '현장확인' && rawNo !== '전체장비') {
+      matched = allAssets.find((a) => (a.assetNo || '').toUpperCase() === rawNo.toUpperCase());
+    }
+    if (!matched && (!rawNo || rawNo === '현장확인') && siteCandidateAssets.length === 1) {
+      matched = siteCandidateAssets[0];
+    }
+    setSelectedAssetId(matched?.id || rawId || '');
+    setSelectedAssetNo(matched?.assetNo || rawNo || '현장확인');
+  }, [ticket?.id, ticket?.assetId, ticket?.assetNo, siteCandidateAssets]);
+
+  // 기사 차량 적재 소모품을 품목별(다중 로트 합산)로 집계
+  const availableVehicleConsumables = useMemo(() => {
+    const targetMechanicId = currentUser?.id || ticket?.mechanicId;
+    const map = new Map<string, { consumableId: string; modelName: string; unitPrice: number; totalStockQty: number }>();
+    for (const s of mechanicConsumableStocks || []) {
+      if (targetMechanicId && s.mechanicId !== targetMechanicId) continue;
+      if (!s.stockQty || s.stockQty <= 0) continue;
+      const c = consumables.find((item) => item.id === s.consumableId);
+      const prev = map.get(s.consumableId);
+      map.set(s.consumableId, {
+        consumableId: s.consumableId,
+        modelName: c?.modelName || prev?.modelName || '소모부품',
+        unitPrice: c?.unitPrice ?? prev?.unitPrice ?? 0,
+        totalStockQty: (prev?.totalStockQty || 0) + s.stockQty,
+      });
+    }
+    return Array.from(map.values());
+  }, [mechanicConsumableStocks, consumables, currentUser?.id, ticket?.mechanicId]);
 
   // 내비게이션 앱 선택 상태 (로컬스토리지 기억)
   const [selectedNavApp, setSelectedNavApp] = useState<NavAppType>(() => {
@@ -273,28 +359,38 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
     safePhoneCall(ticket.reporterContact);
   };
 
-  // 부품 추가
+  // 부품 추가 (품목별 다중 로트 합산 잔량 및 기선택 수량 합산 검증)
   const handleAddPart = () => {
     if (!selectedStockId) return;
-    const stock = mechanicConsumableStocks.find((s) => s.id === selectedStockId);
-    if (!stock) return;
-    const consumable = consumables.find((c) => c.id === stock.consumableId);
+    const item = availableVehicleConsumables.find((v) => v.consumableId === selectedStockId);
+    if (!item) return;
 
     const safeQty = Math.max(1, Math.floor(selectedQty || 1));
-    if (safeQty > (stock.stockQty || 0)) {
-      showErrorModal(`차량 적재 수량(${stock.stockQty || 0}개)을 초과할 수 없습니다.`);
+    const existingIdx = partsUsed.findIndex((p) => p.consumableId === item.consumableId);
+    const alreadyAddedQty = existingIdx >= 0 ? partsUsed[existingIdx].quantity : 0;
+
+    if (alreadyAddedQty + safeQty > item.totalStockQty) {
+      showErrorModal(`차량 적재 수량(${item.totalStockQty}개)을 초과할 수 없습니다. (현재 선택: ${alreadyAddedQty}개)`);
       return;
     }
 
-    const newPart: RepairPartUsed = {
-      consumableId: stock.consumableId,
-      modelName: consumable?.modelName || '소모부품',
-      quantity: safeQty,
-      unitPrice: consumable?.unitPrice || 0,
-      stockSource: 'VEHICLE_VAN',
-    };
-
-    setPartsUsed([...partsUsed, newPart]);
+    if (existingIdx >= 0) {
+      const updated = [...partsUsed];
+      updated[existingIdx] = {
+        ...updated[existingIdx],
+        quantity: alreadyAddedQty + safeQty,
+      };
+      setPartsUsed(updated);
+    } else {
+      const newPart: RepairPartUsed = {
+        consumableId: item.consumableId,
+        modelName: item.modelName,
+        quantity: safeQty,
+        unitPrice: item.unitPrice,
+        stockSource: 'VEHICLE_VAN',
+      };
+      setPartsUsed([...partsUsed, newPart]);
+    }
     setSelectedStockId('');
     setSelectedQty(1);
   };
@@ -340,8 +436,22 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
       return;
     }
 
+    const effectiveAssetNo = (selectedAssetNo || ticket.assetNo || '').trim();
+    const isUnmappedAsset = !effectiveAssetNo || effectiveAssetNo === '현장확인' || effectiveAssetNo === '전체장비';
+    if (partsUsed.length > 0 && isUnmappedAsset && siteCandidateAssets.length > 0) {
+      showErrorModal('소모품을 사용한 현장 정비 건은 소모품 재고 소진 및 자산 정비이력 매핑을 위해 [정비 대상 자산]을 먼저 선택해 주세요.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const allAssets = db.assets || [];
+      const matchedTargetAsset = selectedAssetId
+        ? allAssets.find((a) => a.id === selectedAssetId)
+        : effectiveAssetNo && !isUnmappedAsset
+          ? allAssets.find((a) => (a.assetNo || '').toUpperCase() === effectiveAssetNo.toUpperCase())
+          : undefined;
+
       await completeFieldAsTicket(ticket.id, {
         mechanicId: currentUser?.id || ticket.mechanicId || '',
         actionTaken,
@@ -358,6 +468,9 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
         exchangeSuggested: resolutionType === 'REVISIT_NEEDED' && isExchangeNeeded,
         revisitReason: resolutionType === 'REVISIT_NEEDED' ? revisitReason.trim() : undefined,
         revisitDate: resolutionType === 'REVISIT_NEEDED' ? revisitDate : undefined,
+        assetId: matchedTargetAsset?.id || selectedAssetId || ticket.assetId,
+        assetNo: matchedTargetAsset?.assetNo || effectiveAssetNo || ticket.assetNo,
+        modelName: matchedTargetAsset?.modelName || ticket.modelName,
       });
       onBack();
     } catch (err: any) {
@@ -1171,8 +1284,52 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
         )}
       </div>
 
-      {/* 부품 사용 차감 섹션 (탑차 재고 연동) */}
+      {/* 부품 사용 차감 섹션 (탑차 재고 연동) 및 정비 대상 자산 매핑 */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3 shadow-lg">
+        <div className="flex flex-col gap-1.5 pb-2 border-b border-slate-800">
+          <label className={`text-xs font-bold ${(!selectedAssetNo || selectedAssetNo === '현장확인') ? 'text-amber-400' : 'text-slate-300'}`}>
+            정비 대상 자산 {!selectedAssetNo || selectedAssetNo === '현장확인' ? '• 현장확인 장비 지정 필요' : ''}
+          </label>
+          <select
+            value={selectedAssetId}
+            onChange={(e) => {
+              const selId = e.target.value;
+              setSelectedAssetId(selId);
+              if (!selId) {
+                setSelectedAssetNo('현장확인');
+              } else {
+                const found = (db.assets || []).find((a) => a.id === selId);
+                if (found) setSelectedAssetNo(found.assetNo);
+              }
+            }}
+            className={`w-full bg-slate-950 rounded-xl p-2.5 text-xs font-bold text-white focus:outline-none ${
+              (!selectedAssetNo || selectedAssetNo === '현장확인')
+                ? 'border-2 border-amber-500/80'
+                : 'border border-slate-700'
+            }`}
+          >
+            <option value="">현장확인 / 미지정</option>
+            {siteCandidateAssets.length > 0 && (
+              <optgroup label="해당 현장/고객 투입 장비">
+                {siteCandidateAssets.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.assetNo} — {a.modelName} [{a.ownerType === 'RENTED' ? '임차' : '자사'}]
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="전체 등록 자산">
+              {(db.assets || [])
+                .filter((a) => !siteCandidateAssets.some((sa) => sa.id === a.id))
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.assetNo} — {a.modelName}
+                  </option>
+                ))}
+            </optgroup>
+          </select>
+        </div>
+
         <label className="text-sm font-bold text-white flex items-center justify-between">
           <span>차량 탑차 부품 사용 차감</span>
           <span className="text-xs text-slate-400 font-normal">사용 부품 {partsUsed.length}건</span>
@@ -1185,20 +1342,15 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
             className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
           >
             <option value="">탑차 부품 선택...</option>
-            {(() => {
-              const targetMechanicId = currentUser?.id || ticket?.mechanicId;
-              const displayList = mechanicConsumableStocks.filter(
-                (s) => (!targetMechanicId || s.mechanicId === targetMechanicId) && s.stockQty > 0
+            {availableVehicleConsumables.map((item) => {
+              const alreadySelected = partsUsed.find((p) => p.consumableId === item.consumableId)?.quantity || 0;
+              const remainQty = Math.max(0, item.totalStockQty - alreadySelected);
+              return (
+                <option key={item.consumableId} value={item.consumableId}>
+                  {item.modelName} (보유: {item.totalStockQty}개 / 가용: {remainQty}개)
+                </option>
               );
-              return displayList.map((stock) => {
-                const consumable = consumables.find((c) => c.id === stock.consumableId);
-                return (
-                  <option key={stock.id} value={stock.id}>
-                    {consumable?.modelName || '부품'} (보유: {stock.stockQty}개)
-                  </option>
-                );
-              });
-            })()}
+            })}
           </select>
           <input
             type="number"

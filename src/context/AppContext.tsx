@@ -326,6 +326,10 @@ interface AppContextType {
     degradationScore?: number;
     durationMinutes?: number;
     spentManHours?: number;
+    assetId?: string;
+    assetNo?: string;
+    modelName?: string;
+    visitDate?: string;
   }) => Promise<void>;
   createRevisitAsTicket: (parentTicketId: string, revisitDate: string, revisitReason: string, mechanicId?: string) => Promise<FieldAsTicket>;
   importBandAsHistory: (records: any[]) => Promise<number>;
@@ -7157,6 +7161,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     degradationScore?: number;
     durationMinutes?: number;
     spentManHours?: number;
+    assetId?: string;
+    assetNo?: string;
+    modelName?: string;
+    visitDate?: string;
   }): Promise<void> => {
     try {
       const ticket = db.repairs.find(t => t.id === ticketId);
@@ -7164,48 +7172,180 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       const mechanic = db.users.find(u => u.id === data.mechanicId);
       const mechanicName = mechanic?.name || ticket.mechanicName || '담당기사';
+      const nowIso = new Date().toISOString();
+      const actionDateStr = data.visitDate || ticket.visitDate || nowIso.split('T')[0];
 
-      // 1. 소모품 차량 재고 유효성 검사 및 차감
+      // 0. 대상 자산(assetId / assetNo / modelName) 정밀 매핑 및 다단계 자동 추적
+      const rawInputAssetId = (data.assetId ?? ticket.assetId ?? '').trim();
+      const rawInputAssetNo = (data.assetNo ?? ticket.assetNo ?? '').trim();
+      let matchedAsset = rawInputAssetId
+        ? db.assets.find(a => a.id === rawInputAssetId)
+        : undefined;
+
+      if (!matchedAsset && rawInputAssetNo && rawInputAssetNo !== '현장확인' && rawInputAssetNo !== '전체장비') {
+        matchedAsset = db.assets.find(
+          a => (a.assetNo || '').trim().toUpperCase() === rawInputAssetNo.toUpperCase()
+        );
+      }
+
+      // 미지정('현장확인' 등)인 경우 계약 또는 동일 현장의 단일 활성 대여 자산 자동 역추적
+      if (!matchedAsset && (!rawInputAssetNo || rawInputAssetNo === '현장확인')) {
+        if (ticket.contractId) {
+          const activeCas = (db.contractAssets || []).filter(
+            ca => ca.contractId === ticket.contractId && ca.status !== 'RETURNED' && ca.assetId
+          );
+          if (activeCas.length === 1 && activeCas[0].assetId) {
+            matchedAsset = db.assets.find(a => a.id === activeCas[0].assetId);
+          }
+        }
+        if (!matchedAsset && (ticket.siteId || ticket.siteName)) {
+          const siteContracts = (db.contracts || []).filter(c => {
+            if (c.status === 'COMPLETED') return false;
+            if (ticket.siteId && c.siteId === ticket.siteId) return true;
+            if (ticket.customerId && c.customerId !== ticket.customerId) return false;
+            const siteObj = c.siteId ? (db.customerSites || []).find(s => s.id === c.siteId) : undefined;
+            return Boolean(ticket.siteName && siteObj?.name && siteObj.name.trim() === ticket.siteName.trim());
+          });
+          const siteContractIds = new Set(siteContracts.map(c => c.id));
+          const activeSiteCas = (db.contractAssets || []).filter(
+            ca => siteContractIds.has(ca.contractId) && ca.status !== 'RETURNED' && ca.assetId
+          );
+          const uniqueAssetIds = Array.from(new Set(activeSiteCas.map(ca => ca.assetId).filter(Boolean)));
+          if (uniqueAssetIds.length === 1 && uniqueAssetIds[0]) {
+            matchedAsset = db.assets.find(a => a.id === uniqueAssetIds[0]);
+          }
+        }
+      }
+
+      const resolvedAssetId = matchedAsset?.id || (rawInputAssetId || undefined);
+      const resolvedAssetNo = matchedAsset?.assetNo || (rawInputAssetNo || '현장확인');
+      const resolvedModelName =
+        matchedAsset?.modelName ||
+        data.modelName ||
+        ticket.modelName ||
+        ticket.locationDetail ||
+        '고소작업대';
+
+      // 1. 소모품 차량 재고 다중 로트(FIFO) 유효성 검사 및 차감 + 정비소모품(repairConsumables) 매핑
+      let totalPartsCost = 0;
       if (data.partsUsed && data.partsUsed.length > 0) {
+        // 1-1. 동일 품목 중복 선택 합산 검증 및 기사 차량 내 가용 로트 총합 검증
+        const requiredByConsumable = new Map<string, { qty: number; modelName: string }>();
         for (const part of data.partsUsed) {
           if (!part.quantity || part.quantity <= 0) {
             throw new Error(`사용 부품("${part.modelName}")의 수량은 1개 이상이어야 합니다.`);
           }
-          const vehicleStock = db.mechanicConsumableStocks.find(
-            s => s.mechanicId === data.mechanicId && s.consumableId === part.consumableId
+          const prev = requiredByConsumable.get(part.consumableId);
+          requiredByConsumable.set(part.consumableId, {
+            qty: (prev?.qty || 0) + part.quantity,
+            modelName: part.modelName || prev?.modelName || '소모품'
+          });
+        }
+
+        for (const [consId, reqInfo] of requiredByConsumable.entries()) {
+          const mechStocks = db.mechanicConsumableStocks.filter(
+            s => s.mechanicId === data.mechanicId && s.consumableId === consId && (s.stockQty || 0) > 0
           );
-          const currentQty = vehicleStock?.stockQty || 0;
-          if (currentQty < part.quantity) {
-            throw new Error(`⚠️ [차량 재고 부족] ${mechanicName} 기사의 차량 재고에 "${part.modelName}" 품목이 부족합니다.\n(현재 적재: ${currentQty}개 / 사용 필요: ${part.quantity}개)\n\n[소모품 관리 ➔ 차량별 이동재고] 메뉴에서 주기장 재고를 차량으로 먼저 불출(이동) 등록해 주시기 바랍니다.`);
+          const totalAvailableQty = mechStocks.reduce((acc, s) => acc + (s.stockQty || 0), 0);
+          if (totalAvailableQty < reqInfo.qty) {
+            throw new Error(`⚠️ [차량 재고 부족] ${mechanicName} 기사의 차량 재고에 "${reqInfo.modelName}" 품목이 부족합니다.\n(현재 적재: ${totalAvailableQty}개 / 사용 필요: ${reqInfo.qty}개)\n\n[소모품 관리 ➔ 차량별 이동재고] 메뉴에서 주기장 재고를 차량으로 먼저 불출(이동) 등록해 주시기 바랍니다.`);
           }
         }
 
-        // 실제 차감 수행
+        // 기존에 동일 티켓으로 등록된 repairConsumables가 있으면 중복 누적 방지를 위해 정리
+        const prevRepairConsumables = (db.repairConsumables || []).filter(rc => rc.repairId === ticket.id);
+        for (const prevRc of prevRepairConsumables) {
+          db.deleteRow('repairConsumables', prevRc.id);
+        }
+
+        // 1-2. 실제 차감 수행 (로트 입고일 기준 선입선출 FIFO 차감 및 targetAssetId / lotId 무누락 기록)
         for (const part of data.partsUsed) {
-          const vehicleStock = db.mechanicConsumableStocks.find(
-            s => s.mechanicId === data.mechanicId && s.consumableId === part.consumableId
-          );
-          if (vehicleStock) {
-            db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', vehicleStock.id, {
-              stockQty: vehicleStock.stockQty - part.quantity,
-              updatedAt: new Date().toISOString()
+          const cMaster = db.consumables.find(c => c.id === part.consumableId);
+          const fallbackUnitPrice = part.unitPrice ?? cMaster?.unitPrice ?? 0;
+          let remainingToDeduct = part.quantity;
+          let partActualCost = 0;
+          let primaryLotId: string | undefined = undefined;
+
+          const mechStocks = db.mechanicConsumableStocks
+            .filter(s => s.mechanicId === data.mechanicId && s.consumableId === part.consumableId && (s.stockQty || 0) > 0)
+            .sort((a, b) => {
+              const lotA = db.consumableLots.find(l => l.id === a.lotId);
+              const lotB = db.consumableLots.find(l => l.id === b.lotId);
+              return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
             });
 
-            // 소모품 출고 로그 기록
+          for (const stock of mechStocks) {
+            if (remainingToDeduct <= 0) break;
+            const deductQty = Math.min(stock.stockQty, remainingToDeduct);
+            const lot = stock.lotId ? db.consumableLots.find(l => l.id === stock.lotId) : undefined;
+            const lotUnitPrice = lot?.unitPrice ?? fallbackUnitPrice;
+            if (!primaryLotId && stock.lotId) primaryLotId = stock.lotId;
+
+            db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, {
+              stockQty: stock.stockQty - deductQty,
+              updatedAt: nowIso
+            });
+
+            // 소모품 출고 로그 기록 (대상 자산 ID 및 로트 ID 1:1 매핑)
             db.insertRow<ConsumableLog>('consumableLogs', {
               consumableId: part.consumableId,
+              lotId: stock.lotId,
               type: 'OUTBOUND',
-              quantity: part.quantity,
-              unitPrice: part.unitPrice,
+              quantity: deductQty,
+              unitPrice: lotUnitPrice,
+              targetAssetId: resolvedAssetId,
               userId: currentUser?.id,
               mechanicId: data.mechanicId,
               fromLocation: `${mechanicName} 차량`,
-              toLocation: `현장AS (${ticket.siteName || ''} / ${ticket.assetNo || ''})`,
-              actionDate: new Date().toISOString().split('T')[0],
-              description: `[현장AS 조치 소진] ${ticket.assetNo || ''} 수리 사용 (${ticket.ticketNo || ticket.id})`,
-              createdAt: new Date().toISOString()
+              toLocation: `현장AS (${ticket.siteName || ''} / ${resolvedAssetNo})`,
+              actionDate: actionDateStr,
+              description: `[현장AS 조치 소진] ${resolvedAssetNo} 수리 사용 (${ticket.ticketNo || ticket.id})`,
+              createdAt: nowIso
             });
+
+            partActualCost += lotUnitPrice * deductQty;
+            remainingToDeduct -= deductQty;
           }
+
+          const finalUnitPrice = part.quantity > 0 ? Math.round(partActualCost / part.quantity) : fallbackUnitPrice;
+          totalPartsCost += partActualCost;
+
+          // 정비-소모품 매핑 테이블(repairConsumables) 무누락 기록
+          db.insertRow<RepairConsumable>('repairConsumables', {
+            repairId: ticket.id,
+            consumableId: part.consumableId,
+            lotId: primaryLotId,
+            quantity: part.quantity,
+            unitPrice: finalUnitPrice,
+            cost: partActualCost
+          });
+        }
+      }
+
+      // 1-3. 현장 수거 부품(고품)이 있는 경우 고품 관리 대장(collectedParts) 동기화
+      if (data.collectedParts && data.collectedParts.length > 0) {
+        const ymdCompact = actionDateStr.replace(/-/g, '');
+        for (const cp of data.collectedParts) {
+          if (!cp.partName || !cp.partName.trim()) continue;
+          const matchedCons = db.consumables.find(
+            c => c.modelName.trim().toLowerCase() === cp.partName.trim().toLowerCase()
+          );
+          const newPartNo = `COL-${ymdCompact}-${Math.floor(1000 + Math.random() * 9000)}`;
+          db.insertRow<CollectedPart>('collectedParts', {
+            id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            partNo: newPartNo,
+            consumableId: matchedCons?.id || '',
+            modelName: cp.partName.trim(),
+            mechanicId: data.mechanicId,
+            mechanicName,
+            quantity: Math.max(1, cp.quantity || 1),
+            disposition: cp.status === 'DISPOSED' ? 'SCRAP' : 'REBUILD',
+            status: cp.status === 'DISPOSED' ? 'COMPLETED' : 'RECEIVED',
+            receivedDate: actionDateStr,
+            actionDate: cp.status === 'DISPOSED' ? actionDateStr : undefined,
+            memo: `[현장AS 고품수거] ${ticket.siteName || ''} / 장비: ${resolvedAssetNo} (${ticket.ticketNo || ticket.id})`,
+            createdAt: nowIso
+          });
         }
       }
 
@@ -7241,8 +7381,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           customerName: ticket.customerName,
           siteId: ticket.siteId,
           siteName: ticket.siteName,
-          assetId: ticket.assetId,
-          assetNo: ticket.assetNo,
+          siteAddress: ticket.siteAddress,
+          contractId: ticket.contractId,
+          assetId: resolvedAssetId,
+          assetNo: resolvedAssetNo,
+          modelName: resolvedModelName,
           locationDetail: ticket.locationDetail,
           reporterName: ticket.reporterName,
           reporterContact: ticket.reporterContact,
@@ -7252,7 +7395,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           errorCode: ticket.errorCode,
           priority: ticket.priority,
           status: 'SCHEDULED',
-          requestDate: new Date().toISOString().split('T')[0],
+          requestDate: nowIso.split('T')[0],
           visitDate: data.revisitDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
           scheduleDate: data.revisitDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
           mechanicId: data.mechanicId,
@@ -7264,18 +7407,24 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           parentRepairId: ticket.id,
           parentTicketId: ticket.id,
           memo: `이전 AS 티켓(${ticket.ticketNo || ticket.id}) 1차 점검 후 연계 생성됨`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: nowIso,
+          updatedAt: nowIso
         });
         revisitRepairId = chainedTicket.id;
       } else if (data.resolutionType === 'GUIDED_END') {
         finalStatus = 'GUIDED';
       }
 
-      // 3. 현재 티켓 완료/종결 업데이트
+      // 3. 현재 티켓 완료/종결 업데이트 (대상 자산 매핑 및 투입 소모품 원가 totalCost 반영)
       const sanitizedBillableAmount = Math.max(0, Number(data.billableAmount) || 0);
+      const prevTicketCost = ticket.totalCost || 0;
       db.updateRow<Repair>('repairs', ticketId, {
         status: finalStatus,
+        assetId: resolvedAssetId,
+        assetNo: resolvedAssetNo,
+        modelName: resolvedModelName,
+        visitDate: actionDateStr,
+        repairDate: actionDateStr,
         mechanicId: data.mechanicId,
         assignedMechanicId: data.mechanicId,
         mechanicName,
@@ -7283,6 +7432,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         resolutionType: data.resolutionType,
         partsUsed: data.partsUsed || [],
         collectedParts: data.collectedParts || [],
+        totalCost: totalPartsCost,
         billableType: data.billableType,
         billableAmount: sanitizedBillableAmount,
         billableToCustomer: data.billableType === 'BILLABLE',
@@ -7300,9 +7450,18 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         degradationScore: data.degradationScore !== undefined ? data.degradationScore : ticket.degradationScore,
         durationMinutes: data.durationMinutes !== undefined ? data.durationMinutes : ticket.durationMinutes,
         spentManHours: data.spentManHours !== undefined ? data.spentManHours : ticket.spentManHours,
-        completedDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        completedDate: nowIso,
+        updatedAt: nowIso
       });
+
+      // 3-1. 대상 자산의 누적 수리비(cumRepairCost) 정밀 반영
+      if (matchedAsset && (totalPartsCost > 0 || prevTicketCost > 0)) {
+        const nextCumRepairCost = Math.max(0, (matchedAsset.cumRepairCost || 0) - prevTicketCost) + totalPartsCost;
+        db.updateRow<Asset>('assets', matchedAsset.id, {
+          cumRepairCost: nextCumRepairCost,
+          updatedAt: nowIso
+        });
+      }
 
       // 🚐 현장AS 완료 시 일자별 동선 대장에 '작업 완료(WORK_COMPLETE)' 자동 기록
       try {
@@ -7355,21 +7514,21 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           type: 'EXCHANGE',
           dispatchCategory: '교환',
           status: 'PENDING',
-          requestDate: new Date().toISOString().split('T')[0],
+          requestDate: nowIso.split('T')[0],
           originAddress: originYardAddress,
           pickupType: 'HQ_YARD',
           destinationAddress: ticket.locationDetail || ticket.siteName || '현장',
           dropoffType: 'CUSTOMER_SITE',
           deliveryCost: 0,
-          memo: appendDispatchStaffTag(`[현장AS 대차 요청] 회수대상 자산: ${ticket.assetNo || '현장고장장비'} / 현장: ${ticket.siteName || ''} (${ticket.customerName || ''}) / 사유: ${data.actionTaken || '현장 수리불능 대차'}`),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          memo: appendDispatchStaffTag(`[현장AS 대차 요청] 회수대상 자산: ${resolvedAssetNo || '현장고장장비'} / 현장: ${ticket.siteName || ''} (${ticket.customerName || ''}) / 사유: ${data.actionTaken || '현장 수리불능 대차'}`),
+          createdAt: nowIso,
+          updatedAt: nowIso
         });
 
         // 🚀 대차 배차 지시 ToDo 발행
         await issueHandoverTask({
           category: 'DISPATCH_REQUEST',
-          title: `[대차 교환 배차] ${ticket.customerName || '고객사'} (${ticket.assetNo || '장비'})`,
+          title: `[대차 교환 배차] ${ticket.customerName || '고객사'} (${resolvedAssetNo || '장비'})`,
           content: `현장 수리불능 대차 요청. 신규 장비 출고 및 고장 장비 회수 왕복 1건 배차 처리. (현장: ${ticket.siteName || '-'})`,
           targetDept: 'DISPATCH',
           priority: 'URGENT',
@@ -7381,32 +7540,62 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
-      // 4. 자산 이력에 정비 사건 무누락 DB 저장
-      const targetAssetNo = ticket.assetNo;
-      if (targetAssetNo && targetAssetNo !== '현장확인' && targetAssetNo !== '전체장비') {
-        const matchedAsset = db.assets.find(a => a.assetNo === targetAssetNo);
-        db.insertRow<AssetInOutLog>('assetInOutLogs', {
-          assetId: matchedAsset?.id || ticket.assetId || `asset-${targetAssetNo}`,
-          assetNo: targetAssetNo,
-          modelName: matchedAsset?.modelName || ticket.locationDetail || '고소작업대',
-          type: 'REPAIR',
-          eventDate: new Date().toISOString().split('T')[0],
-          customerId: ticket.customerId,
-          customerName: ticket.customerName,
-          siteId: ticket.siteId,
-          siteName: ticket.siteName,
-        });
+      // 4. 자산 이력(assetInOutLogs)에 정비 사건 및 사용 소모품 내역 무누락 DB 저장 (repairId 1:1 매핑으로 중복 방지)
+      if (matchedAsset || (resolvedAssetNo && resolvedAssetNo !== '현장확인' && resolvedAssetNo !== '전체장비')) {
+        const partsSummaryText =
+          data.partsUsed && data.partsUsed.length > 0
+            ? ` / 사용소모품: ${data.partsUsed.map(p => `${p.modelName} ${p.quantity}개`).join(', ')}${totalPartsCost > 0 ? ` (₩${totalPartsCost.toLocaleString()})` : ''}`
+            : '';
+        const statusLabel =
+          finalStatus === 'COMPLETED' ? '조치완료' : finalStatus === 'REVISIT' ? '1차조치/재방문' : '안내종결';
+        const logMemo = `[현장AS ${statusLabel}] ${ticket.ticketNo || ''} ${ticket.issueDescription || '현장점검'} ➔ ${data.actionTaken}${partsSummaryText} (정비사: ${mechanicName})`;
+
+        const existingAssetLog = (db.assetInOutLogs || []).find(l => l.repairId === ticket.id);
+        if (existingAssetLog) {
+          db.updateRow<AssetInOutLog>('assetInOutLogs', existingAssetLog.id, {
+            assetId: matchedAsset?.id || resolvedAssetId || `asset-${resolvedAssetNo}`,
+            assetNo: resolvedAssetNo,
+            modelName: resolvedModelName,
+            eventDate: actionDateStr,
+            customerId: ticket.customerId,
+            customerName: ticket.customerName,
+            siteId: ticket.siteId,
+            siteName: ticket.siteName,
+            maintenanceScore: data.degradationScore ?? ticket.degradationScore ?? 0,
+            memo: logMemo,
+          });
+        } else {
+          db.insertRow<AssetInOutLog>('assetInOutLogs', {
+            assetId: matchedAsset?.id || resolvedAssetId || `asset-${resolvedAssetNo}`,
+            assetNo: resolvedAssetNo,
+            modelName: resolvedModelName,
+            type: 'REPAIR',
+            eventDate: actionDateStr,
+            customerId: ticket.customerId,
+            customerName: ticket.customerName,
+            siteId: ticket.siteId,
+            siteName: ticket.siteName,
+            repairId: ticket.id,
+            maintenanceScore: data.degradationScore ?? ticket.degradationScore ?? 0,
+            memo: logMemo,
+            createdAt: nowIso
+          });
+        }
       }
 
       // 5. 계약 이력에 AS 발생 및 조치 사건 무누락 DB 저장 (양방향 완벽 추적성)
       if (ticket.contractId) {
+        const partsSummaryShort =
+          data.partsUsed && data.partsUsed.length > 0
+            ? `, 사용부품: ${data.partsUsed.map(p => `${p.modelName}×${p.quantity}`).join(', ')}`
+            : '';
         db.insertRow<ContractHistory>('contract_history', {
           id: `ch-as-${ticket.id}-${Date.now()}`,
           contractId: ticket.contractId,
           changeType: 'AS_SERVICE',
-          changeDate: new Date().toISOString().split('T')[0],
-          description: `[현장 AS ${finalStatus === 'COMPLETED' ? '완료' : '조치'}] ${data.actionTaken} (${ticket.assetNo || '현장장비'}, 정비사: ${mechanicName}${data.billableAmount && data.billableAmount > 0 ? `, 유상수리비 ₩${data.billableAmount.toLocaleString()}` : ''})`,
-          createdAt: new Date().toISOString()
+          changeDate: actionDateStr,
+          description: `[현장 AS ${finalStatus === 'COMPLETED' ? '완료' : '조치'}] ${data.actionTaken} (${resolvedAssetNo || '현장장비'}, 정비사: ${mechanicName}${partsSummaryShort}${data.billableAmount && data.billableAmount > 0 ? `, 유상수리비 ₩${data.billableAmount.toLocaleString()}` : ''})`,
+          createdAt: nowIso
         });
       }
 
@@ -7418,7 +7607,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         broadcastWorkNotification({
           type: 'EXCHANGE',
           title: '대차 교체 의뢰 등록',
-          body: `${ticket.customerName || '고객사'} (${ticket.siteName || '현장'}) ${ticket.assetNo || '장비'} 현장수리불능 대차요청`,
+          body: `${ticket.customerName || '고객사'} (${ticket.siteName || '현장'}) ${resolvedAssetNo || '장비'} 현장수리불능 대차요청`,
           url: '/admin/dispatch',
           targetDepts: ['DISPATCH', 'YARD', 'ADMIN', 'EXECUTIVE']
         }).catch(console.warn);

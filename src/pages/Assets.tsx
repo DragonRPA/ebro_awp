@@ -208,6 +208,40 @@ export const Assets: React.FC = () => {
     const assetRepairs = (repairs || []).filter((r: Repair) => r.assetId === asset.id || (r.assetNo && r.assetNo === asset.assetNo));
     const existingRepairIds = new Set(rawLogs.map(l => l.repairId).filter(Boolean));
 
+    const buildRepairMemo = (r: Repair): string => {
+      const partsSummary =
+        r.partsUsed && r.partsUsed.length > 0
+          ? ` / 사용소모품: ${r.partsUsed.map(p => `${p.modelName} ${p.quantity}개`).join(', ')}`
+          : '';
+      return `${r.ticketNo || 'AS'} ${r.issueDescription || r.details || '정비점검'} ➔ ${r.actionTaken || '조치완료'}${partsSummary} (정비사: ${r.mechanicName || '-'})`;
+    };
+
+    // 레거시 assetInOutLogs(repairId 또는 memo 누락분)와 repairs 매칭 및 보강
+    const normalizedRawLogs: AssetInOutLog[] = rawLogs.map(log => {
+      if (log.type !== 'REPAIR') return log;
+      if (log.repairId) {
+        if (!log.memo) {
+          const matchedR = assetRepairs.find(r => r.id === log.repairId);
+          if (matchedR) return { ...log, memo: buildRepairMemo(matchedR) };
+        }
+        return log;
+      }
+      const matchedLegacyRepair = assetRepairs.find(r => {
+        if (existingRepairIds.has(r.id)) return false;
+        const rDate = r.visitDate || r.repairDate || r.requestDate || (r.createdAt ? r.createdAt.slice(0, 10) : '');
+        return rDate === log.eventDate && (!log.siteName || !r.siteName || log.siteName === r.siteName);
+      });
+      if (matchedLegacyRepair) {
+        existingRepairIds.add(matchedLegacyRepair.id);
+        return {
+          ...log,
+          repairId: matchedLegacyRepair.id,
+          memo: log.memo || buildRepairMemo(matchedLegacyRepair),
+        };
+      }
+      return log;
+    });
+
     const repairLogs: AssetInOutLog[] = assetRepairs
       .filter(r => !existingRepairIds.has(r.id))
       .map(r => ({
@@ -222,11 +256,12 @@ export const Assets: React.FC = () => {
         siteId: r.siteId,
         siteName: r.siteName || (r as any).site,
         repairId: r.id,
-        memo: `${r.ticketNo || 'AS'} ${r.issueDescription || r.details || '정비점검'} ➔ ${r.actionTaken || '조치완료'} (정비사: ${r.mechanicName || '-'})`,
+        maintenanceScore: r.degradationScore || 0,
+        memo: buildRepairMemo(r),
         createdAt: r.createdAt || new Date().toISOString()
       }));
 
-    const unified = [...rawLogs, ...repairLogs];
+    const unified = [...normalizedRawLogs, ...repairLogs];
 
     const hasAcquisition = unified.some(l => l.type === 'ACQUISITION');
     if (!hasAcquisition && asset.acquisitionDate) {
