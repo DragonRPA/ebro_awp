@@ -202,7 +202,7 @@ export const SalesJournalPage: React.FC = () => {
   // Groq LLM 호출하여 원문에서 구조화 데이터 추출
   const handleExtractFromRaw = async (autoSaveAfterExtract = false) => {
     if (!rawContent.trim()) {
-      showErrorModal('자연어 상담 원문을 먼저 입력해주세요.');
+      showErrorModal('상담내용을 먼저 입력해주세요.');
       return;
     }
 
@@ -258,7 +258,7 @@ export const SalesJournalPage: React.FC = () => {
   }) => {
     const finalRaw = rawContent.trim();
     if (!finalRaw) {
-      showErrorModal('자연어 상담 원문을 입력해주세요.');
+      showErrorModal('상담내용을 입력해주세요.');
       return;
     }
 
@@ -337,7 +337,7 @@ export const SalesJournalPage: React.FC = () => {
   // 저장 버튼 클릭 시: 아직 추출이 안 되어 고객명/요약이 비어있다면 자동으로 Groq LLM 추출 후 저장!
   const handleSaveButtonClick = async () => {
     if (!rawContent.trim()) {
-      showErrorModal('자연어 상담 원문을 입력해주세요.');
+      showErrorModal('상담내용을 입력해주세요.');
       return;
     }
     if (!customerName.trim() || !summary.trim()) {
@@ -678,10 +678,10 @@ export const SalesJournalPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 1. 자연어 원문 입력 (하단 여백만큼 가변 확장하여 스크롤바 없이 카드 높이를 꽉 채움) */}
+          {/* 1. 상담내용 입력 (하단 여백만큼 가변 확장하여 스크롤바 없이 카드 높이를 꽉 채움) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minHeight: '60px' }}>
             <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              자연어 상담 원문
+              상담내용
             </label>
             <textarea
               value={rawContent}
