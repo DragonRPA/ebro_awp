@@ -1,5 +1,5 @@
 // src/pages/SalesJournalPage.tsx
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { SalesJournal, SalesJournalStage, SalesJournalExtractedData } from '../services/db';
 import {
@@ -22,8 +22,6 @@ import {
   Calendar,
   UserCheck,
   Building2,
-  Mic,
-  MicOff,
   FileText,
   X,
   ArrowRight,
@@ -56,13 +54,6 @@ const STAGE_STYLE_MAP: Record<SalesJournalStage, { bg: string; text: string; bor
     desc: '발주 확정·계약 체결·장비 투입 확정',
   },
 };
-
-const SAMPLE_PROMPTS: string[] = [
-  '오늘 (주)삼진일렉스 박성민 부장님 만나서 평택 현장 26피트 4대, 45피트 2대 월 렌탈료 견적서 전달하고 단가 조건 협의함. 다음주 화요일 오전 10시에 최종 발주 여부 재통화하기로 함.',
-  '주식회사 세보엠이씨 이정훈 소장님 초도 방문 인사드림. 용인 반도체 클린룸 공사 현장에 다음 달 중순부터 고소작업대 약 10대 규모 수요 있는 것 확인함. 금요일 오전에 현장 답사 재방문 예정.',
-  '(주)유창이앤씨 김태호 공무과장님께 고덕 현장용 30피트 시저리프트 무상옵션 및 추락방지 안전옵션 장착 사양 카탈로그 제안 설명 완료. 내일 오후 2시 단가 견적서 메일 발송 예정.',
-  '주식회사 라이즈리프트 최현우 대표님과 통화하여 아산 탕정 현장 19피트 6대 월 렌탈 계약 및 거래개시 확정. 내일 오전 8시 주기장 출고 진행하기로 합의함.',
-];
 
 export const SalesJournalPage: React.FC = () => {
   const {
@@ -170,10 +161,6 @@ export const SalesJournalPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showJsonFormatBox, setShowJsonFormatBox] = useState<boolean>(false);
 
-  // 음성 인식 상태
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const recognitionRef = useRef<any>(null);
-
   // ─── 목록 조회/필터 상태 ───
   const [selectedSalespersonFilter, setSelectedSalespersonFilter] = useState<string>('ALL');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('ALL');
@@ -189,7 +176,6 @@ export const SalesJournalPage: React.FC = () => {
   });
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [detailJournal, setDetailJournal] = useState<SalesJournal | null>(null);
-  const [sampleIdx, setSampleIdx] = useState<number>(0);
 
   // 입력된 고객명으로 등록 고객 자동 매칭 확인
   const matchedCustomer = useMemo(() => {
@@ -211,59 +197,6 @@ export const SalesJournalPage: React.FC = () => {
     setNextScheduleDate('');
     setExtractedJsonPreview(null);
     setUsedAiModel('');
-  };
-
-  // 음성 받아쓰기 토글
-  const handleToggleSpeech = () => {
-    if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {}
-      }
-      setIsListening(false);
-      return;
-    }
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      showErrorModal('현재 브라우저에서 음성 인식을 지원하지 않습니다. 크롬 또는 엣지 브라우저를 사용해주세요.');
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'ko-KR';
-      recognition.continuous = true;
-      recognition.interimResults = false;
-
-      recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript + ' ';
-          }
-        }
-        if (transcript.trim()) {
-          setRawContent(prev => (prev ? `${prev.trim()} ${transcript.trim()}` : transcript.trim()));
-        }
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-      setIsListening(true);
-    } catch (e: any) {
-      showErrorModal('음성 인식 시작 중 오류가 발생했습니다: ' + (e?.message || e));
-    }
   };
 
   // Groq LLM 호출하여 원문에서 구조화 데이터 추출
@@ -575,31 +508,32 @@ export const SalesJournalPage: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', maxHeight: '100%', overflow: 'hidden', paddingBottom: '2px', boxSizing: 'border-box' }}>
       {/* 상단 헤더 & 영업전개 4단계 파이프라인 요약 카드 */}
       <div
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border-color)',
-          borderRadius: '10px',
-          padding: '16px 20px',
+          borderRadius: '8px',
+          padding: '8px 12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '14px',
+          gap: '6px',
+          flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BookOpen size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOpen size={17} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
               영업일지
             </h2>
             <span
               style={{
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: '6px',
+                padding: '2px 8px',
+                borderRadius: '5px',
                 background: '#eff6ff',
                 color: '#1d4ed8',
                 border: '1px solid #bfdbfe',
@@ -611,14 +545,14 @@ export const SalesJournalPage: React.FC = () => {
           </div>
 
           {/* 영업사원별 빠른 필터 탭 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setSelectedSalespersonFilter('ALL')}
               style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '12.5px',
+                padding: '3px 9px',
+                borderRadius: '5px',
+                fontSize: '11.5px',
                 fontWeight: 700,
                 border: selectedSalespersonFilter === 'ALL' ? '1.5px solid #1d4ed8' : '1px solid var(--border-color)',
                 background: selectedSalespersonFilter === 'ALL' ? '#dbeafe' : 'var(--bg-app)',
@@ -639,9 +573,9 @@ export const SalesJournalPage: React.FC = () => {
                   type="button"
                   onClick={() => setSelectedSalespersonFilter(isSelected ? 'ALL' : sp.id)}
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    fontSize: '12.5px',
+                    padding: '3px 9px',
+                    borderRadius: '5px',
+                    fontSize: '11.5px',
                     fontWeight: 700,
                     border: isSelected ? '1.5px solid #1d4ed8' : '1px solid var(--border-color)',
                     background: isSelected ? '#dbeafe' : 'var(--bg-app)',
@@ -662,8 +596,8 @@ export const SalesJournalPage: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: '10px',
+            gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))',
+            gap: '8px',
           }}
         >
           {SALES_JOURNAL_STAGES.map((stg, idx) => {
@@ -675,38 +609,34 @@ export const SalesJournalPage: React.FC = () => {
                 key={stg}
                 onClick={() => setSelectedStageFilter(isSelected ? 'ALL' : stg)}
                 style={{
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  border: isSelected ? `2px solid ${stStyle.text}` : `1px solid ${stStyle.border}`,
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: isSelected ? `1.5px solid ${stStyle.text}` : `1px solid ${stStyle.border}`,
                   background: isSelected ? stStyle.bg : 'var(--bg-app)',
                   cursor: 'pointer',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '6px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 800,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: stStyle.bg,
-                      color: stStyle.text,
-                      border: `1px solid ${stStyle.border}`,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {idx + 1}단계 · {stg}
-                  </span>
-                  <span style={{ fontSize: '18px', fontWeight: 800, color: stStyle.text, whiteSpace: 'nowrap' }}>
-                    {count}건
-                  </span>
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {stStyle.desc}
-                </div>
+                <span
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: 800,
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    background: stStyle.bg,
+                    color: stStyle.text,
+                    border: `1px solid ${stStyle.border}`,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {idx + 1}단계 · {stg}
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: stStyle.text, whiteSpace: 'nowrap' }}>
+                  {count}건
+                </span>
               </div>
             );
           })}
@@ -717,9 +647,11 @@ export const SalesJournalPage: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-          gap: '16px',
-          alignItems: 'start',
+          gridTemplateColumns: '430px minmax(0, 1fr)',
+          gap: '10px',
+          alignItems: 'stretch',
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {/* ─── 좌측: 영업일지 자연어 작성 및 구조화 추출 스튜디오 ─── */}
@@ -727,114 +659,73 @@ export const SalesJournalPage: React.FC = () => {
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
-            borderRadius: '10px',
-            padding: '18px',
+            borderRadius: '8px',
+            padding: '8px 12px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
+            gap: '5px',
+            overflow: 'hidden',
+            minHeight: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={17} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-              <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileText size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 {editingId ? '영업일지 수정' : '영업일지 작성'}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const sample = SAMPLE_PROMPTS[sampleIdx % SAMPLE_PROMPTS.length];
-                  setRawContent(sample);
-                  setSampleIdx(prev => prev + 1);
-                }}
-                style={{
-                  padding: '4px 9px',
-                  borderRadius: '5px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-app)',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                예시 문구 입력
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleSpeech}
-                style={{
-                  padding: '4px 9px',
-                  borderRadius: '5px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  border: isListening ? '1px solid #dc2626' : '1px solid var(--border-color)',
-                  background: isListening ? '#fef2f2' : 'var(--bg-app)',
-                  color: isListening ? '#dc2626' : 'var(--text-primary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {isListening ? <MicOff size={13} /> : <Mic size={13} />}
-                {isListening ? '음성 중지' : '음성 입력'}
-              </button>
-            </div>
           </div>
 
-          {/* 1. 자유 자연어 원문 입력 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+          {/* 1. 자연어 원문 입력 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               자연어 상담 원문
             </label>
             <textarea
               value={rawContent}
               onChange={e => setRawContent(e.target.value)}
-              rows={5}
-              placeholder="상담한 고객명, 상대방 이름과 직책, 상담 내용(영업개시/제안/견적/거래개시), 다음 일정을 자유롭게 작성하세요."
+              rows={2}
+              placeholder="고객명, 상대방 이름·직책, 상담 내용(영업개시/제안/견적/거래개시), 다음 일정 입력"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
+                height: '52px',
+                padding: '6px 8px',
+                borderRadius: '6px',
                 border: '1px solid var(--border-color)',
                 background: 'var(--bg-app)',
                 color: 'var(--text-primary)',
-                fontSize: '13.5px',
-                lineHeight: 1.55,
-                resize: 'vertical',
+                fontSize: '12.5px',
+                lineHeight: 1.4,
+                resize: 'none',
                 boxSizing: 'border-box',
               }}
             />
           </div>
 
           {/* Groq LLM 추출 실행 버튼 바 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
             <button
               type="button"
               disabled={isExtracting || isSaving}
               onClick={() => handleExtractFromRaw(false)}
               style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
+                padding: '6px 10px',
+                borderRadius: '6px',
                 border: '1px solid #1d4ed8',
                 background: '#eff6ff',
                 color: '#1d4ed8',
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: 800,
                 cursor: isExtracting || isSaving ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
+                gap: '5px',
                 whiteSpace: 'nowrap',
               }}
             >
-              <Sparkles size={15} />
+              <Sparkles size={13} />
               {isExtracting ? '항목 추출 중...' : '자동 항목 추출'}
             </button>
 
@@ -843,22 +734,22 @@ export const SalesJournalPage: React.FC = () => {
               disabled={isExtracting || isSaving}
               onClick={() => handleExtractFromRaw(true)}
               style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
+                padding: '6px 10px',
+                borderRadius: '6px',
                 border: 'none',
                 background: '#1d4ed8',
                 color: '#ffffff',
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: 800,
                 cursor: isExtracting || isSaving ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
+                gap: '5px',
                 whiteSpace: 'nowrap',
               }}
             >
-              <CheckCircle2 size={15} />
+              <CheckCircle2 size={13} />
               {isExtracting || isSaving ? '처리 중...' : '추출 후 즉시 저장'}
             </button>
           </div>
@@ -867,14 +758,14 @@ export const SalesJournalPage: React.FC = () => {
           <div
             style={{
               borderTop: '1px solid var(--border-color)',
-              paddingTop: '12px',
+              paddingTop: '6px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px',
+              gap: '6px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 추출 항목 확인 및 편집
               </span>
               {extractedJsonPreview && (
@@ -882,7 +773,7 @@ export const SalesJournalPage: React.FC = () => {
                   type="button"
                   onClick={() => setShowJsonFormatBox(prev => !prev)}
                   style={{
-                    fontSize: '11.5px',
+                    fontSize: '11px',
                     fontWeight: 700,
                     color: '#1d4ed8',
                     background: 'none',
@@ -901,13 +792,13 @@ export const SalesJournalPage: React.FC = () => {
               <pre
                 style={{
                   margin: 0,
-                  padding: '10px',
+                  padding: '6px 8px',
                   borderRadius: '6px',
                   background: '#0f172a',
                   color: '#e2e8f0',
-                  fontSize: '11.5px',
+                  fontSize: '11px',
                   overflowX: 'auto',
-                  lineHeight: 1.45,
+                  lineHeight: 1.35,
                 }}
               >
                 {JSON.stringify(extractedJsonPreview, null, 2)}
@@ -915,9 +806,9 @@ export const SalesJournalPage: React.FC = () => {
             )}
 
             {/* 작성일 & 담당 영업사원 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   작성일
                 </label>
                 <input
@@ -925,30 +816,34 @@ export const SalesJournalPage: React.FC = () => {
                   value={journalDate}
                   onChange={e => setJournalDate(e.target.value)}
                   style={{
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   담당 영업사원
                 </label>
                 <select
                   value={salespersonId}
                   onChange={e => setSalespersonId(e.target.value)}
                   style={{
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 >
                   {salespersonOptions.map(sp => (
@@ -961,17 +856,17 @@ export const SalesJournalPage: React.FC = () => {
             </div>
 
             {/* 고객명 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   고객명
                 </label>
                 {customerName.trim() && (
                   <span
                     style={{
-                      fontSize: '11px',
+                      fontSize: '10.5px',
                       fontWeight: 700,
-                      padding: '1px 6px',
+                      padding: '1px 5px',
                       borderRadius: '4px',
                       background: matchedCustomer ? '#ecfdf5' : '#fef3c7',
                       color: matchedCustomer ? '#047857' : '#b45309',
@@ -989,12 +884,14 @@ export const SalesJournalPage: React.FC = () => {
                 onChange={e => setCustomerName(e.target.value)}
                 placeholder="고객사 상호"
                 style={{
-                  padding: '8px 10px',
-                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  height: '29px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  fontSize: '13px',
+                  fontSize: '12px',
+                  boxSizing: 'border-box',
                 }}
               />
               <datalist id="sales-journal-customer-list">
@@ -1005,54 +902,58 @@ export const SalesJournalPage: React.FC = () => {
             </div>
 
             {/* 상대방 성명 & 상대방 직책 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   상대방 이름
                 </label>
                 <input
                   type="text"
                   value={contactName}
                   onChange={e => setContactName(e.target.value)}
-                  placeholder="예: 박성민"
+                  placeholder="성명"
                   style={{
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   상대방 직책
                 </label>
                 <input
                   type="text"
                   value={contactTitle}
                   onChange={e => setContactTitle(e.target.value)}
-                  placeholder="예: 부장, 소장, 대표"
+                  placeholder="부장, 소장, 대표"
                   style={{
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
             </div>
 
             {/* 상담내용의 구분 (영업개시 / 제안 / 견적 / 거래개시) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 상담내용 구분
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
                 {SALES_JOURNAL_STAGES.map(stg => {
                   const stStyle = STAGE_STYLE_MAP[stg];
                   const active = stage === stg;
@@ -1062,11 +963,11 @@ export const SalesJournalPage: React.FC = () => {
                       type="button"
                       onClick={() => setStage(stg)}
                       style={{
-                        padding: '8px 6px',
-                        borderRadius: '6px',
-                        fontSize: '12.5px',
+                        padding: '5px 4px',
+                        borderRadius: '5px',
+                        fontSize: '12px',
                         fontWeight: 800,
-                        border: active ? `2px solid ${stStyle.text}` : '1px solid var(--border-color)',
+                        border: active ? `1.5px solid ${stStyle.text}` : '1px solid var(--border-color)',
                         background: active ? stStyle.bg : 'var(--bg-app)',
                         color: active ? stStyle.text : 'var(--text-secondary)',
                         cursor: 'pointer',
@@ -1081,54 +982,57 @@ export const SalesJournalPage: React.FC = () => {
             </div>
 
             {/* 상담내용 요약 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 상담내용 요약
               </label>
               <textarea
                 value={summary}
                 onChange={e => setSummary(e.target.value)}
-                rows={3}
-                placeholder="핵심 상담내용 요약"
+                rows={2}
+                placeholder="상담내용 요약"
                 style={{
                   width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
+                  height: '44px',
+                  padding: '5px 8px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  lineHeight: 1.5,
-                  resize: 'vertical',
+                  fontSize: '12px',
+                  lineHeight: 1.4,
+                  resize: 'none',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
 
             {/* 다음 일정 & 다음 일정일 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 135px', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 125px', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   다음 일정
                 </label>
                 <input
                   type="text"
                   value={nextSchedule}
                   onChange={e => setNextSchedule(e.target.value)}
-                  placeholder="후속 일정 및 조치 사항 (없으면 비움)"
+                  placeholder="후속 일정 및 조치 사항"
                   style={{
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '13px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   다음 일정일
                 </label>
                 <input
@@ -1136,38 +1040,40 @@ export const SalesJournalPage: React.FC = () => {
                   value={nextScheduleDate}
                   onChange={e => setNextScheduleDate(e.target.value)}
                   style={{
-                    padding: '8px 8px',
-                    borderRadius: '6px',
+                    padding: '4px 6px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    fontSize: '11.5px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
             </div>
 
             {/* 하단 저장 및 초기화 버튼 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', marginTop: '2px' }}>
               <button
                 type="button"
                 onClick={handleResetForm}
                 style={{
-                  padding: '9px 14px',
-                  borderRadius: '7px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
                   border: '1px solid var(--border-color)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-secondary)',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '5px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={13} />
                 초기화
               </button>
 
@@ -1176,21 +1082,21 @@ export const SalesJournalPage: React.FC = () => {
                 disabled={isSaving || isExtracting}
                 onClick={handleSaveButtonClick}
                 style={{
-                  padding: '9px 18px',
-                  borderRadius: '7px',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
                   border: 'none',
                   background: '#059669',
                   color: '#ffffff',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: 800,
                   cursor: isSaving || isExtracting ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '5px',
                   whiteSpace: 'nowrap',
                 }}
               >
-                <Save size={15} />
+                <Save size={14} />
                 {editingId ? '수정 저장' : '영업일지 저장'}
               </button>
             </div>
@@ -1198,24 +1104,26 @@ export const SalesJournalPage: React.FC = () => {
         </div>
 
         {/* ─── 우측: 영업일지 조회 그리드 및 상세 열람 패널 ─── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, height: '100%', minHeight: 0 }}>
           {/* 필터 바 (헌장 3.4 상하 스택 레이블 구조) */}
           <div
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
-              borderRadius: '10px',
-              padding: '14px 16px',
+              borderRadius: '8px',
+              padding: '8px 12px',
               display: 'flex',
               alignItems: 'flex-end',
               justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
+              flexWrap: 'nowrap',
+              gap: '8px',
+              flexShrink: 0,
+              overflowX: 'auto',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'nowrap', gap: '8px', flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   조회 시작일
                 </label>
                 <input
@@ -1223,18 +1131,20 @@ export const SalesJournalPage: React.FC = () => {
                   value={startDateFilter}
                   onChange={e => setStartDateFilter(e.target.value)}
                   style={{
-                    padding: '7px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   조회 종료일
                 </label>
                 <input
@@ -1242,30 +1152,34 @@ export const SalesJournalPage: React.FC = () => {
                   value={endDateFilter}
                   onChange={e => setEndDateFilter(e.target.value)}
                   style={{
-                    padding: '7px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   영업사원
                 </label>
                 <select
                   value={selectedSalespersonFilter}
                   onChange={e => setSelectedSalespersonFilter(e.target.value)}
                   style={{
-                    padding: '7px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <option value="ALL">전체 영업사원</option>
@@ -1277,20 +1191,22 @@ export const SalesJournalPage: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   상담 구분
                 </label>
                 <select
                   value={selectedStageFilter}
                   onChange={e => setSelectedStageFilter(e.target.value)}
                   style={{
-                    padding: '7px 10px',
-                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    height: '29px',
+                    borderRadius: '5px',
                     border: '1px solid var(--border-color)',
                     background: 'var(--bg-app)',
                     color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    fontSize: '12px',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <option value="ALL">전체 구분</option>
@@ -1302,12 +1218,12 @@ export const SalesJournalPage: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: '140px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                   검색어
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={14} style={{ position: 'absolute', left: '9px', color: 'var(--text-muted)' }} />
+                  <Search size={13} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)' }} />
                   <input
                     type="text"
                     value={searchKeyword}
@@ -1315,29 +1231,32 @@ export const SalesJournalPage: React.FC = () => {
                     placeholder="고객명, 상대방, 요약, 원문 검색"
                     style={{
                       width: '100%',
-                      padding: '7px 10px 7px 28px',
-                      borderRadius: '6px',
+                      padding: '4px 8px 4px 25px',
+                      height: '29px',
+                      borderRadius: '5px',
                       border: '1px solid var(--border-color)',
                       background: 'var(--bg-app)',
                       color: 'var(--text-primary)',
-                      fontSize: '12.5px',
+                      fontSize: '12px',
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={handleExportExcel}
                 style={{
-                  padding: '7px 12px',
-                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  height: '29px',
+                  borderRadius: '5px',
                   border: '1px solid var(--border-color)',
                   background: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  fontSize: '12.5px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
@@ -1345,9 +1264,10 @@ export const SalesJournalPage: React.FC = () => {
                   gap: '5px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
+                  boxSizing: 'border-box',
                 }}
               >
-                <Download size={14} />
+                <Download size={13} />
                 엑셀 내보내기
               </button>
             </div>
@@ -1358,22 +1278,23 @@ export const SalesJournalPage: React.FC = () => {
             <div
               style={{
                 background: 'var(--bg-card)',
-                border: '2px solid #2563eb',
-                borderRadius: '10px',
-                padding: '16px 18px',
+                border: '1.5px solid #2563eb',
+                borderRadius: '8px',
+                padding: '10px 12px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: '8px',
+                flexShrink: 0,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span
                     style={{
-                      fontSize: '12px',
+                      fontSize: '11.5px',
                       fontWeight: 800,
-                      padding: '3px 9px',
-                      borderRadius: '5px',
+                      padding: '2px 7px',
+                      borderRadius: '4px',
                       background: STAGE_STYLE_MAP[detailJournal.stage]?.bg || '#eff6ff',
                       color: STAGE_STYLE_MAP[detailJournal.stage]?.text || '#1d4ed8',
                       border: `1px solid ${STAGE_STYLE_MAP[detailJournal.stage]?.border || '#bfdbfe'}`,
@@ -1382,30 +1303,30 @@ export const SalesJournalPage: React.FC = () => {
                   >
                     {detailJournal.stage}
                   </span>
-                  <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                     {detailJournal.customerName}
                   </span>
                   {(detailJournal.contactName || detailJournal.contactTitle) && (
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                       · 상대방: {[detailJournal.contactName, detailJournal.contactTitle].filter(Boolean).join(' ')}
                     </span>
                   )}
-                  <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     | 작성일: {detailJournal.journalDate} | 담당: {detailJournal.salespersonName}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <button
                     type="button"
                     onClick={() => handleLoadForEdit(detailJournal)}
                     style={{
-                      padding: '5px 10px',
-                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '5px',
                       border: '1px solid var(--border-color)',
                       background: 'var(--bg-app)',
                       color: 'var(--text-primary)',
-                      fontSize: '12px',
+                      fontSize: '11.5px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
@@ -1414,19 +1335,19 @@ export const SalesJournalPage: React.FC = () => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    <Edit3 size={13} />
+                    <Edit3 size={12} />
                     수정
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(detailJournal)}
                     style={{
-                      padding: '5px 10px',
-                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '5px',
                       border: '1px solid #fecaca',
                       background: '#fef2f2',
                       color: '#dc2626',
-                      fontSize: '12px',
+                      fontSize: '11.5px',
                       fontWeight: 700,
                       cursor: 'pointer',
                       display: 'flex',
@@ -1435,46 +1356,46 @@ export const SalesJournalPage: React.FC = () => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={12} />
                     삭제
                   </button>
                   <button
                     type="button"
                     onClick={() => setDetailJournal(null)}
                     style={{
-                      padding: '5px 8px',
-                      borderRadius: '6px',
+                      padding: '4px 6px',
+                      borderRadius: '5px',
                       border: '1px solid var(--border-color)',
                       background: 'var(--bg-app)',
                       color: 'var(--text-muted)',
                       cursor: 'pointer',
                     }}
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {/* 추출된 구조화 데이터 */}
                 <div
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
                     background: 'var(--bg-app)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
+                    gap: '4px',
                   }}
                 >
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
-                    추출된 정형 데이터
+                  <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                    추출 정형 데이터
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.55 }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
                     <strong>상담 요약:</strong> {detailJournal.summary}
                   </div>
-                  <div style={{ fontSize: '13px', color: detailJournal.nextSchedule ? '#047857' : 'var(--text-muted)', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: '12px', color: detailJournal.nextSchedule ? '#047857' : 'var(--text-muted)', lineHeight: 1.4 }}>
                     <strong>다음 일정:</strong>{' '}
                     {detailJournal.nextSchedule
                       ? `${detailJournal.nextScheduleDate ? `[${detailJournal.nextScheduleDate}] ` : ''}${detailJournal.nextSchedule}`
@@ -1485,19 +1406,19 @@ export const SalesJournalPage: React.FC = () => {
                 {/* 자연어 원문 */}
                 <div
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
                     background: 'var(--bg-app)',
                     border: '1px solid var(--border-color)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
+                    gap: '4px',
                   }}
                 >
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     자연어 작성 원문
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
                     {detailJournal.rawContent}
                   </div>
                 </div>
@@ -1510,56 +1431,58 @@ export const SalesJournalPage: React.FC = () => {
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
-              borderRadius: '10px',
+              borderRadius: '8px',
               overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
             }}
           >
             <div
               style={{
-                padding: '12px 16px',
+                padding: '8px 12px',
                 borderBottom: '1px solid var(--border-color)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                flexShrink: 0,
               }}
             >
-              <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 영업일지 목록 ({filteredJournals.length}건)
-              </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                행을 클릭하면 원문과 추출 데이터를 상세 비교합니다
               </span>
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <div style={{ overflow: 'auto', flex: 1, minHeight: 0 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
                 <thead>
-                  <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap', width: '76px' }}>
+                  <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 1 }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap', width: '68px' }}>
                       상세
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       작성일
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       영업사원
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       상담 구분
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       고객명
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       상대방
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       상담내용 요약
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       다음 일정
                     </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       관리
                     </th>
                   </tr>
@@ -1570,14 +1493,14 @@ export const SalesJournalPage: React.FC = () => {
                       <td
                         colSpan={9}
                         style={{
-                          padding: '42px 16px',
+                          padding: '32px 16px',
                           textAlign: 'center',
                           color: 'var(--text-muted)',
-                          fontSize: '13.5px',
+                          fontSize: '12.5px',
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        등록된 영업일지가 없습니다. 좌측에서 자연어로 상담 내용을 작성해보세요.
+                        등록된 영업일지가 없습니다.
                       </td>
                     </tr>
                   ) : (
