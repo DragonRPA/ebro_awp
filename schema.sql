@@ -289,7 +289,7 @@ CREATE TABLE customers (
     address               TEXT,
     "bizType"             TEXT, -- 업태 (예: 건설업, 도소매업)
     "bizItem"             TEXT, -- 종목 (예: 고소작업대임대, 가설재)
-    "transactionStatus"   TEXT CHECK ("transactionStatus" IN ('ALLOWED', 'BLOCKED')) NOT NULL DEFAULT 'ALLOWED', -- ALLOWED: 정상거래, BLOCKED: 신규계약/출고제한
+    "transactionStatus"   TEXT CHECK ("transactionStatus" IN ('ALLOWED', 'RESTRICT_NEW', 'BLOCKED_ALL', 'BLOCKED')) NOT NULL DEFAULT 'ALLOWED', -- ALLOWED: 정상거래, RESTRICT_NEW: 추가출고차단(기존유지), BLOCKED_ALL/BLOCKED: 전면차단(기존거래종료)
     "defaultBillingDay"   INTEGER DEFAULT 30,
     "defaultStatementClosingDay" INTEGER DEFAULT 25,
     "paymentDueDay"       INTEGER,

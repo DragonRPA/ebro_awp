@@ -1121,9 +1121,15 @@ export const canUserControlCustomerBlock = (
   if (user.id === 'u-1' || user.id === 'sys-admin' || String(user.loginId || '').trim().toLowerCase() === 'admin') {
     return true;
   }
-  // 임직원 권한관리에서 개별 직원 단위로 노출/비노출을 명시 지정한 경우 최우선 적용
+  // 임직원 권한관리에서 개별 직원 단위로 노출/비노출을 명시 지정한 경우 최우선 적용 (로컬 User 필드 및 원격 permissions 테이블 동기화)
   if (typeof user.canBlockCustomer === 'boolean') {
     return user.canBlockCustomer;
+  }
+  const explicitUserBlockPerm = (db.permissions || []).find(
+    p => p && p.userId === user.id && p.menuId === 'delinquency_block'
+  );
+  if (explicitUserBlockPerm) {
+    return Boolean(explicitUserBlockPerm.canSave || explicitUserBlockPerm.canView);
   }
   // 권한 명칭(RolePermission)에 delinquency_block 권한이 부여된 경우
   if (user.customRoleId && Array.isArray(rolePermissions)) {
@@ -1186,6 +1192,9 @@ export interface Customer {
   driveFolderId?: string;
   prepaidBalance?: number; // 선수금 (예치금) 잔액
   transactionStatus?: CustomerTransactionStatus; // ALLOWED: 정상거래, RESTRICT_NEW: 추가계약금지(기존계약유지), BLOCKED_ALL: 전면차단(장비회수·계약금지)
+  blockedReason?: string; // 거래 차단 사유
+  blockedAt?: string; // 거래 차단 일시
+  blockedBy?: string; // 거래 차단 처분자
   defaultBillingDay?: number; // 계산서 기본 마감일 (예: 30일/월말, 0: 미지정)
   defaultStatementClosingDay?: number; // 명세서 기본 마감일 (예: 25일)
   defaultFreightBillingStandard?: '3/5' | '2/4'; // 운송료 청구기준 기본값 ('3/5' | '2/4')
@@ -6200,8 +6209,30 @@ class LocalDB {
       if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
         changed = true;
       }
+      // 2단계 거래 차단 상태(RESTRICT_NEW / BLOCKED_ALL) 및 차단 메타데이터를 defaultCheckedSpecs에서 복원
+      let txStatus: CustomerTransactionStatus = c.transactionStatus || 'ALLOWED';
+      const storedTxStatus = c.defaultCheckedSpecs && (c.defaultCheckedSpecs as any).__transactionStatus;
+      if (txStatus === 'BLOCKED') {
+        if (storedTxStatus === 'RESTRICT_NEW' || storedTxStatus === 'BLOCKED_ALL') {
+          txStatus = storedTxStatus;
+        } else {
+          txStatus = 'BLOCKED_ALL';
+        }
+        changed = true;
+      }
+      let blkReason = c.blockedReason ?? ((c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__blockedReason === 'string' && (c.defaultCheckedSpecs as any).__blockedReason) ? (c.defaultCheckedSpecs as any).__blockedReason : undefined);
+      let blkAt = c.blockedAt ?? ((c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__blockedAt === 'string' && (c.defaultCheckedSpecs as any).__blockedAt) ? (c.defaultCheckedSpecs as any).__blockedAt : undefined);
+      let blkBy = c.blockedBy ?? ((c.defaultCheckedSpecs && typeof (c.defaultCheckedSpecs as any).__blockedBy === 'string' && (c.defaultCheckedSpecs as any).__blockedBy) ? (c.defaultCheckedSpecs as any).__blockedBy : undefined);
+      if (txStatus === 'ALLOWED') {
+        blkReason = undefined;
+        blkAt = undefined;
+        blkBy = undefined;
+      }
+      if (c.transactionStatus !== txStatus || c.blockedReason !== blkReason || c.blockedAt !== blkAt || c.blockedBy !== blkBy) {
+        changed = true;
+      }
       if (changed) {
-        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, defaultFreightBillingStandard: defFreightStd, defaultTaxInvoiceIssueType: defTaxIssueType, defaultPaymentMethod: defPaymentMethod, defaultPaymentTermsNote: defPaymentTermsNote, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
+        return { ...c, transactionStatus: txStatus, blockedReason: blkReason, blockedAt: blkAt, blockedBy: blkBy, defaultPaidOptions: defPaid, defaultProtection: defProt, defaultAttachments: defAtt, defaultFreightBillingStandard: defFreightStd, defaultTaxInvoiceIssueType: defTaxIssueType, defaultPaymentMethod: defPaymentMethod, defaultPaymentTermsNote: defPaymentTermsNote, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
       }
       return c;
     }).sort((a, b) => compareCustomerNames(a?.name, b?.name));
@@ -7799,6 +7830,38 @@ class LocalDB {
         sanitized.defaultProtection = fullProt.length > 20 ? 'CUSTOM' : fullProt;
       }
 
+      // 원격 DB customers_transactionStatus_check ('ALLOWED', 'BLOCKED') 제약조건 100% 준수 및 2단계 차단 구분(__transactionStatus) 영구 보존
+      if (obj.transactionStatus !== undefined || sanitized.transactionStatus !== undefined || obj.blockedReason !== undefined || obj.blockedAt !== undefined || obj.blockedBy !== undefined) {
+        const rawTxStatus = obj.transactionStatus ?? sanitized.transactionStatus ?? existingCustObj?.transactionStatus ?? baseSpecs.__transactionStatus ?? 'ALLOWED';
+        if (rawTxStatus === 'RESTRICT_NEW' || rawTxStatus === 'BLOCKED_ALL' || rawTxStatus === 'BLOCKED') {
+          const exactStage = rawTxStatus === 'RESTRICT_NEW'
+            ? 'RESTRICT_NEW'
+            : (rawTxStatus === 'BLOCKED_ALL'
+                ? 'BLOCKED_ALL'
+                : (baseSpecs.__transactionStatus === 'RESTRICT_NEW' ? 'RESTRICT_NEW' : 'BLOCKED_ALL'));
+          baseSpecs.__transactionStatus = exactStage;
+          const effReason = obj.blockedReason !== undefined ? obj.blockedReason : existingCustObj?.blockedReason;
+          const effAt = obj.blockedAt !== undefined ? obj.blockedAt : existingCustObj?.blockedAt;
+          const effBy = obj.blockedBy !== undefined ? obj.blockedBy : existingCustObj?.blockedBy;
+          if (effReason !== undefined) baseSpecs.__blockedReason = effReason || '';
+          if (effAt !== undefined) baseSpecs.__blockedAt = effAt || '';
+          if (effBy !== undefined) baseSpecs.__blockedBy = effBy || '';
+          specsModified = true;
+          if (obj.transactionStatus !== undefined || sanitized.transactionStatus !== undefined) {
+            sanitized.transactionStatus = 'BLOCKED';
+          }
+        } else {
+          baseSpecs.__transactionStatus = 'ALLOWED';
+          delete baseSpecs.__blockedReason;
+          delete baseSpecs.__blockedAt;
+          delete baseSpecs.__blockedBy;
+          specsModified = true;
+          if (obj.transactionStatus !== undefined || sanitized.transactionStatus !== undefined) {
+            sanitized.transactionStatus = 'ALLOWED';
+          }
+        }
+      }
+
       if (specsModified) {
         sanitized.defaultCheckedSpecs = baseSpecs;
       }
@@ -7807,6 +7870,9 @@ class LocalDB {
       delete sanitized.defaultTaxInvoiceIssueType;
       delete sanitized.defaultPaymentMethod;
       delete sanitized.defaultPaymentTermsNote;
+      delete sanitized.blockedReason;
+      delete sanitized.blockedAt;
+      delete sanitized.blockedBy;
     }
 
     // deliveries 테이블의 경유/합짐 묶음 메타데이터([BUNDLE:bundleGroupId|bundleOrder|originalDispatchCategory])를 memo에 동기화하여 원격 DB 스키마 제약 없이 100% 영구 보존
@@ -8153,6 +8219,24 @@ class LocalDB {
         }
       }
     }
+    if (tableKey === 'customers') {
+      const nextSpecs = (formattedRow.defaultCheckedSpecs && typeof formattedRow.defaultCheckedSpecs === 'object' && !Array.isArray(formattedRow.defaultCheckedSpecs))
+        ? { ...formattedRow.defaultCheckedSpecs }
+        : {};
+      const tx = formattedRow.transactionStatus || 'ALLOWED';
+      if (tx === 'ALLOWED') {
+        nextSpecs.__transactionStatus = 'ALLOWED';
+        delete nextSpecs.__blockedReason;
+        delete nextSpecs.__blockedAt;
+        delete nextSpecs.__blockedBy;
+      } else {
+        nextSpecs.__transactionStatus = tx === 'RESTRICT_NEW' ? 'RESTRICT_NEW' : 'BLOCKED_ALL';
+        if (formattedRow.blockedReason !== undefined) nextSpecs.__blockedReason = formattedRow.blockedReason || '';
+        if (formattedRow.blockedAt !== undefined) nextSpecs.__blockedAt = formattedRow.blockedAt || '';
+        if (formattedRow.blockedBy !== undefined) nextSpecs.__blockedBy = formattedRow.blockedBy || '';
+      }
+      formattedRow.defaultCheckedSpecs = nextSpecs;
+    }
     const newRow = formattedRow as unknown as T;
     const existingIdx = list.findIndex(item => item && item.id === newId);
     if (existingIdx > -1) {
@@ -8255,6 +8339,25 @@ class LocalDB {
           mergedItem.manufacturer = autoMfg;
         }
       }
+    }
+    if (tableKey === 'customers') {
+      const nextSpecs = (mergedItem.defaultCheckedSpecs && typeof mergedItem.defaultCheckedSpecs === 'object' && !Array.isArray(mergedItem.defaultCheckedSpecs))
+        ? { ...mergedItem.defaultCheckedSpecs }
+        : {};
+      const tx = mergedItem.transactionStatus || 'ALLOWED';
+      if (tx === 'ALLOWED') {
+        nextSpecs.__transactionStatus = 'ALLOWED';
+        delete nextSpecs.__blockedReason;
+        delete nextSpecs.__blockedAt;
+        delete nextSpecs.__blockedBy;
+      } else {
+        nextSpecs.__transactionStatus = tx === 'RESTRICT_NEW' ? 'RESTRICT_NEW' : 'BLOCKED_ALL';
+        if (mergedItem.blockedReason !== undefined) nextSpecs.__blockedReason = mergedItem.blockedReason || '';
+        if (mergedItem.blockedAt !== undefined) nextSpecs.__blockedAt = mergedItem.blockedAt || '';
+        if (mergedItem.blockedBy !== undefined) nextSpecs.__blockedBy = mergedItem.blockedBy || '';
+      }
+      mergedItem.defaultCheckedSpecs = nextSpecs;
+      updatedPayload.defaultCheckedSpecs = nextSpecs;
     }
     const updated = mergedItem as unknown as T;
     list[index] = updated;

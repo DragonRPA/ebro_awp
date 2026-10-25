@@ -498,6 +498,18 @@ export const UsersPermissions: React.FC = () => {
         ...user,
         canBlockCustomer: nextAllowed
       });
+      const existingPerm = (db.permissions || []).find(
+        p => p && p.userId === user.id && p.menuId === 'delinquency_block'
+      );
+      if (existingPerm) {
+        db.updateRow<MenuPermission>('permissions', existingPerm.id, {
+          canView: nextAllowed,
+          canSave: nextAllowed
+        });
+      } else {
+        const perm = createMenuPermission(user.id, 'delinquency_block', nextAllowed, nextAllowed);
+        db.insertRow<MenuPermission>('permissions', perm);
+      }
       await db.awaitPendingWrites();
       showToast(
         nextAllowed
