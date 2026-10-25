@@ -44,7 +44,7 @@ export const UsersPermissions: React.FC = () => {
           const normId = normalizeMenuId(item.id);
           if (normId === 'tenant_management') return false;
           if (normHiddenSet.has(normId)) return false;
-          if (normAllowedSet.size > 0 && !normAllowedSet.has(normId)) return false;
+          if (normAllowedSet.size > 0 && normId !== 'dashboard' && normId !== 'sales_journal' && normId !== 'available_inventory' && normId !== 'as_route_tracking' && !normAllowedSet.has(normId)) return false;
           return true;
         })
       }))
@@ -129,6 +129,13 @@ export const UsersPermissions: React.FC = () => {
 
     // 대시보드 기본 조회 허용
     map['dashboard'] = { canView: true, canSave: false };
+    if (!rolePermissions.some(p => p.roleId === selectedRoleId && normalizeMenuId(p.menuId) === 'as_route_tracking')) {
+      if (selectedRoleId === 'role_mechanic') {
+        map['as_route_tracking'] = { canView: true, canSave: true };
+      } else if (selectedRoleId === 'role_mgmt' || selectedRoleId === 'role_sales') {
+        map['as_route_tracking'] = { canView: true, canSave: false };
+      }
+    }
 
     setWorkingRolePerms(map);
     setIsRoleDirty(false);

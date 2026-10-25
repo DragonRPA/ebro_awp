@@ -59,8 +59,15 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
         }
       }
       const po = decrypted.privacyOfficer || decrypted.features?.privacyOfficer;
+      const rawAllowedPages = Array.isArray((decrypted as any).allowedPages)
+        ? [...(decrypted as any).allowedPages]
+        : undefined;
+      if (Array.isArray(rawAllowedPages) && rawAllowedPages.length > 0 && !rawAllowedPages.includes('as_route_tracking')) {
+        rawAllowedPages.push('as_route_tracking');
+      }
       return {
         ...decrypted,
+        ...(rawAllowedPages ? { allowedPages: rawAllowedPages } : {}),
         allowContractTradeOutbound: resolvedAllowContractTradeOutbound,
         specialFeatures,
         excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,

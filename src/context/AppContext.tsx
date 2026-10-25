@@ -2027,17 +2027,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. 단일 표준 단수형 메뉴 ID로 정규화
     const normMenuId = normalizeMenuId(menuId);
 
-    // 최고관리자(플랫폼/시스템 최고관리자 및 ADMIN 역할) 여부 판정
-    const isSuperAdmin = currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1';
+    // 최고관리자 및 시스템 개발자 계정 여부 판정
+    const isDeveloper =
+      isSystemDeveloperUser(currentUser) ||
+      currentUser.loginId === 'admin' ||
+      currentUser.id === 'sys-admin' ||
+      currentUser.id === 'u-1' ||
+      currentUser.name === '개발자' ||
+      currentUser.department === '개발자';
+    const isSuperAdmin = isDeveloper || currentUser.role === 'ADMIN';
 
-    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리]
-    // 관리자(currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.role === 'ADMIN')라 할지라도
-    // 테넌트 모드(개별 테넌트 화면)에서는 테넌트의 hiddenPages에 포함된 메뉴는 사이드바, 검색, 라우팅에서 100% 숨겨지고 차단된다.
     // 🛡️ [특급 보안] 테넌트가 사용하는 사이트(giyeon.ebro.run 등)에서는 테넌트 관리 메뉴 원천 차단 (오직 admin.ebro.run 전용)
     if (normMenuId === 'tenant_management') {
       return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
+    // 1. 시스템 개발자 계정 및 최고관리자(ADMIN)는 모든 메뉴에 100% 무조건 권한 부여
+    if (isSuperAdmin) return true;
+
+    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (일반 임직원 대상)]
     if (currentTenant) {
       const rawHidden = Array.isArray(currentTenant.hiddenPages) ? currentTenant.hiddenPages : [];
       const rawAllowed = Array.isArray(currentTenant.allowedPages) ? currentTenant.allowedPages : [];
@@ -2050,23 +2058,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지/가용재고조회 기본 개방 제외, 숨김은 hiddenPages에서 제어)
-      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && normMenuId !== 'sales_journal' && normMenuId !== 'available_inventory' && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지/가용재고조회/현장정비동선관리 기본 개방 제외, 숨김은 hiddenPages에서 제어)
+      if (
+        normAllowedPages.length > 0 &&
+        normMenuId !== 'dashboard' &&
+        normMenuId !== 'sales_journal' &&
+        normMenuId !== 'available_inventory' &&
+        normMenuId !== 'as_route_tracking' &&
+        !normAllowedPages.includes(normMenuId)
+      ) {
         return false;
       }
     }
 
-    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
-    if (isSuperAdmin) return true;
-
     // 2-1. 대시보드 및 가용재고조회는 기본 진입/열람 화면이므로 모든 임직원(영업부, 경영진, 출고팀 등)에게 조회 개방
     if (normMenuId === 'dashboard' || (normMenuId === 'available_inventory' && action === 'view')) {
       return true;
-    }
-
-    // 2-2. 테넌트 관리는 최고 관리자 전용 보안 메뉴 (admin.ebro.run 전용)
-    if (normMenuId === 'tenant_management') {
-      return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
     // 3. 사용자 정의 권한 명칭 상속 판정 (역할 기반 자동 상속 최우선 - 매트릭스 설정과 100% 일치)
@@ -2077,7 +2084,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rolePerm) {
           return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
         }
-        if (normMenuId === 'sales_journal' || normMenuId === 'available_inventory') {
+        if (normMenuId === 'sales_journal' || normMenuId === 'available_inventory' || normMenuId === 'as_route_tracking') {
           const dept = currentUser.departmentId || currentUser.department;
           const fallbackRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
           if (fallbackRule !== undefined) return fallbackRule;

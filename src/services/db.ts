@@ -4980,6 +4980,7 @@ const SEED_ROLE_CONFIG: Record<string, Record<string, { canView: boolean; canSav
     consumable_inout: { canView: true, canSave: true },
     consumable_stock: { canView: true, canSave: true },
     consumable: { canView: true, canSave: true },
+    as_route_tracking: { canView: true, canSave: false },
     leave_application: { canView: true, canSave: true },
     vehicle_log: { canView: true, canSave: true }
   },
@@ -4991,6 +4992,7 @@ const SEED_ROLE_CONFIG: Record<string, Record<string, { canView: boolean; canSav
     smart_dispatch4: { canView: true, canSave: true },
     smart_return: { canView: true, canSave: true },
     smart_as_request: { canView: true, canSave: true },
+    as_route_tracking: { canView: true, canSave: false },
     receivable: { canView: true, canSave: true },
     delinquency: { canView: true, canSave: true },
     billing: { canView: true, canSave: false },
