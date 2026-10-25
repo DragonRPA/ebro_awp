@@ -454,17 +454,32 @@ export const DailyInOutStatus: React.FC = () => {
   const scheduledEvents = useMemo(() => {
     const schedGroupMap = new Map<string, InOutEventItem>();
 
-    // 이미 확정된 (deliveryId + inOutType + modelName) 수량 및 (date + inOutType + assetNo) 집합
+    // 이미 확정된 (deliveryId + inOutType + modelName) 수량, (deliveryId + inOutType) 총수량 및 (date + inOutType + assetNo) 집합
     const confirmedDelivModelQty = new Map<string, number>();
+    const confirmedDelivTotalQty = new Map<string, number>();
     const confirmedDateAssetSet = new Set<string>();
     allEvents.forEach(ev => {
       if (ev.deliveryId) {
         const k = `${ev.deliveryId}|${ev.inOutType}|${ev.modelName}`;
         confirmedDelivModelQty.set(k, (confirmedDelivModelQty.get(k) || 0) + ev.quantity);
+        const tk = `${ev.deliveryId}|${ev.inOutType}`;
+        confirmedDelivTotalQty.set(tk, (confirmedDelivTotalQty.get(tk) || 0) + ev.quantity);
       }
       ev.assetNos.forEach(no => {
         if (no) confirmedDateAssetSet.add(`${ev.date}|${ev.inOutType}|${no}`);
       });
+    });
+
+    // 출고검수 승인 완료(COMPLETED)된 contractAssetId 및 deliveryId별 완료 수량 인덱스
+    const completedCaIdSet = new Set<string>();
+    const completedDelivOinCount = new Map<string, number>();
+    (outboundInspections || []).forEach(oin => {
+      if (oin && oin.status === 'COMPLETED') {
+        if (oin.contractAssetId) completedCaIdSet.add(oin.contractAssetId);
+        if (oin.deliveryId) {
+          completedDelivOinCount.set(oin.deliveryId, (completedDelivOinCount.get(oin.deliveryId) || 0) + 1);
+        }
+      }
     });
 
     const caMap = new Map<string, any>();
@@ -561,37 +576,61 @@ export const DailyInOutStatus: React.FC = () => {
       // 1) 출고 예정 (OUTBOUND 또는 EXCHANGE의 투입 장비)
       if (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') {
         if (parsedCargo.length > 0) {
-          parsedCargo.forEach(ci => {
-            const mName = String(ci?.modelName || '기타 모델').trim();
-            const reqQty = Math.max(1, Number(ci?.count || ci?.qty || 1));
-            const alreadyConfirmed = confirmedDelivModelQty.get(`${d.id}|OUTBOUND|${mName}`) || 0;
-            const remainQty = Math.max(0, reqQty - alreadyConfirmed);
-            if (remainQty <= 0) return;
+          const totalCargoReqQty = parsedCargo.reduce((acc, ci) => acc + Math.max(1, Number(ci?.count || ci?.qty || 1)), 0);
+          const totalDelivConfirmedOut = confirmedDelivTotalQty.get(`${d.id}|OUTBOUND`) || 0;
+          const totalDelivCompletedOin = completedDelivOinCount.get(d.id) || 0;
 
-            const caIds: string[] = Array.isArray(ci?.contractAssetIds) ? ci.contractAssetIds : [];
-            const assignedAssetNos: string[] = [];
-            let detectedCat: AssetOwnershipCategory = 'OWNED_PHYSICAL';
-            caIds.forEach(caId => {
-              const ca = caMap.get(caId);
-              if (ca?.assetId) {
-                const aObj = assetMap.get(ca.assetId);
+          // 과거·당일 배차 건 중 배차 전체 대수만큼 이미 출고 확정(동등모델 변경 출고 포함)되었거나 출고검수 완료된 경우 스킵
+          if (rawDate <= todayStr && (totalDelivConfirmedOut >= totalCargoReqQty || totalDelivCompletedOin >= totalCargoReqQty)) {
+            // 이미 전량 출고 확정됨
+          } else {
+            parsedCargo.forEach(ci => {
+              const mName = String(ci?.modelName || '기타 모델').trim();
+              const reqQty = Math.max(1, Number(ci?.count || ci?.qty || 1));
+              const alreadyConfirmedByModel = confirmedDelivModelQty.get(`${d.id}|OUTBOUND|${mName}`) || 0;
+
+              const caIds: string[] = Array.isArray(ci?.contractAssetIds) ? ci.contractAssetIds : [];
+              const assignedAssetNos: string[] = [];
+              let detectedCat: AssetOwnershipCategory = 'OWNED_PHYSICAL';
+              let alreadyRentedOrCompletedCaCount = 0;
+
+              caIds.forEach(caId => {
+                const ca = caMap.get(caId);
+                const aObj = ca?.assetId ? assetMap.get(ca.assetId) : undefined;
                 if (aObj) {
                   detectedCat = classifyAssetCategory(aObj);
-                  if (aObj.assetNo && !confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aObj.assetNo.trim()}`)) {
-                    assignedAssetNos.push(aObj.assetNo.trim());
-                  }
                 }
-              }
-            });
+                const isCaAlreadyShipped =
+                  rawDate <= todayStr &&
+                  (ca?.status === 'RENTED' ||
+                    ca?.status === 'RETURNED' ||
+                    completedCaIdSet.has(caId) ||
+                    aObj?.status === 'RENTED' ||
+                    (aObj?.assetNo && confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aObj.assetNo.trim()}`)));
 
-            addScheduledItem('OUTBOUND', mName, remainQty, detectedCat, assignedAssetNos, '출고 예정');
-          });
+                if (isCaAlreadyShipped) {
+                  alreadyRentedOrCompletedCaCount += 1;
+                } else if (aObj?.assetNo && !confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aObj.assetNo.trim()}`)) {
+                  assignedAssetNos.push(aObj.assetNo.trim());
+                }
+              });
+
+              const deductedQty = rawDate <= todayStr
+                ? Math.max(alreadyConfirmedByModel, alreadyRentedOrCompletedCaCount)
+                : alreadyConfirmedByModel;
+              const remainQty = Math.max(0, reqQty - deductedQty);
+              if (remainQty <= 0) return;
+
+              addScheduledItem('OUTBOUND', mName, remainQty, detectedCat, assignedAssetNos, '출고 예정');
+            });
+          }
         } else if (d.assetIds) {
           const rawTokens = String(d.assetIds).split(',').map(s => s.trim()).filter(Boolean);
           rawTokens.forEach(tok => {
             const aObj = assetMap.get(tok) || assetByNoMap.get(tok);
             const aNo = aObj?.assetNo?.trim() || tok;
             if (confirmedDateAssetSet.has(`${rawDate}|OUTBOUND|${aNo}`)) return;
+            if (rawDate <= todayStr && aObj?.status === 'RENTED') return;
             const cat = classifyAssetCategory(aObj);
             addScheduledItem('OUTBOUND', aObj?.modelName || '기타 모델', 1, cat, aObj?.assetNo ? [aObj.assetNo.trim()] : [], '출고 예정');
           });
@@ -636,7 +675,7 @@ export const DailyInOutStatus: React.FC = () => {
     });
 
     return Array.from(schedGroupMap.values()).sort((a, b) => b.date.localeCompare(a.date));
-  }, [deliveries, allEvents, contractAssets, assetMap, assetByNoMap, contractMap, customerMap, siteMap, todayStr]);
+  }, [deliveries, allEvents, outboundInspections, contractAssets, assetMap, assetByNoMap, contractMap, customerMap, siteMap, todayStr]);
 
   // ── 확정 + (체크 시) 예정 통합 이벤트 풀 ──
   const activeEventsPool = useMemo(() => {
