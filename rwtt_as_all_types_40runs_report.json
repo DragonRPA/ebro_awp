@@ -1,0 +1,406 @@
+{
+  "startedAt": "2026-10-25T23:32:54.293Z",
+  "type1_mobileAsCreate": [
+    {
+      "run": 1,
+      "assetNo": "R-901",
+      "badgeText": "임차처: 한국렌탈협동",
+      "assignedMechanicId": "USR-0000011",
+      "assignedMechanicName": "한상찬",
+      "ticketId": "REP-0000043",
+      "ticketNo": "AS-261025-043",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 2,
+      "assetNo": "R-902",
+      "badgeText": "임차처: 중부고소장비",
+      "assignedMechanicId": "USR-0000012",
+      "assignedMechanicName": "최영석",
+      "ticketId": "REP-0000044",
+      "ticketNo": "AS-261025-044",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 3,
+      "assetNo": "R-903",
+      "badgeText": "임차처: 한국렌탈협동",
+      "assignedMechanicId": "USR-0000013",
+      "assignedMechanicName": "장세현",
+      "ticketId": "REP-0000045",
+      "ticketNo": "AS-261025-045",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 4,
+      "assetNo": "R-904",
+      "badgeText": "임차처: 중부고소장비",
+      "assignedMechanicId": "USR-0000014",
+      "assignedMechanicName": "이규탁",
+      "ticketId": "REP-0000046",
+      "ticketNo": "AS-261025-046",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 5,
+      "assetNo": "R-905",
+      "badgeText": "임차처: 한국렌탈협동",
+      "assignedMechanicId": "u-mechanic",
+      "assignedMechanicName": "박정비",
+      "ticketId": "REP-0000047",
+      "ticketNo": "AS-261025-047",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 6,
+      "assetNo": "R-906",
+      "badgeText": "임차처: 중부고소장비",
+      "assignedMechanicId": "USR-0000011",
+      "assignedMechanicName": "한상찬",
+      "ticketId": "REP-0000048",
+      "ticketNo": "AS-261025-048",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 7,
+      "assetNo": "R-907",
+      "badgeText": "임차처: 한국렌탈협동",
+      "assignedMechanicId": "USR-0000012",
+      "assignedMechanicName": "최영석",
+      "ticketId": "REP-0000049",
+      "ticketNo": "AS-261025-049",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 8,
+      "assetNo": "R-908",
+      "badgeText": "임차처: 중부고소장비",
+      "assignedMechanicId": "USR-0000013",
+      "assignedMechanicName": "장세현",
+      "ticketId": "REP-0000050",
+      "ticketNo": "AS-261025-050",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 9,
+      "assetNo": "R-909",
+      "badgeText": "임차처: 한국렌탈협동",
+      "assignedMechanicId": "USR-0000014",
+      "assignedMechanicName": "이규탁",
+      "ticketId": "REP-0000051",
+      "ticketNo": "AS-261025-051",
+      "status": "SCHEDULED"
+    },
+    {
+      "run": 10,
+      "assetNo": "R-910",
+      "badgeText": "임차처: 중부고소장비",
+      "assignedMechanicId": "u-mechanic",
+      "assignedMechanicName": "박정비",
+      "ticketId": "REP-0000052",
+      "ticketNo": "AS-261025-052",
+      "status": "SCHEDULED"
+    }
+  ],
+  "type2_partsSourcing": [
+    {
+      "run": 1,
+      "logId": "ARL-20261026-MVOGS133-ZSX",
+      "sourcingType": "RENTAL_VENDOR",
+      "sourcingTargetName": "임차처 (중부고소장비)",
+      "partName": "[RWTT-T2-R1] 상부 조이스틱 컨트롤러",
+      "withRevisit": false
+    },
+    {
+      "run": 2,
+      "logId": "ARL-20261026-MVOGS32S-VMS",
+      "sourcingType": "HQ_YARD",
+      "sourcingTargetName": "당사 주기장 (용인)",
+      "partName": "[RWTT-T2-R2] 220V 충전기 어셈블리",
+      "withRevisit": false
+    },
+    {
+      "run": 3,
+      "logId": "ARL-20261026-MVOGS5AJ-I7V",
+      "sourcingType": "COLLEAGUE_VAN",
+      "sourcingTargetName": "박정비 차량 접선",
+      "partName": "[RWTT-T2-R3] 비상정지 스위치",
+      "withRevisit": false
+    },
+    {
+      "run": 4,
+      "logId": "ARL-20261026-MVOGS7JZ-YIE",
+      "sourcingType": "RENTAL_VENDOR",
+      "sourcingTargetName": "임차처 (중부고소장비)",
+      "partName": "[RWTT-T2-R4] 메인 컨트롤 보드(ECU)",
+      "withRevisit": true
+    },
+    {
+      "run": 5,
+      "logId": "ARL-20261026-MVOGSCQG-3GR",
+      "sourcingType": "HQ_YARD",
+      "sourcingTargetName": "당사 주기장 (용인)",
+      "partName": "[RWTT-T2-R5] 유압 호스 및 피팅",
+      "withRevisit": true
+    },
+    {
+      "run": 6,
+      "logId": "ARL-20261026-MVOGSFPV-TYY",
+      "sourcingType": "COLLEAGUE_VAN",
+      "sourcingTargetName": "박정비 차량 접선",
+      "partName": "[RWTT-T2-R6] 키박스 / 키스위치",
+      "withRevisit": false
+    },
+    {
+      "run": 7,
+      "logId": "ARL-20261026-MVOGSHO8-3H1",
+      "sourcingType": "RENTAL_VENDOR",
+      "sourcingTargetName": "임차처 (한국렌탈협동)",
+      "partName": "[RWTT-T2-R7] 경광등 / 부저 모듈",
+      "withRevisit": false
+    },
+    {
+      "run": 8,
+      "logId": "ARL-20261026-MVOGSJL7-33E",
+      "sourcingType": "HQ_YARD",
+      "sourcingTargetName": "당사 주기장 (용인)",
+      "partName": "[RWTT-T2-R8] 과상승 방지봉 / 리미트 스위치",
+      "withRevisit": false
+    },
+    {
+      "run": 9,
+      "logId": "ARL-20261026-MVOGSN0T-AKL",
+      "sourcingType": "COLLEAGUE_VAN",
+      "sourcingTargetName": "박정비 차량 접선",
+      "partName": "[RWTT-T2-R9] 플랫폼 풋스위치",
+      "withRevisit": true
+    },
+    {
+      "run": 10,
+      "logId": "ARL-20261026-MVOGSPYT-VEV",
+      "sourcingType": "RENTAL_VENDOR",
+      "sourcingTargetName": "임차처 (한국렌탈협동)",
+      "partName": "[RWTT-T2-R10] 배터리 및 단자 케이블",
+      "withRevisit": true
+    }
+  ],
+  "type3_revisitSchedule": [
+    {
+      "run": 1,
+      "logId": "ARL-20261026-MVOGSRVG-Q6I",
+      "repairId": "REP-0000015",
+      "revisitDate": "2026-10-27",
+      "memo": "재방문일: 2026-10-27 | 사유: [RWTT-T3-R1] 내일 재방문 예약 검증"
+    },
+    {
+      "run": 2,
+      "logId": "ARL-20261026-MVOGSTU6-MC0",
+      "repairId": "REP-0000041",
+      "revisitDate": "2026-10-28",
+      "memo": "재방문일: 2026-10-28 | 사유: [RWTT-T3-R2] 모레 재방문 예약 검증"
+    },
+    {
+      "run": 3,
+      "logId": "ARL-20261026-MVOGSVOT-VMT",
+      "repairId": "REP-0000050",
+      "revisitDate": "2026-10-29",
+      "memo": "재방문일: 2026-10-29 | 사유: [RWTT-T3-R3] 3일 후 재방문 예약 검증"
+    },
+    {
+      "run": 4,
+      "logId": "ARL-20261026-MVOGSZZG-ZL0",
+      "repairId": "REP-0000051",
+      "revisitDate": "2026-11-02",
+      "memo": "재방문일: 2026-11-02 | 사유: [RWTT-T3-R4] 다음주 월요일 재방문 예약 검증"
+    },
+    {
+      "run": 5,
+      "logId": "ARL-20261026-MVOGT1Z8-M3G",
+      "repairId": "REP-0000047",
+      "revisitDate": "2026-10-27",
+      "memo": "재방문일: 2026-10-27 | 사유: [RWTT-T3-R5] 내일 재방문 예약 검증"
+    },
+    {
+      "run": 6,
+      "logId": "ARL-20261026-MVOGT6B8-S3S",
+      "repairId": "REP-0000043",
+      "revisitDate": "2026-10-28",
+      "memo": "재방문일: 2026-10-28 | 사유: [RWTT-T3-R6] 모레 재방문 예약 검증"
+    },
+    {
+      "run": 7,
+      "logId": "ARL-20261026-MVOGT887-ABC",
+      "repairId": "rwtt-type4-ticket-02",
+      "revisitDate": "2026-10-29",
+      "memo": "재방문일: 2026-10-29 | 사유: [RWTT-T3-R7] 3일 후 재방문 예약 검증"
+    },
+    {
+      "run": 8,
+      "logId": "ARL-20261026-MVOGTCXX-ZMG",
+      "repairId": "rwtt-type4-ticket-04",
+      "revisitDate": "2026-11-02",
+      "memo": "재방문일: 2026-11-02 | 사유: [RWTT-T3-R8] 다음주 월요일 재방문 예약 검증"
+    },
+    {
+      "run": 9,
+      "logId": "ARL-20261026-MVOGTFO8-RKZ",
+      "repairId": "rwtt-type4-ticket-06",
+      "revisitDate": "2026-10-27",
+      "memo": "재방문일: 2026-10-27 | 사유: [RWTT-T3-R9] 내일 재방문 예약 검증"
+    },
+    {
+      "run": 10,
+      "logId": "ARL-20261026-MVOGTHMM-V7Z",
+      "repairId": "rwtt-type4-ticket-08",
+      "revisitDate": "2026-10-28",
+      "memo": "재방문일: 2026-10-28 | 사유: [RWTT-T3-R10] 모레 재방문 예약 검증"
+    }
+  ],
+  "type4_assetMappingAndFifo": [
+    {
+      "run": 1,
+      "ticketNo": "AS-RWTT-T4-01",
+      "mappedAssetId": "AST-RENT-901",
+      "mappedAssetNo": "R-901",
+      "deductedQty": 3,
+      "fifoTotalCost": 800000,
+      "assetCumRepairCostDelta": 800000,
+      "inoutLogId": "AIOG-0000014",
+      "lotIds": [
+        "LOT-JOY-SJ-01",
+        "LOT-JOY-SJ-02"
+      ]
+    },
+    {
+      "run": 2,
+      "ticketNo": "AS-RWTT-T4-02",
+      "mappedAssetId": "AST-RENT-902",
+      "mappedAssetNo": "R-902",
+      "deductedQty": 3,
+      "fifoTotalCost": 800000,
+      "assetCumRepairCostDelta": 800000,
+      "inoutLogId": "AIOG-0000015",
+      "lotIds": [
+        "LOT-JOY-SJ-01",
+        "LOT-JOY-SJ-02"
+      ]
+    },
+    {
+      "run": 3,
+      "ticketNo": "AS-RWTT-T4-03",
+      "mappedAssetId": "AST-RENT-903",
+      "mappedAssetNo": "R-903",
+      "deductedQty": 3,
+      "fifoTotalCost": 99000,
+      "assetCumRepairCostDelta": 99000,
+      "inoutLogId": "AIOG-0000016",
+      "lotIds": [
+        "LOT-LIM-SW-02",
+        "LOT-LIM-SW-01"
+      ]
+    },
+    {
+      "run": 4,
+      "ticketNo": "AS-RWTT-T4-04",
+      "mappedAssetId": "AST-RENT-904",
+      "mappedAssetNo": "R-904",
+      "deductedQty": 3,
+      "fifoTotalCost": 99000,
+      "assetCumRepairCostDelta": 99000,
+      "inoutLogId": "AIOG-0000017",
+      "lotIds": [
+        "LOT-LIM-SW-01",
+        "LOT-LIM-SW-02"
+      ]
+    },
+    {
+      "run": 5,
+      "ticketNo": "AS-RWTT-T4-05",
+      "mappedAssetId": "AST-RENT-905",
+      "mappedAssetNo": "R-905",
+      "deductedQty": 2,
+      "fifoTotalCost": 96000,
+      "assetCumRepairCostDelta": 96000,
+      "inoutLogId": "AIOG-0000018",
+      "lotIds": [
+        "LOT-FOOT-SW-01"
+      ]
+    },
+    {
+      "run": 6,
+      "ticketNo": "AS-RWTT-T4-06",
+      "mappedAssetId": "AST-RENT-906",
+      "mappedAssetNo": "R-906",
+      "deductedQty": 2,
+      "fifoTotalCost": 560000,
+      "assetCumRepairCostDelta": 560000,
+      "inoutLogId": "AIOG-0000019",
+      "lotIds": [
+        "LOT-JOY-SJ-02"
+      ]
+    },
+    {
+      "run": 7,
+      "ticketNo": "AS-RWTT-T4-07",
+      "mappedAssetId": "AST-RENT-907",
+      "mappedAssetNo": "R-907",
+      "deductedQty": 2,
+      "fifoTotalCost": 64000,
+      "assetCumRepairCostDelta": 64000,
+      "inoutLogId": "AIOG-0000020",
+      "lotIds": [
+        "LOT-LIM-SW-01"
+      ]
+    },
+    {
+      "run": 8,
+      "ticketNo": "AS-RWTT-T4-08",
+      "mappedAssetId": "AST-RENT-908",
+      "mappedAssetNo": "R-908",
+      "deductedQty": 3,
+      "fifoTotalCost": 144000,
+      "assetCumRepairCostDelta": 144000,
+      "inoutLogId": "AIOG-0000021",
+      "lotIds": [
+        "LOT-FOOT-SW-01"
+      ]
+    },
+    {
+      "run": 9,
+      "ticketNo": "AS-RWTT-T4-09",
+      "mappedAssetId": "AST-RENT-909",
+      "mappedAssetNo": "R-909",
+      "deductedQty": 2,
+      "fifoTotalCost": 520000,
+      "assetCumRepairCostDelta": 520000,
+      "inoutLogId": "AIOG-0000022",
+      "lotIds": [
+        "LOT-JOY-SJ-01"
+      ]
+    },
+    {
+      "run": 10,
+      "ticketNo": "AS-RWTT-T4-10",
+      "mappedAssetId": "AST-RENT-910",
+      "mappedAssetNo": "R-910",
+      "deductedQty": 2,
+      "fifoTotalCost": 96000,
+      "assetCumRepairCostDelta": 96000,
+      "inoutLogId": "AIOG-0000023",
+      "lotIds": [
+        "LOT-FOOT-SW-01"
+      ]
+    }
+  ],
+  "negativeGates": [
+    {
+      "gate": "VEHICLE_STOCK_EXCEEDED_BLOCK",
+      "passed": true
+    },
+    {
+      "gate": "UNMAPPED_ASSET_CONSUMABLE_BLOCK",
+      "passed": true
+    }
+  ],
+  "completedAt": "2026-10-25T23:35:57.581Z"
+}

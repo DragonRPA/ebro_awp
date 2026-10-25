@@ -180,11 +180,20 @@ export function getTicketAssetSourcingInfo(
     );
   }
 
-  const isRented = matchedAsset?.ownerType === 'RENTED';
-  let vendorName = matchedAsset?.renter?.trim() || '';
-  if (!vendorName && matchedAsset?.vendorId) {
+  const isRented =
+    matchedAsset?.ownerType === 'RENTED' ||
+    (matchedAsset as any)?.ownership === 'SUBLEASE' ||
+    (matchedAsset as any)?.ownership === 'RENTED';
+  let vendorName = '';
+  if (matchedAsset?.vendorId) {
     const v = vendorList.find(vnd => vnd && vnd.id === matchedAsset?.vendorId);
     if (v?.name) vendorName = v.name.trim();
+  }
+  if (!vendorName && matchedAsset?.renter?.trim()) {
+    vendorName = matchedAsset.renter.trim();
+  }
+  if (!vendorName && matchedAsset?.supplier?.trim()) {
+    vendorName = matchedAsset.supplier.trim();
   }
 
   const yardName = matchedAsset?.yard?.trim() || '당사 주기장';

@@ -519,10 +519,10 @@ CREATE TABLE mechanic_consumable_stocks (
     id                    TEXT PRIMARY KEY,
     "mechanicId"          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     "consumableId"        TEXT NOT NULL REFERENCES consumables(id) ON DELETE CASCADE,
+    "lotId"               TEXT,
     "stockQty"            DOUBLE PRECISION NOT NULL DEFAULT 0,
     "createdAt"           TEXT,
     "updatedAt"           TEXT NOT NULL,
-    UNIQUE("mechanicId", "consumableId"),
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 

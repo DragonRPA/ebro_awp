@@ -35,7 +35,7 @@ import {
   pullAsRouteLogsFromRemote,
   deleteAsRouteStep,
 } from '../services/asRouteTrackingService';
-import { getUserDepartmentName, isDeveloperUser } from '../utils/userDepartmentHelper';
+import { getUserDepartmentName } from '../utils/userDepartmentHelper';
 
 interface AsRouteTrackingPageProps {
   isMobileEmbedded?: boolean;
@@ -124,7 +124,9 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
     const map = new Map<string, { id: string; name: string; position?: string; deptName?: string }>();
 
     const isActualAsTeamUser = (u: any): boolean => {
-      if (!u || u.status === 'RETIRED' || isDeveloperUser(u)) return false;
+      if (!u || u.status === 'RETIRED') return false;
+      if (u.id === 'sys-admin' || u.id === 'u-1' || u.loginId === 'admin' || u.name === '개발자') return false;
+      if (u.position === '대표이사' || u.position === '대표' || u.position?.includes('대표')) return false;
       const deptName = getUserDepartmentName(u, departments || []).trim();
       const dId = String(u.departmentId || '').toUpperCase();
 

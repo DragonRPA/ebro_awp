@@ -1,5 +1,5 @@
 // src/mobile/pages/MobileAsCreate.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CameraUploader } from '../components/CameraUploader';
 import { 
@@ -9,6 +9,7 @@ import {
 import { parseAsCallTranscript } from '../../services/voiceOrderDraftService';
 import { resolveSiteDetailedAddress } from '../../utils/nativeLauncher';
 import { ttsService } from '../../services/ttsService';
+import { getUserDepartmentName, isDeveloperUser } from '../../utils/userDepartmentHelper';
 
 interface MobileAsCreateProps {
   onBack: () => void;
@@ -35,7 +36,19 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   initialAssetNo,
   initialSiteId
 }) => {
-  const { createFieldAsTicket, showErrorModal, customers, sites, assets, contracts, contractAssets } = useApp();
+  const {
+    createFieldAsTicket,
+    showErrorModal,
+    customers,
+    sites,
+    assets,
+    contracts,
+    contractAssets,
+    vendors,
+    users,
+    departments,
+    currentUser,
+  } = useApp();
 
   const [customerName, setCustomerName] = useState('');
   const [siteName, setSiteName] = useState('');
@@ -48,8 +61,95 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   const [issueDescription, setIssueDescription] = useState('');
   const [priority, setPriority] = useState<'NORMAL' | 'URGENT'>('NORMAL');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assignedMechanicId, setAssignedMechanicId] = useState<string>('');
   const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 🌟 입력된 장비번호(자산번호)와 매칭되는 실물 자산 및 임차처 판별
+  const matchedAsset = useMemo(() => {
+    const clean = (assetNo || '').trim().toUpperCase();
+    if (!clean) return undefined;
+    return (assets || []).find(a => {
+      if (!a) return false;
+      const aNo = (a.assetNo || '').trim().toUpperCase();
+      const vNo = (a.vendorAssetNo || '').trim().toUpperCase();
+      return aNo === clean || Boolean(vNo && vNo === clean);
+    });
+  }, [assetNo, assets]);
+
+  const isRentedAsset = Boolean(
+    matchedAsset &&
+    (matchedAsset.ownerType === 'RENTED' ||
+      (matchedAsset as any).ownership === 'SUBLEASE' ||
+      (matchedAsset as any).ownership === 'RENTED')
+  );
+
+  const rentedVendorName = useMemo(() => {
+    if (!matchedAsset || !isRentedAsset) return '';
+    if (matchedAsset.vendorId) {
+      const v = (vendors || []).find(vnd => vnd && vnd.id === matchedAsset.vendorId);
+      if (v?.name?.trim()) return v.name.trim();
+    }
+    if (matchedAsset.renter?.trim()) return matchedAsset.renter.trim();
+    if (matchedAsset.supplier?.trim()) return matchedAsset.supplier.trim();
+    return '외부임차';
+  }, [matchedAsset, isRentedAsset, vendors]);
+
+  // 🌟 AS팀 소속 인원 목록 (퀵버튼 할당용)
+  const asTeamMembers = useMemo(() => {
+    const isActualAsTeamUser = (u: any): boolean => {
+      if (!u || u.status === 'RETIRED' || isDeveloperUser(u)) return false;
+      const deptName = getUserDepartmentName(u, departments || []).trim();
+      const dId = String(u.departmentId || '').toUpperCase();
+
+      if (
+        deptName.includes('외국인') ||
+        deptName.includes('출고') ||
+        deptName.includes('영업') ||
+        deptName.includes('관리') ||
+        deptName.includes('기연리프트') ||
+        dId.includes('0000006') ||
+        dId === 'DEPT-6' ||
+        dId.includes('0000004') ||
+        dId === 'DEPT-4' ||
+        dId.includes('0000003') ||
+        dId === 'DEPT-3' ||
+        dId.includes('0000002') ||
+        dId === 'DEPT-2' ||
+        dId.includes('0000001') ||
+        dId === 'DEPT-1'
+      ) {
+        return false;
+      }
+
+      return (
+        dId.includes('0000005') ||
+        dId === 'DEPT-5' ||
+        deptName.toUpperCase().includes('AS') ||
+        deptName.includes('정비')
+      );
+    };
+
+    return (users || [])
+      .filter(isActualAsTeamUser)
+      .map(u => ({
+        id: u.id,
+        name: u.name,
+        position: u.position || '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [users, departments]);
+
+  const selectedMechanic = useMemo(
+    () => asTeamMembers.find(m => m.id === assignedMechanicId),
+    [asTeamMembers, assignedMechanicId]
+  );
+
+  useEffect(() => {
+    if (!assignedMechanicId && currentUser?.id && asTeamMembers.some(m => m.id === currentUser.id)) {
+      setAssignedMechanicId(currentUser.id);
+    }
+  }, [currentUser?.id, asTeamMembers]);
 
   // 음성 및 통화 텍스트 파싱 상태
   const [isListening, setIsListening] = useState(false);
@@ -387,7 +487,10 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         siteId: matchedSite?.id,
         siteName: cleanSiteName,
         siteAddress: siteAddress.trim(),
-        assetNo: assetNo.toUpperCase(),
+        assetId: matchedAsset?.id,
+        assetNo: assetNo.trim().toUpperCase(),
+        modelName: matchedAsset?.modelName,
+        vendorId: matchedAsset?.vendorId,
         locationDetail,
         reporterName,
         reporterContact,
@@ -396,6 +499,10 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         priority,
         visitDate,
         scheduleDate: visitDate,
+        mechanicId: selectedMechanic?.id || '',
+        assignedMechanicId: selectedMechanic?.id || '',
+        mechanicName: selectedMechanic?.name || '',
+        status: selectedMechanic ? 'SCHEDULED' : 'REQUESTED',
         faultImageUrl: images[0] || '',
         evidenceImages: images,
       });
@@ -436,9 +543,19 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* 장비번호 */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-            장비번호 <span className="text-red-400">*</span>
-          </label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+              장비번호 <span className="text-red-400">*</span>
+            </label>
+            {isRentedAsset && (
+              <span
+                data-testid="mobile-as-rented-vendor-badge"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap flex-shrink-0"
+              >
+                임차처: {rentedVendorName}
+              </span>
+            )}
+          </div>
           <input
             type="text"
             required
@@ -685,6 +802,50 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
               colorScheme: 'dark'
             }}
           />
+        </div>
+
+        {/* AS팀원 지정 (퀵버튼) */}
+        <div className="flex flex-col gap-1.5" data-testid="mobile-as-mechanic-quick-assign">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+              AS팀원 지정
+            </label>
+            <span className="text-[11px] font-bold text-sky-400 whitespace-nowrap flex-shrink-0">
+              {selectedMechanic
+                ? `${selectedMechanic.name}${selectedMechanic.position ? ` (${selectedMechanic.position})` : ''} 지정됨`
+                : '미지정'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {asTeamMembers.map((mech) => {
+              const isSelected = assignedMechanicId === mech.id;
+              return (
+                <button
+                  key={mech.id}
+                  type="button"
+                  data-testid={`mobile-as-mechanic-btn-${mech.id}`}
+                  onClick={() => setAssignedMechanicId(mech.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex-shrink-0 ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                  }`}
+                >
+                  {mech.name}{mech.position ? ` ${mech.position}` : ''}
+                </button>
+              );
+            })}
+            {assignedMechanicId && (
+              <button
+                type="button"
+                data-testid="mobile-as-mechanic-clear-btn"
+                onClick={() => setAssignedMechanicId('')}
+                className="px-2.5 py-2 rounded-xl text-xs font-bold bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200 whitespace-nowrap flex-shrink-0"
+              >
+                미지정
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 고장 현장 사진 첨부 */}

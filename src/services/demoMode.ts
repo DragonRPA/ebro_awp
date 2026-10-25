@@ -110,6 +110,12 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
     // 1. 역순 삭제 순서 (자식 테이블 -> 부모 테이블)
     const deleteOrder = [
       'todos',
+      'as_route_logs',
+      'collected_parts',
+      'consumable_logs',
+      'mechanic_consumable_stocks',
+      'consumable_lots',
+      'asset_inout_logs',
       'bank_transactions', 'bank_initial_balances',
       'payments', 'receivables', 'billing_details',
       'billings', 'billing_invoices',
@@ -126,7 +132,7 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
     for (const tbl of deleteOrder) {
       if (onProgress) onProgress(`기존 데이터 정리 중: ${tbl}...`);
       const { error } = await supabase.from(tbl).delete().neq('id', '___NEVER_MATCH___');
-      if (error) {
+      if (error && !error.message?.includes('Could not find')) {
         throw new Error(`[데모 데이터 초기화 삭제 오류] 테이블(${tbl}): ${error.message}`);
       }
     }
@@ -134,13 +140,15 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
     // 2. 정순 주입 순서 (부모 테이블 -> 자식 테이블)
     const insertOrder = [
       'tenants', 'departments', 'users',
-      'products', 'standard_options', 'vendors', 'consumables', 'transport_companies',
+      'products', 'standard_options', 'vendors', 'consumables', 'consumable_lots',
+      'mechanic_consumable_stocks', 'transport_companies',
       'transport_drivers',
       'customers', 'site_masters', 'customer_sites', 'customer_contacts',
       'assets',
       'contracts', 'contract_assets', 'contract_history',
       'deliveries', 'outbound_inspections',
-      'repairs', 'repair_consumables',
+      'repairs', 'repair_consumables', 'as_route_logs',
+      'consumable_logs', 'collected_parts', 'asset_inout_logs',
       'billing_invoices', 'billings', 'billing_details', 'receivables', 'payments',
       'bank_initial_balances', 'bank_transactions',
       'todos'

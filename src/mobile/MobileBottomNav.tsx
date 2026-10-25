@@ -140,8 +140,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   const navItems = rawNavItems.filter(item => {
     if (item.id === 'vehicle_log') return false;
     if (item.id === 'home' || item.id === 'assets') return true;
+    if (deptMode === 'AS' && (item.id === 'as' || item.id === 'as_route_tracking' || item.id === 'as_create' || item.id === 'vehicle_stock')) {
+      return true;
+    }
     if (isDeveloper) return true;
     if (!hasPermission) return true;
+    if (item.id === 'as_create') {
+      return hasPermission('smart_as_request', 'view') || hasPermission('field_as', 'view');
+    }
     const menuId = tabMenuMap[item.id];
     if (!menuId) return true;
     return hasPermission(menuId, 'view');

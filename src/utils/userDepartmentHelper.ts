@@ -47,6 +47,16 @@ export function getUserHierarchyLevel(
     return 1;
   }
 
+  // 1-2. 실무 부서(관리부/영업부/출고팀/AS팀/정비/외국인) 소속은 parentDepartmentId 유무와 무관하게 실무 계층(2~3)으로 확정
+  const dName = getUserDepartmentName(user, departments);
+  const dId = String(user.departmentId || '').toUpperCase();
+  if (dName.includes('외국인') || dId.includes('0000006') || dId === 'DEPT-6') {
+    return 3;
+  }
+  if (['관리부', '영업부', '출고팀', 'AS', '정비'].some(d => dName.toUpperCase().includes(d))) {
+    return 2;
+  }
+
   // 2. Department 트리 구조 탐색: parentDepartmentId가 없는 최상위 부서 소속인 경우 Level 1 (경영진)
   if (user.departmentId && departments.length > 0) {
     const userDept = departments.find(d => d.id === user.departmentId);
@@ -69,8 +79,6 @@ export function getUserHierarchyLevel(
   }
 
   // 3. Fallback: 부서명/부서ID 기반
-  const dName = getUserDepartmentName(user, departments);
-  const dId = String(user.departmentId || '').toUpperCase();
   if (dId.includes('0000001') || dId === 'DEPT-1' || dName === '기연리프트' || dName.includes('본사') || dName.includes('경영')) {
     return 1;
   }

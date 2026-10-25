@@ -353,50 +353,50 @@ export const FieldAsManagement: React.FC = () => {
     }
   };
 
-  // 🏢 조직도 최상위에 속하지 않으면서 field_as 권한을 보유한 담당자 목록
+  // 🏢 조직도 기준 실제 AS팀(정비팀) 소속 담당자 목록만 엄격 필터링
   const eligibleAssignees = useMemo(() => {
     const depts = db.departments || [];
-    const rootDeptIds = new Set<string>(['DEPT-0000001', 'DEPT-1']);
+    const deptNameMap = new Map<string, string>();
     depts.forEach(d => {
-      if (!d.parentDepartmentId) rootDeptIds.add(d.id);
+      if (d && d.id) deptNameMap.set(d.id, (d.name || '').trim());
     });
 
-    const fieldAsPermMap = new Map<string, typeof permissions[0]>();
-    for (const p of permissions) {
-      if (normalizeMenuId(p.menuId) === 'field_as') {
-        const uid = p.userId || (p as any).user_id;
-        if (uid) fieldAsPermMap.set(uid, p);
-      }
-    }
-
     return users.filter(u => {
-      if (u.status === 'RETIRED') return false;
-
-      // 1. 조직도 최상위 소속 배제 (대표이사, 임원진, 시스템 최고관리자)
+      if (!u || u.status === 'RETIRED') return false;
       if (u.id === 'sys-admin' || u.id === 'u-1' || u.loginId === 'admin') return false;
       if (u.position === '대표이사' || u.position === '대표' || u.position?.includes('대표')) return false;
-      const dName = (u.department || '').trim();
-      if (dName.includes('대표') || dName.includes('경영진') || dName.includes('임원') || dName.includes('시스템')) return false;
-      if (u.departmentId && rootDeptIds.has(u.departmentId)) return false;
-      if (!u.departmentId && u.role === 'ADMIN') return false;
 
-      // 2. 해당 메뉴 권한 보유 여부 확인
-      const perm = fieldAsPermMap.get(u.id);
-      if (perm) {
-        return Boolean(perm.canView || perm.canSave);
+      const dId = String(u.departmentId || '').toUpperCase();
+      const dName = ((u.department || '') || (u.departmentId ? deptNameMap.get(u.departmentId) || '' : '')).trim();
+
+      if (
+        dName.includes('외국인') ||
+        dName.includes('출고') ||
+        dName.includes('영업') ||
+        dName.includes('관리') ||
+        dName.includes('기연리프트') ||
+        dName.includes('경영') ||
+        dId.includes('0000006') ||
+        dId === 'DEPT-6' ||
+        dId.includes('0000004') ||
+        dId === 'DEPT-4' ||
+        dId.includes('0000003') ||
+        dId === 'DEPT-3' ||
+        dId.includes('0000002') ||
+        dId === 'DEPT-2' ||
+        dId.includes('0000001') ||
+        dId === 'DEPT-1'
+      ) {
+        return false;
       }
 
-      const dept = u.departmentId || u.department;
-      const canView = getRoleTemplatePermission(u.role, dept, 'field_as', 'view');
-      const canSave = getRoleTemplatePermission(u.role, dept, 'field_as', 'save');
-      if (canView || canSave) return true;
-
-      // 실무 정비 역할이나 AS팀 소속인 경우 기본 부여
-      if (u.role === 'MECHANIC') return true;
-      if (u.department?.includes('AS') || u.department?.includes('정비')) return true;
-      if (u.departmentId === 'DEPT-0000005' || u.departmentId === 'DEPT-5') return true;
-
-      return false;
+      return (
+        dId.includes('0000005') ||
+        dId === 'DEPT-5' ||
+        dName.toUpperCase().includes('AS') ||
+        dName.includes('정비') ||
+        u.role === 'MECHANIC'
+      );
     });
   }, [users, permissions]);
 
@@ -520,14 +520,14 @@ export const FieldAsManagement: React.FC = () => {
     return studioFilteredTickets.slice(0, studioDisplayLimit);
   }, [studioFilteredTickets, studioDisplayLimit]);
 
-  // 선택된 티켓 정보 (현재 필터의 1순위 미완결 티켓 자동 포커스 - O(1) 맵 조회)
+  // 선택된 티켓 정보 (현재 필터의 1순위 미완결 티켓 자동 포커스)
   const selectedTicket = useMemo(() => {
     if (studioSelectedTicketId) {
-      const found = ticketMap.get(studioSelectedTicketId);
-      if (found) return found;
+      const inFiltered = studioFilteredTickets.find(t => t.id === studioSelectedTicketId);
+      if (inFiltered) return inFiltered;
     }
     return studioFilteredTickets[0] || fieldAsTickets[0] || null;
-  }, [ticketMap, fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
+  }, [fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
 
   // 선택된 티켓의 현장/계약/고객사에 투입된 체결 자산 후보 목록 추출 (미지정 '현장확인' 티켓의 대상 자산 매핑 지원)
   const siteCandidateAssets = useMemo(() => {
@@ -580,6 +580,12 @@ export const FieldAsManagement: React.FC = () => {
 
   useEffect(() => {
     if (!selectedTicket) return;
+    setActionAssignMechanicId(
+      selectedTicket.assignedMechanicId ||
+        (selectedTicket as any).mechanicId ||
+        (currentUser?.role === 'MECHANIC' ? currentUser.id : eligibleAssignees[0]?.id || '')
+    );
+    setActionVisitDate(selectedTicket.visitDate || new Date().toISOString().split('T')[0]);
     const rawId = (selectedTicket.assetId || '').trim();
     const rawNo = (selectedTicket.assetNo || '').trim();
     let matched = rawId ? (assets || []).find(a => a.id === rawId) : undefined;
@@ -591,7 +597,24 @@ export const FieldAsManagement: React.FC = () => {
     }
     setActionAssetId(matched?.id || rawId || '');
     setActionAssetNo(matched?.assetNo || rawNo || '현장확인');
-  }, [selectedTicket?.id, selectedTicket?.assetId, selectedTicket?.assetNo, siteCandidateAssets, assets]);
+    setActionTakenText(selectedTicket.actionTaken || '');
+    setActionResolutionType(selectedTicket.resolutionType || 'REPAIR_DONE');
+    setActionRevisitDate(selectedTicket.revisitDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+    setActionRevisitReason(selectedTicket.revisitReason || '');
+    setActionExchangeSuggested(!!selectedTicket.exchangeSuggested);
+    const isOptionAttach =
+      selectedTicket.issueCategory === '옵션장착' ||
+      (selectedTicket.issueDescription && selectedTicket.issueDescription.includes('옵션 추가장착'));
+    setActionBillableType(selectedTicket.billableType || (isOptionAttach ? 'BILLABLE' : 'FREE'));
+    setActionBillableAmount(selectedTicket.billableAmount || 0);
+    setActionConfirmName(selectedTicket.customerConfirmName || '');
+    setActionBeforeImage(selectedTicket.beforeImage || '');
+    setActionAfterImage(selectedTicket.afterImage || '');
+    setActionPartsUsed(selectedTicket.partsUsed || []);
+    setActionCollectedParts(selectedTicket.collectedParts || []);
+    setActionInspectionItemCode(selectedTicket.inspectionItemCode || '');
+    setActionDegradationScore(selectedTicket.degradationScore || 0);
+  }, [selectedTicket?.id]);
 
   // 🎯 대시보드 [처리 이동] 딥링크 자동 선택 연동: 해당 출장 AS 티켓을 즉시 탐색·포커스
   useEffect(() => {
@@ -2007,6 +2030,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   return (
                     <div
                       key={t.id}
+                      data-testid={`studio-ticket-card-${t.ticketNo || t.id}`}
                       onClick={() => handleSelectTicket(t)}
                       style={{
                         padding: '12px',
@@ -3162,6 +3186,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                             </span>
                             <button
                               type="button"
+                              data-testid="remove-part-used-btn"
                               onClick={() => handleRemovePartUsed(idx)}
                               style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 0 }}
                             >
