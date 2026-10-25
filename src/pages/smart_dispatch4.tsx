@@ -5648,8 +5648,8 @@ export const SmartDispatch4: React.FC = () => {
                                   }}
                                   title="청구조건 선택 (월별 / 1대당 1회 / 건당 1회 / 수량×단가)"
                                 >
-                                  <option value="월">월 (매월×{totalQty}대)</option>
-                                  <option value="대">대 (1대당×{totalQty}대)</option>
+                                  <option value="월">월 (매월×{effectiveMachineQty}대)</option>
+                                  <option value="대">대 (1대당 {currentPerUnitQty}개)</option>
                                   <option value="건">건 (1회)</option>
                                   <option value="수량">수량 (수량×단가)</option>
                                 </select>
@@ -8737,7 +8737,7 @@ export const SmartDispatch4: React.FC = () => {
                                           }}
                                         >
                                           <option value="월">월 (매월×{editTotalQty}대)</option>
-                                          <option value="대">대 (1대당×{editTotalQty}대)</option>
+                                          <option value="대">대 (1대당 {curPerUnitQty}개)</option>
                                           <option value="건">건 (1회)</option>
                                           <option value="수량">수량 (수량×단가)</option>
                                         </select>
@@ -8912,10 +8912,10 @@ export const SmartDispatch4: React.FC = () => {
                                               setEditHistoryOptUnits(prev => ({ ...prev, [opt.name]: val }));
                                             }}
                                             className="rounded bg-slate-950 border border-amber-500/60 text-amber-300 font-bold cursor-pointer"
-                                            style={{ width: '98px', height: '30px', padding: '0 6px', fontSize: '11.5px', lineHeight: '28px', flexShrink: 0, boxSizing: 'border-box' }}
+                                            style={{ width: '132px', height: '30px', padding: '0 6px', fontSize: '11.5px', lineHeight: '28px', flexShrink: 0, boxSizing: 'border-box' }}
                                           >
                                             <option value="월">월 단위</option>
-                                            <option value="대">대 단위</option>
+                                            <option value="대">대 (1대당 {curPerUnitQ}개)</option>
                                             <option value="건">건 단위</option>
                                             <option value="수량">수량 단위</option>
                                           </select>
