@@ -7,7 +7,7 @@ import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, 
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { canViewUnitPrice } from '../utils/userDepartmentHelper';
-import { MobileCameraAssetOcrModal } from '../mobile/components/MobileCameraAssetOcrModal';
+import { MobileInlineCameraAssetScanner } from '../mobile/components/MobileInlineCameraAssetScanner';
 
 type AssignmentStatusFilter = 'INCOMPLETE' | 'COMPLETED' | 'ALL';
 type AssignmentPeriodFilter = 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL' | 'CUSTOM';
@@ -796,13 +796,13 @@ export const AssetAssignment: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
-            onClick={() => setShowCameraOcrModal(true)}
+            onClick={() => setShowCameraOcrModal(prev => !prev)}
             style={{
               height: '32px',
               padding: '0 12px',
               borderRadius: '6px',
               border: '1px solid #06b6d4',
-              backgroundColor: '#0891b2',
+              backgroundColor: showCameraOcrModal ? '#0e7490' : '#0891b2',
               color: '#ffffff',
               fontSize: '12px',
               fontWeight: 800,
@@ -814,7 +814,7 @@ export const AssetAssignment: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            <Camera size={14} /> 카메라 실시간 스캔
+            <Camera size={14} /> {showCameraOcrModal ? '카메라 창 닫기' : '카메라 실시간 스캔'}
           </button>
           <button
             type="button"
@@ -1440,12 +1440,12 @@ export const AssetAssignment: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setShowCameraOcrModal(true)}
+                  onClick={() => setShowCameraOcrModal(prev => !prev)}
                   style={{
                     padding: '4px 10px',
                     borderRadius: '4px',
                     border: '1px solid #06b6d4',
-                    backgroundColor: '#0891b2',
+                    backgroundColor: showCameraOcrModal ? '#0e7490' : '#0891b2',
                     color: '#ffffff',
                     fontSize: '11px',
                     fontWeight: 700,
@@ -1456,7 +1456,7 @@ export const AssetAssignment: React.FC = () => {
                     gap: '4px'
                   }}
                 >
-                  <Camera size={12} /> 카메라 실시간 스캔
+                  <Camera size={12} /> {showCameraOcrModal ? '카메라 창 접기' : '카메라 실시간 스캔'}
                 </button>
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -1518,6 +1518,37 @@ export const AssetAssignment: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* 📷 인라인 실시간 카메라 스캔 창 (화면 가리지 않고 입력 바 바로 아래 표시) */}
+            {showCameraOcrModal && (
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
+                <MobileInlineCameraAssetScanner
+                  isOpen={showCameraOcrModal}
+                  onToggleOpen={() => setShowCameraOcrModal(prev => !prev)}
+                  allAvailableAssets={availablePool}
+                  unfilledSlots={currentSlots
+                    .filter(ca => !ca.assetId && (selectedCaIds.length === 0 || selectedCaIds.includes(ca.id)))
+                    .slice(selectedAssetIds.length)
+                    .map((ca, idx) => ({
+                      caId: ca.id,
+                      slotNumber: selectedAssetIds.length + idx + 1,
+                      expectedModel: ca.expectedModel || '미지정'
+                    }))}
+                  mappedAssetIds={selectedAssetIds}
+                  onSequentialFill={(asset) => {
+                    setSelectedAssetIds(prev => {
+                      if (prev.includes(asset.id)) return prev;
+                      if (selectedCaIds.length > 0 && prev.length >= selectedCaIds.length) {
+                        showToast(`선택된 모델 필요 수량(${selectedCaIds.length}대)만큼 이미 선택되었습니다.`, 'error');
+                        return prev;
+                      }
+                      showToast(`${asset.assetNo} (${asset.modelName}) 순차 자동 채움 완료`);
+                      return [...prev, asset.id];
+                    });
+                  }}
+                />
+              </div>
+            )}
 
             {/* 🔍 검색 필터 바 */}
             <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1656,52 +1687,6 @@ export const AssetAssignment: React.FC = () => {
           {toastMessage.text}
         </div>
       )}
-
-      <MobileCameraAssetOcrModal
-        isOpen={showCameraOcrModal}
-        onClose={() => setShowCameraOcrModal(false)}
-        availableAssets={selectedContractId ? availableAssets : availablePool}
-        selectedAssetIds={selectedAssetIds}
-        requiredSlotCount={selectedCaIds.length > 0 ? selectedCaIds.length : 1}
-        expectedModels={
-          selectedContractId
-            ? Array.from(
-                new Set(
-                  currentSlots
-                    .filter(ca => !ca.assetId && (selectedCaIds.length === 0 || selectedCaIds.includes(ca.id)))
-                    .map(ca => ca.expectedModel)
-                    .filter(Boolean)
-                )
-              ) as string[]
-            : []
-        }
-        onSelectAsset={(asset) => {
-          if (!selectedContractId) {
-            const matchedGrp =
-              filteredGroups.find(g =>
-                g.slots.some(ca => !ca.assetId && isModelMatch(asset.modelName, ca.expectedModel))
-              ) || filteredGroups[0];
-            if (matchedGrp) {
-              setSelectedContractId(matchedGrp.groupKey);
-              const unassigned = matchedGrp.slots.filter(ca => !ca.assetId);
-              const matching = unassigned.filter(ca => isModelMatch(asset.modelName, ca.expectedModel));
-              setSelectedCaIds((matching.length > 0 ? matching : unassigned).map(ca => ca.id));
-              setSelectedAssetIds([asset.id]);
-              showToast(`${asset.assetNo} (${asset.modelName}) 스캔 완료 — 요청 슬롯에 자동 연결되었습니다.`);
-              return;
-            }
-          }
-          setSelectedAssetIds(prev => {
-            if (prev.includes(asset.id)) return prev;
-            if (selectedCaIds.length > 0 && prev.length >= selectedCaIds.length) {
-              showToast(`선택된 모델 필요 수량(${selectedCaIds.length}대)만큼 이미 선택되었습니다.`, 'error');
-              return prev;
-            }
-            showToast(`${asset.assetNo} (${asset.modelName}) 카메라 스캔 선택 완료`);
-            return [...prev, asset.id];
-          });
-        }}
-      />
 
       <style>{`
         .hover-lift:hover {
