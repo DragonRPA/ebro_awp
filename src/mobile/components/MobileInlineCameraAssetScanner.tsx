@@ -463,14 +463,6 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         )}
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="px-2 py-0.5 rounded bg-slate-900/80 text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
-        >
-          <Upload className="w-3 h-3" />
-          <span>사진</span>
-        </button>
-        <button
-          type="button"
           onClick={onToggleOpen}
           className="p-1 rounded bg-slate-900/80 text-slate-200 border border-slate-700"
           aria-label="닫기"
