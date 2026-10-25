@@ -8,9 +8,10 @@ export interface MenuPermissionRule {
 
 export type PermissionRuleMap = Record<string, MenuPermissionRule>;
 
-// 1. 공통 기본 권한 (모든 직원 공통: 대시보드, 본인 연차신청, 차량운행일지)
+// 1. 공통 기본 권한 (모든 직원 공통: 대시보드, 본인 연차신청, 차량운행일지, 가용재고조회)
 const BASE_COMMON_PERMISSIONS: PermissionRuleMap = {
   dashboard: { canView: true, canSave: false },
+  available_inventory: { canView: true, canSave: false },
   leave_application: { canView: true, canSave: true }, // 모든 직원 공통 연차신청
   leave_ot: { canView: true, canSave: true },          // 레거시 호환
   vehicle_log: { canView: true, canSave: true },
@@ -48,6 +49,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   site_options: { canView: true, canSave: false },
   contract: { canView: true, canSave: false },
   public_construction_permits: { canView: true, canSave: false },
+  available_inventory: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   daily_inout: { canView: true, canSave: false },
@@ -77,6 +79,7 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   daily_inout: { canView: true, canSave: false },
   // 열람만 허용
   billing: { canView: true, canSave: false },
+  available_inventory: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   rent_asset: { canView: true, canSave: false },
@@ -97,6 +100,7 @@ export const LOGISTICS_TEMPLATE: PermissionRuleMap = {
   site_options: { canView: true, canSave: false },
   // 열람만 허용
   smart_dispatch4: { canView: true, canSave: false },
+  available_inventory: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   rent_asset: { canView: true, canSave: false },
@@ -125,6 +129,7 @@ export const MECHANIC_TEMPLATE: PermissionRuleMap = {
   print_queue_monitor: { canView: true, canSave: true },
   site_options: { canView: true, canSave: false },
   // 열람만 허용
+  available_inventory: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   // 에이전트 배지: AS팀은 출고검수 서류 프린트 필수 → 노출

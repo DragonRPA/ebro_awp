@@ -1420,6 +1420,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'customer':             ['customers', 'contacts', 'sites', 'siteMasters', 'standardOptions'],
     'sales_journal':        ['salesJournals', 'customers', 'users', 'departments'],
     'site_options':         ['siteMasters', 'sites', 'standardOptions', 'customers', 'contracts', 'assets'],
+    'available_inventory':  ['products', 'assets', 'contracts', 'contractAssets', 'deliveries', 'outboundInspections', 'customers', 'sites', 'contractHistory'],
     'product':              ['products'],
     'asset':                ['assets', 'products', 'vendors', 'assetInOutLogs'],
     'acquisition_disposal': ['assets', 'products', 'vendors', 'assetInOutLogs'],
@@ -2000,8 +2001,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지 기본 개방 제외, 숨김은 hiddenPages에서 제어)
-      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && normMenuId !== 'sales_journal' && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지/가용재고조회 기본 개방 제외, 숨김은 hiddenPages에서 제어)
+      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && normMenuId !== 'sales_journal' && normMenuId !== 'available_inventory' && !normAllowedPages.includes(normMenuId)) {
         return false;
       }
     }
@@ -2027,7 +2028,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rolePerm) {
           return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
         }
-        if (normMenuId === 'sales_journal') {
+        if (normMenuId === 'sales_journal' || normMenuId === 'available_inventory') {
           const dept = currentUser.departmentId || currentUser.department;
           const fallbackRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
           if (fallbackRule !== undefined) return fallbackRule;

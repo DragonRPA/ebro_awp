@@ -55,6 +55,7 @@ import { UsersPermissions } from './pages/users_permissions';
 const Customers = React.lazy(() => import('./pages/Customers').then(module => ({ default: module.Customers })));
 const Products = React.lazy(() => import('./pages/Products').then(module => ({ default: module.Products })));
 const Assets = React.lazy(() => import('./pages/Assets').then(module => ({ default: module.Assets })));
+const AvailableInventoryPage = React.lazy(() => import('./pages/AvailableInventoryPage').then(module => ({ default: module.AvailableInventoryPage })));
 const AssetAcquisitionDisposal = React.lazy(() => import('./pages/AssetAcquisitionDisposal').then(module => ({ default: module.AssetAcquisitionDisposal })));
 import { RentAssets } from './pages/rent_assets';
 import { InspectionChecklistManage } from './pages/inspection_checklist_manage';
@@ -696,9 +697,10 @@ const App: React.FC = () => {
     },
     {
       id: 'grp_product_asset',
-      name: '자산관리',
+      name: '자산/재고관리',
       icon: <Box size={17} />,
       items: [
+        { id: 'available_inventory', name: '가용재고조회', icon: <ClipboardList size={16} />, component: <AvailableInventoryPage /> },
         { id: 'product', name: '제품 관리', icon: <Package size={16} />, component: <Products /> },
         { id: 'asset', name: '자산 관리', icon: <Layers size={16} />, component: <Assets /> },
         { id: 'acquisition_disposal', name: '자산 취득 매각', icon: <PlusCircle size={16} />, component: <AssetAcquisitionDisposal /> },

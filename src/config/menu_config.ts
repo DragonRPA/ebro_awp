@@ -54,8 +54,9 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   },
   {
     id: 'grp_product_asset',
-    name: '자산관리',
+    name: '자산/재고관리',
     items: [
+      { id: 'available_inventory', name: '가용재고조회' },
       { id: 'product', name: '제품 관리' },
       { id: 'asset', name: '자산 관리' },
       { id: 'acquisition_disposal', name: '자산 취득 매각' },
@@ -267,7 +268,11 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'sales_journals': 'sales_journal',
   'sales-journal': 'sales_journal',
   'salesjournal': 'sales_journal',
-  '영업일지': 'sales_journal'
+  '영업일지': 'sales_journal',
+  'available-inventory': 'available_inventory',
+  'availableinventory': 'available_inventory',
+  '가용재고조회': 'available_inventory',
+  '가용재고': 'available_inventory'
 };
 
 export function normalizeMenuId(menuId: string): string {
@@ -286,4 +291,3 @@ export const getMenuNameById = (menuId: string): string => {
   }
   return menuId;
 };
-
