@@ -2112,6 +2112,7 @@ export const SiteOptionManage: React.FC = () => {
                   <option value="월">월</option>
                   <option value="건">건</option>
                   <option value="대">대</option>
+                  <option value="수량">수량</option>
                 </select>
               </div>
             </div>

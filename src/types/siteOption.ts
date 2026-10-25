@@ -9,7 +9,7 @@ export interface SiteOptionItem {
   name: string;             // 옵션품목명 (마스터 상속)
   defaultPrice: number;     // 마스터 기준 기본 단가
   appliedPrice: number;     // 현장 특약 단가 (마스터 defaultPrice에서 상속 후 오버라이드 가능)
-  unit: string;             // 단위 ('월', '건', '대')
+  unit: string;             // 단위 ('월', '건', '대', '수량')
   isEnabled: boolean;       // 해당 현장 적용 여부
   isRequired: boolean;      // 해당 현장 필수 장착 여부
   note?: string;            // 현장 규격 메모
@@ -22,9 +22,9 @@ export interface SiteOptionItem {
 export function stripOptionPrice(raw?: string | null): string {
   if (!raw) return '';
   return String(raw)
-    .replace(/\(\s*[₩\\]?\s*\d[\d,]*\s*(?:만\s*)?원?(?:\s*\/\s*[월건대일식])?\s*\)/g, '')
-    .replace(/[₩\\]\s*\d[\d,]*(?:\s*만?\s*원)?(?:\s*\/\s*[월건대일식])?/g, '')
-    .replace(/\b\d[\d,]*\s*(?:만\s*)?원(?:\s*\/\s*[월건대일식])?/g, '')
+    .replace(/\(\s*[₩\\]?\s*\d[\d,]*\s*(?:만\s*)?원?(?:\s*\/\s*(?:수량|[월건대일식]))?\s*\)/g, '')
+    .replace(/[₩\\]\s*\d[\d,]*(?:\s*만?\s*원)?(?:\s*\/\s*(?:수량|[월건대일식]))?/g, '')
+    .replace(/\b\d[\d,]*\s*(?:만\s*)?원(?:\s*\/\s*(?:수량|[월건대일식]))?/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -460,7 +460,7 @@ export interface PaidOptionBillingItem {
   deliveryId: string;
   optionId: string;
   optionName: string;
-  unit: '월' | '건' | '대';
+  unit: '월' | '건' | '대' | '수량';
   quantity: number;
   unitPrice: number;
   amount: number;
@@ -469,10 +469,11 @@ export interface PaidOptionBillingItem {
 }
 
 /**
- * 출고 요청 시 추가된 유상 옵션을 단위('월', '건', '대')에 맞춰 정밀 산출하는 SSOT 헬퍼
+ * 출고 요청 시 추가된 유상 옵션을 단위('월', '건', '대', '수량')에 맞춰 정밀 산출하는 SSOT 헬퍼
  * - '월' (매월): 해당 유상옵션이 포함된 출고 건의 장비 중 정산 기간 내 가동 중인 대수 × 단가 (귀속월당 1회)
  * - '건' (1회): 해당 유상옵션이 포함된 출고 의뢰 건당 1회 × 단가 (최초 청구 시 1회)
  * - '대' (1회 × 출고수량): 해당 유상옵션이 포함된 출고 의뢰의 출고 대수 × 단가 (최초 청구 시 1회, 기존 계약 보유 대수와 무관하게 해당 출고 건의 수량만 청구)
+ * - '수량' (수량 × 단가): 출고 대수와 무관하게 입력된 수량 × 단가 (최초 청구 시 1회)
  */
 export function calculatePaidOptionBillingItems(params: {
   contract: any;
@@ -618,7 +619,7 @@ export function calculatePaidOptionBillingItems(params: {
       if (rawUnits && typeof rawUnits === 'object') {
         Object.entries(rawUnits).forEach(([k, v]) => {
           const uStr = String(v || '').trim();
-          if (uStr === '월' || uStr === '대' || uStr === '건') {
+          if (uStr === '월' || uStr === '대' || uStr === '건' || uStr === '수량') {
             explicitPaidOptionUnits[k] = uStr;
             explicitPaidOptionUnits[k.replace(/\s+/g, '')] = uStr;
           }
@@ -719,7 +720,8 @@ export function calculatePaidOptionBillingItems(params: {
             : explicitPaidOptionUnits[stdOpt.id];
 
       const rawUnit = (overrideUnit || stdOpt.unit || '월').trim();
-      const unit: '월' | '건' | '대' = rawUnit === '건' ? '건' : rawUnit === '대' ? '대' : '월';
+      const unit: '월' | '건' | '대' | '수량' =
+        rawUnit === '건' ? '건' : rawUnit === '수량' ? '수량' : rawUnit === '대' ? '대' : '월';
 
       if (unit === '건') {
         const marker = `[OPT:건:${d.id}:${stdOpt.id}]`;
@@ -739,6 +741,31 @@ export function calculatePaidOptionBillingItems(params: {
           amount,
           itemName: `[유상옵션] ${stdOpt.name} (1건)`,
           description: `출고 유상옵션 1회 청구 (건당) ${marker}`,
+        });
+      } else if (unit === '수량') {
+        const marker = `[OPT:수량:${d.id}:${stdOpt.id}]`;
+        if (isMarkerAlreadyBilled(marker)) continue;
+
+        const overrideQty =
+          explicitPaidOptionQtys[stdOpt.name] !== undefined
+            ? explicitPaidOptionQtys[stdOpt.name]
+            : explicitPaidOptionQtys[cleanTarget] !== undefined
+              ? explicitPaidOptionQtys[cleanTarget]
+              : explicitPaidOptionQtys[stdOpt.id];
+        const qty = Math.max(1, Number(overrideQty || (stdOpt as any).defaultQtyPerUnit || 1));
+        const amount = unitPrice * qty;
+        results.push({
+          id: `EXTRA-OPT-수량-${d.id}-${stdOpt.id}`,
+          marker,
+          deliveryId: d.id,
+          optionId: stdOpt.id,
+          optionName: stdOpt.name,
+          unit: '수량',
+          quantity: qty,
+          unitPrice,
+          amount,
+          itemName: `[유상옵션] ${stdOpt.name} (${qty}개)`,
+          description: `출고 유상옵션 1회 청구 (수량 ${qty} × ${unitPrice.toLocaleString()}원) ${marker}`,
         });
       } else if (unit === '대') {
         const marker = `[OPT:대:${d.id}:${stdOpt.id}]`;
