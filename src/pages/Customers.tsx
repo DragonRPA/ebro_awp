@@ -7,9 +7,9 @@ import {
   CreditCard, ShieldCheck, Zap, Sparkles, CheckCircle2, AlertCircle, 
   X, Edit2, Trash2, RefreshCw, Layers, Check, Building2, Circle,
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
-  ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy, ExternalLink
+  ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy, ExternalLink, Lock, Unlock
 } from 'lucide-react';
-import { db, Customer, CustomerContact, CustomerSite, SiteMaster, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, getPaymentMethodLabel, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
+import { db, Customer, CustomerContact, CustomerSite, SiteMaster, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, getPaymentMethodLabel, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, isCustomerClosedBlocked, canUserControlCustomerBlock, getCustomerTransactionStatusLabel, DelinquencyActionLog, Todo } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
 import { matchHangul, matchesChosungFilter, sortCustomersByName, createHangulMatcher } from '../utils/hangulSearch';
@@ -163,12 +163,12 @@ const CustomerListItem = React.memo<CustomerListItemProps>(({
               </button>
             </div>
           )}
-          {cust.isClosed ? (
-            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>폐업</span>
+          {isCustomerClosedBlocked(cust) ? (
+            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 5px', backgroundColor: '#7f1d1d', color: '#ffffff' }}>폐업차단(해제불가)</span>
           ) : cust.transactionStatus === 'RESTRICT_NEW' ? (
-            <span className="badge" style={{ fontSize: '9.5px', padding: '1px 4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>추가금지</span>
+            <span className="badge" style={{ fontSize: '9.5px', padding: '1px 5px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>추가출고차단</span>
           ) : isCustomerTotalBlocked(cust.transactionStatus) ? (
-            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>전면차단</span>
+            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 5px' }}>전면차단(거래종료)</span>
           ) : null}
           {noticeCount > 0 && (
             <span style={{ fontSize: '9.5px', color: '#7e22ce', backgroundColor: '#f3e8ff', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
@@ -212,10 +212,14 @@ export const Customers: React.FC = () => {
   const {
     users, customers, contacts, sites, siteMasters, saveSiteMaster, contracts, contractAssets, assets, billings, receivables, saveCustomer, deleteCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
-    standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal
+    standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal, rolePermissions
   } = useApp();
 
   const canSave = hasPermission('customer', 'save');
+  const canControlBlock = useMemo(
+    () => canUserControlCustomerBlock(currentUser, hasPermission, rolePermissions),
+    [currentUser, hasPermission, rolePermissions]
+  );
   const isDeveloper = currentUser?.id === 'sys-admin' || currentUser?.id === 'u-1' || currentUser?.loginId === 'admin' || currentUser?.position === 'D.RPA' || currentUser?.department?.includes('개발');
 
   // 토스트 알림 상태
@@ -223,6 +227,71 @@ export const Customers: React.FC = () => {
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // 고객관리에서 거래처 차단 / 차단 해제 즉시 실행 핸들러
+  const handleQuickCustomerBlockChange = async (cust: Customer, nextStatus: CustomerTransactionStatus) => {
+    if (!canControlBlock) {
+      showToast('거래처 차단 및 차단 해제는 권한이 허용된 담당자 및 경영진만 가능합니다.', 'error');
+      return;
+    }
+    if (isCustomerClosedBlocked(cust)) {
+      showToast('폐업자 조회에서 차단한 거래처는 차단을 해제하거나 변경할 수 없습니다.', 'error');
+      return;
+    }
+    try {
+      await saveCustomer({
+        ...cust,
+        transactionStatus: nextStatus,
+        updatedAt: new Date().toISOString()
+      });
+
+      const actionLabel =
+        nextStatus === 'ALLOWED'
+          ? '[고객관리 차단 해제] 거래 제한 해제 및 정상 거래 복원'
+          : nextStatus === 'RESTRICT_NEW'
+          ? '[고객관리 1단계 차단] 기존 거래 유지 및 추가 출고 차단'
+          : '[고객관리 2단계 전면차단] 추가 출고 차단 및 기존 거래 종료 지시';
+
+      db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
+        customerId: cust.id,
+        actionDate: new Date().toISOString().slice(0, 10),
+        actionType: nextStatus === 'ALLOWED' ? 'CALL' : 'LEGAL_NOTICE',
+        actionDetails: actionLabel,
+        content: actionLabel,
+        blockType: nextStatus === 'ALLOWED' ? undefined : (nextStatus as any),
+        recordedBy: currentUser?.name || '경영진',
+        mandateType: 'CEO_AUTO_MANDATE',
+        createdAt: new Date().toISOString()
+      });
+
+      if (nextStatus === 'BLOCKED_ALL') {
+        const custContractIds = new Set(contracts.filter(c => c.customerId === cust.id && c.status !== 'COMPLETED').map(c => c.id));
+        const activeAssetCount = contractAssets.filter(ca => custContractIds.has(ca.contractId) && ca.status !== 'RETURNED').length;
+        db.insertRow<Todo>('todos', {
+          type: 'GENERAL',
+          title: `[기존거래 종료 및 장비회수 지시] ${cust.name} 전면차단`,
+          content: `현장 가동 장비: ${activeAssetCount}대\n지시사항: 고객관리에서 2단계 전면 차단(추가출고 차단 및 기존거래 종료)이 발효되었습니다. 현장에 투입된 장비 ${activeAssetCount}대를 즉시 회수 조치하십시오.`,
+          userId: contracts.find(c => c.customerId === cust.id && c.salespersonId)?.salespersonId || currentUser?.id || 'u-1',
+          relatedEntityId: cust.id,
+          isCompleted: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      await db.awaitPendingWrites();
+      await refreshAllData();
+
+      if (nextStatus === 'ALLOWED') {
+        showToast(`[${cust.name}] 거래처의 차단이 해제되어 정상 거래로 복원되었습니다.`);
+      } else if (nextStatus === 'RESTRICT_NEW') {
+        showToast(`[${cust.name}] 거래처가 [추가출고 차단 (기존유지)] 상태로 설정되었습니다.`);
+      } else {
+        showToast(`[${cust.name}] 거래처가 [전면 차단 (기존거래 종료)] 상태로 설정되었습니다.`);
+      }
+    } catch (err: any) {
+      showErrorModal(`차단 상태 변경 실패: ${err?.message || err}`);
+    }
   };
 
   // 검색 및 필터 상태 (헌장 1.1 & 1.2: 지연 조회 제거)
@@ -2224,23 +2293,165 @@ const handleDeleteAccount = async (accId: string) => {
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
                       {activeCustomer.name}
                     </h3>
-                    {activeCustomer.transactionStatus === 'RESTRICT_NEW' ? (
+                    {isCustomerClosedBlocked(activeCustomer) ? (
+                      <span className="badge badge-danger" style={{ fontSize: '11px', backgroundColor: '#7f1d1d', color: '#ffffff' }}>
+                        폐업차단 (해제불가)
+                      </span>
+                    ) : activeCustomer.transactionStatus === 'RESTRICT_NEW' ? (
                       <span className="badge" style={{ fontSize: '11px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>
-                        추가계약금지
+                        추가출고차단 (기존유지)
                       </span>
                     ) : isCustomerTotalBlocked(activeCustomer.transactionStatus) ? (
                       <span className="badge badge-danger" style={{ fontSize: '11px' }}>
-                        전면차단(장비회수)
+                        전면차단 (거래종료)
                       </span>
                     ) : (
                       <span className="badge badge-success" style={{ fontSize: '11px' }}>
-                        거래가능
+                        정상거래
                       </span>
                     )}
-                    {activeCustomer.isClosed && <span className="badge badge-danger" style={{ fontSize: '11px' }}>폐업</span>}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {canControlBlock && (
+                      isCustomerClosedBlocked(activeCustomer) ? (
+                        <button
+                          type="button"
+                          onClick={() => showToast('폐업자 조회에서 차단한 거래처는 차단을 해제할 수 없습니다.', 'error')}
+                          style={{
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            borderRadius: '4px',
+                            border: '1px solid #991b1b',
+                            backgroundColor: '#7f1d1d',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            cursor: 'not-allowed',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="국세청 폐업 조회로 차단된 거래처는 차단을 해제할 수 없습니다"
+                        >
+                          <Lock size={12} /> 폐업차단 (해제불가)
+                        </button>
+                      ) : isCustomerRestricted(activeCustomer.transactionStatus) ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCustomerBlockChange(activeCustomer, 'ALLOWED')}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              borderRadius: '4px',
+                              border: '1px solid #16a34a',
+                              backgroundColor: '#dcfce7',
+                              color: '#15803d',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="거래 차단 해제 및 정상 거래 복원"
+                          >
+                            <Unlock size={12} /> 차단 해제
+                          </button>
+                          {activeCustomer.transactionStatus === 'RESTRICT_NEW' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickCustomerBlockChange(activeCustomer, 'BLOCKED_ALL')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                borderRadius: '4px',
+                                border: '1px solid #dc2626',
+                                backgroundColor: '#fef2f2',
+                                color: '#b91c1c',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="2단계 전면 차단(추가출고 차단 + 기존거래 종료)으로 격상"
+                            >
+                              <Lock size={12} /> 전면차단 전환
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickCustomerBlockChange(activeCustomer, 'RESTRICT_NEW')}
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                borderRadius: '4px',
+                                border: '1px solid #d97706',
+                                backgroundColor: '#fef3c7',
+                                color: '#b45309',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="1단계 추가출고 차단(기존거래 유지)으로 변경"
+                            >
+                              <Lock size={12} /> 추가출고차단 전환
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCustomerBlockChange(activeCustomer, 'RESTRICT_NEW')}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              borderRadius: '4px',
+                              border: '1px solid #d97706',
+                              backgroundColor: '#fffbeb',
+                              color: '#b45309',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="기존 거래는 유지하면서 추가 출고만 차단"
+                          >
+                            <Lock size={12} /> 추가출고 차단
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCustomerBlockChange(activeCustomer, 'BLOCKED_ALL')}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              borderRadius: '4px',
+                              border: '1px solid #dc2626',
+                              backgroundColor: '#fef2f2',
+                              color: '#b91c1c',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="추가 출고 차단 및 기존 거래 종료 지시"
+                          >
+                            <Lock size={12} /> 전면 차단
+                          </button>
+                        </>
+                      )
+                    )}
                     <button
                       type="button"
                       onClick={() => handleViewBizCert(activeCustomer)}
@@ -3036,22 +3247,24 @@ const handleDeleteAccount = async (accId: string) => {
                   <select
                     style={inputStyle}
                     value={editingCust.isClosed ? 'true' : 'false'}
-                    onChange={e => setEditingCust({ ...editingCust, isClosed: e.target.value === 'true' })}
+                    disabled={Boolean(editingCust.id && isCustomerClosedBlocked(customers.find(c => c.id === editingCust.id)))}
+                    onChange={e => setEditingCust({ ...editingCust, isClosed: e.target.value === 'true', transactionStatus: e.target.value === 'true' ? 'BLOCKED_ALL' : editingCust.transactionStatus })}
                   >
                     <option value="false">운영중</option>
-                    <option value="true">폐업</option>
+                    <option value="true">폐업 (차단 해제 불가)</option>
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>거래 상태 (출고)</label>
+                  <label style={labelStyle}>거래 차단 단계</label>
                   <select
                     style={{ ...inputStyle, fontWeight: isCustomerRestricted(editingCust.transactionStatus) ? 700 : 400, color: isCustomerRestricted(editingCust.transactionStatus) ? '#dc2626' : 'inherit' }}
-                    value={editingCust.transactionStatus || 'ALLOWED'}
+                    value={editingCust.isClosed ? 'BLOCKED_ALL' : (editingCust.transactionStatus || 'ALLOWED')}
+                    disabled={!canControlBlock || Boolean(editingCust.isClosed) || Boolean(editingCust.id && isCustomerClosedBlocked(customers.find(c => c.id === editingCust.id)))}
                     onChange={e => setEditingCust({ ...editingCust, transactionStatus: e.target.value as CustomerTransactionStatus })}
                   >
                     <option value="ALLOWED">정상 거래</option>
-                    <option value="RESTRICT_NEW">추가계약 금지 (기존계약 유지)</option>
-                    <option value="BLOCKED_ALL">전면 차단 (기존장비 회수)</option>
+                    <option value="RESTRICT_NEW">1단계: 추가출고 차단 (기존거래 유지)</option>
+                    <option value="BLOCKED_ALL">2단계: 전면 차단 (기존거래 종료)</option>
                   </select>
                 </div>
               </div>

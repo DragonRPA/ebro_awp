@@ -1,7 +1,7 @@
 // src/mobile/pages/MobileDelinquencyManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked } from '../../services/db';
+import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, isCustomerClosedBlocked, canUserControlCustomerBlock } from '../../services/db';
 import { 
   AlertTriangle, Phone, Send, Lock, Unlock, Clock, 
   Calendar, CheckCircle2, ShieldAlert, Plus, X, ChevronRight, Check, Search
@@ -38,7 +38,7 @@ const QUICK_DIRECTIVE_PRESETS = [
 export const MobileDelinquencyManage: React.FC = () => {
   const { 
     customers, sites, billings, contracts, users, todos, delinquencyActionLogs, 
-    currentUser, saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload 
+    currentUser, saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload, hasPermission, rolePermissions 
   } = useApp();
 
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'HIGH_RISK' | 'OVERDUE_30' | 'OVERDUE_60' | 'BLOCKED' | 'NEGLECTED'>('ALL');
@@ -259,15 +259,17 @@ export const MobileDelinquencyManage: React.FC = () => {
   const neglectedCount = useMemo(() => calculatedList.filter(i => i.hasPendingDirective && i.directiveNeglectedDays >= 3).length, [calculatedList]);
 
   const isExecutive = currentUser?.role === 'ADMIN' || currentUser?.role === 'EXECUTIVE';
+  const canControlBlock = useMemo(() => canUserControlCustomerBlock(currentUser, hasPermission, rolePermissions), [currentUser, hasPermission, rolePermissions]);
 
   // 헌장 1.2 & 5.2 준수: 직권 출고금지 / 해제 처분 트랜잭션 (경영진/관리자 전용)
   const handleToggleBlock = async (item: CalculatedDelinquency) => {
-    if (!isExecutive) {
+    if (!canControlBlock) {
       showErrorModal('신규계약 및 출고금지 처분은 경영진/관리자 고유 권한입니다.', '권한 없음');
       return;
     }
     const cust = customers.find(c => c.id === item.customerId);
     if (!cust) return;
+    if (isCustomerClosedBlocked(cust)) { showErrorModal('폐업자 조회에서 차단한 거래처는 차단을 해제할 수 없습니다.', '차단 해제 불가'); return; }
     const isRestricted = isCustomerRestricted(cust.transactionStatus);
     const nextStatus = isRestricted ? 'ALLOWED' : 'BLOCKED_ALL';
     try {
@@ -615,7 +617,7 @@ export const MobileDelinquencyManage: React.FC = () => {
                     }`}
                   >
                     {isBlk ? <Unlock className="w-3.5 h-3.5 flex-shrink-0" /> : <Lock className="w-3.5 h-3.5 flex-shrink-0" />}
-                    <span>{isBlk ? '출고 해제' : '출고 제한'}</span>
+                    {canControlBlock && <span>{isBlk ? '차단 해제' : '거래 차단'}</span>}
                   </button>
                 </div>
               </div>

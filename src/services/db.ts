@@ -756,6 +756,7 @@ export interface User {
   email?: string;
   profileImageUrl?: string;
   customRoleId?: string; // 상속받은 권한 명칭 ID (CustomRole.id)
+  canBlockCustomer?: boolean; // 미수채권 연체관리 및 고객관리 거래처 차단/해제 버튼 노출 허용 여부
   autoBackupEnabled?: boolean; // 로컬 DB 자동 백업 권한 허용 여부
   autoBackupTime?: string; // 자동 백업 실행 시각 (기본 '09:00')
   autoBackupRetentionDays?: number; // 로컬 백업 파일 보존 일수 (기본 30일)
@@ -1089,10 +1090,10 @@ export function calculatePaymentDueDate(
   return `${year}-${String(month).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
 }
 
-// 🚦 거래처 거래 제한 상태 (2대 차단 유형 체계)
+// 🚦 거래처 거래 제한 상태 (2대 차단 유형 체계 + 폐업 조회 차단)
 // 1. ALLOWED: 정상 거래
-// 2. RESTRICT_NEW: 기존계약 유지 및 추가계약 금지 (신규 계약/출고 차단)
-// 3. BLOCKED_ALL (or BLOCKED): 기존장비 회수 및 전면 계약 금지 (전면 거래 중단)
+// 2. RESTRICT_NEW: 기존 거래 유지 + 추가 출고 차단
+// 3. BLOCKED_ALL (or BLOCKED): 추가 출고 차단 + 기존 거래 종료 지시 (전면 차단)
 export type CustomerTransactionStatus = 'ALLOWED' | 'RESTRICT_NEW' | 'BLOCKED_ALL' | 'BLOCKED';
 
 export const isCustomerRestricted = (status?: string): boolean => {
@@ -1103,14 +1104,70 @@ export const isCustomerTotalBlocked = (status?: string): boolean => {
   return status === 'BLOCKED_ALL' || status === 'BLOCKED';
 };
 
-export const getCustomerTransactionStatusLabel = (status?: string): { label: string; color: string; badgeClass: string; isBlocked: boolean; isTotal: boolean } => {
+/** 국세청 폐업자 조회로 인해 차단된 거래처인지 여부 (해제 불가) */
+export const isCustomerClosedBlocked = (cust?: { isClosed?: boolean; businessStatus?: string } | null): boolean => {
+  if (!cust) return false;
+  return Boolean(cust.isClosed || cust.businessStatus === 'CLOSED');
+};
+
+/** 임직원이 거래처 차단/차단해제 버튼을 사용할 권한이 있는지 판정 */
+export const canUserControlCustomerBlock = (
+  user?: User | null,
+  hasPermission?: (menuId: string, type: 'view' | 'save') => boolean,
+  rolePermissions?: RolePermission[]
+): boolean => {
+  if (!user) return false;
+  // 시스템 개발자 및 최고관리자는 상시 허용
+  if (user.id === 'u-1' || user.id === 'sys-admin' || String(user.loginId || '').trim().toLowerCase() === 'admin') {
+    return true;
+  }
+  // 임직원 권한관리에서 개별 직원 단위로 노출/비노출을 명시 지정한 경우 최우선 적용
+  if (typeof user.canBlockCustomer === 'boolean') {
+    return user.canBlockCustomer;
+  }
+  // 권한 명칭(RolePermission)에 delinquency_block 권한이 부여된 경우
+  if (user.customRoleId && Array.isArray(rolePermissions)) {
+    const roleBlockPerm = rolePermissions.find(
+      p => p.roleId === user.customRoleId && p.menuId === 'delinquency_block'
+    );
+    if (roleBlockPerm && (roleBlockPerm.canSave || roleBlockPerm.canView)) {
+      return true;
+    }
+  }
+  if (hasPermission && hasPermission('delinquency_block', 'save')) {
+    return true;
+  }
+  // 경영진/ADMIN 기본 허용
+  const deptText = String(user.department || '');
+  const posText = String(user.position || '');
+  const dutyText = String(user.duty || '');
+  if (
+    user.role === 'ADMIN' ||
+    user.role === 'EXECUTIVE' ||
+    deptText.includes('경영') ||
+    posText.includes('대표') ||
+    posText.includes('임원') ||
+    dutyText.includes('대표')
+  ) {
+    return true;
+  }
+  return false;
+};
+
+export const getCustomerTransactionStatusLabel = (
+  status?: string,
+  isClosed?: boolean
+): { label: string; color: string; badgeClass: string; isBlocked: boolean; isTotal: boolean; isClosedBlocked: boolean } => {
+  if (isClosed) {
+    return { label: '폐업차단 (해제불가)', color: '#991b1b', badgeClass: 'badge-danger', isBlocked: true, isTotal: true, isClosedBlocked: true };
+  }
   if (status === 'RESTRICT_NEW') {
-    return { label: '추가계약 금지', color: '#d97706', badgeClass: 'badge-warning', isBlocked: true, isTotal: false };
+    return { label: '추가출고차단 (기존유지)', color: '#d97706', badgeClass: 'badge-warning', isBlocked: true, isTotal: false, isClosedBlocked: false };
   }
   if (status === 'BLOCKED_ALL' || status === 'BLOCKED') {
-    return { label: '전면 차단 (장비회수)', color: '#dc2626', badgeClass: 'badge-danger', isBlocked: true, isTotal: true };
+    return { label: '전면차단 (거래종료)', color: '#dc2626', badgeClass: 'badge-danger', isBlocked: true, isTotal: true, isClosedBlocked: false };
   }
-  return { label: '정상 거래', color: '#16a34a', badgeClass: 'badge-success', isBlocked: false, isTotal: false };
+  return { label: '정상 거래', color: '#16a34a', badgeClass: 'badge-success', isBlocked: false, isTotal: false, isClosedBlocked: false };
 };
 
 export type TaxInvoiceIssueType = 'FORWARD' | 'REVERSE'; // 'FORWARD': 정발행 (기본), 'REVERSE': 역발행

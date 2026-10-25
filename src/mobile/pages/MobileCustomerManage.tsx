@@ -1,7 +1,7 @@
 // src/mobile/pages/MobileCustomerManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Customer, CustomerContact, CustomerSite, DelinquencyActionLog } from '../../services/db';
+import { db, Customer, CustomerContact, CustomerSite, DelinquencyActionLog, isCustomerRestricted, isCustomerTotalBlocked, isCustomerClosedBlocked, canUserControlCustomerBlock } from '../../services/db';
 import { 
   Building2, Search, Phone, MapPin, Plus, CheckCircle2, 
   AlertCircle, Lock, Unlock, ChevronDown, ChevronUp, X, Edit2, Copy, Check, Send, FileText, FolderOpen
@@ -19,7 +19,7 @@ interface MobileCustomerManageProps {
 export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNavigateToOrder }) => {
   const { 
     customers, contacts, sites, siteMasters, assets, contracts, billings, currentUser,
-    saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload 
+    saveCustomer, refreshAllData, showErrorModal, navigationPayload, setNavigationPayload, hasPermission, rolePermissions 
   } = useApp();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +27,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'MY' | 'ALLOWED' | 'BLOCKED' | 'INCOMPLETE'>('ALL');
   const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const canControlBlock = useMemo(() => canUserControlCustomerBlock(currentUser, hasPermission, rolePermissions), [currentUser, hasPermission, rolePermissions]);
 
   // 📄 사업자등록증 AI 모달 상태
   const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
@@ -130,8 +131,8 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
       if (!matchesChosungFilter(c.name, chosungFilter)) return false;
 
       if (statusFilter === 'MY') return myCustomerIds.has(c.id);
-      if (statusFilter === 'ALLOWED') return c.transactionStatus !== 'BLOCKED';
-      if (statusFilter === 'BLOCKED') return c.transactionStatus === 'BLOCKED';
+      if (statusFilter === 'ALLOWED') return !isCustomerRestricted(c.transactionStatus) && !isCustomerClosedBlocked(c);
+      if (statusFilter === 'BLOCKED') return isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c);
       if (statusFilter === 'INCOMPLETE') return item.hasIncomplete;
       return true;
     });
@@ -142,8 +143,8 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
   // 4대 상단 요약 통계
   const stats = useMemo(() => ({
     total: customers.length,
-    allowed: customers.filter(c => c.transactionStatus !== 'BLOCKED').length,
-    blocked: customers.filter(c => c.transactionStatus === 'BLOCKED').length,
+    allowed: customers.filter(c => !isCustomerRestricted(c.transactionStatus) && !isCustomerClosedBlocked(c)).length,
+    blocked: customers.filter(c => isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c)).length,
     incomplete: customers.filter(isIncomplete).length,
   }), [customers]);
 
@@ -158,7 +159,10 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
   // 헌장 5.2 준수: 거래제한(출고금지) 원클릭 토글
   const handleToggleBlock = async (c: Customer, e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextStatus = c.transactionStatus === 'BLOCKED' ? 'ALLOWED' : 'BLOCKED';
+    e.stopPropagation();
+    if (!canControlBlock) { showErrorModal('거래처 차단 및 차단 해제는 권한이 허용된 담당자 및 경영진만 가능합니다.', '권한 없음'); return; }
+    if (isCustomerClosedBlocked(c)) { showErrorModal('폐업자 조회에서 차단한 거래처는 차단을 해제할 수 없습니다.', '차단 해제 불가'); return; }
+    const nextStatus = isCustomerRestricted(c.transactionStatus) ? 'ALLOWED' : 'RESTRICT_NEW';
     try {
       await saveCustomer({ ...c, transactionStatus: nextStatus });
       
@@ -167,8 +171,8 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: c.id,
         actionDate: new Date().toISOString().slice(0, 10),
-        actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
-        actionDetails: nextStatus === 'BLOCKED'
+        actionType: nextStatus === 'RESTRICT_NEW' ? 'LEGAL' : 'CALL',
+        actionDetails: nextStatus === 'RESTRICT_NEW'
           ? `[${roleLabel}] 신규 장비 출고 및 배차 전면 금지 조치 발효`
           : `[${roleLabel}] 거래처 상태 정상 환원`,
         recordedBy: currentUser?.name || '담당자',
@@ -379,7 +383,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
         ) : (
           filteredList.map(({ customer: c, rentedAssetCount, siteCount, custSites, custContacts, unpaidAmount, hasIncomplete }) => {
             const isExp = expandedCustomerId === c.id;
-            const isBlk = c.transactionStatus === 'BLOCKED';
+            const isBlk = isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c);
             const repPhone = c.repContact || '';
 
             return (
@@ -403,7 +407,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
                       </span>
                       {isBlk ? (
                         <span className="px-1.5 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-300 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
-                          출고 제한
+                      {isCustomerClosedBlocked(c) ? '폐업차단(해제불가)' : c.transactionStatus === 'RESTRICT_NEW' ? '추가출고차단' : '전면차단(거래종료)'}
                         </span>
                       ) : (
                         <span className="px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-800/60 text-emerald-300 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
@@ -442,6 +446,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
                       type="button"
+                      style={{ display: canControlBlock ? undefined : 'none' }}
                       onClick={(e) => handleToggleBlock(c, e)}
                       className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 whitespace-nowrap flex-shrink-0 ${
                         isBlk 

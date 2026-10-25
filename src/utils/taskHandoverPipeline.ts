@@ -371,16 +371,17 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
       (t.actionUrl || '').toLowerCase().includes('field_as');
 
     // 5-A. 현장 정비(fieldAsTickets) 원장 확인
-    if ((db.fieldAsTickets || []).length > 0) {
-      const ticket = db.fieldAsTickets.find(tk => tk.id === eid || tk.ticketNo === eid);
+    const fieldTickets: any[] = ((db as any).fieldAsTickets || []);
+    if (fieldTickets.length > 0) {
+      const ticket = fieldTickets.find((tk: any) => tk.id === eid || tk.ticketNo === eid);
       if (ticket) {
         const tkStatus = (ticket.status || '').toUpperCase();
         if (tkStatus === 'COMPLETED' || tkStatus === 'CANCELED' || tkStatus === 'CANCELLED') return true;
         return false;
       }
       if (isFieldAsTask) {
-        const activeTickets = db.fieldAsTickets.filter(
-          tk =>
+        const activeTickets = fieldTickets.filter(
+          (tk: any) =>
             (tk.assetId === eid || tk.contractId === eid || tk.assetNo === eid) &&
             tk.status !== 'COMPLETED' &&
             tk.status !== 'CANCELED' &&
@@ -402,7 +403,7 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
     }
     // 현장 AS 전용 티켓(FAS-...)인데 fieldAsTickets가 아직 로드 전이면 보류, 로드 후에도 없으면 완료 처리
     if (eid.startsWith('FAS-')) {
-      return (db.fieldAsTickets || []).length > 0;
+      return fieldTickets.length > 0;
     }
     // eid가 assetId 또는 contractId인 경우 미완료 수리 건 존재 여부 확인
     const activeRepairs = db.repairs.filter(
@@ -768,7 +769,7 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
       (db.contractHistory || []).some(h => h.contractId === c.id && h.changeType === 'EXCHANGE');
     const dispatchTypeLabel = isExchange
       ? '교환'
-      : d.type === 'INBOUND' || d.dispatchCategory === '회수' || d.dispatchCategory === '입고'
+      : d.type === 'INBOUND' || (d.dispatchCategory as string) === '회수' || d.dispatchCategory === '입고'
       ? '회수'
       : '출고';
     const schedDate = (d.loadingDate || d.scheduledDate || d.requestDate || c.startDate || '').slice(0, 10);
@@ -779,7 +780,7 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
       userId: 'u-1',
       targetType: 'DEPT',
       targetDept: 'DISPATCH',
-      taskCategory: 'DISPATCH_VEHICLE_ASSIGN',
+      taskCategory: 'DISPATCH_VEHICLE_ASSIGN' as any,
       type: isExchange ? 'URGENT' : 'GENERAL',
       priority: isExchange ? 'URGENT' : 'HIGH',
       title: `[배차 관리] ${custName} (${dispatchTypeLabel} 배차 대기)`,
@@ -797,7 +798,7 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
   });
 
   // ── 3-A. [현장 정비 요청] (field_as / FieldAsManagement.tsx / MobileAsList.tsx 직결) ──
-  (db.fieldAsTickets || []).forEach(tk => {
+  (((db as any).fieldAsTickets || []) as any[]).forEach((tk: any) => {
     const tkSt = (tk.status || '').toUpperCase();
     if (tkSt === 'COMPLETED' || tkSt === 'CANCELED' || tkSt === 'CANCELLED') return;
 
@@ -1291,7 +1292,7 @@ export function buildTaskNavigationPayload(task: Todo): TaskNavigationPayload {
       payload.contractId = payload.contractId || eid;
     } else if (eid.startsWith('FAS-') || eid.startsWith('AS-') || etype === 'FIELD_AS' || cat === 'AS_DISPATCH_REPAIR') {
       payload.ticketId = payload.ticketId || eid;
-      const tk = (db.fieldAsTickets || []).find(x => x.id === eid || x.ticketNo === eid);
+      const tk = (((db as any).fieldAsTickets || []) as any[]).find((x: any) => x.id === eid || x.ticketNo === eid);
       if (tk?.assetId && !payload.assetId) payload.assetId = tk.assetId;
       if (tk?.contractId && !payload.contractId) payload.contractId = tk.contractId;
     } else if (eid.startsWith('REP-') || etype === 'REPAIR') {

@@ -17,7 +17,7 @@ import {
   VoiceOrderDraft, 
   EquipmentOrderItem 
 } from '../../services/voiceOrderDraftService';
-import { db, ContractHistory, Delivery, ContractAsset, CustomerSite, CustomerContact } from '../../services/db';
+import { db, ContractHistory, Delivery, ContractAsset, CustomerSite, CustomerContact, isCustomerRestricted, isCustomerClosedBlocked, getCustomerTransactionStatusLabel } from '../../services/db';
 import { broadcastWorkNotification } from '../../utils/workNotificationService';
 import { VoiceGuideWizardModal, VoiceGuideWizardCompleteData } from '../components/VoiceGuideWizardModal';
 import { VoiceMemoDispatchStudioModal } from '../components/VoiceMemoDispatchStudioModal';
@@ -486,7 +486,6 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
   const filteredCustomersList = useMemo(() => {
     const list = customers
-      .filter(c => c.transactionStatus !== 'BLOCKED')
       .filter(c => !customerSearchText.trim() || matchHangul(c.name, customerSearchText) || matchHangul(c.representative, customerSearchText));
     return sortCustomersByName(list);
   }, [customers, customerSearchText]);
@@ -497,13 +496,19 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
   // 고객사 변경 핸들러
   const handleCustomerChange = (custId: string) => {
+    const cust = customers.find(c => c.id === custId);
+    if (cust && dispatchMode !== 'RETURN' && (isCustomerRestricted(cust.transactionStatus) || isCustomerClosedBlocked(cust))) {
+      const statusInfo = getCustomerTransactionStatusLabel(cust.transactionStatus, isCustomerClosedBlocked(cust));
+      showToast(`[${cust.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청 고객으로 선택할 수 없습니다.`, 'error');
+      setSelectedCustomerId('');
+      return;
+    }
     setSelectedCustomerId(custId);
     setSelectedSiteId('');
     setSiteAddress('');
     setSiteContactName('');
     setSiteContactPhone('');
     setSelectedReturnAssetIds([]);
-    const cust = customers.find(c => c.id === custId);
     if (cust) {
       if (cust.defaultPaidOptions) setPaidOptions(cust.defaultPaidOptions);
       if (cust.defaultProtection) setProtection(cust.defaultProtection);
@@ -756,8 +761,9 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     const selectedCust = customers.find(c => c.id === selectedCustomerId);
     if (!selectedCust) return;
 
-    if (selectedCust.transactionStatus === 'BLOCKED') {
-      showToast('경영진 처분으로 인해 거래 정지된 거래처입니다.', 'error');
+    if (dispatchMode !== 'RETURN' && (isCustomerRestricted(selectedCust.transactionStatus) || isCustomerClosedBlocked(selectedCust))) {
+      const statusInfo = getCustomerTransactionStatusLabel(selectedCust.transactionStatus, isCustomerClosedBlocked(selectedCust));
+      showToast(`[${selectedCust.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청을 등록할 수 없습니다.`, 'error');
       return;
     }
 
@@ -1229,9 +1235,15 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
               <option value="">
                 {customerSearchText ? `검색 결과 (${filteredCustomersList.length}개사)` : '고객사를 선택하세요'}
               </option>
-              {filteredCustomersList.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {filteredCustomersList.map(c => {
+                const isBlockedForDispatch = dispatchMode !== 'RETURN' && (isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c));
+                const statusInfo = getCustomerTransactionStatusLabel(c.transactionStatus, isCustomerClosedBlocked(c));
+                return (
+                  <option key={c.id} value={c.id} disabled={isBlockedForDispatch}>
+                    {c.name}{isBlockedForDispatch ? ` [${statusInfo.label} · 선택불가]` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

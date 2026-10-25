@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { 
   MenuPermission, User, CustomRole, RolePermission, createMenuPermission, db, Department,
-  UNIVERSAL_FUNCTIONAL_ATTRIBUTES, getDepartmentFunctionalTags 
+  UNIVERSAL_FUNCTIONAL_ATTRIBUTES, getDepartmentFunctionalTags, canUserControlCustomerBlock
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
@@ -116,7 +116,7 @@ export const UsersPermissions: React.FC = () => {
     // 전체 메뉴 기본 false 초기화
     allMenuIds.forEach(mId => {
       const norm = normalizeMenuId(mId);
-      map[norm] = { canView: false, canSave: false };
+      map[norm] = { canView: false, canSave: false }; map['delinquency_block'] = { canView: false, canSave: false };
     });
 
     // DB에 등록된 해당 role의 permissions 덮어쓰기
@@ -490,6 +490,25 @@ export const UsersPermissions: React.FC = () => {
 
   const isSystemDeveloperUserLike = (u: any) => u?.id === 'u-1' || u?.id === 'sys-admin' || u?.loginId === 'admin';
 
+  // ── [액션 8-2: 직원별 미수채권/고객관리 거래처 차단 버튼 노출/비노출 통제] ──
+  const handleToggleUserBlockPermission = async (user: User, nextAllowed: boolean) => {
+    if (!canSave) return;
+    try {
+      await saveUser({
+        ...user,
+        canBlockCustomer: nextAllowed
+      });
+      await db.awaitPendingWrites();
+      showToast(
+        nextAllowed
+          ? `${user.name} 님에게 거래처 [차단/차단해제] 버튼 노출 권한이 허용되었습니다.`
+          : `${user.name} 님의 거래처 [차단/차단해제] 버튼이 비노출(제한) 처리되었습니다.`
+      );
+    } catch (err: any) {
+      showErrorModal(`차단 버튼 권한 변경 실패: ${err?.message || err}`);
+    }
+  };
+
   // ── [액션 9: 직원별 로컬 DB 자동백업 권한 설정 (09:00)] ──
   const handleToggleUserAutoBackup = async (user: User, nextEnabled: boolean) => {
     if (!canSave) return;
@@ -685,6 +704,7 @@ export const UsersPermissions: React.FC = () => {
         '직책': u.duty || '-',
         '시스템등급': u.role,
         '상속권한명칭': roleObj?.name || '미지정',
+        '거래처차단버튼': canUserControlCustomerBlock(u, undefined, rolePermissions) ? '노출 (허용)' : '비노출',
         '로컬DB자동백업': u.autoBackupEnabled ? `허용 (${u.autoBackupTime || '09:00'})` : '미사용',
         '최근자동백업일시': u.lastAutoBackupAt ? u.lastAutoBackupAt.replace('T', ' ').slice(0, 16) : '-',
         '허용메뉴수': summary.total,
@@ -1289,7 +1309,37 @@ export const UsersPermissions: React.FC = () => {
                                 }}
                               >
                                 <td style={{ padding: '8px 18px 8px 36px', color: perm.canView ? 'var(--text-main, #0f172a)' : 'var(--text-muted, #94a3b8)', fontWeight: perm.canView ? 600 : 400 }}>
-                                  {item.name}
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                    <span>{item.name}</span>
+                                    {norm === 'delinquency' && (
+                                      <label
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '5px',
+                                          padding: '2px 8px',
+                                          borderRadius: '4px',
+                                          border: workingRolePerms['delinquency_block']?.canSave ? '1px solid #dc2626' : '1px solid var(--border-color, #cbd5e1)',
+                                          backgroundColor: workingRolePerms['delinquency_block']?.canSave ? '#fef2f2' : 'var(--bg-secondary)',
+                                          color: workingRolePerms['delinquency_block']?.canSave ? '#b91c1c' : 'var(--text-muted, #64748b)',
+                                          fontSize: '11px',
+                                          fontWeight: 700,
+                                          cursor: canSave ? 'pointer' : 'not-allowed',
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                        title="미수채권 연체관리 및 고객관리에서 거래처 [차단 / 차단 해제] 버튼 노출 여부"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(workingRolePerms['delinquency_block']?.canSave)}
+                                          disabled={!canSave}
+                                          onChange={() => handleRolePermToggle('delinquency_block', 'save')}
+                                          style={{ margin: 0, cursor: canSave ? 'pointer' : 'not-allowed', accentColor: '#dc2626' }}
+                                        />
+                                        <span>차단 버튼 노출</span>
+                                      </label>
+                                    )}
+                                  </div>
                                 </td>
                                 <td style={{ padding: '8px 18px', width: '100px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
@@ -1415,7 +1465,7 @@ export const UsersPermissions: React.FC = () => {
             {/* 우측 통계 및 엑셀 다운로드 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary, #475569)', whiteSpace: 'nowrap' }}>
-                총 <strong>{filteredUsers.length}</strong>명 / 상속 완료 <strong>{activeUsers.filter(u => u.customRoleId).length}</strong>명 / 자동백업 지정 <strong style={{ color: 'var(--primary)' }}>{activeUsers.filter(u => u.autoBackupEnabled).length}</strong>명
+                총 <strong>{filteredUsers.length}</strong>명 / 상속 완료 <strong>{activeUsers.filter(u => u.customRoleId).length}</strong>명 / 차단버튼 허용 <strong style={{ color: '#dc2626' }}>{activeUsers.filter(u => canUserControlCustomerBlock(u, undefined, rolePermissions)).length}</strong>명 / 자동백업 지정 <strong style={{ color: 'var(--primary)' }}>{activeUsers.filter(u => u.autoBackupEnabled).length}</strong>명
               </span>
               <button
                 type="button"
@@ -1508,6 +1558,7 @@ export const UsersPermissions: React.FC = () => {
                   <SortableTh label="시스템 등급" sortKey="role" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} align="center" />
                   <SortableTh label="상속 권한 명칭" sortKey="customRoleId" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>상속 권한 메뉴 요약</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'center', width: '165px' }}>거래처 차단 버튼</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '210px' }}>로컬 DB 자동백업 (09:00)</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '80px' }}>상세 확인</th>
                 </tr>
@@ -1662,6 +1713,41 @@ export const UsersPermissions: React.FC = () => {
                           <span style={{ marginLeft: '8px', color: 'var(--text-muted, #64748b)' }}>
                             ({summary.preview})
                           </span>
+                        </td>
+
+                        {/* 미수채권/고객관리 거래처 차단 버튼 노출 통제 */}
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          {(() => {
+                            const canBlock = canUserControlCustomerBlock(user, undefined, rolePermissions);
+                            return (
+                              <label
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  cursor: canSave && !isDev ? 'pointer' : 'not-allowed',
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  border: canBlock ? '1px solid #dc2626' : '1px solid var(--border-color)',
+                                  backgroundColor: canBlock ? '#fef2f2' : 'var(--bg-secondary)',
+                                  color: canBlock ? '#b91c1c' : 'var(--text-muted)',
+                                  fontWeight: canBlock ? 700 : 500,
+                                  fontSize: '11px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="미수채권 연체관리 및 고객관리에서 거래처 [차단 / 차단 해제] 버튼 노출 허용 여부"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={canBlock}
+                                  disabled={!canSave || isDev}
+                                  onChange={(e) => handleToggleUserBlockPermission(user, e.target.checked)}
+                                  style={{ margin: 0, cursor: canSave && !isDev ? 'pointer' : 'not-allowed', accentColor: '#dc2626' }}
+                                />
+                                <span>{canBlock ? '노출 (허용)' : '비노출'}</span>
+                              </label>
+                            );
+                          })()}
                         </td>
 
                         {/* 로컬 DB 자동백업 (09:00) 권한 제어 */}

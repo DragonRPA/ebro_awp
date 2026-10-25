@@ -14,7 +14,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useApproval } from '../hooks/useApproval';
-import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel, CustomerTransactionStatus, isCustomerRestricted } from '../services/db';
+import { db, Customer, CustomerSite, CustomerContact, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS, PaymentMethodType, PAYMENT_METHOD_OPTIONS, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, getPaymentMethodLabel, CustomerTransactionStatus, isCustomerRestricted, isCustomerClosedBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
 import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import {
@@ -1674,6 +1674,11 @@ export const SmartDispatch4: React.FC = () => {
   }, [contacts, getSiteRegisteredContact, isBlankContactVal, resolveSiteFreightBillingStandard]);
 
   const handleSelectCustomer = (cust: Customer) => {
+    if (isCustomerRestricted(cust.transactionStatus) || isCustomerClosedBlocked(cust)) {
+      const statusInfo = getCustomerTransactionStatusLabel(cust.transactionStatus, isCustomerClosedBlocked(cust));
+      showToast(`[${cust.name}] 고객사는 현재 [${statusInfo.label}] 상태이므로 출고 요청 고객으로 선택할 수 없습니다.`, 'error');
+      return;
+    }
     setSelectedCustomer(cust);
     setCustomerQuery('');
     setSelectedSite(null);
@@ -2371,6 +2376,11 @@ export const SmartDispatch4: React.FC = () => {
       return;
     }
     if (isSubmittingDispatch) return;
+    if (!isNewCustomerMode && selectedCustomer && (isCustomerRestricted(selectedCustomer.transactionStatus) || isCustomerClosedBlocked(selectedCustomer))) {
+      const statusInfo = getCustomerTransactionStatusLabel(selectedCustomer.transactionStatus, isCustomerClosedBlocked(selectedCustomer));
+      showToast(`[${selectedCustomer.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청을 접수할 수 없습니다.`, 'error');
+      return;
+    }
 
     try {
       setIsSubmittingDispatch(true);
@@ -2919,6 +2929,11 @@ export const SmartDispatch4: React.FC = () => {
 
     // 🛡️ [현장 100% 일치(===) 검증 및 상세 주소 복원/해결]
     const custObj = customers.find(c => c.name === draft.customerName.value) || findCustomerByNormalizedName(customers, draft.customerName.value);
+    if (custObj && (isCustomerRestricted(custObj.transactionStatus) || isCustomerClosedBlocked(custObj))) {
+      const statusInfo = getCustomerTransactionStatusLabel(custObj.transactionStatus, isCustomerClosedBlocked(custObj));
+      showToast(`[${custObj.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청을 확정할 수 없습니다.`, 'error');
+      return;
+    }
     const trimmedDraftSite = (draft.siteName?.value || '').trim();
     const siteObj = custObj ? sites.find(s => s.customerId === custObj.id && s.name.trim() === trimmedDraftSite) : null;
     if (!siteObj) {
@@ -3849,16 +3864,31 @@ export const SmartDispatch4: React.FC = () => {
                         </div>
                         {customerQuery.trim() ? (
                           <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-slate-950/60 rounded-lg border border-slate-800">
-                            {filteredCustomers.map(c => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => handleSelectCustomer(c)}
-                                className="px-2.5 py-1 rounded text-xs font-medium transition border bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-                              >
-                                {c.name}
-                              </button>
-                            ))}
+                            {filteredCustomers.map(c => {
+                              const isBlockedCust = isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c);
+                              const statusInfo = getCustomerTransactionStatusLabel(c.transactionStatus, isCustomerClosedBlocked(c));
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  aria-disabled={isBlockedCust}
+                                  onClick={() => handleSelectCustomer(c)}
+                                  title={isBlockedCust ? `${statusInfo.label} — 출고요청 선택 불가` : c.name}
+                                  className={`px-2.5 py-1 rounded text-xs font-medium transition border flex items-center gap-1.5 ${
+                                    isBlockedCust
+                                      ? 'bg-red-950/40 border-red-800/70 text-red-300/70 cursor-not-allowed line-through'
+                                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                                  }`}
+                                >
+                                  <span>{c.name}</span>
+                                  {isBlockedCust && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-900/80 text-red-100 no-underline inline-block" style={{ textDecoration: 'none' }}>
+                                      {statusInfo.label} · 선택불가
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                             {filteredCustomers.length === 0 && (
                               <div className="text-xs text-slate-500 py-2 px-3">
                                 일치하는 거래처가 없습니다.
