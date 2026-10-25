@@ -10,6 +10,7 @@ import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatem
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
 import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
 import { CustomStatementEditModal } from '../components/CustomStatementEditModal';
+const HometaxBatchExportModal = React.lazy(() => import('../modules/hometax-tax-invoice/HometaxBatchExportModal'));
 import { matchHangul } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 import { calculatePaidOptionBillingItems } from '../types/siteOption';
@@ -164,6 +165,7 @@ export const Billings: React.FC = () => {
   const [splitTargetId, setSplitTargetId] = useState<string | null>(null);
   const [splitAmountInput, setSplitAmountInput] = useState<string>('');
   const [isSplittingBilling, setIsSplittingBilling] = useState(false);
+  const [hometaxModalOpen, setHometaxModalOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [contractNoFilter, setContractNoFilter] = useState('');
@@ -2727,16 +2729,27 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           
           {/* 청구 목록 (좌측 독립 스크롤) */}
           <div className="card" style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h3 className="card-title" style={{ margin: 0 }}>청구 목록</h3>
-              <button 
-                type="button" 
-                className="btn-excel-download btn-sm" 
-                data-mid="billing-export-btn"
-                onClick={handleExportExcel}
-              >
-                <Download size={12} /> 엑셀 다운로드
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  data-mid="billing-hometax-export-btn"
+                  onClick={() => setHometaxModalOpen(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, borderColor: 'var(--primary)', color: 'var(--primary)', whiteSpace: 'nowrap' }}
+                >
+                  <FileText size={12} /> 홈택스 세금계산서 엑셀 ({sortedBillings.length}건)
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-excel-download btn-sm" 
+                  data-mid="billing-export-btn"
+                  onClick={handleExportExcel}
+                >
+                  <Download size={12} /> 엑셀 다운로드
+                </button>
+              </div>
             </div>
 
             {/* 필터 바 (1줄 고밀도 컴팩트 수평 정렬) */}
@@ -6485,6 +6498,24 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             })()}
           </div>
         </div>
+      )}
+
+      {hometaxModalOpen && (
+        <React.Suspense fallback={null}>
+          <HometaxBatchExportModal
+            isOpen={hometaxModalOpen}
+            onClose={() => setHometaxModalOpen(false)}
+            tenant={currentTenant}
+            billings={sortedBillings}
+            billingDetails={billingDetails}
+            customers={customers}
+            contracts={contracts}
+            sites={sites}
+            onExportSuccess={(fileCount, recordCount) => {
+              showToast(`홈택스 일괄발급 엑셀 생성 완료: 총 ${recordCount}건 (${fileCount}개 파일 다운로드)`);
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* 🔔 전역 플로팅 토스트 알림 컴포넌트 */}

@@ -36,6 +36,7 @@ import {
   getLatestApkRelease, WorkStatus, ApkRelease 
 } from '../services/workStatusService';
 import { isDeveloperUser, resolveUserMobileDeptMode } from '../utils/userDepartmentHelper';
+import { reconcileCompletedTodosInDb } from '../utils/taskHandoverPipeline';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import './mobile.css';
 
@@ -46,11 +47,18 @@ interface MobileAppProps {
 export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToPc }) => {
   const { 
     fieldAsTickets, deliveries, outboundInspections, currentUser, assets, 
-    customers, billings, currentTenant, contractAssets, loadTablesForMenu, 
+    customers, billings, currentTenant, contracts, contractAssets,
     logout, departments, hasPermission 
   } = useApp();
 
   const isDeveloper = useMemo(() => isDeveloperUser(currentUser), [currentUser]);
+
+  // 기완료 ToDo 상시 자동 상계 동기화
+  useEffect(() => {
+    try {
+      reconcileCompletedTodosInDb();
+    } catch {}
+  }, [deliveries, outboundInspections, contractAssets, fieldAsTickets, billings]);
 
   // 전대 장비 주기장 유휴 누수 위험 건수
   const subleaseLeakCount = useMemo(() => {
@@ -110,9 +118,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     ).length;
   }, [customers]);
 
-  // 1. 🏛️ 부서 모드 결정:
-  // - 일반 직원은 조직도상 본인 부서 모드로 100% 자동 고정
-  // - 개발자는 전사 시뮬레이션을 위해 저장된 모드 또는 자유 전환 가능
+  // 1. 🏛️ 부서 모드 결정
   const userResolvedMode = useMemo(() => {
     return resolveUserMobileDeptMode(currentUser, departments || []);
   }, [currentUser, departments]);
@@ -126,7 +132,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     return userResolvedMode;
   });
 
-  // 일반 직원은 로그인 정보나 부서 변경 시 본인 부서 모드로 자동 동기화
   useEffect(() => {
     if (!isDeveloper) {
       setDeptMode(userResolvedMode);
@@ -150,7 +155,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   const [workLoading, setWorkLoading] = useState(false);
   const [apkRelease, setApkRelease] = useState<ApkRelease | null>(null);
 
-  // 출퇴근 및 APK 릴리즈 자동 동기화
   useEffect(() => {
     getMyWorkStatus(currentUser?.id).then(s => setWorkStatus(s));
     getLatestApkRelease().then(r => setApkRelease(r));
@@ -159,7 +163,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     return unsub;
   }, [currentUser?.id]);
 
-  // 상단 헤더 & 모니터링 모달 공용 출퇴근 토글 핸들러
   const handleWorkToggle = async () => {
     const targetUserId = currentUser?.id || 'current_user';
     if (workLoading) return;
@@ -168,7 +171,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       if (workStatus?.isWorking) {
         const updated = await clockOut(targetUserId);
         setWorkStatus(updated);
-        // 퇴근 처리 시 자동 로그아웃 연동
         logout();
       } else {
         const updated = await clockIn(targetUserId);
@@ -181,7 +183,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     }
   };
 
-  // 무전기 서비스 자동 구독 (백그라운드 수신 대기) 및 모바일 오디오 락 해제
   useEffect(() => {
     if (currentUser) {
       walkieService.subscribe({
@@ -193,7 +194,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       initWorkNotificationListener(currentUser, departments);
     }
 
-    // 모바일 브라우저 오디오 자동재생 언락 (첫 화면 터치 시 영구 언락)
     const handleFirstGesture = () => {
       walkieService.unlockAudio();
       window.removeEventListener('touchstart', handleFirstGesture);
@@ -206,7 +206,6 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     window.addEventListener('click', handleFirstGesture, { passive: true });
     window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
 
-    // 전원 변경 체크 인터벌
     const interval = setInterval(() => {
       setIsWalkieOn(walkieService.getIsPowerOn());
     }, 1000);
@@ -218,9 +217,8 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('pointerdown', handleFirstGesture);
     };
-  }, [currentUser, currentTenant]);
+  }, [currentUser, currentTenant, departments]);
 
-  // 부서 모드 변경 핸들러
   const handleDeptModeChange = (mode: MobileDeptMode) => {
     setDeptMode(mode);
     localStorage.setItem('erp_mobile_dept', mode);
@@ -230,21 +228,83 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // 미처리 배지 카운트
-  const pendingAsCount = fieldAsTickets.filter(
-    (t) => t.status === 'REQUESTED' || t.status === 'SCHEDULED' || t.status === 'REVISIT' || t.status === 'IN_PROGRESS'
-  ).length;
+  // 🛡️ 미처리 배지 카운트 (기완료·반납·취소 건 100% 제외하여 무한 누적 방지)
+  const activeContractIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (contracts || []).forEach(c => {
+      const st = (c.status || '').toUpperCase();
+      if (st !== 'TERMINATED' && st !== 'CANCELLED' && st !== 'COMPLETED') {
+        set.add(c.id);
+      }
+    });
+    return set;
+  }, [contracts]);
 
-  const pendingDispatchCount = deliveries.filter(
-    (d) => d.status === 'DISPATCHED' || d.status === 'PENDING'
-  ).length;
+  const completedInspectionCaIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (outboundInspections || []).forEach(ins => {
+      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
+        set.add((ins as any).contractAssetId);
+      }
+    });
+    return set;
+  }, [outboundInspections]);
 
-  const pendingInspectionCount = outboundInspections.filter((ins) => ins.status === 'PENDING').length;
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
 
-  // 🏗️ 미할당 슬롯 수 (장비할당 대기 배지)
+  // 1) 미완료 현장정비 티켓 수
+  const pendingAsCount = useMemo(() => {
+    return (fieldAsTickets || []).filter(
+      (t) => t.status === 'REQUESTED' || t.status === 'SCHEDULED' || t.status === 'REVISIT' || t.status === 'IN_PROGRESS'
+    ).length;
+  }, [fieldAsTickets]);
+
+  // 2) 미완료 장비할당 슬롯 수 (PC 장비 할당 미완결 기준과 100% 동일)
   const pendingAssignmentCount = useMemo(() => {
-    return (contractAssets || []).filter((ca) => !ca.assetId).length;
-  }, [contractAssets]);
+    return (contractAssets || []).filter((ca) => {
+      if (!ca.contractId || !activeContractIdSet.has(ca.contractId)) return false;
+      if (ca.status === 'RETURNED' || ca.status === 'SOLD' || ca.status === 'RENTED') return false;
+      if (completedInspectionCaIdSet.has(ca.id)) return false;
+      if (ca.assetId) return false;
+      return true;
+    }).length;
+  }, [contractAssets, activeContractIdSet, completedInspectionCaIdSet]);
+
+  // 3) 미완료 배차/상차 건수 (이미 상차/운송완료되었거나 취소된 건, 이미 대여중 전환된 건 제외)
+  const pendingDispatchCount = useMemo(() => {
+    return (deliveries || []).filter((d) => {
+      const st = (d.status || '').toUpperCase();
+      if (st === 'CANCELLED' || st === 'DELIVERED' || st === 'COMPLETED') return false;
+      if (d.unloadingCompletedAt || d.loadingCompletedAt) return false;
+      if (d.type === 'OUTBOUND' && d.contractId) {
+        const cAssets = (contractAssets || []).filter(ca => ca.contractId === d.contractId);
+        if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+          return false;
+        }
+      }
+      return st === 'PENDING' || st === 'REQUESTED' || st === 'DISPATCHED';
+    }).length;
+  }, [deliveries, contractAssets]);
+
+  // 4) 미완료 출고검수 건수 (취소된 배차 또는 이미 RENTED/RETURNED 전환된 슬롯 제외)
+  const pendingInspectionCount = useMemo(() => {
+    const cancelledDelivIds = new Set(
+      (deliveries || []).filter(d => d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED').map(d => d.id)
+    );
+    return (outboundInspections || []).filter((ins) => {
+      if (ins.status !== 'PENDING') return false;
+      if (ins.deliveryId && cancelledDelivIds.has(ins.deliveryId)) return false;
+      if ((ins as any).contractAssetId) {
+        const ca = (contractAssets || []).find(c => c.id === (ins as any).contractAssetId);
+        if (!ca || ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD') return false;
+      }
+      if (ins.assetId) {
+        const a = assetMap.get(ins.assetId);
+        if (a && a.status === 'RENTED') return false;
+      }
+      return true;
+    }).length;
+  }, [outboundInspections, deliveries, contractAssets, assetMap]);
 
   // 네비게이션 핸들러
   const handleTabChange = (tab: MobileTabType) => {
@@ -268,7 +328,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   };
 
   return (
-    <div className="mobile-app-root min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full overflow-x-hidden">
+    <div className="mobile-app-root min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full overflow-x-hidden">
       {/* 상단 모바일 헤더 + 부서 퀵 체인저 + 무전기 버튼 */}
       <MobileHeader 
         deptMode={deptMode}
@@ -288,7 +348,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       <PwaInstallBanner />
 
       {/* 본문 라우팅 */}
-      <main className="flex-1 w-full max-w-lg md:max-w-3xl mx-auto px-1 sm:px-3 min-w-0 max-w-full overflow-x-hidden">
+      <main className="flex-1 w-full max-w-lg md:max-w-3xl mx-auto px-1.5 sm:px-3 min-w-0 max-w-full overflow-x-hidden">
         {selectedAsTicketId ? (
           <MobileAsDetail
             ticketId={selectedAsTicketId}

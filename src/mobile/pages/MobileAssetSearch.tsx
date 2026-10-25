@@ -1,14 +1,15 @@
 // src/mobile/pages/MobileAssetSearch.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { isVirtualAsset } from '../../services/db';
+import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from '../../utils/modelUtils';
 import { 
-  Search, RefreshCw, Layers, CheckCircle2, AlertTriangle, 
-  XCircle, Clock, MapPin, ChevronRight, X, PhoneCall, Calendar, Wrench
+  Search, RefreshCw, CheckCircle2, 
+  Clock, MapPin, ChevronRight, X, Wrench, ClipboardList, Copy, Check, Layers
 } from 'lucide-react';
-import { matchHangul } from '../../utils/hangulSearch';
+import { matchHangul, createHangulMatcher } from '../../utils/hangulSearch';
 import { getAssetStatusLabel } from '../../config/asset_status_config';
 
-// 고소작업대 표준 6대 높이 규격 프리셋
 interface SpecPreset {
   id: string;
   ft: string;
@@ -62,28 +63,84 @@ const SPEC_PRESETS: SpecPreset[] = [
   },
 ];
 
+interface InventoryModelRow {
+  key: string;
+  feet: number;
+  feetLabel: string;
+  manufacturer: string;
+  modelName: string;
+  shortName: string;
+  availableContractQty: number;
+  stockOwned: number;
+  stockRented: number;
+  scheduledOwned: number;
+  scheduledRented: number;
+}
+
+interface ScheduledOutboundLine {
+  groupKey: string;
+  scheduledDate: string;
+  dayLabel: string;
+  customerName: string;
+  shortCustomerName: string;
+  siteName: string;
+  modelSummaryText: string;
+  formattedLine: string;
+  totalQty: number;
+}
+
+const cleanCustomerShortName = (raw?: string): string => {
+  if (!raw) return '미상';
+  return raw
+    .replace(/\(주\)|주식회사|㈜|\(유\)|유한회사|\(합\)|합자회사/g, '')
+    .trim() || raw.trim();
+};
+
+const formatCompactModelName = (raw?: string, shortName?: string): string => {
+  if (shortName && shortName.trim()) {
+    return shortName.trim().replace(/\s+/g, '');
+  }
+  if (!raw) return '미지정';
+  let s = raw.trim().toUpperCase();
+  s = s.replace(/\s*E-?DRIVE$/i, 'E');
+  s = s.replace(/[\s\-_]+/g, '');
+  return s;
+};
+
 interface MobileAssetSearchProps {
   deptMode?: string;
   onNavigateToOrder?: (specFt: string) => void;
 }
 
 export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, onNavigateToOrder }) => {
-  const { assets, contracts, contractAssets, sites, refreshAllData, fullRefreshFromServer, currentTenant } = useApp();
+  const {
+    products,
+    assets,
+    contracts,
+    contractAssets,
+    deliveries,
+    outboundInspections,
+    customers,
+    sites,
+    refreshAllData,
+    fullRefreshFromServer,
+    currentTenant
+  } = useApp();
 
   const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
   const defaultYardName = defaultYard?.name || (currentTenant?.tradeName ? `${currentTenant.tradeName} 주기장` : '본사 주기장');
 
-  // 검색 및 필터 상태
+  // 뷰 모드: 'INVENTORY_TABLE' (PC 가용재고조회 100% 연동) | 'SPEC_CARDS' (규격/개별장비 조회)
+  const [viewMode, setViewMode] = useState<'INVENTORY_TABLE' | 'SPEC_CARDS'>('INVENTORY_TABLE');
   const [searchTerm, setSearchTerm] = useState('');
-  // 자사 보유 자산 전용 집계 (타사 재고 배제)
-  const [yardFilter, setYardFilter] = useState<'ALL' | 'MAIN'>('ALL');
+  const [feetFilter, setFeetFilter] = useState<string>('ALL');
+  const [copied, setCopied] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(() => new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-
-  // 특정 규격 선택 시 바텀시트 세부 목록
+  const [lastSyncTime, setLastSyncTime] = useState(() =>
+    new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  );
   const [selectedSpec, setSelectedSpec] = useState<SpecPreset | null>(null);
 
-  // 1. 화면 활성화 시 0.3초 무조작 자동 최신화
   useEffect(() => {
     const handleSync = async () => {
       if (document.visibilityState === 'visible') {
@@ -107,7 +164,6 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     };
   }, [fullRefreshFromServer, refreshAllData]);
 
-  // 수동 동기화 핸들러
   const handleManualSync = async () => {
     setIsSyncing(true);
     if (fullRefreshFromServer) {
@@ -119,33 +175,496 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     setTimeout(() => setIsSyncing(false), 400);
   };
 
-  // 2. 자사 보유 자산 풀 (타사 임차 장비 ownerType === 'RENTED' 제외)
-  const yardFilteredAssets = useMemo(() => {
-    return assets.filter(a => {
-      // 타사 재고 배제: 자사 소유 자산만 대상
-      if (a.ownerType === 'RENTED') return false;
+  // ── PC 가용재고조회(AvailableInventoryPage)와 100% 동일한 모델별 재고 및 미완결 출고예정 연산 ──
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
+
+  const completedInspectionCaIdSet = useMemo(() => {
+    const set = new Set<string>();
+    (outboundInspections || []).forEach(ins => {
+      if (ins.status === 'COMPLETED' && (ins as any).contractAssetId) {
+        set.add((ins as any).contractAssetId);
+      }
+    });
+    return set;
+  }, [outboundInspections]);
+
+  const extractCaIdsFromDelivery = (d: any): string[] => {
+    if (!d?.cargoItems) return [];
+    try {
+      const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+      if (!Array.isArray(raw)) return [];
+      const ids: string[] = [];
+      raw.forEach((ci: any) => {
+        if (Array.isArray(ci?.contractAssetIds)) {
+          ids.push(...ci.contractAssetIds.filter(Boolean));
+        }
+      });
+      return ids;
+    } catch {
+      return [];
+    }
+  };
+
+  const { unfinishedRequestGroups, targetPendingSlots } = useMemo(() => {
+    const contractAssetsByContract = new Map<string, typeof contractAssets>();
+    (contractAssets || []).forEach(ca => {
+      if (!ca.contractId) return;
+      if (ca.status === 'RETURNED' || ca.status === 'SOLD') return;
+
+      if (ca.assetId) {
+        const assignedAsset = assetMap.get(ca.assetId);
+        const isAlreadyRented =
+          ca.status === 'RENTED' ||
+          assignedAsset?.status === 'RENTED' ||
+          completedInspectionCaIdSet.has(ca.id);
+        if (isAlreadyRented) return;
+      }
+
+      let list = contractAssetsByContract.get(ca.contractId);
+      if (!list) {
+        list = [];
+        contractAssetsByContract.set(ca.contractId, list);
+      }
+      list.push(ca);
+    });
+
+    const outboundDeliveriesByContract = new Map<string, typeof deliveries>();
+    (deliveries || []).forEach(d => {
+      if (!d.contractId || d.status === 'CANCELLED') return;
+      const isOutOrEx =
+        d.type === 'OUTBOUND' ||
+        d.type === 'EXCHANGE' ||
+        d.dispatchCategory === '출고' ||
+        d.dispatchCategory === '교환' ||
+        (d as any).originalDispatchCategory === '출고' ||
+        (d as any).originalDispatchCategory === '교환';
+      if (!isOutOrEx) return;
+      let list = outboundDeliveriesByContract.get(d.contractId);
+      if (!list) {
+        list = [];
+        outboundDeliveriesByContract.set(d.contractId, list);
+      }
+      list.push(d);
+    });
+
+    interface RawReqGroup {
+      groupKey: string;
+      contract: (typeof contracts)[number];
+      delivery?: (typeof deliveries)[number];
+      slots: typeof contractAssets;
+      unassignedSlots: typeof contractAssets;
+      scheduledDate: string;
+      createdAt: string;
+    }
+
+    const groups: RawReqGroup[] = [];
+    const slotsForCount: typeof contractAssets = [];
+
+    for (let i = 0; i < (contracts || []).length; i++) {
+      const c = contracts[i];
+      const activePreInspSlots = contractAssetsByContract.get(c.id) || [];
+      if (activePreInspSlots.length === 0) continue;
+
+      const cDeliveries = (outboundDeliveriesByContract.get(c.id) || []).slice().sort((a, b) => {
+        return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
+      });
+
+      const claimedCaIds = new Set<string>();
+      const contractGroups: RawReqGroup[] = [];
+
+      for (const d of cDeliveries) {
+        const dCaIds = extractCaIdsFromDelivery(d);
+        if (dCaIds.length === 0) continue;
+        const dCaIdSet = new Set(dCaIds);
+        const matchedSlots = activePreInspSlots.filter(ca => dCaIdSet.has(ca.id) && !claimedCaIds.has(ca.id));
+        if (matchedSlots.length === 0) continue;
+        matchedSlots.forEach(ca => claimedCaIds.add(ca.id));
+
+        const unassigned = matchedSlots.filter(ca => !ca.assetId);
+        const schedDate = (
+          d.loadingDate ||
+          d.scheduledDate ||
+          matchedSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          ''
+        ).slice(0, 10);
+
+        contractGroups.push({
+          groupKey: `DLV:${d.id}`,
+          contract: c,
+          delivery: d,
+          slots: matchedSlots,
+          unassignedSlots: unassigned,
+          scheduledDate: schedDate,
+          createdAt: d.createdAt || d.requestDate || c.createdAt || ''
+        });
+      }
+
+      const remainingSlots = activePreInspSlots.filter(ca => !claimedCaIds.has(ca.id));
+      if (remainingSlots.length > 0) {
+        const fallbackDeliv = cDeliveries.find(d => extractCaIdsFromDelivery(d).length === 0) || (contractGroups.length === 0 ? cDeliveries[0] : undefined);
+        const unassigned = remainingSlots.filter(ca => !ca.assetId);
+        const schedDate = (
+          fallbackDeliv?.loadingDate ||
+          fallbackDeliv?.scheduledDate ||
+          remainingSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
+          c.startDate ||
+          ''
+        ).slice(0, 10);
+
+        contractGroups.push({
+          groupKey: c.id,
+          contract: c,
+          delivery: fallbackDeliv,
+          slots: remainingSlots,
+          unassignedSlots: unassigned,
+          scheduledDate: schedDate,
+          createdAt: fallbackDeliv?.createdAt || c.createdAt || ''
+        });
+      }
+
+      for (const grp of contractGroups) {
+        if (grp.unassignedSlots.length > 0) {
+          groups.push(grp);
+          slotsForCount.push(...grp.unassignedSlots);
+        }
+      }
+    }
+
+    return { unfinishedRequestGroups: groups, targetPendingSlots: slotsForCount };
+  }, [contracts, deliveries, contractAssets, assetMap, completedInspectionCaIdSet]);
+
+  const { allInventoryRows, uniqueFeetList, shortNameByCanonicalMap } = useMemo(() => {
+    interface ModelAccumulator {
+      key: string;
+      feet: number;
+      manufacturer: string;
+      modelName: string;
+      shortName: string;
+      stockOwned: number;
+      stockRented: number;
+      assignedPreInspOwned: number;
+      assignedPreInspRented: number;
+      unassignedPendingCount: number;
+    }
+
+    const modelMap = new Map<string, ModelAccumulator>();
+    const exactModelToKey = new Map<string, string>();
+    const shortNameToKey = new Map<string, string>();
+    const canonicalToKey = new Map<string, string>();
+    const shortByCanon = new Map<string, string>();
+
+    (products || []).forEach(p => {
+      if (p.isActive === false) return;
+      const cKey = getCanonicalModelKey(p.modelName) || (p.modelName || '').trim().toUpperCase();
+      if (!cKey) return;
+
+      const meta = CANONICAL_MODEL_META[cKey];
+      const feetVal = Number(p.feet) || meta?.feet || 0;
+      const mfgVal = (p.manufacturer || meta?.manufacturer || '-').trim();
+      const shortVal = (p.shortName || meta?.shortName || '').trim();
+      if (shortVal) shortByCanon.set(cKey, shortVal);
+
+      const existing = modelMap.get(cKey);
+      if (!existing) {
+        modelMap.set(cKey, {
+          key: cKey,
+          feet: feetVal,
+          manufacturer: mfgVal,
+          modelName: p.modelName,
+          shortName: shortVal,
+          stockOwned: 0,
+          stockRented: 0,
+          assignedPreInspOwned: 0,
+          assignedPreInspRented: 0,
+          unassignedPendingCount: 0
+        });
+      } else {
+        if (!existing.feet && feetVal) existing.feet = feetVal;
+        if ((existing.manufacturer === '-' || !existing.manufacturer) && mfgVal !== '-') existing.manufacturer = mfgVal;
+        if (p.modelName.includes('-') && !existing.modelName.includes('-')) existing.modelName = p.modelName;
+        if (!existing.shortName && shortVal) existing.shortName = shortVal;
+      }
+
+      exactModelToKey.set((p.modelName || '').trim().toUpperCase(), cKey);
+      canonicalToKey.set(cKey, cKey);
+      if (shortVal) {
+        shortNameToKey.set(shortVal.toUpperCase(), cKey);
+        const sCanon = getCanonicalModelKey(shortVal);
+        if (sCanon) canonicalToKey.set(sCanon, cKey);
+      }
+    });
+
+    const resolveOrAddModelBucket = (rawModelName?: string, fallbackMfg?: string): ModelAccumulator => {
+      const cleanRaw = (rawModelName || '미지정').trim();
+      const upper = cleanRaw.toUpperCase();
+      const cKey = getCanonicalModelKey(cleanRaw) || upper;
+
+      const matchedKey =
+        exactModelToKey.get(upper) ||
+        shortNameToKey.get(upper) ||
+        canonicalToKey.get(cKey);
+
+      if (matchedKey && modelMap.has(matchedKey)) {
+        return modelMap.get(matchedKey)!;
+      }
+
+      for (const [k, bucket] of modelMap.entries()) {
+        if (isModelMatch(cleanRaw, bucket.modelName, products)) {
+          canonicalToKey.set(cKey, k);
+          return bucket;
+        }
+      }
+
+      const meta = CANONICAL_MODEL_META[cKey];
+      const newBucket: ModelAccumulator = {
+        key: cKey,
+        feet: meta?.feet || 0,
+        manufacturer: fallbackMfg || meta?.manufacturer || '-',
+        modelName: meta?.modelName || cleanRaw,
+        shortName: meta?.shortName || '',
+        stockOwned: 0,
+        stockRented: 0,
+        assignedPreInspOwned: 0,
+        assignedPreInspRented: 0,
+        unassignedPendingCount: 0
+      };
+      modelMap.set(cKey, newBucket);
+      canonicalToKey.set(cKey, cKey);
+      return newBucket;
+    };
+
+    (assets || []).forEach(a => {
+      if (isVirtualAsset(a)) return;
+      if (a.actualRentReturnDate) return;
+      if (a.status !== 'AVAILABLE') return;
+
+      const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
+      if (a.ownerType === 'RENTED') {
+        bucket.stockRented += 1;
+      } else {
+        bucket.stockOwned += 1;
+      }
+    });
+
+    targetPendingSlots.forEach(ca => {
+      const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+      const modelStr = ca.expectedModel || assignedAsset?.modelName || '미지정';
+      const bucket = resolveOrAddModelBucket(modelStr, assignedAsset?.manufacturer);
+
+      if (assignedAsset) {
+        if (assignedAsset.ownerType === 'RENTED') {
+          bucket.assignedPreInspRented += 1;
+        } else {
+          bucket.assignedPreInspOwned += 1;
+        }
+      } else {
+        bucket.unassignedPendingCount += 1;
+      }
+    });
+
+    const rows: InventoryModelRow[] = [];
+    const feetSet = new Set<number>();
+
+    modelMap.forEach(b => {
+      const remOwnedStock = Math.max(0, b.stockOwned - b.assignedPreInspOwned);
+      const remRentedStock = Math.max(0, b.stockRented - b.assignedPreInspRented);
+
+      let unalloc = b.unassignedPendingCount;
+      const allocToOwned = Math.min(unalloc, remOwnedStock);
+      unalloc -= allocToOwned;
+
+      const allocToRented = Math.min(unalloc, remRentedStock);
+      unalloc -= allocToRented;
+
+      const scheduledOwned = b.assignedPreInspOwned + allocToOwned + unalloc;
+      const scheduledRented = b.assignedPreInspRented + allocToRented;
+
+      const totalStock = b.stockOwned + b.stockRented;
+      const totalScheduled = scheduledOwned + scheduledRented;
+      const availableContractQty = totalStock - totalScheduled;
+
+      if (b.feet > 0) feetSet.add(b.feet);
+
+      rows.push({
+        key: b.key,
+        feet: b.feet,
+        feetLabel: b.feet > 0 ? `${b.feet}` : '-',
+        manufacturer: b.manufacturer || '-',
+        modelName: b.modelName,
+        shortName: b.shortName,
+        availableContractQty,
+        stockOwned: b.stockOwned,
+        stockRented: b.stockRented,
+        scheduledOwned,
+        scheduledRented
+      });
+    });
+
+    return {
+      allInventoryRows: rows,
+      uniqueFeetList: Array.from(feetSet).sort((a, b) => a - b),
+      shortNameByCanonicalMap: shortByCanon
+    };
+  }, [products, assets, targetPendingSlots, assetMap]);
+
+  const filteredInventoryRows = useMemo(() => {
+    const q = searchTerm.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
+
+    const list = allInventoryRows.filter(r => {
+      const hasActivity = r.stockOwned > 0 || r.stockRented > 0 || r.scheduledOwned > 0 || r.scheduledRented > 0;
+      if (!hasActivity && !q) return false;
+      if (feetFilter !== 'ALL' && String(r.feet) !== feetFilter) return false;
+      if (matcher) {
+        const matched =
+          matcher.test(r.modelName) ||
+          matcher.test(r.shortName) ||
+          matcher.test(r.manufacturer) ||
+          matcher.test(r.feetLabel);
+        if (!matched) return false;
+      }
       return true;
     });
+
+    list.sort((a, b) => {
+      if (a.feet !== b.feet) return a.feet - b.feet;
+      const mCmp = a.manufacturer.localeCompare(b.manufacturer, 'ko');
+      if (mCmp !== 0) return mCmp;
+      return a.modelName.localeCompare(b.modelName, 'ko');
+    });
+
+    return list;
+  }, [allInventoryRows, feetFilter, searchTerm]);
+
+  const inventoryTotals = useMemo(() => {
+    return filteredInventoryRows.reduce(
+      (acc, r) => {
+        acc.availableContractQty += r.availableContractQty;
+        acc.stockOwned += r.stockOwned;
+        acc.stockRented += r.stockRented;
+        acc.scheduledOwned += r.scheduledOwned;
+        acc.scheduledRented += r.scheduledRented;
+        return acc;
+      },
+      { availableContractQty: 0, stockOwned: 0, stockRented: 0, scheduledOwned: 0, scheduledRented: 0 }
+    );
+  }, [filteredInventoryRows]);
+
+  const scheduledOutboundLines = useMemo<ScheduledOutboundLine[]>(() => {
+    const q = searchTerm.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
+    const lines: ScheduledOutboundLine[] = [];
+
+    unfinishedRequestGroups.forEach(grp => {
+      const targetSlots = grp.unassignedSlots;
+      if (targetSlots.length === 0) return;
+
+      const filteredGroupSlots = targetSlots.filter(ca => {
+        const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+        const rawModel = ca.expectedModel || assignedAsset?.modelName || '미지정';
+        const cKey = getCanonicalModelKey(rawModel);
+        const matchedRow = allInventoryRows.find(r => r.key === cKey || isModelMatch(rawModel, r.modelName, products));
+        if (feetFilter !== 'ALL' && String(matchedRow?.feet || 0) !== feetFilter) return false;
+        return true;
+      });
+
+      if (filteredGroupSlots.length === 0) return;
+
+      const cust = grp.contract.customerId ? customerMap.get(grp.contract.customerId) : undefined;
+      const site = grp.contract.siteId ? siteMap.get(grp.contract.siteId) : undefined;
+      const customerName = cust?.name || (grp.contract as any).customerName || '미상';
+      const shortCustomerName = cleanCustomerShortName(customerName);
+      const siteName = (site?.name || (grp.contract as any).siteName || (grp.delivery as any)?.siteName || '').trim();
+
+      const modelCountMap = new Map<string, number>();
+      filteredGroupSlots.forEach(ca => {
+        const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+        const rawModel = ca.expectedModel || assignedAsset?.modelName || '미지정';
+        const cKey = getCanonicalModelKey(rawModel);
+        const shortName = shortNameByCanonicalMap.get(cKey);
+        const compactModel = formatCompactModelName(rawModel, shortName);
+        modelCountMap.set(compactModel, (modelCountMap.get(compactModel) || 0) + 1);
+      });
+
+      const modelSummaryText = Array.from(modelCountMap.entries())
+        .map(([m, cnt]) => `${m}*${cnt}`)
+        .join(',');
+
+      const schedDate = grp.scheduledDate || '';
+      let dayLabel = '미정';
+      if (schedDate && /^\d{4}-\d{2}-\d{2}$/.test(schedDate)) {
+        const dayNum = parseInt(schedDate.slice(8, 10), 10);
+        if (!isNaN(dayNum)) dayLabel = `${dayNum}일`;
+      }
+
+      const custSitePart = siteName ? `${shortCustomerName}(${siteName})` : shortCustomerName;
+      const formattedLine = `*${custSitePart} : ${modelSummaryText}(${dayLabel})`;
+
+      if (matcher) {
+        const matchesSearch =
+          matcher.test(customerName) ||
+          matcher.test(shortCustomerName) ||
+          matcher.test(siteName) ||
+          matcher.test(modelSummaryText) ||
+          matcher.test(formattedLine);
+        if (!matchesSearch) return;
+      }
+
+      lines.push({
+        groupKey: grp.groupKey,
+        scheduledDate: schedDate,
+        dayLabel,
+        customerName,
+        shortCustomerName,
+        siteName,
+        modelSummaryText,
+        formattedLine,
+        totalQty: filteredGroupSlots.length
+      });
+    });
+
+    lines.sort((a, b) => {
+      const da = a.scheduledDate || '9999-99-99';
+      const dbStr = b.scheduledDate || '9999-99-99';
+      if (da !== dbStr) return da.localeCompare(dbStr);
+      return a.shortCustomerName.localeCompare(b.shortCustomerName, 'ko');
+    });
+
+    return lines;
+  }, [unfinishedRequestGroups, assetMap, allInventoryRows, products, feetFilter, customerMap, siteMap, shortNameByCanonicalMap, searchTerm]);
+
+  const handleCopyScheduledLines = async () => {
+    const header = '----------출고 예정------------';
+    const body = scheduledOutboundLines.map(l => l.formattedLine).join('\n');
+    const text = body ? `${header}\n${body}` : `${header}\n(미완결 출고예정 내역 없음)`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  // ── 규격·개별장비 조회용 집계 ──
+  const yardFilteredAssets = useMemo(() => {
+    return (assets || []).filter(a => !isVirtualAsset(a) && !a.actualRentReturnDate);
   }, [assets]);
 
-  // 3. 오늘 ~ 3일 이내 반납(입고) 예정 장비 매핑
   const upcomingReturns = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const targetLimit = new Date();
     targetLimit.setDate(targetLimit.getDate() + 3);
     const targetLimitStr = targetLimit.toISOString().split('T')[0];
-
-    // 종료일이 오늘~3일 이내인 계약자산 목록 추출
     const returningMap: Record<string, { assetId?: string; expectedModel?: string; endDate: string; siteName: string }> = {};
 
-    contractAssets.forEach(ca => {
-      // 🟢 이미 반납 완료된 자산 제외 (허위 반납예정 집계 차단)
+    (contractAssets || []).forEach(ca => {
       if (ca.status === 'RETURNED' || ca.actualReturnDate) return;
-
-      const contract = contracts.find(c => c.id === ca.contractId);
+      const contract = (contracts || []).find(c => c.id === ca.contractId);
       const endDate = ca.endDate || contract?.endDate || '';
       if (endDate >= todayStr && endDate <= targetLimitStr) {
-        const site = sites.find(s => s.id === contract?.siteId);
+        const site = (sites || []).find(s => s.id === contract?.siteId);
         const key = ca.assetId || ca.id;
         returningMap[key] = {
           assetId: ca.assetId,
@@ -155,26 +674,17 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         };
       }
     });
-
     return returningMap;
   }, [contracts, contractAssets, sites]);
 
-  // 4. 규격별 가용 재고 집계
   const specStats = useMemo(() => {
     return SPEC_PRESETS.map(preset => {
-      // 해당 규격에 매칭되는 자산들
       const matchedAssets = yardFilteredAssets.filter(a => {
         const m = (a.modelName || '').toLowerCase();
         return preset.modelMatchRegex.test(m);
       });
-
-      // 가용 대수
       const availableAssets = matchedAssets.filter(a => a.status === 'AVAILABLE');
-
-      // 대여중 대수
       const rentedAssets = matchedAssets.filter(a => a.status === 'RENTED');
-
-      // 반납 예정 대수
       const returnDueAssets = matchedAssets.filter(a => a.id && upcomingReturns[a.id]);
 
       return {
@@ -188,12 +698,6 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     });
   }, [yardFilteredAssets, upcomingReturns]);
 
-  // 전체 가용 대수
-  const totalAvailableCount = useMemo(() => {
-    return yardFilteredAssets.filter(a => a.status === 'AVAILABLE').length;
-  }, [yardFilteredAssets]);
-
-  // 검색어 필터링된 개별 장비 목록 (바텀시트 또는 하단용)
   const searchResults = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const q = searchTerm.trim();
@@ -205,237 +709,492 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
   }, [yardFilteredAssets, searchTerm]);
 
   return (
-    <div className="flex flex-col gap-3.5 pb-28 p-4 font-sans selection:bg-blue-500 selection:text-white">
-      {/* ── 1. 상단 컨트롤 타워 헤더 ── */}
-      <div className="flex items-center justify-between pt-1">
+    <div className="flex flex-col gap-3 pb-28 p-3 font-sans selection:bg-blue-500 selection:text-white">
+      {/* ── 1. 상단 헤더 ── */}
+      <div className="flex items-center justify-between pt-0.5">
         <div>
-          <h2 className="text-lg font-black text-white flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            가용 재고 현황
+          <h2 className="text-base font-black text-white flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-sky-400" />
+            <span>가용재고조회</span>
           </h2>
-          <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+          <div className="text-[11px] text-slate-300 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
             <span>동기화: {lastSyncTime}</span>
-            <span>•</span>
-            <strong className="text-emerald-400 font-bold">총 {totalAvailableCount}대 출고 가능</strong>
+            <span>·</span>
+            <strong className="text-emerald-300 font-extrabold">
+              현재고 {inventoryTotals.stockOwned + inventoryTotals.stockRented}대 (계약가능 {inventoryTotals.availableContractQty}대)
+            </strong>
           </div>
         </div>
 
-        {/* 원터치 수동 새로고침 버튼 */}
         <button
           type="button"
           onClick={handleManualSync}
           disabled={isSyncing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold active:scale-95 transition-all shadow-md"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 border border-slate-600 text-white text-xs font-extrabold active:scale-95 transition-all shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isSyncing ? 'animate-spin' : ''}`} />
-          <span>{isSyncing ? '조회중' : '새로고침'}</span>
+          <span>{isSyncing ? '동기화중' : '새로고침'}</span>
         </button>
       </div>
 
-      {/* ── 2. 검색창 & 주기장 칩 필터 ── */}
+      {/* ── 2. 서브 뷰 전환 탭 (표1·표2 가용재고조회 vs 규격·개별장비 조회) ── */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-700">
+        <button
+          type="button"
+          onClick={() => setViewMode('INVENTORY_TABLE')}
+          className={`py-2 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+            viewMode === 'INVENTORY_TABLE'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <ClipboardList className="w-3.5 h-3.5" />
+          <span>모델별 가용재고·출고예정</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('SPEC_CARDS')}
+          className={`py-2 px-2 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+            viewMode === 'SPEC_CARDS'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>규격별·자산번호 조회</span>
+        </button>
+      </div>
+
+      {/* ── 3. 검색창 & 피트 필터 ── */}
       <div className="flex flex-col gap-2">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="장비번호 또는 모델명 검색..."
-            className="w-full rounded-2xl py-2.5 pl-10 pr-4 text-xs placeholder-slate-500 focus:outline-none"
-            style={{
-              backgroundColor: '#090d16',
-              color: '#f8fafc',
-              border: '1px solid #334155',
-              colorScheme: 'dark'
-            }}
+            placeholder={viewMode === 'INVENTORY_TABLE' ? '모델명, 제조사, 고객사, 현장명 검색' : '자산번호, 제조번호, 모델명 검색'}
+            className="w-full rounded-xl py-2.5 pl-10 pr-9 text-xs text-white focus:outline-none"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* 주기장 안내 배지 (자사 자산 한정) */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-900/90 rounded-xl border border-slate-800 text-[11px] text-slate-400">
-          <span className="flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{defaultYardName} (자사 보유 자산)</span>
-          </span>
-          <span className="text-emerald-400 font-bold">출고가능 {totalAvailableCount}대</span>
-        </div>
+        {viewMode === 'INVENTORY_TABLE' && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <button
+              type="button"
+              onClick={() => setFeetFilter('ALL')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border whitespace-nowrap shrink-0 ${
+                feetFilter === 'ALL'
+                  ? 'bg-blue-600 border-blue-400 text-white'
+                  : 'bg-slate-800 border-slate-600 text-slate-200'
+              }`}
+            >
+              전체 피트
+            </button>
+            {uniqueFeetList.map(ft => (
+              <button
+                key={ft}
+                type="button"
+                onClick={() => setFeetFilter(String(ft))}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border whitespace-nowrap shrink-0 ${
+                  feetFilter === String(ft)
+                    ? 'bg-blue-600 border-blue-400 text-white'
+                    : 'bg-slate-800 border-slate-600 text-slate-200'
+                }`}
+              >
+                {ft}ft
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── 3. 검색 결과 있을 때 즉시 노출 ── */}
-      {searchTerm.trim() && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-slate-300 flex items-center justify-between px-1">
-            <span>검색 결과 ({searchResults.length}대)</span>
-            <button onClick={() => setSearchTerm('')} className="text-[11px] text-sky-400">닫기</button>
-          </div>
-          {searchResults.length === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-500 bg-slate-900/50 rounded-2xl border border-slate-800">
-              일치하는 장비가 없습니다.
+      {/* ════════════════════════════════════════════════════════════════════════
+          모드 A: PC 가용재고조회 100% 동기화 현황표 (표 1 + 표 2 출고 예정)
+         ════════════════════════════════════════════════════════════════════════ */}
+      {viewMode === 'INVENTORY_TABLE' ? (
+        <div className="flex flex-col gap-3">
+          {/* 상단 3대 핵심 요약 KPI 카드 */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2.5 rounded-xl bg-slate-900 border border-blue-500/40 flex flex-col justify-between">
+              <span className="text-[10.5px] font-bold text-blue-200 whitespace-nowrap">계약가능 재고</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <strong className={`text-lg font-black whitespace-nowrap ${
+                  inventoryTotals.availableContractQty < 0 ? 'text-rose-400' : 'text-sky-300'
+                }`}>
+                  {inventoryTotals.availableContractQty}대
+                </strong>
+                <span className="text-[10px] text-slate-300 whitespace-nowrap">재고-예정</span>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
-              {searchResults.map(a => {
-                const score = Number(a.maintenanceScore) || 0;
-                return (
-                  <div key={a.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-blue-400">{a.assetNo}</span>
-                        <span>{a.modelName}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 whitespace-nowrap ${
-                          score === 0
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                            : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+
+            <div className="p-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 flex flex-col justify-between">
+              <span className="text-[10.5px] font-bold text-emerald-200 whitespace-nowrap">현재고 (당사/임차)</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <strong className="text-lg font-black text-emerald-300 whitespace-nowrap">
+                  {inventoryTotals.stockOwned + inventoryTotals.stockRented}대
+                </strong>
+                <span className="text-[10px] text-slate-200 font-bold whitespace-nowrap">
+                  {inventoryTotals.stockOwned}/{inventoryTotals.stockRented}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-900 border border-amber-500/40 flex flex-col justify-between">
+              <span className="text-[10.5px] font-bold text-amber-200 whitespace-nowrap">출고예정 (당사/임차)</span>
+              <div className="flex items-baseline justify-between mt-1">
+                <strong className="text-lg font-black text-amber-300 whitespace-nowrap">
+                  {inventoryTotals.scheduledOwned + inventoryTotals.scheduledRented}대
+                </strong>
+                <span className="text-[10px] text-slate-200 font-bold whitespace-nowrap">
+                  {inventoryTotals.scheduledOwned}/{inventoryTotals.scheduledRented}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 표 1: 모델별 가용재고 2단 헤더 테이블 */}
+          <div className="rounded-xl overflow-hidden border border-slate-600 bg-slate-900 shadow-lg">
+            <div className="overflow-x-auto">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#1e293b', color: '#ffffff', borderBottom: '1px solid #475569' }}>
+                    <th rowSpan={2} style={{ padding: '7px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>피트</th>
+                    <th rowSpan={2} style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>제조사</th>
+                    <th rowSpan={2} style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>모델명</th>
+                    <th rowSpan={2} style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 900, backgroundColor: '#172554', color: '#93c5fd', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      계약가능<br/>재고
+                    </th>
+                    <th colSpan={2} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 800, backgroundColor: '#064e3b', color: '#a7f3d0', borderRight: '1px solid #334155', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      재고
+                    </th>
+                    <th colSpan={2} style={{ padding: '5px 4px', textAlign: 'center', fontWeight: 800, backgroundColor: '#78350f', color: '#fde68a', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      출고예정
+                    </th>
+                  </tr>
+                  <tr style={{ backgroundColor: '#1e293b', color: '#e2e8f0', borderBottom: '2px solid #475569' }}>
+                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>당사</th>
+                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>임차</th>
+                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10.5px' }}>당사</th>
+                    <th style={{ padding: '4px 5px', textAlign: 'center', fontWeight: 800, whiteSpace: 'nowrap', fontSize: '10.5px' }}>임차</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInventoryRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: '24px 12px', textAlign: 'center', color: '#cbd5e1', fontWeight: 600 }}>
+                        조건에 일치하는 모델 재고 내역이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredInventoryRows.map((row, idx) => {
+                      const isNegative = row.availableContractQty < 0;
+                      const isPositive = row.availableContractQty > 0;
+                      const rowBg = isNegative
+                        ? 'rgba(136, 19, 55, 0.35)'
+                        : idx % 2 === 0
+                        ? '#132038'
+                        : '#0f1a2e';
+
+                      return (
+                        <tr key={row.key} style={{ backgroundColor: rowBg, borderBottom: '1px solid #26354d' }}>
+                          <td style={{ padding: '7px 5px', textAlign: 'center', fontWeight: 800, color: '#cbd5e1', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.feetLabel}
+                          </td>
+                          <td style={{ padding: '7px 6px', textAlign: 'center', fontWeight: 700, color: '#e2e8f0', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.manufacturer}
+                          </td>
+                          <td style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 800, color: '#ffffff', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.modelName}
+                          </td>
+                          <td style={{
+                            padding: '7px 6px',
+                            textAlign: 'right',
+                            fontWeight: 900,
+                            fontSize: '12.5px',
+                            color: isNegative ? '#fb7185' : isPositive ? '#60a5fa' : '#94a3b8',
+                            backgroundColor: isNegative ? 'rgba(225, 29, 72, 0.22)' : 'rgba(30, 58, 138, 0.22)',
+                            borderRight: '1px solid #26354d',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {row.availableContractQty !== 0 ? row.availableContractQty : ''}
+                          </td>
+                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.stockOwned > 0 ? '#34d399' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.stockOwned > 0 ? row.stockOwned : ''}
+                          </td>
+                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.stockRented > 0 ? '#6ee7b7' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.stockRented > 0 ? row.stockRented : ''}
+                          </td>
+                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.scheduledOwned > 0 ? '#fbbf24' : '#64748b', borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.scheduledOwned > 0 ? row.scheduledOwned : ''}
+                          </td>
+                          <td style={{ padding: '7px 6px', textAlign: 'right', fontWeight: 800, color: row.scheduledRented > 0 ? '#fcd34d' : '#64748b', whiteSpace: 'nowrap' }}>
+                            {row.scheduledRented > 0 ? row.scheduledRented : ''}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr style={{ backgroundColor: '#1e293b', borderTop: '2px solid #64748b', color: '#ffffff', fontWeight: 900 }}>
+                    <td colSpan={3} style={{ padding: '8px 8px', textAlign: 'center', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      합계 ({filteredInventoryRows.length}개 모델)
+                    </td>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', color: inventoryTotals.availableContractQty < 0 ? '#fb7185' : '#60a5fa', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '12.5px' }}>
+                      {inventoryTotals.availableContractQty}
+                    </td>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#34d399', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      {inventoryTotals.stockOwned}
+                    </td>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#6ee7b7', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      {inventoryTotals.stockRented}
+                    </td>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#fbbf24', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
+                      {inventoryTotals.scheduledOwned}
+                    </td>
+                    <td style={{ padding: '8px 6px', textAlign: 'right', color: '#fcd34d', whiteSpace: 'nowrap' }}>
+                      {inventoryTotals.scheduledRented}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* 표 2: 하단 출고 예정 일정 및 수량 표 (*{고객명}({현장명}) : {모델명}*{수량}({일}일)) */}
+          <div className="rounded-xl border border-amber-500/40 bg-slate-900 p-3.5 shadow-lg flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-black text-amber-300 tracking-wide whitespace-nowrap">
+                  ----------출고 예정------------
+                </div>
+                <div className="text-[11px] text-slate-300 mt-0.5 whitespace-nowrap">
+                  미완결 출고요청 {scheduledOutboundLines.length}건 · 총 {scheduledOutboundLines.reduce((s, l) => s + l.totalQty, 0)}대
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyScheduledLines}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs font-extrabold text-white flex items-center gap-1 active:scale-95 transition-all whitespace-nowrap shrink-0"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
+                <span>{copied ? '복사됨' : '목록 복사'}</span>
+              </button>
+            </div>
+
+            {scheduledOutboundLines.length === 0 ? (
+              <div className="p-4 rounded-lg bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-300 font-semibold">
+                현재 미완결 출고예정 내역이 없습니다.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 bg-slate-950/80 p-2.5 rounded-lg border border-slate-700">
+                {scheduledOutboundLines.map((line) => (
+                  <div
+                    key={line.groupKey}
+                    className="flex items-center justify-between gap-2 py-1 border-b border-slate-800 text-xs font-bold text-white"
+                  >
+                    <span className="font-mono text-amber-200 break-all leading-tight">
+                      {line.formattedLine}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10.5px] font-extrabold whitespace-nowrap shrink-0">
+                      {line.totalQty}대
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(deptMode === 'SALES' || !deptMode) && onNavigateToOrder && (
+              <button
+                type="button"
+                onClick={() => onNavigateToOrder('')}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-98 transition-all"
+              >
+                <span>신규 출고 요청 작성</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ════════════════════════════════════════════════════════════════════════
+            모드 B: 규격별 카드 매트릭스 & 개별 자산번호 조회
+           ════════════════════════════════════════════════════════════════════════ */
+        <>
+          <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-900 rounded-xl border border-slate-700 text-[11px] text-slate-200">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{defaultYardName} 기준</span>
+            </span>
+            <span className="text-emerald-300 font-extrabold">
+              임대가능 {inventoryTotals.stockOwned + inventoryTotals.stockRented}대
+            </span>
+          </div>
+
+          {searchTerm.trim() && (
+            <div className="flex flex-col gap-2">
+              <div className="text-xs font-extrabold text-white flex items-center justify-between px-1">
+                <span>검색 결과 ({searchResults.length}대)</span>
+                <button onClick={() => setSearchTerm('')} className="text-[11px] text-sky-300 font-bold">닫기</button>
+              </div>
+              {searchResults.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-300 bg-slate-900 rounded-2xl border border-slate-700">
+                  일치하는 장비가 없습니다.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+                  {searchResults.map(a => {
+                    const score = Number(a.maintenanceScore) || 0;
+                    return (
+                      <div key={a.id} className="p-3 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-between text-xs">
+                        <div>
+                          <div className="font-bold text-white flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-sky-300 font-extrabold">{a.assetNo}</span>
+                            <span>{a.modelName}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 whitespace-nowrap ${
+                              score === 0
+                                ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
+                                : 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                            }`}>
+                              <Wrench className="w-2.5 h-2.5" />
+                              <span>정비점수 {score}점</span>
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-300 mt-0.5">
+                            {a.ownerType === 'RENTED' ? '임차자산' : '당사자산'} · 제조번호 {a.serialNo || '-'}
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-extrabold border flex-shrink-0 ${
+                          a.status === 'AVAILABLE'
+                            ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
+                            : a.status === 'REPAIRING'
+                            ? 'bg-rose-500/20 text-rose-200 border-rose-500/40'
+                            : a.status === 'ASSIGNED'
+                            ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                            : 'bg-blue-500/20 text-blue-200 border-blue-500/40'
                         }`}>
-                          <Wrench className="w-2.5 h-2.5" />
-                          <span>정비점수 {score}점</span>
+                          {getAssetStatusLabel(a.status)}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {defaultYardName}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div>
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-xs font-extrabold text-white">규격별 가용 현황</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {specStats.map(stat => {
+                const isAbundant = stat.availableCount >= 4;
+                const isWarning = stat.availableCount > 0 && stat.availableCount < 4;
+
+                const themeBorder = isAbundant
+                  ? 'border-emerald-500/40 bg-slate-900'
+                  : isWarning
+                  ? 'border-amber-500/40 bg-slate-900'
+                  : 'border-slate-700 bg-slate-900';
+
+                return (
+                  <div
+                    key={stat.id}
+                    onClick={() => setSelectedSpec(stat)}
+                    className={`p-3.5 rounded-2xl border ${themeBorder} flex flex-col justify-between gap-3 shadow-lg active:scale-97 transition-all cursor-pointer`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-lg font-black text-white tracking-tight flex items-baseline gap-1 whitespace-nowrap">
+                          <span>{stat.ft}</span>
+                          <span className="text-[10px] font-semibold text-slate-300">({stat.subModels})</span>
+                        </div>
+                        <div className="text-[10.5px] text-slate-300 font-semibold whitespace-nowrap">
+                          {stat.workHeight}
+                        </div>
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-bold border flex-shrink-0 ${
-                      a.status === 'AVAILABLE'
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                        : a.status === 'REPAIRING'
-                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                        : a.status === 'ASSIGNED'
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                        : a.status === 'RENTED_RETURNED' || a.status === 'SOLD'
-                        ? 'bg-slate-500/20 text-slate-400 border-slate-500/30'
-                        : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                    }`}>
-                      {getAssetStatusLabel(a.status)}
-                    </span>
+
+                    <div className="flex items-baseline justify-between pt-1">
+                      <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+                        <span className={`text-2xl font-black ${
+                          isAbundant ? 'text-emerald-300' : isWarning ? 'text-amber-300' : 'text-slate-400'
+                        }`}>
+                          {stat.availableCount}
+                        </span>
+                        <span className="text-xs text-white font-bold whitespace-nowrap">대 가용</span>
+                      </div>
+
+                      {stat.returnDueCount > 0 ? (
+                        <span className="text-[10.5px] font-bold text-sky-300 bg-sky-950/80 px-1.5 py-0.5 rounded-md border border-sky-500/40 whitespace-nowrap">
+                          반납+{stat.returnDueCount}
+                        </span>
+                      ) : (
+                        <span className="text-[10.5px] text-slate-300 font-semibold whitespace-nowrap">대여 {stat.rentedCount}대</span>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-700 flex items-center justify-between text-[11px] whitespace-nowrap">
+                      <span className="text-slate-300 whitespace-nowrap">총 보유</span>
+                      <span className="font-extrabold text-white whitespace-nowrap">{stat.matchedAssets.length}대</span>
+                    </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
-      {/* ── 4. [핵심] 3초 스캔 신호등 가용재고 매트릭스 그리드 ── */}
-      <div>
-        <div className="flex items-center justify-between px-1 mb-2">
-          <span className="text-xs font-bold text-slate-300">규격별 가용 현황</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          {specStats.map(stat => {
-            // 가용 상태 색상 테마 계산
-            const isAbundant = stat.availableCount >= 4;
-            const isWarning = stat.availableCount > 0 && stat.availableCount < 4;
-            const isSoldOut = stat.availableCount === 0;
-
-            const themeBorder = isAbundant
-              ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-slate-900'
-              : isWarning
-              ? 'border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-slate-900'
-              : 'border-slate-800 bg-slate-900/60 opacity-80';
-
-            return (
-              <div
-                key={stat.id}
-                onClick={() => setSelectedSpec(stat)}
-                className={`p-3.5 rounded-2xl border ${themeBorder} flex flex-col justify-between gap-3 shadow-lg active:scale-97 transition-all cursor-pointer`}
-              >
-                {/* 카드 상단: 규격 */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-lg font-black text-white tracking-tight flex items-baseline gap-1 whitespace-nowrap">
-                      <span>{stat.ft}</span>
-                      <span className="text-[10px] font-normal text-slate-400">({stat.subModels})</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                      {stat.workHeight}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 카드 중앙: 가용 대수 강조 (대형 폰트) */}
-                <div className="flex items-baseline justify-between pt-1">
-                  <div className="flex items-baseline gap-1.5 whitespace-nowrap">
-                    <span className={`text-2xl font-black ${
-                      isAbundant ? 'text-emerald-400' : isWarning ? 'text-amber-400' : 'text-slate-500'
-                    }`}>
-                      {stat.availableCount}
-                    </span>
-                    <span className="text-xs text-slate-300 font-bold whitespace-nowrap">대 가용</span>
-                  </div>
-
-                  {/* 입고/반납 예정 표시 */}
-                  {stat.returnDueCount > 0 ? (
-                    <span className="text-[10.5px] font-bold text-sky-400 bg-sky-950/80 px-1.5 py-0.5 rounded-md border border-sky-800/80 whitespace-nowrap">
-                      반납+{stat.returnDueCount}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap">대여 {stat.rentedCount}대</span>
-                  )}
-                </div>
-
-                {/* 카드 하단: 보유 및 대여 현황 요약 */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] whitespace-nowrap">
-                  <span className="text-slate-400 whitespace-nowrap">총 보유</span>
-                  <span className="font-bold text-slate-200 whitespace-nowrap">{stat.matchedAssets.length}대</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 5. 선택된 규격 세부 장비 바텀시트 모달 ── */}
+      {/* ── 선택된 규격 세부 장비 바텀시트 모달 ── */}
       {selectedSpec && (() => {
         const specStat = specStats.find(s => s.id === selectedSpec.id);
         const availList = specStat?.availableAssets || [];
-        const returningKeys = Object.keys(upcomingReturns);
 
         return (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-900 border-t border-slate-700 rounded-t-3xl p-5 max-w-lg w-full max-h-[82vh] flex flex-col gap-4 shadow-2xl overflow-hidden">
-              {/* 바텀시트 헤더 */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="bg-slate-900 border-t-2 border-slate-600 rounded-t-3xl p-5 max-w-lg w-full max-h-[82vh] flex flex-col gap-4 shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-700">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-black text-white">{selectedSpec.ft} 상세 재고</h3>
-                    <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 text-xs font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-xs font-extrabold border border-blue-500/40">
                       가용 {availList.length}대
                     </span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">
+                  <div className="text-xs text-slate-300 mt-0.5">
                     {selectedSpec.workHeight} ({selectedSpec.subModels})
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedSpec(null)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800"
+                  className="p-1.5 text-slate-200 hover:text-white rounded-xl bg-slate-800 border border-slate-600"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* 스크롤 가능한 본문 */}
               <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1">
-                {/* 1) 즉시 출고 가능 장비 섹션 */}
                 <div>
-                  <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-1.5">
+                  <h4 className="text-xs font-extrabold text-emerald-300 mb-2 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4" />
-                    즉시 출고 가능 장비 ({availList.length}대)
+                    임대 가능 장비 ({availList.length}대)
                   </h4>
                   {availList.length === 0 ? (
-                    <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center text-xs text-slate-500">
-                      현재 해당 규격의 임대 가능 자산이 없습니다. (타사 임차 검토 필요)
+                    <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-700 text-center text-xs text-slate-300">
+                      현재 해당 규격의 임대 가능 자산이 없습니다.
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
@@ -444,38 +1203,37 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                         return (
                           <div
                             key={asset.id}
-                            className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between"
+                            className="p-3 rounded-xl bg-slate-950/90 border border-slate-700 flex items-center justify-between"
                           >
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-mono font-bold text-xs">
+                                <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 font-mono font-extrabold text-xs">
                                   {asset.assetNo}
                                 </span>
-                                <span className="text-xs font-bold text-white">
+                                <span className="text-xs font-extrabold text-white">
                                   {asset.modelName}
                                 </span>
-                                {/* 🌟 정비점수 뱃지 */}
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex items-center gap-1 whitespace-nowrap ${
                                   score === 0
-                                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                                    : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                    ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
+                                    : 'bg-amber-500/20 text-amber-200 border-amber-500/40'
                                 }`}>
                                   <Wrench className="w-2.5 h-2.5" />
-                                  <span>정비 {score}점{score === 0 ? ' (최상)' : ''}</span>
+                                  <span>정비 {score}점</span>
                                 </span>
                               </div>
-                              <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-                                <span>위치: <strong className="text-slate-300">{defaultYardName}</strong></span>
-                                <span>•</span>
-                                <span>상태: <strong className="text-emerald-400">출고검수 합격</strong></span>
+                              <div className="text-[11px] text-slate-300 mt-1 flex items-center gap-2">
+                                <span>구분: <strong className="text-white">{asset.ownerType === 'RENTED' ? '임차자산' : '당사자산'}</strong></span>
+                                <span>·</span>
+                                <span>상태: <strong className="text-emerald-300">임대가능</strong></span>
                               </div>
                             </div>
 
                             <div className="text-right flex-shrink-0">
-                              <div className="text-xs font-bold text-slate-200 font-mono">
-                                {asset.serialNo || '자사보유'}
+                              <div className="text-xs font-bold text-white font-mono">
+                                {asset.serialNo || '-'}
                               </div>
-                              <div className="text-[10px] text-slate-500">{asset.manufacturer || '자사자산'}</div>
+                              <div className="text-[10px] text-slate-300">{asset.manufacturer || '-'}</div>
                             </div>
                           </div>
                         );
@@ -484,42 +1242,33 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                   )}
                 </div>
 
-                {/* 2) 3일 이내 반납(입고) 예정 장비 섹션 */}
                 {specStat && specStat.returnDueCount > 0 && (
-                  <div className="pt-2 border-t border-slate-800/80">
-                    <h4 className="text-xs font-bold text-sky-400 mb-2 flex items-center gap-1.5">
+                  <div className="pt-2 border-t border-slate-700">
+                    <h4 className="text-xs font-extrabold text-sky-300 mb-2 flex items-center gap-1.5">
                       <Clock className="w-4 h-4" />
-                      3일 이내 반납(입고) 예정 장비 ({specStat.returnDueCount}대)
+                      3일 이내 반납 예정 장비 ({specStat.returnDueCount}대)
                     </h4>
                     <div className="flex flex-col gap-2">
                       {specStat.matchedAssets
                         .filter(a => a.id && upcomingReturns[a.id])
                         .map(asset => {
                           const retInfo = upcomingReturns[asset.id];
-                          const score = Number(asset.maintenanceScore) || 0;
                           return (
                             <div
                               key={asset.id}
-                              className="p-2.5 rounded-xl bg-slate-950/40 border border-sky-900/40 flex items-center justify-between text-xs"
+                              className="p-2.5 rounded-xl bg-slate-950/80 border border-sky-500/40 flex items-center justify-between text-xs"
                             >
                               <div>
-                                <div className="font-bold text-slate-200 flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-mono text-sky-400">{asset.assetNo}</span>
+                                <div className="font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-mono text-sky-300">{asset.assetNo}</span>
                                   <span>{asset.modelName}</span>
-                                  <span className={`px-1.5 py-0.2 rounded text-[9.5px] font-bold border whitespace-nowrap ${
-                                    score === 0 
-                                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                                      : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                                  }`}>
-                                    정비 {score}점
-                                  </span>
                                 </div>
-                                <div className="text-[10.5px] text-slate-400 mt-0.5">
+                                <div className="text-[10.5px] text-slate-300 mt-0.5">
                                   현장: {retInfo.siteName}
                                 </div>
                               </div>
-                              <span className="px-2 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 text-[11px] font-bold border border-sky-500/30 flex-shrink-0">
-                                {retInfo.endDate} 입고예정
+                              <span className="px-2 py-0.5 rounded-lg bg-sky-500/20 text-sky-200 text-[11px] font-bold border border-sky-500/40 flex-shrink-0">
+                                {retInfo.endDate} 반납예정
                               </span>
                             </div>
                           );
@@ -529,8 +1278,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                 )}
               </div>
 
-              {/* 바텀시트 하단 액션 버튼군 (헌장 2.1 영업부 전용 발주의뢰 R&R 격리) */}
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-700">
                 {(deptMode === 'SALES' || !deptMode) && onNavigateToOrder && (
                   <button
                     type="button"
@@ -541,14 +1289,14 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                     }}
                     className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs active:scale-98 transition-all shadow-lg flex items-center justify-center gap-1.5"
                   >
-                    <span>{selectedSpec.ft} 출고 의뢰서 작성</span>
+                    <span>{selectedSpec.ft} 출고 요청 작성</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setSelectedSpec(null)}
-                  className={`${(deptMode === 'SALES' || !deptMode) && onNavigateToOrder ? 'w-24' : 'w-full'} py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs active:scale-98 transition-all`}
+                  className={`${(deptMode === 'SALES' || !deptMode) && onNavigateToOrder ? 'w-24' : 'w-full'} py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 active:scale-98 transition-all`}
                 >
                   닫기
                 </button>

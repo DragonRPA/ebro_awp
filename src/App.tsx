@@ -660,7 +660,7 @@ const App: React.FC = () => {
         { id: 'trade_products', name: '상품 등록 및 관리', icon: <Package size={16} />, component: <TradeProductsPage /> },
         { id: 'trade_purchases', name: '구매 및 입고', icon: <Layers size={16} />, component: <TradePurchasesPage /> },
         { id: 'trade_contracts', name: '유통 수주', icon: <UserCheck size={16} />, component: <TradeContractsPage /> },
-        { id: 'trade_outbounds', name: '출고 요청', icon: <Zap size={16} />, component: <TradeOutboundPage /> },
+        { id: 'trade_outbounds', name: '유통 출고 관리', icon: <Zap size={16} />, component: <TradeOutboundPage /> },
         { id: 'courier_dispatch', name: '택배 배송 관리', icon: <Truck size={16} />, component: <CourierDispatchPage /> },
         { id: 'trade_billing', name: '유통 청구 및 명세', icon: <CreditCard size={16} />, component: <TradeBillingPage /> },
         { id: 'trade_returns', name: '환입 및 반품', icon: <ArrowLeftRight size={16} />, component: <TradeReturnsPage /> },
@@ -689,7 +689,7 @@ const App: React.FC = () => {
         { id: 'receivable', name: '외상미수금 대장', icon: <CreditCard size={16} />, component: <Receivables /> },
         { id: 'smart_dispatch4', name: '출고 요청', icon: <Zap size={16} />, component: <SmartDispatch4 /> },
         { id: 'smart_return', name: '회수 요청', icon: <Zap size={16} />, component: <SmartReturn /> },
-        { id: 'smart_as_request', name: 'AS 요청', icon: <Wrench size={16} />, component: <SmartAsRequest /> },
+        { id: 'smart_as_request', name: '현장 정비 요청', icon: <Wrench size={16} />, component: <SmartAsRequest /> },
         { id: 'delinquency', name: '미수 채권 연체 관리', icon: <AlertTriangle size={16} />, component: <DelinquencyPage /> },
         { id: 'official_mail', name: '공식 메일 발송', icon: <Mail size={16} />, component: <OfficialMailPage /> },
         { id: 'public_construction_permits', name: '인허가 건축공정 조회', icon: <Building2 size={16} />, component: <PublicConstructionPermitsPage /> },
@@ -737,7 +737,7 @@ const App: React.FC = () => {
         { id: 'consumable_purchase', name: '소모품 구매', icon: <ShoppingBag size={16} />, component: <ConsumablePurchasesPage /> },
         { id: 'consumable_inout', name: '소모품 입출고', icon: <PackagePlus size={16} />, component: <ConsumableInOutPage /> },
         { id: 'consumable_stock', name: '소모품 재고', icon: <Boxes size={16} />, component: <ConsumableStockPage /> },
-        { id: 'field_as', name: '현장 AS 관리', icon: <Wrench size={16} />, component: <FieldAsManagement /> },
+        { id: 'field_as', name: '현장 정비 관리', icon: <Wrench size={16} />, component: <FieldAsManagement /> },
         { id: 'repair', name: '주기장 정비 관리', icon: <Wrench size={16} />, component: <Repairs /> },
         { id: 'inspection_checklist_manage', name: '정비 항목 관리', icon: <Shield size={16} />, component: <InspectionChecklistManage /> },
       ]
@@ -2289,10 +2289,10 @@ const App: React.FC = () => {
             const permittedItems = grp.items.filter(item => hasPermission(item.id, 'view'));
             if (permittedItems.length === 0) return null;
 
-            // 2. 개인화 순서에 따라 정렬
+            // 2. 개인화 순서에 따라 정렬 (가용재고조회는 개인화 미지정 시 최상단 배치 보장)
             const sortedItems = [...permittedItems].sort((a, b) => {
-              const orderA = menuPrefs[a.id]?.order ?? 999;
-              const orderB = menuPrefs[b.id]?.order ?? 999;
+              const orderA = menuPrefs[a.id]?.order ?? (a.id === 'available_inventory' ? -1 : 999);
+              const orderB = menuPrefs[b.id]?.order ?? (b.id === 'available_inventory' ? -1 : 999);
               return orderA - orderB;
             });
 

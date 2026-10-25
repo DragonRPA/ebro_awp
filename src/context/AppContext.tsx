@@ -7,7 +7,7 @@ import { PrintSuccessModal } from '../components/PrintSuccessModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
-import { issueHandoverTask, clearHandoverTasks, findActiveTasksForUser, checkAndIssuePackageResendTask } from '../utils/taskHandoverPipeline';
+import { issueHandoverTask, clearHandoverTasks, findActiveTasksForUser, checkAndIssuePackageResendTask, reconcileCompletedTodosInDb } from '../utils/taskHandoverPipeline';
 import { resolveSiteDetailedAddress } from '../utils/nativeLauncher';
 import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
@@ -1287,6 +1287,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTransportDrivers([...db.transportDrivers]);
     setTransportNegotiations([...db.transportNegotiations]);
     setSubleaseNegotiations([...db.subleaseNegotiations]);
+    // 🧹 원장 상태와 교차 검증하여 이미 처리 완료된 ToDo 자동 상계 정리
+    try {
+      const cleanedTodos = reconcileCompletedTodosInDb();
+      if (cleanedTodos > 0) {
+        db.awaitPendingWrites().catch(() => {});
+      }
+    } catch {}
+
     setBillings([...db.billings]);
     setBillingDetails([...db.billingDetails]);
     setPayments([...db.payments]);
@@ -2011,8 +2019,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
     if (isSuperAdmin) return true;
 
-    // 2-1. 대시보드는 기본 진입 화면이므로 모든 임직원에게 조회 개방
-    if (normMenuId === 'dashboard') {
+    // 2-1. 대시보드 및 가용재고조회는 기본 진입/열람 화면이므로 모든 임직원(영업부, 경영진, 출고팀 등)에게 조회 개방
+    if (normMenuId === 'dashboard' || (normMenuId === 'available_inventory' && action === 'view')) {
       return true;
     }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Car, Fuel, BookOpen } from 'lucide-react';
+import { Home, Wrench, Truck, CheckSquare, Search, Send, Building2, PlusCircle, Boxes, ArrowDownToLine, Layers, Users, AlertTriangle, Fuel, BookOpen, ClipboardList } from 'lucide-react';
 import { MobileDeptMode } from './MobileHeader';
 
 export type MobileTabType = 
@@ -51,11 +51,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   overdueBadgeCount = 0,
   incompleteCustomerCount = 0,
 }) => {
-  // 탭별 대응 시스템 메뉴 ID 매핑 (RBAC 권한 1:1 관통)
+  // 탭별 대응 시스템 메뉴 ID 매핑 (PC 모드 menu_config.ts 1:1 관통)
   const tabMenuMap: Partial<Record<MobileTabType, string>> = {
     home: 'dashboard',
     customers: 'customer',
-    assets: 'asset',
+    assets: 'available_inventory',
     sales_order: 'smart_dispatch4',
     my_contracts: 'contract',
     as: 'field_as',
@@ -63,7 +63,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     vehicle_stock: 'consumable_stock',
     assignment: 'dispatch_assign',
     inspection: 'outbound_inspections',
-    inbound_register: 'daily_inout',
+    inbound_register: 'asset_inout_history',
     delinquency: 'delinquency',
     sublease: 'rent_asset',
     dispatch: 'delivery',
@@ -76,23 +76,23 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   let rawNavItems: { id: MobileTabType; label: string; icon: any; badge: number }[] = [];
 
   if (deptMode === 'SALES') {
-    // 💼 영업부 모바일 5대 정예 탭
+    // 💼 영업부 모바일 탭 (가용재고 최우선 노출)
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
-      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
-      { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
-      { id: 'assets', label: '가용재고', icon: Search, badge: 0 },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
       { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
       { id: 'my_contracts', label: '내현장', icon: Building2, badge: 0 },
+      { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
+      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
     ];
   } else if (deptMode === 'AS') {
     // 🔧 AS팀 모바일 탭
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
-      { id: 'as', label: '출동티켓', icon: Wrench, badge: pendingAsCount },
-      { id: 'as_create', label: 'AS신규', icon: PlusCircle, badge: 0 },
+      { id: 'as', label: '현장정비', icon: Wrench, badge: pendingAsCount },
+      { id: 'as_create', label: '정비요청', icon: PlusCircle, badge: 0 },
       { id: 'vehicle_stock', label: '차량재고', icon: Boxes, badge: 0 },
-      { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
   } else if (deptMode === 'OUTBOUND') {
     // 🏗️ 출고팀 모바일 탭 (주기장 실물 관리)
@@ -101,48 +101,46 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assignment', label: '장비할당', icon: Layers, badge: pendingAssignmentCount },
       { id: 'inspection', label: '출고검수', icon: CheckSquare, badge: pendingInspectionCount },
       { id: 'inbound_register', label: '입고등록', icon: ArrowDownToLine, badge: 0 },
-      { id: 'assets', label: '주기장자산', icon: Search, badge: 0 },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
   } else if (deptMode === 'EXECUTIVE') {
-    // 👑 경영진 모바일 탭
+    // 👑 경영진 모바일 탭 (가용재고 직관 노출)
     rawNavItems = [
       { id: 'home', label: '경영홈', icon: Home, badge: 0 },
-      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
-      { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
-      { id: 'delinquency', label: '연체관리', icon: AlertTriangle, badge: overdueBadgeCount },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
       { id: 'my_contracts', label: '계약현황', icon: Building2, badge: 0 },
-      { id: 'assets', label: '자산가동', icon: Search, badge: 0 },
+      { id: 'delinquency', label: '연체관리', icon: AlertTriangle, badge: overdueBadgeCount },
+      { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
+      { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
     ];
   } else if (deptMode === 'ADMIN') {
     // 📊 관리부 모바일 탭 (배차 포함)
     rawNavItems = [
       { id: 'home', label: '관리홈', icon: Home, badge: 0 },
-      { id: 'sublease', label: '전대관리', icon: Layers, badge: subleaseLeakCount },
       { id: 'dispatch', label: '배차상차', icon: Truck, badge: pendingDispatchCount },
-      { id: 'vehicle_log', label: '주유영수증', icon: Fuel, badge: 0 },
-      { id: 'assets', label: '자산목록', icon: Search, badge: 0 },
+      { id: 'sublease', label: '임차관리', icon: Layers, badge: subleaseLeakCount },
+      { id: 'vehicle_log', label: '주유관리', icon: Fuel, badge: 0 },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
   } else if (deptMode === 'TEST') {
-    // 🧪 테스트부서(TEST 랩) 5대 비교검증 탭
     rawNavItems = [
       { id: 'home', label: '랩홈', icon: Home, badge: 0 },
-      { id: 'sales_order', label: '패스트출고', icon: Send, badge: 0 },
-      { id: 'as', label: '패스트AS', icon: Wrench, badge: pendingAsCount },
-      { id: 'inspection', label: '패스트검수', icon: CheckSquare, badge: pendingInspectionCount },
-      { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
+      { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
+      { id: 'as', label: '현장정비', icon: Wrench, badge: pendingAsCount },
+      { id: 'inspection', label: '출고검수', icon: CheckSquare, badge: pendingInspectionCount },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
     ];
   } else {
     rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
+      { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
       { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },
-      { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
     ];
   }
 
-  // 🛡️ [원칙 2: 직원에게 노출되는 메뉴는 권한과 같다]
-  // 개발자이거나 홈 탭인 경우 상시 허용, 그 외 메뉴는 hasPermission('view') 통과 탭만 노출
+  // 홈 및 가용재고 탭은 영업부·경영진 포함 전 임직원 상시 허용
   const navItems = rawNavItems.filter(item => {
-    if (item.id === 'home') return true;
+    if (item.id === 'home' || item.id === 'assets') return true;
     if (isDeveloper) return true;
     if (!hasPermission) return true;
     const menuId = tabMenuMap[item.id];
@@ -158,9 +156,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         left: 0,
         right: 0,
         zIndex: 9000,
-        backgroundColor: 'rgba(15, 23, 42, 0.98)',
-        backdropFilter: 'blur(16px)',
-        borderTop: '1px solid #1e293b',
+        backgroundColor: '#0b1324',
+        borderTop: '2px solid #334155',
         paddingTop: '6px',
         paddingLeft: '4px',
         paddingRight: '4px',
@@ -168,7 +165,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-around',
-        boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.4)'
+        boxShadow: '0 -6px 20px rgba(0, 0, 0, 0.55)'
       }}
     >
       {navItems.map((item) => {
@@ -187,33 +184,33 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               flex: 1,
               minWidth: 0,
               padding: '4px 2px',
-              borderRadius: '12px',
-              backgroundColor: 'transparent',
-              border: 'none',
+              borderRadius: '10px',
+              backgroundColor: isActive ? 'rgba(37, 99, 235, 0.22)' : 'transparent',
+              border: isActive ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid transparent',
               cursor: 'pointer',
-              color: isActive ? '#60a5fa' : '#94a3b8',
-              fontWeight: isActive ? '700' : '500'
+              color: isActive ? '#93c5fd' : '#e2e8f0',
+              fontWeight: isActive ? '800' : '600'
             }}
           >
             <div style={{ position: 'relative' }}>
-              <Icon size={20} color={isActive ? '#60a5fa' : '#94a3b8'} strokeWidth={isActive ? 2.4 : 1.8} />
+              <Icon size={20} color={isActive ? '#60a5fa' : '#cbd5e1'} strokeWidth={isActive ? 2.5 : 2} />
               {item.badge > 0 && (
                 <span style={{
                   position: 'absolute',
                   top: '-5px',
                   right: '-8px',
-                  minWidth: '16px',
-                  height: '16px',
-                  padding: '0 3px',
-                  backgroundColor: '#ef4444',
+                  minWidth: '17px',
+                  height: '17px',
+                  padding: '0 4px',
+                  backgroundColor: '#dc2626',
                   color: '#ffffff',
-                  fontSize: '9px',
+                  fontSize: '10px',
                   fontWeight: '900',
                   borderRadius: '9999px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: '1px solid #0f172a',
+                  border: '1.5px solid #ffffff',
                   whiteSpace: 'nowrap',
                   flexShrink: 0
                 }}>
@@ -222,10 +219,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               )}
             </div>
             <span style={{
-              fontSize: '10.5px',
+              fontSize: '11px',
               marginTop: '3px',
-              color: isActive ? '#60a5fa' : '#94a3b8',
-              fontWeight: isActive ? '800' : '500',
+              color: isActive ? '#ffffff' : '#e2e8f0',
+              fontWeight: isActive ? '900' : '600',
               whiteSpace: 'nowrap',
               textOverflow: 'ellipsis',
               overflow: 'hidden',
@@ -234,15 +231,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }}>
               {item.label}
             </span>
-            {isActive && (
-              <span style={{
-                width: '4px',
-                height: '4px',
-                borderRadius: '9999px',
-                backgroundColor: '#3b82f6',
-                marginTop: '2px'
-              }} />
-            )}
           </button>
         );
       })}

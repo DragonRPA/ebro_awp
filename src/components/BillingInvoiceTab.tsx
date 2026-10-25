@@ -27,6 +27,7 @@ import {
 import { buildStatementItemFromDetail } from '../services/excel';
 import { calculatePaymentDueDate, type BillingInvoice, type Billing, type BillingDetail } from '../services/db';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+const HometaxBatchExportModal = React.lazy(() => import('../modules/hometax-tax-invoice/HometaxBatchExportModal'));
 
 // ── 상태 배지 ──
 function StatusBadge({ status }: { status: string }) {
@@ -151,6 +152,7 @@ export const BillingInvoiceTab: React.FC = () => {
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [historyDetail, setHistoryDetail] = useState<BillingInvoice | null>(null);
   const [isConsolidating, setIsConsolidating] = useState(false);
+  const [hometaxModalOpen, setHometaxModalOpen] = useState(false);
 
   // A4 거래명세서 캔버스 인쇄 참조
   const printableCanvasRef = useRef<HTMLDivElement>(null);
@@ -1057,6 +1059,21 @@ export const BillingInvoiceTab: React.FC = () => {
               발행 이력 대장 ({invoices.length})
             </button>
           </div>
+
+          {/* 홈택스 일괄발행 엑셀 버튼 */}
+          <button
+            data-mid="invoice-hometax-export-btn"
+            onClick={() => setHometaxModalOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 12px', borderRadius: '6px', border: '1px solid var(--primary)',
+              background: 'var(--bg-app)', color: 'var(--primary)',
+              fontWeight: 700, fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
+            }}
+          >
+            <FileText size={13} />
+            홈택스 세금계산서 엑셀
+          </button>
 
           {/* 소급 묶기 버튼 */}
           <button
@@ -1990,6 +2007,28 @@ export const BillingInvoiceTab: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {hometaxModalOpen && (
+        <React.Suspense fallback={null}>
+          <HometaxBatchExportModal
+            isOpen={hometaxModalOpen}
+            onClose={() => setHometaxModalOpen(false)}
+            tenant={currentTenant}
+            billings={
+              selectedBillingIds.length > 0
+                ? billings.filter(b => selectedBillingIds.includes(b.id))
+                : billings.filter(b => !selectedYm || b.billingYm === selectedYm)
+            }
+            billingDetails={billingDetails}
+            customers={customers}
+            contracts={contracts}
+            sites={sites}
+            onExportSuccess={(fileCount, recordCount) => {
+              showSuccessToast?.(`홈택스 일괄발급 엑셀 생성 완료: 총 ${recordCount}건 (${fileCount}개 파일 다운로드)`);
+            }}
+          />
+        </React.Suspense>
       )}
 
     </div>

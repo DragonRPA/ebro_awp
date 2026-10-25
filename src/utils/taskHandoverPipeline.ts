@@ -138,6 +138,297 @@ export async function clearHandoverTasks(params: ClearHandoverTasksParams): Prom
 }
 
 /**
+ * 🛡️ [2.5] 도메인 원장 상태 교차 검증을 통한 기완료 ToDo 자동 판별 및 상계
+ * - 업무 처리 경로(장비 할당, 배차 확정, 출고검수 승인, 입고 완료, 정비 완료, 수납 완료, 계약서 재발송 등)에서
+ *   개별 엔티티 ID 차이로 인해 미상계 상태로 남은 고아/기완료 ToDo를 실시간 감지하여 자동 상계 처리한다.
+ */
+export function isTaskEntityAlreadyResolved(t: Todo): boolean {
+  if (!t || t.isCompleted) return true;
+
+  const eid = (t.entityId || t.relatedEntityId || '').trim();
+  const cat = (t.taskCategory || '').toUpperCase();
+  const etype = (t.entityType || '').toUpperCase();
+
+  // 0. 경영진 특별지시(EXECUTIVE_DIRECTIVE)는 명시적 완료 처리 전까지 유지 (단, 연결된 대상 엔티티가 삭제된 경우는 제외)
+  if (cat === 'EXECUTIVE_DIRECTIVE') {
+    return false;
+  }
+
+  // 1. 계약서패키지 재발송 (CONTRACT_PACKAGE_RESEND)
+  if (cat === 'CONTRACT_PACKAGE_RESEND') {
+    if (!eid) return true;
+    const contract = db.contracts.find(c => c.id === eid);
+    if (!contract) return true;
+    const cStatus = (contract.status || '').toUpperCase();
+    if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
+
+    // ToDo 생성 시각 이후에 계약서 패키지(DOCUMENT_SENT)가 발송되었으면 완료로 판정
+    const todoTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
+    const sentAfterTodo = db.contractHistory.some(
+      h =>
+        h.contractId === eid &&
+        h.changeType === 'DOCUMENT_SENT' &&
+        !(h.description && h.description.includes('월간 안전점검 체크리스트')) &&
+        new Date(h.createdAt || 0).getTime() >= todoTime
+    );
+    if (sentAfterTodo) return true;
+
+    // 해당 계약의 활성 체결자산이 모두 반납/매각 종료된 경우 완료로 판정
+    const activeSlots = db.contractAssets.filter(
+      ca => ca.contractId === eid && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+    );
+    if (activeSlots.length === 0) return true;
+    return false;
+  }
+
+  // 2. 장비 할당 요청 (ASSIGN 관련 카테고리)
+  if (cat.includes('ASSIGN')) {
+    if (!eid) return true;
+    const deliv = db.deliveries.find(d => d.id === eid);
+    if (deliv) {
+      const dStatus = (deliv.status || '').toUpperCase();
+      if (dStatus === 'CANCELLED' || dStatus === 'DELIVERED' || dStatus === 'COMPLETED' || Boolean(deliv.loadingCompletedAt)) {
+        return true;
+      }
+      if (deliv.cargoItems) {
+        try {
+          const parsed = typeof deliv.cargoItems === 'string' ? JSON.parse(deliv.cargoItems) : deliv.cargoItems;
+          if (Array.isArray(parsed)) {
+            const caIds: string[] = [];
+            parsed.forEach((ci: any) => {
+              if (Array.isArray(ci?.contractAssetIds)) caIds.push(...ci.contractAssetIds.filter(Boolean));
+            });
+            if (caIds.length > 0) {
+              const hasUnassigned = caIds.some(id => {
+                const ca = db.contractAssets.find(c => c.id === id);
+                return ca && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.assetId;
+              });
+              if (!hasUnassigned) return true;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    const contract = db.contracts.find(c => c.id === eid || (deliv && c.id === deliv.contractId));
+    if (contract) {
+      const cStatus = (contract.status || '').toUpperCase();
+      if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
+      const unassignedSlots = db.contractAssets.filter(
+        ca => ca.contractId === contract.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.assetId
+      );
+      if (unassignedSlots.length === 0) return true;
+    } else if (!deliv) {
+      const slot = db.contractAssets.find(ca => ca.id === eid);
+      if (!slot || Boolean(slot.assetId) || slot.status === 'RETURNED' || slot.status === 'SOLD') return true;
+    }
+    return false;
+  }
+
+  // 3. 출고검수 / PDI (INSPECTION 관련)
+  if (etype === 'INSPECTION' || cat.includes('INSPECTION') || cat.includes('PDI')) {
+    if (!eid) return true;
+    const directInsp = db.outboundInspections.find(i => i.id === eid);
+    if (directInsp) {
+      const iStatus = (directInsp.status || '').toUpperCase();
+      if (iStatus === 'COMPLETED' || iStatus === 'APPROVED' || iStatus === 'CANCELLED') return true;
+      if (directInsp.deliveryId) {
+        const d = db.deliveries.find(x => x.id === directInsp.deliveryId);
+        if (d && (d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED')) return true;
+      }
+      if ((directInsp as any).contractAssetId) {
+        const ca = db.contractAssets.find(c => c.id === (directInsp as any).contractAssetId);
+        if (!ca || ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD') return true;
+      }
+      if (directInsp.assetId) {
+        const asset = db.assets.find(a => a.id === directInsp.assetId);
+        if (asset && asset.status === 'RENTED') return true;
+      }
+      return false;
+    }
+
+    // entityId가 deliveryId 또는 contractId 또는 contractAssetId인 경우
+    const relatedInsps = db.outboundInspections.filter(
+      i => i.deliveryId === eid || i.contractId === eid || (i as any).contractAssetId === eid || i.assetId === eid
+    );
+    if (relatedInsps.length > 0) {
+      const hasPending = relatedInsps.some(i => {
+        if (i.status !== 'PENDING') return false;
+        if (i.deliveryId) {
+          const d = db.deliveries.find(x => x.id === i.deliveryId);
+          if (d && d.status === 'CANCELLED') return false;
+        }
+        if ((i as any).contractAssetId) {
+          const ca = db.contractAssets.find(c => c.id === (i as any).contractAssetId);
+          if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) return false;
+        }
+        return true;
+      });
+      if (!hasPending) return true;
+      return false;
+    }
+
+    // 연결된 검수 레코드가 아예 없으면 계약/배차 상태 확인
+    const d = db.deliveries.find(x => x.id === eid);
+    if (d && (d.status === 'CANCELLED' || d.status === 'DELIVERED' || (d.status as string) === 'COMPLETED')) return true;
+    const ca = db.contractAssets.find(x => x.id === eid);
+    if (ca && (ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) return true;
+    const asset = db.assets.find(x => x.id === eid);
+    if (asset && asset.status === 'RENTED') return true;
+    return false;
+  }
+
+  // 4. 배차 / 운송 / 상차 / 하차 (DELIVERY 관련)
+  if (etype === 'DELIVERY' || cat.includes('DISPATCH') || cat.includes('SHIPMENT')) {
+    if (!eid) return true;
+    const deliv = db.deliveries.find(d => d.id === eid);
+    if (deliv) {
+      const dStatus = (deliv.status || '').toUpperCase();
+      if (dStatus === 'CANCELLED' || dStatus === 'DELIVERED' || dStatus === 'COMPLETED') return true;
+      if (deliv.unloadingCompletedAt) return true;
+
+      // 배차 매칭 요청(DISPATCH_REQUEST 등)인데 이미 기사/차량이 배정되어 DISPATCHED 상태이거나 상차 완료된 경우
+      const isDriverAssigned = Boolean(
+        dStatus === 'DISPATCHED' &&
+        (deliv.driverName || deliv.vehicleNo || deliv.transportCompany || deliv.loadingCompletedAt)
+      );
+      if (isDriverAssigned && !cat.includes('ARRIVAL') && !cat.includes('UNLOAD')) {
+        return true;
+      }
+
+      // 출고 배차인데 연결된 체결자산이 이미 모두 대여중(RENTED) 또는 반납완료(RETURNED)인 경우
+      if (deliv.type === 'OUTBOUND' && deliv.contractId) {
+        const cAssets = db.contractAssets.filter(ca => ca.contractId === deliv.contractId);
+        if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+          return true;
+        }
+      }
+      // 회수/입고 배차인데 연결된 자산이 이미 주기장 입고 완료된 경우
+      if (deliv.type === 'INBOUND' && deliv.contractId) {
+        const cAssets = db.contractAssets.filter(ca => ca.contractId === deliv.contractId);
+        if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // eid가 contractId인 경우
+    const contractDeliveries = db.deliveries.filter(d => d.contractId === eid && d.status !== 'CANCELLED');
+    if (contractDeliveries.length === 0) return true;
+    const allDone = contractDeliveries.every(d => {
+      const st = (d.status || '').toUpperCase();
+      return st === 'DELIVERED' || st === 'COMPLETED' || Boolean(d.unloadingCompletedAt) || (st === 'DISPATCHED' && Boolean(d.driverName || d.vehicleNo));
+    });
+    if (allDone) return true;
+    return false;
+  }
+
+  // 5. 정비 / AS (REPAIR 관련)
+  if (etype === 'REPAIR' || cat.includes('REPAIR') || cat.includes('AS')) {
+    if (!eid) return true;
+    const rep = db.repairs.find(r => r.id === eid);
+    if (rep) {
+      const rStatus = (rep.status || '').toUpperCase();
+      if (rStatus === 'COMPLETED' || rStatus === 'CANCELLED' || rStatus === 'WAIVED' || rStatus === 'RESOLVED') return true;
+      return false;
+    }
+    // eid가 assetId 또는 contractId인 경우 미완료 수리 건 존재 여부 확인
+    const activeRepairs = db.repairs.filter(
+      r => (r.assetId === eid || r.contractId === eid) && r.status !== 'COMPLETED' && (r.status as string) !== 'CANCELLED'
+    );
+    if (activeRepairs.length === 0) return true;
+    return false;
+  }
+
+  // 6. 청구 / 수납 (BILLING 관련)
+  if (etype === 'BILLING' || cat.includes('BILLING') || cat.includes('COLLECTION')) {
+    if (!eid) return true;
+    const bill = db.billings.find(b => b.id === eid);
+    if (!bill) return true;
+    const bStatus = (bill.status || '').toUpperCase();
+    if (bStatus === 'PAID' || bStatus === 'CANCELLED' || bStatus === 'COMPLETED') return true;
+    return false;
+  }
+
+  // 7. 매입 정산 (SETTLEMENT 관련)
+  if (etype === 'SETTLEMENT' || cat.includes('SETTLEMENT')) {
+    if (!eid) return true;
+    const stl = db.purchaseSettlements.find(s => s.id === eid);
+    if (!stl) return true;
+    const sStatus = (stl.status || '').toUpperCase();
+    if (sStatus === 'PAID' || sStatus === 'CONFIRMED' || sStatus === 'COMPLETED') return true;
+    return false;
+  }
+
+  // 8. 고객 정보 보완 (CUSTOMER / MISSING_INFO)
+  if (etype === 'CUSTOMER' || t.type === 'MISSING_INFO') {
+    if (!eid) return true;
+    const cust = db.customers.find(c => c.id === eid);
+    if (!cust) return true;
+    if (cust.bizRegNo && cust.bizRegNo !== '미상' && cust.bizRegNo.trim() !== '') return true;
+    return false;
+  }
+
+  // 9. 소모품 구매/입고 (CONSUMABLE)
+  if (etype === 'CONSUMABLE' || cat.includes('CONSUMABLE')) {
+    if (!eid) return true;
+    const cp = db.consumablePurchases.find(p => p.id === eid);
+    if (!cp) return true;
+    const cpStatus = (cp.status || '').toUpperCase();
+    if (cpStatus === 'COMPLETED' || cpStatus === 'INBOUNDED' || cpStatus === 'CANCELLED') return true;
+    return false;
+  }
+
+  // 10. 연차 신청 (LEAVE)
+  if (etype === 'LEAVE' || cat.includes('LEAVE')) {
+    if (!eid) return true;
+    const lv = db.leaveUsages.find(l => l.id === eid);
+    if (!lv) return true;
+    const lvStatus = ((lv as any).status || '').toUpperCase();
+    if (lvStatus === 'APPROVED' || lvStatus === 'REJECTED' || lvStatus === 'COMPLETED' || lvStatus === 'CANCELLED') return true;
+    return false;
+  }
+
+  // 11. 계약 일반 (CONTRACT)
+  if (etype === 'CONTRACT') {
+    if (!eid) return true;
+    const contract = db.contracts.find(c => c.id === eid);
+    if (!contract) return true;
+    const cStatus = (contract.status || '').toUpperCase();
+    if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
+    if (cat === 'SITE_ARRIVAL_CONFIRM') {
+      const cAssets = db.contractAssets.filter(ca => ca.contractId === contract.id);
+      if (cAssets.length > 0 && cAssets.every(ca => ca.status === 'RENTED' || ca.status === 'RETURNED' || ca.status === 'SOLD')) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * 🧹 [2.6] 기완료된 미결 ToDo를 일괄 스캔하여 DB 상에서 완료(isCompleted: true) 처리하는 정리 헬퍼
+ */
+export function reconcileCompletedTodosInDb(): number {
+  const nowIso = new Date().toISOString();
+  let cleanedCount = 0;
+  (db.todos || []).forEach(t => {
+    if (!t.isCompleted && isTaskEntityAlreadyResolved(t)) {
+      db.updateRow<Todo>('todos', t.id, {
+        isCompleted: true,
+        completedAt: nowIso,
+        completionAction: '원장 상태 연동 자동 상계',
+        updatedAt: nowIso
+      });
+      cleanedCount += 1;
+    }
+  });
+  return cleanedCount;
+}
+
+/**
  * 🔍 [3] 로그인 사용자의 직무·부서에 특화된 활성 ToDo 필터링 헬퍼
  */
 export function findActiveTasksForUser(
@@ -168,6 +459,8 @@ export function findActiveTasksForUser(
 
   const filtered = todos.filter(t => {
     if (t.isCompleted) return false;
+    // 원장 엔티티 상태와 교차 검증하여 이미 처리 완료된 업무는 즉시 제외
+    if (isTaskEntityAlreadyResolved(t)) return false;
 
     // 0. 🛡️ [전사 표준 헌장 2.1 영업 부서와 출고/배차/자산 부서 간 R&R 엄격 분리]
     // 일반 부서원 또는 부서 시뮬레이션 모드에서는 자신의 R&R과 무관한 타 부서 전용 업무가 노출되지 않도록 상위에서 강력 차단
