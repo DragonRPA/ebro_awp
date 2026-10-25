@@ -1,11 +1,21 @@
 // src/pages/asset_assignment.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Asset } from '../services/db';
 import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
-import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download } from 'lucide-react';
+import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download, Calendar, RotateCcw } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
+
+type AssignmentStatusFilter = 'INCOMPLETE' | 'COMPLETED' | 'ALL';
+type AssignmentPeriodFilter = 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL' | 'CUSTOM';
+
+const formatLocalYMD = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 export const AssetAssignment: React.FC = () => {
   const { hasPermission, contractAssets, contracts, deliveries, customers, sites, assets, outboundInspections, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
@@ -17,10 +27,50 @@ export const AssetAssignment: React.FC = () => {
   // 멀티 장비 선택 (Asset ID 배열)
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   
-  // 검색 및 직접 입력 상태
+  // 출고 요청 조회 필터 상태 (헌장: 미완결 기본값, 기간 조회, 고객명/현장명 검색)
+  const [statusFilter, setStatusFilter] = useState<AssignmentStatusFilter>('INCOMPLETE');
+  const [periodFilter, setPeriodFilter] = useState<AssignmentPeriodFilter>('ALL');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [customerSiteQuery, setCustomerSiteQuery] = useState<string>('');
+
+  // 가용 장비 검색 및 직접 입력 상태
   const [searchQuery, setSearchQuery] = useState('');
   const [quickInputText, setQuickInputText] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+
+  const handleSelectPeriodPreset = (preset: AssignmentPeriodFilter) => {
+    setPeriodFilter(preset);
+    const now = new Date();
+    if (preset === 'TODAY') {
+      const todayStr = formatLocalYMD(now);
+      setStartDate(todayStr);
+      setEndDate(todayStr);
+    } else if (preset === 'THIS_WEEK') {
+      const dayOfWeek = now.getDay(); // 0(일) ~ 6(토)
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+      setStartDate(formatLocalYMD(monday));
+      setEndDate(formatLocalYMD(sunday));
+    } else if (preset === 'THIS_MONTH') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setStartDate(formatLocalYMD(firstDay));
+      setEndDate(formatLocalYMD(lastDay));
+    } else if (preset === 'ALL') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const handleResetFilters = () => {
+    setStatusFilter('INCOMPLETE');
+    setPeriodFilter('ALL');
+    setStartDate('');
+    setEndDate('');
+    setCustomerSiteQuery('');
+  };
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -87,9 +137,6 @@ export const AssetAssignment: React.FC = () => {
     return map;
   }, [contractHistory]);
 
-  // 일반 미할당 계약자산 및 계약별 미할당 슬롯 집계
-  const pendingCaList = useMemo(() => (contractAssets || []).filter(ca => !ca.assetId), [contractAssets]);
-
   // ── 🌟 [출고 요청 건(Delivery) 단위 개별 그룹핑: 동일 계약 내 복수 출고 요청 건을 개별 카드로 분리] ──
   const extractCaIdsFromDelivery = (d: any): string[] => {
     if (!d?.cargoItems) return [];
@@ -120,11 +167,19 @@ export const AssetAssignment: React.FC = () => {
     createdAt: string;
   }
 
-  const { exchangePendingGroups, pendingGroups, exchangeSlotsCount, groupMap } = useMemo(() => {
-    const excList: AssignmentRequestGroup[] = [];
-    const normList: AssignmentRequestGroup[] = [];
+  const {
+    exchangePendingGroups,
+    pendingGroups,
+    exchangeSlotsCount,
+    groupMap,
+    filteredGroups,
+    filteredTotalGroupsCount,
+    filteredTotalSlotsCount,
+    filteredPendingSlotsCount,
+    filteredAssignedSlotsCount
+  } = useMemo(() => {
+    const allGroups: AssignmentRequestGroup[] = [];
     const gMap = new Map<string, AssignmentRequestGroup>();
-    let excSlots = 0;
 
     const outboundDeliveriesByContract = new Map<string, typeof deliveries>();
     (deliveries || []).forEach(d => {
@@ -171,12 +226,13 @@ export const AssetAssignment: React.FC = () => {
           d.dispatchCategory === '교환' ||
           (d as any).originalDispatchCategory === '교환' ||
           (exchangeHistoryByContractMap.has(c.id) && pCount > 0 && cDeliveries.length === 1);
-        const schedDate =
+        const schedDate = (
           d.loadingDate ||
           d.scheduledDate ||
           matchedSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
           c.startDate ||
-          '';
+          ''
+        ).slice(0, 10);
 
         contractGroups.push({
           groupKey: `DLV:${d.id}`,
@@ -185,7 +241,7 @@ export const AssetAssignment: React.FC = () => {
           slots: matchedSlots,
           pendingCount: pCount,
           isExchange: isEx,
-          requestDate: d.requestDate || (d.createdAt ? d.createdAt.slice(0, 10) : ''),
+          requestDate: (d.requestDate || (d.createdAt ? d.createdAt.slice(0, 10) : '')).slice(0, 10),
           scheduledDate: schedDate,
           createdAt: d.createdAt || d.requestDate || c.createdAt || ''
         });
@@ -198,12 +254,13 @@ export const AssetAssignment: React.FC = () => {
         const isEx =
           (fallbackDeliv && (fallbackDeliv.type === 'EXCHANGE' || fallbackDeliv.dispatchCategory === '교환' || (fallbackDeliv as any).originalDispatchCategory === '교환')) ||
           (exchangeHistoryByContractMap.has(c.id) && pCount > 0);
-        const schedDate =
+        const schedDate = (
           fallbackDeliv?.loadingDate ||
           fallbackDeliv?.scheduledDate ||
           remainingSlots.map(ca => ca.startDate).filter(Boolean).sort().pop() ||
           c.startDate ||
-          '';
+          ''
+        ).slice(0, 10);
 
         contractGroups.push({
           groupKey: c.id,
@@ -212,7 +269,7 @@ export const AssetAssignment: React.FC = () => {
           slots: remainingSlots,
           pendingCount: pCount,
           isExchange: Boolean(isEx),
-          requestDate: fallbackDeliv?.requestDate || (c.createdAt ? c.createdAt.slice(0, 10) : ''),
+          requestDate: (fallbackDeliv?.requestDate || (c.createdAt ? c.createdAt.slice(0, 10) : '')).slice(0, 10),
           scheduledDate: schedDate,
           createdAt: fallbackDeliv?.createdAt || c.createdAt || ''
         });
@@ -220,12 +277,55 @@ export const AssetAssignment: React.FC = () => {
 
       for (const grp of contractGroups) {
         gMap.set(grp.groupKey, grp);
-        if (grp.isExchange && grp.pendingCount > 0) {
-          excList.push(grp);
-          excSlots += grp.pendingCount;
-        } else {
-          normList.push(grp);
-        }
+        allGroups.push(grp);
+      }
+    }
+
+    const q = customerSiteQuery.trim();
+    const csMatcher = q ? createHangulMatcher(q) : null;
+
+    const filtered = allGroups.filter(grp => {
+      // 1. 할당 상태 구분 필터 (미완결 / 할당완료 / 전체)
+      if (statusFilter === 'INCOMPLETE' && grp.pendingCount === 0) return false;
+      if (statusFilter === 'COMPLETED' && grp.pendingCount > 0) return false;
+
+      // 2. 조회 기간 필터 (출고예정일 기준, 미지정 시 요청일 폴백)
+      if (periodFilter !== 'ALL' && (startDate || endDate)) {
+        const targetDate = (grp.scheduledDate || grp.requestDate || (grp.createdAt ? grp.createdAt.slice(0, 10) : '')).slice(0, 10);
+        if (!targetDate) return false;
+        if (startDate && targetDate < startDate) return false;
+        if (endDate && targetDate > endDate) return false;
+      }
+
+      // 3. 고객명 또는 현장명 검색 필터
+      if (csMatcher) {
+        const cust = grp.contract.customerId ? customerMap.get(grp.contract.customerId) : undefined;
+        const site = grp.contract.siteId ? siteMap.get(grp.contract.siteId) : undefined;
+        const custName = cust?.name || (grp.contract as any).customerName || '';
+        const siteName = site?.name || (grp.contract as any).siteName || (grp.delivery as any)?.siteName || '';
+        if (!csMatcher.test(custName) && !csMatcher.test(siteName)) return false;
+      }
+
+      return true;
+    });
+
+    const excList: AssignmentRequestGroup[] = [];
+    const normList: AssignmentRequestGroup[] = [];
+    let excSlots = 0;
+    let totalSlots = 0;
+    let pendingSlots = 0;
+    let assignedSlots = 0;
+
+    for (const grp of filtered) {
+      totalSlots += grp.slots.length;
+      pendingSlots += grp.pendingCount;
+      assignedSlots += grp.slots.length - grp.pendingCount;
+
+      if (grp.isExchange && grp.pendingCount > 0) {
+        excList.push(grp);
+        excSlots += grp.pendingCount;
+      } else {
+        normList.push(grp);
       }
     }
 
@@ -237,8 +337,29 @@ export const AssetAssignment: React.FC = () => {
       return (b.createdAt || b.requestDate || '').localeCompare(a.createdAt || a.requestDate || '');
     });
 
-    return { exchangePendingGroups: excList, pendingGroups: normList, exchangeSlotsCount: excSlots, groupMap: gMap };
-  }, [contracts, deliveries, contractAssetsByContractMap, exchangeHistoryByContractMap]);
+    return {
+      exchangePendingGroups: excList,
+      pendingGroups: normList,
+      exchangeSlotsCount: excSlots,
+      groupMap: gMap,
+      filteredGroups: filtered,
+      filteredTotalGroupsCount: filtered.length,
+      filteredTotalSlotsCount: totalSlots,
+      filteredPendingSlotsCount: pendingSlots,
+      filteredAssignedSlotsCount: assignedSlots
+    };
+  }, [contracts, deliveries, contractAssetsByContractMap, exchangeHistoryByContractMap, statusFilter, periodFilter, startDate, endDate, customerSiteQuery, customerMap, siteMap]);
+
+  // 필터 변경 등으로 현재 선택된 요청 건이 조회 결과에서 제외된 경우 선택 해제
+  useEffect(() => {
+    if (!selectedContractId) return;
+    const isStillVisible = filteredGroups.some(g => g.groupKey === selectedContractId);
+    if (!isStillVisible) {
+      setSelectedContractId('');
+      setSelectedCaIds([]);
+      setSelectedAssetIds([]);
+    }
+  }, [selectedContractId, filteredGroups]);
 
 
   // 선택된 출고 요청 그룹의 하위 슬롯들 (미할당 + 기할당) (O(1) 맵 조회)
@@ -575,90 +696,320 @@ export const AssetAssignment: React.FC = () => {
     }
   };
 
-  // ─── 장비 할당 현황 대장 엑셀 내보내기 (O(1) 룩업) ───
+  // ─── 장비 할당 현황 대장 엑셀 내보내기 (필터링된 결과 기준) ───
   const handleExportAssignmentStatus = () => {
-    if (contractAssets.length === 0) {
+    if (filteredGroups.length === 0) {
       showToast('내보낼 장비 할당 데이터가 없습니다.', 'error');
       return;
     }
 
     const exportRows: any[] = [];
-    contractAssets.forEach((ca, idx) => {
-      const contract = ca.contractId ? contractMap.get(ca.contractId) : undefined;
-      const cust = contract?.customerId ? customerMap.get(contract.customerId) : undefined;
-      const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-      const isExchange = ca.contractId ? exchangeHistoryByContractMap.has(ca.contractId) : false;
-      
-      exportRows.push({
-        '순번': idx + 1,
-        '구분': isExchange ? '교환' : '일반계약',
-        '계약번호': contract?.contractNo || '미등록',
-        '고객사명': cust?.name || '미등록',
-        '계약시작일': contract?.startDate || '',
-        '계약종료일': contract?.endDate || '',
-        '요구모델명': ca.expectedModel || '미지정',
-        '할당상태': ca.assetId ? '할당완료' : '미할당',
-        '할당장비번호': assignedAsset?.assetNo || '-',
-        '할당장비모델': assignedAsset?.modelName || '-',
-        '장비상태': assignedAsset?.status === 'AVAILABLE' ? '임대가능' : assignedAsset?.status === 'RENTED' ? '대여중' : assignedAsset?.status === 'ASSIGNED' ? '배정완료' : assignedAsset?.status === 'REPAIRING' ? '정비중' : (assignedAsset?.status || '-'),
-        '월임대료(원)': ca.monthlyRentalFee || 0,
-        '일임대료(원)': ca.dailyRentalFee || 0,
-        '슬롯ID': ca.id
+    let seq = 1;
+    filteredGroups.forEach(grp => {
+      const contract = grp.contract;
+      const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
+      const site = contract.siteId ? siteMap.get(contract.siteId) : undefined;
+      grp.slots.forEach(ca => {
+        const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+        exportRows.push({
+          '순번': seq++,
+          '구분': grp.isExchange ? '교환' : '일반계약',
+          '계약번호': contract?.contractNo || '미등록',
+          '고객사명': cust?.name || (contract as any).customerName || '미등록',
+          '현장명': site?.name || (contract as any).siteName || '-',
+          '출고예정일': grp.scheduledDate || contract?.startDate || '',
+          '계약시작일': contract?.startDate || '',
+          '계약종료일': contract?.endDate || '',
+          '요구모델명': ca.expectedModel || '미지정',
+          '할당상태': ca.assetId ? '할당완료' : '미할당',
+          '할당장비번호': assignedAsset?.assetNo || '-',
+          '할당장비모델': assignedAsset?.modelName || '-',
+          '장비상태': assignedAsset?.status === 'AVAILABLE' ? '임대가능' : assignedAsset?.status === 'RENTED' ? '대여중' : assignedAsset?.status === 'ASSIGNED' ? '배정완료' : assignedAsset?.status === 'REPAIRING' ? '정비중' : (assignedAsset?.status || '-'),
+          '월 렌탈료(원)': ca.monthlyRentalFee || 0,
+          '일 렌탈료(원)': ca.dailyRentalFee || 0,
+          '슬롯식별자': ca.id
+        });
       });
     });
 
-    exportToExcel(exportRows, `장비할당현황대장_${new Date().toISOString().split('T')[0]}`, '장비할당현황');
-    showToast(`총 ${exportRows.length}건의 장비 할당 현황이 엑셀로 내보내기 되었습니다.`);
+    exportToExcel(exportRows, `장비할당현황대장_${formatLocalYMD(new Date())}`, '장비할당현황');
+    showToast(`조회된 ${filteredGroups.length}건(슬롯 ${exportRows.length}대)의 장비 할당 현황이 엑셀로 내보내기 되었습니다.`);
   };
 
   if (!canView && !canEdit) {
-    return <div style={{ padding: '16px', fontSize: '13px' }}>이 메뉴에 접근할 권한이 없습니다. (dispatch_assign)</div>;
+    return <div style={{ padding: '16px', fontSize: '13px' }}>이 메뉴에 접근할 권한이 없습니다.</div>;
   }
 
   return (
-    <div data-hs-observe="asset_assignment" data-mid="asset_assignment-header" id="dispatch-assign-root" data-subview="dispatch_assign" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
+    <div data-hs-observe="asset_assignment" data-mid="asset_assignment-header" id="dispatch-assign-root" data-subview="dispatch_assign" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
-      {/* 타이틀 및 설명 헤더 */}
+      {/* 타이틀 및 엑셀 내보내기 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h2 style={{ fontWeight: '800', marginBottom: '4px', fontSize: '18px', letterSpacing: '-0.5px' }}>장비 할당</h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            계약의 모델명 × 수량별 요구 슬롯에 가용 장비를 다중 선택 및 자산번호 입력으로 일괄 매핑합니다.
-          </p>
+          <h2 style={{ fontWeight: '800', marginBottom: '2px', fontSize: '18px', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>장비 할당</h2>
         </div>
         <button
           type="button"
           className="btn-secondary"
           onClick={handleExportAssignmentStatus}
-          style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', borderColor: 'var(--success)', color: 'var(--success)' }}
+          style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0, borderColor: 'var(--success)', color: 'var(--success)' }}
         >
           <Download size={13} /> 엑셀 내보내기
         </button>
       </div>
 
-      {/* 📊 현황 요약 바 */}
-      {(() => {
-        const totalPendingSlots = pendingCaList.length;
-        const totalAvailableAssets = availablePool.length;
-        const exchangeSlots = exchangeSlotsCount;
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 미할당 슬롯</span>
-              <strong style={{ fontSize: '15px', color: totalPendingSlots > 0 ? '#d97706' : 'var(--text-muted)' }}>{totalPendingSlots}대</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>교환 우선 할당 대기</span>
-              <strong style={{ fontSize: '15px', color: exchangeSlots > 0 ? '#c2410c' : 'var(--text-muted)' }}>{exchangeSlots}대</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>가용 장비 (임대가능)</span>
-              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{totalAvailableAssets}대</strong>
-            </div>
+      {/* 🔍 조회 필터 패널 (헌장 3.2 줄바꿈 방지, 3.4 상하 스택 배치, 미완결 기본값 + 기간 + 고객/현장 검색) */}
+      <div style={{
+        padding: '12px 14px',
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: '8px',
+        border: '1px solid var(--border-color)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'flex-end',
+        gap: '14px'
+      }}>
+        {/* 1. 할당 상태 구분 (미완결 기본값 / 할당완료 / 전체) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            할당 상태
+          </label>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {([
+              { key: 'INCOMPLETE', label: '미완결' },
+              { key: 'COMPLETED', label: '할당완료' },
+              { key: 'ALL', label: '전체' }
+            ] as { key: AssignmentStatusFilter; label: string }[]).map(opt => {
+              const active = statusFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setStatusFilter(opt.key)}
+                  style={{
+                    height: '32px',
+                    padding: '0 12px',
+                    borderRadius: '6px',
+                    border: `1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}`,
+                    backgroundColor: active ? 'var(--primary)' : 'var(--bg-app)',
+                    color: active ? '#ffffff' : 'var(--text-main)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+
+        {/* 2. 조회 기간 프리셋 (오늘 / 이번 주 / 당월 / 전체 / 날짜(기간)) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Calendar size={12} /> 조회 기간 (출고예정일)
+          </label>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {([
+              { key: 'TODAY', label: '오늘' },
+              { key: 'THIS_WEEK', label: '이번 주' },
+              { key: 'THIS_MONTH', label: '당월' },
+              { key: 'ALL', label: '전체' },
+              { key: 'CUSTOM', label: '날짜(기간)' }
+            ] as { key: AssignmentPeriodFilter; label: string }[]).map(opt => {
+              const active = periodFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => handleSelectPeriodPreset(opt.key)}
+                  style={{
+                    height: '32px',
+                    padding: '0 10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}`,
+                    backgroundColor: active ? 'var(--primary-light)' : 'var(--bg-app)',
+                    color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: active ? 800 : 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. 시작일 ~ 종료일 날짜 지정 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            기간 설정
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => {
+                setStartDate(e.target.value);
+                setPeriodFilter('CUSTOM');
+              }}
+              style={{
+                height: '32px',
+                padding: '0 8px',
+                borderRadius: '6px',
+                border: `1px solid ${periodFilter === 'CUSTOM' ? 'var(--primary)' : 'var(--border-color)'}`,
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: 600,
+                outline: 'none'
+              }}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => {
+                setEndDate(e.target.value);
+                setPeriodFilter('CUSTOM');
+              }}
+              style={{
+                height: '32px',
+                padding: '0 8px',
+                borderRadius: '6px',
+                border: `1px solid ${periodFilter === 'CUSTOM' ? 'var(--primary)' : 'var(--border-color)'}`,
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: 600,
+                outline: 'none'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 4. 고객명 또는 현장명 검색 필터 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 220px', minWidth: '200px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            고객명 / 현장명 검색
+          </label>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="고객명 또는 현장명 입력"
+              value={customerSiteQuery}
+              onChange={e => setCustomerSiteQuery(e.target.value)}
+              style={{
+                width: '100%',
+                height: '32px',
+                padding: '0 28px 0 30px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--text-main)',
+                fontSize: '12px',
+                fontWeight: 600,
+                outline: 'none'
+              }}
+            />
+            {customerSiteQuery && (
+              <button
+                type="button"
+                onClick={() => setCustomerSiteQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px'
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 5. 필터 초기화 & 조회 결과 건수 배지 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              height: '32px',
+              padding: '0 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-app)',
+              color: 'var(--text-secondary)',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            <RotateCcw size={12} /> 초기화
+          </button>
+          <div style={{
+            height: '32px',
+            padding: '0 12px',
+            borderRadius: '6px',
+            backgroundColor: 'var(--primary-light)',
+            border: '1px solid var(--primary)',
+            color: 'var(--primary)',
+            fontSize: '12px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}>
+            <span>조회 건수</span>
+            <strong>{filteredTotalGroupsCount}건 ({filteredTotalSlotsCount}대)</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* 📊 현황 요약 바 (필터 설정에 따라 조회된 내용의 건수만 표시) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>조회 요청 건수</span>
+          <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{filteredTotalGroupsCount}건 ({filteredTotalSlotsCount}대)</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 미할당 슬롯</span>
+          <strong style={{ fontSize: '15px', color: filteredPendingSlotsCount > 0 ? '#d97706' : 'var(--text-muted)' }}>{filteredPendingSlotsCount}대</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>할당 완료 슬롯</span>
+          <strong style={{ fontSize: '15px', color: filteredAssignedSlotsCount > 0 ? 'var(--success)' : 'var(--text-muted)' }}>{filteredAssignedSlotsCount}대</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>교환 우선 할당 대기</span>
+          <strong style={{ fontSize: '15px', color: exchangeSlotsCount > 0 ? '#c2410c' : 'var(--text-muted)' }}>{exchangeSlotsCount}대</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>가용 장비 (임대가능)</span>
+          <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{availablePool.length}대</strong>
+        </div>
+      </div>
 
       {/* 교환 출고할당 대기 (최우선 표출) */}
       {exchangePendingGroups.length > 0 && (
@@ -707,14 +1058,15 @@ export const AssetAssignment: React.FC = () => {
         </div>
       )}
 
-      {/* 1단계: 출고 대기 요청 건 카드 바둑판 뷰 */}
+      {/* 1단계: 출고 요청 건 카드 바둑판 뷰 */}
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <PackageSearch size={14} color="var(--primary)" /> 출고 대기 요청 건 ({pendingGroups.length}건)
+        <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+          <PackageSearch size={14} color="var(--primary)" />
+          {statusFilter === 'INCOMPLETE' ? '미완결 출고 요청 건' : statusFilter === 'COMPLETED' ? '할당 완료 요청 건' : '출고 요청 건'} ({pendingGroups.length}건)
         </h3>
         
         {pendingGroups.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>대기 중인 출고 요청이 없습니다.</div>
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>조회 조건에 해당하는 출고 요청이 없습니다.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
             {pendingGroups.map(grp => {
@@ -1166,7 +1518,7 @@ export const AssetAssignment: React.FC = () => {
       )}
 
 
-      {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
+      {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5: 조회 필터 결과 연동) */}
       <div style={{
         padding: '8px 14px',
         backgroundColor: 'var(--bg-app)',
@@ -1181,15 +1533,38 @@ export const AssetAssignment: React.FC = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingGroups.length + exchangePendingGroups.length}건 요청)</span>
+          <span>조회 요청: <strong style={{ color: 'var(--primary)' }}>총 {filteredTotalGroupsCount}건 ({filteredTotalSlotsCount}대)</strong></span>
           <span>|</span>
-          <span>교환 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingGroups.length}건</strong></span>
+          <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {filteredPendingSlotsCount}대</strong></span>
+          <span>|</span>
+          <span>할당 완료: <strong style={{ color: 'var(--success)' }}>총 {filteredAssignedSlotsCount}대</strong></span>
+          <span>|</span>
+          <span>교환 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingGroups.length}건 ({exchangeSlotsCount}대)</strong></span>
           <span>|</span>
           <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {availablePool.length}대</strong></span>
           <span>|</span>
           <span>현재 선택 매핑: <strong style={{ color: 'var(--primary)' }}>{selectedAssetIds.length}대</strong></span>
         </div>
       </div>
+
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          padding: '10px 16px',
+          borderRadius: '8px',
+          backgroundColor: toastMessage.type === 'error' ? 'var(--danger)' : 'var(--success)',
+          color: '#ffffff',
+          fontSize: '12.5px',
+          fontWeight: 700,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          whiteSpace: 'nowrap'
+        }}>
+          {toastMessage.text}
+        </div>
+      )}
 
       <style>{`
         .hover-lift:hover {
