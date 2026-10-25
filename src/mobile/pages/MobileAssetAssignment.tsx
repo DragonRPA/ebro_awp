@@ -425,10 +425,16 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     }
   }, [navigationPayload, contracts, deliveries, groupMap]);
 
-  // 10. 가용 장비 풀 필터링 (선택된 슬롯 요구모델 매칭 & 정비점수 오름차순, 가상자산 제외)
+  // 10. 전체 가용 장비 풀 및 선택된 슬롯 요구모델 필터링 (정비점수 오름차순, 가상자산 제외)
+  const allAvailableAssets = useMemo(() => {
+    return assets
+      .filter(a => !(a as any).isDeleted && !isVirtualAsset(a) && !a.actualRentReturnDate && a.status === 'AVAILABLE')
+      .sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
+  }, [assets]);
+
   const availableAssets = useMemo(() => {
-    if (!selectedContractId) return [];
-    let list = assets.filter(a => !(a as any).isDeleted && !isVirtualAsset(a) && !a.actualRentReturnDate && a.status === 'AVAILABLE');
+    if (!selectedContractId) return allAvailableAssets;
+    let list = [...allAvailableAssets];
 
     // 선택된 슬롯이 있는 경우 해당 슬롯 요구모델로 필터링
     const targetSlots = selectedCaIds.length > 0
@@ -440,9 +446,8 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       list = list.filter(a => reqModels.some(m => isModelMatch(a.modelName, m)));
     }
 
-    // 정비점수 기준 오름차순 정렬 (0점이 최상)
-    return list.sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
-  }, [assets, selectedContractId, selectedCaIds, activeUnassignedSlots]);
+    return list;
+  }, [allAvailableAssets, selectedContractId, selectedCaIds, activeUnassignedSlots]);
 
   // 11. 정비점수 배지 스타일 헬퍼
   const getMaintenanceBadge = (score: number = 0) => {
@@ -689,8 +694,16 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
             </div>
           </div>
 
-          {/* 우측 상단 액션: 출고검수 이동 */}
-          <div className="flex items-center gap-1 shrink-0">
+          {/* 우측 상단 액션: 카메라 실시간 스캔 & 출고검수 이동 */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowCameraOcrModal(true)}
+              className="text-xs bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white px-2.5 py-1.5 rounded-lg flex items-center gap-1 font-bold whitespace-nowrap shrink-0 shadow-sm border border-cyan-400/60 transition-all"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>카메라 스캔</span>
+            </button>
             <button
               type="button"
               onClick={() => onNavigate?.('inspection')}
@@ -735,6 +748,30 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
           /* 📋 뷰 1: 미할당 계약 목록 화면                                          */
           /* ========================================================================= */
           <>
+            {/* 상단 카메라 실시간 OCR 스캔 바로가기 배너 */}
+            <button
+              type="button"
+              onClick={() => setShowCameraOcrModal(true)}
+              className="w-full bg-cyan-950/80 hover:bg-cyan-900/80 active:scale-[0.99] border border-cyan-500/70 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-md transition-all text-left"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-black text-cyan-100 whitespace-nowrap">
+                    카메라 실시간 관리번호 스캔
+                  </span>
+                  <span className="text-[11px] text-cyan-300/90 truncate">
+                    장비 관리번호·명판을 비추면 출고 요청 및 슬롯을 자동 매칭합니다
+                  </span>
+                </div>
+              </div>
+              <span className="px-2.5 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs whitespace-nowrap shrink-0">
+                스캔 실행
+              </span>
+            </button>
+
             {/* 검색 및 필터 패널 (헌장 3.4 상하 스택 배치) */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2.5 shadow-sm">
               {/* 검색어 입력 필드 */}
@@ -874,20 +911,34 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                         </div>
                       </div>
 
-                      {/* 이번 출고 요청 모델별 슬롯 요약 배지 목록 */}
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {modelSummaries.map((m) => (
-                          <span
-                            key={m.name}
-                            className={`text-[11px] px-2 py-0.5 rounded font-medium whitespace-nowrap shrink-0 border ${
-                              m.pending > 0
-                                ? 'bg-slate-950 text-blue-300 border-blue-900/60'
-                                : 'bg-slate-950/50 text-slate-400 border-slate-800 line-through'
-                            }`}
-                          >
-                            {m.name}: {m.pending}대 미할당 (요청 {m.total}대)
-                          </span>
-                        ))}
+                      {/* 이번 출고 요청 모델별 슬롯 요약 배지 목록 및 카메라 스캔 할당 버튼 */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex flex-wrap gap-1 min-w-0">
+                          {modelSummaries.map((m) => (
+                            <span
+                              key={m.name}
+                              className={`text-[11px] px-2 py-0.5 rounded font-medium whitespace-nowrap shrink-0 border ${
+                                m.pending > 0
+                                  ? 'bg-slate-950 text-blue-300 border-blue-900/60'
+                                  : 'bg-slate-950/50 text-slate-400 border-slate-800 line-through'
+                              }`}
+                            >
+                              {m.name}: {m.pending}대 미할당 (요청 {m.total}대)
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectContract(grp.groupKey);
+                            setShowCameraOcrModal(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 active:scale-95 text-white font-bold text-[11px] flex items-center gap-1 border border-cyan-500 shadow-sm whitespace-nowrap shrink-0"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>카메라 스캔 할당</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -943,6 +994,26 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                   <span>출고일: <strong className="text-slate-200">{activeGroup?.scheduledDate || activeContract.startDate}</strong></span>
                   <span>기간: {activeGroup?.scheduledDate || activeContract.startDate} ~ {activeContract.endDate}</span>
                 </div>
+
+                {activeUnassignedSlots.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCaIds.length === 0 && activeUnassignedSlots.length > 0) {
+                        const firstModelKey = normalizeModelKey(activeUnassignedSlots[0].expectedModel);
+                        const firstModelSlotIds = activeUnassignedSlots
+                          .filter(ca => normalizeModelKey(ca.expectedModel) === firstModelKey)
+                          .map(ca => ca.id);
+                        setSelectedCaIds(firstModelSlotIds);
+                      }
+                      setShowCameraOcrModal(true);
+                    }}
+                    className="mt-1 w-full py-2.5 px-3 rounded-lg bg-cyan-700 hover:bg-cyan-600 active:scale-[0.99] text-white font-bold text-xs flex items-center justify-center gap-2 border border-cyan-500 shadow-sm whitespace-nowrap"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>카메라 실시간 스캔으로 관리번호 자동 선택</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -1321,18 +1392,56 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
         onClose={() => setShowCameraOcrModal(false)}
         availableAssets={availableAssets}
         selectedAssetIds={selectedAssetIds}
-        requiredSlotCount={selectedCaIds.length > 0 ? selectedCaIds.length : activeUnassignedSlots.length}
-        expectedModels={Array.from(
-          new Set(
-            (selectedCaIds.length > 0
-              ? activeUnassignedSlots.filter(ca => selectedCaIds.includes(ca.id))
-              : activeUnassignedSlots
-            )
-              .map(ca => ca.expectedModel)
-              .filter(Boolean)
-          )
-        ) as string[]}
+        requiredSlotCount={
+          selectedContractId
+            ? selectedCaIds.length > 0
+              ? selectedCaIds.length
+              : Math.max(1, activeUnassignedSlots.length)
+            : 1
+        }
+        expectedModels={
+          selectedContractId
+            ? (Array.from(
+                new Set(
+                  (selectedCaIds.length > 0
+                    ? activeUnassignedSlots.filter(ca => selectedCaIds.includes(ca.id))
+                    : activeUnassignedSlots
+                  )
+                    .map(ca => ca.expectedModel)
+                    .filter(Boolean)
+                )
+              ) as string[])
+            : (Array.from(
+                new Set(
+                  pendingGroups.flatMap(g =>
+                    g.slots.filter(ca => !ca.assetId).map(ca => ca.expectedModel).filter(Boolean)
+                  )
+                )
+              ) as string[])
+        }
         onSelectAsset={(asset) => {
+          if (!selectedContractId) {
+            // 목록 화면(뷰 1)에서 바로 스캔한 경우: 해당 장비 모델을 요구하는 미할당 출고 요청 자동 탐색 및 연결
+            const matchedGrp =
+              pendingGroups.find(g =>
+                g.slots.some(ca => !ca.assetId && isModelMatch(asset.modelName, ca.expectedModel))
+              ) || pendingGroups[0];
+
+            if (!matchedGrp) {
+              showToast(`${asset.assetNo} (${asset.modelName}) 스캔 인식 완료 (현재 미할당 출고 요청 없음)`, 'success');
+              return;
+            }
+
+            setSelectedContractId(matchedGrp.groupKey);
+            const unassigned = matchedGrp.slots.filter(ca => !ca.assetId);
+            const matchingSlots = unassigned.filter(ca => isModelMatch(asset.modelName, ca.expectedModel));
+            const targetSlotIds = (matchingSlots.length > 0 ? matchingSlots : unassigned).map(ca => ca.id);
+            setSelectedCaIds(targetSlotIds);
+            setSelectedAssetIds([asset.id]);
+            showToast(`${asset.assetNo} (${asset.modelName}) 스캔 완료 — 출고 요청 슬롯에 자동 연결되었습니다`, 'success');
+            return;
+          }
+
           if (selectedCaIds.length === 0 && activeUnassignedSlots.length > 0) {
             const firstModelKey = normalizeModelKey(activeUnassignedSlots[0].expectedModel);
             const firstModelSlotIds = activeUnassignedSlots

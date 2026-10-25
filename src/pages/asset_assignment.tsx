@@ -3,10 +3,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Asset, isVirtualAsset } from '../services/db';
 import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
-import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download, Calendar, RotateCcw } from 'lucide-react';
+import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download, Calendar, RotateCcw, Camera } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { canViewUnitPrice } from '../utils/userDepartmentHelper';
+import { MobileCameraAssetOcrModal } from '../mobile/components/MobileCameraAssetOcrModal';
 
 type AssignmentStatusFilter = 'INCOMPLETE' | 'COMPLETED' | 'ALL';
 type AssignmentPeriodFilter = 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL' | 'CUSTOM';
@@ -40,6 +41,7 @@ export const AssetAssignment: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [quickInputText, setQuickInputText] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [showCameraOcrModal, setShowCameraOcrModal] = useState(false);
 
   const handleSelectPeriodPreset = (preset: AssignmentPeriodFilter) => {
     setPeriodFilter(preset);
@@ -791,14 +793,38 @@ export const AssetAssignment: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '800', marginBottom: '2px', fontSize: '18px', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>장비 할당</h2>
         </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={handleExportAssignmentStatus}
-          style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0, borderColor: 'var(--success)', color: 'var(--success)' }}
-        >
-          <Download size={13} /> 엑셀 내보내기
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setShowCameraOcrModal(true)}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #06b6d4',
+              backgroundColor: '#0891b2',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              cursor: 'pointer'
+            }}
+          >
+            <Camera size={14} /> 카메라 실시간 스캔
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleExportAssignmentStatus}
+            style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0, borderColor: 'var(--success)', color: 'var(--success)' }}
+          >
+            <Download size={13} /> 엑셀 내보내기
+          </button>
+        </div>
       </div>
 
       {/* 🔍 조회 필터 패널 (헌장 3.2 줄바꿈 방지, 3.4 상하 스택 배치, 미완결 기본값 + 기간 + 고객/현장 검색) */}
@@ -1406,11 +1432,33 @@ export const AssetAssignment: React.FC = () => {
               )}
             </div>
 
-            {/* ⌨️ 자산번호 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력) */}
+            {/* ⌨️ 자산번호 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력 & 카메라 실시간 스캔) */}
             <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                자산번호 입력 (쉼표 또는 엔터로 다중 연속 입력)
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  자산번호 입력 (쉼표 또는 엔터로 다중 연속 입력 / 카메라 스캔)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCameraOcrModal(true)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #06b6d4',
+                    backgroundColor: '#0891b2',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Camera size={12} /> 카메라 실시간 스캔
+                </button>
+              </div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input
                   type="text"
@@ -1608,6 +1656,52 @@ export const AssetAssignment: React.FC = () => {
           {toastMessage.text}
         </div>
       )}
+
+      <MobileCameraAssetOcrModal
+        isOpen={showCameraOcrModal}
+        onClose={() => setShowCameraOcrModal(false)}
+        availableAssets={selectedContractId ? availableAssets : availablePool}
+        selectedAssetIds={selectedAssetIds}
+        requiredSlotCount={selectedCaIds.length > 0 ? selectedCaIds.length : 1}
+        expectedModels={
+          selectedContractId
+            ? Array.from(
+                new Set(
+                  currentSlots
+                    .filter(ca => !ca.assetId && (selectedCaIds.length === 0 || selectedCaIds.includes(ca.id)))
+                    .map(ca => ca.expectedModel)
+                    .filter(Boolean)
+                )
+              ) as string[]
+            : []
+        }
+        onSelectAsset={(asset) => {
+          if (!selectedContractId) {
+            const matchedGrp =
+              filteredGroups.find(g =>
+                g.slots.some(ca => !ca.assetId && isModelMatch(asset.modelName, ca.expectedModel))
+              ) || filteredGroups[0];
+            if (matchedGrp) {
+              setSelectedContractId(matchedGrp.groupKey);
+              const unassigned = matchedGrp.slots.filter(ca => !ca.assetId);
+              const matching = unassigned.filter(ca => isModelMatch(asset.modelName, ca.expectedModel));
+              setSelectedCaIds((matching.length > 0 ? matching : unassigned).map(ca => ca.id));
+              setSelectedAssetIds([asset.id]);
+              showToast(`${asset.assetNo} (${asset.modelName}) 스캔 완료 — 요청 슬롯에 자동 연결되었습니다.`);
+              return;
+            }
+          }
+          setSelectedAssetIds(prev => {
+            if (prev.includes(asset.id)) return prev;
+            if (selectedCaIds.length > 0 && prev.length >= selectedCaIds.length) {
+              showToast(`선택된 모델 필요 수량(${selectedCaIds.length}대)만큼 이미 선택되었습니다.`, 'error');
+              return prev;
+            }
+            showToast(`${asset.assetNo} (${asset.modelName}) 카메라 스캔 선택 완료`);
+            return [...prev, asset.id];
+          });
+        }}
+      />
 
       <style>{`
         .hover-lift:hover {
