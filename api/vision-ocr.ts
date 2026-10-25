@@ -6,7 +6,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || String.fromCharCode(...[103,115
 // Gemini API Key (선택적 페일오버 엔진)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 
-export type VisionTaskType = 'ODOMETER' | 'FUEL_RECEIPT' | 'BUSINESS_LICENSE' | 'CONTACT_CARD';
+export type VisionTaskType = 'ODOMETER' | 'FUEL_RECEIPT' | 'BUSINESS_LICENSE' | 'CONTACT_CARD' | 'ASSET_NO';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { imageBase64, taskType, vehicleContext, textHint } = req.body || {};
+  const { imageBase64, taskType, vehicleContext, assetContext, textHint } = req.body || {};
 
   if (!imageBase64 || typeof imageBase64 !== 'string') {
     return res.status(400).json({ error: 'Missing imageBase64' });
@@ -44,8 +44,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result = await analyzeBusinessLicenseWithAI(cleanImage, textHint);
     } else if (taskType === 'CONTACT_CARD') {
       result = await analyzeContactCardWithAI(cleanImage, textHint);
+    } else if (taskType === 'ASSET_NO') {
+      result = await analyzeAssetNoWithAI(cleanImage, assetContext);
     } else {
-      return res.status(400).json({ error: 'Invalid taskType. Must be ODOMETER, FUEL_RECEIPT, BUSINESS_LICENSE, or CONTACT_CARD' });
+      return res.status(400).json({ error: 'Invalid taskType. Must be ODOMETER, FUEL_RECEIPT, BUSINESS_LICENSE, CONTACT_CARD, or ASSET_NO' });
     }
 
     const elapsedMs = Date.now() - t0;
@@ -210,16 +212,61 @@ JSON 응답 포맷:
 }
 
 /**
+ * 5. 고소작업대/렌탈장비 차체 스티커·스텐실·명판 자산번호(관리번호) 및 제조번호 실시간 OCR 인식
+ */
+async function analyzeAssetNoWithAI(
+  imageUrl: string,
+  assetContext?: { expectedModels?: string[]; candidateAssetNos?: string[] }
+): Promise<any> {
+  const expectedModelsStr = Array.isArray(assetContext?.expectedModels) && assetContext!.expectedModels.length > 0
+    ? `\n[현재 할당 대상 모델]: ${assetContext!.expectedModels.join(', ')}`
+    : '';
+  const candidatesStr = Array.isArray(assetContext?.candidateAssetNos) && assetContext!.candidateAssetNos.length > 0
+    ? `\n[현재 주기장 가용 자산번호 후보 목록 (최우선 대조 대상)]:\n${assetContext!.candidateAssetNos.slice(0, 120).join(', ')}`
+    : '';
+
+  const prompt = `당신은 건설장비·고소작업대(시저리프트, 붐리프트 등) 차체에 부착된 자산번호(관리번호) 스티커, 스텐실 페인트 번호, 금속 명판(시리얼 번호/제조번호)을 판독하는 현장 장비 OCR 전문가입니다.${expectedModelsStr}${candidatesStr}
+
+제공된 카메라 프레임 이미지에서 장비의 자산번호(관리번호) 또는 제조번호(S/N)를 정확히 추출하세요.
+
+[판독 규칙]:
+1. 장비 외관에 크게 적힌 관리번호/자산번호(예: "K-19-01", "19-05", "3219-12", "2646-03", "SJ3219-01", "A-105", "105", "024" 등)를 최우선으로 읽으세요.
+2. 전화번호(예: 1588-xxxx, 031-xxx-xxxx, 010-xxxx-xxxx)나 회사 상호("기연리프트" 등)는 자산번호가 아니므로 제외하세요.
+3. 만약 [현재 주기장 가용 자산번호 후보 목록]이 제공되었고, 이미지에서 읽힌 번호가 후보 목록의 번호와 일치하거나 끝자리/핵심 숫자가 부합한다면 matchedCandidate에 해당 후보 자산번호를 정확히 기재하세요.
+4. 화면에 보이는 모든 영문/숫자 식별 토큰을 rawTokens 배열에도 빠짐없이 담으세요.
+5. 아무 번호도 보이지 않으면 assetNo에 null을 반환하고 confidence를 0으로 설정하세요.
+6. 반드시 유효한 JSON 형식으로만 응답하세요.
+
+JSON 응답 포맷:
+{
+  "assetNo": "3219-05",
+  "matchedCandidate": "K-3219-05",
+  "serialNo": null,
+  "modelName": "SJ-3219",
+  "rawTokens": ["3219-05", "SJ3219"],
+  "confidence": 0.96,
+  "rawText": "3219-05"
+}`;
+
+  return await callVisionChat(prompt, imageUrl);
+}
+
+/**
  * Groq LPU Vision 또는 Gemini Vision API 호출
  */
 async function callVisionChat(prompt: string, imageUrl: string): Promise<any> {
-  // 1차 시도: Groq LPU Vision API
+  // 1차 시도: Groq LPU Vision API (초고속 Llama-4 Vision 및 Qwen Vision)
   try {
-    const modelsToTry = ['qwen/qwen3.8-27b', 'qwen/qwen3.6-27b'];
+    const modelsToTry = [
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'meta-llama/llama-4-maverick-17b-128e-instruct',
+      'qwen/qwen3.8-27b',
+      'qwen/qwen3.6-27b'
+    ];
     for (const model of modelsToTry) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeout = setTimeout(() => controller.abort(), 12000);
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',

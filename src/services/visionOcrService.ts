@@ -363,3 +363,179 @@ export async function analyzeContactCard(file: File): Promise<ContactCardAnalysi
     return { success: false, error: err?.message || '명함/서명 이미지 처리 중 오류가 발생했습니다.' };
   }
 }
+
+
+// ─── 5. 고소작업대/렌탈장비 자산번호(관리번호) 및 제조번호 실시간 카메라 OCR 분석 ───
+
+export interface AssetNumberOcrResult {
+  success: boolean;
+  assetNo?: string;
+  matchedCandidate?: string;
+  serialNo?: string;
+  modelName?: string;
+  rawTokens?: string[];
+  rawText?: string;
+  confidence?: number;
+  elapsedMs?: number;
+  error?: string;
+}
+
+/**
+ * 실시간 카메라 프레임(Base64) 또는 촬영된 파일에서 자산번호(관리번호) / 제조번호 판독
+ */
+export async function analyzeAssetNumberFrame(
+  imageInput: string | File,
+  assetContext?: { expectedModels?: string[]; candidateAssetNos?: string[] }
+): Promise<AssetNumberOcrResult> {
+  try {
+    const imageBase64 = typeof imageInput === 'string'
+      ? imageInput
+      : await processImageFile(imageInput, 1280);
+
+    const res = await fetch('/api/vision-ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taskType: 'ASSET_NO',
+        imageBase64,
+        assetContext
+      })
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `서버 통신 오류 (HTTP ${res.status})` };
+    }
+
+    const json = await res.json();
+    if (!json.success || !json.data) {
+      return { success: false, error: json.error || '자산번호 인식에 실패했습니다.' };
+    }
+
+    const data = json.data;
+    const assetNo = data.assetNo ? String(data.assetNo).trim() : undefined;
+    const matchedCandidate = data.matchedCandidate ? String(data.matchedCandidate).trim() : undefined;
+    const serialNo = data.serialNo ? String(data.serialNo).trim() : undefined;
+    const modelName = data.modelName ? String(data.modelName).trim() : undefined;
+    const rawTokens = Array.isArray(data.rawTokens)
+      ? data.rawTokens.map((t: any) => String(t || '').trim()).filter(Boolean)
+      : [];
+    const rawText = data.rawText ? String(data.rawText).trim() : (assetNo || serialNo || rawTokens.join(' '));
+
+    return {
+      success: Boolean(assetNo || matchedCandidate || serialNo || rawTokens.length > 0),
+      assetNo,
+      matchedCandidate,
+      serialNo,
+      modelName,
+      rawTokens,
+      rawText,
+      confidence: typeof data.confidence === 'number' ? data.confidence : 0.9,
+      elapsedMs: json.elapsedMs
+    };
+  } catch (err: any) {
+    console.warn('[VisionOcrService] analyzeAssetNumberFrame exception:', err);
+    return { success: false, error: err?.message || '카메라 프레임 판독 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * OCR 인식 결과와 가용 장비 풀(availableAssets)을 대조하여 일치/유사 장비 후보를 순위별로 반환
+ */
+export function matchRecognizedAssetFromPool<T extends { id: string; assetNo?: string; serialNo?: string; modelName?: string }>(
+  ocr: AssetNumberOcrResult,
+  pool: T[],
+  alreadySelectedIds: string[] = []
+): { exactMatch: T | null; candidates: T[]; recognizedLabel: string } {
+  const cleanToken = (s?: string | null) => String(s || '').trim().toUpperCase().replace(/[\s_]/g, '');
+  const digitsOnly = (s?: string | null) => String(s || '').replace(/[^0-9]/g, '');
+
+  const primaryTokens = [
+    ocr.matchedCandidate,
+    ocr.assetNo,
+    ocr.serialNo,
+    ...(ocr.rawTokens || [])
+  ]
+    .map(t => String(t || '').trim())
+    .filter(t => t.length >= 2);
+
+  const recognizedLabel = ocr.matchedCandidate || ocr.assetNo || ocr.serialNo || primaryTokens[0] || '';
+  if (primaryTokens.length === 0 || pool.length === 0) {
+    return { exactMatch: null, candidates: [], recognizedLabel };
+  }
+
+  const unselectedPool = pool.filter(a => !alreadySelectedIds.includes(a.id));
+  const searchPool = unselectedPool.length > 0 ? unselectedPool : pool;
+
+  const scored: { asset: T; score: number }[] = [];
+
+  for (const asset of searchPool) {
+    const aNo = cleanToken(asset.assetNo);
+    const aNoNoHyphen = aNo.replace(/-/g, '');
+    const aDigits = digitsOnly(asset.assetNo);
+    const sNo = cleanToken(asset.serialNo);
+    const sNoNoHyphen = sNo.replace(/-/g, '');
+
+    let bestScore = 0;
+
+    for (const rawTok of primaryTokens) {
+      const tok = cleanToken(rawTok);
+      const tokNoHyphen = tok.replace(/-/g, '');
+      const tokDigits = digitsOnly(rawTok);
+      if (!tok) continue;
+
+      // 1순위: 완전 일치 (100점)
+      if ((aNo && (aNo === tok || aNoNoHyphen === tokNoHyphen)) || (sNo && (sNo === tok || sNoNoHyphen === tokNoHyphen))) {
+        bestScore = Math.max(bestScore, 100);
+        continue;
+      }
+
+      // 2순위: 접미사 일치 (예: K-3219-05 vs 3219-05 또는 19-05) (88점)
+      if (tokNoHyphen.length >= 3 && aNoNoHyphen.endsWith(tokNoHyphen)) {
+        bestScore = Math.max(bestScore, 88);
+        continue;
+      }
+
+      // 3순위: 숫자열 완전 일치 (예: 321905 vs SJ-3219-05) (82점)
+      if (tokDigits.length >= 3 && aDigits && aDigits === tokDigits) {
+        bestScore = Math.max(bestScore, 82);
+        continue;
+      }
+
+      // 4순위: 숫자열 접미사 일치 (예: 끝 2~4자리 번호가 고유하게 일치) (70점)
+      if (tokDigits.length >= 2 && aDigits && aDigits.endsWith(tokDigits)) {
+        bestScore = Math.max(bestScore, 70);
+        continue;
+      }
+
+      // 5순위: 부분 포함 (60점)
+      if (tokNoHyphen.length >= 3 && (aNoNoHyphen.includes(tokNoHyphen) || (sNoNoHyphen && sNoNoHyphen.includes(tokNoHyphen)))) {
+        bestScore = Math.max(bestScore, 60);
+      }
+    }
+
+    if (bestScore > 0) {
+      scored.push({ asset, score: bestScore });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const candidates = scored.map(s => s.asset);
+
+  // 최상위 후보가 82점 이상이거나, 70점 이상이면서 유일한 매칭인 경우 exactMatch로 판정
+  let exactMatch: T | null = null;
+  if (scored.length > 0) {
+    const top = scored[0];
+    const second = scored[1];
+    if (top.score >= 88) {
+      exactMatch = top.asset;
+    } else if (top.score >= 70 && (!second || top.score > second.score)) {
+      exactMatch = top.asset;
+    }
+  }
+
+  return {
+    exactMatch,
+    candidates: candidates.slice(0, 6),
+    recognizedLabel
+  };
+}

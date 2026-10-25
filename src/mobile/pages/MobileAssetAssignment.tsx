@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { isVirtualAsset } from '../../services/db';
 import { isModelMatch, normalizeModelKey } from '../../utils/modelUtils';
+import { MobileCameraAssetOcrModal } from '../components/MobileCameraAssetOcrModal';
 import { 
   CheckSquare, 
   Square, 
@@ -18,7 +19,8 @@ import {
   AlertTriangle, 
   Layers, 
   ChevronRight, 
-  Zap
+  Zap,
+  Camera
 } from 'lucide-react';
 
 export interface MobileAssetAssignmentProps {
@@ -63,6 +65,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
   const [selectedCaIds, setSelectedCaIds] = useState<string[]>([]);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [quickInputText, setQuickInputText] = useState('');
+  const [showCameraOcrModal, setShowCameraOcrModal] = useState(false);
 
   // 상태 플래그
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1090,11 +1093,30 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                   </button>
                 </div>
 
-                {/* 관리번호 직접 입력 (헌장 3.4 상하 스택 배치) */}
+                {/* 관리번호 직접 입력 및 실시간 카메라 OCR 스캔 (헌장 3.4 상하 스택 배치) */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-300 whitespace-nowrap shrink-0">
-                    관리번호 직접 입력
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-semibold text-slate-300 whitespace-nowrap shrink-0">
+                      관리번호 직접 입력 / 카메라 스캔
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedCaIds.length === 0 && activeUnassignedSlots.length > 0) {
+                          const firstModelKey = normalizeModelKey(activeUnassignedSlots[0].expectedModel);
+                          const firstModelSlotIds = activeUnassignedSlots
+                            .filter(ca => normalizeModelKey(ca.expectedModel) === firstModelKey)
+                            .map(ca => ca.id);
+                          setSelectedCaIds(firstModelSlotIds);
+                        }
+                        setShowCameraOcrModal(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-cyan-500 shadow-sm whitespace-nowrap shrink-0"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>카메라 실시간 스캔</span>
+                    </button>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
@@ -1106,7 +1128,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                           handleQuickInput();
                         }
                       }}
-                      placeholder="관리번호 / 바코드 입력"
+                      placeholder="관리번호 / 제조번호 직접 입력"
                       className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 rounded-lg text-xs focus:outline-none focus:border-blue-500 transition-colors uppercase font-mono"
                     />
                     <button
@@ -1292,6 +1314,44 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
           </div>
         </div>
       )}
+
+      {/* ── 6. 실시간 카메라 관리번호 OCR 스캔 모달 ── */}
+      <MobileCameraAssetOcrModal
+        isOpen={showCameraOcrModal}
+        onClose={() => setShowCameraOcrModal(false)}
+        availableAssets={availableAssets}
+        selectedAssetIds={selectedAssetIds}
+        requiredSlotCount={selectedCaIds.length > 0 ? selectedCaIds.length : activeUnassignedSlots.length}
+        expectedModels={Array.from(
+          new Set(
+            (selectedCaIds.length > 0
+              ? activeUnassignedSlots.filter(ca => selectedCaIds.includes(ca.id))
+              : activeUnassignedSlots
+            )
+              .map(ca => ca.expectedModel)
+              .filter(Boolean)
+          )
+        ) as string[]}
+        onSelectAsset={(asset) => {
+          if (selectedCaIds.length === 0 && activeUnassignedSlots.length > 0) {
+            const firstModelKey = normalizeModelKey(activeUnassignedSlots[0].expectedModel);
+            const firstModelSlotIds = activeUnassignedSlots
+              .filter(ca => normalizeModelKey(ca.expectedModel) === firstModelKey)
+              .map(ca => ca.id);
+            setSelectedCaIds(firstModelSlotIds);
+          }
+          setSelectedAssetIds(prev => {
+            if (prev.includes(asset.id)) return prev;
+            const limit = selectedCaIds.length > 0 ? selectedCaIds.length : activeUnassignedSlots.length;
+            if (limit > 0 && prev.length >= limit) {
+              showToast(`선택 슬롯 수량(${limit}대)을 초과할 수 없습니다.`, 'error');
+              return prev;
+            }
+            showToast(`${asset.assetNo} / ${asset.modelName} 카메라 스캔 선택 완료`, 'success');
+            return [...prev, asset.id];
+          });
+        }}
+      />
     </div>
   );
 };

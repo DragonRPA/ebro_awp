@@ -1,28 +1,94 @@
 // src/mobile/pages/MobileDispatchOrderCreate.tsx
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useApp } from '../../context/AppContext';
-import { 
-  Building2, MapPin, Phone, Calendar, Clock, Plus, Minus, 
-  Send, AlertTriangle, CheckCircle2, ChevronRight, ArrowLeft, Bot,
-  Mic, MicOff, RotateCcw, FileText, Check, Sparkles, ClipboardList,
-  RotateCw, Truck, ArrowDownLeft, ArrowUpRight, ArrowRight, Shield, ChevronDown, ChevronUp
-} from 'lucide-react';
-import { matchHangul, sortCustomersByName } from '../../utils/hangulSearch';
-import { 
-  loadVoiceOrderDraft, 
-  saveVoiceOrderDraft, 
-  clearVoiceOrderDraft, 
-  mergeVoiceFragmentToDraft, 
-  isOptionsChangedFromSite,
-  VoiceOrderDraft, 
-  EquipmentOrderItem 
-} from '../../services/voiceOrderDraftService';
-import { db, ContractHistory, Delivery, ContractAsset, CustomerSite, CustomerContact, isCustomerRestricted, isCustomerClosedBlocked, getCustomerTransactionStatusLabel } from '../../services/db';
-import { broadcastWorkNotification } from '../../utils/workNotificationService';
-import { VoiceGuideWizardModal, VoiceGuideWizardCompleteData } from '../components/VoiceGuideWizardModal';
-import { VoiceMemoDispatchStudioModal } from '../components/VoiceMemoDispatchStudioModal';
-import { BusinessLicenseModal } from '../../components/BusinessLicenseModal';
+// 모바일 출고 요청 통합 워크스페이스 (PC smart_dispatch4 100% 기능 대칭 · 가상자산 가용재고 원천 배제 · 모듈 분리 아키텍처)
 
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  RefreshCw,
+  FileText,
+  Truck,
+  Sparkles,
+  Check,
+  Search,
+  MapPin,
+  Calendar,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  Package,
+  Printer,
+  ShieldCheck,
+  X,
+  ArrowLeft,
+  Building2,
+  User,
+  Upload
+} from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { useApproval } from '../../hooks/useApproval';
+import {
+  db,
+  Customer,
+  CustomerSite,
+  CustomerContact,
+  findCustomerByNormalizedName,
+  StandardOption,
+  VEHICLE_TYPE_OPTIONS,
+  PaymentMethodType,
+  PAYMENT_METHOD_OPTIONS,
+  PAYMENT_DUE_MONTH_OPTIONS,
+  formatPaymentDueCondition,
+  isCustomerRestricted,
+  isCustomerClosedBlocked,
+  getCustomerTransactionStatusLabel,
+  isVirtualAsset
+} from '../../services/db';
+import { getCanonicalModelKey } from '../../utils/modelUtils';
+import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
+import { EQUIPMENT_SPEC_MATRIX } from '../../services/voiceOrderDraftService';
+import { createHangulMatcher, sortCustomersByName } from '../../utils/hangulSearch';
+import {
+  fetchMyDrafts,
+  submitDraft,
+  discardDraft,
+  createDraftOrder
+} from '../../services/callUploadService';
+import { canViewFinancials } from '../../utils/privacyMasking';
+import {
+  stripOptionPrice,
+  splitMasterAwareOptions,
+  extractAppliedPricesFromSpecs
+} from '../../types/siteOption';
+
+import {
+  CallContext,
+  PaidBy,
+  ConfidenceLevel,
+  ScoredField,
+  EquipmentItem,
+  DraftOrder,
+  CONTEXT_OPTIONS,
+  EXCHANGE_SYMPTOM_CHIPS,
+  makeScoredField,
+  getLocalTodayDateStr,
+  calcUrgency
+} from '../../modules/dispatchRequest/dispatchOrderTypes';
+import {
+  isBlankContactVal,
+  getSiteRegisteredContact,
+  classifyOptionCategory,
+  getOptionGroupMeta,
+  buildCheckedSpecsFromLabels,
+  parseOptionString,
+  parseDispatchOrderText
+} from '../../modules/dispatchRequest/dispatchOrderParser';
+import { reconstructOutboundHistoryRows } from '../../modules/dispatchRequest/dispatchOrderHistoryReconstructor';
+import { buildDispatchOrderPrintHtml } from '../../modules/dispatchRequest/dispatchOrderPrintHtml';
+import { MobileOutboundHistoryTab } from './dispatchOrder/MobileOutboundHistoryTab';
+import { MobileCustomerRegModal } from './dispatchOrder/MobileCustomerRegModal';
 
 interface MobileDispatchOrderCreateProps {
   onBack: () => void;
@@ -32,2133 +98,2800 @@ interface MobileDispatchOrderCreateProps {
   initialSpecFt?: string;
 }
 
-const SPEC_OPTIONS = [
-  { ft: '19ft', defaultModel: 'GS-1930' },
-  { ft: '26ft', defaultModel: 'GTJZ0812E' },
-  { ft: '32ft', defaultModel: 'GTJZ1012E' },
-  { ft: '40ft', defaultModel: 'GS-4047' },
-  { ft: '46ft', defaultModel: 'GS-4655' },
-  { ft: '53ft', defaultModel: 'S1614AC+' },
-];
-
-const inferFeetFromModel = (modelName: string): string => {
-  const s = String(modelName || '').toUpperCase();
-  if (s.includes('1930') || s.includes('1330') || s.includes('1432') || s.includes('3215') || s.includes('0608') || s.includes('1230') || s.includes('19')) return '19ft';
-  if (s.includes('2646') || s.includes('2632') || s.includes('0812') || s.includes('0808') || s.includes('3219') || s.includes('26')) return '26ft';
-  if (s.includes('3246') || s.includes('1012') || s.includes('1008') || s.includes('32')) return '32ft';
-  if (s.includes('4047') || s.includes('4046') || s.includes('4069') || s.includes('1212') || s.includes('40')) return '40ft';
-  if (s.includes('4655') || s.includes('1412') || s.includes('1414') || s.includes('46')) return '46ft';
-  if (s.includes('1612') || s.includes('1614') || s.includes('5390') || s.includes('53')) return '53ft';
-  return '19ft';
-};
-
-export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps> = ({ 
-  onBack, 
-  onSuccess, 
-  onOpenGems,
+export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps> = ({
+  onBack,
+  onSuccess,
   initialCustomerId,
   initialSpecFt
 }) => {
-  const { 
-    customers, sites, contacts, currentUser, saveSmartDispatch,
-    contracts, contractAssets, assets, saveSmartReturn, refreshAllData, inspectionChecklistItems 
-} = useApp();
-  const defectSymptoms = useMemo(() => { const list = inspectionChecklistItems.filter(i => i.isDefectSymptom).map(i => i.name); return list.length > 0 ? list : ['불량증상(설정요망)']; }, [inspectionChecklistItems]);
+  const {
+    customers,
+    sites,
+    siteMasters,
+    contacts,
+    products,
+    assets,
+    contracts,
+    contractAssets,
+    deliveries,
+    todos,
+    outboundInspections,
+    saveSmartDispatch,
+    saveCustomer,
+    updateOutboundRequestPricing,
+    cancelOutboundRequest,
+    deleteCancelledOutboundRequests,
+    hasPermission,
+    currentUser,
+    users,
+    standardOptions,
+    refreshAllData,
+    printStations,
+    enqueuePrintJob
+  } = useApp();
 
-  // 의뢰 유형 모드 (출고 DISPATCH vs 회수 RETURN vs 대차교체 EXCHANGE - 헌장 2.3)
-  const [dispatchMode, setDispatchMode] = useState<'DISPATCH' | 'RETURN' | 'EXCHANGE'>('DISPATCH');
+  const { fetchRuleForEvent, createApprovalRequest, isRuleEnabled } = useApproval();
 
-  // 폼 상태
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
-  const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [newSiteName, setNewSiteName] = useState('');
-  const [siteAddress, setSiteAddress] = useState('');
-  const [siteContactName, setSiteContactName] = useState('');
-  const [siteContactPhone, setSiteContactPhone] = useState('');
-  const [siteContactPosition, setSiteContactPosition] = useState('');
-  const [siteContactEmail, setSiteContactEmail] = useState('');
+  const canSave = hasPermission('smart_dispatch4', 'save') || hasPermission('dispatch_order', 'save');
+  const hasFinancialAccess = canViewFinancials(currentUser);
 
-  const isBlankMobileContact = (v?: string | null): boolean => {
-    if (!v) return true;
-    const t = String(v).trim();
-    return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력';
-  };
+  // 상단 메인 탭: 'NEW' (출고 요청 등록) | 'HISTORY' (출고 요청 내역)
+  const [mainTab, setMainTab] = useState<'NEW' | 'HISTORY'>('NEW');
 
-  const getMobileSiteRegContact = (site: any) => {
-    if (!site) return { name: '', phone: '', position: '', email: '' };
-    const activeContacts = Array.isArray(site.contacts) ? site.contacts.filter((c: any) => c && c.isActive !== false) : [];
-    const eqContact = activeContacts.find((c: any) => c.contactType === 'EQUIPMENT') || activeContacts[0];
-    const name = !isBlankMobileContact(site.contactName)
-      ? String(site.contactName).trim()
-      : (!isBlankMobileContact(eqContact?.name) ? String(eqContact.name).trim() : '');
-    const phone = !isBlankMobileContact(site.contact)
-      ? String(site.contact).trim()
-      : (!isBlankMobileContact(eqContact?.contact) ? String(eqContact.contact).trim() : '');
-    const position = !isBlankMobileContact(eqContact?.position)
-      ? String(eqContact.position).trim()
-      : '';
-    const email = !isBlankMobileContact(site.email)
-      ? String(site.email).trim()
-      : (!isBlankMobileContact(eqContact?.email) ? String(eqContact.email).trim() : '');
-    return { name, phone, position, email };
-  };
-  
-  // 전체 출고의뢰 8대 도메인 확장 상태
-  const [paidOptions, setPaidOptions] = useState('');
-  const [protection, setProtection] = useState('');
-  const [checkedSpecs, setCheckedSpecs] = useState<Record<string, boolean>>({});
-  const [saveOptionsToSite, setSaveOptionsToSite] = useState<boolean>(true); // 🌟 변경된 옵션을 현장 기본값으로 저장할지 여부
-  const [billableToCustomer, setBillableToCustomer] = useState(false);
-  const [closingDay, setClosingDay] = useState('말일');
-  const [paymentDay, setPaymentDay] = useState('익월 25일');
-  const [taxBillEmail, setTaxBillEmail] = useState('');
-  const [vehicleType, setVehicleType] = useState('5톤 렉카');
-
-  // 🌟 선택된 현장 객체 및 옵션 변경 발생 여부 실시간 감지
-  const selectedSite = useMemo(() => sites.find(s => s.id === selectedSiteId), [sites, selectedSiteId]);
-  const selectedSiteRegContact = useMemo(() => getMobileSiteRegContact(selectedSite), [selectedSite]);
-  const selectedSiteMissingFields = useMemo(() => {
-    if (!selectedSite) return [] as string[];
-    const missing: string[] = [];
-    if (!selectedSiteRegContact.name) missing.push('성명');
-    if (!selectedSiteRegContact.phone) missing.push('연락처');
-    if (!selectedSiteRegContact.position) missing.push('직책');
-    if (!selectedSiteRegContact.email) missing.push('이메일');
-    return missing;
-  }, [selectedSite, selectedSiteRegContact]);
-  const isOptionsDiff = useMemo(() => isOptionsChangedFromSite(selectedSite, paidOptions, protection), [selectedSite, paidOptions, protection]);
-  
-  // 납품/회수 일시 (기본값: 내일 08:00)
-  const tomorrow = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  }, []);
-
-  const [deliveryDate, setDeliveryDate] = useState(tomorrow);
-  const [deliveryTime, setDeliveryTime] = useState('08:00');
-
-  // 활성화된(선택된) 피트 규격 (기본값 19ft)
-  const [activeFt, setActiveFt] = useState<string>('19ft');
-
-  // 출고 요구 장비 목록 (최초 19ft 1대 기본)
-  const [orders, setOrders] = useState<EquipmentOrderItem[]>([
-    { ft: '19ft', modelName: 'GS-1930', count: 1 }
-  ]);
-
-  // 회수 대상 선택 자산 목록
-  const [selectedReturnAssetIds, setSelectedReturnAssetIds] = useState<string[]>([]);
-
-  const [memo, setMemo] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // 대화형 음성 가이드 위자드 모달 상태
-  const [isVoiceWizardOpen, setIsVoiceWizardOpen] = useState(false);
-
-  // 🎙️ 자유 음성메모 출고의뢰 스튜디오 모달 상태
-  const [isVoiceMemoStudioOpen, setIsVoiceMemoStudioOpen] = useState(false);
-
-  // 음성 조각 입력 및 임시저장 상태
-  const [isListening, setIsListening] = useState(false);
-  const [interimText, setInterimText] = useState('');
-  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
-  const [recentModifiedFields, setRecentModifiedFields] = useState<string[]>([]);
-  const [snippetsHistory, setSnippetsHistory] = useState<{ text: string; timestamp: string }[]>([]);
-  const [createdResult, setCreatedResult] = useState<{ isReturn?: boolean; contractNo: string; siteName: string; totalCount: number } | null>(null);
-  const recognitionRef = useRef<any>(null);
-
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
-    setToastMessage({ type, text });
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const [customerSearchText, setCustomerSearchText] = useState('');
-  const [siteSearchText, setSiteSearchText] = useState('');
-  const [returnAssetSearchText, setReturnAssetSearchText] = useState('');
-
-  // 1. 마운트 시 이전 임시저장 의뢰서 복원
-  useEffect(() => {
-    const saved = loadVoiceOrderDraft();
-    if (saved) {
-      if (saved.customerId) setSelectedCustomerId(saved.customerId);
-      if (saved.siteId) setSelectedSiteId(saved.siteId);
-      if (saved.newSiteName) setNewSiteName(saved.newSiteName);
-      if (saved.siteAddress) setSiteAddress(saved.siteAddress);
-      if (saved.siteContactName) setSiteContactName(saved.siteContactName);
-      if (saved.siteContactPhone) setSiteContactPhone(saved.siteContactPhone);
-      if (saved.deliveryDate) setDeliveryDate(saved.deliveryDate);
-      if (saved.deliveryTime) setDeliveryTime(saved.deliveryTime);
-      if (saved.orders && saved.orders.length > 0) setOrders(saved.orders);
-      if (saved.memo) setMemo(saved.memo);
-      if (saved.paidOptions) setPaidOptions(saved.paidOptions);
-      if (saved.protection) setProtection(saved.protection);
-      if (saved.checkedSpecs) setCheckedSpecs(saved.checkedSpecs);
-      if (saved.billableToCustomer !== undefined) setBillableToCustomer(saved.billableToCustomer);
-      if (saved.closingDay) setClosingDay(saved.closingDay);
-      if (saved.paymentDay) setPaymentDay(saved.paymentDay);
-      if (saved.taxBillEmail) setTaxBillEmail(saved.taxBillEmail);
-      if (saved.vehicleType) setVehicleType(saved.vehicleType);
-      if (saved.snippets && saved.snippets.length > 0) setSnippetsHistory(saved.snippets);
-      setHasRestoredDraft(true);
-    }
-  }, []);
-
-  // 1-1. 외부 네비게이션(가용재고 조회, 고객관리 등)에서 유입된 초기 파라미터 우선 적용 (헌장 2.1 & 과제 6)
-  useEffect(() => {
-    if (initialCustomerId) {
-      setSelectedCustomerId(initialCustomerId);
-    }
-    if (initialSpecFt) {
-      setActiveFt(initialSpecFt);
-      const defaultModel = SPEC_OPTIONS.find(s => s.ft === initialSpecFt)?.defaultModel || 'GS-1930';
-      setOrders([{ ft: initialSpecFt, modelName: defaultModel, count: 1 }]);
-    }
-  }, [initialCustomerId, initialSpecFt]);
-
-  // 2. 값 변경 시 로컬스토리지 자동 임시저장
-  useEffect(() => {
-    if (selectedCustomerId || siteAddress || siteContactPhone || memo || paidOptions || protection || orders.length > 1 || orders[0]?.count > 1 || snippetsHistory.length > 0) {
-      const cust = customers.find(c => c.id === selectedCustomerId);
-      const site = sites.find(s => s.id === selectedSiteId);
-      const draft: VoiceOrderDraft = {
-        customerId: selectedCustomerId,
-        customerName: cust?.name || '',
-        siteId: selectedSiteId,
-        siteName: site?.name || newSiteName,
-        newSiteName,
-        siteAddress,
-        siteContactName,
-        siteContactPhone,
-        siteContactEmail: '',
-        deliveryDate,
-        deliveryTime,
-        orders,
-        memo,
-        paidOptions,
-        protection,
-        checkedSpecs,
-        billableToCustomer,
-        closingDay,
-        paymentDay,
-        taxBillEmail,
-        vehicleType,
-        snippets: snippetsHistory,
-        updatedAt: new Date().toISOString()
-      };
-      saveVoiceOrderDraft(draft);
-      setHasRestoredDraft(true);
-    }
-  }, [
-    selectedCustomerId, selectedSiteId, newSiteName, siteAddress, siteContactName, siteContactPhone,
-    deliveryDate, deliveryTime, orders, memo, paidOptions, protection, checkedSpecs, billableToCustomer,
-    closingDay, paymentDay, taxBillEmail, vehicleType, snippetsHistory, customers, sites
-  ]);
-
-  // 해당 고객사/현장에서 현재 대여 중인 자산 목록
-  const siteRentedAssets = useMemo(() => {
-    if (!selectedCustomerId) return [];
-    const targetContracts = contracts.filter(c => 
-      c.customerId === selectedCustomerId && 
-      (selectedSiteId && selectedSiteId !== 'NEW' ? c.siteId === selectedSiteId : true) &&
-      c.status !== 'COMPLETED'
-    );
-    const items: { contractId: string; contractNo: string; assetId: string; assetNo: string; modelName: string }[] = [];
-    targetContracts.forEach(c => {
-      const cas = contractAssets.filter(ca => ca.contractId === c.id && ca.assetId && !ca.actualReturnDate);
-      cas.forEach(ca => {
-        const a = assets.find(ast => ast.id === ca.assetId);
-        items.push({
-          contractId: c.id,
-          contractNo: c.contractNo,
-          assetId: ca.assetId!,
-          assetNo: a?.assetNo || ca.assetId!,
-          modelName: a?.modelName || '고소작업대'
-        });
-      });
-    });
-    return items;
-  }, [selectedCustomerId, selectedSiteId, contracts, contractAssets, assets]);
-
-  // 임시저장 초기화 핸들러
-  const handleResetDraft = () => {
-    clearVoiceOrderDraft();
-    setSelectedCustomerId('');
-    setSelectedSiteId('');
-    setNewSiteName('');
-    setSiteAddress('');
-    setSiteContactName('');
-    setSiteContactPhone('');
-    setDeliveryDate(tomorrow);
-    setDeliveryTime('08:00');
-    setOrders([{ ft: '19ft', modelName: 'GS-1930', count: 1 }]);
-    setActiveFt('19ft');
-    setSelectedReturnAssetIds([]);
-    setMemo('');
-    setPaidOptions('');
-    setProtection('');
-    setCheckedSpecs({});
-    setBillableToCustomer(false);
-    setClosingDay('말일');
-    setPaymentDay('익월 25일');
-    setTaxBillEmail('');
-    setVehicleType('5톤 렉카');
-    setSnippetsHistory([]);
-    setRecentModifiedFields([]);
-    setHasRestoredDraft(false);
-    showToast('임시저장이 초기화되었습니다.');
-  };
-
-  // 음성 조각 증분 병합 처리 함수
-  const processSpokenFragment = (text: string) => {
-    const cust = customers.find(c => c.id === selectedCustomerId);
-    const site = sites.find(s => s.id === selectedSiteId);
-    const currentDraft: VoiceOrderDraft = {
-      customerId: selectedCustomerId,
-      customerName: cust?.name || '',
-      siteId: selectedSiteId,
-      siteName: site?.name || newSiteName,
-      newSiteName,
-      siteAddress,
-      siteContactName,
-      siteContactPhone,
-      deliveryDate,
-      deliveryTime,
-      orders,
-      memo,
-      snippets: snippetsHistory,
-      updatedAt: new Date().toISOString()
-    };
-
-    // 회수 의도 자동 감지
-    let detectedMode = dispatchMode;
-    const isReturnIntent = /회수|반납|철수|반출|빼줘/i.test(text);
-    if (isReturnIntent) {
-      detectedMode = 'RETURN';
-      setDispatchMode('RETURN');
-    }
-
-    const { updatedDraft, modifiedFields } = mergeVoiceFragmentToDraft(
-      currentDraft,
-      text,
-      customers,
-      sites
-    );
-
-    if (isReturnIntent) {
-      modifiedFields.unshift('의뢰유형: 회수의뢰');
-    }
-
-    if (updatedDraft.customerId) setSelectedCustomerId(updatedDraft.customerId);
-    if (updatedDraft.siteId) setSelectedSiteId(updatedDraft.siteId);
-    if (updatedDraft.newSiteName) setNewSiteName(updatedDraft.newSiteName);
-    if (updatedDraft.siteAddress) setSiteAddress(updatedDraft.siteAddress);
-    if (updatedDraft.siteContactName) setSiteContactName(updatedDraft.siteContactName);
-    if (updatedDraft.siteContactPhone) setSiteContactPhone(updatedDraft.siteContactPhone);
-    if (updatedDraft.deliveryDate) setDeliveryDate(updatedDraft.deliveryDate);
-    if (updatedDraft.deliveryTime) setDeliveryTime(updatedDraft.deliveryTime);
-    if (updatedDraft.orders && updatedDraft.orders.length > 0 && detectedMode === 'DISPATCH') {
-      setOrders(updatedDraft.orders);
-    }
-    if (updatedDraft.memo) setMemo(updatedDraft.memo);
-    if (updatedDraft.paidOptions) setPaidOptions(updatedDraft.paidOptions);
-    if (updatedDraft.protection) setProtection(updatedDraft.protection);
-    if (updatedDraft.checkedSpecs) setCheckedSpecs(updatedDraft.checkedSpecs);
-    if (updatedDraft.billableToCustomer !== undefined) setBillableToCustomer(updatedDraft.billableToCustomer);
-    if (updatedDraft.closingDay) setClosingDay(updatedDraft.closingDay);
-    if (updatedDraft.paymentDay) setPaymentDay(updatedDraft.paymentDay);
-    if (updatedDraft.vehicleType) setVehicleType(updatedDraft.vehicleType);
-    if (updatedDraft.snippets) setSnippetsHistory(updatedDraft.snippets);
-
-    // 회수 모드일 때 언급된 장비번호 자동 체크
-    if (detectedMode === 'RETURN') {
-      const matchedAssets: string[] = [];
-      const numMatches = text.match(/\d{2,4}/g);
-      if (numMatches) {
-        siteRentedAssets.forEach(ra => {
-          if (numMatches.some(n => ra.assetNo.includes(n))) {
-            if (!matchedAssets.includes(ra.assetId)) matchedAssets.push(ra.assetId);
-          }
-        });
-        if (matchedAssets.length > 0) {
-          setSelectedReturnAssetIds(prev => Array.from(new Set([...prev, ...matchedAssets])));
-          modifiedFields.push(`회수장비(${matchedAssets.length}대) 매핑`);
-        }
-      }
-    }
-
-    setRecentModifiedFields(modifiedFields);
-    setHasRestoredDraft(true);
-
-    if (modifiedFields.length > 0) {
-      showToast(`음성 반영: ${modifiedFields.join(' | ')}`);
-    } else {
-      showToast('음성을 인식했습니다.');
-    }
-  };
-
-  // 음성인식 토글 핸들러
-  const handleToggleListening = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      showToast('이 브라우저는 음성인식을 지원하지 않습니다.', 'error');
-      return;
-    }
-
-    if (isListening) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
-      }
-      setIsListening(false);
-      return;
-    }
-
+  // 원격 프린트 스테이션
+  const [selectedStationId, setSelectedStationId] = useState<string>(() => {
     try {
-      const rec = new SpeechRecognition();
-      rec.lang = 'ko-KR';
-      rec.continuous = false;
-      rec.interimResults = true;
-      recognitionRef.current = rec;
-
-      rec.onstart = () => {
-        setIsListening(true);
-        setInterimText('');
-      };
-
-      rec.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        setInterimText(transcript);
-      };
-
-      rec.onerror = (event: any) => {
-        console.warn('SpeechRecognition error:', event.error);
-        setIsListening(false);
-        if (event.error !== 'no-speech') {
-          showToast('음성 인식 오류: ' + event.error, 'error');
-        }
-      };
-
-      rec.onend = () => {
-        setIsListening(false);
-        if (interimText.trim()) {
-          processSpokenFragment(interimText.trim());
-          setInterimText('');
-        }
-      };
-
-      rec.start();
-    } catch (err: any) {
-      console.error('Failed to start SpeechRecognition:', err);
-      setIsListening(false);
-      showToast('마이크 시작 실패: ' + err.message, 'error');
+      return localStorage.getItem('ebro_selected_print_station') || 'MAIN_OFFICE';
+    } catch {
+      return 'MAIN_OFFICE';
     }
-  };
+  });
+  const [isAgentPrinting, setIsAgentPrinting] = useState(false);
 
-  // 클립보드 통화 텍스트 읽어서 자동 완성 핸들러
-  const handlePasteCallTranscript = async () => {
-    try {
-      if (!navigator.clipboard || !navigator.clipboard.readText) {
-        showToast('클립보드 읽기를 지원하지 않는 브라우저입니다.', 'error');
-        return;
-      }
-      const text = await navigator.clipboard.readText();
-      if (!text || !text.trim()) {
-        showToast('클립보드에 복사된 통화 텍스트가 없습니다.', 'error');
-        return;
-      }
-      processSpokenFragment(text.trim());
-      showToast('복사된 통화 텍스트를 파싱하여 반영했습니다.');
-    } catch (err: any) {
-      console.warn('Clipboard read error:', err);
-      showToast('클립보드 읽기 권한이 필요합니다.', 'error');
-    }
-  };
-
-  // 선택된 고객사의 등록 현장 목록
-  const customerSites = useMemo(() => {
-    if (!selectedCustomerId) return [];
-    return sites.filter(s => s.customerId === selectedCustomerId);
-  }, [sites, selectedCustomerId]);
-
-  const filteredCustomersList = useMemo(() => {
-    const list = customers
-      .filter(c => !customerSearchText.trim() || matchHangul(c.name, customerSearchText) || matchHangul(c.representative, customerSearchText));
-    return sortCustomersByName(list);
-  }, [customers, customerSearchText]);
-
-  const filteredCustomerSites = useMemo(() => {
-    return customerSites.filter(s => !siteSearchText.trim() || matchHangul(s.name, siteSearchText) || matchHangul(s.address, siteSearchText));
-  }, [customerSites, siteSearchText]);
-
-  // 고객사 변경 핸들러
-  const handleCustomerChange = (custId: string) => {
-    const cust = customers.find(c => c.id === custId);
-    if (cust && dispatchMode !== 'RETURN' && (isCustomerRestricted(cust.transactionStatus) || isCustomerClosedBlocked(cust))) {
-      const statusInfo = getCustomerTransactionStatusLabel(cust.transactionStatus, isCustomerClosedBlocked(cust));
-      showToast(`[${cust.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청 고객으로 선택할 수 없습니다.`, 'error');
-      setSelectedCustomerId('');
-      return;
-    }
-    setSelectedCustomerId(custId);
-    setSelectedSiteId('');
-    setSiteAddress('');
-    setSiteContactName('');
-    setSiteContactPhone('');
-    setSelectedReturnAssetIds([]);
-    if (cust) {
-      if (cust.defaultPaidOptions) setPaidOptions(cust.defaultPaidOptions);
-      if (cust.defaultProtection) setProtection(cust.defaultProtection);
-      if (cust.defaultCheckedSpecs) setCheckedSpecs(cust.defaultCheckedSpecs);
-      if (cust.defaultBillingDay) setClosingDay(cust.defaultBillingDay === 30 || cust.defaultBillingDay === 31 ? '말일' : `${cust.defaultBillingDay}일`);
-      if (cust.paymentDueDay) setPaymentDay(`익월 ${cust.paymentDueDay}일`);
-      if (cust.repEmail && cust.repEmail !== '미상') setTaxBillEmail(cust.repEmail);
-    }
-  };
-
-  // 현장 변경 핸들러
-  const handleSiteChange = (siteId: string) => {
-    setSelectedSiteId(siteId);
-    setSelectedReturnAssetIds([]);
-    if (siteId === 'NEW') {
-      setSiteAddress('');
-      setSiteContactName('');
-      setSiteContactPhone('');
-      setSiteContactPosition('');
-      setSiteContactEmail('');
-      return;
-    }
-    const found = sites.find(s => s.id === siteId);
-    if (found) {
-      const reg = getMobileSiteRegContact(found);
-      setSiteAddress(!isBlankMobileContact(found.address) ? found.address : '');
-      setSiteContactName(reg.name);
-      setSiteContactPhone(reg.phone);
-      setSiteContactPosition(reg.position);
-      setSiteContactEmail(reg.email);
-      if (found.paidOptions) setPaidOptions(typeof found.paidOptions === 'string' ? found.paidOptions : (Array.isArray(found.paidOptions) ? (found.paidOptions as any[]).join(', ') : String(found.paidOptions)));
-      if (found.protection) setProtection(typeof found.protection === 'string' ? found.protection : (Array.isArray(found.protection) ? (found.protection as any[]).join(', ') : String(found.protection)));
-      if (found.checkedSpecs) setCheckedSpecs(found.checkedSpecs);
-
-      const missingCore: string[] = [];
-      if (!reg.name) missingCore.push('성명');
-      if (!reg.phone) missingCore.push('연락처');
-      const missingSub: string[] = [];
-      if (!reg.position) missingSub.push('직책');
-      if (!reg.email) missingSub.push('이메일');
-      if (missingCore.length > 0) {
-        showToast(`[${found.name}] 기존 현장담당자 정보(${[...missingCore, ...missingSub].join(', ')})가 미입력 상태입니다. 부족한 정보를 입력해 주세요.`, 'error');
-      } else if (missingSub.length > 0) {
-        showToast(`[${found.name}] 현장담당자의 부족한 정보(${missingSub.join(', ')})를 추가로 입력해 주세요.`);
-      }
-    }
-  };
-
-  const handleUpdateMobileSiteContactNow = async () => {
-    if (!selectedSite) return;
-    const cleanName = siteContactName.trim();
-    const cleanPhone = siteContactPhone.trim();
-    const cleanPos = siteContactPosition.trim();
-    const cleanEmail = siteContactEmail.trim();
-
-    if (isBlankMobileContact(cleanName)) {
-      showToast('현장 담당자 성명을 입력해주세요.', 'error');
-      return;
-    }
-    if (isBlankMobileContact(cleanPhone) || cleanPhone.replace(/[^0-9]/g, '').length < 9) {
-      showToast('현장 담당자 연락처를 정확히 입력해주세요.', 'error');
-      return;
-    }
-
-    try {
-      const existingList = Array.isArray(selectedSite.contacts)
-        ? selectedSite.contacts.map(c => ({ ...c }))
-        : [];
-      const eqIdx = existingList.findIndex(c => c.contactType === 'EQUIPMENT');
-      const targetIdx = eqIdx >= 0 ? eqIdx : (existingList.length > 0 && !existingList[0].contactType ? 0 : -1);
-
-      if (targetIdx >= 0) {
-        const prevEq = existingList[targetIdx];
-        existingList[targetIdx] = {
-          ...prevEq,
-          id: prevEq.id || `sc-eq-${Date.now()}`,
-          name: cleanName,
-          contactType: 'EQUIPMENT',
-          position: cleanPos || (!isBlankMobileContact(prevEq.position) ? prevEq.position! : '현장담당자'),
-          contact: cleanPhone,
-          email: cleanEmail || (!isBlankMobileContact(prevEq.email) ? prevEq.email! : ''),
-          isPrimary: prevEq.isPrimary ?? true,
-          isActive: true,
-        };
-      } else {
-        existingList.unshift({
-          id: `sc-eq-${Date.now()}`,
-          name: cleanName,
-          contactType: 'EQUIPMENT',
-          position: cleanPos || '현장담당자',
-          contact: cleanPhone,
-          email: cleanEmail || '',
-          isPrimary: true,
-          isActive: true,
-        });
-      }
-
-      const nextEmail = cleanEmail || (!isBlankMobileContact(selectedSite.email) ? selectedSite.email : '');
-      db.updateRow<CustomerSite>('sites', selectedSite.id, {
-        contactName: cleanName,
-        contact: cleanPhone,
-        email: nextEmail || '미상',
-        contacts: existingList,
-        updatedAt: new Date().toISOString(),
-      });
-
-      if (selectedCustomerId) {
-        const matchedContact = (contacts || []).find(
-          ct => ct.customerId === selectedCustomerId && ct.name.replace(/\s/g, '') === cleanName.replace(/\s/g, '')
-        ) || (contacts || []).find(
-          ct => ct.customerId === selectedCustomerId && isBlankMobileContact(ct.name)
-        );
-        if (matchedContact) {
-          db.updateRow<CustomerContact>('contacts', matchedContact.id, {
-            name: cleanName,
-            position: cleanPos || (!isBlankMobileContact(matchedContact.position) ? matchedContact.position : '현장담당자'),
-            contact: cleanPhone,
-            email: cleanEmail || matchedContact.email || '미상',
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          db.insertRow<CustomerContact>('contacts', {
-            customerId: selectedCustomerId,
-            name: cleanName,
-            position: cleanPos || '현장담당자',
-            contact: cleanPhone,
-            email: cleanEmail || '미상',
-            createdAt: new Date().toISOString(),
-          });
-        }
-      }
-
-      await db.awaitPendingWrites();
-      refreshAllData();
-      showToast(`[${selectedSite.name}] 현장담당자 정보(${cleanName} / ${cleanPhone})가 업데이트되었습니다.`);
-    } catch (err: any) {
-      showToast(`현장담당자 업데이트 실패: ${err?.message || ''}`, 'error');
-    }
-  };
-
-  // 임대 가능 자산 규격별 / 모델별 실시간 잔여 재고 집계
-  const availableInventory = useMemo(() => {
-    const stats: Record<string, { total: number; models: { modelName: string; count: number }[] }> = {
-      '19ft': { total: 0, models: [] },
-      '26ft': { total: 0, models: [] },
-      '32ft': { total: 0, models: [] },
-      '40ft': { total: 0, models: [] },
-      '46ft': { total: 0, models: [] },
-      '53ft': { total: 0, models: [] },
-    };
-
-    const modelCountMap: Record<string, { ft: string; count: number }> = {};
-
-    assets
-      .filter(a => a.status === 'AVAILABLE')
-      .forEach(a => {
-        const model = a.modelName?.trim() || '미지정';
-        const ft = inferFeetFromModel(model);
-        if (!modelCountMap[model]) {
-          modelCountMap[model] = { ft, count: 0 };
-        }
-        modelCountMap[model].count += 1;
-      });
-
-    Object.entries(modelCountMap).forEach(([modelName, { ft, count }]) => {
-      if (stats[ft]) {
-        stats[ft].total += count;
-        stats[ft].models.push({ modelName, count });
-      }
-    });
-
-    Object.values(stats).forEach(specStat => {
-      specStat.models.sort((a, b) => b.count - a.count);
-    });
-
-    return stats;
-  }, [assets]);
-
-  // 규격 피트 카드 터치 시: 활성 피트 전환 (해당 스펙의 가용 재고 모델 표시)
-  const handleSelectFt = (ft: string) => {
-    setActiveFt(ft);
-  };
-
-  // 가용 재고 모델 칩 터치 시: 출고 의뢰 장비에 추가 또는 수량 증가
-  const handleAddModelOrder = (ft: string, modelName: string) => {
-    setOrders(prev => {
-      const existsIdx = prev.findIndex(o => o.ft === ft && o.modelName === modelName);
-      if (existsIdx >= 0) {
-        const next = [...prev];
-        next[existsIdx].count += 1;
-        return next;
-      }
-      // 초기 기본 19ft GS-1930(또는 1930) 1대만 있고 사용자가 다른 모델을 처음 선택할 때 교체
-      if (prev.length === 1 && prev[0].count === 1 && (prev[0].modelName === '1930' || prev[0].modelName === 'GS-1930') && prev[0].ft === ft) {
-        return [{ ft, modelName, count: 1 }];
-      }
-      return [...prev, { ft, modelName, count: 1 }];
-    });
-    showToast(`${modelName} 1대가 출고 장비에 추가되었습니다.`);
-  };
-
-  // 규격 수량 변경
-  const handleCountChange = (index: number, delta: number) => {
-    setOrders(prev => {
-      const next = [...prev];
-      const newCount = Math.max(1, next[index].count + delta);
-      next[index].count = newCount;
+  // 아코디언 열림 블록
+  const [openBlocks, setOpenBlocks] = useState<Set<string>>(() => new Set(['CUSTOMER', 'SITE', 'EQUIPMENT']));
+  const toggleBlock = (id: string) => {
+    setOpenBlocks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
-
-  // 규격 추가 (기본 모델 또는 가용 재고 최다 모델 추가)
-  const handleAddSpec = (spec: typeof SPEC_OPTIONS[0]) => {
-    setActiveFt(spec.ft);
-    const topModel = availableInventory[spec.ft]?.models[0]?.modelName || spec.defaultModel;
-    setOrders(prev => {
-      const existsIdx = prev.findIndex(o => o.ft === spec.ft && o.modelName === topModel);
-      if (existsIdx >= 0) {
-        const next = [...prev];
-        next[existsIdx].count += 1;
-        return next;
-      }
-      return [...prev, { ft: spec.ft, modelName: topModel, count: 1 }];
-    });
-    showToast(`${spec.ft} (${topModel}) 1대가 추가되었습니다.`);
+  const setOpenBlock = (id: string | null) => {
+    if (!id) setOpenBlocks(new Set());
+    else setOpenBlocks(prev => new Set(prev).add(id));
   };
 
-  // 규격 삭제
-  const handleRemoveOrder = (index: number) => {
-    if (orders.length <= 1) return;
-    setOrders(prev => prev.filter((_, i) => i !== index));
-  };
+  // 카톡/문자 붙여넣기 및 초안 보관함 드로어 상태
+  const [showTextParserPanel, setShowTextParserPanel] = useState(false);
+  const [rawInput, setRawInput] = useState('');
+  const txtFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showDraftDrawer, setShowDraftDrawer] = useState(false);
+  const [queue, setQueue] = useState<DraftOrder[]>([]);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 
-  // 회수 대상 자산 체크 토글
-  const toggleReturnAsset = (assetId: string) => {
-    setSelectedReturnAssetIds(prev => 
-      prev.includes(assetId) ? prev.filter(id => id !== assetId) : [...prev, assetId]
-    );
-  };
+  // 1. 업무 맥락 및 고객사 상태
+  const [selectedContext, setSelectedContext] = useState<CallContext | null>('ADDITIONAL');
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+  const [showCustModal, setShowCustModal] = useState(false);
+  const [editingCust, setEditingCust] = useState<Partial<Customer> | null>(null);
+  const [isSubmittingCust, setIsSubmittingCust] = useState(false);
 
-  // 저장 및 의뢰 발송 핸들러 (출고 & 회수 통합)
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 2. 현장 및 담당자, 계약 연결, 정산/결제 조건 상태
+  const [siteQuery, setSiteQuery] = useState('');
+  const [selectedSite, setSelectedSite] = useState<CustomerSite | null>(null);
+  const [selectedSiteAddress, setSelectedSiteAddress] = useState('');
+  const [isRegisteringNewSite, setIsRegisteringNewSite] = useState(false);
+  const [selectedSiteMasterId, setSelectedSiteMasterId] = useState('');
+  const [siteMasterSearchQuery, setSiteMasterSearchQuery] = useState('');
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteAddress, setNewSiteAddress] = useState('');
+  const [targetContractId, setTargetContractId] = useState<string>('');
+  const [forceNewContract, setForceNewContract] = useState<boolean>(false);
 
-    if (!selectedCustomerId) {
-      showToast('고객사를 선택해주세요.', 'error');
-      return;
-    }
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactPosition, setContactPosition] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
 
-    const selectedCust = customers.find(c => c.id === selectedCustomerId);
-    if (!selectedCust) return;
+  const [closingDay, setClosingDay] = useState<number>(30);
+  const [statementClosingDay, setStatementClosingDay] = useState<number>(25);
+  const [paymentDueMonthOffset, setPaymentDueMonthOffset] = useState<number>(1);
+  const [paymentDueDay, setPaymentDueDay] = useState<number>(15);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('CASH');
+  const [paymentTermsNote, setPaymentTermsNote] = useState<string>('');
+  const [freightBillingStandard, setFreightBillingStandard] = useState<'3/5' | '2/4'>('3/5');
+  const [taxInvoiceIssueType, setTaxInvoiceIssueType] = useState<'FORWARD' | 'REVERSE'>('FORWARD');
+  const [showEditScheduleForExistingSite, setShowEditScheduleForExistingSite] = useState<boolean>(false);
 
-    if (dispatchMode !== 'RETURN' && (isCustomerRestricted(selectedCust.transactionStatus) || isCustomerClosedBlocked(selectedCust))) {
-      const statusInfo = getCustomerTransactionStatusLabel(selectedCust.transactionStatus, isCustomerClosedBlocked(selectedCust));
-      showToast(`[${selectedCust.name}] 고객사는 [${statusInfo.label}] 상태이므로 출고 요청을 등록할 수 없습니다.`, 'error');
-      return;
-    }
+  // 3. 장비 선택 및 단가 상태 (가상자산 원천 배제 SSOT 연동)
+  const [activeSpecFt, setActiveSpecFt] = useState<string>(initialSpecFt || '19ft');
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
 
-    let finalSiteName = '';
-    if (selectedSiteId === 'NEW') {
-      if (!newSiteName.trim()) {
-        showToast('신규 현장명을 입력해주세요.', 'error');
-        return;
-      }
-      finalSiteName = newSiteName.trim();
-    } else {
-      const foundSite = sites.find(s => s.id === selectedSiteId);
-      if (!foundSite) {
-        showToast('현장을 선택해주세요.', 'error');
-        return;
-      }
-      finalSiteName = foundSite.name;
-    }
+  // 4. 상차/하차 일정 및 시차출고 상태
+  const [loadingDate, setLoadingDate] = useState('');
+  const [loadingTimeType, setLoadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
+  const [loadingTimeVal, setLoadingTimeVal] = useState('');
+  const [unloadingDate, setUnloadingDate] = useState('');
+  const [unloadingTimeType, setUnloadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
+  const [unloadingTimeVal, setUnloadingTimeVal] = useState('');
+  const [staggeredMemo, setStaggeredMemo] = useState('');
 
-    if (!siteAddress.trim()) {
-      showToast('현장 상세 주소를 입력해주세요.', 'error');
-      return;
-    }
+  // 5. 안전옵션, 유상옵션 단가/단위, 교환 회수자산 상태
+  const [retrievalAssetIds, setRetrievalAssetIds] = useState<string[]>([]);
+  const [selectedSafetyOptions, setSelectedSafetyOptions] = useState<Set<string>>(new Set());
+  const [initialSiteOptions, setInitialSiteOptions] = useState<Set<string>>(new Set());
+  const [confirmNoSafetyOptions, setConfirmNoSafetyOptions] = useState<boolean>(false);
+  const [newOptionInput, setNewOptionInput] = useState('');
+  const [paidOptionPrices, setPaidOptionPrices] = useState<Record<string, number>>({});
+  const [paidOptionUnits, setPaidOptionUnits] = useState<Record<string, '월' | '대' | '건' | '수량'>>({});
+  const [paidOptionQtys, setPaidOptionQtys] = useState<Record<string, number>>({});
+  const [showSiteMasterPickerInSection5, setShowSiteMasterPickerInSection5] = useState(false);
+  const [showOptionSaveConfirmModal, setShowOptionSaveConfirmModal] = useState(false);
 
-    if (isBlankMobileContact(siteContactName)) {
-      showToast('현장 담당자 성명을 입력해주세요. (미입력 상태)', 'error');
-      return;
-    }
+  // 6. 희망 차종, 운송비 부담, 특이사항 메모
+  const [vehicleType, setVehicleType] = useState<string>('5T');
+  const [paidBy, setPaidBy] = useState<PaidBy | null>(null);
+  const [note, setNote] = useState('');
 
-    if (isBlankMobileContact(siteContactPhone) || siteContactPhone.replace(/[^0-9]/g, '').length < 9) {
-      showToast('현장 담당자 연락처를 정확히 입력해주세요.', 'error');
-      return;
-    }
+  // 제출 및 완료 모달 상태
+  const [isSubmittingDispatch, setIsSubmittingDispatch] = useState(false);
+  const [successModalInfo, setSuccessModalInfo] = useState<{
+    contractId: string;
+    contractNo: string;
+    customerName: string;
+    siteName: string;
+    siteAddress: string;
+    equipments: { modelName: string; qty: number }[];
+    totalQty: number;
+    loadingTime: string;
+    unloadingTime: string;
+    generatedHtml: string;
+  } | null>(null);
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    if (deliveryDate && deliveryDate < todayStr) {
-      showToast('배차 희망일은 오늘 이후 날짜를 선택해주세요.', 'error');
-      return;
-    }
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const showToast = useCallback((msg: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }, []);
 
-    setIsSubmitting(true);
+  const isNewCustomerMode = selectedContext === 'NEW_CUSTOMER';
+  const isExchangeMode = selectedContext === 'EXCHANGE';
+
+  const isProtectionOption = useCallback(
+    (label: string) => classifyOptionCategory(label, standardOptions) === 'FREE',
+    [standardOptions]
+  );
+  const isAttachmentOption = useCallback(
+    (label: string) => classifyOptionCategory(label, standardOptions) === 'ATTACHMENT',
+    [standardOptions]
+  );
+  const isSpecOption = useCallback(
+    (label: string) => classifyOptionCategory(label, standardOptions) === 'SPEC',
+    [standardOptions]
+  );
+
+  // 초안 로드
+  const loadDrafts = useCallback(async () => {
     try {
-      // 🌟 기존 현장의 담당자 정보가 미입력/변경되었을 경우 회수·교환 모드에서도 현장담당자 정보 즉시 동기화
-      if (
-        selectedSite &&
-        dispatchMode !== 'DISPATCH' &&
-        (selectedSiteMissingFields.length > 0 ||
-          siteContactName.trim() !== selectedSiteRegContact.name ||
-          siteContactPhone.trim() !== selectedSiteRegContact.phone ||
-          siteContactPosition.trim() !== selectedSiteRegContact.position ||
-          siteContactEmail.trim() !== selectedSiteRegContact.email)
-      ) {
-        await handleUpdateMobileSiteContactNow();
-      }
+      const list = await fetchMyDrafts();
+      setQueue((list || []) as any);
+    } catch {}
+  }, []);
 
-      // 🔄 CASE 1: 회수의뢰
-      if (dispatchMode === 'RETURN') {
-        if (selectedReturnAssetIds.length === 0) {
-          showToast('회수할 장비를 1대 이상 선택해주세요.', 'error');
-          setIsSubmitting(false);
-          return;
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  // 초기 고객사 딥링크 처리
+  useEffect(() => {
+    if (initialCustomerId && customers.length > 0 && !selectedCustomer) {
+      const found = customers.find(c => c.id === initialCustomerId);
+      if (found) {
+        setSelectedCustomer(found);
+      }
+    }
+  }, [initialCustomerId, customers, selectedCustomer]);
+
+  // ── 가용재고 SSOT 계산 (가상자산 원천 제외) ──────────────────────────
+  const catalogModels = useMemo(() => {
+    const ssotResult = calculateAvailableInventorySSOT({
+      products: products && products.length > 0 ? products : db.products,
+      assets: assets && assets.length > 0 ? assets : db.assets,
+      contracts,
+      contractAssets,
+      deliveries,
+      outboundInspections
+    });
+    const ssotAvailMap = new Map<string, number>();
+    const ssotTotalMap = new Map<string, number>();
+    for (const r of ssotResult.allInventoryRows) {
+      const cKey = getCanonicalModelKey(r.modelName);
+      const uKey = r.modelName.trim().toUpperCase();
+      const avail = Math.max(0, r.availableContractQty);
+      const total = r.stockOwned + r.stockRented;
+      if (cKey) {
+        ssotAvailMap.set(cKey, avail);
+        ssotTotalMap.set(cKey, total);
+      }
+      if (uKey) {
+        ssotAvailMap.set(uKey, avail);
+        ssotTotalMap.set(uKey, total);
+      }
+    }
+
+    const modelMap = new Map<
+      string,
+      { modelName: string; specFt: string; category: string; availableCount: number; totalCount: number }
+    >();
+
+    const allProds = products && products.length > 0 ? products : db.products;
+    for (const p of allProds) {
+      if (!p.modelName || String(p.modelName).includes('가상')) continue;
+      const key = getCanonicalModelKey(p.modelName);
+      if (!key || key.includes('가상')) continue;
+      if (!modelMap.has(key)) {
+        const up = key.toUpperCase();
+        let ft = p.feet ? `${p.feet}ft` : '특수/기타';
+        if (!p.feet) {
+          if (up.includes('19') || up.includes('3219') || up.includes('20') || up.includes('3220') || up.includes('0607')) ft = '19ft';
+          else if (up.includes('26') || up.includes('3226') || up.includes('4626') || up.includes('1008') || up.includes('1012')) ft = '26ft';
+          else if (up.includes('32') || up.includes('4632') || up.includes('1212')) ft = '32ft';
+          else if (up.includes('40') || up.includes('4740') || up.includes('1412')) ft = '40ft';
+          else if (up.includes('45') || up.includes('46') || up.includes('50') || up.includes('1612')) ft = '46ft';
         }
-
-        // 선택된 자산들이 속한 계약 찾기
-        const contractId = siteRentedAssets.find(ra => selectedReturnAssetIds.includes(ra.assetId))?.contractId;
-
-        await saveSmartReturn({
-          contractId,
-          returnDate: deliveryDate,
-          assetIds: selectedReturnAssetIds,
-          loadingTime: deliveryTime,
-          contactName: siteContactName.trim() || '현장담당자',
-          contactPhone: siteContactPhone.trim(),
-          note: `[모바일 회수의뢰] ${memo}`.trim()
+        modelMap.set(key, {
+          modelName: key,
+          specFt: ft,
+          category: p.manufacturer || '고소작업대',
+          availableCount: ssotAvailMap.get(key) ?? 0,
+          totalCount: ssotTotalMap.get(key) ?? 0
         });
-
-        clearVoiceOrderDraft();
-        setCreatedResult({
-          isReturn: true,
-          contractNo: `회수의뢰 (장비 ${selectedReturnAssetIds.length}대)`,
-          siteName: finalSiteName,
-          totalCount: selectedReturnAssetIds.length
-        });
-        setIsSubmitting(false);
-        return;
       }
+    }
 
-      // 🔄 CASE 2: 교환 의뢰 (EXCHANGE - 헌장 2.3 단일 EXCHANGE 왕복 배차 1건 발행)
-      if (dispatchMode === 'EXCHANGE') {
-        if (selectedReturnAssetIds.length === 0) {
-          showToast('교체할 기존 대여 장비를 선택해주세요.', 'error');
-          setIsSubmitting(false);
-          return;
+    for (const a of assets) {
+      if ((a as any).isDeleted || isVirtualAsset(a) || a.actualRentReturnDate) continue;
+      const rawKey = (a.modelName || '').trim();
+      if (!rawKey) continue;
+      const key = getCanonicalModelKey(rawKey);
+      if (!key || key.includes('가상')) continue;
+
+      if (!modelMap.has(key)) {
+        const up = key.toUpperCase();
+        let ft = '특수/기타';
+        if (up.includes('19') || up.includes('3219') || up.includes('20') || up.includes('3220') || up.includes('0607')) ft = '19ft';
+        else if (up.includes('26') || up.includes('3226') || up.includes('4626') || up.includes('1008') || up.includes('1012')) ft = '26ft';
+        else if (up.includes('32') || up.includes('4632') || up.includes('1212')) ft = '32ft';
+        else if (up.includes('40') || up.includes('4740') || up.includes('1412')) ft = '40ft';
+        else if (up.includes('45') || up.includes('46') || up.includes('50') || up.includes('1612')) ft = '46ft';
+
+        modelMap.set(key, {
+          modelName: key,
+          specFt: ft,
+          category: a.manufacturer || '고소작업대',
+          availableCount: ssotAvailMap.get(key) ?? 0,
+          totalCount: ssotTotalMap.get(key) ?? 0
+        });
+      }
+    }
+
+    for (const spec of EQUIPMENT_SPEC_MATRIX) {
+      if (!spec.modelName || String(spec.modelName).includes('가상')) continue;
+      const key = getCanonicalModelKey(spec.modelName);
+      if (key && !modelMap.has(key)) {
+        modelMap.set(key, {
+          modelName: key,
+          specFt: spec.ft || '특수/기타',
+          category: spec.manufacturer || '고소작업대',
+          availableCount: ssotAvailMap.get(key) ?? 0,
+          totalCount: ssotTotalMap.get(key) ?? 0
+        });
+      }
+    }
+
+    return Array.from(modelMap.values()).sort(
+      (a, b) => b.availableCount - a.availableCount || a.modelName.localeCompare(b.modelName)
+    );
+  }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
+
+  const catalogModelMap = useMemo(() => {
+    const map = new Map<string, (typeof catalogModels)[number]>();
+    for (const m of catalogModels) map.set(m.modelName, m);
+    return map;
+  }, [catalogModels]);
+
+  const { specFtOrder, modelsByFtMap, availUnitsByFtMap } = useMemo(() => {
+    const order = ['19ft', '26ft', '32ft', '40ft', '46ft', '특수/기타', '전체'];
+    const map = new Map<string, typeof catalogModels>();
+    const availMap = new Map<string, number>();
+    for (const ft of order) {
+      map.set(ft, []);
+      availMap.set(ft, 0);
+    }
+    let totalAllAvail = 0;
+    for (const m of catalogModels) {
+      const bucket = order.includes(m.specFt) ? m.specFt : '특수/기타';
+      map.get(bucket)!.push(m);
+      map.get('전체')!.push(m);
+      availMap.set(bucket, (availMap.get(bucket) || 0) + Math.max(0, m.availableCount));
+      totalAllAvail += Math.max(0, m.availableCount);
+    }
+    availMap.set('전체', totalAllAvail);
+    return { specFtOrder: order, modelsByFtMap: map, availUnitsByFtMap: availMap };
+  }, [catalogModels]);
+
+  const visibleModelsForCurrentFt = useMemo(() => {
+    const base = modelsByFtMap.get(activeSpecFt) || catalogModels;
+    const q = modelSearchQuery.trim();
+    if (!q) return base;
+    const matcher = createHangulMatcher(q);
+    return catalogModels.filter(m => matcher.test(m.modelName) || matcher.test(m.specFt) || matcher.test(m.category));
+  }, [modelsByFtMap, activeSpecFt, catalogModels, modelSearchQuery]);
+
+  // 현장별 계약 메타 맵
+  const siteContractMetaMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { activeContract?: any; completedContract?: any; activeAssetCount: number }
+    >();
+    const activeCountByContract = new Map<string, number>();
+    (contractAssets || []).forEach(ca => {
+      if (ca && ca.contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD') {
+        activeCountByContract.set(ca.contractId, (activeCountByContract.get(ca.contractId) || 0) + 1);
+      }
+    });
+
+    (contracts || []).forEach(c => {
+      if (!c || !c.siteId || (c.status as string) === 'CANCELLED') return;
+      const prev = map.get(c.siteId) || { activeAssetCount: 0 };
+      const st = (c.status || '').toUpperCase();
+      if (st === 'ACTIVE' || st === 'PENDING') {
+        if (!prev.activeContract || (c.createdAt || '') > (prev.activeContract.createdAt || '')) {
+          prev.activeContract = c;
         }
-
-        const totalEquipCount = orders.reduce((sum, o) => sum + Math.max(0, Math.floor(o.count || 0)), 0);
-        if (totalEquipCount <= 0) {
-          showToast('투입 요구 장비를 1대 이상 지정해주세요.', 'error');
-          setIsSubmitting(false);
-          return;
+        prev.activeAssetCount += activeCountByContract.get(c.id) || 0;
+      } else {
+        if (!prev.completedContract || (c.createdAt || '') > (prev.completedContract.createdAt || '')) {
+          prev.completedContract = c;
         }
-
-        const firstOldAssetId = selectedReturnAssetIds[0];
-        const targetContractId = siteRentedAssets.find(ra => ra.assetId === firstOldAssetId)?.contractId || '';
-        const targetContract = contracts.find(c => c.id === targetContractId);
-
-        const oldAssetsSummary = selectedReturnAssetIds.map(id => {
-          const a = assets.find(ast => ast.id === id);
-          return a ? `${a.assetNo}(${a.modelName})` : id;
-        }).join(', ');
-
-        const newAssetsSummary = orders.map(o => `${o.modelName || o.ft} ${o.count}대`).join(', ');
-
-        // 1. contractHistory 기록 (헌장 2.2 계약 속성 100% 자동 상속)
-        db.insertRow<ContractHistory>('contractHistory', {
-          contractId: targetContractId,
-          changeType: 'EXCHANGE',
-          changeDate: deliveryDate,
-          description: `[모바일 교환 의뢰 접수] 회수(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 투입요구(${totalEquipCount}대): ${newAssetsSummary} (기존 계약조건 자동 상속)`,
-          createdAt: new Date().toISOString()
-        });
-
-        const prevDateObj = new Date(deliveryDate);
-        prevDateObj.setDate(prevDateObj.getDate() - 1);
-        const dayBeforeDelivery = prevDateObj.toISOString().split('T')[0];
-
-        let lastMonthlyFee = 0;
-        let lastDailyFee = 0;
-
-        // 1-1. 기존 ContractAsset 일괄 종료 처리 (헌장 1.2 & 4.1)
-        selectedReturnAssetIds.forEach(oldAssetId => {
-          const targetOldCA = contractAssets.find(ca => ca.contractId === targetContractId && ca.assetId === oldAssetId);
-          if (targetOldCA) {
-            if (targetOldCA.monthlyRentalFee > 0) lastMonthlyFee = targetOldCA.monthlyRentalFee;
-            if (targetOldCA.dailyRentalFee > 0) lastDailyFee = targetOldCA.dailyRentalFee;
-
-            db.updateRow<ContractAsset>('contractAssets', targetOldCA.id, {
-              endDate: dayBeforeDelivery,
-              status: 'RETURNED',
-              actualReturnDate: deliveryDate,
-              updatedAt: new Date().toISOString()
-            });
-          }
-        });
-
-        // 1-2. 출고 부서를 위한 대차 출고 슬롯 자동 생성 (헌장 2.2 단가 100% 자동 상속)
-        orders.forEach(o => {
-          const safeCount = Math.max(1, Math.floor(o.count || 1));
-          for (let i = 0; i < safeCount; i++) {
-            db.insertRow<ContractAsset>('contractAssets', {
-              contractId: targetContractId,
-              assetId: undefined,
-              expectedModel: o.modelName || o.ft,
-              monthlyRentalFee: lastMonthlyFee,
-              dailyRentalFee: lastDailyFee,
-              startDate: deliveryDate,
-              endDate: targetContract?.endDate || '미정',
-              status: 'ACTIVE',
-              createdAt: new Date().toISOString()
-            });
-          }
-        });
-
-        // 2. 단일 대차 요구에 대해 'EXCHANGE' (교환 왕복 배차) 1건만 발행 (헌장 2.3)
-        const contactInfoMemo = siteContactName || siteContactPhone
-          ? `[고객담당자: ${siteContactName || '-'} (${siteContactPhone || '-'})] `
-          : '';
-
-        db.insertRow<Delivery>('deliveries', {
-          contractId: targetContractId,
-          assetIds: selectedReturnAssetIds.join(','),
-          type: 'EXCHANGE',
-          dispatchCategory: '교환',
-          status: 'REQUESTED',
-          requestDate: deliveryDate,
-          scheduledDate: deliveryDate,
-          loadingDate: deliveryDate,
-          loadingTimeSlot: deliveryTime,
-          unloadingDate: deliveryDate,
-          unloadingTimeSlot: deliveryTime,
-          originAddress: `${selectedCust.name} (${finalSiteName})`,
-          destinationAddress: `${selectedCust.name} (${finalSiteName})`,
-          memo: `[모바일 대차/교환 왕복 배차] ${contactInfoMemo}회수대상(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 대차출고요구(${totalEquipCount}대): ${newAssetsSummary} | 사유: ${memo.trim() || '현장 고장 교체'}`,
-          vehicleType: '5톤 렉카',
-          driverName: '',
-          deliveryCost: 0,
-          expectedCost: 0,
-          finalCost: 0,
-          deliveryCostConfirmed: 0,
-          isCostSettled: false,
-          reconciliationStatus: 'PENDING',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-
-        await db.awaitPendingWrites();
-        refreshAllData();
-
-        // 📢 대차교체 의뢰 등록 알림 브로드캐스트
-        broadcastWorkNotification({
-          type: 'EXCHANGE',
-          title: '대차 교체 의뢰 등록',
-          body: `${selectedCust.name} (${finalSiteName}) 회수 ${selectedReturnAssetIds.length}대 ➔ 투입 ${totalEquipCount}대`,
-          url: '/admin/dispatch',
-          targetDepts: ['DISPATCH', 'YARD', 'ADMIN', 'EXECUTIVE']
-        }).catch(console.warn);
-
-        clearVoiceOrderDraft();
-        setCreatedResult({
-          isReturn: false,
-          contractNo: `대차교환 (회수 ${selectedReturnAssetIds.length}대 ➔ 투입 ${totalEquipCount}대)`,
-          siteName: finalSiteName,
-          totalCount: totalEquipCount
-        });
-        setIsSubmitting(false);
-        return;
       }
+      map.set(c.siteId, prev);
+    });
+    return map;
+  }, [contracts, contractAssets]);
 
-      // 🚀 CASE 2: 출고의뢰
-      const totalEquipCount = orders.reduce((sum, o) => sum + Math.max(0, Math.floor(o.count || 0)), 0);
-      if (totalEquipCount <= 0) {
-        showToast('출고 장비를 1대 이상 추가해주세요.', 'error');
-        setIsSubmitting(false);
-        return;
-      }
+  const customerExistingContracts = useMemo(() => {
+    if (!selectedCustomer) return [];
+    const list: { contract: any; siteName: string; isActive: boolean; assetCount: number }[] = [];
+    (contracts || []).forEach(c => {
+      if (!c || c.customerId !== selectedCustomer.id || (c.status as string) === 'CANCELLED') return;
+      const siteObj = sites.find(s => s.id === c.siteId);
+      const st = (c.status || '').toUpperCase();
+      const isActive = st === 'ACTIVE' || st === 'PENDING';
+      const assetCount = (contractAssets || []).filter(
+        ca => ca && ca.contractId === c.id && ca.status !== 'RETURNED' && ca.status !== 'SOLD'
+      ).length;
+      list.push({
+        contract: c,
+        siteName: siteObj?.name || '현장 미지정',
+        isActive,
+        assetCount
+      });
+    });
+    return list.sort((a, b) => Number(b.isActive) - Number(a.isActive));
+  }, [selectedCustomer, contracts, sites, contractAssets]);
 
-      const equipmentsList: any[] = [];
-      orders.forEach(o => {
-        const assignedMonthly = Math.max(0, Number((o as any).monthlyRate ?? (o as any).monthlyRent ?? (o as any).monthlyRentalFee) || 0);
-        const assignedDaily = Math.max(0, Number((o as any).dailyRate ?? (o as any).dailyRent ?? (o as any).dailyRentalFee) || (assignedMonthly > 0 ? Math.round(assignedMonthly / 30) : 0));
-        const safeCount = Math.max(1, Math.floor(o.count || 1));
+  const filteredCustomers = useMemo(() => {
+    const q = customerQuery.trim();
+    const activeCusts = sortCustomersByName(customers.filter(c => !c.isClosed));
+    if (!q) return activeCusts.slice(0, 30);
+    const matcher = createHangulMatcher(q);
+    return activeCusts.filter(c => matcher.test(c.name) || matcher.test(c.bizRegNo || '')).slice(0, 40);
+  }, [customers, customerQuery]);
 
-        for (let i = 0; i < safeCount; i++) {
-          equipmentsList.push({
-            modelName: o.modelName || o.ft,
-            spec: o.ft,
-            monthlyRent: assignedMonthly,
-            dailyRent: assignedDaily,
+  const customerSites = useMemo(() => {
+    if (!selectedCustomer) return [];
+    const q = siteQuery.trim();
+    const base = sites.filter(s => s.customerId === selectedCustomer.id && s.isActive !== false);
+    const matcher = q ? createHangulMatcher(q) : null;
+    const filtered = matcher ? base.filter(s => matcher.test(s.name) || matcher.test(s.address || '')) : base;
+    return filtered.sort((a, b) => {
+      const ma = siteContractMetaMap.get(a.id);
+      const mb = siteContractMetaMap.get(b.id);
+      const scoreA = ma?.activeContract ? 2 : ma?.completedContract ? 1 : 0;
+      const scoreB = mb?.activeContract ? 2 : mb?.completedContract ? 1 : 0;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return (a.name || '').localeCompare(b.name || '', 'ko');
+    });
+  }, [selectedCustomer, sites, siteQuery, siteContractMetaMap]);
+
+  const filteredSiteMasters = useMemo(() => {
+    const q = siteMasterSearchQuery.trim();
+    const list = (siteMasters || []).slice();
+    if (!q) return list;
+    const matcher = createHangulMatcher(q);
+    return list.filter(sm => matcher.test(sm.name) || matcher.test(sm.paidOptions || '') || matcher.test(sm.protection || ''));
+  }, [siteMasters, siteMasterSearchQuery]);
+
+  // 안전옵션 로드 헬퍼
+  const loadSiteSafetyOptions = useCallback(
+    (site: CustomerSite | null, cust: Customer | null): Set<string> => {
+      const opts = new Set<string>();
+      const sm = site?.siteMasterId ? (siteMasters || []).find(m => m.id === site.siteMasterId) : undefined;
+
+      if (site) {
+        if (site.paidOptions) parseOptionString(site.paidOptions, standardOptions).forEach(o => opts.add(o));
+        if (site.protection && site.protection !== 'NONE') parseOptionString(site.protection, standardOptions).forEach(o => opts.add(o));
+        if (site.attachments && site.attachments !== 'NONE') parseOptionString(site.attachments, standardOptions).forEach(o => opts.add(o));
+        if (site.checkedSpecs && typeof site.checkedSpecs === 'object') {
+          Object.entries(site.checkedSpecs).forEach(([k, v]) => {
+            if (!v || k.startsWith('__')) return;
+            const matched = (standardOptions || []).find(o => o && o.isActive && (o.id === k || o.name === k));
+            if (matched?.name) opts.add(matched.name);
           });
         }
-      });
+      }
 
-      const payload = {
-        customerName: selectedCust.name,
-        siteName: finalSiteName,
-        siteAddress: siteAddress.trim(),
-        salespersonName: currentUser?.name || '영업담당',
-        salespersonPhone: currentUser?.phone || '',
-        siteContactName: siteContactName.trim(),
-        siteContactPhone: siteContactPhone.trim(),
-        siteContactPosition: siteContactPosition.trim(),
-        siteContactEmail: siteContactEmail.trim(),
+      if (opts.size === 0 && sm) {
+        if (sm.paidOptions) parseOptionString(sm.paidOptions, standardOptions).forEach(o => opts.add(o));
+        if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection, standardOptions).forEach(o => opts.add(o));
+        if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments, standardOptions).forEach(o => opts.add(o));
+      }
+
+      if (opts.size === 0 && cust) {
+        if (cust.defaultPaidOptions) parseOptionString(cust.defaultPaidOptions, standardOptions).forEach(o => opts.add(o));
+        if (cust.defaultProtection && cust.defaultProtection !== 'NONE') {
+          parseOptionString(cust.defaultProtection, standardOptions).forEach(o => opts.add(o));
+        }
+      }
+
+      setSelectedSafetyOptions(new Set(opts));
+      setInitialSiteOptions(new Set(opts));
+      const savedPrices = extractAppliedPricesFromSpecs(
+        standardOptions || [],
+        site?.checkedSpecs,
+        sm?.checkedSpecs,
+        (cust as any)?.defaultCheckedSpecs
+      );
+      setPaidOptionPrices(savedPrices);
+      return opts;
+    },
+    [siteMasters, standardOptions]
+  );
+
+  const resolveSiteFreightBillingStandard = useCallback(
+    (cust: Customer | null, site: CustomerSite | null): '3/5' | '2/4' => {
+      if (site) {
+        const siteStd = site.freightBillingStandard || (site.checkedSpecs && (site.checkedSpecs as any).__freightBillingStandard);
+        if (siteStd === '2/4' || siteStd === '3/5') return siteStd;
+        const siteMeta = siteContractMetaMap.get(site.id);
+        const siteContract = siteMeta?.activeContract || siteMeta?.completedContract;
+        if (siteContract?.freightBillingStandard === '2/4' || siteContract?.freightBillingStandard === '3/5') {
+          return siteContract.freightBillingStandard;
+        }
+      }
+      if (cust) {
+        const custStd = cust.defaultFreightBillingStandard || (cust.defaultCheckedSpecs && (cust.defaultCheckedSpecs as any).__freightBillingStandard);
+        if (custStd === '2/4' || custStd === '3/5') return custStd;
+      }
+      return '3/5';
+    },
+    [siteContractMetaMap]
+  );
+
+  const applyInheritance = useCallback(
+    (cust: Customer | null, site: CustomerSite | null) => {
+      if (!cust) {
+        setContactPerson('');
+        setContactPhone('');
+        setContactPosition('');
+        setContactEmail('');
+        setClosingDay(30);
+        setStatementClosingDay(25);
+        setPaymentDueMonthOffset(1);
+        setPaymentDueDay(15);
+        setPaymentMethod('CASH');
+        setPaymentTermsNote('');
+        setFreightBillingStandard('3/5');
+        setTaxInvoiceIssueType('FORWARD');
+        setShowEditScheduleForExistingSite(false);
+        return;
+      }
+
+      const custContacts = contacts.filter(c => c.customerId === cust.id && !isBlankContactVal(c.name));
+      const primary = custContacts[0];
+      const tIssue: 'FORWARD' | 'REVERSE' =
+        site?.taxInvoiceIssueType === 'REVERSE' || (site?.checkedSpecs as any)?.__taxInvoiceIssueType === 'REVERSE'
+          ? 'REVERSE'
+          : cust.defaultTaxInvoiceIssueType === 'REVERSE'
+            ? 'REVERSE'
+            : 'FORWARD';
+      const bDay =
+        site?.billingDay !== undefined && site?.billingDay !== null
+          ? site.billingDay
+          : cust.defaultBillingDay !== undefined && cust.defaultBillingDay !== null
+            ? cust.defaultBillingDay
+            : tIssue === 'REVERSE'
+              ? 0
+              : 30;
+      const sDay = site?.statementClosingDay || cust.defaultStatementClosingDay || 25;
+      const pOffset =
+        site?.paymentDueMonthOffset !== undefined && site?.paymentDueMonthOffset !== null
+          ? site.paymentDueMonthOffset
+          : cust.paymentDueMonthOffset !== undefined && cust.paymentDueMonthOffset !== null
+            ? cust.paymentDueMonthOffset
+            : 1;
+      const pDay = site?.paymentDueDay || cust.paymentDueDay || 15;
+      const pMethod: PaymentMethodType = site?.paymentMethod || cust.defaultPaymentMethod || 'CASH';
+      const pNote: string = site?.paymentTermsNote ?? cust.defaultPaymentTermsNote ?? '';
+      const fStd = resolveSiteFreightBillingStandard(cust, site);
+
+      setClosingDay(bDay);
+      setStatementClosingDay(sDay);
+      setPaymentDueMonthOffset(pOffset);
+      setPaymentDueDay(pDay);
+      setPaymentMethod(pMethod);
+      setPaymentTermsNote(pNote);
+      setFreightBillingStandard(fStd);
+      setTaxInvoiceIssueType(tIssue);
+      setShowEditScheduleForExistingSite(false);
+
+      if (site) {
+        const reg = getSiteRegisteredContact(site);
+        setContactPerson(reg.name);
+        setContactPhone(reg.phone);
+        setContactPosition(reg.position);
+        setContactEmail(reg.email);
+        return;
+      }
+
+      if (primary) {
+        setContactPerson(!isBlankContactVal(primary.name) ? primary.name : '');
+        setContactPhone(!isBlankContactVal((primary as any).contact) ? (primary as any).contact : '');
+        setContactPosition(!isBlankContactVal(primary.position) ? primary.position || '' : '');
+        setContactEmail(!isBlankContactVal(primary.email) ? primary.email || '' : '');
+      } else {
+        setContactPerson('');
+        setContactPhone('');
+        setContactPosition('');
+        setContactEmail('');
+      }
+    },
+    [contacts, resolveSiteFreightBillingStandard]
+  );
+
+  const handleSelectCustomer = (cust: Customer) => {
+    if (isCustomerRestricted(cust.transactionStatus) || isCustomerClosedBlocked(cust)) {
+      const statusInfo = getCustomerTransactionStatusLabel(cust.transactionStatus, isCustomerClosedBlocked(cust));
+      showToast(`[${cust.name}] 고객사는 현재 [${statusInfo.label}] 상태이므로 선택할 수 없습니다.`, 'error');
+      return;
+    }
+    setSelectedCustomer(cust);
+    setCustomerQuery('');
+    setSelectedSite(null);
+    setSelectedSiteAddress('');
+    setIsRegisteringNewSite(false);
+    setTargetContractId('');
+    setForceNewContract(false);
+    setSiteQuery('');
+    applyInheritance(cust, null);
+    loadSiteSafetyOptions(null, cust);
+    setOpenBlock('SITE');
+  };
+
+  const handleSelectSite = (site: CustomerSite) => {
+    setSelectedSite(site);
+    setSelectedSiteAddress(site.address || '');
+    setSelectedSiteMasterId(site.siteMasterId || '');
+    setIsRegisteringNewSite(false);
+    setSiteQuery('');
+    applyInheritance(selectedCustomer, site);
+
+    const siteMeta = siteContractMetaMap.get(site.id);
+    const directContract = siteMeta?.activeContract || siteMeta?.completedContract;
+    if (directContract) {
+      setTargetContractId(directContract.id);
+      setForceNewContract(false);
+    } else {
+      setTargetContractId('');
+      setForceNewContract(false);
+    }
+
+    loadSiteSafetyOptions(site, selectedCustomer);
+    setOpenBlock('EQUIPMENT');
+  };
+
+  const selectedSiteRegContact = useMemo(() => getSiteRegisteredContact(selectedSite), [selectedSite]);
+  const isSelectedSiteContactModified = useMemo(() => {
+    if (!selectedSite) return false;
+    return (
+      contactPerson.trim() !== selectedSiteRegContact.name ||
+      contactPhone.trim() !== selectedSiteRegContact.phone ||
+      contactPosition.trim() !== selectedSiteRegContact.position ||
+      contactEmail.trim() !== selectedSiteRegContact.email
+    );
+  }, [selectedSite, contactPerson, contactPhone, contactPosition, contactEmail, selectedSiteRegContact]);
+
+  const handleUpdateSiteContactImmediate = async () => {
+    if (!selectedSite) return;
+    const cleanName = contactPerson.trim();
+    const cleanPhone = contactPhone.trim();
+    const cleanPos = contactPosition.trim();
+    const cleanEmail = contactEmail.trim();
+
+    if (isBlankContactVal(cleanName) || isBlankContactVal(cleanPhone)) {
+      showToast('현장 담당자 성명과 연락처를 모두 입력해 주십시오.', 'error');
+      return;
+    }
+
+    try {
+      const existingList = Array.isArray(selectedSite.contacts) ? selectedSite.contacts.map(c => ({ ...c })) : [];
+      existingList.unshift({
+        id: `sc-eq-${Date.now()}`,
+        name: cleanName,
+        contactType: 'EQUIPMENT',
+        position: cleanPos || '현장담당자',
+        contact: cleanPhone,
+        email: cleanEmail || '',
+        isPrimary: true,
+        isActive: true
+      });
+      const updated = db.updateRow<CustomerSite>('sites', selectedSite.id, {
+        contactName: cleanName,
+        contact: cleanPhone,
+        email: cleanEmail || '미상',
+        contacts: existingList,
+        updatedAt: new Date().toISOString()
+      });
+      await db.awaitPendingWrites();
+      if (updated) setSelectedSite(updated);
+      refreshAllData();
+      showToast(`[${selectedSite.name}] 현장담당자 정보가 업데이트되었습니다.`, 'success');
+    } catch (e: any) {
+      showToast(`현장담당자 업데이트 오류: ${e?.message}`, 'error');
+    }
+  };
+
+  // 장비 추가/수량/단가 조작
+  const addOrIncrementModel = (modelName: string) => {
+    setEquipments(prev => {
+      const idx = prev.findIndex(e => e.modelName === modelName);
+      if (idx >= 0) {
+        const u = [...prev];
+        u[idx] = { ...u[idx], qty: (u[idx].qty || 1) + 1 };
+        return u;
+      }
+      return [...prev, { modelName, qty: 1, monthlyRate: 0, dailyRate: 0 }];
+    });
+  };
+  const changeModelQty = (index: number, delta: number) => {
+    setEquipments(prev => {
+      const u = [...prev];
+      const q = (u[index].qty || 1) + delta;
+      if (q <= 0) return prev.filter((_, i) => i !== index);
+      u[index] = { ...u[index], qty: q };
+      return u;
+    });
+  };
+  const setModelRate = (index: number, field: 'monthlyRate' | 'dailyRate', val: number) => {
+    setEquipments(prev => {
+      const u = [...prev];
+      if (field === 'monthlyRate') {
+        u[index] = { ...u[index], monthlyRate: val, dailyRate: val > 0 ? Math.round(val / 30) : 0 };
+      } else {
+        u[index] = { ...u[index], dailyRate: val };
+      }
+      return u;
+    });
+  };
+
+  const totalQty = useMemo(() => equipments.reduce((s, e) => s + e.qty, 0), [equipments]);
+  const pickedModelSet = useMemo(() => new Set(equipments.map(e => e.modelName)), [equipments]);
+  const totalAvailShortage = useMemo(() => {
+    let shortage = 0;
+    for (const eq of equipments) {
+      const avail = catalogModelMap.get(eq.modelName)?.availableCount ?? 0;
+      shortage += Math.max(0, eq.qty - avail);
+    }
+    return shortage;
+  }, [equipments, catalogModelMap]);
+
+  // 유상옵션 마스터 매핑
+  const selectedPaidMasterOptions = useMemo(() => {
+    const paidList: StandardOption[] = [];
+    Array.from(selectedSafetyOptions).forEach(label => {
+      if (isProtectionOption(label) || isAttachmentOption(label) || isSpecOption(label)) return;
+      const clean = stripOptionPrice(label).replace(/\s+/g, '');
+      const matched = (standardOptions || []).find(
+        o => o && o.isActive !== false && o.category === 'PAID' && o.name.replace(/\s+/g, '') === clean
+      );
+      if (matched && !paidList.some(p => p.id === matched.id)) {
+        paidList.push(matched);
+      }
+    });
+    return paidList;
+  }, [selectedSafetyOptions, standardOptions, isProtectionOption, isAttachmentOption, isSpecOption]);
+
+  useEffect(() => {
+    setPaidOptionPrices(prev => {
+      const next: Record<string, number> = {};
+      selectedPaidMasterOptions.forEach(opt => {
+        next[opt.name] = prev[opt.name] !== undefined ? prev[opt.name] : (opt.defaultPrice || 0);
+      });
+      return next;
+    });
+    setPaidOptionUnits(prev => {
+      const next: Record<string, '월' | '대' | '건' | '수량'> = {};
+      selectedPaidMasterOptions.forEach(opt => {
+        const defU = (opt.unit || '월').trim();
+        const normU: '월' | '대' | '건' | '수량' = defU === '건' ? '건' : defU === '수량' ? '수량' : defU === '대' ? '대' : '월';
+        next[opt.name] = prev[opt.name] !== undefined ? prev[opt.name] : normU;
+      });
+      return next;
+    });
+    setPaidOptionQtys(prev => {
+      const next: Record<string, number> = {};
+      selectedPaidMasterOptions.forEach(opt => {
+        const defQ = Math.max(1, Number((opt as any).defaultQtyPerUnit) || 1);
+        next[opt.name] = prev[opt.name] !== undefined && prev[opt.name] >= 1 ? prev[opt.name] : defQ;
+      });
+      return next;
+    });
+  }, [selectedPaidMasterOptions]);
+
+  const availableOptionSuggestions = useMemo(() => {
+    const list: string[] = [];
+    (standardOptions || [])
+      .filter(o => o && o.isActive && o.name !== 'NONE' && !o.name.startsWith('NONE'))
+      .forEach(o => {
+        if (!list.includes(o.name)) list.push(o.name);
+      });
+    return list;
+  }, [standardOptions]);
+
+  const activeCustomerAssets = useMemo(() => {
+    if (!selectedCustomer) return [];
+    return assets.filter(a => a.status === 'RENTED' && a.currentCustomerId === selectedCustomer.id);
+  }, [selectedCustomer, assets]);
+
+  const isUnknownRetrieval = useMemo(
+    () => retrievalAssetIds.includes('UNKNOWN') || retrievalAssetIds.includes('모름'),
+    [retrievalAssetIds]
+  );
+
+  // 옵션 변경 여부 판별
+  const isOptionsModified = useMemo(() => {
+    if (!selectedSite || selectedContext !== 'ADDITIONAL') return false;
+    if (selectedSafetyOptions.size !== initialSiteOptions.size) return true;
+    for (const opt of selectedSafetyOptions) {
+      if (!initialSiteOptions.has(opt)) return true;
+    }
+    return false;
+  }, [selectedContext, selectedSite, selectedSafetyOptions, initialSiteOptions]);
+
+  // 9대 스키마 검증 쉴드
+  const validationErrors = useMemo(() => {
+    const errs: { id: string; block: string; label: string; valid: boolean }[] = [];
+    const custValid = isNewCustomerMode ? Boolean(newCustomerName.trim()) : Boolean(selectedCustomer);
+    errs.push({ id: 'CUST', block: 'CUSTOMER', label: '1. 거래처(고객사) 지정', valid: custValid });
+
+    const siteValid =
+      isNewCustomerMode || isRegisteringNewSite
+        ? Boolean(newSiteName.trim() && newSiteAddress.trim())
+        : Boolean(selectedSite && (selectedSiteAddress.trim() || selectedSite.address?.trim()));
+    errs.push({ id: 'SITE', block: 'SITE', label: '2. 투입 현장 및 상세주소', valid: siteValid });
+
+    const contactValid =
+      !isBlankContactVal(contactPerson) &&
+      !isBlankContactVal(contactPhone) &&
+      contactPhone.replace(/[^0-9]/g, '').length >= 9;
+    errs.push({ id: 'CONTACT', block: 'SITE', label: '3. 현장 인수 담당자 성명/연락처', valid: contactValid });
+
+    const equipValid = equipments.length > 0 && totalQty > 0;
+    errs.push({ id: 'EQUIP', block: 'EQUIPMENT', label: '4. 출고 장비 모델 및 수량', valid: equipValid });
+
+    const rateValid = !hasFinancialAccess || equipments.every(eq => (Number(eq.monthlyRate) || 0) > 0 || (Number(eq.dailyRate) || 0) > 0);
+    errs.push({ id: 'RATE', block: 'EQUIPMENT', label: '5. 장비 대여 단가(월/일 렌탈료)', valid: rateValid });
+
+    const loadValid = Boolean(loadingDate && loadingTimeType && (loadingTimeType !== 'EXACT' || loadingTimeVal));
+    errs.push({ id: 'LOAD', block: 'SCHEDULE', label: '6. 상차(출고) 일자 및 시간 구분', valid: loadValid });
+
+    const unloadValid = Boolean(unloadingDate && unloadingTimeType && (unloadingTimeType !== 'EXACT' || unloadingTimeVal) && (!loadingDate || unloadingDate >= loadingDate));
+    errs.push({ id: 'UNLOAD', block: 'SCHEDULE', label: '7. 하차(계약개시) 일자 및 시간 구분', valid: unloadValid });
+
+    const optValid = selectedSafetyOptions.size > 0 || confirmNoSafetyOptions;
+    errs.push({ id: 'OPTION', block: 'OPTIONS', label: '8. 현장 안전옵션 선택 또는 없음 확인', valid: optValid });
+
+    const freightValid = Boolean(paidBy) && (!isExchangeMode || retrievalAssetIds.length > 0);
+    errs.push({
+      id: 'FREIGHT',
+      block: 'FREIGHT',
+      label: isExchangeMode ? '9. 운송비 귀속선 및 교환 회수대상 지정' : '9. 운송비 귀속선(고객청구/당사부담) 지정',
+      valid: freightValid
+    });
+
+    return errs;
+  }, [
+    isNewCustomerMode,
+    newCustomerName,
+    selectedCustomer,
+    isRegisteringNewSite,
+    newSiteName,
+    newSiteAddress,
+    selectedSite,
+    selectedSiteAddress,
+    contactPerson,
+    contactPhone,
+    equipments,
+    totalQty,
+    hasFinancialAccess,
+    loadingDate,
+    loadingTimeType,
+    loadingTimeVal,
+    unloadingDate,
+    unloadingTimeType,
+    unloadingTimeVal,
+    selectedSafetyOptions,
+    confirmNoSafetyOptions,
+    paidBy,
+    isExchangeMode,
+    retrievalAssetIds
+  ]);
+
+  const isAllValid = useMemo(() => validationErrors.every(e => e.valid), [validationErrors]);
+
+  // 카톡/문자 파싱 실행
+  const handleRunParse = () => {
+    if (!rawInput.trim()) {
+      showToast('분석할 카톡/문자 텍스트를 입력해 주십시오.', 'error');
+      return;
+    }
+    const parsed = parseDispatchOrderText(rawInput, {
+      customers,
+      sites,
+      catalogModels,
+      standardOptions: standardOptions || []
+    });
+
+    if (parsed.context) setSelectedContext(parsed.context);
+    if (parsed.matchedCustomer) {
+      handleSelectCustomer(parsed.matchedCustomer);
+    } else if (parsed.newCustomerName) {
+      setNewCustomerName(parsed.newCustomerName);
+    }
+
+    if (parsed.matchedSite) {
+      handleSelectSite(parsed.matchedSite);
+    } else if (parsed.unmatchedSiteName) {
+      setIsRegisteringNewSite(true);
+      setNewSiteName(parsed.unmatchedSiteName);
+      if (parsed.siteAddress) setNewSiteAddress(parsed.siteAddress);
+    }
+
+    if (parsed.equipments.length > 0) setEquipments(parsed.equipments);
+    if (parsed.loadingDate) {
+      setLoadingDate(parsed.loadingDate);
+      if (!unloadingDate) setUnloadingDate(parsed.loadingDate);
+    }
+    if (parsed.loadingTimeType) {
+      setLoadingTimeType(parsed.loadingTimeType);
+      if (parsed.loadingTimeVal) setLoadingTimeVal(parsed.loadingTimeVal);
+      if (!unloadingTimeType) setUnloadingTimeType(parsed.loadingTimeType);
+    }
+    if (parsed.contactPerson) setContactPerson(parsed.contactPerson);
+    if (parsed.contactPhone) setContactPhone(parsed.contactPhone);
+    if (parsed.safetyOptions.length > 0) {
+      setSelectedSafetyOptions(prev => {
+        const next = new Set(prev);
+        parsed.safetyOptions.forEach(o => next.add(o));
+        return next;
+      });
+    }
+    if (parsed.note) setNote(parsed.note);
+
+    setShowTextParserPanel(false);
+    showToast('텍스트에서 출고 요청 정보를 자동 추출했습니다.', 'success');
+  };
+
+  const resetForm = () => {
+    setSelectedCustomer(null);
+    setCustomerQuery('');
+    setNewCustomerName('');
+    setNewCustomerPhone('');
+    setNewCustomerAddress('');
+    setSelectedSite(null);
+    setSelectedSiteAddress('');
+    setIsRegisteringNewSite(false);
+    setSelectedSiteMasterId('');
+    setNewSiteName('');
+    setNewSiteAddress('');
+    setContactPerson('');
+    setContactPhone('');
+    setContactPosition('');
+    setContactEmail('');
+    setEquipments([]);
+    setLoadingDate('');
+    setLoadingTimeType(null);
+    setLoadingTimeVal('');
+    setUnloadingDate('');
+    setUnloadingTimeType(null);
+    setUnloadingTimeVal('');
+    setStaggeredMemo('');
+    setRetrievalAssetIds([]);
+    setSelectedSafetyOptions(new Set());
+    setConfirmNoSafetyOptions(false);
+    setPaidBy(null);
+    setNote('');
+    setEditingDraftId(null);
+  };
+
+  // 원격 프린트 큐 전송
+  const handleRemoteQueuePrint = useCallback(
+    async (htmlDoc: string, custName: string, sName: string) => {
+      setIsAgentPrinting(true);
+      try {
+        const docNo = `DSP-${Date.now().toString().slice(-6)}`;
+        await enqueuePrintJob({
+          stationId: selectedStationId || 'MAIN_OFFICE',
+          docType: 'DISPATCH_ORDER',
+          docNo,
+          title: `출고요청서_${custName || '고객사'}_${sName || '현장'}`,
+          documentHtml: htmlDoc,
+          requestedById: currentUser?.id,
+          requestedByName: currentUser?.name || currentUser?.id || '모바일사용자'
+        });
+        showToast(`[${selectedStationId}] 원격 프린터 큐로 출고요청서를 전송했습니다.`, 'success');
+      } catch (e: any) {
+        showToast(`인쇄 큐 전송 실패: ${e?.message}`, 'error');
+      } finally {
+        setIsAgentPrinting(false);
+      }
+    },
+    [selectedStationId, enqueuePrintJob, currentUser, showToast]
+  );
+
+  // 초안 저장
+  const handleSaveToQueueOnly = async () => {
+    try {
+      const uploaderId = currentUser?.id || 'anonymous_user';
+      const timeStr =
+        loadingTimeType === 'ASAP'
+          ? '최우선'
+          : loadingTimeType === 'MORNING'
+            ? '오전'
+            : loadingTimeType === 'AFTERNOON'
+              ? '오후'
+              : loadingTimeVal || '08:00';
+
+      await createDraftOrder({
+        ownerId: uploaderId,
+        sourceCallIds: [],
+        context: selectedContext ? [selectedContext] : ['ADDITIONAL'],
+        customerName: isNewCustomerMode
+          ? { value: newCustomerName, confidence: 'LOW' as ConfidenceLevel, source: 'MANUAL', confirmed: false }
+          : { value: selectedCustomer?.name || '', confidence: 'HIGH' as ConfidenceLevel, source: 'DB', confirmed: true },
+        siteName:
+          isNewCustomerMode || isRegisteringNewSite
+            ? { value: newSiteName || '미정', confidence: 'LOW' as ConfidenceLevel, source: 'MANUAL', confirmed: false }
+            : { value: selectedSite?.name || '미정', confidence: 'HIGH' as ConfidenceLevel, source: 'DB', confirmed: !!selectedSite },
+        equipments: [...equipments],
+        loadingDate: makeScoredField(loadingDate),
+        loadingTime: makeScoredField(timeStr),
+        contactPerson: makeScoredField(contactPerson),
+        contactPhone: contactPhone,
+        note,
+        status: 'DRAFT',
+        urgency: calcUrgency(loadingDate),
+        isNewCustomer: isNewCustomerMode,
+        customerRegistered: !isNewCustomerMode,
+        freightBillingStandard
+      } as any);
+
+      await loadDrafts();
+      showToast('초안 보관함에 임시 저장되었습니다.', 'info');
+    } catch (e: any) {
+      showToast(`초안 저장 실패: ${e?.message}`, 'error');
+    }
+  };
+
+  // 출고 요청 최종 발행 실행
+  const executeDispatchSubmit = async (saveToSite: boolean) => {
+    if (!canSave) {
+      showToast('출고 요청 등록 권한이 없습니다.', 'error');
+      return;
+    }
+
+    const firstInvalid = validationErrors.find(e => !e.valid);
+    if (firstInvalid) {
+      setOpenBlock(firstInvalid.block);
+      showToast(`필수 항목 미완료: ${firstInvalid.label}`, 'error');
+      return;
+    }
+
+    setIsSubmittingDispatch(true);
+    try {
+      const effectiveCustomerName = isNewCustomerMode ? newCustomerName.trim() : (selectedCustomer?.name || '').trim();
+      const effectiveSiteName =
+        isNewCustomerMode || isRegisteringNewSite ? newSiteName.trim() : (selectedSite?.name || '').trim();
+      const effectiveAddress = isNewCustomerMode
+        ? (newSiteAddress || newCustomerAddress).trim()
+        : isRegisteringNewSite
+          ? newSiteAddress.trim()
+          : (selectedSiteAddress || selectedSite?.address || '').trim();
+
+      const timeStr =
+        loadingTimeType === 'ASAP'
+          ? '최우선'
+          : loadingTimeType === 'MORNING'
+            ? '오전'
+            : loadingTimeType === 'AFTERNOON'
+              ? '오후'
+              : loadingTimeVal || '08:00';
+      const fullLoadingTime = `${loadingDate} ${timeStr}`.trim();
+
+      const unloadTimeStr =
+        unloadingTimeType === 'ASAP'
+          ? '최우선'
+          : unloadingTimeType === 'MORNING'
+            ? '오전'
+            : unloadingTimeType === 'AFTERNOON'
+              ? '오후'
+              : unloadingTimeVal || '';
+      const fullUnloadingTime = unloadingDate ? `${unloadingDate} ${unloadTimeStr}`.trim() : fullLoadingTime;
+
+      const allSelOpts = Array.from(selectedSafetyOptions);
+      const effPaidOptStr = allSelOpts
+        .filter(label => !isProtectionOption(label) && !isAttachmentOption(label) && !isSpecOption(label))
+        .join(', ');
+      const effProtOptStr = allSelOpts.filter(label => isProtectionOption(label)).join(', ') || undefined;
+      const effAttOptStr = allSelOpts.filter(label => isAttachmentOption(label)).join(', ') || undefined;
+      const effCheckedSpecs = buildCheckedSpecsFromLabels(
+        allSelOpts,
+        selectedSite?.checkedSpecs,
+        paidOptionPrices,
+        standardOptions || []
+      );
+
+      const fullNote = [
+        note,
+        unloadingDate ? `[하차일정] ${unloadingDate} ${unloadTimeStr}`.trim() : '',
+        selectedSafetyOptions.size > 0 ? `[옵션] ${allSelOpts.join(', ')}` : '',
+        staggeredMemo ? `[시차출고] ${staggeredMemo}` : '',
+        isExchangeMode && retrievalAssetIds.length > 0
+          ? isUnknownRetrieval
+            ? '[교환회수대상] 모름 (현장 확인 후 회수)'
+            : `[교환회수대상] 자산 #${retrievalAssetIds.join(', #')}`
+          : '',
+        effectiveAddress ? `[현장상세주소] ${effectiveAddress}` : '',
+        vehicleType ? `[차종] ${vehicleType}` : '',
+        `[정산일정] 청구:${closingDay}|명세서:${statementClosingDay}|결제:${paymentDueDay}`,
+        `[운송료청구기준] ${freightBillingStandard}`
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      const dispatchData = {
+        customerName: effectiveCustomerName,
+        siteName: effectiveSiteName,
+        siteAddress: effectiveAddress,
+        salespersonId: currentUser?.id,
+        siteContactName: contactPerson.trim(),
+        siteContactPhone: contactPhone.trim(),
+        siteContactPosition: contactPosition.trim(),
+        siteContactEmail: contactEmail.trim(),
         billingContactName: '',
         billingContactPhone: '',
         statementEmail: '',
-        taxBillEmail: taxBillEmail.trim() || selectedCust.repEmail || '',
-        loadingTime: `${deliveryDate} ${deliveryTime}`,
-        unloadingTime: `${deliveryDate} ${deliveryTime}`,
-        equipments: equipmentsList,
-        closingDay: closingDay || String(selectedCust.defaultBillingDay || 30),
-        paymentDay: paymentDay || String(selectedCust.paymentDueDay || 25),
-        note: `[모바일 외근 출고의뢰] ${memo}`.trim(),
-        rawText: `모바일 출고요청: ${selectedCust.name} / ${finalSiteName} (${totalEquipCount}대)`,
-        paidOptions: typeof paidOptions === 'string' ? paidOptions.trim() : String(paidOptions || '').trim(),
-        protection: typeof protection === 'string' ? protection.trim() : String(protection || '').trim(),
-        checkedSpecs,
-        saveOptionsToSite,
-        billableToCustomer,
-        vehicleType,
-        isSetAsCustomerDefault: false,
-        applyToAllSites: false
+        taxBillEmail: '',
+        loadingTime: fullLoadingTime,
+        unloadingTime: fullUnloadingTime,
+        equipments: equipments.map(eq => ({
+          modelName: eq.modelName,
+          qty: Math.max(1, Math.floor(Number(eq.qty) || 1)),
+          monthlyRate: eq.monthlyRate,
+          dailyRate: eq.dailyRate,
+          monthlyRentalFee: eq.monthlyRate,
+          dailyRentalFee: eq.dailyRate
+        })),
+        note: fullNote,
+        userNote: note,
+        staggeredMemo,
+        context: selectedContext || 'ADDITIONAL',
+        rawText: (note || '').trim(),
+        vehicleType: vehicleType || '5T',
+        paidBy: paidBy || undefined,
+        billableToCustomer: paidBy === 'CUSTOMER',
+        type: isExchangeMode ? 'EXCHANGE' : 'OUTBOUND',
+        retrievalAssetIds: retrievalAssetIds || [],
+        paidOptions: effPaidOptStr,
+        paidOptionPrices,
+        paidOptionUnits,
+        paidOptionQtys,
+        checkedSpecs: effCheckedSpecs,
+        saveOptionsToSite: saveToSite,
+        protection: effProtOptStr,
+        attachments: effAttOptStr,
+        siteMasterId: selectedSiteMasterId || undefined,
+        closingDay,
+        statementClosingDay,
+        paymentDueMonthOffset,
+        paymentDay: paymentDueDay,
+        paymentDueDay,
+        paymentMethod,
+        paymentTermsNote,
+        freightBillingStandard,
+        taxInvoiceIssueType,
+        targetContractId:
+          !isNewCustomerMode && !isRegisteringNewSite && !forceNewContract && targetContractId
+            ? targetContractId
+            : undefined,
+        forceNewContract: !isNewCustomerMode && !isRegisteringNewSite ? forceNewContract : false
       };
 
-      const res = await saveSmartDispatch(payload as any, selectedSiteId === 'NEW');
+      const res = await saveSmartDispatch(dispatchData as any, isNewCustomerMode || isRegisteringNewSite);
+
       if (res && res.success) {
-        clearVoiceOrderDraft();
-        setCreatedResult({
-          isReturn: false,
-          contractNo: res.contractNo || '신규 계약 생성됨',
-          siteName: finalSiteName,
-          totalCount: totalEquipCount
+        if (editingDraftId) {
+          try {
+            await submitDraft(editingDraftId);
+            await loadDrafts();
+          } catch {}
+        }
+
+        const { html } = buildDispatchOrderPrintHtml({
+          customerName: effectiveCustomerName,
+          siteName: effectiveSiteName,
+          siteAddress: effectiveAddress,
+          siteContactName: contactPerson.trim(),
+          siteContactPhone: contactPhone.trim(),
+          loadingSchedule: fullLoadingTime,
+          unloadingSchedule: fullUnloadingTime,
+          equipments,
+          safetyOptions: allSelOpts,
+          note,
+          staggeredMemo,
+          retrievalAssetIds,
+          vehicleType,
+          paidBy,
+          contextLabel: CONTEXT_OPTIONS.find(o => o.id === selectedContext)?.label || '출고 요청',
+          closingDay,
+          statementClosingDay,
+          paymentDueDay,
+          requesterName: currentUser?.name || '-'
         });
+
+        setSuccessModalInfo({
+          contractId: res.contractId || '',
+          contractNo: res.contractNo || '',
+          customerName: effectiveCustomerName,
+          siteName: effectiveSiteName,
+          siteAddress: effectiveAddress,
+          equipments: equipments.map(eq => ({ modelName: eq.modelName, qty: eq.qty })),
+          totalQty,
+          loadingTime: fullLoadingTime,
+          unloadingTime: fullUnloadingTime,
+          generatedHtml: html
+        });
+
+        refreshAllData();
+        resetForm();
+        onSuccess();
       } else {
-        showToast(res?.errorMessage || '출고 요청 접수에 실패했습니다.', 'error');
+        showToast(res?.errorMessage || '출고 요청 등록 실패', 'error');
       }
-    } catch (err: any) {
-      console.error('Submit error:', err);
-      showToast('요청 처리 중 오류가 발생했습니다: ' + (err.message || ''), 'error');
+    } catch (e: any) {
+      showToast(`출고 요청 발행 오류: ${e?.message}`, 'error');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingDispatch(false);
     }
   };
 
+  // 신규 고객사 저장 핸들러
+  const handleSaveCustSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCust || !editingCust.name?.trim() || isSubmittingCust) return;
+
+    try {
+      setIsSubmittingCust(true);
+      const isNew = !editingCust.id;
+      const { rule: custRegRule } = isNew ? await fetchRuleForEvent('CUSTOMER_REGISTRATION') : { rule: null };
+      const isCustApprovalRequired = Boolean(isNew && custRegRule && custRegRule.id && custRegRule.is_enabled);
+      const saved = await saveCustomer({
+        ...editingCust,
+        name: editingCust.name.trim(),
+        transactionStatus: isCustApprovalRequired ? 'BLOCKED_ALL' : (editingCust.transactionStatus || 'ALLOWED')
+      } as any);
+
+      if (isCustApprovalRequired && custRegRule?.id) {
+        await createApprovalRequest(
+          custRegRule.id,
+          currentUser?.id || 'u-1',
+          saved.id!,
+          'customers',
+          custRegRule.required_tier,
+          {
+            actionType: 'CUSTOMER_REGISTRATION',
+            targetTable: 'customers',
+            targetId: saved.id!,
+            asIs: { transactionStatus: 'BLOCKED_ALL' },
+            toBe: { name: saved.name, bizRegNo: saved.bizRegNo || '-' },
+            reason: '신규 고객사 등록 승인 요청',
+            summaryText: `[신규 고객사 등록] ${saved.name}`
+          }
+        );
+      }
+
+      setShowCustModal(false);
+      setSelectedCustomer(saved);
+      setNewCustomerName(saved.name);
+      applyInheritance(saved, null);
+      refreshAllData();
+      showToast(`고객사 [${saved.name}] 등록이 완료되었습니다.`, 'success');
+    } catch (err: any) {
+      showToast(`고객사 저장 오류: ${err?.message}`, 'error');
+    } finally {
+      setIsSubmittingCust(false);
+    }
+  };
+
+  // 출고 요청 내역 재구성
+  const outboundHistoryRows = useMemo(
+    () =>
+      reconstructOutboundHistoryRows({
+        deliveries,
+        contracts,
+        contractAssets,
+        assets,
+        customers,
+        sites,
+        siteMasters,
+        contacts,
+        users,
+        todos,
+        standardOptions: standardOptions || [],
+        outboundInspections
+      }),
+    [
+      deliveries,
+      contracts,
+      contractAssets,
+      assets,
+      customers,
+      sites,
+      siteMasters,
+      contacts,
+      users,
+      todos,
+      standardOptions,
+      outboundInspections
+    ]
+  );
+
   return (
-    <div className="flex flex-col gap-4 pb-28 p-4 bg-slate-950 min-h-screen text-slate-100 w-full min-w-0 max-w-full overflow-x-hidden">
-      {/* 토스트 알림 */}
-      {toastMessage && (
-        <div className={`fixed top-4 left-4 right-4 z-50 p-3 rounded-xl shadow-xl flex items-center gap-2 text-xs font-bold transition-all ${
-          toastMessage.type === 'error' ? 'bg-rose-900 border border-rose-700 text-rose-100' : 'bg-emerald-900 border border-emerald-700 text-emerald-100'
-        }`}>
-          {toastMessage.type === 'error' ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-          <span>{toastMessage.text}</span>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-36 font-sans">
+      {/* 상단 고정 헤더 & 메인 2대 탭 (출고 요청 등록 / 출고 요청 내역) */}
+      <header className="sticky top-0 z-20 bg-slate-900 border-b border-slate-800 px-3 py-2.5 flex flex-col gap-2 shadow-md">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-1.5 -ml-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-700"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <span className="text-base font-black text-white whitespace-nowrap">출고 요청</span>
+          </div>
+
+          {/* 상단 메인 탭 스위치 */}
+          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setMainTab('NEW')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition ${
+                mainTab === 'NEW'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              출고 요청 등록
+            </button>
+            <button
+              type="button"
+              onClick={() => setMainTab('HISTORY')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition flex items-center gap-1 ${
+                mainTab === 'HISTORY'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <span>출고 요청 내역</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-900 text-cyan-300 font-mono text-[10.5px]">
+                {outboundHistoryRows.length}
+              </span>
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* 완료 모달 */}
-      {createdResult && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                <Check className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">
-                  {createdResult.isReturn ? '회수 요청 접수 완료' : '출고 요청 접수 완료'}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {createdResult.isReturn ? '배차 대기 목록(입고)에 등록되었습니다.' : '배차 및 출고 검수 대기로 인계되었습니다.'}
-                </p>
-              </div>
-            </div>
+        {/* NEW 탭 전용 보조 툴바: 카톡 텍스트 파싱 / 초안 보관함 / 원격 인쇄 */}
+        {mainTab === 'NEW' && (
+          <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-0.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowTextParserPanel(prev => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 whitespace-nowrap ${
+                  showTextParserPanel
+                    ? 'bg-cyan-700 text-white border-cyan-500'
+                    : 'bg-slate-800 text-cyan-300 border-slate-700'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>카톡·문자 자동입력</span>
+              </button>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-400">의뢰 식별번호</span>
-                <span className="font-mono font-bold text-emerald-400">{createdResult.contractNo}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">현장</span>
-                <span className="font-bold text-white">{createdResult.siteName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">장비 수량</span>
-                <span className="font-bold text-white">{createdResult.totalCount}대</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">배차 상태</span>
-                <span className="text-amber-400 font-bold">
-                  {createdResult.isReturn ? '회수대기' : '출고대기'}
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowDraftDrawer(true)}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 text-xs font-bold whitespace-nowrap"
+              >
+                초안 보관함 ({queue.filter(d => d.status === 'DRAFT').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveToQueueOnly}
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-amber-300 border border-slate-700 text-xs font-bold whitespace-nowrap"
+              >
+                임시저장
+              </button>
             </div>
 
             <button
               type="button"
-              onClick={onSuccess}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all"
+              onClick={resetForm}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-bold whitespace-nowrap"
             >
-              확인 및 목록 이동
+              초기화
             </button>
           </div>
+        )}
+      </header>
+
+      {/* 토스트 알림 */}
+      {toast && (
+        <div
+          className={`fixed top-16 left-3 right-3 z-50 p-3 rounded-xl border shadow-2xl flex items-center justify-between gap-2 text-xs font-bold ${
+            toast.type === 'error'
+              ? 'bg-rose-950 text-rose-200 border-rose-700'
+              : toast.type === 'info'
+                ? 'bg-slate-900 text-cyan-200 border-cyan-700'
+                : 'bg-emerald-950 text-emerald-200 border-emerald-700'
+          }`}
+        >
+          <span>{toast.msg}</span>
+          <button type="button" onClick={() => setToast(null)}>
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* 헤더 바 */}
-      <div className="flex items-center justify-between pt-1">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>취소</span>
-        </button>
-        <h2 className="text-base font-bold text-white">
-          {dispatchMode === 'EXCHANGE' ? '대차 교체 요청' : dispatchMode === 'RETURN' ? '장비 회수 요청' : '출고 요청'}
-        </h2>
-        <div className="w-10" />
-      </div>
-
-      {/* 🔄 모드 선택 탭 (출고 요청 vs 회수 요청 vs 대차 교체 - 헌장 2.3) */}
-      <div className="grid grid-cols-3 gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
-        <button
-          type="button"
-          onClick={() => setDispatchMode('DISPATCH')}
-          className={`py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1 transition-all ${
-            dispatchMode === 'DISPATCH'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <ArrowUpRight className="w-3.5 h-3.5" />
-          <span>출고 요청</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setDispatchMode('RETURN')}
-          className={`py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1 transition-all ${
-            dispatchMode === 'RETURN'
-              ? 'bg-amber-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <ArrowDownLeft className="w-3.5 h-3.5" />
-          <span>회수 의뢰</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setDispatchMode('EXCHANGE')}
-          className={`py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1 transition-all ${
-            dispatchMode === 'EXCHANGE'
-              ? 'bg-purple-600 text-white shadow-md'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <RotateCw className="w-3.5 h-3.5" />
-          <span>대차 교체</span>
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* 1. 고객사 & 현장 선택 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-          <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
-            <Building2 className="w-3.5 h-3.5" />
-            거래처 및 현장 정보
-          </span>
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] text-slate-400">거래처 (고객사) 선택 *</label>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShowBizLicenseModal(true)}
-                  className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/80 active:scale-95"
-                  title="사업자등록증 사진으로 고객사 신규 등록 및 자동 선택"
-                >
-                  <FileText className="w-2.5 h-2.5" />
-                  <span>사업자등록증 AI</span>
-                </button>
-                {customerSearchText && (
-                  <button
-                    type="button"
-                    onClick={() => setCustomerSearchText('')}
-                    className="text-[10px] text-sky-400 font-bold"
-                  >
-                    초기화
-                  </button>
-                )}
-              </div>
-            </div>
-            <input
-              type="text"
-              value={customerSearchText}
-              onChange={(e) => setCustomerSearchText(e.target.value)}
-              placeholder="🔍 고객사명 / 초성 검색 (예: ㅅㅅ, ㅇㅈㅇ)"
-              className="w-full rounded-xl p-2 text-xs placeholder-slate-500 mb-0.5"
-              style={{
-                backgroundColor: '#090d16',
-                color: '#f8fafc',
-                border: '1px solid #334155',
-                colorScheme: 'dark'
-              }}
-            />
-            <select
-              value={selectedCustomerId}
-              onChange={(e) => handleCustomerChange(e.target.value)}
-              className="w-full rounded-xl p-2.5 text-xs"
-              style={{
-                backgroundColor: '#090d16',
-                color: '#f8fafc',
-                border: '1px solid #334155',
-                colorScheme: 'dark'
-              }}
-              required
-            >
-              <option value="">
-                {customerSearchText ? `검색 결과 (${filteredCustomersList.length}개사)` : '고객사를 선택하세요'}
-              </option>
-              {filteredCustomersList.map(c => {
-                const isBlockedForDispatch = dispatchMode !== 'RETURN' && (isCustomerRestricted(c.transactionStatus) || isCustomerClosedBlocked(c));
-                const statusInfo = getCustomerTransactionStatusLabel(c.transactionStatus, isCustomerClosedBlocked(c));
-                return (
-                  <option key={c.id} value={c.id} disabled={isBlockedForDispatch}>
-                    {c.name}{isBlockedForDispatch ? ` [${statusInfo.label} · 선택불가]` : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {selectedCustomerId && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] text-slate-400">
-                  {dispatchMode === 'RETURN' ? '회수 현장 선택 *' : '납품 현장 선택 *'}
-                </label>
-                {siteSearchText && (
-                  <button
-                    type="button"
-                    onClick={() => setSiteSearchText('')}
-                    className="text-[10px] text-sky-400 font-bold"
-                  >
-                    초기화
-                  </button>
-                )}
-              </div>
-              {customerSites.length > 3 && (
-                <input
-                  type="text"
-                  value={siteSearchText}
-                  onChange={(e) => setSiteSearchText(e.target.value)}
-                  placeholder="🔍 현장명 초성 검색 (예: ㅍㅌ)"
-                  className="w-full rounded-xl p-2 text-xs placeholder-slate-500 mb-0.5"
-                  style={{
-                    backgroundColor: '#090d16',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
-                    colorScheme: 'dark'
-                  }}
-                />
-              )}
-              <select
-                value={selectedSiteId}
-                onChange={(e) => handleSiteChange(e.target.value)}
-                className="w-full rounded-xl p-2.5 text-xs"
-                style={{
-                  backgroundColor: '#090d16',
-                  color: '#f8fafc',
-                  border: '1px solid #334155',
-                  colorScheme: 'dark'
-                }}
-                required
-              >
-                <option value="">현장을 선택하세요</option>
-                {filteredCustomerSites.map(s => {
-                  const reg = getMobileSiteRegContact(s);
-                  const isMissing = !reg.name || !reg.phone;
-                  return (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.address || '주소미상'}){isMissing ? ' [담당자 미입력]' : ''}
-                    </option>
-                  );
-                })}
-                {dispatchMode === 'DISPATCH' && <option value="NEW">+ [신규 현장 직접 입력]</option>}
-              </select>
-            </div>
-          )}
-
-          {selectedSiteId === 'NEW' && dispatchMode === 'DISPATCH' && (
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">신규 현장명 *</label>
-              <input
-                type="text"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
-                placeholder="예: 판교 제2테크노밸리 오피스 신축"
-                className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                style={{
-                  backgroundColor: '#090d16',
-                  color: '#f8fafc',
-                  border: '1px solid #334155',
-                  colorScheme: 'dark'
-                }}
-                required
-              />
-            </div>
-          )}
-
-          {selectedSiteId && (
-            <>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-slate-400">
-                  {dispatchMode === 'RETURN' ? '회수 현장 상세 주소 *' : '현장 상세 주소 *'}
-                </label>
-                <input
-                  type="text"
-                  value={siteAddress}
-                  onChange={(e) => setSiteAddress(e.target.value)}
-                  placeholder="예: 경기 성남시 수정구 창업로 42"
-                  className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                  style={{
-                    backgroundColor: '#090d16',
-                    color: '#f8fafc',
-                    border: '1px solid #334155',
-                    colorScheme: 'dark'
-                  }}
-                  required
-                />
-              </div>
-
-              {selectedSite && selectedSiteMissingFields.length > 0 && (
-                <div className="p-3 rounded-xl border border-amber-500/70 bg-amber-950/50 text-amber-100 flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-1 flex-wrap">
-                    <span className="text-xs font-extrabold text-amber-300">
-                      ⚠️ 기존 현장담당자 부족 정보 입력 요청
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/40 border border-amber-500/40">
-                      미입력: {selectedSiteMissingFields.join(', ')}
-                    </span>
+      {/* 본문 영역 */}
+      <main className="flex-1 p-3 flex flex-col gap-3">
+        {mainTab === 'HISTORY' ? (
+          <MobileOutboundHistoryTab
+            rows={outboundHistoryRows}
+            catalogModels={catalogModels}
+            standardOptions={standardOptions || []}
+            hasFinancialAccess={hasFinancialAccess}
+            canSave={canSave}
+            currentUser={currentUser}
+            refreshAllData={refreshAllData}
+            updateOutboundRequestPricing={updateOutboundRequestPricing}
+            cancelOutboundRequest={cancelOutboundRequest}
+            deleteCancelledOutboundRequests={deleteCancelledOutboundRequests}
+            fetchRuleForEvent={fetchRuleForEvent}
+            createApprovalRequest={createApprovalRequest}
+            isRuleEnabled={isRuleEnabled}
+            onRemotePrintHtml={handleRemoteQueuePrint}
+            isAgentPrinting={isAgentPrinting}
+            showToast={showToast}
+          />
+        ) : (
+          <>
+            {/* 카톡/문자 텍스트 자동 변환 패널 */}
+            {showTextParserPanel && (
+              <div className="bg-slate-900 border border-cyan-600 rounded-xl p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-cyan-300">카톡·문자 텍스트 붙여넣기 자동 변환</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => txtFileInputRef.current?.click()}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>파일 열기</span>
+                    </button>
+                    <input
+                      ref={txtFileInputRef}
+                      type="file"
+                      accept=".txt"
+                      className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => setRawInput(String(ev.target?.result || ''));
+                        reader.readAsText(f);
+                      }}
+                    />
                   </div>
-                  <p className="text-[11px] leading-relaxed text-amber-100/90">
-                    기존 현장의 현장담당자 정보({selectedSiteMissingFields.join(', ')})가 공백입니다. 부족한 정보를 입력해 주시면 현장 및 고객 담당자 정보에 즉시 업데이트됩니다.
-                  </p>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>현장 담당자 성명 *</span>
-                    {selectedSite && !selectedSiteRegContact.name && (
-                      <span className="text-[10px] font-bold text-rose-400">미입력</span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={siteContactName}
-                    onChange={(e) => setSiteContactName(e.target.value)}
-                    placeholder="소장/반장 성명"
-                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                    style={{
-                      backgroundColor: '#090d16',
-                      color: '#f8fafc',
-                      border: isBlankMobileContact(siteContactName) ? '1px solid #f43f5e' : '1px solid #334155',
-                      colorScheme: 'dark'
-                    }}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>현장 연락처 *</span>
-                    {selectedSite && !selectedSiteRegContact.phone && (
-                      <span className="text-[10px] font-bold text-rose-400">미입력</span>
-                    )}
-                  </label>
-                  <input
-                    type="tel"
-                    value={siteContactPhone}
-                    onChange={(e) => setSiteContactPhone(e.target.value)}
-                    placeholder="010-0000-0000"
-                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                    style={{
-                      backgroundColor: '#090d16',
-                      color: '#f8fafc',
-                      border: isBlankMobileContact(siteContactPhone) ? '1px solid #f43f5e' : '1px solid #334155',
-                      colorScheme: 'dark'
-                    }}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>현장 담당자 직책</span>
-                    {selectedSite && !selectedSiteRegContact.position && (
-                      <span className="text-[10px] font-bold text-amber-400">공백</span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={siteContactPosition}
-                    onChange={(e) => setSiteContactPosition(e.target.value)}
-                    placeholder="예: 현장소장, 공무과장"
-                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                    style={{
-                      backgroundColor: '#090d16',
-                      color: '#f8fafc',
-                      border: '1px solid #334155',
-                      colorScheme: 'dark'
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-400 flex items-center justify-between">
-                    <span>현장 담당자 이메일</span>
-                    {selectedSite && !selectedSiteRegContact.email && (
-                      <span className="text-[10px] font-bold text-amber-400">공백</span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={siteContactEmail}
-                    onChange={(e) => setSiteContactEmail(e.target.value)}
-                    placeholder="이메일 입력"
-                    className="w-full rounded-xl p-2.5 text-xs placeholder-slate-500"
-                    style={{
-                      backgroundColor: '#090d16',
-                      color: '#f8fafc',
-                      border: '1px solid #334155',
-                      colorScheme: 'dark'
-                    }}
-                  />
+                <textarea
+                  rows={3}
+                  value={rawInput}
+                  onChange={e => setRawInput(e.target.value)}
+                  placeholder="카톡이나 문자로 받은 출고 요청 내용을 붙여넣으세요 (예: 삼성물산 평택현장 내일 오전 3219 2대 안전벨트 김철수 소장 010-1234-5678)"
+                  className="p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTextParserPanel(false)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold"
+                  >
+                    닫기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRunParse}
+                    className="px-3.5 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-black"
+                  >
+                    폼 데이터 자동 변환
+                  </button>
                 </div>
               </div>
+            )}
 
-              {selectedSite && (selectedSiteMissingFields.length > 0 || siteContactName.trim() !== selectedSiteRegContact.name || siteContactPhone.trim() !== selectedSiteRegContact.phone || siteContactPosition.trim() !== selectedSiteRegContact.position || siteContactEmail.trim() !== selectedSiteRegContact.email) && (
-                <button
-                  type="button"
-                  onClick={handleUpdateMobileSiteContactNow}
-                  className="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold border border-emerald-500/50 transition"
-                >
-                  현장담당자 정보 즉시 업데이트
-                </button>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* 1. 출고/대차 요구 장비 선택 (출고/대차 모드일 때) */}
-        {dispatchMode !== 'RETURN' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5" />
-                {dispatchMode === 'EXCHANGE' ? '현장 투입 요구 장비 규격' : '출고 요구 장비 규격 및 수량'}
-              </span>
-              <span className="text-xs text-slate-400 font-bold font-mono">
-                총 {orders.reduce((sum, o) => sum + o.count, 0)}대
-              </span>
-            </div>
-
-            {/* 고소작업대 6대 높이 규격 탭 (19ft ~ 53ft) */}
-            <div className="grid grid-cols-6 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-              {SPEC_OPTIONS.map((spec) => {
-                const isSelected = activeFt === spec.ft;
-                const specStat = availableInventory[spec.ft];
-                const totalAvail = specStat?.total || 0;
+            {/* 업무 유형 3단 선택 바 */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 grid grid-cols-3 gap-2">
+              {CONTEXT_OPTIONS.map(opt => {
+                const isSelected = selectedContext === opt.id;
                 return (
                   <button
-                    key={spec.ft}
-                    type="button"
-                    onClick={() => handleSelectFt(spec.ft)}
-                    className={`py-2 flex flex-col items-center justify-center rounded-lg transition-all active:scale-95 ${
-                      isSelected
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <span className="text-xs font-black">{spec.ft}</span>
-                    <span className={`text-[10px] font-mono mt-0.5 font-bold ${
-                      isSelected ? 'text-blue-100' : totalAvail > 0 ? 'text-emerald-400' : 'text-slate-500'
-                    }`}>
-                      {totalAvail}대
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* 선택된 피트의 모델 리스트 */}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400">
-                  {activeFt} 가용 모델 (터치 시 목록 추가)
-                </span>
-                <span className="text-[10.5px] text-slate-500">
-                  총 {availableInventory[activeFt]?.total || 0}대 보유
-                </span>
-              </div>
-
-              {availableInventory[activeFt]?.models && availableInventory[activeFt].models.length > 0 ? (
-                <div className="flex flex-wrap gap-2 pt-0.5">
-                  {availableInventory[activeFt].models.map(m => {
-                    const orderedCount = orders.find(o => o.ft === activeFt && o.modelName === m.modelName)?.count || 0;
-                    return (
-                      <button
-                        key={m.modelName}
-                        type="button"
-                        onClick={() => handleAddModelOrder(activeFt, m.modelName)}
-                        className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold active:scale-95 transition-all shadow-sm ${
-                          orderedCount > 0
-                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-100 ring-1 ring-emerald-500/40'
-                            : 'bg-slate-900 border-slate-700/80 text-slate-200 hover:border-emerald-500 hover:text-white'
-                        }`}
-                      >
-                        <Plus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        <span className="font-mono text-white font-bold">{m.modelName}</span>
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-700/60 text-[10px] text-emerald-300 font-mono font-bold">
-                          {m.count}대 재고
-                        </span>
-                        {orderedCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded bg-blue-900/80 text-blue-200 text-[10px] font-mono font-black">
-                            {orderedCount}대 선택됨
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 p-3 bg-slate-900/60 rounded-xl border border-slate-800">
-                  <p className="text-xs text-slate-400">
-                    주기장에 즉시 출고 가능한 {activeFt} 자산이 없습니다.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSpec(SPEC_OPTIONS.find(s => s.ft === activeFt) || { ft: activeFt, defaultModel: '동급' })}
-                    className="self-start px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-sky-400" />
-                    <span>{activeFt} 규격 의뢰 추가 (타사 임차/배차 협의)</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 선택된 규격 목록 헤더 */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-bold text-slate-300">
-                {dispatchMode === 'EXCHANGE' ? '대차 투입 장비 목록' : '출고 요청 장비 목록'}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                {orders.length}개 모델 ({orders.reduce((sum, o) => sum + o.count, 0)}대)
-              </span>
-            </div>
-
-            {/* 선택된 규격 목록 */}
-            <div className="flex flex-col gap-2">
-              {orders.map((item, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-bold font-mono">
-                        {item.ft}
-                      </span>
-                      <span className="text-xs font-bold text-white">
-                        {item.modelName || '지정 모델'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1">
-                      <button
-                        type="button"
-                        onClick={() => handleCountChange(idx, -1)}
-                        className="w-7 h-7 flex items-center justify-center rounded bg-slate-800 text-slate-200 hover:text-white active:scale-95"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-xs font-bold text-white min-w-[20px] text-center font-mono">
-                        {item.count}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCountChange(idx, 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded bg-slate-800 text-slate-200 hover:text-white active:scale-95"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {orders.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveOrder(idx)}
-                        className="text-xs text-rose-400 hover:text-rose-300 p-1 font-bold active:scale-95"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 2. 회수 대상 장비 선택 (회수 및 대차 모드일 때) */}
-        {dispatchMode !== 'DISPATCH' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                <RotateCw className="w-3.5 h-3.5" />
-                현장 대여중 장비 회수 선택 ({siteRentedAssets.length}대 가동중)
-              </span>
-              <span className="text-xs text-white font-bold font-mono">
-                {selectedReturnAssetIds.length}대 선택됨
-              </span>
-            </div>
-
-            {/* 장비번호 쾌속 검색 및 다중 선택 UI */}
-            {siteRentedAssets.length > 0 && (
-              <div className="flex items-center gap-2 mt-1 mb-2">
-                <input
-                  type="text"
-                  value={returnAssetSearchText}
-                  onChange={(e) => setReturnAssetSearchText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const txt = returnAssetSearchText.trim();
-                      if (txt) {
-                        const matched = siteRentedAssets.filter(ra => ra.assetNo.includes(txt) || ra.modelName.includes(txt));
-                        if (matched.length > 0) {
-                          setSelectedReturnAssetIds(prev => {
-                            const newIds = new Set(prev);
-                            matched.forEach(m => newIds.add(m.assetId));
-                            return Array.from(newIds);
-                          });
-                          setReturnAssetSearchText('');
-                          showToast(`검색된 ${matched.length}대 장비가 선택되었습니다.`);
-                        } else {
-                          showToast('검색 결과가 없습니다.', 'error');
-                        }
-                      }
-                    }
-                  }}
-                  placeholder="🔍 관리번호/모델 검색 (입력 후 Enter)"
-                  className="w-full rounded-xl p-2.5 text-xs text-white placeholder-slate-500"
-                  style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const txt = returnAssetSearchText.trim();
-                    if (txt) {
-                      const matched = siteRentedAssets.filter(ra => ra.assetNo.includes(txt) || ra.modelName.includes(txt));
-                      if (matched.length > 0) {
-                        setSelectedReturnAssetIds(prev => {
-                          const newIds = new Set(prev);
-                          matched.forEach(m => newIds.add(m.assetId));
-                          return Array.from(newIds);
-                        });
-                        setReturnAssetSearchText('');
-                        showToast(`검색된 ${matched.length}대 장비가 선택되었습니다.`);
-                      } else {
-                        showToast('검색 결과가 없습니다.', 'error');
-                      }
-                    }
-                  }}
-                  className="whitespace-nowrap px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
-                >
-                  선택추가
-                </button>
-              </div>
-            )}
-
-            {siteRentedAssets.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
-                선택된 거래처/현장에서 현재 대여 중인 장비가 없습니다.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
-                {siteRentedAssets
-                  .filter(ra => !returnAssetSearchText.trim() || ra.assetNo.includes(returnAssetSearchText.trim()) || ra.modelName.includes(returnAssetSearchText.trim()))
-                  .map((ra) => {
-                  const isChecked = selectedReturnAssetIds.includes(ra.assetId);
-                  return (
-                    <div
-                      key={ra.assetId}
-                      onClick={() => toggleReturnAsset(ra.assetId)}
-                      className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-amber-950/40 border-amber-500 text-white'
-                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-5 h-5 rounded flex items-center justify-center border ${
-                          isChecked ? 'bg-amber-600 border-amber-500 text-white' : 'border-slate-700 bg-slate-900'
-                        }`}>
-                          {isChecked && <Check className="w-3.5 h-3.5" />}
-                        </div>
-                        <div>
-                          <span className="font-mono font-bold text-sm text-white mr-2">{ra.assetNo}</span>
-                          <span className="text-xs text-slate-400 font-bold">{ra.modelName}</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono">계약 {ra.contractNo}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 3. 납품/회수 일시 지정 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-          <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />
-            {dispatchMode === 'RETURN' ? '회수 희망 일시' : '도착(납품) 희망 일시'}
-          </span>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">희망 일자 *</label>
-              <input
-                type="date"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                className="w-full rounded-xl p-2.5 text-xs text-white"
-                style={{
-                  backgroundColor: '#090d16',
-                  color: '#f8fafc',
-                  border: '1px solid #334155',
-                  colorScheme: 'dark'
-                }}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">희망 시간 *</label>
-              <input
-                type="time"
-                value={deliveryTime}
-                onChange={(e) => setDeliveryTime(e.target.value)}
-                className="w-full rounded-xl p-2.5 text-xs text-white"
-                style={{
-                  backgroundColor: '#090d16',
-                  color: '#f8fafc',
-                  border: '1px solid #334155',
-                  colorScheme: 'dark'
-                }}
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 4. 유상옵션 및 무상옵션 / 요구 사양 (출고 및 대차 모드) */}
-        {dispatchMode !== 'RETURN' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3.5">
-            <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              현장 옵션 및 요구 사양
-            </span>
-
-            {/* 유상옵션 입력 및 추천 칩 */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] text-slate-400 font-bold">유상 옵션 (철망/함석/에어배관 등)</label>
-                {paidOptions && (
-                  <button
-                    type="button"
-                    onClick={() => setPaidOptions('')}
-                    className="text-[10px] text-slate-500 hover:text-slate-400"
-                  >
-                    초기화
-                  </button>
-                )}
-              </div>
-              <input
-                type="text"
-                value={paidOptions}
-                onChange={(e) => setPaidOptions(e.target.value)}
-                placeholder="예: 4면 철망 설치, 에어배관, 소형 발전기..."
-                className="w-full rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none"
-                style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
-              />
-              <div className="flex flex-wrap gap-1.5 mt-0.5">
-                {['4면 철망', '3면 철망', '함석 설치', '에어배관', '발전기 탑재'].map((chip) => {
-                  const isIncluded = paidOptions.includes(chip);
-                  return (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => {
-                        if (isIncluded) {
-                          setPaidOptions(prev => prev.split(', ').filter(s => s !== chip).join(', '));
-                        } else {
-                          setPaidOptions(prev => prev ? `${prev}, ${chip}` : chip);
-                        }
-                      }}
-                      className={`px-2 py-1 rounded-lg text-[10.5px] font-bold transition-all ${
-                        isIncluded
-                          ? 'bg-purple-600 text-white border border-purple-500'
-                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      {isIncluded ? `✓ ${chip}` : `+ ${chip}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 무상옵션 입력 및 추천 칩 */}
-            <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-800/80">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] text-slate-400 font-bold">무상 옵션 (바닥보양/휠보양/사다리 등)</label>
-                {protection && (
-                  <button
-                    type="button"
-                    onClick={() => setProtection('')}
-                    className="text-[10px] text-slate-500 hover:text-slate-400"
-                  >
-                    초기화
-                  </button>
-                )}
-              </div>
-              <input
-                type="text"
-                value={protection}
-                onChange={(e) => setProtection(e.target.value)}
-                placeholder="예: 바닥 보양(부직포/플라베니아), 휠커버, 탑승구 사다리보양..."
-                className="w-full rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none"
-                style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
-              />
-              <div className="flex flex-wrap gap-1.5 mt-0.5">
-                {['바닥 보양(부직포)', '타이어 휠커버', '사다리 보양', '모서리 랩핑'].map((chip) => {
-                  const isIncluded = protection.includes(chip);
-                  return (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => {
-                        if (isIncluded) {
-                          setProtection(prev => prev.split(', ').filter(s => s !== chip).join(', '));
-                        } else {
-                          setProtection(prev => prev ? `${prev}, ${chip}` : chip);
-                        }
-                      }}
-                      className={`px-2 py-1 rounded-lg text-[10.5px] font-bold transition-all ${
-                        isIncluded
-                          ? 'bg-indigo-600 text-white border border-indigo-500'
-                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      {isIncluded ? `✓ ${chip}` : `+ ${chip}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 🌟 옵션 변경 시 현장 마스터 저장 확인 토글 */}
-            {selectedSite && isOptionsDiff && (
-              <div className="mt-2 p-2.5 rounded-xl border border-amber-500/40 bg-amber-950/20 flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>현장 기존 옵션과 변경사항 감지</span>
-                </div>
-                <div className="text-[10px] text-slate-400">
-                  변경된 옵션을 현장 기본값으로 저장할까요? (1회성 선택 시 기존 현장 옵션이 유지됩니다)
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setSaveOptionsToSite(true)}
-                    className={`p-1.5 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                      saveOptionsToSite
-                        ? 'bg-emerald-600 text-white border-emerald-500'
-                        : 'bg-slate-950 text-slate-400 border-slate-800'
-                    }`}
-                  >
-                    {saveOptionsToSite && <Check className="w-3 h-3" />}
-                    <span>현장 기본값 저장 (유지)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSaveOptionsToSite(false)}
-                    className={`p-1.5 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
-                      !saveOptionsToSite
-                        ? 'bg-blue-600 text-white border-blue-500'
-                        : 'bg-slate-950 text-slate-400 border-slate-800'
-                    }`}
-                  >
-                    {!saveOptionsToSite && <Check className="w-3 h-3" />}
-                    <span>이번만 1회성 적용 (보존)</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 5. 물류 운송비 부담 및 정산마감 조건 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3.5">
-          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-            <Truck className="w-3.5 h-3.5" />
-            물류 운송비 및 정산 마감조건
-          </span>
-
-          {/* 운송비 부담주체 원터치 토글 (당사부담 vs 고객청구) */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] text-slate-400 font-bold">운송비 부담 주체 *</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setBillableToCustomer(false)}
-                className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  !billableToCustomer
-                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-950/40'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                {!billableToCustomer && <Check className="w-3.5 h-3.5" />}
-                <span>당사 부담 (기본)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillableToCustomer(true)}
-                className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  billableToCustomer
-                    ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-950/40'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                {billableToCustomer && <Check className="w-3.5 h-3.5" />}
-                <span>고객사 청구 (현장부담)</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 차종 선택 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] text-slate-400 font-bold">배차 희망 차종</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {['5톤 렉카', '셀프로더', '대형 축차'].map(vt => (
-                <button
-                  key={vt}
-                  type="button"
-                  onClick={() => setVehicleType(vt)}
-                  className={`py-2 px-1 rounded-xl border text-center text-xs font-bold transition-all ${
-                    vehicleType === vt
-                      ? 'bg-slate-800 text-white border-blue-500'
-                      : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  {vt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 마감일 / 결제일 / 계산서 수신 메일 */}
-          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">계산서 마감일</label>
-              <input
-                type="text"
-                value={closingDay}
-                onChange={(e) => setClosingDay(e.target.value)}
-                placeholder="말일, 20일, 25일..."
-                className="w-full rounded-xl p-2.5 text-xs text-white focus:outline-none"
-                style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-slate-400">대금 결제일</label>
-              <input
-                type="text"
-                value={paymentDay}
-                onChange={(e) => setPaymentDay(e.target.value)}
-                placeholder="익월 25일, 익월 말일..."
-                className="w-full rounded-xl p-2.5 text-xs text-white focus:outline-none"
-                style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 6. 특이사항 및 현장 메모 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-2">
-          <label className="text-xs font-bold text-slate-300">특이사항 및 배차 메모</label>
-
-          {dispatchMode === 'EXCHANGE' && (
-            <div className="flex flex-col gap-1.5 mt-1 mb-2">
-              <span className="text-[11px] font-bold text-slate-400">교환 불량 증상 빠른 입력</span>
-              <div className="flex flex-wrap gap-1.5">
-                {defectSymptoms.map((cat) => (
-                  <button
-                    key={cat}
+                    key={opt.id}
                     type="button"
                     onClick={() => {
-                      const prefix = `[불량증상] ${cat}`;
-                      if (!memo.includes(prefix)) {
-                        setMemo(prev => prev ? `${prev}\n${prefix}` : prefix);
+                      setSelectedContext(opt.id);
+                      if (opt.id === 'NEW_CUSTOMER') {
+                        setSelectedCustomer(null);
+                        setSelectedSite(null);
                       }
                     }}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 active:bg-slate-700 active:scale-95 transition-all"
+                    className={`py-2.5 px-2 rounded-xl text-xs font-black border whitespace-nowrap transition ${
+                      isSelected
+                        ? opt.id === 'EXCHANGE'
+                          ? 'bg-rose-600 text-white border-rose-400 shadow'
+                          : opt.id === 'NEW_CUSTOMER'
+                            ? 'bg-purple-600 text-white border-purple-400 shadow'
+                            : 'bg-blue-600 text-white border-blue-400 shadow'
+                        : 'bg-slate-800 text-slate-200 border-slate-600'
+                    }`}
                   >
-                    {cat}
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* ── 블록 1: 거래처(고객사) 지정 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('CUSTOMER')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Building2 className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">1. 거래처 (고객사) *</span>
+                  {(selectedCustomer || (isNewCustomerMode && newCustomerName.trim())) && (
+                    <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 text-[11px] font-bold truncate">
+                      {isNewCustomerMode ? newCustomerName : selectedCustomer?.name}
+                    </span>
+                  )}
+                </div>
+                {openBlocks.has('CUSTOMER') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('CUSTOMER') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {isNewCustomerMode ? (
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-purple-300">신규 고객사 정보</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCust({
+                              name: newCustomerName.trim(),
+                              bizRegNo: '',
+                              address: newCustomerAddress.trim(),
+                              repContact: newCustomerPhone.trim(),
+                              defaultBillingDay: 30,
+                              defaultStatementClosingDay: 25,
+                              paymentDueMonthOffset: 1,
+                              paymentDueDay: 25,
+                              defaultTaxInvoiceIssueType: 'FORWARD',
+                              defaultPaymentMethod: 'CASH',
+                              transactionStatus: 'ALLOWED'
+                            });
+                            setShowCustModal(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-black flex items-center gap-1 whitespace-nowrap"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>신규 고객사 정식 등록 (사업자등록증 인식)</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-200">신규 고객사 상호 *</label>
+                        <input
+                          type="text"
+                          value={newCustomerName}
+                          onChange={e => setNewCustomerName(e.target.value)}
+                          placeholder="신규 거래처 법인명 또는 상호 입력"
+                          className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative flex items-center">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={customerQuery}
+                          onChange={e => setCustomerQuery(e.target.value)}
+                          placeholder="거래처명 또는 사업자번호 초성 검색..."
+                          className="w-full pl-9 pr-8 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                        />
+                        {customerQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomerQuery('')}
+                            className="absolute right-2.5 text-slate-400"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {selectedCustomer && (
+                        <div className="p-2.5 rounded-xl bg-blue-950/50 border border-blue-600 flex items-center justify-between gap-2">
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-black text-white truncate">{selectedCustomer.name}</span>
+                            <span className="text-[11px] text-blue-300 font-mono">
+                              사업자번호: {selectedCustomer.bizRegNo || '미등록'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCust({ ...selectedCustomer });
+                                setShowCustModal(true);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-600 text-[11px] font-bold whitespace-nowrap"
+                            >
+                              정보 수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCustomer(null)}
+                              className="px-2 py-1 rounded-lg bg-slate-800 text-rose-300 border border-slate-700 text-[11px] font-bold whitespace-nowrap"
+                            >
+                              변경
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {(!selectedCustomer || customerQuery.trim()) && (
+                        <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
+                          {filteredCustomers.map(cust => {
+                            const blocked = isCustomerRestricted(cust.transactionStatus) || isCustomerClosedBlocked(cust);
+                            return (
+                              <button
+                                key={cust.id}
+                                type="button"
+                                onClick={() => handleSelectCustomer(cust)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                                  blocked
+                                    ? 'bg-rose-950/50 text-rose-300 border-rose-800 opacity-70'
+                                    : selectedCustomer?.id === cust.id
+                                      ? 'bg-blue-600 text-white border-blue-400'
+                                      : 'bg-slate-800 text-slate-100 border-slate-600'
+                                }`}
+                              >
+                                {cust.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── 블록 2: 투입 현장, 현장담당자, 계약 연결 및 정산 조건 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('SITE')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">2. 현장 · 담당자 · 정산조건 *</span>
+                  {(selectedSite || newSiteName.trim()) && (
+                    <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 text-[11px] font-bold truncate">
+                      {isNewCustomerMode || isRegisteringNewSite ? newSiteName : selectedSite?.name}
+                    </span>
+                  )}
+                </div>
+                {openBlocks.has('SITE') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('SITE') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {!isNewCustomerMode && selectedCustomer && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-300">
+                        등록 현장 ({customerSites.length}개)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRegisteringNewSite(prev => !prev);
+                          setSelectedSite(null);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-purple-700 text-white border border-purple-500 text-xs font-bold whitespace-nowrap"
+                      >
+                        {isRegisteringNewSite ? '기존 현장 목록 선택' : '+ 신규현장 등록'}
+                      </button>
+                    </div>
+                  )}
+
+                  {isNewCustomerMode || isRegisteringNewSite ? (
+                    <div className="flex flex-col gap-2.5">
+                      {/* 옵션 그룹 상속 선택 */}
+                      <div className="p-2.5 rounded-xl bg-purple-950/30 border border-purple-700 flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-purple-300">옵션 그룹 상속 선택 (선택사항)</label>
+                        <select
+                          value={selectedSiteMasterId}
+                          onChange={e => {
+                            const smId = e.target.value;
+                            setSelectedSiteMasterId(smId);
+                            const sm = (siteMasters || []).find(s => s.id === smId);
+                            if (sm) {
+                              const opts = new Set<string>();
+                              if (sm.paidOptions) parseOptionString(sm.paidOptions, standardOptions).forEach(o => opts.add(o));
+                              if (sm.protection && sm.protection !== 'NONE') parseOptionString(sm.protection, standardOptions).forEach(o => opts.add(o));
+                              if (sm.attachments && sm.attachments !== 'NONE') parseOptionString(sm.attachments, standardOptions).forEach(o => opts.add(o));
+                              setSelectedSafetyOptions(opts);
+                            }
+                          }}
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        >
+                          <option value="">-- 옵션 그룹 상속 안함 --</option>
+                          {filteredSiteMasters.map(sm => (
+                            <option key={sm.id} value={sm.id}>
+                              {sm.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-200">신규 현장명 *</label>
+                        <input
+                          type="text"
+                          value={newSiteName}
+                          onChange={e => setNewSiteName(e.target.value)}
+                          placeholder="신규 현장명 입력"
+                          className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-200">신규 현장 상세주소 *</label>
+                        <input
+                          type="text"
+                          value={newSiteAddress}
+                          onChange={e => setNewSiteAddress(e.target.value)}
+                          placeholder="도로명 또는 지번 상세주소 입력"
+                          className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+                    </div>
+                  ) : selectedCustomer ? (
+                    <>
+                      <input
+                        type="text"
+                        value={siteQuery}
+                        onChange={e => setSiteQuery(e.target.value)}
+                        placeholder="현장명 또는 주소 검색..."
+                        className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                      />
+
+                      <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                        {customerSites.map(site => {
+                          const meta = siteContractMetaMap.get(site.id);
+                          const isSelected = selectedSite?.id === site.id;
+                          return (
+                            <button
+                              key={site.id}
+                              type="button"
+                              onClick={() => handleSelectSite(site)}
+                              className={`p-2.5 rounded-xl border text-left flex items-center justify-between gap-2 ${
+                                isSelected
+                                  ? 'bg-cyan-950/60 border-cyan-500 text-white'
+                                  : 'bg-slate-950 border-slate-800 text-slate-200'
+                              }`}
+                            >
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-black truncate">{site.name}</span>
+                                <span className="text-[11px] text-slate-400 truncate">{site.address || '주소 미입력'}</span>
+                              </div>
+                              {meta?.activeContract ? (
+                                <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[10.5px] font-bold whitespace-nowrap">
+                                  가동 {meta.activeAssetCount}대
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10.5px] font-bold whitespace-nowrap">
+                                  선택
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {selectedSite && (
+                        <div className="flex flex-col gap-1 pt-1">
+                          <label className="text-xs font-bold text-slate-200">선택 현장 상세주소 *</label>
+                          <input
+                            type="text"
+                            value={selectedSiteAddress}
+                            onChange={e => setSelectedSiteAddress(e.target.value)}
+                            placeholder="현장 상세주소"
+                            className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-400 bg-slate-950 rounded-xl border border-slate-800">
+                      1번 블록에서 거래처(고객사)를 먼저 선택하십시오.
+                    </div>
+                  )}
+
+                  {/* 현장 인수 담당자 */}
+                  <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-cyan-300">현장 인수 담당자 정보 *</span>
+                      {selectedSite && isSelectedSiteContactModified && (
+                        <button
+                          type="button"
+                          onClick={handleUpdateSiteContactImmediate}
+                          className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap"
+                        >
+                          현장담당자 정보 업데이트
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-slate-300">담당자 성명 *</label>
+                        <input
+                          type="text"
+                          value={contactPerson}
+                          onChange={e => setContactPerson(e.target.value)}
+                          placeholder="성명 입력"
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-slate-300">담당자 연락처 *</label>
+                        <input
+                          type="tel"
+                          value={contactPhone}
+                          onChange={e => setContactPhone(e.target.value)}
+                          placeholder="010-0000-0000"
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-slate-300">담당자 직책</label>
+                        <input
+                          type="text"
+                          value={contactPosition}
+                          onChange={e => setContactPosition(e.target.value)}
+                          placeholder="소장 / 반장 / 공무"
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-slate-300">담당자 이메일</label>
+                        <input
+                          type="email"
+                          value={contactEmail}
+                          onChange={e => setContactEmail(e.target.value)}
+                          placeholder="이메일 주소"
+                          className="px-2.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 정산 및 결제 조건 요약/수정 */}
+                  <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-300">정산 마감일 · 운송료 청구기준</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditScheduleForExistingSite(prev => !prev)}
+                        className="text-[11px] font-bold text-blue-400 whitespace-nowrap"
+                      >
+                        {showEditScheduleForExistingSite ? '접기' : '정산조건 변경'}
+                      </button>
+                    </div>
+                    <div className="text-[11px] text-slate-300 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                      명세서 {statementClosingDay}일 · 계산서 {closingDay === 0 ? '역발행' : `${closingDay}일`} · 결제{' '}
+                      {formatPaymentDueCondition(paymentDueMonthOffset, paymentDueDay)} · 운송료 {freightBillingStandard} 기준
+                    </div>
+
+                    {(showEditScheduleForExistingSite || isNewCustomerMode || isRegisteringNewSite) && (
+                      <div className="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-slate-300">명세서 마감일</label>
+                          <select
+                            value={statementClosingDay}
+                            onChange={e => setStatementClosingDay(Number(e.target.value))}
+                            className="px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white text-xs"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                              <option key={d} value={d}>
+                                매월 {d}일
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-slate-300">계산서 마감일</label>
+                          <select
+                            value={closingDay}
+                            onChange={e => setClosingDay(Number(e.target.value))}
+                            className="px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white text-xs"
+                          >
+                            <option value={0}>미지정 (역발행)</option>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                              <option key={d} value={d}>
+                                매월 {d}일
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-slate-300">운송료 청구기준</label>
+                          <select
+                            value={freightBillingStandard}
+                            onChange={e => setFreightBillingStandard(e.target.value as '3/5' | '2/4')}
+                            className="px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white text-xs"
+                          >
+                            <option value="3/5">3/5 기준 (기본)</option>
+                            <option value="2/4">2/4 기준</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-slate-300">약정 결제수단</label>
+                          <select
+                            value={paymentMethod}
+                            onChange={e => setPaymentMethod(e.target.value as PaymentMethodType)}
+                            className="px-2 py-1.5 rounded bg-slate-900 border border-slate-700 text-white text-xs"
+                          >
+                            {PAYMENT_METHOD_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── 블록 3: 출고 장비 규격 및 단가 (가상자산 원천 배제 SSOT 연동) ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('EQUIPMENT')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Package className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">3. 출고 장비 및 단가 *</span>
+                  {totalQty > 0 && (
+                    <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[11px] font-bold whitespace-nowrap">
+                      총 {totalQty}대 선택
+                    </span>
+                  )}
+                </div>
+                {openBlocks.has('EQUIPMENT') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('EQUIPMENT') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {/* 규격 탭 (가용 대수 실시간 표시 — 가상자산 제외) */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    {specFtOrder.map(ft => {
+                      const availUnits = availUnitsByFtMap.get(ft) || 0;
+                      const isActive = activeSpecFt === ft;
+                      return (
+                        <button
+                          key={ft}
+                          type="button"
+                          onClick={() => setActiveSpecFt(ft)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                            isActive
+                              ? 'bg-emerald-600 text-white border-emerald-400'
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          {ft} ({availUnits}대)
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 모델 검색 */}
+                  <input
+                    type="text"
+                    value={modelSearchQuery}
+                    onChange={e => setModelSearchQuery(e.target.value)}
+                    placeholder="모델명 빠른 검색 (예: 3219, 2646)..."
+                    className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white font-mono"
+                  />
+
+                  {/* 모델 선택 칩 */}
+                  <div className="grid grid-cols-2 gap-1.5 max-h-52 overflow-y-auto">
+                    {visibleModelsForCurrentFt.map(m => {
+                      const isPicked = pickedModelSet.has(m.modelName);
+                      const hasAvail = m.availableCount > 0;
+                      return (
+                        <button
+                          key={m.modelName}
+                          type="button"
+                          onClick={() => addOrIncrementModel(m.modelName)}
+                          className={`p-2 rounded-xl border text-left flex items-center justify-between gap-1.5 ${
+                            isPicked
+                              ? 'bg-emerald-950/80 border-emerald-500 text-white'
+                              : 'bg-slate-950 border-slate-700 text-slate-100'
+                          }`}
+                        >
+                          <span className="font-mono text-xs font-black truncate">{m.modelName}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold whitespace-nowrap ${
+                              hasAvail
+                                ? 'bg-emerald-900/80 text-emerald-200'
+                                : 'bg-amber-950 text-amber-300 border border-amber-800'
+                            }`}
+                          >
+                            가용 {m.availableCount}대
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 선택된 장비 및 단가 입력 */}
+                  {equipments.length > 0 && (
+                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-300">
+                          선택된 출고 장비 ({totalQty}대)
+                        </span>
+                        {totalAvailShortage > 0 ? (
+                          <span className="text-[11px] font-bold text-amber-300">
+                            외부 임차 {totalAvailShortage}대 필요
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-emerald-400">
+                            전량 자사 가용재고 출고 가능
+                          </span>
+                        )}
+                      </div>
+
+                      {equipments.map((eq, idx) => (
+                        <div key={eq.modelName} className="bg-slate-950 border border-slate-700 rounded-xl p-2.5 flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-xs font-black text-white">{eq.modelName}</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => changeModelQty(idx, -1)}
+                                className="w-7 h-7 rounded bg-slate-800 text-white font-bold border border-slate-600"
+                              >
+                                -
+                              </button>
+                              <span className="px-2 font-mono text-xs font-black text-emerald-300">{eq.qty}대</span>
+                              <button
+                                type="button"
+                                onClick={() => changeModelQty(idx, 1)}
+                                className="w-7 h-7 rounded bg-slate-800 text-white font-bold border border-slate-600"
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEquipments(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 rounded bg-rose-950 text-rose-300 border border-rose-800"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {hasFinancialAccess && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10.5px] font-bold text-slate-300">월 렌탈료 (원) *</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={eq.monthlyRate ? eq.monthlyRate.toLocaleString() : ''}
+                                  onChange={e => {
+                                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                    setModelRate(idx, 'monthlyRate', num);
+                                  }}
+                                  placeholder="월 단가 입력"
+                                  className="px-2.5 py-1.5 rounded bg-slate-900 border border-emerald-600 font-mono font-bold text-emerald-300 text-right text-xs"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10.5px] font-bold text-slate-300">일 렌탈료 (원) *</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={eq.dailyRate ? eq.dailyRate.toLocaleString() : ''}
+                                  onChange={e => {
+                                    const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                    setModelRate(idx, 'dailyRate', num);
+                                  }}
+                                  placeholder="일 단가 입력"
+                                  className="px-2.5 py-1.5 rounded bg-slate-900 border border-slate-700 font-mono font-bold text-white text-right text-xs"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── 블록 4: 출고(상차) 및 하차 일정 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('SCHEDULE')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">4. 상차 및 하차 일정 *</span>
+                  {unloadingDate && (
+                    <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 text-[11px] font-mono font-bold whitespace-nowrap">
+                      하차 {unloadingDate}
+                    </span>
+                  )}
+                </div>
+                {openBlocks.has('SCHEDULE') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('SCHEDULE') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {/* 상차 일정 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-200">상차(주기장 출고) 일자 및 시간 *</label>
+                    <input
+                      type="date"
+                      value={loadingDate}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setLoadingDate(v);
+                        if (!unloadingDate || unloadingDate < v) setUnloadingDate(v);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-xs"
+                    />
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { id: 'ASAP', label: '최우선' },
+                        { id: 'MORNING', label: '오전' },
+                        { id: 'AFTERNOON', label: '오후' },
+                        { id: 'EXACT', label: '시간지정' }
+                      ].map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setLoadingTimeType(t.id as any);
+                            if (!unloadingTimeType) setUnloadingTimeType(t.id as any);
+                          }}
+                          className={`py-2 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                            loadingTimeType === t.id
+                              ? 'bg-blue-600 text-white border-blue-400'
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    {loadingTimeType === 'EXACT' && (
+                      <input
+                        type="time"
+                        value={loadingTimeVal}
+                        onChange={e => setLoadingTimeVal(e.target.value)}
+                        className="px-3 py-2 rounded-lg bg-slate-950 border border-blue-500 text-white font-mono text-xs"
+                      />
+                    )}
+                  </div>
+
+                  {/* 하차 일정 */}
+                  <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-800">
+                    <label className="text-xs font-bold text-emerald-300">하차(현장 도착 · 계약 개시일) 일자 및 시간 *</label>
+                    <input
+                      type="date"
+                      value={unloadingDate}
+                      onChange={e => setUnloadingDate(e.target.value)}
+                      className="px-3 py-2 rounded-lg bg-slate-950 border border-emerald-600 text-emerald-300 font-mono text-xs"
+                    />
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { id: 'ASAP', label: '최우선' },
+                        { id: 'MORNING', label: '오전' },
+                        { id: 'AFTERNOON', label: '오후' },
+                        { id: 'EXACT', label: '시간지정' }
+                      ].map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setUnloadingTimeType(t.id as any)}
+                          className={`py-2 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                            unloadingTimeType === t.id
+                              ? 'bg-emerald-600 text-white border-emerald-400'
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    {unloadingTimeType === 'EXACT' && (
+                      <input
+                        type="time"
+                        value={unloadingTimeVal}
+                        onChange={e => setUnloadingTimeVal(e.target.value)}
+                        className="px-3 py-2 rounded-lg bg-slate-950 border border-emerald-500 text-white font-mono text-xs"
+                      />
+                    )}
+                  </div>
+
+                  {totalQty > 1 && (
+                    <div className="flex flex-col gap-1 pt-2 border-t border-slate-800">
+                      <label className="text-xs font-bold text-slate-300">다수 장비 시차 출고 메모 (선택)</label>
+                      <input
+                        type="text"
+                        value={staggeredMemo}
+                        onChange={e => setStaggeredMemo(e.target.value)}
+                        placeholder="예: 1대 오전 8시 하차, 나머지 1대 오후 1시 하차"
+                        className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── 블록 5: 안전옵션 · 유상옵션 단가/단위 · 교환 회수자산 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('OPTIONS')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <ShieldCheck className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">5. 안전옵션 및 유상단가 *</span>
+                  <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 text-[11px] font-bold whitespace-nowrap">
+                    {selectedSafetyOptions.size > 0
+                      ? `${selectedSafetyOptions.size}개 선택`
+                      : confirmNoSafetyOptions
+                        ? '옵션 없음 확인'
+                        : '미선택'}
+                  </span>
+                </div>
+                {openBlocks.has('OPTIONS') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('OPTIONS') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {/* 교환 모드 시 회수 대상 자산 선택 */}
+                  {isExchangeMode && (
+                    <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-700 flex flex-col gap-2">
+                      <span className="text-xs font-black text-rose-300">교환 회수 대상 전자산 선택 *</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRetrievalAssetIds(prev => (prev.includes('UNKNOWN') ? [] : ['UNKNOWN']))
+                        }
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border text-left ${
+                          isUnknownRetrieval
+                            ? 'bg-rose-600 text-white border-rose-400'
+                            : 'bg-slate-900 text-slate-200 border-slate-700'
+                        }`}
+                      >
+                        모름 (현장 도착 확인 후 회수)
+                      </button>
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeCustomerAssets.map(a => {
+                          const isSel = retrievalAssetIds.includes(a.assetNo);
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() =>
+                                setRetrievalAssetIds(prev => {
+                                  const clean = prev.filter(x => x !== 'UNKNOWN');
+                                  return clean.includes(a.assetNo)
+                                    ? clean.filter(x => x !== a.assetNo)
+                                    : [...clean, a.assetNo];
+                                })
+                              }
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border ${
+                                isSel
+                                  ? 'bg-rose-600 text-white border-rose-400'
+                                  : 'bg-slate-800 text-slate-200 border-slate-600'
+                              }`}
+                            >
+                              {a.assetNo} ({a.modelName})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 안전옵션 없음 확인 체크박스 */}
+                  {selectedSafetyOptions.size === 0 && (
+                    <label className="p-2.5 rounded-xl bg-slate-950 border border-slate-700 flex items-center gap-2 text-xs font-bold text-amber-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={confirmNoSafetyOptions}
+                        onChange={e => setConfirmNoSafetyOptions(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <span>안전옵션 없음 확인 (요청 옵션 없이 출고 진행)</span>
+                    </label>
+                  )}
+
+                  {/* 표준 안전옵션 마스터 칩 */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableOptionSuggestions.map(optName => {
+                      const isSel = selectedSafetyOptions.has(optName);
+                      const meta = getOptionGroupMeta(optName, standardOptions || []);
+                      return (
+                        <button
+                          key={optName}
+                          type="button"
+                          onClick={() => {
+                            setConfirmNoSafetyOptions(false);
+                            setSelectedSafetyOptions(prev => {
+                              const next = new Set(prev);
+                              if (next.has(optName)) next.delete(optName);
+                              else next.add(optName);
+                              return next;
+                            });
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 whitespace-nowrap ${
+                            isSel
+                              ? meta.chipSelectedClass
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          <span className={`px-1 py-0.2 rounded text-[9.5px] font-bold ${meta.badgeClass}`}>
+                            {meta.badgeText}
+                          </span>
+                          <span>{optName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 유상옵션 단가 및 청구단위 (1대당 N개 표현 포함) */}
+                  {hasFinancialAccess && selectedPaidMasterOptions.length > 0 && (
+                    <div className="p-3 rounded-xl bg-slate-950 border border-rose-800/70 flex flex-col gap-2.5">
+                      <span className="text-xs font-black text-rose-300">
+                        유상옵션 청구단위 및 단가 설정 (장비 {Math.max(1, totalQty)}대 기준)
+                      </span>
+                      {selectedPaidMasterOptions.map(opt => {
+                        const curUnit = paidOptionUnits[opt.name] || '월';
+                        const curQty = paidOptionQtys[opt.name] || 1;
+                        const curPrice = paidOptionPrices[opt.name] ?? (opt.defaultPrice || 0);
+                        return (
+                          <div key={opt.id} className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex flex-col gap-2">
+                            <span className="text-xs font-bold text-white">{opt.name}</span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <select
+                                value={curUnit}
+                                onChange={e =>
+                                  setPaidOptionUnits(prev => ({
+                                    ...prev,
+                                    [opt.name]: e.target.value as '월' | '대' | '건' | '수량'
+                                  }))
+                                }
+                                className="px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-white text-xs font-bold"
+                              >
+                                <option value="월">월 (매월×{Math.max(1, totalQty)}대)</option>
+                                <option value="대">대 (1대당 {curQty}개)</option>
+                                <option value="건">건 (1회)</option>
+                                <option value="수량">수량 ({curQty}개×단가)</option>
+                              </select>
+
+                              {(curUnit === '대' || curUnit === '수량') && (
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={curQty}
+                                  onChange={e =>
+                                    setPaidOptionQtys(prev => ({
+                                      ...prev,
+                                      [opt.name]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                    }))
+                                  }
+                                  className="px-2 py-1.5 rounded bg-slate-950 border border-slate-700 text-white font-mono text-xs text-center"
+                                />
+                              )}
+
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={curPrice.toLocaleString()}
+                                onChange={e => {
+                                  const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
+                                  setPaidOptionPrices(prev => ({ ...prev, [opt.name]: num }));
+                                }}
+                                className="px-2 py-1.5 rounded bg-slate-950 border border-rose-600 text-rose-300 font-mono font-bold text-xs text-right"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── 블록 6: 희망 차종 · 운송비 귀속선 · 특이사항 메모 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleBlock('FREIGHT')}
+                className="w-full px-3.5 py-3 bg-slate-900 flex items-center justify-between gap-2 text-left border-b border-slate-800"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Truck className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span className="text-xs font-black text-white whitespace-nowrap">6. 희망 차종 · 운송비 부담 · 메모 *</span>
+                  {paidBy && (
+                    <span className="px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 text-[11px] font-bold whitespace-nowrap">
+                      {paidBy === 'CUSTOMER' ? '고객사 청구' : paidBy === 'OURS' ? '당사 부담' : '편도 지원'}
+                    </span>
+                  )}
+                </div>
+                {openBlocks.has('FREIGHT') ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                )}
+              </button>
+
+              {openBlocks.has('FREIGHT') && (
+                <div className="p-3.5 flex flex-col gap-3">
+                  {/* 운송비 귀속선 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-200">운송비 부담 주체 *</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'CUSTOMER', label: '고객사 청구' },
+                        { id: 'OURS', label: '당사 부담' },
+                        { id: 'SPLIT', label: '편도 지원' }
+                      ].map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setPaidBy(p.id as PaidBy)}
+                          className={`py-2.5 px-2 rounded-xl text-xs font-black border whitespace-nowrap ${
+                            paidBy === p.id
+                              ? 'bg-indigo-600 text-white border-indigo-400'
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 희망 차종 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-200">희망 배차 차종</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {VEHICLE_TYPE_OPTIONS.map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setVehicleType(v)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap ${
+                            vehicleType === v
+                              ? 'bg-blue-600 text-white border-blue-400'
+                              : 'bg-slate-800 text-slate-200 border-slate-600'
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 교환 고장증상 빠른 입력 칩 */}
+                  {isExchangeMode && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {EXCHANGE_SYMPTOM_CHIPS.map(chip => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setNote(prev => (prev ? `${prev} ${chip}` : chip))}
+                          className="px-2 py-1 rounded bg-rose-950 text-rose-200 border border-rose-800 text-[11px] font-bold whitespace-nowrap"
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 특이사항 메모 */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-200">특이사항 및 전달 메모</label>
+                    <textarea
+                      rows={3}
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      placeholder="현장 출입 조건, 기사 전달사항 등을 입력하세요"
+                      className="p-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── 9대 필수 검증 체크리스트 쉴드 ── */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-200">출고 요청 필수 항목 검증</span>
+                <span className="text-xs font-mono font-bold text-cyan-300">
+                  {validationErrors.filter(e => e.valid).length} / {validationErrors.length} 완료
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {validationErrors.map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setOpenBlock(item.block)}
+                    className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-bold flex items-center justify-between border ${
+                      item.valid
+                        ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-300'
+                        : 'bg-rose-950/40 border-rose-800/70 text-rose-300'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    <span>{item.valid ? '완료' : '미입력 ➔'}</span>
                   </button>
                 ))}
               </div>
             </div>
-          )}
+          </>
+        )}
+      </main>
 
-          <textarea
-            rows={3}
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder={dispatchMode === 'RETURN' ? '회수 위치, 하역장 위치 등 메모...' : '지게차 하차 필요, 지하 2층 높이제한 2.3m, 현장 출입 조건 등...'}
-            className="w-full rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none"
-            style={{
-              backgroundColor: '#090d16',
-              color: '#f8fafc',
-              border: '1px solid #334155',
-              colorScheme: 'dark'
-            }}
-          />
-        </div>
-
-        {/* 제출 버튼 */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={`w-full py-4 rounded-2xl text-white font-black text-sm shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
-            dispatchMode === 'EXCHANGE'
-              ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/30'
-              : dispatchMode === 'RETURN'
-              ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/30'
-              : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/30'
-          }`}
+      {/* 하단 고정 발행 액션 바 (NEW 탭일 때만 노출) */}
+      {mainTab === 'NEW' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 'calc(58px + env(safe-area-inset-bottom, 0px))',
+            left: 0,
+            right: 0,
+            zIndex: 8900
+          }}
+          className="bg-slate-900/95 backdrop-blur border-t border-slate-800 px-3 py-2.5 shadow-2xl"
         >
-          {isSubmitting ? (
-            <span>처리 중...</span>
-          ) : dispatchMode === 'EXCHANGE' ? (
-            <>
-              <RotateCw className="w-4 h-4" />
-              <span>교환 의뢰 접수 (단일 왕복 배차)</span>
-            </>
-          ) : dispatchMode === 'RETURN' ? (
-            <>
-              <ArrowDownLeft className="w-4 h-4" />
-              <span>회수 요청 접수 완료 ({selectedReturnAssetIds.length}대)</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              <span>출고 요청 접수 및 발송 ({orders.reduce((sum, o) => sum + o.count, 0)}대)</span>
-            </>
-          )}
-        </button>
-      </form>
+          <button
+            type="button"
+            disabled={isSubmittingDispatch}
+            onClick={() => {
+              if (isOptionsModified) {
+                setShowOptionSaveConfirmModal(true);
+              } else {
+                executeDispatchSubmit(true);
+              }
+            }}
+            className={`w-full py-3.5 px-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xl whitespace-nowrap ${
+              isAllValid
+                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                : 'bg-slate-800 text-slate-300 border border-slate-600'
+            }`}
+          >
+            <Check className="w-4 h-4" />
+            <span>
+              {isSubmittingDispatch
+                ? '출고 요청 등록 처리 중...'
+                : isAllValid
+                  ? `출고 요청 정식 발행 (${totalQty}대)`
+                  : `미완료 항목 확인 (${validationErrors.filter(e => !e.valid).length}건 미입력)`}
+            </span>
+          </button>
+        </div>
+      )}
 
-      {/* ─── 대화형 음성 인터뷰 위자드 모달 ─── */}
-      <VoiceGuideWizardModal
-        isOpen={isVoiceWizardOpen}
-        onClose={() => setIsVoiceWizardOpen(false)}
-        onComplete={(data: VoiceGuideWizardCompleteData) => {
-          if (data.customerId) setSelectedCustomerId(data.customerId);
-          if (data.siteId) setSelectedSiteId(data.siteId);
-          if (data.newSiteName) setNewSiteName(data.newSiteName);
-          if (data.siteAddress) setSiteAddress(data.siteAddress);
-          if (data.siteContactName) setSiteContactName(data.siteContactName);
-          if (data.siteContactPhone) setSiteContactPhone(data.siteContactPhone);
-          if (data.deliveryDate) setDeliveryDate(data.deliveryDate);
-          if (data.deliveryTime) setDeliveryTime(data.deliveryTime);
-          if (data.orders && data.orders.length > 0) setOrders(data.orders);
-          if (data.paidOptions) setPaidOptions(data.paidOptions);
-          if (data.protection) setProtection(data.protection);
-          if (data.checkedSpecs) setCheckedSpecs(data.checkedSpecs);
-          if (data.saveOptionsToSite !== undefined) setSaveOptionsToSite(data.saveOptionsToSite);
-          if (data.billableToCustomer !== undefined) setBillableToCustomer(data.billableToCustomer);
-          if (data.closingDay) setClosingDay(data.closingDay);
-          if (data.paymentDay) setPaymentDay(data.paymentDay);
-          if (data.vehicleType) setVehicleType(data.vehicleType);
-          setHasRestoredDraft(true);
-          if (data.isPartialHandOff) {
-            showToast('입력 중이던 내용이 일반 서식에 반영되었습니다. 나머지 항목을 확인 후 접수해주세요.');
-          } else {
-            showToast('대화형 음성으로 출고 요청 전체 서식이 완성되었습니다.');
-          }
-        }}
-      />
+      {/* 기존 현장 옵션 변경 시 저장 방식 확인 모달 */}
+      {showOptionSaveConfirmModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9500,
+            backgroundColor: 'rgba(2, 6, 23, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div className="w-full max-w-sm bg-slate-900 border border-blue-600 rounded-2xl p-4 flex flex-col gap-3 text-xs">
+            <div className="text-sm font-black text-white">현장 안전옵션 변경 반영 방식 선택</div>
+            <div className="text-slate-300 leading-relaxed">
+              변경한 안전옵션을 선택한 현장의 기본 옵션으로도 업데이트하시겠습니까, 아니면 이번 출고 요청에만 1회성으로 적용하시겠습니까?
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOptionSaveConfirmModal(false);
+                  executeDispatchSubmit(true);
+                }}
+                className="py-2.5 rounded-xl bg-blue-600 text-white font-black"
+              >
+                현장 기본값 갱신 + 출고 발행
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOptionSaveConfirmModal(false);
+                  executeDispatchSubmit(false);
+                }}
+                className="py-2.5 rounded-xl bg-slate-800 text-slate-100 border border-slate-600 font-bold"
+              >
+                이번 출고에만 1회성 적용
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOptionSaveConfirmModal(false)}
+                className="py-2 rounded-xl text-slate-400 font-bold"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* 🎙️ 자유 음성메모 출고의뢰 스튜디오 모달 (핵심 5대 슬롯 충족 자동 접수) */}
-      <VoiceMemoDispatchStudioModal
-        isOpen={isVoiceMemoStudioOpen}
-        onClose={() => setIsVoiceMemoStudioOpen(false)}
-        onHandOffToForm={(draftData) => {
-          if (draftData.customerId) setSelectedCustomerId(draftData.customerId);
-          if (draftData.siteId) setSelectedSiteId(draftData.siteId);
-          if (draftData.newSiteName) setNewSiteName(draftData.newSiteName);
-          if (draftData.siteAddress) setSiteAddress(draftData.siteAddress);
-          if (draftData.siteContactName) setSiteContactName(draftData.siteContactName);
-          if (draftData.siteContactPhone) setSiteContactPhone(draftData.siteContactPhone);
-          if (draftData.deliveryDate) setDeliveryDate(draftData.deliveryDate);
-          if (draftData.deliveryTime) setDeliveryTime(draftData.deliveryTime);
-          if (draftData.orders && draftData.orders.length > 0) setOrders(draftData.orders);
-          if (draftData.memo) setMemo(draftData.memo);
-          if (draftData.paidOptions) setPaidOptions(draftData.paidOptions);
-          if (draftData.protection) setProtection(draftData.protection);
-          if (draftData.checkedSpecs) setCheckedSpecs(draftData.checkedSpecs);
-          if (draftData.billableToCustomer !== undefined) setBillableToCustomer(draftData.billableToCustomer);
-          if (draftData.closingDay) setClosingDay(draftData.closingDay);
-          if (draftData.paymentDay) setPaymentDay(draftData.paymentDay);
-          if (draftData.vehicleType) setVehicleType(draftData.vehicleType);
-          setHasRestoredDraft(true);
-          showToast('음성 메모 내용이 일반 서식에 반영되었습니다.');
-        }}
-        onDirectSubmitSuccess={(res) => {
-          setCreatedResult({
-            isReturn: false,
-            contractNo: res.contractNo,
-            siteName: res.siteName,
-            totalCount: res.totalCount
-          });
-          showToast('음성 메모로 출고의뢰가 접수되었습니다.');
-        }}
-      />
+      {/* 초안 보관함 모달 */}
+      {showDraftDrawer && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9400,
+            backgroundColor: 'rgba(2, 6, 23, 0.88)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+            <span className="text-sm font-black text-white">초안 보관함 ({queue.filter(d => d.status === 'DRAFT').length}건)</span>
+            <button
+              type="button"
+              onClick={() => setShowDraftDrawer(false)}
+              className="px-2.5 py-1 rounded bg-slate-800 text-slate-200 text-xs font-bold"
+            >
+              닫기
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+            {queue.filter(d => d.status === 'DRAFT').length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400">보관된 초안이 없습니다.</div>
+            ) : (
+              queue
+                .filter(d => d.status === 'DRAFT')
+                .map(draft => (
+                  <div key={draft.id} className="bg-slate-900 border border-slate-700 rounded-xl p-3 flex flex-col gap-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-white">{draft.customerName?.value || '미지정 고객'}</span>
+                      <span className="text-slate-400">{draft.siteName?.value || '-'}</span>
+                    </div>
+                    <div className="text-emerald-300 font-mono">
+                      {(draft.equipments || []).map(e => `${e.modelName}×${e.qty}대`).join(', ') || '장비 미지정'}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await discardDraft(draft.id);
+                          await loadDrafts();
+                        }}
+                        className="px-2.5 py-1 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold"
+                      >
+                        삭제
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDraftId(draft.id);
+                          const mc = customers.find(c => c.name === draft.customerName?.value);
+                          if (mc) handleSelectCustomer(mc);
+                          if (draft.equipments?.length) setEquipments(draft.equipments);
+                          if (draft.loadingDate?.value) setLoadingDate(draft.loadingDate.value);
+                          if (draft.note) setNote(draft.note);
+                          setShowDraftDrawer(false);
+                          showToast('초안을 작성 폼으로 불러왔습니다.', 'info');
+                        }}
+                        className="px-3 py-1 rounded bg-blue-600 text-white font-black"
+                      >
+                        폼으로 불러오기
+                      </button>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* 사업자등록증 AI 신규등록/보완 모달 */}
-      <BusinessLicenseModal
-        isOpen={showBizLicenseModal}
-        onClose={() => setShowBizLicenseModal(false)}
-        onSuccess={(cust) => {
-          handleCustomerChange(cust.id);
+      {/* 출고 요청 완료 모달 */}
+      {successModalInfo && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9500,
+            backgroundColor: 'rgba(2, 6, 23, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div className="w-full max-w-sm bg-slate-900 border border-emerald-600 rounded-2xl p-4 flex flex-col gap-3 text-xs">
+            <div className="flex items-center gap-2 text-emerald-400 font-black text-sm">
+              <CheckCircle2 className="w-5 h-5" />
+              <span>출고 요청 등록 완료 ({successModalInfo.contractNo})</span>
+            </div>
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col gap-1">
+              <div className="font-bold text-white">{successModalInfo.customerName}</div>
+              <div className="text-slate-300">{successModalInfo.siteName}</div>
+              <div className="text-emerald-300 font-mono">
+                {successModalInfo.equipments.map(e => `${e.modelName}×${e.qty}대`).join(', ')}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={isAgentPrinting}
+                onClick={() =>
+                  handleRemoteQueuePrint(
+                    successModalInfo.generatedHtml,
+                    successModalInfo.customerName,
+                    successModalInfo.siteName
+                  )
+                }
+                className="py-2.5 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                <span>원격 프린터로 출고요청서 인쇄</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSuccessModalInfo(null);
+                  setMainTab('HISTORY');
+                }}
+                className="py-2.5 rounded-xl bg-slate-800 text-slate-100 border border-slate-700 font-bold"
+              >
+                출고 요청 내역 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 신규 고객사 등록 / 수정 모달 */}
+      <MobileCustomerRegModal
+        isOpen={showCustModal}
+        editingCust={editingCust}
+        setEditingCust={setEditingCust}
+        isSubmittingCust={isSubmittingCust}
+        onClose={() => setShowCustModal(false)}
+        onSaveSubmit={handleSaveCustSubmit}
+        onBizLicenseOcrSuccess={(cust, isNew) => {
+          setShowCustModal(false);
+          setSelectedCustomer(cust);
+          setNewCustomerName(cust.name);
+          applyInheritance(cust, null);
+          refreshAllData();
+          showToast(
+            isNew ? `사업자등록증 인식으로 [${cust.name}] 고객사가 신규 등록되었습니다.` : `[${cust.name}] 고객사 정보가 보완되었습니다.`,
+            'success'
+          );
         }}
       />
     </div>
