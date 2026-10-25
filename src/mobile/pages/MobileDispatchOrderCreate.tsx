@@ -25,7 +25,8 @@ import {
   ArrowLeft,
   Building2,
   User,
-  Upload
+  Upload,
+  Phone
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useApproval } from '../../hooks/useApproval';
@@ -49,7 +50,7 @@ import {
 import { getCanonicalModelKey } from '../../utils/modelUtils';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
 import { EQUIPMENT_SPEC_MATRIX } from '../../services/voiceOrderDraftService';
-import { createHangulMatcher, sortCustomersByName } from '../../utils/hangulSearch';
+import { createHangulMatcher, sortCustomersByName, compareCustomerNames } from '../../utils/hangulSearch';
 import {
   fetchMyDrafts,
   submitDraft,
@@ -79,6 +80,7 @@ import {
 import {
   isBlankContactVal,
   getSiteRegisteredContact,
+  getSiteContactList,
   classifyOptionCategory,
   getOptionGroupMeta,
   buildCheckedSpecsFromLabels,
@@ -508,7 +510,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
       const scoreA = ma?.activeContract ? 2 : ma?.completedContract ? 1 : 0;
       const scoreB = mb?.activeContract ? 2 : mb?.completedContract ? 1 : 0;
       if (scoreA !== scoreB) return scoreB - scoreA;
-      return (a.name || '').localeCompare(b.name || '', 'ko');
+      return compareCustomerNames(a.name || '', b.name || '');
     });
   }, [selectedCustomer, sites, siteQuery, siteContractMetaMap]);
 
@@ -644,7 +646,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
       setShowEditScheduleForExistingSite(false);
 
       if (site) {
-        const reg = getSiteRegisteredContact(site);
+        const reg = getSiteRegisteredContact(site, custContacts);
         setContactPerson(reg.name);
         setContactPhone(reg.phone);
         setContactPosition(reg.position);
@@ -708,7 +710,18 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     setOpenBlock('EQUIPMENT');
   };
 
-  const selectedSiteRegContact = useMemo(() => getSiteRegisteredContact(selectedSite), [selectedSite]);
+  const selectedCustContacts = useMemo(
+    () => (selectedCustomer ? contacts.filter(c => c.customerId === selectedCustomer.id && !isBlankContactVal(c.name)) : []),
+    [selectedCustomer, contacts]
+  );
+  const selectedSiteContactList = useMemo(
+    () => getSiteContactList(selectedSite, selectedCustContacts),
+    [selectedSite, selectedCustContacts]
+  );
+  const selectedSiteRegContact = useMemo(
+    () => getSiteRegisteredContact(selectedSite, selectedCustContacts),
+    [selectedSite, selectedCustContacts]
+  );
   const isSelectedSiteContactModified = useMemo(() => {
     if (!selectedSite) return false;
     return (
@@ -1846,6 +1859,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                         {customerSites.map(site => {
                           const meta = siteContractMetaMap.get(site.id);
                           const isSelected = selectedSite?.id === site.id;
+                          const regContact = getSiteRegisteredContact(site, selectedCustContacts);
                           return (
                             <button
                               key={site.id}
@@ -1857,9 +1871,14 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                                   : 'bg-slate-950 border-slate-800 text-slate-200'
                               }`}
                             >
-                              <div className="flex flex-col min-w-0">
+                              <div className="flex flex-col min-w-0 flex-1">
                                 <span className="text-xs font-black truncate">{site.name}</span>
                                 <span className="text-[11px] text-slate-400 truncate">{site.address || '주소 미입력'}</span>
+                                {(regContact.name || regContact.phone) && (
+                                  <span className="text-[10.5px] font-bold text-emerald-400 truncate mt-0.5">
+                                    현장담당: {regContact.name || '담당자'}{regContact.phone ? ` · ${regContact.phone}` : ''}
+                                  </span>
+                                )}
                               </div>
                               {meta?.activeContract ? (
                                 <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[10.5px] font-bold whitespace-nowrap">
@@ -1898,16 +1917,70 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                   <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-cyan-300">현장 인수 담당자 정보 *</span>
-                      {selectedSite && isSelectedSiteContactModified && (
-                        <button
-                          type="button"
-                          onClick={handleUpdateSiteContactImmediate}
-                          className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap"
-                        >
-                          현장담당자 정보 업데이트
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {contactPhone.trim() && (
+                          <a
+                            href={`tel:${contactPhone.replace(/[^0-9+]/g, '')}`}
+                            className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>통화하기</span>
+                          </a>
+                        )}
+                        {selectedSite && isSelectedSiteContactModified && (
+                          <button
+                            type="button"
+                            onClick={handleUpdateSiteContactImmediate}
+                            className="px-2.5 py-1 rounded bg-blue-600 text-white text-[11px] font-bold whitespace-nowrap"
+                          >
+                            현장담당자 저장
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {selectedSiteContactList.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pb-1">
+                        {selectedSiteContactList.map(sc => {
+                          const isCurrent = contactPerson.trim() === sc.name && contactPhone.trim() === sc.phone;
+                          return (
+                            <div
+                              key={sc.id}
+                              className={`inline-flex items-center gap-1 rounded-lg border p-1 text-[11px] font-bold ${
+                                isCurrent
+                                  ? 'bg-emerald-950/60 border-emerald-500 text-emerald-200'
+                                  : 'bg-slate-950 border-slate-700 text-slate-300'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setContactPerson(sc.name);
+                                  setContactPhone(sc.phone);
+                                  setContactPosition(sc.position || sc.roleLabel);
+                                  setContactEmail(sc.email || '');
+                                }}
+                                className="px-1.5 py-0.5 text-left flex items-center gap-1"
+                              >
+                                <span className="text-cyan-400">{sc.roleLabel}</span>
+                                <span className="text-white">{sc.name}</span>
+                                {sc.phone && <span className="font-mono text-emerald-400">{sc.phone}</span>}
+                              </button>
+                              {sc.phone && (
+                                <a
+                                  href={`tel:${sc.phone.replace(/[^0-9+]/g, '')}`}
+                                  onClick={e => e.stopPropagation()}
+                                  className="p-1 rounded bg-emerald-600 text-white"
+                                  title="통화하기"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-bold text-slate-300">담당자 성명 *</label>

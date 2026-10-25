@@ -6565,7 +6565,10 @@ class LocalDB {
         changed = true;
       }
 
-      // contacts 배열에서 마감담당자(CLOSING) 및 안전담당자(SAFETY) 플랫 필드 자동 복원
+      // contacts 배열에서 장비담당자(EQUIPMENT), 마감담당자(CLOSING) 및 안전담당자(SAFETY) 플랫 필드 자동 복원
+      let contactName = s.contactName;
+      let contact = s.contact;
+      let email = s.email;
       let billingContactName = s.billingContactName;
       let billingContactPhone = s.billingContactPhone;
       let billingContactEmail = s.billingContactEmail;
@@ -6574,6 +6577,15 @@ class LocalDB {
       let safetyContactEmail = s.safetyContactEmail;
 
       if (Array.isArray(s.contacts) && s.contacts.length > 0) {
+        const eq = s.contacts.find(c => c && c.contactType === 'EQUIPMENT' && c.isActive !== false && (c.name || c.contact))
+          || s.contacts.find(c => c && c.isPrimary && c.isActive !== false && (c.name || c.contact))
+          || s.contacts.find(c => c && c.isActive !== false && (c.name || c.contact))
+          || s.contacts.find(c => c && (c.name || c.contact));
+        if (eq) {
+          if (!contactName && eq.name) { contactName = eq.name; changed = true; }
+          if (!contact && eq.contact) { contact = eq.contact; changed = true; }
+          if (!email && eq.email) { email = eq.email; changed = true; }
+        }
         const closing = s.contacts.find(c => c && c.contactType === 'CLOSING' && c.isActive !== false)
           || s.contacts.find(c => c && c.contactType === 'CLOSING');
         if (closing) {
@@ -6602,6 +6614,9 @@ class LocalDB {
           paymentMethod: payMethod,
           paymentTermsNote: payNote,
           isActive: isActiveVal,
+          contactName,
+          contact,
+          email,
           billingContactName,
           billingContactPhone,
           billingContactEmail,

@@ -278,13 +278,29 @@ export function matchesChosungFilter(name?: string | null, selectedChosung?: str
  * '(주)', '㈜', '주식회사' 등 법인 표기를 제외한 순수 상호명 기준으로 가나다 오름차순 정렬하고,
  * 순수 상호명이 동일한 경우 원래 명칭으로 2차 정렬합니다.
  */
+function getLeadingScriptPriority(str: string): number {
+  if (!str) return 3;
+  const ch = str[0];
+  if (isHangulSyllable(ch) || isChosungChar(ch)) return 0;
+  if (/[A-Za-z]/.test(ch)) return 1;
+  if (/[0-9]/.test(ch)) return 2;
+  return 3;
+}
+
 export function compareCustomerNames(nameA?: string | null, nameB?: string | null): number {
-  const strA = nameA || '';
-  const strB = nameB || '';
+  const strA = (nameA || '').trim();
+  const strB = (nameB || '').trim();
   const cleanA = extractCleanCompanyName(strA);
   const cleanB = extractCleanCompanyName(strB);
 
-  return cleanA.localeCompare(cleanB, 'ko') || strA.localeCompare(strB, 'ko');
+  const prioA = getLeadingScriptPriority(cleanA);
+  const prioB = getLeadingScriptPriority(cleanB);
+  if (prioA !== prioB) return prioA - prioB;
+
+  return (
+    cleanA.localeCompare(cleanB, 'ko', { numeric: true, sensitivity: 'base' }) ||
+    strA.localeCompare(strB, 'ko', { numeric: true, sensitivity: 'base' })
+  );
 }
 
 /**

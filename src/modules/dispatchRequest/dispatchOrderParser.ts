@@ -3,6 +3,7 @@
 
 import {
   Customer,
+  CustomerContact,
   CustomerSite,
   StandardOption,
   findCustomerByNormalizedName
@@ -17,31 +18,143 @@ import { CallContext, EquipmentItem, getLocalTodayDateStr } from './dispatchOrde
 export function isBlankContactVal(v?: string | null): boolean {
   if (!v) return true;
   const t = String(v).trim();
-  return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력';
+  return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력' || t.startsWith('__EBRO_ENC__');
 }
 
-export function getSiteRegisteredContact(site: CustomerSite | null | undefined): {
+export interface SiteContactDisplayItem {
+  id: string;
+  roleType: 'EQUIPMENT' | 'CLOSING' | 'SAFETY' | 'GENERAL';
+  roleLabel: string;
+  name: string;
+  position: string;
+  phone: string;
+  email: string;
+  isPrimary: boolean;
+}
+
+export function getSiteContactList(
+  site: CustomerSite | null | undefined,
+  customerContacts?: CustomerContact[]
+): SiteContactDisplayItem[] {
+  if (!site) return [];
+  const result: SiteContactDisplayItem[] = [];
+  const seen = new Set<string>();
+
+  const pushUnique = (item: SiteContactDisplayItem) => {
+    if (isBlankContactVal(item.name) && isBlankContactVal(item.phone)) return;
+    const normPhone = item.phone.replace(/[^0-9]/g, '');
+    const key = `${item.roleType}:${item.name}:${normPhone}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(item);
+  };
+
+  const activeContacts = (site.contacts || []).filter(c => c && c.isActive !== false);
+  activeContacts.forEach((c, idx) => {
+    const rType = c.contactType === 'CLOSING' ? 'CLOSING' : c.contactType === 'SAFETY' ? 'SAFETY' : 'EQUIPMENT';
+    const rLabel = rType === 'CLOSING' ? '마감담당' : rType === 'SAFETY' ? '안전담당' : '현장담당';
+    pushUnique({
+      id: c.id || `sc-${idx}`,
+      roleType: rType,
+      roleLabel: rLabel,
+      name: !isBlankContactVal(c.name) ? c.name.trim() : '',
+      position: !isBlankContactVal(c.position) ? c.position!.trim() : '',
+      phone: !isBlankContactVal(c.contact) ? c.contact.trim() : '',
+      email: !isBlankContactVal(c.email) ? c.email!.trim() : '',
+      isPrimary: Boolean(c.isPrimary || idx === 0),
+    });
+  });
+
+  // 플랫 필드 보완 (장비/현장담당)
+  if (!isBlankContactVal(site.contactName) || !isBlankContactVal(site.contact)) {
+    const existingEq = result.find(r => r.roleType === 'EQUIPMENT');
+    if (!existingEq) {
+      pushUnique({
+        id: `flat-eq-${site.id}`,
+        roleType: 'EQUIPMENT',
+        roleLabel: '현장담당',
+        name: !isBlankContactVal(site.contactName) ? site.contactName.trim() : '',
+        position: '',
+        phone: !isBlankContactVal(site.contact) ? site.contact.trim() : '',
+        email: !isBlankContactVal(site.email) ? site.email.trim() : '',
+        isPrimary: result.length === 0,
+      });
+    }
+  }
+
+  // 플랫 필드 보완 (마감담당)
+  if (!isBlankContactVal(site.billingContactName) || !isBlankContactVal(site.billingContactPhone)) {
+    const existingCl = result.find(r => r.roleType === 'CLOSING');
+    if (!existingCl) {
+      pushUnique({
+        id: `flat-cl-${site.id}`,
+        roleType: 'CLOSING',
+        roleLabel: '마감담당',
+        name: !isBlankContactVal(site.billingContactName) ? site.billingContactName!.trim() : '',
+        position: '',
+        phone: !isBlankContactVal(site.billingContactPhone) ? site.billingContactPhone!.trim() : '',
+        email: !isBlankContactVal(site.billingContactEmail) ? site.billingContactEmail!.trim() : '',
+        isPrimary: false,
+      });
+    }
+  }
+
+  // 플랫 필드 보완 (안전담당)
+  if (!isBlankContactVal(site.safetyContactName) || !isBlankContactVal(site.safetyContactPhone)) {
+    const existingSf = result.find(r => r.roleType === 'SAFETY');
+    if (!existingSf) {
+      pushUnique({
+        id: `flat-sf-${site.id}`,
+        roleType: 'SAFETY',
+        roleLabel: '안전담당',
+        name: !isBlankContactVal(site.safetyContactName) ? site.safetyContactName!.trim() : '',
+        position: '',
+        phone: !isBlankContactVal(site.safetyContactPhone) ? site.safetyContactPhone!.trim() : '',
+        email: !isBlankContactVal(site.safetyContactEmail) ? site.safetyContactEmail!.trim() : '',
+        isPrimary: false,
+      });
+    }
+  }
+
+  // 현장에 담당자가 0명일 때 고객사 소속 담당자(customer_contacts) 폴백 연결
+  if (result.length === 0 && customerContacts && customerContacts.length > 0) {
+    customerContacts
+      .filter(cc => cc && cc.isActive !== false && (!isBlankContactVal(cc.name) || !isBlankContactVal(cc.contact)))
+      .forEach((cc, idx) => {
+        pushUnique({
+          id: cc.id || `cc-${idx}`,
+          roleType: 'GENERAL',
+          roleLabel: '고객담당',
+          name: !isBlankContactVal(cc.name) ? cc.name.trim() : '',
+          position: !isBlankContactVal(cc.position) ? cc.position!.trim() : '',
+          phone: !isBlankContactVal(cc.contact) ? cc.contact.trim() : '',
+          email: !isBlankContactVal(cc.email) ? cc.email!.trim() : '',
+          isPrimary: Boolean((cc as any).isPrimary || idx === 0),
+        });
+      });
+  }
+
+  return result;
+}
+
+export function getSiteRegisteredContact(
+  site: CustomerSite | null | undefined,
+  customerContacts?: CustomerContact[]
+): {
   name: string;
   phone: string;
   position: string;
   email: string;
 } {
   if (!site) return { name: '', phone: '', position: '', email: '' };
-  const activeContacts = (site.contacts || []).filter(c => c && c.isActive !== false);
-  const eqContact = activeContacts.find(c => c.contactType === 'EQUIPMENT') || activeContacts[0];
-  const name = !isBlankContactVal(site.contactName)
-    ? site.contactName.trim()
-    : (!isBlankContactVal(eqContact?.name) ? eqContact!.name.trim() : '');
-  const phone = !isBlankContactVal(site.contact)
-    ? site.contact.trim()
-    : (!isBlankContactVal(eqContact?.contact) ? eqContact!.contact.trim() : '');
-  const position = !isBlankContactVal(eqContact?.position)
-    ? eqContact!.position!.trim()
-    : '';
-  const email = !isBlankContactVal(site.email)
-    ? site.email.trim()
-    : (!isBlankContactVal(eqContact?.email) ? eqContact!.email!.trim() : '');
-  return { name, phone, position, email };
+  const list = getSiteContactList(site, customerContacts);
+  const eqContact = list.find(c => c.roleType === 'EQUIPMENT' && (c.name || c.phone)) || list[0];
+  return {
+    name: eqContact?.name || '',
+    phone: eqContact?.phone || '',
+    position: eqContact?.position || '',
+    email: eqContact?.email || '',
+  };
 }
 
 export function classifyOptionCategory(

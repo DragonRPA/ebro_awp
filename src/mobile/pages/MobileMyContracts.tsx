@@ -5,17 +5,18 @@ import {
   Building2, MapPin, Phone, Calendar, Clock, Layers, 
   Search, ChevronRight, ChevronDown, ChevronUp, ArrowUpDown, AlertCircle, Wrench, X, Copy, Navigation
 } from 'lucide-react';
-import { matchHangul } from '../../utils/hangulSearch';
+import { matchHangul, compareCustomerNames } from '../../utils/hangulSearch';
 import { launchNavigation, copyToClipboard } from '../../utils/nativeLauncher';
 import { formatContractEndDate, isIndefiniteEndDate } from '../../services/db';
 import { canViewUnitPrice } from '../../utils/userDepartmentHelper';
+import { getSiteContactList, SiteContactDisplayItem } from '../../modules/dispatchRequest/dispatchOrderParser';
 
 interface MobileMyContractsProps {
   onOpenCreateAsForAsset?: (assetNo: string, siteId: string) => void;
 }
 
 export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCreateAsForAsset }) => {
-  const { contracts, contractAssets, customers, sites, assets, currentUser, departments, navigationPayload, setNavigationPayload } = useApp();
+  const { contracts, contractAssets, customers, sites, contacts, assets, currentUser, departments, navigationPayload, setNavigationPayload } = useApp();
   const showUnitPrice = useMemo(() => canViewUnitPrice(currentUser, departments || []), [currentUser, departments]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ACTIVE' | 'ALL'>('ACTIVE');
@@ -76,6 +77,13 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
       .map(c => {
         const cust = customers.find(cu => cu.id === c.customerId);
         const site = sites.find(s => s.id === c.siteId);
+        const custContacts = (contacts || []).filter(cnt => cnt.customerId === c.customerId && cnt.isActive !== false);
+        const siteContacts: SiteContactDisplayItem[] = getSiteContactList(site, custContacts);
+        const primarySiteContact =
+          siteContacts.find(sc => sc.roleType === 'EQUIPMENT' && sc.phone) ||
+          siteContacts.find(sc => sc.phone) ||
+          siteContacts[0] ||
+          null;
         // 계약에 매핑된 자산들 (모델명·자산번호 순 정렬)
         const myCas = contractAssets.filter(ca => ca.contractId === c.id);
         const assignedAssets = myCas
@@ -128,8 +136,10 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
           customerName: (cust?.name || '거래처').trim(),
           siteName: (site?.name || '현장').trim(),
           siteAddress: site?.address || '',
-          siteContact: site?.contactName || '',
-          sitePhone: site?.contact || '',
+          siteContact: primarySiteContact?.name || site?.contactName || '',
+          sitePhone: primarySiteContact?.phone || site?.contact || '',
+          sitePosition: primarySiteContact?.position || '',
+          siteContacts,
           assignedAssets,
           modelSummary,
           dDayText,
@@ -143,7 +153,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
       const bEmpty = !b || b === fallback;
       if (aEmpty && !bEmpty) return 1;
       if (!aEmpty && bEmpty) return -1;
-      return a.localeCompare(b, 'ko', { numeric: true, sensitivity: 'base' });
+      return compareCustomerNames(a, b);
     };
 
     return mapped.sort((a, b) => {
@@ -175,7 +185,7 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
         (b.startDate || '').localeCompare(a.startDate || '')
       );
     });
-  }, [contracts, contractAssets, customers, sites, assets, filterStatus, searchTerm, sortBy, todayStr]);
+  }, [contracts, contractAssets, customers, sites, contacts, assets, filterStatus, searchTerm, sortBy, todayStr]);
 
   // 대시보드 [처리 이동] 딥링크 자동 선택 연동
   useEffect(() => {
@@ -404,19 +414,43 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
               </div>
 
               {/* 현장 담당자 및 원터치 전화걸기 */}
-              {c.sitePhone && (
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800/80 text-xs">
-                  <span className="text-slate-400">
-                    현장소장: <strong className="text-slate-200">{c.siteContact || '담당자'}</strong>
-                  </span>
-                  <a
-                    href={`tel:${c.sitePhone}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 active:scale-95 transition-all flex-shrink-0"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>통화하기</span>
-                  </a>
+              {(c.siteContacts?.length > 0 || c.sitePhone) && (
+                <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-800/80 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-400 truncate">
+                      현장담당: <strong className="text-slate-200">{c.siteContact || '담당자'}</strong>
+                      {c.sitePosition ? ` (${c.sitePosition})` : ''}
+                      {c.sitePhone ? <span className="font-mono text-emerald-400 ml-1">{c.sitePhone}</span> : ''}
+                    </span>
+                    {c.sitePhone && (
+                      <a
+                        href={`tel:${c.sitePhone.replace(/[^0-9+]/g, '')}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 active:scale-95 transition-all flex-shrink-0"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>통화하기</span>
+                      </a>
+                    )}
+                  </div>
+                  {c.siteContacts && c.siteContacts.length > 1 && (
+                    <div className="flex flex-wrap gap-1">
+                      {c.siteContacts.slice(1).map((sc: SiteContactDisplayItem) => (
+                        sc.phone ? (
+                          <a
+                            key={sc.id}
+                            href={`tel:${sc.phone.replace(/[^0-9+]/g, '')}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-950 border border-slate-800 text-[10.5px] font-bold text-slate-300 hover:border-emerald-500/50 active:scale-95"
+                          >
+                            <span className="text-sky-400">{sc.roleLabel}</span>
+                            <span>{sc.name}</span>
+                            <Phone className="w-2.5 h-2.5 text-emerald-400" />
+                          </a>
+                        ) : null
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -526,7 +560,9 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                     <div>
                       <div className="text-[10px] text-slate-500">현장 담당자</div>
                       <div className="font-bold text-slate-200 truncate">
-                        {siteObj?.contactName ? `${siteObj.contactName} ${siteObj.contact ? `(${siteObj.contact})` : ''}` : '-'}
+                        {selectedContract.siteContact
+                          ? `${selectedContract.siteContact} ${selectedContract.sitePhone ? `(${selectedContract.sitePhone})` : ''}`
+                          : '-'}
                       </div>
                     </div>
                   </div>
@@ -582,27 +618,70 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                 <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
                   <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>현장 담당자</span>
+                    <span>현장 담당자 ({selectedContract.siteContacts?.length || (selectedContract.sitePhone ? 1 : 0)}명)</span>
                   </div>
-                  <div className="flex items-center justify-between bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                    <div>
-                      <div className="font-bold text-slate-200">
-                        {selectedContract.siteContact || '담당자 미지정'}
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {selectedContract.sitePhone || '연락처 미등록'}
-                      </div>
+                  {selectedContract.siteContacts && selectedContract.siteContacts.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      {selectedContract.siteContacts.map((sc: SiteContactDisplayItem) => (
+                        <div
+                          key={sc.id}
+                          className="flex items-center justify-between gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${
+                                sc.roleType === 'EQUIPMENT'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : sc.roleType === 'CLOSING'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                  : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                              }`}>
+                                {sc.roleLabel}
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                {sc.name}
+                              </span>
+                              {sc.position && sc.position !== sc.roleLabel && (
+                                <span className="text-[10.5px] text-slate-400 truncate">({sc.position})</span>
+                              )}
+                            </div>
+                            <div className="text-[11.5px] font-mono font-bold text-emerald-400 mt-1">
+                              {sc.phone || '연락처 미등록'}
+                            </div>
+                          </div>
+                          {sc.phone && (
+                            <a
+                              href={`tel:${sc.phone.replace(/[^0-9+]/g, '')}`}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all flex-shrink-0"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                              <span>통화하기</span>
+                            </a>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    {selectedContract.sitePhone && (
-                      <a
-                        href={`tel:${selectedContract.sitePhone}`}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all flex-shrink-0"
-                      >
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>통화</span>
-                      </a>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-between bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                      <div>
+                        <div className="font-bold text-slate-200">
+                          {selectedContract.siteContact || '담당자 미지정'}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {selectedContract.sitePhone || '연락처 미등록'}
+                        </div>
+                      </div>
+                      {selectedContract.sitePhone && (
+                        <a
+                          href={`tel:${selectedContract.sitePhone.replace(/[^0-9+]/g, '')}`}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all flex-shrink-0"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>통화하기</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. 투입 장비 목록 & 개별 AS 접수 (기본상태: 접힘) */}
