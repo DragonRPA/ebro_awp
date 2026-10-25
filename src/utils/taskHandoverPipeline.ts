@@ -548,7 +548,8 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
   const unassignedByContract = new Map<string, typeof db.contractAssets>();
   (db.contractAssets || []).forEach(ca => {
     if (!ca.contractId) return;
-    if (ca.status === 'RETURNED' || ca.status === 'SOLD' || ca.status === 'RENTED') return;
+    const caSt = (ca.status || '') as string;
+    if (caSt === 'RETURNED' || caSt === 'SOLD' || caSt === 'RENTED' || caSt === 'CANCELLED' || caSt === 'REPLACED') return;
     if (completedInspCaIds.has(ca.id)) return;
     if (ca.assetId) return; // 미할당 슬롯만 추출
     const c = contractMap.get(ca.contractId);

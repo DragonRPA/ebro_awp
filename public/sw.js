@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = 'ebro-lift-pwa-v9';
+const CACHE_NAME = 'ebro-lift-pwa-v10';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

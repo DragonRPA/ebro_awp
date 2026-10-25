@@ -942,6 +942,8 @@ CREATE TABLE as_route_logs (
                             'DEPART_TO_SITE',          -- 현장 출발
                             'ARRIVE_AT_SITE',          -- 현장 도착
                             'WORK_START',              -- 작업 시작
+                            'PARTS_SOURCING',          -- 부품 수급 이동 (당사 주기장 / 타 차량 접선 / 임차처 방문)
+                            'REVISIT_SCHEDULED',       -- 재방문 일정 등록 (익일/타일자 재방문 스케줄 확정)
                             'WORK_COMPLETE',           -- 작업 완료
                             'MOVE_NEXT_SITE',          -- 다음 현장 이동
                             'RETURN_TO_YARD',          -- 주기장 복귀
@@ -959,7 +961,11 @@ CREATE TABLE as_route_logs (
     "assetNo"             TEXT,                        -- 자산번호
     "modelName"           TEXT,                        -- 모델명
     "nextRepairId"        TEXT,                        -- 다음 이동 대상 AS ID
-    "nextSiteName"        TEXT,                        -- 다음 이동 현장명
+    "nextSiteName"        TEXT,                        -- 다음 이동 현장명 또는 부품 수급처명
+    "sourcingType"        TEXT,                        -- 부품 수급 구분 ('HQ_YARD' | 'COLLEAGUE_VAN' | 'RENTAL_VENDOR')
+    "sourcingTargetName"  TEXT,                        -- 부품 수급 대상처 명칭 (당사 주기장, 동료 차량, 임차처명)
+    "partName"            TEXT,                        -- 수급 필요 부품명
+    "revisitDate"         TEXT,                        -- 재방문 예정일자 (YYYY-MM-DD)
     "durationMinutes"     INTEGER,                     -- 직전 단계 대비 소요시간(분)
     memo                  TEXT,                        -- 비고/상세내역
     "recordedAt"          TEXT NOT NULL,               -- 기록 일시 (ISO 8601)

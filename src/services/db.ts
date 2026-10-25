@@ -421,6 +421,10 @@ export const AS_ROUTE_LOGS_DDL_STATEMENTS: string[] = [
     "modelName" TEXT,
     "nextRepairId" TEXT,
     "nextSiteName" TEXT,
+    "sourcingType" TEXT,
+    "sourcingTargetName" TEXT,
+    "partName" TEXT,
+    "revisitDate" TEXT,
     "durationMinutes" INTEGER,
     "memo" TEXT,
     "recordedAt" TEXT NOT NULL,
@@ -428,6 +432,11 @@ export const AS_ROUTE_LOGS_DDL_STATEMENTS: string[] = [
     "updatedAt" TEXT NOT NULL,
     "tenant_id" TEXT NOT NULL DEFAULT 'giyeonlift'
   );`,
+  `ALTER TABLE "as_route_logs" DROP CONSTRAINT IF EXISTS "as_route_logs_eventType_check";`,
+  `ALTER TABLE "as_route_logs" ADD COLUMN IF NOT EXISTS "sourcingType" TEXT;`,
+  `ALTER TABLE "as_route_logs" ADD COLUMN IF NOT EXISTS "sourcingTargetName" TEXT;`,
+  `ALTER TABLE "as_route_logs" ADD COLUMN IF NOT EXISTS "partName" TEXT;`,
+  `ALTER TABLE "as_route_logs" ADD COLUMN IF NOT EXISTS "revisitDate" TEXT;`,
   `CREATE INDEX IF NOT EXISTS idx_as_route_logs_work_date ON "as_route_logs"("workDate");`,
   `CREATE INDEX IF NOT EXISTS idx_as_route_logs_mechanic ON "as_route_logs"("mechanicId", "workDate");`,
   `CREATE INDEX IF NOT EXISTS idx_as_route_logs_repair ON "as_route_logs"("repairId");`,
@@ -2378,20 +2387,26 @@ export interface Repair {
 }
 
 export type AsRouteEventType =
-  | 'CLOCK_IN'        // 출근
-  | 'DEPART_TO_SITE'  // 현장 출발
-  | 'ARRIVE_AT_SITE'  // 현장 도착
-  | 'WORK_START'      // 작업 시작
-  | 'WORK_COMPLETE'   // 작업 완료
-  | 'MOVE_NEXT_SITE'  // 다음 현장 이동
-  | 'RETURN_TO_YARD'  // 주기장 복귀
-  | 'CLOCK_OUT';      // 퇴근
+  | 'CLOCK_IN'          // 출근
+  | 'DEPART_TO_SITE'    // 현장 출발
+  | 'ARRIVE_AT_SITE'    // 현장 도착
+  | 'WORK_START'        // 작업 시작
+  | 'PARTS_SOURCING'    // 부품 수급 이동 (당사 주기장 / 타 차량 접선 / 임차처 방문)
+  | 'REVISIT_SCHEDULED' // 재방문 일정 등록 (익일/타일자 재방문 스케줄 확정)
+  | 'WORK_COMPLETE'     // 작업 완료
+  | 'MOVE_NEXT_SITE'    // 다음 현장 이동
+  | 'RETURN_TO_YARD'    // 주기장 복귀
+  | 'CLOCK_OUT';        // 퇴근
+
+export type AsPartsSourcingType = 'HQ_YARD' | 'COLLEAGUE_VAN' | 'RENTAL_VENDOR';
 
 export type AsRouteStage =
   | 'WAITING'
   | 'DEPARTED'
   | 'ARRIVED'
   | 'WORKING'
+  | 'PARTS_SOURCING'
+  | 'REVISIT_SCHEDULED'
   | 'MOVING_NEXT'
   | 'COMPLETED';
 
@@ -2416,6 +2431,10 @@ export interface RepairTimelineEvent {
   modelName?: string;
   nextRepairId?: string;
   nextSiteName?: string;
+  sourcingType?: AsPartsSourcingType;
+  sourcingTargetName?: string;
+  partName?: string;
+  revisitDate?: string;
   durationMinutes?: number;
 }
 
@@ -2426,7 +2445,7 @@ export interface AsRouteLog {
   mechanicId: string;
   mechanicName: string;
   eventType: AsRouteEventType;
-  eventLabel: string;        // 출근 | 현장 출발 | 현장 도착 | 작업 시작 | 작업 완료 | 다음 현장 이동 | 주기장 복귀 | 퇴근
+  eventLabel: string;        // 출근 | 현장 출발 | 현장 도착 | 작업 시작 | 부품 수급 이동 | 재방문 일정 등록 | 작업 완료 | 다음 현장 이동 | 주기장 복귀 | 퇴근
   repairId?: string;
   ticketNo?: string;
   customerId?: string;
@@ -2439,6 +2458,10 @@ export interface AsRouteLog {
   modelName?: string;
   nextRepairId?: string;
   nextSiteName?: string;
+  sourcingType?: AsPartsSourcingType;
+  sourcingTargetName?: string;
+  partName?: string;
+  revisitDate?: string;
   durationMinutes?: number;  // 직전 단계 대비 소요시간(분)
   memo?: string;
   recordedAt: string;        // ISO 8601
@@ -8460,7 +8483,7 @@ class LocalDB {
               }
             }
 
-            if (tableName === 'as_route_logs' && (msg.includes('Could not find') || msg.includes('relation') || msg.includes('as_route_logs') || error.code === 'PGRST205' || error.code === '42P01')) {
+            if (tableName === 'as_route_logs' && (msg.includes('Could not find') || msg.includes('relation') || msg.includes('as_route_logs') || msg.includes('column') || msg.includes('violates check constraint') || error.code === 'PGRST205' || error.code === 'PGRST204' || error.code === '42P01' || error.code === '42703' || error.code === '23514')) {
               const applied = await autoApplyAsRouteLogsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));

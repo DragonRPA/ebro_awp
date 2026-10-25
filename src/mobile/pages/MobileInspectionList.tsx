@@ -1,1581 +1,1484 @@
-import React, { useState, useMemo, useEffect } from 'react';
+// src/mobile/pages/MobileInspectionList.tsx
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
-import { isModelMatch } from '../../utils/modelUtils';
-import { CameraUploader } from '../components/CameraUploader';
-import { db, OutboundInspection, Asset, AssetInOutLog } from '../../services/db';
-import { splitMasterAwareOptions } from '../../types/siteOption';
-import { 
-  CheckSquare, 
-  Check, 
-  ShieldCheck, 
-  CheckCircle2, 
-  ChevronDown, 
-  ChevronUp, 
-  AlertTriangle, 
-  ArrowLeft, 
-  Search, 
-  X, 
-  Repeat, 
-  Ban, 
-  Truck, 
-  Phone, 
-  Calendar, 
-  RotateCcw,
-  Sparkles,
-  FileText,
-  Boxes
+import {
+  db,
+  OutboundInspection,
+  Asset,
+  ContractAsset,
+  AssetInOutLog,
+  ContractHistory,
+  Repair,
+  isVirtualAsset
+} from '../../services/db';
+import { isModelMatch, normalizeModelKey } from '../../utils/modelUtils';
+import { issueHandoverTask } from '../../utils/taskHandoverPipeline';
+import {
+  MobileInlineCameraAssetScanner,
+  UnfilledSlotInfo
+} from '../components/MobileInlineCameraAssetScanner';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  ArrowLeft,
+  Check,
+  X,
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 
-
-function getDDay(dateStr?: string): { text: string; color: string; isOverdue: boolean } {
-  if (!dateStr) return { text: '-', color: 'text-slate-400 bg-slate-800 border-slate-700', isOverdue: false };
-  const today = new Date().toISOString().split('T')[0];
-  const diffDays = Math.ceil((new Date(dateStr).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return { text: `지연 D+${Math.abs(diffDays)}`, color: 'text-red-300 bg-red-950/60 border-red-500/50', isOverdue: true };
-  if (diffDays === 0) return { text: '오늘상차 D-0', color: 'text-amber-300 bg-amber-950/60 border-amber-500/50', isOverdue: false };
-  return { text: `D-${diffDays}`, color: 'text-slate-300 bg-slate-800 border-slate-700', isOverdue: false };
+interface MobileInspectionListProps {
+  onBack?: () => void;
+  initialSelectedId?: string | null;
+  onClearInitialSelected?: () => void;
 }
 
-function getInspectionCheckpoints(
-  oin: OutboundInspection,
-  contracts: any[],
-  contractAssets: any[],
-  sites: any[],
-  customers: any[],
-  assets: any[],
-  siteMasters?: any[]
-) {
-  const contract = contracts.find(c => c.id === oin.contractId);
-  const contractAsset = contractAssets.find(ca => ca.id === oin.contractAssetId);
-  const site = contract?.siteId ? sites.find(s => s.id === contract.siteId) : undefined;
-  const masterList = siteMasters || (db as any).siteMasters || [];
-  const siteMaster = site?.siteMasterId
-    ? masterList.find((sm: any) => sm.id === site.siteMasterId)
-    : masterList.find((sm: any) => sm.name && site?.name && sm.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
-  const customer = contract?.customerId ? customers.find(c => c.id === contract.customerId) : undefined;
-  const asset = assets.find(a => a.id === oin.assetId);
-  const masterOpts = db.standardOptions || [];
+type AssetSatisfactionStatus = 'SATISFIED' | 'UNSATISFIED';
 
-  const checkpoints: { id: string; label: string; type: 'MODEL' | 'SPEC' | 'OPTION' | 'NOTE' }[] = [];
+const DEFECT_REASONS = ['옵션 미비', '시동 불능', '유압 누유', '배터리 방전', '외관 불량'];
 
-  // 1. 모델 일치 확인 (항상 포함)
-  if (contractAsset?.expectedModel) {
-    checkpoints.push({
-      id: 'model_match',
-      label: `장비 모델 확인: 계약 요구 ${contractAsset.expectedModel} ↔ 실출고 ${asset?.modelName || '미배정'}`,
-      type: 'MODEL'
-    });
-  }
-
-  // 2. 옵션 마스터 중 true인 항목만 추가
-  const specMap: Record<string, boolean> = {
-    ...(customer?.defaultCheckedSpecs || {}),
-    ...(siteMaster?.checkedSpecs || site?.checkedSpecs || {})
-  };
-  masterOpts.filter(o => o.category === 'SPEC' && o.isActive).forEach(spec => {
-    if (specMap[spec.id] === true || specMap[spec.name] === true) {
-      checkpoints.push({ id: spec.id, label: spec.name, type: 'SPEC' });
-    }
-  });
-
-  // 3. 유상 옵션 / 무상 옵션 / 부착물 (옵션 마스터 등록 항목만)
-  const paidOpts = siteMaster?.paidOptions || site?.paidOptions || customer?.defaultPaidOptions || '';
-  splitMasterAwareOptions(paidOpts, masterOpts, { onlyMasterOptions: true, stripPrice: true }).forEach((opt: string, i: number) => {
-    checkpoints.push({ id: `paid_${i}`, label: `[유상옵션] ${opt} 장착 확인`, type: 'OPTION' });
-  });
-  const protOpts = siteMaster?.protection || site?.protection || customer?.defaultProtection || '';
-  splitMasterAwareOptions(protOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt: string, i: number) => {
-    checkpoints.push({ id: `prot_${i}`, label: `[무상옵션] ${opt} 시공 확인`, type: 'OPTION' });
-  });
-  const attOpts = siteMaster?.attachments || site?.attachments || customer?.defaultAttachments || '';
-  splitMasterAwareOptions(attOpts, masterOpts, { onlyMasterOptions: true }).forEach((opt: string, i: number) => {
-    checkpoints.push({ id: `att_${i}`, label: `[부착물] ${opt} 비치/부착 확인`, type: 'OPTION' });
-  });
-
-  // 4. 특이사항 메모
-  const specialNote = site?.memo || customer?.specialNotes || '';
-
-  return { checkpoints, specialNote, asset, contract, contractAsset, site, customer };
-}
-
-export const MobileInspectionList: React.FC = () => {
-  const { 
-    outboundInspections, 
-    assets, 
-    contracts, 
-    customers, 
-    sites, 
+export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
+  onBack,
+  initialSelectedId,
+  onClearInitialSelected
+}) => {
+  const {
+    outboundInspections,
+    assets,
+    products,
+    contracts,
+    customers,
+    sites,
     siteMasters,
-    contractAssets, 
-    deliveries, 
-    currentUser, 
-    contractHistory,
+    deliveries,
+    contractAssets,
+    currentUser,
+    refreshAllData,
     exchangeOutboundAsset,
-    refreshAllData, 
     showErrorModal,
-    consumables,
+    hasPermission,
     navigationPayload,
     setNavigationPayload
   } = useApp();
-  
-  // ── 탭 및 필터 상태 ──
-  const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'ALL' | 'TODAY' | 'TOMORROW' | 'WEEK'>('ALL');
-  const [exchangeOnly, setExchangeOnly] = useState(false);
 
-  // ── 주기장 소모품 재고 퀵 조회 모달 상태 ──
-  const [isConsumableModalOpen, setIsConsumableModalOpen] = useState(false);
-  const [consumableSearchQuery, setConsumableSearchQuery] = useState('');
+  const canView = hasPermission ? hasPermission('outbound_inspections', 'view') : true;
+  const canEdit = hasPermission ? hasPermission('outbound_inspections', 'save') : true;
 
-  // ── 상세 스튜디오 및 조작 상태 ──
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [assetCheckedList, setAssetCheckedList] = useState<Record<string, Record<string, boolean>>>({});
-  const [assetPhotos, setAssetPhotos] = useState<Record<string, string[]>>({});
-  const [assetNotes, setAssetNotes] = useState<Record<string, string>>({});
-  const [expandedAssetIds, setExpandedAssetIds] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successToast, setSuccessToast] = useState('');
+  const [viewMode, setViewMode] = useState<'PENDING' | 'COMPLETED'>('PENDING');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
 
-  // ── 장비 교체(스왑) 모달 상태 ──
-  const [swapModalOpen, setSwapModalOpen] = useState(false);
-  const [swapTargetOin, setSwapTargetOin] = useState<OutboundInspection | null>(null);
-  const [swapTargetAsset, setSwapTargetAsset] = useState<Asset | null>(null);
-  const [selectedNewAssetId, setSelectedNewAssetId] = useState('');
-  const [swapReason, setSwapReason] = useState('시동 불능');
-  const [swapPenalty, setSwapPenalty] = useState(5);
-  const [swapSearchQuery, setSwapSearchQuery] = useState('');
+  // 자산별 충족/불충족 상태 맵 (oin.id -> 'SATISFIED' | 'UNSATISFIED')
+  const [satisfactionMap, setSatisfactionMap] = useState<Record<string, AssetSatisfactionStatus>>({});
+  // 자산별 불충족/교체 사유 맵 (oin.id -> string)
+  const [reasonMap, setReasonMap] = useState<Record<string, string>>({});
+  // 현재 교체 패널이 열려있는 검수 건 ID (oin.id)
+  const [activeSwapOinId, setActiveSwapOinId] = useState<string | null>(null);
+  // 교체 패널 내 카메라 토글 및 관리번호 직접 입력
+  const [isInlineCameraOpen, setIsInlineCameraOpen] = useState<boolean>(false);
+  const [quickInputText, setQuickInputText] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // ── 출고 반려 모달 상태 ──
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-
-  // ── 날짜 계산 헬퍼 ──
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const tomorrowStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  }, []);
-  const weekEndStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
+  const showToast = useCallback((text: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 2600);
   }, []);
 
-  // ── 교환 계약 ID 목록 ──
-  const exchangeContractIds = useMemo(() => {
-    return new Set(
-      (contractHistory || [])
-        .filter(h => h.changeType === 'EXCHANGE')
-        .map(h => h.contractId)
+  // 유효한 출고검수 목록 필터링 (취소/종료 계약 및 실물 미할당 건 제외)
+  const validInspections = useMemo(() => {
+    const activeContractIds = new Set(
+      (contracts || [])
+        .filter(c => {
+          const st = (c.status || '').toUpperCase();
+          return st !== 'CANCELLED' && st !== 'TERMINATED';
+        })
+        .map(c => c.id)
     );
-  }, [contractHistory]);
+    const activeDeliveryIds = new Set(
+      (deliveries || [])
+        .filter(d => (d.status || '').toUpperCase() !== 'CANCELLED')
+        .map(d => d.id)
+    );
+    const realAssetIds = new Set(
+      (assets || [])
+        .filter(a => !(a as any).isDeleted && !isVirtualAsset(a))
+        .map(a => a.id)
+    );
 
-  // ── 검수의뢰 그룹핑 (대기 / 완료) ──
-  const allGroups = useMemo(() => {
-    const map = new Map<string, OutboundInspection[]>();
-    
-    outboundInspections.forEach(ins => {
-      // 고아 레코드 가드: 유효 계약 없는 건 제외
-      if (contracts.length > 0 && (!ins.contractId || !contracts.some(c => c.id === ins.contractId))) {
-        return;
-      }
-      const key = ins.deliveryId || `no-delivery-${ins.contractId || ins.id}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(ins);
-    });
+    const rawValid = (outboundInspections || []).filter(item => {
+      if (item.contractId && !activeContractIds.has(item.contractId)) return false;
+      if (item.deliveryId && !activeDeliveryIds.has(item.deliveryId)) return false;
 
-    const pendingMap: Record<string, OutboundInspection[]> = {};
-    const completedMap: Record<string, OutboundInspection[]> = {};
-
-    map.forEach((items, key) => {
-      const hasPending = items.some(i => i.status === 'PENDING' || i.status === 'IN_PROGRESS');
-      if (hasPending) {
-        pendingMap[key] = items.filter(i => i.status === 'PENDING' || i.status === 'IN_PROGRESS');
-      } else if (items.every(i => i.status === 'COMPLETED')) {
-        completedMap[key] = items;
-      }
-    });
-
-    return { pending: pendingMap, completed: completedMap };
-  }, [outboundInspections, contracts]);
-
-  // ── 필터링된 그룹 목록 ──
-  const filteredGroupEntries = useMemo(() => {
-    const sourceMap = activeTab === 'PENDING' ? allGroups.pending : allGroups.completed;
-    const entries = Object.entries(sourceMap);
-
-    return entries.filter(([groupId, insList]) => {
-      const first = insList[0];
-      const contract = contracts.find(c => c.id === first.contractId);
-      const customer = contract ? customers.find(c => c.id === contract.customerId) : undefined;
-      const site = contract ? sites.find(s => s.id === contract.siteId) : undefined;
-      const delivery = deliveries.find(d => d.id === first.deliveryId);
-
-      const isExchange = contract ? exchangeContractIds.has(contract.id) : false;
-      if (exchangeOnly && !isExchange) return false;
-
-      // 상차일자 판별
-      const loadingDate = delivery?.loadingDate || delivery?.scheduledDate || contract?.startDate || first.createdAt.slice(0, 10);
-
-      // 날짜 프리셋 필터 (대기 탭일 때만)
-      if (activeTab === 'PENDING' && dateFilter !== 'ALL') {
-        if (dateFilter === 'TODAY' && loadingDate !== todayStr) return false;
-        if (dateFilter === 'TOMORROW' && loadingDate !== tomorrowStr) return false;
-        if (dateFilter === 'WEEK' && (loadingDate < todayStr || loadingDate > weekEndStr)) return false;
-      }
-
-      // 검색어 필터
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const custName = (customer?.name || '').toLowerCase();
-        const sName = (site?.name || '').toLowerCase();
-        const cNo = (contract?.contractNo || '').toLowerCase();
-        const dNo = (delivery?.id || '').toLowerCase();
-        const driver = (delivery?.driverName || '').toLowerCase();
-        const hasAssetMatch = insList.some(i => {
-          const a = assets.find(x => x.id === i.assetId);
-          return a && (a.assetNo.toLowerCase().includes(q) || a.modelName.toLowerCase().includes(q));
-        });
-
-        if (!custName.includes(q) && !sName.includes(q) && !cNo.includes(q) && !dNo.includes(q) && !driver.includes(q) && !hasAssetMatch) {
-          return false;
+      if (item.status === 'PENDING') {
+        if (!item.assetId || !realAssetIds.has(item.assetId)) return false;
+        if (item.contractAssetId) {
+          const linkedCa = (contractAssets || []).find(ca => ca.id === item.contractAssetId);
+          if (!linkedCa || !linkedCa.assetId || !realAssetIds.has(linkedCa.assetId)) return false;
+          const caSt = (linkedCa.status || '') as string;
+          if (caSt === 'CANCELLED' || caSt === 'RETURNED' || caSt === 'SOLD') return false;
         }
       }
-
       return true;
-    }).sort(([aId, aList], [bId, bList]) => {
-      // 교환 최우선 ➔ 날짜 오름차순
-      const firstA = aList[0];
-      const firstB = bList[0];
-      const exA = firstA.contractId && exchangeContractIds.has(firstA.contractId) ? 1 : 0;
-      const exB = firstB.contractId && exchangeContractIds.has(firstB.contractId) ? 1 : 0;
-      if (exA !== exB) return exB - exA;
-
-      const delA = deliveries.find(d => d.id === firstA.deliveryId);
-      const delB = deliveries.find(d => d.id === firstB.deliveryId);
-      const dateA = delA?.loadingDate || firstA.createdAt;
-      const dateB = delB?.loadingDate || firstB.createdAt;
-      return dateA.localeCompare(dateB);
     });
-  }, [allGroups, activeTab, contracts, customers, sites, deliveries, exchangeContractIds, exchangeOnly, dateFilter, searchQuery, todayStr, tomorrowStr, weekEndStr, assets]);
 
-  const activeGroup = useMemo(() => {
-    if (!selectedGroupId) return [];
-    const sourceMap = activeTab === 'PENDING' ? allGroups.pending : allGroups.completed;
-    return sourceMap[selectedGroupId] || [];
-  }, [selectedGroupId, allGroups, activeTab]);
+    // 동일 슬롯/자산 중복 제거
+    const dedupMap = new Map<string, OutboundInspection>();
+    rawValid.forEach(item => {
+      const slotKey = item.contractAssetId
+        ? `CA:${item.contractAssetId}`
+        : item.assetId && item.contractId
+        ? `ASSET:${item.contractId}:${item.assetId}`
+        : `ID:${item.id}`;
+      const existing = dedupMap.get(slotKey);
+      if (!existing) {
+        dedupMap.set(slotKey, item);
+      } else {
+        const rank = (s?: string) => (s === 'COMPLETED' ? 3 : s === 'PENDING' ? 2 : 1);
+        if (rank(item.status) > rank(existing.status)) {
+          dedupMap.set(slotKey, item);
+        } else if (
+          rank(item.status) === rank(existing.status) &&
+          (item.updatedAt || item.createdAt || '') > (existing.updatedAt || existing.createdAt || '')
+        ) {
+          dedupMap.set(slotKey, item);
+        }
+      }
+    });
 
-  // ── 그룹 선택 시 초기 펼침 처리 (단일 자산이면 자동 펼침) ──
-  const handleSelectGroup = (groupId: string) => {
-    setSelectedGroupId(groupId);
-    const sourceMap = activeTab === 'PENDING' ? allGroups.pending : allGroups.completed;
-    const items = sourceMap[groupId] || [];
-    if (items.length === 1) {
-      setExpandedAssetIds({ [items[0].id]: true });
-    } else if (items.length > 1) {
-      setExpandedAssetIds({ [items[0].id]: true });
+    return Array.from(dedupMap.values());
+  }, [outboundInspections, contracts, deliveries, assets, contractAssets]);
+
+  const getInspectionDetails = useCallback(
+    (oin: OutboundInspection) => {
+      const asset = assets.find(a => a.id === oin.assetId);
+      const contract = contracts.find(c => c.id === oin.contractId);
+      const ca =
+        contractAssets.find(c => c.id === oin.contractAssetId) ||
+        contractAssets.find(c => c.contractId === oin.contractId && c.assetId === oin.assetId);
+      const customer = customers.find(c => c.id === (contract?.customerId || asset?.currentCustomerId));
+      const site = sites.find(s => s.id === (contract?.siteId || asset?.currentSiteId));
+
+      const delivery =
+        (oin.deliveryId ? deliveries.find(d => d.id === oin.deliveryId) : undefined) ||
+        deliveries.find(
+          d =>
+            d.contractId === oin.contractId &&
+            (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+            d.status !== 'CANCELLED'
+        );
+
+      const siteMaster = (siteMasters || []).find(sm => {
+        if (site?.siteMasterId && sm.id === site.siteMasterId) return true;
+        if (site?.name && sm.name && site.name.includes(sm.name)) return true;
+        return false;
+      });
+
+      return { asset, contract, ca, customer, site, siteMaster, delivery };
+    },
+    [assets, contracts, contractAssets, customers, sites, siteMasters, deliveries]
+  );
+
+  interface InspectionRequestGroup {
+    groupKey: string;
+    contractId: string;
+    deliveryId?: string;
+    customerName: string;
+    siteName: string;
+    loadingDate: string;
+    isExchange: boolean;
+    driverInfo: string;
+    items: OutboundInspection[];
+    siteOptions: {
+      paidOptions: string[];
+      protection: string[];
+      attachments: string[];
+      checkedSpecs: string[];
+      specialNote: string;
+    };
+  }
+
+  const toOptionList = (val: unknown): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.map(v => String(v).trim()).filter(Boolean);
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(Boolean);
+        } catch {
+          // ignore
+        }
+      }
+      return trimmed.split(',').map(v => v.trim()).filter(Boolean);
     }
+    return [];
   };
 
-  // 대시보드 [처리 이동] 딥링크 자동 선택
-  useEffect(() => {
-    if (!navigationPayload || outboundInspections.length === 0) return;
-    const { inspectionId, deliveryId, contractId } = navigationPayload;
-    if (!inspectionId && !deliveryId && !contractId) return;
+  // 고객현장/출고요청 단위 통합 옵션 추출 헬퍼 (자산별 반복이 아닌 현장 단위 1회 통합)
+  const extractUnifiedSiteOptions = useCallback(
+    (items: OutboundInspection[]): InspectionRequestGroup['siteOptions'] => {
+      const paidSet = new Set<string>();
+      const protSet = new Set<string>();
+      const attSet = new Set<string>();
+      const specSet = new Set<string>();
+      const noteSet = new Set<string>();
 
-    const findMatchingGroup = (groupMap: Record<string, OutboundInspection[]>) => {
-      for (const [gId, list] of Object.entries(groupMap)) {
-        if (deliveryId && (gId === deliveryId || list.some(i => i.deliveryId === deliveryId))) return { gId, list };
-        if (inspectionId && list.some(i => i.id === inspectionId)) return { gId, list };
-        if (contractId && list.some(i => i.contractId === contractId)) return { gId, list };
-      }
-      return null;
+      items.forEach(oin => {
+        const { site, siteMaster, delivery, customer } = getInspectionDetails(oin);
+
+        // 1. 배차 요청(delivery.cargoItems)에 명시된 옵션
+        if (delivery?.cargoItems) {
+          try {
+            const rawCargo =
+              typeof delivery.cargoItems === 'string'
+                ? JSON.parse(delivery.cargoItems)
+                : delivery.cargoItems;
+            if (Array.isArray(rawCargo)) {
+              rawCargo.forEach((ci: any) => {
+                toOptionList(ci?.paidOptions).forEach(v => paidSet.add(v));
+                toOptionList(ci?.requestMeta?.protection).forEach(v => protSet.add(v));
+                toOptionList(ci?.requestMeta?.attachments).forEach(v => attSet.add(v));
+                toOptionList(ci?.requestMeta?.checkedSpecs).forEach(v => specSet.add(v));
+              });
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        // 2. 고객현장(CustomerSite) 직접 귀속 옵션 (헌장 1.5 SSOT)
+        toOptionList(site?.paidOptions).forEach(v => paidSet.add(v));
+        toOptionList(site?.protection).forEach(v => protSet.add(v));
+        toOptionList(site?.attachments).forEach(v => attSet.add(v));
+        toOptionList(site?.checkedSpecs).forEach(v => specSet.add(v));
+
+        // 3. 현장 옵션 프리셋(siteMaster) 및 고객사 기본 옵션 보조 반영 (현장 옵션이 비어있을 때)
+        if (paidSet.size === 0 && protSet.size === 0 && attSet.size === 0 && specSet.size === 0) {
+          toOptionList(siteMaster?.paidOptions).forEach(v => paidSet.add(v));
+          toOptionList(siteMaster?.protection).forEach(v => protSet.add(v));
+          toOptionList(siteMaster?.attachments).forEach(v => attSet.add(v));
+          toOptionList(siteMaster?.checkedSpecs).forEach(v => specSet.add(v));
+          toOptionList((customer as any)?.defaultPaidOptions).forEach(v => paidSet.add(v));
+          toOptionList((customer as any)?.defaultProtection).forEach(v => protSet.add(v));
+        }
+
+        const delivNote = (delivery as any)?.specialNotes || (delivery as any)?.note;
+        const siteNote = (site as any)?.memo || (site as any)?.note;
+        const smNote = (siteMaster as any)?.memo || (siteMaster as any)?.note;
+        if (typeof delivNote === 'string' && delivNote.trim()) noteSet.add(delivNote.trim());
+        if (typeof siteNote === 'string' && siteNote.trim()) noteSet.add(siteNote.trim());
+        if (typeof smNote === 'string' && smNote.trim()) noteSet.add(smNote.trim());
+      });
+
+      return {
+        paidOptions: Array.from(paidSet),
+        protection: Array.from(protSet),
+        attachments: Array.from(attSet),
+        checkedSpecs: Array.from(specSet),
+        specialNote: Array.from(noteSet).join(' / ')
+      };
+    },
+    [getInspectionDetails]
+  );
+
+  // 대기 / 완료 그룹 구성
+  const { pendingGroups, completedGroups, totalPendingAssetsCount } = useMemo(() => {
+    const buildGroups = (targetStatus: 'PENDING' | 'COMPLETED'): InspectionRequestGroup[] => {
+      const map = new Map<string, OutboundInspection[]>();
+      validInspections
+        .filter(oin =>
+          targetStatus === 'PENDING' ? oin.status === 'PENDING' : oin.status === 'COMPLETED'
+        )
+        .forEach(oin => {
+          const { delivery } = getInspectionDetails(oin);
+          const gKey = oin.deliveryId
+            ? `DLV:${oin.deliveryId}`
+            : delivery?.id
+            ? `DLV:${delivery.id}`
+            : `CON:${oin.contractId || oin.id}`;
+          const list = map.get(gKey) || [];
+          list.push(oin);
+          map.set(gKey, list);
+        });
+
+      const groups: InspectionRequestGroup[] = [];
+      map.forEach((items, groupKey) => {
+        const first = items[0];
+        const { contract, customer, site, delivery } = getInspectionDetails(first);
+        const customerName = customer?.name || (contract as any)?.customerName || '고객사 미지정';
+        const siteName = site?.name || (contract as any)?.siteName || '현장 미지정';
+        const loadingDate = (
+          delivery?.loadingDate ||
+          delivery?.scheduledDate ||
+          contract?.startDate ||
+          first.createdAt ||
+          ''
+        ).slice(0, 10);
+        const isExchange =
+          delivery?.type === 'EXCHANGE' ||
+          delivery?.dispatchCategory === '교환' ||
+          (delivery as any)?.originalDispatchCategory === '교환';
+        const driverInfo = delivery?.driverName
+          ? `${delivery.driverName}${delivery.vehicleNo ? ` (${delivery.vehicleNo})` : ''}`
+          : '배차 미배정';
+
+        // 검색 필터
+        if (searchTerm.trim()) {
+          const q = searchTerm.trim().toLowerCase();
+          const matchMeta =
+            customerName.toLowerCase().includes(q) || siteName.toLowerCase().includes(q);
+          const matchAsset = items.some(oin => {
+            const a = assets.find(x => x.id === oin.assetId);
+            const ca = contractAssets.find(x => x.id === oin.contractAssetId);
+            return (
+              a?.assetNo?.toLowerCase().includes(q) ||
+              a?.modelName?.toLowerCase().includes(q) ||
+              ca?.expectedModel?.toLowerCase().includes(q)
+            );
+          });
+          if (!matchMeta && !matchAsset) return;
+        }
+
+        groups.push({
+          groupKey,
+          contractId: first.contractId || contract?.id || '',
+          deliveryId: first.deliveryId || delivery?.id,
+          customerName,
+          siteName,
+          loadingDate,
+          isExchange: Boolean(isExchange),
+          driverInfo,
+          items,
+          siteOptions: extractUnifiedSiteOptions(items)
+        });
+      });
+
+      groups.sort((a, b) => {
+        if (a.isExchange !== b.isExchange) return a.isExchange ? -1 : 1;
+        return (b.loadingDate || '').localeCompare(a.loadingDate || '');
+      });
+      return groups;
     };
 
-    const pendingHit = findMatchingGroup(allGroups.pending);
-    const completedHit = !pendingHit ? findMatchingGroup(allGroups.completed) : null;
-    const hit = pendingHit || completedHit;
+    const pGroups = buildGroups('PENDING');
+    const cGroups = buildGroups('COMPLETED');
+    const totalPending = pGroups.reduce((sum, g) => sum + g.items.length, 0);
 
-    if (hit) {
-      const targetTab = pendingHit ? 'PENDING' : 'COMPLETED';
-      setActiveTab(targetTab);
-      setDateFilter('ALL');
-      setExchangeOnly(false);
-      setSearchQuery('');
-      setSelectedGroupId(hit.gId);
-      if (hit.list.length > 0) {
-        setExpandedAssetIds({ [hit.list[0].id]: true });
-      }
+    return {
+      pendingGroups: pGroups,
+      completedGroups: cGroups,
+      totalPendingAssetsCount: totalPending
+    };
+  }, [validInspections, getInspectionDetails, extractUnifiedSiteOptions, searchTerm, assets, contractAssets]);
+
+  const currentGroups = viewMode === 'PENDING' ? pendingGroups : completedGroups;
+
+  const getGroupModelSummary = useCallback(
+    (items: OutboundInspection[]) => {
+      const map = new Map<string, { name: string; count: number }>();
+      items.forEach(oin => {
+        const a = assets.find(x => x.id === oin.assetId);
+        const ca = contractAssets.find(x => x.id === oin.contractAssetId);
+        const raw = a?.modelName || ca?.expectedModel || (oin as any).modelName || '미지정';
+        const key = normalizeModelKey(raw);
+        const curr = map.get(key) || { name: raw, count: 0 };
+        curr.count += 1;
+        if (raw.includes('-') && !curr.name.includes('-')) curr.name = raw;
+        map.set(key, curr);
+      });
+      return Array.from(map.values());
+    },
+    [assets, contractAssets]
+  );
+
+  // 선택된 그룹 관리 (목록 첫 항목 자동 선택 + 네비게이션 페이로드 연동)
+  const handleSelectGroup = useCallback((groupKey: string) => {
+    setSelectedGroupKey(groupKey);
+    setActiveSwapOinId(null);
+    setIsInlineCameraOpen(false);
+    setQuickInputText('');
+  }, []);
+
+  useEffect(() => {
+    if (!selectedGroupKey && currentGroups.length > 0) {
+      setSelectedGroupKey(currentGroups[0].groupKey);
+    } else if (
+      selectedGroupKey &&
+      currentGroups.length > 0 &&
+      !currentGroups.some(g => g.groupKey === selectedGroupKey)
+    ) {
+      setSelectedGroupKey(currentGroups[0].groupKey);
+    }
+  }, [selectedGroupKey, currentGroups]);
+
+  useEffect(() => {
+    const targetId =
+      initialSelectedId || navigationPayload?.deliveryId || navigationPayload?.contractId;
+    if (!targetId || pendingGroups.length === 0) return;
+
+    const matched = pendingGroups.find(
+      g =>
+        g.groupKey === targetId ||
+        g.deliveryId === targetId ||
+        g.contractId === targetId ||
+        g.items.some(i => i.id === targetId || i.assetId === targetId)
+    );
+    if (matched) {
+      setViewMode('PENDING');
+      handleSelectGroup(matched.groupKey);
+      onClearInitialSelected?.();
       setNavigationPayload(null);
     }
-  }, [navigationPayload, outboundInspections, allGroups]);
+  }, [
+    initialSelectedId,
+    navigationPayload,
+    pendingGroups,
+    handleSelectGroup,
+    onClearInitialSelected,
+    setNavigationPayload
+  ]);
 
-  // ── 체크포인트 토글 ──
-  const handleToggleCheck = (oinId: string, itemId: string) => {
-    setAssetCheckedList(prev => {
-      const prevChecks = prev[oinId] || {};
-      return {
-        ...prev,
-        [oinId]: { ...prevChecks, [itemId]: !prevChecks[itemId] }
-      };
+  const activeGroup = useMemo(() => {
+    if (currentGroups.length === 0) return null;
+    return currentGroups.find(g => g.groupKey === selectedGroupKey) || currentGroups[0];
+  }, [currentGroups, selectedGroupKey]);
+
+  // 전체 임대가능 실물 자산 풀 (정비점수 오름차순)
+  const allAvailableAssets = useMemo(() => {
+    return (assets || [])
+      .filter(
+        a =>
+          !(a as any).isDeleted &&
+          !isVirtualAsset(a) &&
+          !a.actualRentReturnDate &&
+          a.status === 'AVAILABLE'
+      )
+      .sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
+  }, [assets]);
+
+  // 현재 교체 대상 검수 항목 및 요구 모델
+  const activeSwapOin = useMemo(() => {
+    if (!activeGroup || !activeSwapOinId) return null;
+    return activeGroup.items.find(i => i.id === activeSwapOinId) || null;
+  }, [activeGroup, activeSwapOinId]);
+
+  const activeSwapTargetModel = useMemo(() => {
+    if (!activeSwapOin) return '';
+    const a = assets.find(x => x.id === activeSwapOin.assetId);
+    const ca = contractAssets.find(x => x.id === activeSwapOin.contractAssetId);
+    return a?.modelName || ca?.expectedModel || (activeSwapOin as any).modelName || '';
+  }, [activeSwapOin, assets, contractAssets]);
+
+  // 교체 대상 모델과 100% 일치하는 임대가능 후보 장비 목록
+  const swapCandidateAssets = useMemo(() => {
+    if (!activeSwapOin || !activeSwapTargetModel) return [];
+    const q = quickInputText.trim().toLowerCase();
+    return allAvailableAssets.filter(a => {
+      if (a.id === activeSwapOin.assetId) return false;
+      if (!isModelMatch(a.modelName, activeSwapTargetModel, products)) return false;
+      if (!q) return true;
+      return (
+        a.assetNo?.toLowerCase().includes(q) || a.serialNo?.toLowerCase().includes(q)
+      );
     });
-  };
+  }, [allAvailableAssets, activeSwapOin, activeSwapTargetModel, products, quickInputText]);
 
-  // ── 1-Touch 전 항목 일괄 확인 (단일 자산) ──
-  const handleCheckAllForAsset = (oin: OutboundInspection) => {
-    const { checkpoints } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-    const newMap: Record<string, boolean> = {};
-    checkpoints.forEach(cp => {
-      newMap[cp.id] = true;
-    });
-    setAssetCheckedList(prev => ({
-      ...prev,
-      [oin.id]: newMap
-    }));
-  };
+  // 카메라 스캐너용 슬롯 정보 (장비할당의 MobileInlineCameraAssetScanner 100% 동일 재사용)
+  const swapUnfilledSlots: UnfilledSlotInfo[] = useMemo(() => {
+    if (!activeSwapOin || !activeSwapTargetModel) return [];
+    return [
+      {
+        caId: activeSwapOin.id,
+        slotNumber: 1,
+        expectedModel: activeSwapTargetModel
+      }
+    ];
+  }, [activeSwapOin, activeSwapTargetModel]);
 
-  // ── 1-Touch 전 항목 해제 (단일 자산) ──
-  const handleUncheckAllForAsset = (oin: OutboundInspection) => {
-    setAssetCheckedList(prev => ({
-      ...prev,
-      [oin.id]: {}
-    }));
-  };
+  // 자산 교체 실행 (카메라 스캔 또는 후보 그리드 터치 또는 직접 입력 시 즉시 호출)
+  const handleExecuteSwapAsset = useCallback(
+    async (oin: OutboundInspection, newAsset: Asset) => {
+      if (!canEdit) {
+        showErrorModal('출고검수 수정 권한이 없습니다.');
+        return;
+      }
+      if (!oin.assetId) {
+        showErrorModal('기존 할당 자산 정보가 없습니다.');
+        return;
+      }
+      const oldAsset = assets.find(a => a.id === oin.assetId);
+      const defectReason = reasonMap[oin.id] || '옵션 미비';
 
-  // ── 1-Touch 전체 장비 전 항목 일괄 확인 (그룹 전체) ──
-  const handleCheckAllForGroup = () => {
-    const updated: Record<string, Record<string, boolean>> = { ...assetCheckedList };
-    activeGroup.forEach(oin => {
-      const { checkpoints } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-      const newMap: Record<string, boolean> = {};
-      checkpoints.forEach(cp => {
-        newMap[cp.id] = true;
-      });
-      updated[oin.id] = newMap;
-    });
-    setAssetCheckedList(updated);
-  };
+      setIsSubmitting(true);
+      try {
+        await exchangeOutboundAsset(
+          oin.contractAssetId || oin.contractId || '',
+          oin.assetId,
+          newAsset.id,
+          defectReason,
+          true,
+          5
+        );
+        await refreshAllData();
 
-  // ── 빠른 메모 칩 추가 ──
-  const handleAppendMemoChip = (oinId: string, chipText: string) => {
-    setAssetNotes(prev => {
-      const cur = prev[oinId] || '';
-      return {
-        ...prev,
-        [oinId]: cur ? `${cur} / ${chipText}` : chipText
-      };
-    });
-  };
+        // 교체된 검수 건을 즉시 '충족' 상태로 전환하고 교체 패널 닫기
+        setSatisfactionMap(prev => ({
+          ...prev,
+          [oin.id]: 'SATISFIED'
+        }));
+        setActiveSwapOinId(null);
+        setIsInlineCameraOpen(false);
+        setQuickInputText('');
+        showToast(
+          `${oldAsset?.assetNo || '기존장비'} ➔ ${newAsset.assetNo} 교체 및 충족 반영 완료`,
+          'success'
+        );
+      } catch (err: any) {
+        showErrorModal(err?.message || '자산 교체 중 오류가 발생했습니다.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [canEdit, assets, reasonMap, exchangeOutboundAsset, refreshAllData, showErrorModal, showToast]
+  );
 
-  // ── 단일 장비 승인 ──
-  const handleApproveSingle = async (oin: OutboundInspection) => {
-    const { checkpoints, asset, contract, site, customer } = getInspectionCheckpoints(
-      oin, contracts, contractAssets, sites, customers, assets
+  const handleQuickInputSwap = () => {
+    if (!activeSwapOin || !quickInputText.trim()) return;
+    const query = quickInputText.trim().toLowerCase();
+    const matched = swapCandidateAssets.find(
+      a =>
+        a.assetNo?.toLowerCase() === query ||
+        a.assetNo?.toLowerCase().endsWith(query) ||
+        a.serialNo?.toLowerCase() === query
     );
-
-    if (customer && (customer as any).transactionStatus === 'BLOCKED') {
-      showErrorModal(`[출고제한] 거래차단 고객사(${customer.name}) 장비는 출고 승인할 수 없습니다.`);
+    if (!matched) {
+      showToast(`'${quickInputText}' 동일 모델 임대가능 장비를 찾을 수 없습니다.`, 'error');
       return;
     }
-
-    const checked = assetCheckedList[oin.id] || {};
-    const checkedCount = Object.values(checked).filter(Boolean).length;
-    
-    if (checkpoints.length > 0 && checkedCount === 0) {
-      showErrorModal('요구 사양 항목을 최소 1개 이상 확인해야 출고 승인이 가능합니다.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const nowIso = new Date().toISOString();
-      const photos = assetPhotos[oin.id] || [];
-      const memoText = assetNotes[oin.id] || '';
-
-      const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
-
-      db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
-        status: 'COMPLETED', 
-        inspectorId: safeInspectorId,
-        inspectedAt: nowIso, 
-        approvedAt: nowIso,
-        specsJson: JSON.stringify({
-          checkpoints: checkpoints.map(cp => ({ ...cp, checked: !!checked[cp.id] })),
-          photos,
-          checkedCount,
-          totalCheckpoints: checkpoints.length,
-          completedAt: nowIso,
-          inspectorName: currentUser?.name || '담당기사',
-          inspectorMemo: memoText
-        }),
-        note: `[출고검수 완료] 확인 ${checkedCount}/${checkpoints.length}개소 (사진 ${photos.length}매)${memoText ? ` | 메모: ${memoText}` : ''}`,
-        updatedAt: nowIso
-      });
-      
-      if (oin.assetId) {
-        db.updateRow<Asset>('assets', oin.assetId, { status: 'RENTED', updatedAt: nowIso });
-        
-        db.insertRow<AssetInOutLog>('assetInOutLogs', {
-          assetId: oin.assetId, 
-          assetNo: asset?.assetNo || '', 
-          modelName: asset?.modelName || '',
-          deliveryId: oin.deliveryId, 
-          type: 'OUTBOUND',
-          eventDate: nowIso.split('T')[0],
-          customerId: contract?.customerId, 
-          customerName: customer?.name || '',
-          siteId: contract?.siteId, 
-          siteName: site?.name || '',
-          memo: `[출고검수 승인] 계약(${contract?.contractNo || ''}) 현장(${site?.name || ''}) (대여중 전환)`,
-          createdAt: nowIso,
-        });
-      }
-
-      await db.awaitPendingWrites();
-      refreshAllData();
-      
-      setSuccessToast(`자산 #${asset?.assetNo || '미배정'} 검수 완료 (대여중 전환)`);
-      setTimeout(() => setSuccessToast(''), 3000);
-      
-      const remainingInGroup = activeGroup.filter(i => i.id !== oin.id);
-      if (remainingInGroup.length === 0) {
-        setSelectedGroupId('');
-      }
-    } catch (err: any) {
-      showErrorModal('검수 승인 실패: ' + (err.message || ''));
-    } finally {
-      setIsSubmitting(false);
-    }
+    handleExecuteSwapAsset(activeSwapOin, matched);
   };
 
-  // ── 전체 일괄 승인 ──
-  const handleApproveAll = async () => {
-    const readyToApprove = activeGroup.filter(oin => {
-      const { checkpoints } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-      const checked = assetCheckedList[oin.id] || {};
-      const checkedCount = Object.values(checked).filter(Boolean).length;
-      return checkpoints.length === 0 || checkedCount > 0;
+  // 현재 그룹의 충족 / 불충족 집계
+  const { satisfiedItems, unsatisfiedItems, uncheckedCount } = useMemo(() => {
+    if (!activeGroup) {
+      return {
+        satisfiedItems: [] as OutboundInspection[],
+        unsatisfiedItems: [] as OutboundInspection[],
+        uncheckedCount: 0
+      };
+    }
+    const sat: OutboundInspection[] = [];
+    const unsat: OutboundInspection[] = [];
+    let unchecked = 0;
+
+    activeGroup.items.forEach(oin => {
+      const st = satisfactionMap[oin.id];
+      if (st === 'SATISFIED') sat.push(oin);
+      else if (st === 'UNSATISFIED') unsat.push(oin);
+      else unchecked += 1;
     });
 
-    if (readyToApprove.length === 0) {
-      showErrorModal('검수 확인 조건을 충족한 자산이 없습니다.');
-      return;
-    }
+    return {
+      satisfiedItems: sat,
+      unsatisfiedItems: unsat,
+      uncheckedCount: unchecked
+    };
+  }, [activeGroup, satisfactionMap]);
 
-    const first = activeGroup[0];
-    const contract = contracts.find(c => c.id === first.contractId);
-    const customer = contract ? customers.find(c => c.id === contract.customerId) : undefined;
-    
-    if (customer && (customer as any).transactionStatus === 'BLOCKED') {
-      showErrorModal(`[출고제한] 거래차단 고객사(${customer.name}) 장비는 일괄 승인할 수 없습니다.`);
+  // 전체 충족 토글
+  const handleMarkAllSatisfied = () => {
+    if (!activeGroup) return;
+    const next: Record<string, AssetSatisfactionStatus> = { ...satisfactionMap };
+    const allAlreadySatisfied = activeGroup.items.every(
+      oin => satisfactionMap[oin.id] === 'SATISFIED'
+    );
+    activeGroup.items.forEach(oin => {
+      if (allAlreadySatisfied) {
+        delete next[oin.id];
+      } else {
+        next[oin.id] = 'SATISFIED';
+      }
+    });
+    setSatisfactionMap(next);
+    setActiveSwapOinId(null);
+    setIsInlineCameraOpen(false);
+  };
+
+  // 출고검수 최종 확정 (충족 자산 검수완료 + 불충족 자산 영업사원 수량조정 요청)
+  const handleFinalizeInspection = async () => {
+    if (!canEdit) {
+      showErrorModal('출고검수 승인 권한이 없습니다.');
       return;
     }
+    if (!activeGroup || uncheckedCount > 0) return;
 
     setIsSubmitting(true);
     try {
       const nowIso = new Date().toISOString();
-      const site = contract ? sites.find(s => s.id === contract.siteId) : undefined;
-      
-      for (const oin of readyToApprove) {
-        const { checkpoints, asset } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-        const checked = assetCheckedList[oin.id] || {};
-        const checkedCount = Object.values(checked).filter(Boolean).length;
-        const photos = assetPhotos[oin.id] || [];
-        const memoText = assetNotes[oin.id] || '';
+      const todayStr = nowIso.split('T')[0];
+      const inspectorName = currentUser?.name || '주기장검수원';
 
-        const safeBatchInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
-
+      // 1. 충족된 자산(satisfiedItems): 검수 완료 및 자산 상태 RENTED 전환 (헌장 1.3)
+      for (const oin of satisfiedItems) {
+        const { asset, contract, ca } = getInspectionDetails(oin);
         db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
-          status: 'COMPLETED', 
-          inspectorId: safeBatchInspectorId,
-          inspectedAt: nowIso, 
-          approvedAt: nowIso,
-          specsJson: JSON.stringify({
-            checkpoints: checkpoints.map(cp => ({ ...cp, checked: !!checked[cp.id] })),
-            photos,
-            checkedCount,
-            totalCheckpoints: checkpoints.length,
-            completedAt: nowIso,
-            inspectorName: currentUser?.name || '담당기사',
-            inspectorMemo: memoText
-          }),
-          note: `[출고검수 일괄 완료] 확인 ${checkedCount}/${checkpoints.length}개소 (사진 ${photos.length}매)${memoText ? ` | 메모: ${memoText}` : ''}`,
+          status: 'COMPLETED',
+          inspectorId: currentUser?.id || 'u-3',
+          inspectedAt: nowIso,
+          note: '현장 요구 옵션 전체 충족 확인 완료',
           updatedAt: nowIso
         });
-        
-        if (oin.assetId) {
-          db.updateRow<Asset>('assets', oin.assetId, { status: 'RENTED', updatedAt: nowIso });
-          
+
+        if (asset) {
+          db.updateRow<Asset>('assets', asset.id, {
+            status: 'RENTED',
+            currentCustomerId: contract?.customerId || asset.currentCustomerId,
+            currentSiteId: contract?.siteId || asset.currentSiteId,
+            contractStart: ca?.startDate || contract?.startDate || asset.contractStart,
+            contractEnd: ca?.endDate || contract?.endDate || asset.contractEnd,
+            updatedAt: nowIso
+          });
+
+          if (ca) {
+            db.updateRow<ContractAsset>('contractAssets', ca.id, {
+              status: 'RENTED'
+            });
+          }
+
           db.insertRow<AssetInOutLog>('assetInOutLogs', {
-            assetId: oin.assetId, 
-            assetNo: asset?.assetNo || '', 
-            modelName: asset?.modelName || '',
-            deliveryId: oin.deliveryId, 
+            id: `log-out-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            assetId: asset.id,
+            assetNo: asset.assetNo,
+            modelName: asset.modelName,
             type: 'OUTBOUND',
-            eventDate: nowIso.split('T')[0],
-            customerId: contract?.customerId, 
-            customerName: customer?.name || '',
-            siteId: contract?.siteId, 
-            siteName: site?.name || '',
-            memo: `[출고검수 일괄 승인] 계약(${contract?.contractNo || ''}) 현장(${site?.name || ''}) (대여중 전환)`,
-            createdAt: nowIso,
+            eventDate: todayStr,
+            customerId: contract?.customerId || asset.currentCustomerId,
+            customerName: activeGroup.customerName,
+            siteId: contract?.siteId || asset.currentSiteId,
+            siteName: activeGroup.siteName,
+            deliveryId: activeGroup.deliveryId,
+            memo: `[모바일 출고검수 완료(${inspectorName})] 현장 요구 옵션 충족 확인`,
+            createdAt: nowIso
           });
         }
       }
 
-      await db.awaitPendingWrites();
-      refreshAllData();
-      
-      setSuccessToast(`총 ${readyToApprove.length}대 일괄 승인 완료`);
-      setTimeout(() => setSuccessToast(''), 3000);
-      
-      setSelectedGroupId('');
-    } catch (err: any) {
-      showErrorModal('일괄 검수 승인 실패: ' + (err.message || ''));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      // 2. 불충족 제외 자산(unsatisfiedItems): 검수 반려 + 실물 자산 수리전환 + 슬롯 제외 + 영업사원 수량조정 요청 ToDo 발행
+      if (unsatisfiedItems.length > 0) {
+        const excludedAssetLabels: string[] = [];
 
-  // ── 장비 교체 모달 열기 ──
-  const handleOpenSwapModal = (oin: OutboundInspection) => {
-    const a = assets.find(x => x.id === oin.assetId);
-    setSwapTargetOin(oin);
-    setSwapTargetAsset(a || null);
-    setSelectedNewAssetId('');
-    setSwapReason('시동 불능');
-    setSwapPenalty(5);
-    setSwapSearchQuery('');
-    setSwapModalOpen(true);
-  };
+        for (const oin of unsatisfiedItems) {
+          const { asset, contract, ca } = getInspectionDetails(oin);
+          const defectReason = reasonMap[oin.id] || '옵션 미비';
+          const assetLabel = `${asset?.assetNo || '미지정'}(${
+            asset?.modelName || ca?.expectedModel || '모델미상'
+          })`;
+          excludedAssetLabels.push(`${assetLabel}: ${defectReason}`);
 
-  // ── 가용 대체 장비 목록 (동일 모델 & AVAILABLE 우선) ──
-  const availableSwapAssets = useMemo(() => {
-    if (!swapTargetAsset) return [];
-    return assets.filter(a => {
-      if (a.status !== 'AVAILABLE') return false;
-      if (a.id === swapTargetAsset.id) return false;
-      if (swapSearchQuery.trim()) {
-        const q = swapSearchQuery.toLowerCase().trim();
-        return a.assetNo.toLowerCase().includes(q) || a.modelName.toLowerCase().includes(q);
-      }
-      return isModelMatch(a.modelName, swapTargetAsset.modelName);
-    }).sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
-  }, [assets, swapTargetAsset, swapSearchQuery]);
+          // 2-1. 출고검수 레코드 REJECTED 마감
+          db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
+            status: 'REJECTED',
+            inspectorId: currentUser?.id || 'u-3',
+            inspectedAt: nowIso,
+            rejectReason: `출고검수 불충족 및 대체장비 부재 (${defectReason}) - 수량조정 요청`,
+            note: `[수량조정 요청] 불충족 사유: ${defectReason}`,
+            updatedAt: nowIso
+          });
 
-  // ── 장비 교체 실행 ──
-  const handleExecuteSwap = async () => {
-    if (!swapTargetOin || !swapTargetAsset || !selectedNewAssetId) {
-      showErrorModal('교체할 대체 장비를 선택해 주세요.');
-      return;
-    }
+          // 2-2. 불충족 실물 자산 REPAIRING 전환 및 주기장 정비 대장 등록 (ASSIGNED 고립 방지)
+          if (asset) {
+            const newScore = (Number(asset.maintenanceScore) || 0) + 5;
+            const appendedNote = asset.note
+              ? `${asset.note}\n[출고검수 불충족 제외(${todayStr})] ${defectReason}`
+              : `[출고검수 불충족 제외(${todayStr})] ${defectReason}`;
 
-    setIsSubmitting(true);
-    try {
-      await exchangeOutboundAsset(
-        swapTargetOin.contractAssetId || '',
-        swapTargetAsset.id,
-        selectedNewAssetId,
-        swapReason,
-        true,
-        swapPenalty
-      );
+            db.updateRow<Asset>('assets', asset.id, {
+              status: 'REPAIRING',
+              maintenanceScore: newScore,
+              currentCustomerId: undefined,
+              currentSiteId: undefined,
+              contractStart: undefined,
+              contractEnd: undefined,
+              note: appendedNote,
+              updatedAt: nowIso
+            });
 
-      setSuccessToast(`장비 교체 완료 (#${swapTargetAsset.assetNo} ➔ 신규 장비)`);
-      setTimeout(() => setSuccessToast(''), 3000);
-      setSwapModalOpen(false);
-      setSwapTargetOin(null);
-    } catch (err: any) {
-      showErrorModal(`장비 교체 실패: ${err?.message || err}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+            const repairId = db.generateNextId('repairs', db.repairs);
+            db.insertRow<Repair>('repairs', {
+              id: repairId,
+              assetId: asset.id,
+              assetNo: asset.assetNo,
+              modelName: asset.modelName,
+              contractId: oin.contractId,
+              customerId: contract?.customerId,
+              customerName: activeGroup.customerName,
+              siteId: contract?.siteId,
+              siteName: activeGroup.siteName,
+              requestDate: todayStr,
+              status: 'PENDING',
+              workCategory: 'YARD_INTERNAL',
+              workLocation: 'YARD',
+              stockSource: 'YARD_STOCK',
+              source: 'OUTBOUND_DEFECT',
+              repairType: 'INTERNAL',
+              priority: 'URGENT',
+              details: `[출고검수 불충족 제외] 사유: ${defectReason} (영업 수량조정 요청 처리)`,
+              issueDescription: defectReason,
+              totalCost: 0,
+              billableToCustomer: false,
+              targetAssetStatus: 'REPAIRING',
+              degradationScore: 5,
+              createdAt: nowIso,
+              updatedAt: nowIso
+            });
+          }
 
-  // ── 출고의뢰 반려 실행 ──
-  const handleExecuteReject = async () => {
-    if (!selectedGroupId || activeGroup.length === 0) return;
-    if (!rejectReason.trim()) {
-      showErrorModal('반려 사유를 입력해 주세요.');
-      return;
-    }
+          // 2-3. 계약 체결 자산 슬롯 제외(CANCELLED) 처리하여 미할당 대기열에 재유입되지 않도록 격리
+          if (ca) {
+            db.updateRow<ContractAsset>('contractAssets', ca.id, {
+              assetId: undefined,
+              status: 'CANCELLED' as any,
+              memo: `[수량조정 요청] 출고검수 불충족(${defectReason}) 및 대체장비 부재로 검수 제외`
+            } as any);
+          }
+        }
 
-    setIsSubmitting(true);
-    try {
-      const nowIso = new Date().toISOString();
-      for (const oin of activeGroup) {
-        db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
-          status: 'REJECTED',
-          rejectReason: rejectReason.trim(),
-          note: `[출고검수 반려] 사유: ${rejectReason.trim()} (처리자: ${currentUser?.name || '담당자'})`,
-          updatedAt: nowIso
+        // 2-4. 계약 변경 이력 기록 및 영업사원 수량조정 요청 긴급 ToDo 발행
+        const firstOin = activeGroup.items[0];
+        const { contract, delivery } = getInspectionDetails(firstOin);
+        const targetContractId = activeGroup.contractId || contract?.id || '';
+        const summaryText = excludedAssetLabels.join(', ');
+
+        if (targetContractId) {
+          db.insertRow<ContractHistory>('contractHistory', {
+            id: `ch-qty-adj-${Date.now()}`,
+            contractId: targetContractId,
+            changeType: 'NOTE' as any,
+            changeDate: todayStr,
+            description: `[출고검수 수량조정 요청] 총 ${activeGroup.items.length}대 중 ${satisfiedItems.length}대 충족 검수완료, ${unsatisfiedItems.length}대 불충족 제외 (${summaryText})`,
+            createdAt: nowIso
+          });
+        }
+
+        // 배차 요청의 requestMeta에서 요청 영업사원 ID 보조 추출
+        let requesterId = contract?.salespersonId;
+        if (!requesterId && delivery?.cargoItems) {
+          try {
+            const rawCargo =
+              typeof delivery.cargoItems === 'string'
+                ? JSON.parse(delivery.cargoItems)
+                : delivery.cargoItems;
+            if (Array.isArray(rawCargo) && rawCargo[0]?.requestMeta?.requesterId) {
+              requesterId = rawCargo[0].requestMeta.requesterId;
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        await issueHandoverTask({
+          category: 'CONTRACT_PACKAGE_RESEND',
+          title: `[수량조정 요청] ${activeGroup.customerName} · ${activeGroup.siteName} (불충족 ${unsatisfiedItems.length}대 제외)`,
+          content: `출고검수 결과 총 ${activeGroup.items.length}대 중 ${satisfiedItems.length}대만 충족 검수완료되었고, ${unsatisfiedItems.length}대(${summaryText})는 불충족 및 대체장비 부재로 제외되었습니다. 계약 및 출고 수량조정을 진행해 주세요.`,
+          targetDept: 'SALES',
+          assignedUserId: requesterId || undefined,
+          priority: 'URGENT',
+          actionUrl: `/admin/contract?contractId=${targetContractId}`,
+          entityType: 'CONTRACT',
+          entityId: targetContractId || activeGroup.groupKey,
+          senderId: currentUser?.id,
+          senderName: inspectorName
         });
       }
 
       await db.awaitPendingWrites();
-      refreshAllData();
+      await refreshAllData();
 
-      setSuccessToast(`출고의뢰 ${activeGroup.length}건 반려 완료`);
-      setTimeout(() => setSuccessToast(''), 3000);
-      setRejectModalOpen(false);
-      setSelectedGroupId('');
+      if (unsatisfiedItems.length === 0) {
+        showToast(`출고검수 ${satisfiedItems.length}대 완료 (대여중 전환)`, 'success');
+      } else if (satisfiedItems.length > 0) {
+        showToast(
+          `충족 ${satisfiedItems.length}대 검수완료 · 불충족 ${unsatisfiedItems.length}대 영업 수량조정 요청 완료`,
+          'success'
+        );
+      } else {
+        showToast(
+          `불충족 ${unsatisfiedItems.length}대 검수 제외 및 영업 수량조정 요청 완료`,
+          'success'
+        );
+      }
+
+      setSatisfactionMap({});
+      setReasonMap({});
+      setActiveSwapOinId(null);
+      setIsInlineCameraOpen(false);
     } catch (err: any) {
-      showErrorModal(`반려 처리 실패: ${err?.message || err}`);
+      showErrorModal(err?.message || '출고검수 처리 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const pendingCount = Object.keys(allGroups.pending).length;
-  const completedCount = Object.keys(allGroups.completed).length;
+  if (!canView && !canEdit) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center text-slate-400">
+        <AlertTriangle className="w-10 h-10 text-amber-500 mb-2" />
+        <div className="text-sm font-bold text-slate-200">출고검수 조회 권한이 없습니다.</div>
+      </div>
+    );
+  }
+
+  const hasAnySiteOptions =
+    activeGroup &&
+    (activeGroup.siteOptions.paidOptions.length > 0 ||
+      activeGroup.siteOptions.protection.length > 0 ||
+      activeGroup.siteOptions.attachments.length > 0 ||
+      activeGroup.siteOptions.checkedSpecs.length > 0 ||
+      Boolean(activeGroup.siteOptions.specialNote));
 
   return (
-    <div className="flex flex-col pb-36 p-3.5 h-full bg-slate-950 min-h-screen text-slate-100 selection:bg-emerald-500 selection:text-white">
-      {/* 성공 토스트 */}
-      {successToast && (
-        <div className="p-3 mb-3 rounded-xl bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-xs font-bold flex items-center gap-2 shadow-lg animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{successToast}</span>
-        </div>
-      )}
-
-      {/* ───────────────────────────────────────────────────────────────────────
-          레이어 1: 출고의뢰 목록 뷰 (검색 + 날짜 필터 + 카드 리스트)
-         ─────────────────────────────────────────────────────────────────────── */}
-      {!selectedGroupId ? (
-        <div className="flex flex-col gap-3">
-          {/* 타이틀 헤더 */}
-          <div className="flex items-center justify-between pt-1">
-            <h1 className="text-base font-black text-white flex items-center gap-2 whitespace-nowrap shrink-0">
-              <CheckSquare className="w-5 h-5 text-emerald-400" />
-              출고 검수 관리
-            </h1>
-            {/* 상태 탭 2분할 */}
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 shrink-0">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('PENDING'); setSelectedGroupId(''); }}
-                className={`px-3 py-1 text-xs font-black rounded-lg transition-colors whitespace-nowrap ${
-                  activeTab === 'PENDING' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                검수 대기 ({pendingCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('COMPLETED'); setSelectedGroupId(''); }}
-                className={`px-3 py-1 text-xs font-black rounded-lg transition-colors whitespace-nowrap ${
-                  activeTab === 'COMPLETED' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                검수 완료 ({completedCount})
-              </button>
-            </div>
-          </div>
-
-          {/* 실시간 검색창 & 소모품 재고 퀵버튼 */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 flex items-center">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="고객사, 현장, 계약번호, 장비번호 검색"
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-              {searchQuery && (
-                <button 
-                  type="button" 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 p-1 text-slate-400 hover:text-white"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
+    <div className="mobile-inspection-root min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-36 font-sans">
+      {/* 상단 헤더 */}
+      <header className="sticky top-0 z-20 bg-slate-900 border-b border-slate-800 px-3 py-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {onBack && (
             <button
               type="button"
-              onClick={() => setIsConsumableModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/40 text-amber-300 text-xs font-bold whitespace-nowrap active:scale-95 transition-all shadow-sm shrink-0"
-              title="출고 검수 부속품 및 주기장 소모품 재고 확인"
+              onClick={onBack}
+              className="p-1 -ml-1 text-slate-400 hover:text-slate-100 rounded"
+              aria-label="뒤로"
             >
-              <Boxes className="w-4 h-4 text-amber-400" />
-              <span>소모품</span>
+              <ArrowLeft className="w-5 h-5" />
             </button>
+          )}
+          <h1 className="text-sm font-bold text-slate-100 whitespace-nowrap">출고검수</h1>
+          <span className="text-xs text-amber-300 font-bold whitespace-nowrap">
+            대기 {pendingGroups.length}건 ({totalPendingAssetsCount}대)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode('PENDING')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap ${
+              viewMode === 'PENDING'
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            대기 ({pendingGroups.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('COMPLETED')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold border whitespace-nowrap ${
+              viewMode === 'COMPLETED'
+                ? 'bg-emerald-600 text-white border-emerald-500'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            완료 ({completedGroups.length})
+          </button>
+        </div>
+      </header>
+
+      {toastMessage && (
+        <div
+          className={`fixed top-12 left-3 right-3 z-50 px-3 py-2 rounded-lg border flex items-center gap-2 text-xs font-bold shadow-lg ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-950 text-emerald-200 border-emerald-700'
+              : 'bg-rose-950 text-rose-200 border-rose-700'
+          }`}
+        >
+          {toastMessage.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
+          <span className="flex-1 truncate">{toastMessage.text}</span>
+        </div>
+      )}
+
+      <main className="flex-1 px-3 py-2 flex flex-col gap-2.5">
+        {/* 1. 검수 대상 출고 요청 목록 (좌측 정렬 + 자연 줄바꿈 + 모델×수량 요약) */}
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+              {viewMode === 'PENDING'
+                ? `검수 대기 (${pendingGroups.length})`
+                : `검수 완료 (${completedGroups.length})`}
+            </span>
+            <div className="relative flex-1 max-w-[190px]">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="고객사·현장·자산번호 검색"
+                className="w-full pl-7 pr-6 py-1 bg-slate-950 border border-slate-800 text-slate-100 placeholder-slate-500 rounded-md text-xs focus:outline-none focus:border-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* 날짜 프리셋 퀵 버튼 바 (대기 탭 전용) */}
-          {activeTab === 'PENDING' && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              <button
-                type="button"
-                onClick={() => setDateFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border shrink-0 transition-colors ${
-                  dateFilter === 'ALL' && !exchangeOnly
-                    ? 'bg-slate-800 border-slate-600 text-white'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                }`}
-              >
-                전체 기간
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateFilter('TODAY')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border shrink-0 transition-colors ${
-                  dateFilter === 'TODAY'
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                }`}
-              >
-                오늘 상차
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateFilter('TOMORROW')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border shrink-0 transition-colors ${
-                  dateFilter === 'TOMORROW'
-                    ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                }`}
-              >
-                내일 상차
-              </button>
-              <button
-                type="button"
-                onClick={() => setDateFilter('WEEK')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border shrink-0 transition-colors ${
-                  dateFilter === 'WEEK'
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                }`}
-              >
-                이번주 (7일)
-              </button>
-              <button
-                type="button"
-                onClick={() => setExchangeOnly(prev => !prev)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border shrink-0 transition-colors ${
-                  exchangeOnly
-                    ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                }`}
-              >
-                교환만
-              </button>
-            </div>
-          )}
-
-          {/* 의뢰 카드 목록 */}
-          {filteredGroupEntries.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-xs bg-slate-900/40 rounded-2xl border border-slate-800 flex flex-col items-center gap-2 mt-2">
-              <CheckSquare className="w-8 h-8 text-slate-600" />
-              <span>{activeTab === 'PENDING' ? '해당 조건의 검수 대기 의뢰가 없습니다.' : '완료된 검수 내역이 없습니다.'}</span>
+          {currentGroups.length === 0 ? (
+            <div className="py-4 text-center text-xs text-slate-400">
+              {viewMode === 'PENDING'
+                ? '검수 대기 중인 출고 요청이 없습니다.'
+                : '완료된 출고검수 내역이 없습니다.'}
             </div>
           ) : (
-            filteredGroupEntries.map(([groupId, insList]) => {
-              const first = insList[0];
-              const contract = contracts.find(c => c.id === first.contractId);
-              const customer = contract ? customers.find(c => c.id === contract.customerId) : undefined;
-              const site = contract ? sites.find(s => s.id === contract.siteId) : undefined;
-              const delivery = deliveries.find(d => d.id === first.deliveryId);
-              const isBlocked = (customer as any)?.transactionStatus === 'BLOCKED';
-              const isExchange = contract ? exchangeContractIds.has(contract.id) : false;
-
-              // 상차일자 & D-day
-              const loadingDate = delivery?.loadingDate || delivery?.scheduledDate || contract?.startDate;
-              const dDay = getDDay(loadingDate);
-
-              // 모델 수량 요약
-              const modelCounts: Record<string, number> = {};
-              insList.forEach(item => {
-                const a = assets.find(x => x.id === item.assetId);
-                const m = a?.modelName || '모델확인중';
-                modelCounts[m] = (modelCounts[m] || 0) + 1;
-              });
-              const modelSummary = Object.entries(modelCounts).map(([m, c]) => `${m} ${c}대`).join(', ');
-
-              return (
-                <div
-                  key={groupId}
-                  onClick={() => handleSelectGroup(groupId)}
-                  className={`p-4 rounded-2xl bg-slate-900 border active:scale-[0.99] transition-all cursor-pointer flex flex-col gap-2.5 shadow-lg relative overflow-hidden ${
-                    isBlocked 
-                      ? 'border-red-900/60' 
-                      : isExchange 
-                      ? 'border-purple-800/60 ring-1 ring-purple-500/30' 
-                      : 'border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  {isBlocked && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500" />}
-
-                  {/* 1행: 고객사명, 긴급도 D-day, 대차 태그 */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {isExchange && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0">
-                          교환
-                        </span>
-                      )}
-                      <span className="text-sm font-black text-white truncate">
-                        {customer?.name || '고객사 미지정'}
-                      </span>
-                      {isBlocked && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 font-bold border border-red-500/40 shrink-0">
-                          거래차단
-                        </span>
-                      )}
-                    </div>
-                    {/* D-day 배지 */}
-                    <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black font-mono border whitespace-nowrap shrink-0 ${dDay.color}`}>
-                      {dDay.text}
-                    </span>
-                  </div>
-
-                  {/* 2행: 현장명 */}
-                  <div className="text-xs text-slate-400 truncate">
-                    📍 {site?.name || '현장 미지정'}
-                  </div>
-
-                  {/* 3행: 장비 요약 및 대기 수량 */}
-                  <div className="flex items-center justify-between bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-300 font-medium truncate">
-                      <Truck className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate">{modelSummary || '장비 매핑 대기'}</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-black text-xs shrink-0 whitespace-nowrap ml-2">
-                      {insList.length}대 {activeTab === 'PENDING' ? '대기' : '완료'}
-                    </span>
-                  </div>
-
-                  {/* 4행: 운송 기사 & 상차 일시 (배차 연결 시) */}
-                  {delivery && (
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1">
-                      <span className="truncate">
-                        🚚 {delivery.driverName ? `${delivery.driverName} 기사 (${delivery.vehicleNo || '배차'})` : '배차 배정 중'}
-                      </span>
-                      {delivery.loadingDate && (
-                        <span className="text-slate-400 shrink-0 whitespace-nowrap">
-                          {delivery.loadingDate} {delivery.loadingTimeSlot || ''}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      ) : (
-        /* ───────────────────────────────────────────────────────────────────────
-           레이어 2: 출고검수 스튜디오 (선택된 의뢰 상세)
-           ─────────────────────────────────────────────────────────────────────── */
-        <div 
-          className="flex flex-col gap-3"
-          style={{
-            paddingBottom: activeTab === 'PENDING' && activeGroup.length > 1 ? '96px' : '32px'
-          }}
-        >
-          {/* 상단 네비게이션 헤더 */}
-          <div className="flex items-center justify-between bg-slate-900 p-3 rounded-2xl border border-slate-800 shadow">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <button 
-                type="button"
-                onClick={() => setSelectedGroupId('')} 
-                className="p-2 -ml-1 rounded-xl text-slate-400 hover:text-white bg-slate-800 active:scale-95 transition-transform shrink-0"
-                aria-label="뒤로가기"
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </button>
-              <div className="flex flex-col min-w-0">
-                <span className="text-white font-black text-sm truncate">{
-                  (() => {
-                    const first = activeGroup[0];
-                    const c = contracts.find(x => x.id === first?.contractId);
-                    return c ? customers.find(x => x.id === c.customerId)?.name || '직출고' : '직출고';
-                  })()
-                }</span>
-                <span className="text-slate-400 text-xs truncate">{
-                  (() => {
-                    const first = activeGroup[0];
-                    const c = contracts.find(x => x.id === first?.contractId);
-                    return c ? sites.find(x => x.id === c.siteId)?.name || '현장' : '현장';
-                  })()
-                }</span>
-              </div>
-            </div>
-
-            {/* 의뢰 반려 버튼 (대기 탭일 때) */}
-            {activeTab === 'PENDING' && (
-              <button
-                type="button"
-                onClick={() => setRejectModalOpen(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300 text-xs font-bold flex items-center gap-1 shrink-0 whitespace-nowrap hover:bg-red-900/40 active:scale-95 transition-all"
-              >
-                <Ban className="w-3.5 h-3.5 text-red-400" />
-                반려
-              </button>
-            )}
-          </div>
-
-          {/* 배차 & 기사 컨텍스트 바 */}
-          {(() => {
-            const first = activeGroup[0];
-            const delivery = deliveries.find(d => d.id === first?.deliveryId);
-            if (!delivery) return null;
-            return (
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
-                <div className="flex items-center gap-2 truncate">
-                  <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="font-bold text-white truncate">{delivery.driverName || '운송기사 미배정'}</span>
-                  {delivery.vehicleNo && <span className="text-slate-400 shrink-0">({delivery.vehicleNo})</span>}
-                </div>
-                {delivery.driverContact && (
-                  <a
-                    href={`tel:${delivery.driverContact}`}
-                    className="px-2.5 py-1 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold text-[11px] flex items-center gap-1 shrink-0"
-                  >
-                    <Phone className="w-3 h-3" />
-                    전화걸기
-                  </a>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* 특이사항 & 거래차단 가드 배너 */}
-          {(() => {
-            const first = activeGroup[0];
-            const c = contracts.find(x => x.id === first?.contractId);
-            const customer = c ? customers.find(x => x.id === c.customerId) : undefined;
-            const isBlocked = (customer as any)?.transactionStatus === 'BLOCKED';
-            const { specialNote } = getInspectionCheckpoints(first, contracts, contractAssets, sites, customers, assets);
-            
-            return (
-              <div className="flex flex-col gap-2">
-                {isBlocked && (
-                  <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/60 flex items-start gap-2 shadow">
-                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                    <span className="text-xs text-red-200 font-bold leading-relaxed">
-                      거래차단 고객사입니다. 연체 미결 건 해제 전까지 출고 승인이 불가합니다.
-                    </span>
-                  </div>
-                )}
-                {specialNote && (
-                  <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-700/60 flex items-start gap-2">
-                    <FileText className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <span className="text-xs text-amber-200 leading-relaxed font-medium">
-                      <strong>현장 특이사항:</strong> {specialNote}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* 1-Touch 전체 일괄 체크 액션 바 (대기 탭 전용) */}
-          {activeTab === 'PENDING' && activeGroup.length > 1 && (
-            <div className="flex items-center justify-between bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-xs text-slate-400 font-bold">
-                전체 {activeGroup.length}대 장비
-              </span>
-              <button
-                type="button"
-                onClick={handleCheckAllForGroup}
-                className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                전체 장비 일괄 확인
-              </button>
-            </div>
-          )}
-
-          {/* 자산별 검수 카드 목록 */}
-          <div className="flex flex-col gap-3">
-            {activeGroup.map((oin, assetIdx) => {
-              const { checkpoints, asset } = getInspectionCheckpoints(
-                oin, contracts, contractAssets, sites, customers, assets
-              );
-              
-              const isExpanded = !!expandedAssetIds[oin.id];
-              const checked = assetCheckedList[oin.id] || {};
-              const checkedCount = Object.values(checked).filter(Boolean).length;
-              const photos = assetPhotos[oin.id] || [];
-              const memoText = assetNotes[oin.id] || '';
-              const isAllChecked = checkpoints.length > 0 && checkedCount === checkpoints.length;
-
-              return (
-                <div 
-                  key={oin.id} 
-                  className="rounded-2xl bg-slate-900 border border-slate-800 flex flex-col shadow-md overflow-hidden transition-all"
-                >
-                  {/* 자산 행 헤더 */}
-                  <div 
-                    className="p-3.5 flex items-center justify-between cursor-pointer active:bg-slate-800/50"
-                    onClick={() => setExpandedAssetIds(prev => ({ ...prev, [oin.id]: !prev[oin.id] }))}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs font-black shrink-0 whitespace-nowrap">
-                        #{asset?.assetNo || '미배정'}
-                      </span>
-                      <span className="text-white font-bold text-sm truncate">
-                        {asset?.modelName || '모델확인중'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* 확인 진행률 배지 */}
-                      <span className={`text-xs font-black px-2 py-0.5 rounded-md whitespace-nowrap ${
-                        isAllChecked 
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
-                          : checkedCount > 0 
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' 
-                          : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {checkedCount}/{checkpoints.length}
-                      </span>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                    </div>
-                  </div>
-
-                  {/* 펼쳐진 검수 내용 */}
-                  {isExpanded && (
-                    <div className="flex flex-col gap-3.5 p-3.5 pt-0 border-t border-slate-800/80 mt-1">
-                      
-                      {/* 1-Touch 전 항목 확인 & 장비 교체 퀵 툴바 (대기 탭일 때) */}
-                      {activeTab === 'PENDING' && (
-                        <div className="flex items-center justify-between pt-2 gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleCheckAllForAsset(oin)}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 font-bold text-[11px] flex items-center gap-1 active:scale-95"
-                            >
-                              <Check className="w-3 h-3" />
-                              전 항목 확인
-                            </button>
-                            {checkedCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => handleUncheckAllForAsset(oin)}
-                                className="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-bold"
-                              >
-                                해제
-                              </button>
-                            )}
-                          </div>
-
-                          {/* 대체 장비 교체 버튼 */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenSwapModal(oin)}
-                            className="px-2.5 py-1 rounded-lg bg-purple-950/60 border border-purple-700/60 text-purple-300 font-bold text-[11px] flex items-center gap-1 active:scale-95 shrink-0"
-                          >
-                            <Repeat className="w-3 h-3 text-purple-400" />
-                            장비 교체
-                          </button>
-                        </div>
-                      )}
-
-                      {/* 체크포인트 리스트 */}
-                      <div className="flex flex-col gap-1.5">
-                        {checkpoints.length === 0 ? (
-                          <div className="text-xs text-emerald-400 bg-emerald-950/20 border border-emerald-900/50 p-3 rounded-xl">
-                            요구 사양 없음 — 모델 일치 확인 후 즉시 승인 가능
-                          </div>
-                        ) : (
-                          checkpoints.map((cp, idx) => {
-                            const isChecked = !!checked[cp.id];
-                            
-                            let colorClasses = 'bg-slate-950 border-slate-800 text-slate-300';
-                            let checkBadge = 'border-slate-700 text-transparent';
-                            
-                            if (isChecked) {
-                              if (cp.type === 'MODEL') {
-                                colorClasses = 'bg-blue-950/30 border-blue-600 text-blue-100';
-                                checkBadge = 'bg-blue-500 border-blue-400 text-white';
-                              } else if (cp.type === 'SPEC') {
-                                colorClasses = 'bg-emerald-950/30 border-emerald-600 text-emerald-100';
-                                checkBadge = 'bg-emerald-500 border-emerald-400 text-white';
-                              } else if (cp.type === 'OPTION') {
-                                colorClasses = 'bg-amber-950/30 border-amber-600 text-amber-100';
-                                checkBadge = 'bg-amber-500 border-amber-400 text-white';
-                              }
-                            }
-
-                            return (
-                              <button
-                                key={cp.id}
-                                type="button"
-                                disabled={activeTab === 'COMPLETED'}
-                                onClick={() => handleToggleCheck(oin.id, cp.id)}
-                                className={`flex items-center justify-between p-3 rounded-xl border text-xs font-semibold transition-all min-h-[44px] ${colorClasses}`}
-                              >
-                                <span className="font-mono text-slate-500 mr-2 shrink-0">{idx + 1}.</span>
-                                <span className="text-left flex-1 break-keep leading-snug">{cp.label}</span>
-                                <div className={`w-5 h-5 rounded-md flex items-center justify-center border shrink-0 ml-2 transition-all ${checkBadge}`}>
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                </div>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      {/* 단축 메모 칩 및 메모 입력란 (대기 탭일 때) */}
-                      {activeTab === 'PENDING' && (
-                        <div className="flex flex-col gap-1.5 pt-1">
-                          <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                            {['특이사항 없음', '작동 점검 완료', '세척 완료', '서류 부착 완료'].map(chip => (
-                              <button
-                                key={chip}
-                                type="button"
-                                onClick={() => handleAppendMemoChip(oin.id, chip)}
-                                className="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-medium whitespace-nowrap shrink-0 border border-slate-700/60"
-                              >
-                                + {chip}
-                              </button>
-                            ))}
-                          </div>
-                          <input
-                            type="text"
-                            value={memoText}
-                            onChange={e => setAssetNotes(prev => ({ ...prev, [oin.id]: e.target.value }))}
-                            placeholder="검수 특이사항 및 정비 메모 직접 입력"
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                      )}
-
-                      {/* 외관 사진 (카메라 업로더) */}
-                      <div className="pt-1">
-                        <CameraUploader
-                          label="외관 확인 사진 (최대 4매)"
-                          images={photos}
-                          onChange={newPhotos => setAssetPhotos(prev => ({ ...prev, [oin.id]: newPhotos }))}
-                          maxImages={4}
-                        />
-                      </div>
-
-                      {/* 단일/개별 장비 완료 버튼 (대기 탭일 때) */}
-                      {activeTab === 'PENDING' && (
-                        <div className="pt-2">
-                          {activeGroup.length === 1 ? (
-                            <button
-                              type="button"
-                              disabled={isSubmitting || (checkpoints.length > 0 && checkedCount === 0) || (() => {
-                                const c = contracts.find(x => x.id === oin.contractId);
-                                const customer = c ? customers.find(x => x.id === c.customerId) : undefined;
-                                return (customer as any)?.transactionStatus === 'BLOCKED';
-                              })()}
-                              onClick={() => handleApproveSingle(oin)}
-                              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 whitespace-nowrap active:scale-[0.99] transition-all"
-                            >
-                              <ShieldCheck className="w-5 h-5 text-white shrink-0" />
-                              {isSubmitting ? '승인 처리 중...' : '출고 검수 승인 완료'}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={isSubmitting || (checkpoints.length > 0 && checkedCount === 0) || (() => {
-                                const c = contracts.find(x => x.id === oin.contractId);
-                                const customer = c ? customers.find(x => x.id === c.customerId) : undefined;
-                                return (customer as any)?.transactionStatus === 'BLOCKED';
-                              })()}
-                              onClick={() => handleApproveSingle(oin)}
-                              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-40 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.99] transition-all"
-                            >
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                              이 장비 개별 승인
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 하단 고정 터미널 완결 바 (2대 이상 다수 장비 대기 탭 전용) */}
-          {activeTab === 'PENDING' && activeGroup.length > 1 && (
-            <div 
-              style={{
-                position: 'fixed',
-                bottom: 'calc(58px + env(safe-area-inset-bottom, 0px))',
-                left: 0,
-                right: 0,
-                zIndex: 40,
-                backgroundColor: 'rgba(15, 23, 42, 0.96)',
-                backdropFilter: 'blur(16px)',
-                borderTop: '1px solid #334155',
-                padding: '12px 16px',
-                boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.5)'
-              }}
+            <div
+              className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-0.5"
+              style={{ maxHeight: '148px' }}
             >
-              <div className="max-w-md mx-auto flex items-center gap-3">
-                <div className="flex flex-col shrink-0">
-                  <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">확인 진행률</span>
-                  <span className="text-sm font-black text-emerald-400 whitespace-nowrap">
-                    {activeGroup.filter(oin => {
-                      const { checkpoints } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-                      const c = assetCheckedList[oin.id] || {};
-                      const cCount = Object.values(c).filter(Boolean).length;
-                      return checkpoints.length === 0 || cCount > 0;
-                    }).length} / {activeGroup.length}대 준비
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={isSubmitting || activeGroup.filter(oin => {
-                    const { checkpoints } = getInspectionCheckpoints(oin, contracts, contractAssets, sites, customers, assets);
-                    const c = assetCheckedList[oin.id] || {};
-                    return checkpoints.length === 0 || Object.values(c).filter(Boolean).length > 0;
-                  }).length !== activeGroup.length || (() => {
-                    const first = activeGroup[0];
-                    const c = contracts.find(x => x.id === first?.contractId);
-                    const customer = c ? customers.find(x => x.id === c.customerId) : undefined;
-                    return (customer as any)?.transactionStatus === 'BLOCKED';
-                  })()}
-                  onClick={handleApproveAll}
-                  className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-1.5 whitespace-nowrap active:scale-[0.99] transition-all"
-                >
-                  <ShieldCheck className="w-4 h-4 shrink-0" />
-                  {isSubmitting ? '승인 처리 중...' : `전체 일괄 출고 승인 (${activeGroup.length}대)`}
-                </button>
-              </div>
+              {currentGroups.map(grp => {
+                const isSelected = activeGroup?.groupKey === grp.groupKey;
+                const modelSummaries = getGroupModelSummary(grp.items);
+                const outDate = (grp.loadingDate || '').slice(5) || '-';
+
+                return (
+                  <div
+                    key={grp.groupKey}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSelectGroup(grp.groupKey)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectGroup(grp.groupKey);
+                      }
+                    }}
+                    className={`w-full text-left rounded-lg px-3 py-2 flex flex-col items-stretch gap-1 border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-blue-950/60 border-blue-500'
+                        : 'bg-slate-950 border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 w-full">
+                      <div
+                        className="text-xs text-slate-100 leading-snug text-left flex-1 min-w-0"
+                        style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                      >
+                        {grp.isExchange && (
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 mr-1.5 rounded bg-rose-600 text-white font-bold align-middle">
+                            교환
+                          </span>
+                        )}
+                        <strong className="font-bold text-slate-100">{grp.customerName}</strong>
+                        <span className="text-slate-300"> · {grp.siteName}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-mono whitespace-nowrap shrink-0 pt-0.5">
+                        {outDate}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 w-full flex-wrap">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-left min-w-0">
+                        {modelSummaries.map(m => (
+                          <span
+                            key={m.name}
+                            className="text-[11px] font-bold text-cyan-300 whitespace-nowrap"
+                          >
+                            {m.name} × {m.count}
+                          </span>
+                        ))}
+                      </div>
+                      <span
+                        className={`text-[11px] font-bold whitespace-nowrap shrink-0 ${
+                          viewMode === 'PENDING' ? 'text-amber-300' : 'text-emerald-300'
+                        }`}
+                      >
+                        {viewMode === 'PENDING'
+                          ? `대기 ${grp.items.length}대`
+                          : `완료 ${grp.items.length}대`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      )}
+        </section>
 
-      {/* ───────────────────────────────────────────────────────────────────────
-          모달 1: 현장 장비 교체(스왑) 모달
-         ─────────────────────────────────────────────────────────────────────── */}
-      {swapModalOpen && swapTargetAsset && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-1.5">
-                <Repeat className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-black text-white">현장 대체 장비 교체</span>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setSwapModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white"
+        {/* 2. 고객현장 단위 통합 요구 옵션 그룹 (단 1회 일괄 표시) */}
+        {activeGroup && (
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div
+                className="text-xs font-bold text-slate-200 text-left flex-1 min-w-0"
+                style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* 현재 불량 장비 정보 */}
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs flex flex-col gap-1">
-              <span className="text-slate-400">교체 대상 불량 장비:</span>
-              <span className="text-sm font-bold text-white">
-                #{swapTargetAsset.assetNo} ({swapTargetAsset.modelName})
+                <span>현장 요구 옵션</span>
+                <span className="text-slate-400 font-normal">
+                  {' '}
+                  · {activeGroup.customerName} ({activeGroup.siteName})
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 whitespace-nowrap shrink-0">
+                {activeGroup.driverInfo}
               </span>
             </div>
 
-            {/* 교체 사유 선택 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-slate-300">교체 사유</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {['시동 불능', '유압 누유', '배터리 방전', '조이스틱 파손', '타이어 불량', '기타 결함'].map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setSwapReason(r)}
-                    className={`py-2 px-2.5 rounded-lg text-xs font-bold border transition-colors ${
-                      swapReason === r
-                        ? 'bg-purple-600/30 border-purple-500 text-purple-200'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
+            {!hasAnySiteOptions ? (
+              <div className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-400 text-left">
+                별도 현장 요구 옵션 없음 (표준 기본 사양)
               </div>
-            </div>
-
-            {/* 정비 벌점 선택 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-slate-300">정비점수 가산 (벌점)</label>
-              <div className="flex gap-2">
-                {[
-                  { label: '+5점 (경미/기본)', val: 5 },
-                  { label: '+10점 (중대결함)', val: 10 },
-                  { label: '0점 (사양변경)', val: 0 }
-                ].map(p => (
-                  <button
-                    key={p.val}
-                    type="button"
-                    onClick={() => setSwapPenalty(p.val)}
-                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold border ${
-                      swapPenalty === p.val
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 대체 장비 검색 & 선택 */}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>대체 가용 장비 선택 ({availableSwapAssets.length}대)</span>
-                <span className="text-[10px] text-emerald-400">정비점수 낮은순 우선</span>
-              </label>
-              
-              <input
-                type="text"
-                value={swapSearchQuery}
-                onChange={e => setSwapSearchQuery(e.target.value)}
-                placeholder="장비번호 검색 (예: 07-1234)"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-              />
-
-              <div className="max-h-40 overflow-y-auto flex flex-col gap-1.5 pr-1">
-                {availableSwapAssets.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
-                    대체 가능한 가용 장비가 없습니다.
-                  </div>
-                ) : (
-                  availableSwapAssets.map(a => (
-                    <div
-                      key={a.id}
-                      onClick={() => setSelectedNewAssetId(a.id)}
-                      className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
-                        selectedNewAssetId === a.id
-                          ? 'bg-purple-950/50 border-purple-500 text-white'
-                          : 'bg-slate-950 border-slate-800/80 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xs text-emerald-400">#{a.assetNo}</span>
-                        <span className="text-xs font-bold">{a.modelName}</span>
-                      </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                        벌점: {a.maintenanceScore || 0}점
-                      </span>
+            ) : (
+              <div className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 flex flex-col gap-1.5 text-left">
+                {activeGroup.siteOptions.paidOptions.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[11px] font-bold text-amber-300 whitespace-nowrap shrink-0 w-16 pt-0.5">
+                      유상옵션
+                    </span>
+                    <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                      {activeGroup.siteOptions.paidOptions.map(opt => (
+                        <span
+                          key={opt}
+                          className="px-2 py-0.5 rounded bg-amber-950/70 border border-amber-700/80 text-amber-200 text-[11px] font-bold"
+                        >
+                          {opt}
+                        </span>
+                      ))}
                     </div>
-                  ))
+                  </div>
+                )}
+
+                {activeGroup.siteOptions.protection.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[11px] font-bold text-blue-300 whitespace-nowrap shrink-0 w-16 pt-0.5">
+                      무상옵션
+                    </span>
+                    <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                      {activeGroup.siteOptions.protection.map(opt => (
+                        <span
+                          key={opt}
+                          className="px-2 py-0.5 rounded bg-blue-950/70 border border-blue-700/80 text-blue-200 text-[11px] font-bold"
+                        >
+                          {opt}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeGroup.siteOptions.attachments.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[11px] font-bold text-purple-300 whitespace-nowrap shrink-0 w-16 pt-0.5">
+                      부착물
+                    </span>
+                    <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                      {activeGroup.siteOptions.attachments.map(opt => (
+                        <span
+                          key={opt}
+                          className="px-2 py-0.5 rounded bg-purple-950/70 border border-purple-700/80 text-purple-200 text-[11px] font-bold"
+                        >
+                          {opt}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeGroup.siteOptions.checkedSpecs.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-[11px] font-bold text-emerald-300 whitespace-nowrap shrink-0 w-16 pt-0.5">
+                      현장요구사양
+                    </span>
+                    <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                      {activeGroup.siteOptions.checkedSpecs.map(opt => (
+                        <span
+                          key={opt}
+                          className="px-2 py-0.5 rounded bg-emerald-950/70 border border-emerald-700/80 text-emerald-200 text-[11px] font-bold"
+                        >
+                          {opt}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeGroup.siteOptions.specialNote && (
+                  <div
+                    className="text-[11px] text-amber-200/90 pt-1 border-t border-slate-800/80 text-left"
+                    style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                  >
+                    특이사항: {activeGroup.siteOptions.specialNote}
+                  </div>
                 )}
               </div>
-            </div>
+            )}
+          </section>
+        )}
 
-            {/* 교체 실행 버튼 */}
-            <div className="pt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setSwapModalOpen(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || !selectedNewAssetId}
-                onClick={handleExecuteSwap}
-                className="flex-2 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-purple-600/30"
-              >
-                <Repeat className="w-4 h-4" />
-                {isSubmitting ? '교체 처리 중...' : '대체 장비 교체 실행'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        {/* 3. 할당 자산별 옵션 전체 충족 여부 확인 및 자산 교체 / 수량조정 */}
+        {activeGroup && (
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+                {viewMode === 'PENDING'
+                  ? `할당 자산 확인 (${satisfiedItems.length}/${activeGroup.items.length}대 충족)`
+                  : `검수 완료 자산 (${activeGroup.items.length}대)`}
+              </span>
 
-      {/* ───────────────────────────────────────────────────────────────────────
-          모달 2: 출고의뢰 반려 모달
-         ─────────────────────────────────────────────────────────────────────── */}
-      {rejectModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-1.5">
-                <Ban className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-black text-white">출고의뢰 반려</span>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setRejectModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <span className="text-xs text-slate-400 leading-relaxed">
-              출고의뢰를 반려 처리하면 담당 영업사원 및 배차 관리자에게 사유가 통보되며 출고 대기열에서 제외됩니다.
-            </span>
-
-            {/* 빠른 반려 사유 칩 */}
-            <div className="flex flex-wrap gap-1.5">
-              {['고객사 공사 지연', '현장 진입 불가', '고객 요청 계약 취소', '안전 서류 미비', '장비 제원 부적합'].map(chip => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setRejectReason(chip)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium border border-slate-700/60"
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              placeholder="반려 사유를 구체적으로 작성하십시오."
-              rows={3}
-              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500"
-            />
-
-            <div className="pt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setRejectModalOpen(false)}
-                className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || !rejectReason.trim()}
-                onClick={handleExecuteReject}
-                className="flex-2 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-red-600/30"
-              >
-                <Ban className="w-4 h-4" />
-                {isSubmitting ? '반려 처리 중...' : '출고의뢰 반려 확정'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 📦 주기장 소모품 재고 퀵 조회 모달 */}
-      {isConsumableModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end justify-center p-0 animate-fadeIn"
-          onClick={() => setIsConsumableModalOpen(false)}
-        >
-          <div 
-            className="w-full max-w-lg bg-slate-900 border-t border-slate-700 rounded-t-3xl p-5 flex flex-col gap-3 max-h-[85vh] shadow-2xl animate-slideUp"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* 상단 핸들 & 타이틀 */}
-            <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto -mt-1 mb-1" />
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-black text-white">주기장 소모품 재고 확인</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsConsumableModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* 검색창 */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={consumableSearchQuery}
-                onChange={e => setConsumableSearchQuery(e.target.value)}
-                placeholder="충전기, 안전띠, 키박스 등 검색..."
-                className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
-              />
-              {consumableSearchQuery && (
+              {viewMode === 'PENDING' && (
                 <button
                   type="button"
-                  onClick={() => setConsumableSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  onClick={handleMarkAllSatisfied}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Check className="w-3.5 h-3.5" />
+                  <span>전체 충족</span>
                 </button>
               )}
             </div>
 
-            {/* 목록 스크롤 영역 */}
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-[50vh] pr-1">
-              {(() => {
-                const list = (consumables || []).filter(c => {
-                  if (!consumableSearchQuery.trim()) return true;
-                  const q = consumableSearchQuery.toLowerCase().trim();
-                  return (
-                    (c.modelName || '').toLowerCase().includes(q) ||
-                    (c.category || '').toLowerCase().includes(q) ||
-                    (c.supplier || '').toLowerCase().includes(q)
-                  );
-                }).sort((a, b) => (b.stockQty || 0) - (a.stockQty || 0));
+            <div className="flex flex-col gap-2">
+              {activeGroup.items.map(oin => {
+                const { asset, ca } = getInspectionDetails(oin);
+                const modelName =
+                  asset?.modelName || ca?.expectedModel || (oin as any).modelName || '미지정';
+                const status = satisfactionMap[oin.id];
+                const isSatisfied = status === 'SATISFIED';
+                const isUnsatisfied = status === 'UNSATISFIED';
+                const isSwapOpen = activeSwapOinId === oin.id;
 
-                if (list.length === 0) {
+                // 해당 자산과 동일 모델의 임대가능 대체 자산 수
+                const sameModelAvailCount = allAvailableAssets.filter(
+                  a => a.id !== oin.assetId && isModelMatch(a.modelName, modelName, products)
+                ).length;
+
+                if (viewMode === 'COMPLETED') {
                   return (
-                    <div className="p-8 text-center text-xs text-slate-500">
-                      일치하는 소모품이 없습니다.
+                    <div
+                      key={oin.id}
+                      className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 text-left">
+                        <span className="text-xs font-mono font-bold text-emerald-300 whitespace-nowrap">
+                          {asset?.assetNo || '-'}
+                        </span>
+                        <span className="text-xs text-slate-300 truncate">{modelName}</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-400 whitespace-nowrap shrink-0">
+                        검수완료 · 대여중
+                      </span>
                     </div>
                   );
                 }
 
-                return list.map(c => {
-                  const qty = c.stockQty || 0;
-                  const isOut = qty <= 0;
-                  return (
-                    <div
-                      key={c.id}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs ${
-                        isOut ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-800/60 border-slate-700/60'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
+                return (
+                  <div
+                    key={oin.id}
+                    className={`rounded-lg border p-2.5 flex flex-col gap-2 transition-colors ${
+                      isSatisfied
+                        ? 'bg-emerald-950/30 border-emerald-600'
+                        : isUnsatisfied
+                        ? 'bg-rose-950/30 border-rose-600'
+                        : 'bg-slate-950 border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 w-full">
+                      <div
+                        className="flex flex-col items-start min-w-0 flex-1 text-left"
+                        style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                      >
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {c.category && (
-                            <span className="text-[10px] px-1 py-0.5 rounded bg-slate-700 text-slate-300 font-medium">
-                              {c.category}
-                            </span>
-                          )}
-                          <span className="font-bold text-white truncate">{c.modelName}</span>
+                          <span className="text-xs font-mono font-black text-slate-100 whitespace-nowrap">
+                            {asset?.assetNo || '미할당'}
+                          </span>
+                          <span className="text-xs font-bold text-cyan-300">{modelName}</span>
                         </div>
-                        {c.supplier && (
-                          <span className="text-[10px] text-slate-400 block truncate mt-0.5">공급처: {c.supplier}</span>
+                        {isUnsatisfied && (
+                          <span className="text-[11px] text-rose-300 font-bold mt-0.5">
+                            불충족 ({reasonMap[oin.id] || '옵션 미비'}) ·{' '}
+                            {sameModelAvailCount > 0
+                              ? `교체 후보 ${sameModelAvailCount}대`
+                              : '교체 재고 없음 (수량조정 대상)'}
+                          </span>
                         )}
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className={`font-mono font-bold text-sm ${isOut ? 'text-red-400' : 'text-emerald-400'}`}>
-                          {isOut ? '품절' : `${qty}${c.unit || '개'}`}
-                        </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSatisfactionMap(prev => ({
+                              ...prev,
+                              [oin.id]: 'SATISFIED'
+                            }));
+                            if (activeSwapOinId === oin.id) {
+                              setActiveSwapOinId(null);
+                              setIsInlineCameraOpen(false);
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 whitespace-nowrap ${
+                            isSatisfied
+                              ? 'bg-emerald-600 text-white border-emerald-400'
+                              : 'bg-slate-900 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>충족</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSatisfactionMap(prev => ({
+                              ...prev,
+                              [oin.id]: 'UNSATISFIED'
+                            }));
+                            if (!reasonMap[oin.id]) {
+                              setReasonMap(prev => ({ ...prev, [oin.id]: '옵션 미비' }));
+                            }
+                            if (activeSwapOinId === oin.id) {
+                              setActiveSwapOinId(null);
+                              setIsInlineCameraOpen(false);
+                            } else {
+                              setActiveSwapOinId(oin.id);
+                              setQuickInputText('');
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 whitespace-nowrap ${
+                            isUnsatisfied
+                              ? 'bg-rose-600 text-white border-rose-400'
+                              : 'bg-slate-900 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>불충족</span>
+                        </button>
                       </div>
                     </div>
-                  );
-                });
-              })()}
-            </div>
 
-            {/* 닫기 버튼 */}
-            <button
-              type="button"
-              onClick={() => setIsConsumableModalOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
-            >
-              닫기
-            </button>
-          </div>
+                    {/* 불충족 선택 시: 사유 선택 + 장비할당 동일 카메라 스캐너 & 교체 후보 그리드 */}
+                    {isUnsatisfied && isSwapOpen && (
+                      <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                        {/* 불충족 사유 칩 */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="text-[11px] font-bold text-slate-400 mr-1 whitespace-nowrap">
+                            사유:
+                          </span>
+                          {DEFECT_REASONS.map(r => {
+                            const selectedReason = (reasonMap[oin.id] || '옵션 미비') === r;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() =>
+                                  setReasonMap(prev => ({
+                                    ...prev,
+                                    [oin.id]: r
+                                  }))
+                                }
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold border whitespace-nowrap ${
+                                  selectedReason
+                                    ? 'bg-rose-700 text-white border-rose-400'
+                                    : 'bg-slate-900 text-slate-400 border-slate-800'
+                                }`}
+                              >
+                                {r}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* 다른 자산으로 교체 영역 헤더 (장비할당 카메라 코드 그대로 재사용) */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
+                            교체 후보 · {modelName} ({swapCandidateAssets.length}대)
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {swapCandidateAssets.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setIsInlineCameraOpen(prev => !prev)}
+                                className={`px-2 py-1 rounded text-[11px] font-bold border flex items-center gap-1 whitespace-nowrap ${
+                                  isInlineCameraOpen
+                                    ? 'bg-cyan-600 text-white border-cyan-400'
+                                    : 'bg-slate-800 text-slate-200 border-slate-700'
+                                }`}
+                              >
+                                <Camera className="w-3 h-3" />
+                                <span>카메라</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveSwapOinId(null);
+                                setIsInlineCameraOpen(false);
+                              }}
+                              className="px-2 py-1 rounded bg-slate-800 text-amber-300 border border-slate-700 text-[11px] font-bold whitespace-nowrap"
+                            >
+                              수량조정 유지
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 장비할당에서 사용한 70px 슬림 카메라 스캐너 컴포넌트 100% 동일 재사용 */}
+                        <MobileInlineCameraAssetScanner
+                          isOpen={isInlineCameraOpen}
+                          onToggleOpen={() => setIsInlineCameraOpen(prev => !prev)}
+                          allAvailableAssets={swapCandidateAssets}
+                          unfilledSlots={swapUnfilledSlots}
+                          focusedSlotCaId={oin.id}
+                          mappedAssetIds={[]}
+                          onSequentialFill={scannedAsset => {
+                            handleExecuteSwapAsset(oin, scannedAsset);
+                          }}
+                        />
+
+                        {swapCandidateAssets.length === 0 ? (
+                          <div
+                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-amber-200 text-left"
+                            style={{ whiteSpace: 'normal', wordBreak: 'keep-all' }}
+                          >
+                            교체 가능한 동일 모델({modelName}) 임대가능 자산이 없습니다. 하단 버튼으로
+                            충족된 자산만 검수완료하고 영업사원에게 수량조정을 요청할 수 있습니다.
+                          </div>
+                        ) : (
+                          <>
+                            {/* 관리번호 직접 입력 / 검색 */}
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={quickInputText}
+                                onChange={e => setQuickInputText(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleQuickInputSwap();
+                                  }
+                                }}
+                                placeholder="교체할 관리번호 검색 또는 직접 입력"
+                                className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-800 text-slate-100 placeholder-slate-500 rounded-lg text-xs focus:outline-none focus:border-blue-500 uppercase font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleQuickInputSwap}
+                                className="px-3 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg whitespace-nowrap shrink-0"
+                              >
+                                교체
+                              </button>
+                            </div>
+
+                            {/* 3열 컴팩트 교체 후보 그리드 (터치 즉시 자산 교체) */}
+                            <div
+                              className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pr-0.5"
+                              style={{ maxHeight: '160px' }}
+                            >
+                              {swapCandidateAssets.map(cand => {
+                                const score = cand.maintenanceScore || 0;
+                                return (
+                                  <button
+                                    key={cand.id}
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={() => handleExecuteSwapAsset(oin, cand)}
+                                    className="px-2 py-2 rounded-lg border bg-slate-900 border-slate-800 text-slate-100 active:bg-blue-950 active:border-blue-500 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                                  >
+                                    <span className="text-xs font-mono font-black whitespace-nowrap">
+                                      {cand.assetNo}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                      {cand.ownerType === 'OWNED'
+                                        ? `점수 ${score}`
+                                        : `전대 · ${score}`}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 불충족 상태이나 교체창이 닫혀 있을 때 다시 교체창을 열 수 있는 버튼 */}
+                    {isUnsatisfied && !isSwapOpen && (
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+                        <span className="text-[11px] text-rose-300 font-bold">
+                          검수 제외 및 영업사원 수량조정 요청 대상
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveSwapOinId(oin.id);
+                            setQuickInputText('');
+                          }}
+                          className="px-2 py-1 rounded bg-slate-800 text-cyan-300 border border-slate-700 text-[11px] font-bold whitespace-nowrap"
+                        >
+                          다른 자산으로 교체
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* 하단 확정 버튼 바 */}
+      {viewMode === 'PENDING' && activeGroup && activeGroup.items.length > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 'calc(58px + env(safe-area-inset-bottom, 0px))',
+            left: 0,
+            right: 0,
+            zIndex: 8900
+          }}
+          className="bg-slate-900 border-t border-slate-800 px-3 py-2 max-w-lg md:max-w-3xl mx-auto"
+        >
+          <button
+            type="button"
+            disabled={isSubmitting || !canEdit || uncheckedCount > 0}
+            onClick={handleFinalizeInspection}
+            className={`w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+              uncheckedCount > 0
+                ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700'
+                : unsatisfiedItems.length === 0
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : satisfiedItems.length > 0
+                ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                : 'bg-rose-600 hover:bg-rose-500 text-white'
+            }`}
+          >
+            <Check className="w-4 h-4 stroke-[2.5]" />
+            <span>
+              {isSubmitting
+                ? '처리 중...'
+                : uncheckedCount > 0
+                ? `자산별 충족 여부를 선택하세요 (${
+                    activeGroup.items.length - uncheckedCount
+                  }/${activeGroup.items.length}대 확인)`
+                : unsatisfiedItems.length === 0
+                ? `출고검수 완료 (${satisfiedItems.length}대)`
+                : satisfiedItems.length > 0
+                ? `충족 ${satisfiedItems.length}대 검수완료 · ${unsatisfiedItems.length}대 수량조정 요청`
+                : `검수 제외 · 영업사원 수량조정 요청 (${unsatisfiedItems.length}대)`}
+            </span>
+          </button>
         </div>
       )}
     </div>
   );
 };
+export default MobileInspectionList;
