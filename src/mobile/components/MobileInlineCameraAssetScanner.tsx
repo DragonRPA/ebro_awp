@@ -408,13 +408,16 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
   }
 
   return (
-    <div className="relative w-full h-20 rounded-lg overflow-hidden border border-cyan-500/70 bg-black">
+    <div
+      className="relative w-full rounded-lg overflow-hidden border border-cyan-500/70 bg-black"
+      style={{ height: '70px', minHeight: '70px', maxHeight: '70px' }}
+    >
       <video
         ref={videoRef}
         playsInline
         muted
         autoPlay
-        className="w-full h-full object-cover"
+        style={{ width: '100%', height: '70px', objectFit: 'cover', display: 'block' }}
       />
       <canvas ref={canvasRef} className="hidden" />
       <input
@@ -426,16 +429,29 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         className="hidden"
       />
 
-      {/* 중앙 수평 조준선 (단일 창 유지, 내부 중첩 박스 및 점멸 텍스트 전면 배제) */}
-      <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-px bg-cyan-400/40 pointer-events-none" />
+      {/* 중앙 수평 조준선 */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '16px',
+          right: '16px',
+          top: '50%',
+          height: '1px',
+          backgroundColor: 'rgba(34, 211, 238, 0.45)',
+          pointerEvents: 'none'
+        }}
+      />
 
       {/* 우상단 최소 제어 버튼 */}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10">
+      <div
+        className="flex items-center gap-1"
+        style={{ position: 'absolute', top: '4px', right: '6px', zIndex: 10 }}
+      >
         {torchSupported && (
           <button
             type="button"
             onClick={toggleTorch}
-            className={`p-1.5 rounded bg-slate-900/80 border ${
+            className={`p-1 rounded bg-slate-900/80 border ${
               torchOn
                 ? 'text-amber-300 border-amber-400'
                 : 'text-slate-200 border-slate-700'
@@ -448,7 +464,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="px-2 py-1 rounded bg-slate-900/80 text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
+          className="px-2 py-0.5 rounded bg-slate-900/80 text-slate-200 border border-slate-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap"
         >
           <Upload className="w-3 h-3" />
           <span>사진</span>
@@ -456,7 +472,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         <button
           type="button"
           onClick={onToggleOpen}
-          className="p-1.5 rounded bg-slate-900/80 text-slate-200 border border-slate-700"
+          className="p-1 rounded bg-slate-900/80 text-slate-200 border border-slate-700"
           aria-label="닫기"
         >
           <X className="w-3.5 h-3.5" />
@@ -464,11 +480,14 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       </div>
 
       {cameraError && (
-        <div className="absolute inset-0 bg-slate-950/95 flex items-center justify-center">
+        <div
+          className="bg-slate-950/95 flex items-center justify-center"
+          style={{ position: 'absolute', inset: 0 }}
+        >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white font-bold text-xs flex items-center gap-1.5"
+            className="px-3 py-1 rounded-lg bg-cyan-600 text-white font-bold text-xs flex items-center gap-1.5"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>사진 촬영으로 관리번호 인식</span>

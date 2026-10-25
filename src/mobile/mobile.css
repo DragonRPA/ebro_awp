@@ -207,7 +207,12 @@
 .max-w-3xl { max-width: 768px; }
 .max-w-4xl { max-width: 896px; }
 
+.max-h-36 { max-height: 144px !important; }
+.max-h-40 { max-height: 160px !important; }
+.max-h-48 { max-height: 192px !important; }
+.max-h-52 { max-height: 208px !important; }
 .max-h-60 { max-height: 240px !important; }
+.h-20 { height: 80px !important; }
 .max-h-\[82vh\] { max-height: 82vh !important; }
 .max-h-\[90vh\] { max-height: 90vh !important; }
 .min-h-\[90px\] { min-height: 90px !important; }
