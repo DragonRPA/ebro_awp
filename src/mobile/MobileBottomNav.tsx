@@ -123,7 +123,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     // 📊 관리부 모바일 탭 (배차 포함)
     rawNavItems = [
       { id: 'home', label: '관리홈', icon: Home, badge: 0 },
-      { id: 'dispatch', label: '배차상차', icon: Truck, badge: pendingDispatchCount },
+      { id: 'dispatch', label: '배차관리', icon: Truck, badge: pendingDispatchCount },
       { id: 'sublease', label: '임차관리', icon: Layers, badge: subleaseLeakCount },
       { id: 'vehicle_log', label: '주유관리', icon: Fuel, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },

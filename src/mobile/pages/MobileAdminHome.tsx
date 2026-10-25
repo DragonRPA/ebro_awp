@@ -415,12 +415,12 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
           </div>
           <div>
             <div className="text-sm font-bold text-white flex items-center gap-2">
-              <span style={{ whiteSpace: 'nowrap' }}>배차 및 운송비 관리</span>
+              <span style={{ whiteSpace: 'nowrap' }}>배차관리</span>
               <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40" style={{ whiteSpace: 'nowrap' }}>
                 {pendingDispatchCount}건 대기
               </span>
             </div>
-            <div className="text-xs text-slate-300">화물 기사 배정 및 상차 완료 확인</div>
+            <div className="text-xs text-slate-300">배차 확정 및 상차 완료</div>
           </div>
         </div>
         <ArrowRight className="w-5 h-5 text-slate-300" />
