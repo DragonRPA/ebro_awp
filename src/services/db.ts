@@ -140,6 +140,7 @@ export interface TenantFeatures {
   vworldApiKey?: string;          // V-World 공간정보 오픈플랫폼 인증키 (서버/DB 보관)
   agentAiEnabled?: boolean;       // eBro AI Agent 고유 기능 (텔레그램 명령 / 브라우저 확장 제어 / 데스크톱 AI Studio) 활성화 여부 (false 시 Silent Core 인쇄·문서 처리 모드)
   allowContractTradeOutbound?: boolean; // 💡 렌탈 계약 상세에서 유통 출고 및 당월 청구 합산 기능 활성화 여부
+  walkieTalkie?: boolean;         // 📻 모바일 웹앱 현장 무전기 사용 여부
   specialFeatures?: string[];     // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록
 }
 

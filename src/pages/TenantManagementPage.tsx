@@ -4,7 +4,7 @@ import {
   Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
   Mic, FileSignature, Receipt, ArrowRight, ToggleLeft, ToggleRight, X,
   MapPin, CreditCard, Layers, Calendar, Clock, Key, AlertTriangle, 
-  CheckCircle2, XCircle, Zap, Bot, Mail
+  CheckCircle2, XCircle, Zap, Bot, Mail, Radio
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -147,6 +147,7 @@ export const TenantManagementPage: React.FC = () => {
       kakaoContract: true,
       autoTaxInvoice: true,
       voiceAssistance: true,
+      walkieTalkie: true,
       customDomain: '',
     },
     bankAccounts: [],
@@ -222,6 +223,7 @@ export const TenantManagementPage: React.FC = () => {
             kakaoContract: true,
             autoTaxInvoice: true,
             voiceAssistance: true,
+            walkieTalkie: true,
           }),
           officialMailConfig: nextOfficialMailConfig,
         } as any,
@@ -320,6 +322,13 @@ export const TenantManagementPage: React.FC = () => {
         isDevMode: fallbackMail.isDevMode ?? mailConfig?.isDevMode ?? true,
       });
       setEditingTenant(tenant);
+      const initialWalkieTalkie = tenant.features?.walkieTalkie ?? true;
+      const baseSpecialFeatures = Array.isArray(tenant.specialFeatures)
+        ? [...tenant.specialFeatures]
+        : SPECIAL_FEATURES_REGISTRY.map(f => f.id);
+      const syncedSpecialFeatures = initialWalkieTalkie
+        ? (baseSpecialFeatures.includes('btn:mobile_header:walkie_talkie') ? baseSpecialFeatures : [...baseSpecialFeatures, 'btn:mobile_header:walkie_talkie'])
+        : baseSpecialFeatures.filter(id => id !== 'btn:mobile_header:walkie_talkie');
       setFormData({
         ...tenant,
         allowContractTradeOutbound: tenant.allowContractTradeOutbound ?? tenant.features?.allowContractTradeOutbound ?? true,
@@ -331,13 +340,14 @@ export const TenantManagementPage: React.FC = () => {
           kakaoContract: tenant.features?.kakaoContract ?? true,
           autoTaxInvoice: tenant.features?.autoTaxInvoice ?? true,
           voiceAssistance: tenant.features?.voiceAssistance ?? true,
+          walkieTalkie: initialWalkieTalkie,
           agentAiEnabled: tenant.features?.agentAiEnabled ?? false,
           allowContractTradeOutbound: tenant.allowContractTradeOutbound ?? tenant.features?.allowContractTradeOutbound ?? true,
           customDomain: tenant.features?.customDomain ?? '',
         },
         allowedPages: Array.isArray(tenant.allowedPages) ? [...tenant.allowedPages] : [],
         hiddenPages: Array.isArray(tenant.hiddenPages) ? [...tenant.hiddenPages] : [],
-        specialFeatures: Array.isArray(tenant.specialFeatures) ? [...tenant.specialFeatures] : SPECIAL_FEATURES_REGISTRY.map(f => f.id),
+        specialFeatures: syncedSpecialFeatures,
         subscription: tenant.subscription ? { ...tenant.subscription } : {
           plan: 'STANDARD',
           status: 'ACTIVE',
@@ -429,6 +439,7 @@ export const TenantManagementPage: React.FC = () => {
           kakaoContract: true,
           autoTaxInvoice: true,
           voiceAssistance: true,
+          walkieTalkie: true,
           agentAiEnabled: false,
           customDomain: '',
         },
@@ -709,13 +720,17 @@ export const TenantManagementPage: React.FC = () => {
       const exists = current.includes(featureId);
       const next = exists ? current.filter(id => id !== featureId) : [...current, featureId];
       const nextContractTrade = featureId === 'btn:contracts:trade_outbound' ? !exists : prev.allowContractTradeOutbound;
+      const nextWalkieTalkie = featureId === 'btn:mobile_header:walkie_talkie'
+        ? !exists
+        : (prev.features?.walkieTalkie ?? true);
       return {
         ...prev,
         specialFeatures: next,
         allowContractTradeOutbound: nextContractTrade,
         features: {
           ...(prev.features || {}),
-          allowContractTradeOutbound: nextContractTrade
+          allowContractTradeOutbound: nextContractTrade,
+          walkieTalkie: nextWalkieTalkie
         }
       };
     });
@@ -728,7 +743,8 @@ export const TenantManagementPage: React.FC = () => {
       allowContractTradeOutbound: true,
       features: {
         ...(prev.features || {}),
-        allowContractTradeOutbound: true
+        allowContractTradeOutbound: true,
+        walkieTalkie: true
       }
     }));
   };
@@ -740,7 +756,8 @@ export const TenantManagementPage: React.FC = () => {
       allowContractTradeOutbound: false,
       features: {
         ...(prev.features || {}),
-        allowContractTradeOutbound: false
+        allowContractTradeOutbound: false,
+        walkieTalkie: false
       }
     }));
   };
@@ -926,6 +943,7 @@ export const TenantManagementPage: React.FC = () => {
         r2Config: finalR2Config,
         features: {
           ...(formData.features || {}),
+          walkieTalkie: formData.features?.walkieTalkie !== false,
           allowContractTradeOutbound: formData.allowContractTradeOutbound !== false,
           specialFeatures: formData.specialFeatures || [],
           r2Config: finalR2Config,
@@ -1630,6 +1648,17 @@ export const TenantManagementPage: React.FC = () => {
                             }}
                           >
                             세무
+                          </span>
+                          <span 
+                            title={`웹앱 무전기: ${tenant.features?.walkieTalkie !== false ? '활성' : '미사용'}`}
+                            style={{ 
+                              padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 700,
+                              backgroundColor: tenant.features?.walkieTalkie !== false ? '#d1fae5' : 'var(--bg-app)',
+                              color: tenant.features?.walkieTalkie !== false ? '#047857' : 'var(--text-muted)',
+                              border: '1px solid var(--border-color)'
+                            }}
+                          >
+                            무전기
                           </span>
                         </div>
                       </td>
@@ -3062,8 +3091,16 @@ export const TenantManagementPage: React.FC = () => {
                       desc: 'PC 마이크 및 모바일 음성 명령 파이프라인 활성화',
                       icon: <Mic size={18} color="#dc2626" />,
                     },
+                    {
+                      key: 'walkieTalkie',
+                      title: '모바일 웹앱 현장 무전기',
+                      desc: '웹앱 상단 현장 무전기 버튼 노출 및 실시간 무전 채널 송수신 기능 활성화',
+                      icon: <Radio size={18} color="#10b981" />,
+                    },
                   ].map(plugin => {
-                    const isEnabled = Boolean(formData.features?.[plugin.key as keyof TenantFeatures]);
+                    const isEnabled = plugin.key === 'walkieTalkie'
+                      ? (formData.features?.walkieTalkie !== false)
+                      : Boolean(formData.features?.[plugin.key as keyof TenantFeatures]);
 
                     return (
                       <div
@@ -3093,13 +3130,23 @@ export const TenantManagementPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              features: {
-                                ...prev.features,
-                                [plugin.key]: !isEnabled,
-                              }
-                            }));
+                            const nextVal = !isEnabled;
+                            setFormData(prev => {
+                              const curSf = prev.specialFeatures || [];
+                              const nextSf = plugin.key === 'walkieTalkie'
+                                ? (nextVal
+                                    ? (curSf.includes('btn:mobile_header:walkie_talkie') ? curSf : [...curSf, 'btn:mobile_header:walkie_talkie'])
+                                    : curSf.filter(id => id !== 'btn:mobile_header:walkie_talkie'))
+                                : curSf;
+                              return {
+                                ...prev,
+                                specialFeatures: nextSf,
+                                features: {
+                                  ...prev.features,
+                                  [plugin.key]: nextVal,
+                                }
+                              };
+                            });
                           }}
                           style={{
                             border: 'none',

@@ -199,15 +199,25 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     }
   };
 
+  const isWalkieTalkieEnabled = currentTenant?.features?.walkieTalkie !== false;
+
   useEffect(() => {
     if (currentUser) {
-      walkieService.subscribe({
-        id: currentUser.id,
-        name: currentUser.name,
-        role: currentUser.role,
-        deptName: currentUser.department || currentTenant?.displayName || currentTenant?.tradeName || 'eBro'
-      });
       initWorkNotificationListener(currentUser, departments);
+      if (isWalkieTalkieEnabled) {
+        walkieService.subscribe({
+          id: currentUser.id,
+          name: currentUser.name,
+          role: currentUser.role,
+          deptName: currentUser.department || currentTenant?.displayName || currentTenant?.tradeName || 'eBro'
+        });
+      }
+    }
+
+    if (!isWalkieTalkieEnabled) {
+      setIsWalkieOn(false);
+      setIsWalkieModalOpen(false);
+      return;
     }
 
     const handleFirstGesture = () => {
@@ -233,7 +243,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('pointerdown', handleFirstGesture);
     };
-  }, [currentUser, currentTenant, departments]);
+  }, [currentUser, currentTenant, departments, isWalkieTalkieEnabled]);
 
   const handleDeptModeChange = (mode: MobileDeptMode) => {
     setDeptMode(mode);
@@ -355,10 +365,10 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
         deptMode={deptMode}
         onChangeDeptMode={handleDeptModeChange}
         isWalkieOn={isWalkieOn}
-        onOpenWalkieTalkie={() => {
+        onOpenWalkieTalkie={isWalkieTalkieEnabled ? () => {
           walkieService.unlockAudio();
           setIsWalkieModalOpen(true);
-        }}
+        } : undefined}
         onOpenApkMonitor={() => setIsApkMonitorOpen(true)}
         isWorking={workStatus?.isWorking ?? false}
         isWorkLoading={workLoading}
@@ -512,16 +522,18 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       )}
 
       {/* 📻 현장 무전기 모달 */}
-      <ErrorBoundary fallbackTitle="무전기 오류 복구" isModal onClose={() => setIsWalkieModalOpen(false)}>
-        <MobileWalkieTalkieModal
-          isOpen={isWalkieModalOpen}
-          onClose={() => setIsWalkieModalOpen(false)}
-          onNavigateToDispatchOrder={() => {
-            setIsWalkieModalOpen(false);
-            handleTabChange('sales_order');
-          }}
-        />
-      </ErrorBoundary>
+      {isWalkieTalkieEnabled && (
+        <ErrorBoundary fallbackTitle="무전기 오류 복구" isModal onClose={() => setIsWalkieModalOpen(false)}>
+          <MobileWalkieTalkieModal
+            isOpen={isWalkieModalOpen}
+            onClose={() => setIsWalkieModalOpen(false)}
+            onNavigateToDispatchOrder={() => {
+              setIsWalkieModalOpen(false);
+              handleTabChange('sales_order');
+            }}
+          />
+        </ErrorBoundary>
+      )}
 
       {/* 📱 통화 녹음 APK 다운로드 및 모니터링 모달 */}
       <MobileApkMonitorModal

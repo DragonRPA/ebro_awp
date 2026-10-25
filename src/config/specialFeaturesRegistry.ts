@@ -58,6 +58,14 @@ export const SPECIAL_FEATURES_REGISTRY: SpecialFeatureDef[] = [
     menuName: '계약 관리',
     name: '계약 상세 유통출고 및 당월 청구 반영 버튼',
     description: '기존 렌탈 계약(고객현장) 상세 화면에서 안전용품·부품 등 유통상품을 출고 등록하고 당월 렌탈 청구에 자동 합산하는 기능'
+  },
+  {
+    id: 'btn:mobile_header:walkie_talkie',
+    type: 'BUTTON',
+    menuId: 'dashboard',
+    menuName: '모바일 웹앱 공통',
+    name: '웹앱 현장 무전기 사용 버튼',
+    description: '모바일 웹앱 상단 헤더의 현장 무전기 버튼 노출 및 무전 채널 음성 송수신 기능 활성화'
   }
 ];
 

@@ -32,6 +32,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isDeveloper = isDeveloperUser(currentUser);
   const myDeptName = getUserDepartmentName(currentUser, departments || []);
+  const isWalkieTalkieEnabled = currentTenant?.features?.walkieTalkie !== false;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -134,38 +135,40 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
               />
             </button>
 
-            {/* 📻 현장 무전기 버튼 */}
-            <button
-              type="button"
-              onClick={onOpenWalkieTalkie}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                fontSize: '11px',
-                fontWeight: '700',
-                padding: '4px 6px',
-                borderRadius: '8px',
-                backgroundColor: isWalkieOn ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
-                border: isWalkieOn ? '1px solid #10b981' : '1px solid #334155',
-                color: isWalkieOn ? '#34d399' : '#cbd5e1',
-                cursor: 'pointer',
-                flexShrink: 0
-              }}
-              title="무전기"
-            >
-              <Radio size={12} color={isWalkieOn ? '#34d399' : '#94a3b8'} />
-              <span>{isWalkieOn ? '무전ON' : '무전'}</span>
-              {isWalkieOn && (
-                <span style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '9999px',
-                  backgroundColor: '#10b981',
-                  boxShadow: '0 0 5px #10b981'
-                }} />
-              )}
-            </button>
+            {/* 📻 현장 무전기 버튼 (테넌트 관리 센터 설정에 따라 노출) */}
+            {isWalkieTalkieEnabled && onOpenWalkieTalkie && (
+              <button
+                type="button"
+                onClick={onOpenWalkieTalkie}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '4px 6px',
+                  borderRadius: '8px',
+                  backgroundColor: isWalkieOn ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
+                  border: isWalkieOn ? '1px solid #10b981' : '1px solid #334155',
+                  color: isWalkieOn ? '#34d399' : '#cbd5e1',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+                title="무전기"
+              >
+                <Radio size={12} color={isWalkieOn ? '#34d399' : '#94a3b8'} />
+                <span>{isWalkieOn ? '무전ON' : '무전'}</span>
+                {isWalkieOn && (
+                  <span style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#10b981',
+                    boxShadow: '0 0 5px #10b981'
+                  }} />
+                )}
+              </button>
+            )}
 
             {/* 📱 통화캡처 APK 다운로드 & 모니터링 버튼 */}
             <button
