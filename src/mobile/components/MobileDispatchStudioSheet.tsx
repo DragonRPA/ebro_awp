@@ -12,7 +12,6 @@ import {
   Send,
   MessageSquare,
   Sun,
-  Navigation,
   ArrowUp,
   ArrowDown,
   Link2,
@@ -102,7 +101,6 @@ interface MobileDispatchStudioSheetProps {
   onCopyKakao: (d: Delivery) => void;
   onRemotePrint: (d: Delivery, docType: 'OUTBOUND' | 'INBOUND') => void;
   onOpenWeather: (address: string, title?: string) => void;
-  onOpenNav: (address: string) => void;
   getCustomerNameForDelivery: (d: Delivery) => string;
 }
 
@@ -157,7 +155,6 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
   onCopyKakao,
   onRemotePrint,
   onOpenWeather,
-  onOpenNav,
   getCustomerNameForDelivery,
 }) => {
   const [activeVehicleIdx, setActiveVehicleIdx] = useState<number>(0);
@@ -1364,22 +1361,6 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
                   >
                     당사 보관소
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenNav(originAddress || '당사 보관소')}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#f1f5f9',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    내비
-                  </button>
                 </div>
               </div>
               <input
@@ -1458,26 +1439,6 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
                   >
                     <Sun size={12} />
                     <span>날씨</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenNav(destinationAddress)}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #334155',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#6ee7b7',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <Navigation size={12} />
-                    <span>내비</span>
                   </button>
                 </div>
               </div>

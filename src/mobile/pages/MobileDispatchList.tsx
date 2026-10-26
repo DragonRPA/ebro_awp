@@ -3,7 +3,6 @@ import { useApp } from '../../context/AppContext';
 import {
   Truck,
   Phone,
-  Navigation,
   Check,
   Search,
   Copy,
@@ -11,7 +10,6 @@ import {
   Plus,
   Send,
   MessageSquare,
-  Printer,
   Sun,
   Link2,
   RotateCcw,
@@ -148,9 +146,8 @@ export const MobileDispatchList: React.FC = () => {
   // Manual Creation Modal state
   const [manualModalOpen, setManualModalOpen] = useState<boolean>(false);
 
-  // Weather & Nav & Kakao Modals
+  // Weather & Kakao Modals
   const [weatherTarget, setWeatherTarget] = useState<{ address: string; title?: string } | null>(null);
-  const [navTargetAddress, setNavTargetAddress] = useState<string | null>(null);
   const [kakaoModalData, setKakaoModalData] = useState<{ text: string; delivery: Delivery } | null>(null);
 
   // Voice Recognition
@@ -827,54 +824,6 @@ export const MobileDispatchList: React.FC = () => {
       showToast(`${labelName} 인쇄 큐 전송 완료`);
     } catch (err: any) {
       showErrorModal(`인쇄 전송 실패: ${err?.message || err}`);
-    }
-  };
-
-  // 1-Tap Customer Direct Transport Quick Action on Card
-  const handleQuickCustomerDirect = async (d: Delivery) => {
-    if (!canSave) {
-      showErrorModal('배차 수정 권한이 없습니다.');
-      return;
-    }
-    try {
-      const nowIso = new Date().toISOString();
-      const directVeh: AssignedVehicleRow = {
-        id: `v-${Date.now()}`,
-        transportCompany: CUSTOMER_DIRECT_TRANSPORT,
-        vehicleType: d.vehicleType || '3.5T',
-        vehicleNo: CUSTOMER_DIRECT_TRANSPORT,
-        driverName: CUSTOMER_DIRECT_TRANSPORT,
-        driverContact: '',
-        expectedCost: 0,
-        finalCost: 0,
-        deliveryCost: 0,
-      };
-      db.updateRow<Delivery>('deliveries', d.id, {
-        status: 'DISPATCHED',
-        transportCompany: CUSTOMER_DIRECT_TRANSPORT,
-        driverName: CUSTOMER_DIRECT_TRANSPORT,
-        vehicleNo: CUSTOMER_DIRECT_TRANSPORT,
-        expectedCost: 0,
-        finalCost: 0,
-        deliveryCost: 0,
-        deliveryCostConfirmed: 0,
-        isCostSettled: true,
-        reconciliationStatus: 'PAID',
-        vehicles: JSON.stringify([directVeh]),
-        updatedAt: nowIso,
-      });
-      await db.awaitPendingWrites();
-      await clearHandoverTasks({
-        entityId: d.id,
-        category: 'DISPATCH_REQUEST',
-        completedByUserId: currentUser?.id,
-        completedByName: currentUser?.name,
-        completionAction: 'DISPATCH_ASSIGNED',
-      });
-      refreshAllData();
-      showToast('고객직접운송 배차 확정 완료');
-    } catch (err: any) {
-      showErrorModal(`처리 실패: ${err?.message || err}`);
     }
   };
 
@@ -1763,16 +1712,6 @@ export const MobileDispatchList: React.FC = () => {
     showToast('배차 등록 완료');
   };
 
-  // Navigation Launchers
-  const launchTmap = (addr: string) => {
-    window.location.href = `tmap://search?name=${encodeURIComponent(addr)}`;
-    setNavTargetAddress(null);
-  };
-  const launchKakaoNavi = (addr: string) => {
-    window.open(`https://map.kakao.com/link/search/${encodeURIComponent(addr)}`, '_blank');
-    setNavTargetAddress(null);
-  };
-
   // Bundle candidates for current selectedDelivery
   const bundleCandidateDeliveries = useMemo(() => {
     if (!selectedDelivery) return [];
@@ -2217,13 +2156,6 @@ export const MobileDispatchList: React.FC = () => {
                     >
                       <Sun className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setNavTargetAddress(d.destinationAddress || '당사 보관소')}
-                      className="p-2 rounded-lg bg-slate-800 text-emerald-300 hover:bg-slate-700"
-                    >
-                      <Navigation className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
 
@@ -2313,21 +2245,6 @@ export const MobileDispatchList: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleQuickCustomerDirect(d)}
-                          className="py-2.5 px-3 rounded-xl bg-teal-600/30 border border-teal-500/50 text-teal-200 text-xs font-bold whitespace-nowrap"
-                        >
-                          고객직접
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemotePrint(d)}
-                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          인쇄
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => handleCancelOrRevertDelivery(d.id)}
                           className="py-2.5 px-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold whitespace-nowrap"
                         >
@@ -2390,13 +2307,6 @@ export const MobileDispatchList: React.FC = () => {
                         >
                           <MessageSquare className="w-3.5 h-3.5" />
                           카톡
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemotePrint(d)}
-                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold whitespace-nowrap"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
                         </button>
                       </>
                     )}
@@ -2517,7 +2427,6 @@ export const MobileDispatchList: React.FC = () => {
         onCopyKakao={handleCopyKakaoDispatchMessage}
         onRemotePrint={handleRemotePrint}
         onOpenWeather={(address, title) => setWeatherTarget({ address, title })}
-        onOpenNav={(address) => setNavTargetAddress(address)}
         getCustomerNameForDelivery={getCustomerNameForDelivery}
       />
 
@@ -2544,70 +2453,6 @@ export const MobileDispatchList: React.FC = () => {
           siteName={weatherTarget.title || '현장'}
           rawAddress={weatherTarget.address}
         />
-      )}
-
-      {/* 8. 내비게이션 선택 시트 */}
-      {navTargetAddress && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9600,
-            backgroundColor: 'rgba(0,0,0,0.75)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setNavTargetAddress(null)}
-        >
-          <div
-            className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-4 flex flex-col gap-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-black text-white">내비게이션 실행</span>
-              <button
-                type="button"
-                onClick={() => setNavTargetAddress(null)}
-                className="p-1 text-slate-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-300 bg-slate-950 p-3 rounded-xl border border-slate-800 break-words">
-              {navTargetAddress}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => launchTmap(navTargetAddress)}
-                className="py-3 rounded-xl bg-blue-600 text-white text-xs font-black whitespace-nowrap"
-              >
-                티맵
-              </button>
-              <button
-                type="button"
-                onClick={() => launchKakaoNavi(navTargetAddress)}
-                className="py-3 rounded-xl bg-amber-500 text-slate-950 text-xs font-black whitespace-nowrap"
-              >
-                카카오내비
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await copyToClipboard(navTargetAddress);
-                  setNavTargetAddress(null);
-                  showToast('주소 복사 완료');
-                }}
-                className="py-3 rounded-xl bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                복사
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* 9. 카카오톡 배차 안내문 모달 */}
