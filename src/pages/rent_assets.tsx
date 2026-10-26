@@ -195,7 +195,7 @@ export const RentAssets: React.FC = () => {
       rentStart: nego.startDate,
       rentEnd: nego.endDate,
       status: 'AVAILABLE',
-      manufactureYear: String(new Date().getFullYear())
+      manufactureYear: `${new Date().getFullYear()}년`
     };
 
     await registerRentedAsset(newAsset as any);
@@ -1372,6 +1372,17 @@ export const RentAssets: React.FC = () => {
     setShowModal(true);
   };
 
+  const normalizeManufactureYear = (raw?: string | number | null): string => {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed) return '';
+    const exactFourDigits = trimmed.match(/^(\d{4})\s*\.?$/);
+    if (exactFourDigits) return `${exactFourDigits[1]}년`;
+    if (/^\d{4}(?!\d)/.test(trimmed) && !trimmed.includes('년')) {
+      return trimmed.replace(/^(\d{4})\s*[.\-/]?\s*/, '$1년 ').trim();
+    }
+    return trimmed;
+  };
+
   const handleOpenEdit = (a: Asset) => {
     const resolvedRenter = a.renter || (a.vendorId ? vendors.find(v => v.id === a.vendorId)?.name : '') || '';
     const resolvedVendorId = a.vendorId || (resolvedRenter ? vendors.find(v => v.name === resolvedRenter)?.id : undefined);
@@ -1381,7 +1392,7 @@ export const RentAssets: React.FC = () => {
     setEditingAsset({
       ...a,
       manufacturer: a.manufacturer || matchedProduct?.manufacturer || '',
-      manufactureYear: a.manufactureYear || '',
+      manufactureYear: normalizeManufactureYear(a.manufactureYear),
       antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: resolvedRenter,
       vendorId: resolvedVendorId,
@@ -1438,6 +1449,7 @@ export const RentAssets: React.FC = () => {
       const calculatedDailyFee = targetAsset.dailyRentFee || Math.floor((targetAsset.monthlyRentFee || 0) / 30);
       await registerRentedAsset({
         ...targetAsset,
+        manufactureYear: normalizeManufactureYear(targetAsset.manufactureYear),
         dailyRentFee: calculatedDailyFee
       });
       if (targetAsset.renter) {
@@ -1500,7 +1512,7 @@ export const RentAssets: React.FC = () => {
     setEditingAsset({
       ...a,
       manufacturer: a.manufacturer || matchedProduct?.manufacturer || '',
-      manufactureYear: a.manufactureYear || '',
+      manufactureYear: normalizeManufactureYear(a.manufactureYear),
       antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: renterVal,
       vendorId: a.vendorId || matchedVendor?.id,
@@ -4488,7 +4500,7 @@ export const RentAssets: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11.5px' }}>
                   <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{a.modelName}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {a.manufacturer || productByModelMap.get(a.modelName)?.manufacturer || '-'}</div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {a.manufactureYear || '-'}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {normalizeManufactureYear(a.manufactureYear) || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {a.serialNo || '-'}</div>
                   <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-secondary)' }}>임차처번호:</span> {a.vendorAssetNo || '-'}</div>
                 </div>

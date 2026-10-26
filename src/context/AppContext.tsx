@@ -5572,7 +5572,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         assetNo: assetData.assetNo || '',
         serialNo: assetData.serialNo || '',
         manufacturer: assetData.manufacturer || '',
-        manufactureYear: assetData.manufactureYear || '',
+        manufactureYear: normalizeManufactureYear(assetData.manufactureYear),
         ownerType: 'OWNED',
         yard: assetData.yard || '용인',
         status: 'AVAILABLE',

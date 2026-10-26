@@ -62,9 +62,21 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
   const [newVendorAssetNo, setNewVendorAssetNo] = useState('');
   const [newAssetNo, setNewAssetNo] = useState('');
   const [newModelName, setNewModelName] = useState('GS-1930');
+  const [newManufactureYear, setNewManufactureYear] = useState('');
   const [newRentStart, setNewRentStart] = useState(() => new Date().toISOString().split('T')[0]);
   const [newMonthlyRentFee, setNewMonthlyRentFee] = useState<number>(450000);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  const normalizeManufactureYear = (raw?: string | number | null): string => {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed) return '';
+    const exactFourDigits = trimmed.match(/^(\d{4})\s*\.?$/);
+    if (exactFourDigits) return `${exactFourDigits[1]}년`;
+    if (/^\d{4}(?!\d)/.test(trimmed) && !trimmed.includes('년')) {
+      return trimmed.replace(/^(\d{4})\s*[.\-/]?\s*/, '$1년 ').trim();
+    }
+    return trimmed;
+  };
 
   // 임차처 반납 마감 바텀시트 상태
   const [isReturnSheetOpen, setIsReturnSheetOpen] = useState(false);
@@ -316,6 +328,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
         vendorId: newVendorId || undefined,
         renter: finalRenter,
         modelName: newModelName.trim(),
+        manufactureYear: normalizeManufactureYear(newManufactureYear),
         rentStart: newRentStart,
         monthlyRentFee: sanitizedMonthlyFee,
         dailyRentFee: Math.floor(sanitizedMonthlyFee / 30),
@@ -326,6 +339,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
       // 폼 초기화
       setNewVendorAssetNo('');
       setNewAssetNo('');
+      setNewManufactureYear('');
       setNewCustomVendor('');
     } catch (err: any) {
       // showErrorModal은 registerRentedAsset 내부에서 이미 호출됨
@@ -871,8 +885,8 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
                 </div>
               </div>
 
-              {/* 모델명 & 시작일 */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* 모델명 & 연식 & 시작일 */}
+              <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
                     장비 모델 규격
@@ -889,6 +903,27 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
                     <option value="GS-1530">GS-1530</option>
                     <option value="GTJZ0608ME">GTJZ0608ME</option>
                   </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+                    연식
+                  </label>
+                  <input
+                    type="text"
+                    value={newManufactureYear}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isDeletingYearSuffix = newManufactureYear === `${val}년`;
+                      const nextVal = !isDeletingYearSuffix && /^\d{4}$/.test(val.trim())
+                        ? `${val.trim()}년`
+                        : val;
+                      setNewManufactureYear(nextVal);
+                    }}
+                    onBlur={(e) => setNewManufactureYear(normalizeManufactureYear(e.target.value))}
+                    placeholder="예: 2023년"
+                    className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1">

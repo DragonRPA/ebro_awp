@@ -170,10 +170,12 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     setMultiSlots(prev => prev.map(s => ({ ...s, price: newPrice })));
   };
 
-  // 제조년도 변경 핸들러: 메인 제조년도 변경 시 슬롯들의 기본 제조년도 동기화
+  // 제조년도 변경 핸들러: 메인 제조년도 변경 시 슬롯들의 기본 제조년도 동기화 (4자리 입력 시 '년' 자동 완성)
   const handleManufactureYearChange = (newYear: string) => {
-    setSingleManufactureYear(newYear);
-    setMultiSlots(prev => prev.map(s => (!s.manufactureYear || s.manufactureYear === singleManufactureYear) ? { ...s, manufactureYear: newYear } : s));
+    const isDeletingYearSuffix = singleManufactureYear === `${newYear}년`;
+    const normalized = !isDeletingYearSuffix && /^\d{4}$/.test(newYear.trim()) ? `${newYear.trim()}년` : newYear;
+    setSingleManufactureYear(normalized);
+    setMultiSlots(prev => prev.map(s => (!s.manufactureYear || s.manufactureYear === singleManufactureYear) ? { ...s, manufactureYear: normalized } : s));
   };
 
   // 모델 선택 시 제품 마스터 제원 자동 상속 (O(1) 룩업)
@@ -268,7 +270,17 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   const handleUpdateSlot = (slotId: string, field: 'assetNo' | 'serialNo' | 'manufactureYear' | 'price' | 'modelName', value: any) => {
-    setMultiSlots(prev => prev.map(s => s.id === slotId ? { ...s, [field]: value } : s));
+    setMultiSlots(prev => prev.map(s => {
+      if (s.id !== slotId) return s;
+      let nextVal = value;
+      if (field === 'manufactureYear' && typeof value === 'string') {
+        const isDeletingYearSuffix = (s.manufactureYear || '') === `${value}년`;
+        if (!isDeletingYearSuffix && /^\d{4}$/.test(value.trim())) {
+          nextVal = `${value.trim()}년`;
+        }
+      }
+      return { ...s, [field]: nextVal };
+    }));
   };
 
   // 메인 관리번호 기준 슬롯 전체 순차 재채번

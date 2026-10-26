@@ -88,6 +88,17 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   const currentRenterVal = formData.renter || (formData.vendorId ? vendors.find(v => v.id === formData.vendorId)?.name : '') || '';
   const isRenterDisabled = Boolean(formData.id && currentRenterVal && formData.status !== 'RENTED_RETURNED' && !(formData as any).isReactivating);
 
+  const normalizeManufactureYear = (raw?: string | number | null): string => {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed) return '';
+    const exactFourDigits = trimmed.match(/^(\d{4})\s*\.?$/);
+    if (exactFourDigits) return `${exactFourDigits[1]}년`;
+    if (/^\d{4}(?!\d)/.test(trimmed) && !trimmed.includes('년')) {
+      return trimmed.replace(/^(\d{4})\s*[.\-/]?\s*/, '$1년 ').trim();
+    }
+    return trimmed;
+  };
+
   const handleAssetNoChange = (val: string) => {
     const trimmed = val.trim();
     const pastReturned = rentedAssets.find(
@@ -102,7 +113,7 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
         ...prev,
         ...pastReturned,
         manufacturer: pastReturned.manufacturer || findProductManufacturer(pastReturned.modelName),
-        manufactureYear: pastReturned.manufactureYear || '',
+        manufactureYear: normalizeManufactureYear(pastReturned.manufactureYear),
         assetNo: val,
         rentStart: today,
         rentEnd: calcRentEnd(today),
@@ -134,7 +145,12 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await onSave(formData, renterSearch);
+      const normalizedData: Partial<Asset> = {
+        ...formData,
+        manufactureYear: normalizeManufactureYear(formData.manufactureYear)
+      };
+      setFormData(normalizedData);
+      await onSave(normalizedData, renterSearch);
     } finally {
       setIsSubmitting(false);
     }
@@ -254,9 +270,18 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
               <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>연식</label>
               <input
                 type="text"
-                placeholder="예: 2023"
+                placeholder="예: 2023년"
                 value={formData.manufactureYear || ''}
-                onChange={e => setFormData({ ...formData, manufactureYear: e.target.value })}
+                onChange={e => {
+                  const val = e.target.value;
+                  const prev = formData.manufactureYear || '';
+                  const isDeletingYearSuffix = prev === `${val}년`;
+                  const nextVal = !isDeletingYearSuffix && /^\d{4}$/.test(val.trim())
+                    ? `${val.trim()}년`
+                    : val;
+                  setFormData({ ...formData, manufactureYear: nextVal });
+                }}
+                onBlur={e => setFormData(prev => ({ ...prev, manufactureYear: normalizeManufactureYear(e.target.value) }))}
                 style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
               />
             </div>

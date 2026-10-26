@@ -708,7 +708,21 @@ export const Assets: React.FC = () => {
         showErrorModal('잔존가치율은 0% ~ 100% 사이여야 합니다.');
         return;
       }
-      const updated: Asset = { ...selectedAsset, ...editForm };
+      const normalizeYear = (raw?: string | number | null): string => {
+        const trimmed = String(raw ?? '').trim();
+        if (!trimmed) return '';
+        const exactFourDigits = trimmed.match(/^(\d{4})\s*\.?$/);
+        if (exactFourDigits) return `${exactFourDigits[1]}년`;
+        if (/^\d{4}(?!\d)/.test(trimmed) && !trimmed.includes('년')) {
+          return trimmed.replace(/^(\d{4})\s*[.\-/]?\s*/, '$1년 ').trim();
+        }
+        return trimmed;
+      };
+      const updated: Asset = {
+        ...selectedAsset,
+        ...editForm,
+        manufactureYear: normalizeYear(editForm.manufactureYear ?? selectedAsset.manufactureYear)
+      };
       await (saveAsset as any)(updated);
       setSelectedAsset(updated);
       setIsEditing(false);
@@ -728,6 +742,13 @@ export const Assets: React.FC = () => {
         const matchedProd = productByModelMap.get(val) || productByModelMap.get(val.replace(/[\s\-_]/g, '').toUpperCase());
         if (matchedProd?.manufacturer) {
           next.manufacturer = matchedProd.manufacturer;
+        }
+      }
+      if (field === 'manufactureYear' && typeof val === 'string') {
+        const prevVal = prev.manufactureYear || '';
+        const isDeletingYearSuffix = prevVal === `${val}년`;
+        if (!isDeletingYearSuffix && /^\d{4}$/.test(val.trim())) {
+          next.manufactureYear = `${val.trim()}년`;
         }
       }
       return next;
@@ -1253,7 +1274,9 @@ export const Assets: React.FC = () => {
                       </td>
 
                       {/* 7. 연식 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>{a.manufactureYear || '-'}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {a.manufactureYear ? (/^\d{4}$/.test(String(a.manufactureYear).trim()) ? `${String(a.manufactureYear).trim()}년` : a.manufactureYear) : '-'}
+                      </td>
 
                       {/* 8. 소유구분 */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -1648,7 +1671,7 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>모델명:</span> <strong>{selectedAsset.modelName}</strong></div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {getAssetManufacturer(selectedAsset)}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {selectedAsset.serialNo || '-'}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {selectedAsset.manufactureYear || '-'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {selectedAsset.manufactureYear ? (/^\d{4}$/.test(String(selectedAsset.manufactureYear).trim()) ? `${String(selectedAsset.manufactureYear).trim()}년` : selectedAsset.manufactureYear) : '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>소유구분:</span> {selectedAsset.ownerType === 'OWNED' ? '당사자산' : `임차자산 (${selectedAsset.renter || '임차처'})`}</div>
                     <div>
                       <span style={{ color: 'var(--text-secondary)' }}>자산구분:</span>{' '}
