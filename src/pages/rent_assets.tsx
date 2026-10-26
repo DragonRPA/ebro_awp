@@ -12,6 +12,8 @@ import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendo
 import { parsePdfStatement } from '../services/pdfStatementParser';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 // 5대 대사 결과 항목 인터페이스
 export type ReconcileStatusKey = 'MATCHED' | 'PRICE_MISMATCH' | 'PERIOD_MISMATCH' | 'UNREGISTERED' | 'MISSING_BILLING';
@@ -549,6 +551,37 @@ export const RentAssets: React.FC = () => {
       return matcher.test(assetNo) || matcher.test(modelName);
     });
   }, [reconcileResults, reconcileStatusFilter, reconcileSearch]);
+
+  const {
+    items: sortedReconcileResults,
+    sortConfig: reconcileSortConfig,
+    requestSort: requestReconcileSort
+  } = useSortableData(filteredReconcileResults, null, (item, key) => {
+    const stmt = item.statementRow;
+    const asset = item.matchedAsset;
+    switch (key) {
+      case 'statusLabel':
+        return item.statusLabel || '';
+      case 'assetNo':
+        return stmt?.assetNo || asset?.assetNo || '';
+      case 'modelName':
+        return stmt?.modelName || asset?.modelName || '';
+      case 'expectedPeriod':
+        return asset ? `${asset.rentStart || ''}~${asset.rentEnd || ''}` : '';
+      case 'expectedAmount':
+        return Number(item.expectedAmount || 0);
+      case 'billedPeriod':
+        return stmt ? `${stmt.rentStart || ''}~${stmt.rentEnd || ''}` : '';
+      case 'billedAmount':
+        return Number(stmt?.billedAmount || 0);
+      case 'priceDiff':
+        return Number(item.priceDiff || 0);
+      case 'reason':
+        return item.reason || '';
+      default:
+        return (item as any)[key];
+    }
+  });
 
   // 대사 통계 KPI (단일 패스 집계)
   const statsRecon = React.useMemo(() => {
@@ -1176,6 +1209,44 @@ export const RentAssets: React.FC = () => {
     });
   }, [rentedAssets, vendorMap, searchQuery, renterQuery, startDateQuery, endDateQuery, returnQuery]);
 
+  // 3단계 정렬 (오름차순 ▲ ➔ 내림차순 ▼ ➔ 정렬안함 ↕)
+  const {
+    items: sortedRentedAssets,
+    sortConfig: rentedAssetSortConfig,
+    requestSort: requestRentedAssetSort
+  } = useSortableData(filteredAssets, null, (a, key) => {
+    const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+    const cust = a.currentCustomerId ? customerMap.get(a.currentCustomerId) : undefined;
+    const site = a.currentSiteId ? siteMap.get(a.currentSiteId) : undefined;
+    switch (key) {
+      case 'assetNo':
+        return a.assetNo || '';
+      case 'modelName':
+        return a.modelName || '';
+      case 'renterName':
+        return getAssetRenterName(a) || '';
+      case 'rentPeriod':
+        return a.rentStart || a.rentEnd || '';
+      case 'monthlyRentFee':
+        return Number(a.monthlyRentFee || 0);
+      case 'actualRentReturnDate':
+        if (a.actualRentReturnDate) return a.actualRentReturnDate;
+        if (isReturned) return '반납완료';
+        if (a.status === 'RENTED' || a.currentCustomerId) return '임차중(현장가동)';
+        return '미반납(보관중)';
+      case 'operationStatus':
+        if (isReturned) return '임차처 반납완료';
+        if (a.status === 'RENTED' || a.currentCustomerId) return '대여중';
+        if (a.status === 'ASSIGNED') return '출고대기';
+        if (a.status === 'REPAIRING') return '정비중';
+        return '임대가능 (보관중)';
+      case 'customerSite':
+        return cust ? `${cust.name} ${site?.name || ''}` : '';
+      default:
+        return (a as any)[key];
+    }
+  });
+
   // 모델명 알파벳/한글 오름차순 정렬
   const sortedProducts = React.useMemo(() => {
     return [...products].sort((a, b) => (a.modelName || '').localeCompare(b.modelName || ''));
@@ -1498,19 +1569,39 @@ export const RentAssets: React.FC = () => {
 
   // 📥 임차자산 대장 엑셀 내보내기
   const handleExportRentedAssetsExcel = () => {
-    const data = filteredAssets.map((a, idx) => ({
-      '순번': idx + 1,
-      '관리번호': a.assetNo || '-',
-      '임차처 원래번호': a.vendorAssetNo || '-',
-      '모델명': a.modelName || '-',
-      '임차처': a.renter || '-',
-      '임차 시작일': a.rentStart || '-',
-      '임차 만료예정일': a.rentEnd || '-',
-      '월 임차료(원)': a.monthlyRentFee || 0,
-      '실제 반납일': a.actualRentReturnDate || '-',
-      '현재 가동상태': a.actualRentReturnDate ? '반납완료' : (a.status === 'RENTED' || a.currentCustomerId ? '대여중(현장가동)' : '입고보관중')
-    }));
+    if (sortedRentedAssets.length === 0) {
+      showToast('내보낼 임차자산 데이터가 없습니다.', 'error');
+      return;
+    }
+    const data = sortedRentedAssets.map((a, idx) => {
+      const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+      const cust = a.currentCustomerId ? customerMap.get(a.currentCustomerId) : undefined;
+      const site = a.currentSiteId ? siteMap.get(a.currentSiteId) : undefined;
+      return {
+        '순번': idx + 1,
+        '관리번호': a.assetNo || '-',
+        '임차처 원래번호': a.vendorAssetNo || '-',
+        '모델명': a.modelName || '-',
+        '임차처': getAssetRenterName(a) || '-',
+        '임차 시작일': a.rentStart || '-',
+        '임차 만료예정일': a.rentEnd || '-',
+        '월 임차료(원)': a.monthlyRentFee || 0,
+        '임차처 반납일': a.actualRentReturnDate || (isReturned ? '반납완료' : '미반납'),
+        '운용 상태': isReturned
+          ? '임차처 반납완료'
+          : a.status === 'RENTED' || a.currentCustomerId
+            ? '대여중'
+            : a.status === 'ASSIGNED'
+              ? '출고대기'
+              : a.status === 'REPAIRING'
+                ? '정비중'
+                : '임대가능 (보관중)',
+        '투입 고객사': cust?.name || '-',
+        '투입 현장': site?.name || '-'
+      };
+    });
     exportToExcel(data, `임차자산_대장_목록_${new Date().toISOString().split('T')[0]}`, '임차자산대장');
+    showToast(`임차자산 대장 ${data.length}건이 엑셀로 다운로드되었습니다.`);
   };
 
   // 📥 전대 손익 원장 엑셀 내보내기
@@ -1580,10 +1671,34 @@ export const RentAssets: React.FC = () => {
           </h2>
         </div>
 
-        {activeTab === 'CURRENT' && canSave && (
-          <button data-hs-trigger="Register" className="btn-primary" onClick={handleOpenAdd} style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Plus size={15} /> 임차자산 신규 등록
-          </button>
+        {activeTab === 'CURRENT' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handleExportRentedAssetsExcel}
+              style={{
+                padding: '8px 14px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Download size={15} /> 엑셀 내보내기
+            </button>
+            {canSave && (
+              <button data-hs-trigger="Register" className="btn-primary" onClick={handleOpenAdd} style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Plus size={15} /> 임차자산 신규 등록
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -2141,22 +2256,22 @@ export const RentAssets: React.FC = () => {
                           />
                         </th>
                         <th style={{ padding: '6px 6px', whiteSpace: 'nowrap', textAlign: 'center', width: '48px' }}>상세</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'center', width: '68px' }}>상태</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>관리번호</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>모델명</th>
+                        <SortableTh sortKey="statusLabel" currentSort={reconcileSortConfig} onSort={requestReconcileSort} align="center" style={{ padding: '6px 8px', width: '68px' }}>상태</SortableTh>
+                        <SortableTh sortKey="assetNo" currentSort={reconcileSortConfig} onSort={requestReconcileSort} style={{ padding: '6px 8px' }}>관리번호</SortableTh>
+                        <SortableTh sortKey="modelName" currentSort={reconcileSortConfig} onSort={requestReconcileSort} style={{ padding: '6px 8px', borderRight: '1px solid var(--border-color)' }}>모델명</SortableTh>
                         
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>약정 기간</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'right', backgroundColor: 'rgba(16, 185, 129, 0.03)', borderRight: '1px solid var(--border-color)' }}>약정금액</th>
+                        <SortableTh sortKey="expectedPeriod" currentSort={reconcileSortConfig} onSort={requestReconcileSort} style={{ padding: '6px 8px', backgroundColor: 'rgba(16, 185, 129, 0.03)' }}>약정 기간</SortableTh>
+                        <SortableTh sortKey="expectedAmount" currentSort={reconcileSortConfig} onSort={requestReconcileSort} align="right" style={{ padding: '6px 8px', backgroundColor: 'rgba(16, 185, 129, 0.03)', borderRight: '1px solid var(--border-color)' }}>약정금액</SortableTh>
 
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>청구 기간</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'right', backgroundColor: 'rgba(59, 130, 246, 0.03)', borderRight: '1px solid var(--border-color)' }}>청구금액</th>
+                        <SortableTh sortKey="billedPeriod" currentSort={reconcileSortConfig} onSort={requestReconcileSort} style={{ padding: '6px 8px', backgroundColor: 'rgba(59, 130, 246, 0.03)' }}>청구 기간</SortableTh>
+                        <SortableTh sortKey="billedAmount" currentSort={reconcileSortConfig} onSort={requestReconcileSort} align="right" style={{ padding: '6px 8px', backgroundColor: 'rgba(59, 130, 246, 0.03)', borderRight: '1px solid var(--border-color)' }}>청구금액</SortableTh>
 
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'right', width: '85px', borderRight: '1px solid var(--border-color)' }}>오차</th>
-                        <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>대사 검증 및 조치</th>
+                        <SortableTh sortKey="priceDiff" currentSort={reconcileSortConfig} onSort={requestReconcileSort} align="right" style={{ padding: '6px 8px', width: '85px', borderRight: '1px solid var(--border-color)' }}>오차</SortableTh>
+                        <SortableTh sortKey="reason" currentSort={reconcileSortConfig} onSort={requestReconcileSort} style={{ padding: '6px 8px' }}>대사 검증 및 조치</SortableTh>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredReconcileResults.map(item => {
+                      {sortedReconcileResults.map(item => {
                         const stmt = item.statementRow;
                         const matched = item.matchedAsset;
 
@@ -3294,6 +3409,28 @@ export const RentAssets: React.FC = () => {
                   <RefreshCw size={11} /> 초기화
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={handleExportRentedAssetsExcel}
+                style={{
+                  marginTop: '16px',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-main)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Download size={12} /> 엑셀 내보내기
+              </button>
             </div>
 
             {/* 고밀도 임차자산 대장 그리드 작업대 (Body / Inspection - 헌장 3.6 유형 B) */}
@@ -3309,29 +3446,29 @@ export const RentAssets: React.FC = () => {
             }}>
               <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
                       <th style={{ padding: '7px 8px', width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
-                      <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>관리번호</th>
-                      <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>모델명</th>
-                      <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>임차처</th>
-                      <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>임차 계약기간</th>
-                      <th style={{ padding: '7px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 임차료</th>
-                      <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>임차처 반납일</th>
-                      <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>운용 상태</th>
-                      <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>투입 현장 / 고객사</th>
+                      <SortableTh sortKey="assetNo" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>관리번호</SortableTh>
+                      <SortableTh sortKey="modelName" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>모델명</SortableTh>
+                      <SortableTh sortKey="renterName" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>임차처</SortableTh>
+                      <SortableTh sortKey="rentPeriod" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>임차 계약기간</SortableTh>
+                      <SortableTh sortKey="monthlyRentFee" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} align="right" style={{ padding: '7px 8px' }}>월 임차료</SortableTh>
+                      <SortableTh sortKey="actualRentReturnDate" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} align="center" style={{ padding: '7px 8px' }}>임차처 반납일</SortableTh>
+                      <SortableTh sortKey="operationStatus" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} align="center" style={{ padding: '7px 8px' }}>운용 상태</SortableTh>
+                      <SortableTh sortKey="customerSite" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>투입 현장 / 고객사</SortableTh>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAssets.length === 0 ? (
+                    {sortedRentedAssets.length === 0 ? (
                       <tr>
                         <td colSpan={10} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                           조회 조건에 해당하는 임차 자산이 없습니다.
                         </td>
                       </tr>
                     ) : (
-                      filteredAssets.map(a => {
+                      sortedRentedAssets.map(a => {
                         const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
                         const isOverdue = isSubleaseOverdue(a);
                         const delayDays = calculateDelayDays(a);
