@@ -163,8 +163,32 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     if (workerInitializingRef.current) return null;
     workerInitializingRef.current = true;
     try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng');
+      let createWorkerFn: any = (window as any)?.Tesseract?.createWorker;
+      if (!createWorkerFn) {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[data-tesseract-cdn="1"]') as HTMLScriptElement | null;
+          if (existing) {
+            if ((window as any)?.Tesseract?.createWorker) {
+              resolve();
+              return;
+            }
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('CDN load error')), { once: true });
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+          script.async = true;
+          script.setAttribute('data-tesseract-cdn', '1');
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('CDN load error'));
+          document.head.appendChild(script);
+        });
+        createWorkerFn = (window as any)?.Tesseract?.createWorker;
+      }
+      if (!createWorkerFn) return null;
+
+      const worker = await createWorkerFn('eng');
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',
         // PSM 7: 중앙 녹색 횡선에 맞춘 단일 라인 관리번호 인식 최적화
@@ -403,22 +427,21 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   /**
    * iPadOS Safari 등 브라우저 내장 TextDetector/BarcodeDetector 미지원 환경을 위한
-   * 서버 Vision AI (/api/vision-ocr) 병행 판독
+   * 서버 Vision AI (/api/vision-ocr) 병행 판독 (Tesseract WASM 로딩 대기 없이 즉시 병렬 실행)
    */
   const triggerVisionAiFallback = useCallback(
-    async (croppedCanvas: HTMLCanvasElement, forceImmediate = false) => {
-      if (visionInFlightRef.current || unfilledSlots.length === 0) return;
+    async (base64Jpeg: string, forceImmediate = false) => {
+      if (!base64Jpeg || visionInFlightRef.current || unfilledSlots.length === 0) return;
       if (Date.now() < cooldownUntilRef.current) return;
 
       const now = Date.now();
-      if (!forceImmediate && now - lastVisionCallAtRef.current < 1500) return;
+      if (!forceImmediate && now - lastVisionCallAtRef.current < 1300) return;
 
       visionInFlightRef.current = true;
       lastVisionCallAtRef.current = now;
       setIsVisionScanning(true);
 
       try {
-        const base64Jpeg = croppedCanvas.toDataURL('image/jpeg', 0.86);
         const candidateAssetNos = targetModelAvailableAssets
           .map(a => a.assetNo)
           .filter(Boolean)
@@ -451,9 +474,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       if (!cropped) return;
       const { canvas, targetH } = cropped;
       const centerY = targetH / 2;
+      const cleanSnapshotBase64 = canvas.toDataURL('image/jpeg', 0.86);
 
-      if (forceVisionAi) {
-        triggerVisionAiFallback(canvas, true);
+      // iPadOS Safari 등 TextDetector 미지원 기기이거나 수동 터치 시 즉시 Vision AI 병렬 호출
+      const hasNativeDetector = 'TextDetector' in window || 'BarcodeDetector' in window;
+      if (forceVisionAi || !hasNativeDetector) {
+        triggerVisionAiFallback(cleanSnapshotBase64, forceVisionAi);
       }
 
       if (localInFlightRef.current) return;
@@ -540,8 +566,10 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           }
         }
 
-        // 4. 아이패드(iPadOS Safari) 및 스텐실/도색 번호 정밀 인식을 위한 서버 Vision AI 자동 폴백
-        triggerVisionAiFallback(canvas, false);
+        // 4. 내장 디텍터 보유 기기에서도 로컬 판독 미매칭 시 서버 Vision AI 폴백 수행
+        if (hasNativeDetector) {
+          triggerVisionAiFallback(cleanSnapshotBase64, false);
+        }
       } catch {
         // 프레임 무시
       } finally {
