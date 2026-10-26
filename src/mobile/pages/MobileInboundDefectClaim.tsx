@@ -49,6 +49,7 @@ interface MobileInboundDefectClaimProps {
   onNavigate?: (tab: any) => void;
   initialViewMode?: 'REGISTER' | 'NEGOTIATE';
   initialReceivableId?: string;
+  initialAssetNo?: string;
 }
 
 const DEFAULT_CATEGORIES = [
@@ -72,6 +73,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
   onNavigate,
   initialViewMode,
   initialReceivableId,
+  initialAssetNo,
 }) => {
   const {
     currentUser,
@@ -268,6 +270,12 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
       setAutoFillSource('직접 입력');
     }
   };
+
+  useEffect(() => {
+    if (initialAssetNo && initialAssetNo.trim()) {
+      handleSelectAssetAndAutoFill(initialAssetNo.trim());
+    }
+  }, [initialAssetNo]);
 
   const checklistCategories = useMemo(() => {
     const set = new Set<string>(DEFAULT_CATEGORIES);

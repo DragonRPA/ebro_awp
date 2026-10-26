@@ -487,7 +487,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           <MobileInboundRegister 
             onSuccess={() => handleTabChange('inspection')}
             onBack={() => handleTabChange('home')}
-            onOpenDefectClaim={(assetNo) => {
+            onOpenDefectClaim={(assetNo?: string) => {
               setDefectClaimInitialAssetNo(typeof assetNo === 'string' ? assetNo : undefined);
               handleTabChange('inbound_defect_claim');
             }}
