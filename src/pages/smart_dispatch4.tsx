@@ -1140,11 +1140,11 @@ export const SmartDispatch4: React.FC = () => {
   }, [equipments, catalogModelMap]);
 
   // ── 4. 출고 및 하차 일정 ──────────────────────────────────────────────────
-  const [loadingDate, setLoadingDate] = useState('');
+  const [loadingDate, setLoadingDate] = useState(() => getLocalTodayDateStr());
   const [loadingTimeType, setLoadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
   const [loadingTimeVal, setLoadingTimeVal] = useState('');
 
-  const [unloadingDate, setUnloadingDate] = useState('');
+  const [unloadingDate, setUnloadingDate] = useState(() => getLocalTodayDateStr());
   const [unloadingTimeType, setUnloadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
   const [unloadingTimeVal, setUnloadingTimeVal] = useState('');
 
@@ -2208,8 +2208,9 @@ export const SmartDispatch4: React.FC = () => {
     setTargetContractId(''); setForceNewContract(false);
     setCustomerQuery(''); setSiteQuery(''); setSiteMasterSearchQuery('');
     setEquipments([]);
-    setLoadingDate(''); setLoadingTimeVal(''); setLoadingTimeType(null);
-    setUnloadingDate(''); setUnloadingTimeVal(''); setUnloadingTimeType(null);
+    const todayStr = getLocalTodayDateStr();
+    setLoadingDate(todayStr); setLoadingTimeVal(''); setLoadingTimeType(null);
+    setUnloadingDate(todayStr); setUnloadingTimeVal(''); setUnloadingTimeType(null);
     setContactPerson(''); setContactPhone(''); setContactPosition(''); setContactEmail(''); setNote('');
     setNewCustomerName(''); setNewCustomerPhone(''); setNewCustomerAddress('');
     setNewSiteName(''); setNewSiteAddress('');
@@ -2868,7 +2869,9 @@ export const SmartDispatch4: React.FC = () => {
     }
 
     // 6. 상차일시 및 시간 구분
-    setLoadingDate(draft.loadingDate?.value || '');
+    const fallbackToday = getLocalTodayDateStr();
+    const resolvedLoadDate = draft.loadingDate?.value || fallbackToday;
+    setLoadingDate(resolvedLoadDate);
     const ltv = draft.loadingTime?.value || '';
     if (ltv === 'ASAP') { setLoadingTimeType('ASAP'); setLoadingTimeVal(''); }
     else if (ltv === '오전') { setLoadingTimeType('MORNING'); setLoadingTimeVal(''); }
@@ -2877,7 +2880,7 @@ export const SmartDispatch4: React.FC = () => {
     else { setLoadingTimeType(null); setLoadingTimeVal(''); }
 
     // 6-2. 하차일시 및 시간 구분
-    setUnloadingDate(draft.unloadingDate || '');
+    setUnloadingDate(draft.unloadingDate || resolvedLoadDate);
     setUnloadingTimeType(draft.unloadingTimeType || null);
     setUnloadingTimeVal(draft.unloadingTimeVal || '');
 
@@ -5331,8 +5334,12 @@ export const SmartDispatch4: React.FC = () => {
                         className="bg-slate-800 border-2 border-slate-600 text-white rounded-lg p-2.5 text-sm font-bold focus:outline-none focus:border-blue-400 font-mono shadow-sm"
                         value={loadingDate}
                         onChange={e => {
-                          setLoadingDate(e.target.value);
-                          if (!unloadingDate) setUnloadingDate(e.target.value);
+                          const nextDate = e.target.value;
+                          const prevLoading = loadingDate;
+                          setLoadingDate(nextDate);
+                          if (!unloadingDate || unloadingDate === prevLoading || unloadingDate < nextDate) {
+                            setUnloadingDate(nextDate);
+                          }
                         }}
                       />
                     </div>

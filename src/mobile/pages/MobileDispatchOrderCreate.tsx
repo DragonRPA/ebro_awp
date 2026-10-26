@@ -217,10 +217,10 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
 
   // 4. 상차/하차 일정 및 시차출고 상태
-  const [loadingDate, setLoadingDate] = useState('');
+  const [loadingDate, setLoadingDate] = useState(() => getLocalTodayDateStr());
   const [loadingTimeType, setLoadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
   const [loadingTimeVal, setLoadingTimeVal] = useState('');
-  const [unloadingDate, setUnloadingDate] = useState('');
+  const [unloadingDate, setUnloadingDate] = useState(() => getLocalTodayDateStr());
   const [unloadingTimeType, setUnloadingTimeType] = useState<'ASAP' | 'MORNING' | 'AFTERNOON' | 'EXACT' | null>(null);
   const [unloadingTimeVal, setUnloadingTimeVal] = useState('');
   const [staggeredMemo, setStaggeredMemo] = useState('');
@@ -990,8 +990,11 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
     if (parsed.equipments.length > 0) setEquipments(parsed.equipments);
     if (parsed.loadingDate) {
+      const prevLoading = loadingDate;
       setLoadingDate(parsed.loadingDate);
-      if (!unloadingDate) setUnloadingDate(parsed.loadingDate);
+      if (!unloadingDate || unloadingDate === prevLoading || unloadingDate < parsed.loadingDate) {
+        setUnloadingDate(parsed.loadingDate);
+      }
     }
     if (parsed.loadingTimeType) {
       setLoadingTimeType(parsed.loadingTimeType);
@@ -1030,10 +1033,11 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     setContactPosition('');
     setContactEmail('');
     setEquipments([]);
-    setLoadingDate('');
+    const todayStr = getLocalTodayDateStr();
+    setLoadingDate(todayStr);
     setLoadingTimeType(null);
     setLoadingTimeVal('');
-    setUnloadingDate('');
+    setUnloadingDate(todayStr);
     setUnloadingTimeType(null);
     setUnloadingTimeVal('');
     setStaggeredMemo('');
@@ -2315,8 +2319,9 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                       value={loadingDate}
                       onChange={e => {
                         const v = e.target.value;
+                        const prevLoading = loadingDate;
                         setLoadingDate(v);
-                        if (!unloadingDate || unloadingDate < v) setUnloadingDate(v);
+                        if (!unloadingDate || unloadingDate === prevLoading || unloadingDate < v) setUnloadingDate(v);
                       }}
                       className="px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white font-mono text-xs"
                     />
