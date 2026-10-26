@@ -347,7 +347,7 @@ export const Assets: React.FC = () => {
       if (isVirt) {
         virtualCount++;
         if (!isReturnedOrDisposed) {
-          if (a.status === 'RENTED' || a.status === 'ASSIGNED') virtualOperatingCount++;
+          if (a.status === 'RENTED' || a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') virtualOperatingCount++;
           else if (a.status === 'AVAILABLE') virtualAvailableCount++;
         }
       } else {
@@ -359,7 +359,7 @@ export const Assets: React.FC = () => {
           } else {
             ownedPhysicalActive++;
             if (a.status === 'RENTED') ownedPhysicalRented++;
-            else if (a.status === 'ASSIGNED') ownedPhysicalAssigned++;
+            else if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') ownedPhysicalAssigned++;
             else if (a.status === 'AVAILABLE') ownedPhysicalAvailable++;
             else if (a.status === 'REPAIRING') ownedPhysicalRepairing++;
           }
@@ -370,7 +370,7 @@ export const Assets: React.FC = () => {
           } else {
             rentedPhysicalActive++;
             if (a.status === 'RENTED') rentedPhysicalRented++;
-            else if (a.status === 'ASSIGNED') rentedPhysicalAssigned++;
+            else if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') rentedPhysicalAssigned++;
             else if (a.status === 'AVAILABLE') rentedPhysicalAvailable++;
             else if (a.status === 'REPAIRING') rentedPhysicalRepairing++;
           }
@@ -386,7 +386,7 @@ export const Assets: React.FC = () => {
       }
 
       if (a.status === 'RENTED' && !isReturnedOrDisposed) rentedOpCount++;
-      else if (a.status === 'ASSIGNED' && !isReturnedOrDisposed) assignedCount++;
+      else if ((a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') && !isReturnedOrDisposed) assignedCount++;
       else if (a.status === 'AVAILABLE' && !isReturnedOrDisposed) availableCount++;
       else if (a.status === 'REPAIRING' && !isReturnedOrDisposed) repairingCount++;
 
@@ -552,7 +552,7 @@ export const Assets: React.FC = () => {
           } else {
             ownedPhysicalActive++;
             if (a.status === 'RENTED') ownedPhysicalRented++;
-            else if (a.status === 'ASSIGNED') ownedPhysicalAssigned++;
+            else if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') ownedPhysicalAssigned++;
             else if (a.status === 'AVAILABLE') ownedPhysicalAvailable++;
             else if (a.status === 'REPAIRING') ownedPhysicalRepairing++;
           }
@@ -563,7 +563,7 @@ export const Assets: React.FC = () => {
           } else {
             rentedPhysicalActive++;
             if (a.status === 'RENTED') rentedPhysicalRented++;
-            else if (a.status === 'ASSIGNED') rentedPhysicalAssigned++;
+            else if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') rentedPhysicalAssigned++;
             else if (a.status === 'AVAILABLE') rentedPhysicalAvailable++;
             else if (a.status === 'REPAIRING') rentedPhysicalRepairing++;
           }

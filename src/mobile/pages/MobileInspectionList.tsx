@@ -111,7 +111,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       if (item.contractId && !activeContractIds.has(item.contractId)) return false;
       if (item.deliveryId && !activeDeliveryIds.has(item.deliveryId)) return false;
 
-      if (item.status === 'PENDING') {
+      if (item.status === 'PENDING' || item.status === 'IN_PROGRESS') {
         if (!item.assetId || !realAssetIds.has(item.assetId)) return false;
         if (item.contractAssetId) {
           const linkedCa = (contractAssets || []).find(ca => ca.id === item.contractAssetId);
@@ -135,7 +135,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       if (!existing) {
         dedupMap.set(slotKey, item);
       } else {
-        const rank = (s?: string) => (s === 'COMPLETED' ? 3 : s === 'PENDING' ? 2 : 1);
+        const rank = (s?: string) => (s === 'COMPLETED' ? 3 : s === 'IN_PROGRESS' ? 2.5 : s === 'PENDING' ? 2 : 1);
         if (rank(item.status) > rank(existing.status)) {
           dedupMap.set(slotKey, item);
         } else if (
@@ -291,7 +291,9 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       const map = new Map<string, OutboundInspection[]>();
       validInspections
         .filter(oin =>
-          targetStatus === 'PENDING' ? oin.status === 'PENDING' : oin.status === 'COMPLETED'
+          targetStatus === 'PENDING'
+            ? oin.status === 'PENDING' || oin.status === 'IN_PROGRESS'
+            : oin.status === 'COMPLETED'
         )
         .forEach(oin => {
           const { delivery } = getInspectionDetails(oin);
@@ -608,6 +610,115 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
     setIsInlineCameraOpen(false);
   };
 
+  // 출고검수 접수 (PENDING ➔ IN_PROGRESS & 자산 OUTBOUND_INSPECTION 전환)
+  const handleAcceptMobileGroup = async (group: InspectionRequestGroup) => {
+    if (!canEdit) return;
+    setIsSubmitting(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const safeInspectorId = currentUser?.id || undefined;
+      group.items.forEach(oin => {
+        db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
+          status: 'IN_PROGRESS',
+          inspectorId: safeInspectorId,
+          updatedAt: nowIso
+        });
+        if (oin.assetId) {
+          db.updateRow<Asset>('assets', oin.assetId, {
+            status: 'OUTBOUND_INSPECTION',
+            updatedAt: nowIso
+          });
+        }
+        if (oin.contractAssetId) {
+          db.updateRow<ContractAsset>('contractAssets', oin.contractAssetId, {
+            status: 'OUTBOUND_INSPECTION'
+          });
+        }
+      });
+      await db.awaitPendingWrites();
+      await refreshAllData();
+      showToast(`출고검수 접수 완료 (${group.items.length}대 · 자산상태 출고검수 전환)`, 'success');
+    } catch (err: any) {
+      showErrorModal(err?.message || '출고검수 접수 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 출고검수 접수 취소 롤백 (IN_PROGRESS ➔ PENDING & 자산 ASSIGNED 전환)
+  const handleCancelAcceptMobileGroup = async (group: InspectionRequestGroup) => {
+    if (!canEdit) return;
+    setIsSubmitting(true);
+    try {
+      const nowIso = new Date().toISOString();
+      group.items.forEach(oin => {
+        db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
+          status: 'PENDING',
+          inspectorId: undefined,
+          updatedAt: nowIso
+        });
+        if (oin.assetId) {
+          db.updateRow<Asset>('assets', oin.assetId, {
+            status: 'ASSIGNED',
+            updatedAt: nowIso
+          });
+        }
+        if (oin.contractAssetId) {
+          db.updateRow<ContractAsset>('contractAssets', oin.contractAssetId, {
+            status: 'ASSIGNED'
+          });
+        }
+      });
+      await db.awaitPendingWrites();
+      await refreshAllData();
+      showToast(`출고검수 접수 취소 완료 (자산상태 출고대기 롤백)`, 'success');
+    } catch (err: any) {
+      showErrorModal(err?.message || '접수 취소 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 출고검수 완료 취소 롤백 (COMPLETED ➔ IN_PROGRESS & 자산 OUTBOUND_INSPECTION 전환)
+  const handleRollbackCompletedMobileGroup = async (group: InspectionRequestGroup) => {
+    if (!canEdit) return;
+    setIsSubmitting(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const userName = currentUser?.name || '주기장검수원';
+      group.items.forEach(oin => {
+        db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
+          status: 'IN_PROGRESS',
+          approvedAt: undefined,
+          note: oin.note
+            ? `${oin.note}\n[모바일 검수완료 취소 롤백] 작업자: ${userName}`
+            : `[모바일 검수완료 취소 롤백] 작업자: ${userName}`,
+          updatedAt: nowIso
+        });
+        if (oin.assetId) {
+          db.updateRow<Asset>('assets', oin.assetId, {
+            status: 'OUTBOUND_INSPECTION',
+            updatedAt: nowIso
+          });
+        }
+        if (oin.contractAssetId) {
+          db.updateRow<ContractAsset>('contractAssets', oin.contractAssetId, {
+            status: 'OUTBOUND_INSPECTION'
+          });
+        }
+      });
+      await db.awaitPendingWrites();
+      await refreshAllData();
+      setViewMode('PENDING');
+      setSelectedGroupKey(group.groupKey);
+      showToast(`검수완료가 취소되어 출고검수 상태로 롤백되었습니다.`, 'success');
+    } catch (err: any) {
+      showErrorModal(err?.message || '검수완료 취소 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // 출고검수 최종 확정 (충족 자산 검수완료 + 불충족 자산 영업사원 수량조정 요청)
   const handleFinalizeInspection = async () => {
     if (!canEdit) {
@@ -622,7 +733,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       const todayStr = nowIso.split('T')[0];
       const inspectorName = currentUser?.name || '주기장검수원';
 
-      // 1. 충족된 자산(satisfiedItems): 검수 완료 및 자산 상태 RENTED 전환 (헌장 1.3)
+      // 1. 충족된 자산(satisfiedItems): 검수 완료 및 자산 상태 AWAITING_TRANSPORT (운송대기) 전환
       for (const oin of satisfiedItems) {
         const { asset, contract, ca } = getInspectionDetails(oin);
         db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
@@ -635,7 +746,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
 
         if (asset) {
           db.updateRow<Asset>('assets', asset.id, {
-            status: 'RENTED',
+            status: 'AWAITING_TRANSPORT',
             currentCustomerId: contract?.customerId || asset.currentCustomerId,
             currentSiteId: contract?.siteId || asset.currentSiteId,
             contractStart: ca?.startDate || contract?.startDate || asset.contractStart,
@@ -645,7 +756,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
 
           if (ca) {
             db.updateRow<ContractAsset>('contractAssets', ca.id, {
-              status: 'RENTED'
+              status: 'AWAITING_TRANSPORT'
             });
           }
 
@@ -661,7 +772,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
             siteId: contract?.siteId || asset.currentSiteId,
             siteName: activeGroup.siteName,
             deliveryId: activeGroup.deliveryId,
-            memo: `[모바일 출고검수 완료(${inspectorName})] 현장 요구 옵션 충족 확인`,
+            memo: `[모바일 출고검수 완료(${inspectorName})] 현장 요구 옵션 충족 확인 (운송대기 전환)`,
             createdAt: nowIso
           });
         }
@@ -799,10 +910,10 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       await refreshAllData();
 
       if (unsatisfiedItems.length === 0) {
-        showToast(`출고검수 ${satisfiedItems.length}대 완료 (대여중 전환)`, 'success');
+        showToast(`출고검수 ${satisfiedItems.length}대 완료 (운송대기 전환)`, 'success');
       } else if (satisfiedItems.length > 0) {
         showToast(
-          `충족 ${satisfiedItems.length}대 검수완료 · 불충족 ${unsatisfiedItems.length}대 영업 수량조정 요청 완료`,
+          `충족 ${satisfiedItems.length}대 검수완료(운송대기) · 불충족 ${unsatisfiedItems.length}대 영업 수량조정 요청 완료`,
           'success'
         );
       } else {
@@ -999,11 +1110,17 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
                       </div>
                       <span
                         className={`text-[11px] font-bold whitespace-nowrap shrink-0 ${
-                          viewMode === 'PENDING' ? 'text-amber-300' : 'text-emerald-300'
+                          viewMode === 'PENDING'
+                            ? grp.items.some(i => i.status === 'IN_PROGRESS')
+                              ? 'text-cyan-300'
+                              : 'text-amber-300'
+                            : 'text-emerald-300'
                         }`}
                       >
                         {viewMode === 'PENDING'
-                          ? `대기 ${grp.items.length}대`
+                          ? grp.items.some(i => i.status === 'IN_PROGRESS')
+                            ? `출고검수 ${grp.items.length}대`
+                            : `대기 ${grp.items.length}대`
                           : `완료 ${grp.items.length}대`}
                       </span>
                     </div>
@@ -1134,16 +1251,51 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
                   : `검수 완료 자산 (${activeGroup.items.length}대)`}
               </span>
 
-              {viewMode === 'PENDING' && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllSatisfied}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>전체 충족</span>
-                </button>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {viewMode === 'PENDING' && canEdit && (
+                  activeGroup.items.some(i => i.status === 'IN_PROGRESS') ? (
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => handleCancelAcceptMobileGroup(activeGroup)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-900/70 hover:bg-amber-800 text-amber-200 border border-amber-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
+                    >
+                      <span>접수 취소</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => handleAcceptMobileGroup(activeGroup)}
+                      className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
+                    >
+                      <span>출고검수 접수</span>
+                    </button>
+                  )
+                )}
+
+                {viewMode === 'PENDING' && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllSatisfied}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>전체 충족</span>
+                  </button>
+                )}
+
+                {viewMode === 'COMPLETED' && canEdit && (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleRollbackCompletedMobileGroup(activeGroup)}
+                    className="px-2.5 py-1 rounded-lg bg-rose-900/70 hover:bg-rose-800 text-rose-200 border border-rose-700 text-[11px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
+                  >
+                    <span>검수완료 취소</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -1174,7 +1326,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
                         <span className="text-xs text-slate-300 truncate">{modelName}</span>
                       </div>
                       <span className="text-[11px] font-bold text-emerald-400 whitespace-nowrap shrink-0">
-                        검수완료 · 대여중
+                        {asset?.status === 'RENTED' ? '검수완료 · 대여중' : '검수완료 · 운송대기'}
                       </span>
                     </div>
                   );

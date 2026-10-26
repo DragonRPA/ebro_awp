@@ -1327,9 +1327,10 @@ export const MobileDispatchList: React.FC = () => {
     }
   };
 
-  // 상차 완료 취소 / 운송 완료 취소 원복
+  // 상차 완료 취소 / 운송 완료 취소 원복 (자산 RENTED ➔ AWAITING_TRANSPORT 롤백)
   const handleRevertLoadingStatus = async (deliveryId: string) => {
     if (!canSave) return;
+    const targetDelivery = (deliveries || []).find((d) => d.id === deliveryId);
     try {
       const nowIso = new Date().toISOString();
       db.updateRow<Delivery>('deliveries', deliveryId, {
@@ -1338,10 +1339,68 @@ export const MobileDispatchList: React.FC = () => {
         unloadingCompletedAt: null as any,
         updatedAt: nowIso,
       });
+
+      if (targetDelivery) {
+        const isOutboundLike =
+          targetDelivery.type === 'OUTBOUND' ||
+          targetDelivery.type === 'EXCHANGE' ||
+          targetDelivery.dispatchCategory === '출고' ||
+          targetDelivery.dispatchCategory === '교환';
+
+        if (isOutboundLike && targetDelivery.contractId) {
+          const revertCaIds = new Set<string>();
+          if (targetDelivery.cargoItems) {
+            try {
+              const parsed =
+                typeof targetDelivery.cargoItems === 'string'
+                  ? JSON.parse(targetDelivery.cargoItems)
+                  : targetDelivery.cargoItems;
+              if (Array.isArray(parsed)) {
+                parsed.forEach((ci: any) => {
+                  if (Array.isArray(ci?.contractAssetIds)) {
+                    ci.contractAssetIds.forEach((id: string) => {
+                      if (id) revertCaIds.add(id);
+                    });
+                  }
+                });
+              }
+            } catch {}
+          }
+          db.outboundInspections
+            .filter((ins) => ins.deliveryId === deliveryId && ins.contractAssetId)
+            .forEach((ins) => {
+              if (ins.contractAssetId) revertCaIds.add(ins.contractAssetId);
+            });
+          if (revertCaIds.size === 0) {
+            db.contractAssets
+              .filter((ca) => ca.contractId === targetDelivery.contractId && ca.status === 'RENTED')
+              .forEach((ca) => revertCaIds.add(ca.id));
+          }
+
+          revertCaIds.forEach((caId) => {
+            const caObj = db.contractAssets.find((c) => c.id === caId);
+            if (caObj && caObj.status === 'RENTED') {
+              db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+                status: 'AWAITING_TRANSPORT',
+              });
+            }
+            if (caObj?.assetId) {
+              const assetObj = db.assets.find((a) => a.id === caObj.assetId);
+              if (assetObj && assetObj.status === 'RENTED') {
+                db.updateRow<Asset>('assets', assetObj.id, {
+                  status: 'AWAITING_TRANSPORT',
+                  updatedAt: nowIso,
+                });
+              }
+            }
+          });
+        }
+      }
+
       await db.awaitPendingWrites();
       refreshAllData();
       setStudioOpen(false);
-      showToast('배차완료 상태로 원복되었습니다.');
+      showToast('배차완료 및 자산 운송대기 상태로 원복되었습니다.');
     } catch (err: any) {
       showErrorModal(`원복 실패:\n${err?.message || err}`);
     }

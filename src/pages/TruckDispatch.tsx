@@ -285,10 +285,10 @@ export const TruckDispatch: React.FC = () => {
 
       const isInspCompleted = matchedInsps.length > 0
         ? matchedInsps.some(ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED')
-        : (asset?.status === 'RENTED' && ca.status === 'RENTED');
-      const isAssetRented = asset?.status === 'RENTED';
+        : ((asset?.status === 'AWAITING_TRANSPORT' || asset?.status === 'RENTED') && (ca.status === 'AWAITING_TRANSPORT' || ca.status === 'RENTED'));
+      const isAssetReady = asset?.status === 'AWAITING_TRANSPORT' || asset?.status === 'RENTED';
 
-      if (!isInspCompleted || !isAssetRented) {
+      if (!isInspCompleted || !isAssetReady) {
         const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
         uninspectedAssets.push(label);
       }
@@ -4581,7 +4581,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 4-B. 상차 완료 취소 처리 (loadingCompletedAt 해제 ➔ 배차 완료 상태로 원복)
+  // 4-B. 상차 완료 취소 처리 (loadingCompletedAt 해제 ➔ 배차 완료 상태로 원복 & 자산 RENTED ➔ AWAITING_TRANSPORT 롤백)
   const handleRevertLoadingStatus = async (deliveryId: string) => {
     if (!canSave) return;
     const targetDelivery = deliveries.find(d => d.id === deliveryId);
@@ -4595,6 +4595,59 @@ export const TruckDispatch: React.FC = () => {
         unloadingCompletedAt: null as any,
         updatedAt: nowIso
       });
+
+      const isOutboundLike =
+        targetDelivery.type === 'OUTBOUND' ||
+        targetDelivery.type === 'EXCHANGE' ||
+        targetDelivery.dispatchCategory === '출고' ||
+        targetDelivery.dispatchCategory === '교환';
+
+      if (isOutboundLike && targetDelivery.contractId) {
+        const revertCaIds = new Set<string>();
+        if (targetDelivery.cargoItems) {
+          try {
+            const parsed = typeof targetDelivery.cargoItems === 'string' ? JSON.parse(targetDelivery.cargoItems) : targetDelivery.cargoItems;
+            if (Array.isArray(parsed)) {
+              parsed.forEach((ci: any) => {
+                if (Array.isArray(ci?.contractAssetIds)) {
+                  ci.contractAssetIds.forEach((id: string) => {
+                    if (id) revertCaIds.add(id);
+                  });
+                }
+              });
+            }
+          } catch {}
+        }
+        db.outboundInspections
+          .filter(ins => ins.deliveryId === deliveryId && ins.contractAssetId)
+          .forEach(ins => {
+            if (ins.contractAssetId) revertCaIds.add(ins.contractAssetId);
+          });
+        if (revertCaIds.size === 0) {
+          db.contractAssets
+            .filter(ca => ca.contractId === targetDelivery.contractId && ca.status === 'RENTED')
+            .forEach(ca => revertCaIds.add(ca.id));
+        }
+
+        revertCaIds.forEach(caId => {
+          const caObj = db.contractAssets.find(c => c.id === caId);
+          if (caObj && caObj.status === 'RENTED') {
+            db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+              status: 'AWAITING_TRANSPORT'
+            });
+          }
+          if (caObj?.assetId) {
+            const assetObj = db.assets.find(a => a.id === caObj.assetId);
+            if (assetObj && assetObj.status === 'RENTED') {
+              db.updateRow<Asset>('assets', assetObj.id, {
+                status: 'AWAITING_TRANSPORT',
+                updatedAt: nowIso
+              });
+            }
+          }
+        });
+      }
+
       await db.awaitPendingWrites();
 
       refreshAllData();
@@ -4607,7 +4660,7 @@ export const TruckDispatch: React.FC = () => {
           updatedAt: nowIso
         });
       }
-      showToast('상차 완료가 취소되어 [배차 완료] 상태로 원복되었습니다.');
+      showToast('상차 완료가 취소되어 [배차 완료] 및 자산 [운송대기] 상태로 원복되었습니다.');
     } catch (err: any) {
       showErrorModal(`상차 완료 취소 실패:\n${err?.message || err}`);
     }

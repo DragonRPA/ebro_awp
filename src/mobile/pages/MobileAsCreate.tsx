@@ -210,7 +210,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         let deployBonus = 0;
         if (a.status === 'RENTED' || activeAssetIdSet.has(a.id) || a.currentCustomerId || a.currentSiteId) {
           deployBonus = 6;
-        } else if (a.status === 'ASSIGNED') {
+        } else if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') {
           deployBonus = 3;
         }
         scored.push({ asset: a, score: baseScore + deployBonus });

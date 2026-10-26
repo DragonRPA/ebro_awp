@@ -464,7 +464,7 @@ CREATE TABLE assets (
     "cumRepairCost"       DOUBLE PRECISION DEFAULT 0,
 
     -- ⑦ 업무 상태 및 감사
-    status                TEXT CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'RENTED', 'REPAIRING', 'RENTED_RETURNED', 'SOLD')) NOT NULL DEFAULT 'AVAILABLE',
+    status                TEXT CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT', 'RENTED', 'REPAIRING', 'RENTED_RETURNED', 'SOLD', 'LOST', 'DISPOSED')) NOT NULL DEFAULT 'AVAILABLE',
     memo                  TEXT,
     note                  TEXT,
     "createdAt"           TEXT NOT NULL,

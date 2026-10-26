@@ -116,7 +116,9 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
         const assignedAsset = assetMap.get(ca.assetId);
         const isAlreadyDispatched =
           ca.status === 'RENTED' ||
+          ca.status === 'AWAITING_TRANSPORT' ||
           assignedAsset?.status === 'RENTED' ||
+          assignedAsset?.status === 'AWAITING_TRANSPORT' ||
           completedInspectionCaIdSet.has(ca.id);
         if (isAlreadyDispatched) return;
       }

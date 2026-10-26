@@ -196,7 +196,7 @@ export const Products: React.FC = () => {
       if (a.ownerType === 'RENTED') st.leased++;
       if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) st.available++;
       if (a.status === 'RENTED' || (!a.actualRentReturnDate && a.currentCustomerId)) st.rented++;
-      if (a.status === 'ASSIGNED') st.assigned++;
+      if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') st.assigned++;
       if (a.status === 'REPAIRING') st.repairing++;
     }
 

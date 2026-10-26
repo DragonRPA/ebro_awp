@@ -4168,6 +4168,14 @@ export const Contracts: React.FC = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                               {ca.status === 'RETURNED' ? (
                                 <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🚫 반납완료</span>
+                              ) : (asset?.status === 'OUTBOUND_INSPECTION' || ca.status === 'OUTBOUND_INSPECTION') ? (
+                                <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>출고검수</span>
+                              ) : (asset?.status === 'AWAITING_TRANSPORT' || ca.status === 'AWAITING_TRANSPORT') ? (
+                                <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운송대기</span>
+                              ) : (asset?.status === 'ASSIGNED' || (ca.status === 'ASSIGNED' && ca.assetId)) ? (
+                                <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>출고대기</span>
+                              ) : !ca.assetId ? (
+                                <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>장비미할당</span>
                               ) : (
                                 <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운용중</span>
                               )}

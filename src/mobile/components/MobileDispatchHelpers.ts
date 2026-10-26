@@ -346,7 +346,13 @@ export const checkDeliveryOutboundReadiness = (
 
   const unapprovedCas = targetCas.filter((ca) => {
     const assetObj = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-    if (ca.status === 'RENTED' || assetObj?.status === 'RENTED') return false;
+    if (
+      ca.status === 'RENTED' ||
+      ca.status === 'AWAITING_TRANSPORT' ||
+      assetObj?.status === 'RENTED' ||
+      assetObj?.status === 'AWAITING_TRANSPORT'
+    )
+      return false;
     const hasCompletedIns = relatedIns.some(
       (ins) =>
         ins.status === 'COMPLETED' &&
@@ -356,11 +362,12 @@ export const checkDeliveryOutboundReadiness = (
   });
 
   if (unapprovedCas.length > 0) {
+    const isInspecting = relatedIns.some((ins) => ins.status === 'IN_PROGRESS');
     return {
       isOutboundLike: true,
       ready: false,
       stage: 'NEED_INSPECTION',
-      badgeLabel: `검수대기 ${unapprovedCas.length}대`,
+      badgeLabel: isInspecting ? `출고검수 ${unapprovedCas.length}대` : `검수대기 ${unapprovedCas.length}대`,
       reason: `출고 검수 미승인 ${unapprovedCas.length}대`,
     };
   }

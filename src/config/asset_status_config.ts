@@ -1,6 +1,14 @@
 // src/config/asset_status_config.ts — 자산 상태 단일 원본 마스터 장부
 
-export type AssetStatusKey = 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD';
+export type AssetStatusKey =
+  | 'AVAILABLE'
+  | 'ASSIGNED'
+  | 'OUTBOUND_INSPECTION'
+  | 'AWAITING_TRANSPORT'
+  | 'RENTED'
+  | 'REPAIRING'
+  | 'RENTED_RETURNED'
+  | 'SOLD';
 
 export interface AssetStatusDetail {
   code: AssetStatusKey;
@@ -21,13 +29,25 @@ export const ASSET_STATUS_SSOT: Record<AssetStatusKey, AssetStatusDetail> = {
     code: 'ASSIGNED',
     label: '출고대기',
     badgeClass: 'badge-warning',
-    description: '계약에 장비가 할당 완료되어 출고 검수 대기 중인 장비 (이중 할당 차단)'
+    description: '계약에 장비가 할당 완료되어 출고검수 접수 대기 중인 장비 (이중 할당 차단)'
+  },
+  OUTBOUND_INSPECTION: {
+    code: 'OUTBOUND_INSPECTION',
+    label: '출고검수',
+    badgeClass: 'badge-warning',
+    description: '출고검수가 접수되어 주기장에서 점검 진행 중인 장비'
+  },
+  AWAITING_TRANSPORT: {
+    code: 'AWAITING_TRANSPORT',
+    label: '운송대기',
+    badgeClass: 'badge-primary',
+    description: '출고검수가 완료되어 상차 및 현장 운송을 대기 중인 장비'
   },
   RENTED: {
     code: 'RENTED',
     label: '대여중',
     badgeClass: 'badge-info',
-    description: '출고 검수 승인 완료 후 현장에서 대여 운영 중인 장비'
+    description: '출고 및 상차/운송되어 현장에서 대여 운영 중인 장비'
   },
   REPAIRING: {
     code: 'REPAIRING',
@@ -47,6 +67,15 @@ export const ASSET_STATUS_SSOT: Record<AssetStatusKey, AssetStatusDetail> = {
     badgeClass: 'badge-dark',
     description: '당사 소유 자산을 매각 완료 처리한 상태'
   }
+};
+
+// 출고 파이프라인 진행 중(출고대기/출고검수/운송대기) 여부 판별 헬퍼
+export const isPreOutboundAssignedStatus = (status?: string | null): boolean => {
+  return (
+    status === 'ASSIGNED' ||
+    status === 'OUTBOUND_INSPECTION' ||
+    status === 'AWAITING_TRANSPORT'
+  );
 };
 
 // SSOT: 모든 자산 상태 키 목록

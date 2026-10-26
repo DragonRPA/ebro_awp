@@ -775,8 +775,10 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                             ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
                             : a.status === 'REPAIRING'
                             ? 'bg-rose-500/20 text-rose-200 border-rose-500/40'
-                            : a.status === 'ASSIGNED'
+                            : a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION'
                             ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                            : a.status === 'AWAITING_TRANSPORT'
+                            ? 'bg-cyan-500/20 text-cyan-200 border-cyan-500/40'
                             : 'bg-blue-500/20 text-blue-200 border-blue-500/40'
                         }`}>
                           {getAssetStatusLabel(a.status)}

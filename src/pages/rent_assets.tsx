@@ -1601,13 +1601,17 @@ export const RentAssets: React.FC = () => {
         '임차처 반납일': a.actualRentReturnDate || (isReturned ? '반납완료' : '미반납'),
         '운용 상태': isReturned
           ? '임차처 반납완료'
-          : a.status === 'RENTED' || a.currentCustomerId
+          : a.status === 'RENTED'
             ? '대여중'
-            : a.status === 'ASSIGNED'
-              ? '출고대기'
-              : a.status === 'REPAIRING'
-                ? '정비중'
-                : '임대가능 (보관중)',
+            : a.status === 'AWAITING_TRANSPORT'
+              ? '운송대기'
+              : a.status === 'OUTBOUND_INSPECTION'
+                ? '출고검수'
+                : a.status === 'ASSIGNED'
+                  ? '출고대기'
+                  : a.status === 'REPAIRING'
+                    ? '정비중'
+                    : '임대가능 (보관중)',
         '투입 고객사': cust?.name || '-',
         '투입 현장': site?.name || '-'
       };
@@ -3642,8 +3646,12 @@ export const RentAssets: React.FC = () => {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
                                 {isReturned ? (
                                   <span className="badge badge-secondary" style={{ fontSize: '10px' }}>임차처 반납완료</span>
-                                ) : (a.status === 'RENTED' || a.currentCustomerId) ? (
+                                ) : a.status === 'RENTED' ? (
                                   <span className="badge badge-primary" style={{ fontSize: '10px' }}>대여중</span>
+                                ) : a.status === 'AWAITING_TRANSPORT' ? (
+                                  <span className="badge badge-primary" style={{ fontSize: '10px' }}>운송대기</span>
+                                ) : a.status === 'OUTBOUND_INSPECTION' ? (
+                                  <span className="badge badge-warning" style={{ fontSize: '10px' }}>출고검수</span>
                                 ) : a.status === 'ASSIGNED' ? (
                                   <span className="badge badge-warning" style={{ fontSize: '10px' }}>출고대기</span>
                                 ) : a.status === 'REPAIRING' ? (

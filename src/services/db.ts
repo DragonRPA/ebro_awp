@@ -377,10 +377,12 @@ export async function autoApplyTenantsDdl(): Promise<boolean> {
   }
 }
 
-/** 🚜 assets 테이블 신규 컬럼(yard, assetNature) DDL 및 PostgREST 스키마 캐시 자동 반영 헬퍼 */
+/** 🚜 assets 테이블 신규 컬럼(yard, assetNature), 상태 CHECK 제약조건 확장 DDL 및 PostgREST 스키마 캐시 자동 반영 헬퍼 */
 export const ASSETS_DDL_STATEMENTS: string[] = [
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "yard" TEXT DEFAULT '용인';`,
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "assetNature" TEXT DEFAULT 'PHYSICAL';`,
+  `ALTER TABLE "assets" DROP CONSTRAINT IF EXISTS "assets_status_check";`,
+  `ALTER TABLE "assets" ADD CONSTRAINT "assets_status_check" CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT', 'RENTED', 'REPAIRING', 'RENTED_RETURNED', 'SOLD', 'LOST', 'DISPOSED'));`,
   `UPDATE "assets" SET "yard" = '용인' WHERE "yard" IS NULL OR "yard" = '';`,
   `NOTIFY pgrst, 'reload schema';`
 ];
@@ -1466,7 +1468,7 @@ export interface Asset {
   assetNature?: 'PHYSICAL' | 'VIRTUAL'; // 자산 구분 ('PHYSICAL': 실물, 'VIRTUAL': 가상)
   yard?: string; // 주기장 (예: '용인')
   antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권 ('VENDOR': 임차처 소유, 'OURS': 당사 소유, 'NONE': 미장착)
-  status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD' | 'LOST' | 'DISPOSED';
+  status: 'AVAILABLE' | 'ASSIGNED' | 'OUTBOUND_INSPECTION' | 'AWAITING_TRANSPORT' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD' | 'LOST' | 'DISPOSED';
   
   maintenanceScore?: number; // 정비 소요 점수 (0이 최상 상태)
 
@@ -1746,7 +1748,7 @@ export interface ContractAsset {
   contractId: string;
   assetId?: string;
   expectedModel?: string;
-  status?: 'RENTED' | 'RETURNED' | 'ASSIGNED' | 'SOLD' | string;
+  status?: 'RENTED' | 'RETURNED' | 'ASSIGNED' | 'OUTBOUND_INSPECTION' | 'AWAITING_TRANSPORT' | 'SOLD' | string;
   actualReturnDate?: string;
   inRegisteredAt?: string;   // 💡 전산 입고 처리 일시
   monthlyRentalFee: number;
@@ -8511,7 +8513,7 @@ class LocalDB {
             const msg = error.message || String(error);
             console.error(`Supabase upsert failed for ${tableName}:`, error);
 
-            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find'))) {
+            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find') || msg.includes('violates check constraint') || msg.includes('assets_status_check') || error.code === '23514')) {
               const applied = await autoApplyAssetsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));
@@ -8669,7 +8671,7 @@ class LocalDB {
             const msg = error.message || String(error);
             console.error(`Supabase update failed for ${tableName}:`, error);
 
-            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find'))) {
+            if (tableName === 'assets' && (msg.includes('yard') || msg.includes('assetNature') || msg.includes('column') || msg.includes('Could not find') || msg.includes('violates check constraint') || msg.includes('assets_status_check') || error.code === '23514')) {
               const applied = await autoApplyAssetsDdl();
               if (applied) {
                 await new Promise(r => setTimeout(r, 200));

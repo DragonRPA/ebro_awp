@@ -607,14 +607,13 @@ export const OutboundInspections: React.FC = () => {
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 3. 작업 접수 실행 (PENDING ➔ IN_PROGRESS)
+  // 3. 작업 접수 실행 (PENDING ➔ IN_PROGRESS & 자산 status ➔ OUTBOUND_INSPECTION)
   // ──────────────────────────────────────────────────────────────────────────
   const handleAcceptGroup = async (group: InspectionGroup) => {
     if (!canEdit) return;
     setIsProcessing(true);
     try {
       const nowIso = new Date().toISOString();
-      const inspectorName = currentUser?.name || '담당엔지니어';
       const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
 
       group.items.forEach(item => {
@@ -623,14 +622,68 @@ export const OutboundInspections: React.FC = () => {
           inspectorId: safeInspectorId,
           updatedAt: nowIso
         });
+
+        if (item.assetId) {
+          db.updateRow<Asset>('assets', item.assetId, {
+            status: 'OUTBOUND_INSPECTION',
+            updatedAt: nowIso
+          });
+        }
+        if (item.contractAssetId) {
+          db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
+            status: 'OUTBOUND_INSPECTION',
+            updatedAt: nowIso
+          });
+        }
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`고객사 [${group.customerName}] 출고 검수 의뢰 접수가 완료되었습니다.`);
-      handleSelectGroup(group);
+      showToast(`고객사 [${group.customerName}] 출고 검수 접수가 완료되었습니다. (자산상태: 출고검수)`);
+      handleSelectGroup({ ...group, status: 'IN_PROGRESS' });
     } catch (err: any) {
       showErrorModal(`의뢰 접수 실패: ${err?.message || err}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 3-B. 작업 접수 취소 롤백 (IN_PROGRESS ➔ PENDING & 자산 status ➔ ASSIGNED)
+  // ──────────────────────────────────────────────────────────────────────────
+  const handleCancelAcceptGroup = async (group: InspectionGroup) => {
+    if (!canEdit) return;
+    setIsProcessing(true);
+    try {
+      const nowIso = new Date().toISOString();
+
+      group.items.forEach(item => {
+        db.updateRow<OutboundInspection>('outboundInspections', item.id, {
+          status: 'PENDING',
+          inspectorId: undefined,
+          updatedAt: nowIso
+        });
+
+        if (item.assetId) {
+          db.updateRow<Asset>('assets', item.assetId, {
+            status: 'ASSIGNED',
+            updatedAt: nowIso
+          });
+        }
+        if (item.contractAssetId) {
+          db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
+            status: 'ASSIGNED',
+            updatedAt: nowIso
+          });
+        }
+      });
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      showToast(`고객사 [${group.customerName}] 출고 검수 접수가 취소되어 출고대기 상태로 롤백되었습니다.`);
+      handleSelectGroup({ ...group, status: 'PENDING' });
+    } catch (err: any) {
+      showErrorModal(`접수 취소 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -738,7 +791,7 @@ export const OutboundInspections: React.FC = () => {
           updatedAt: nowIso
         });
 
-        // 🟢 출고 승인 마감 시 해당 고유 장비의 status ➔ 'RENTED' (대여중) 으로 변동!
+        // 🟢 출고 검수 완료 시 해당 고유 장비의 status ➔ 'AWAITING_TRANSPORT' (운송대기) 으로 변동!
         if (item.assetId) {
           const linkedDeliv = itemDeliveryId ? db.deliveries.find(d => d.id === itemDeliveryId) : undefined;
           const matchedCa = item.contractAssetId ? db.contractAssets.find(ca => ca.id === item.contractAssetId) : undefined;
@@ -752,7 +805,7 @@ export const OutboundInspections: React.FC = () => {
           ).slice(0, 10);
 
           db.updateRow<Asset>('assets', item.assetId, {
-            status: 'RENTED',
+            status: 'AWAITING_TRANSPORT',
             currentCustomerId: contract?.customerId || '',
             currentSiteId: contract?.siteId || '',
             contractStart: effectiveStartDate,
@@ -763,7 +816,7 @@ export const OutboundInspections: React.FC = () => {
           if (item.contractAssetId) {
             const shouldSyncFirstStart = !matchedCa?.firstStartDate || matchedCa.firstStartDate === matchedCa.startDate;
             db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
-              status: 'RENTED',
+              status: 'AWAITING_TRANSPORT',
               startDate: effectiveStartDate,
               ...(shouldSyncFirstStart ? { firstStartDate: effectiveStartDate } : {}),
               updatedAt: nowIso
@@ -785,7 +838,7 @@ export const OutboundInspections: React.FC = () => {
             customerName: customer?.name || selectedGroup.customerName,
             siteId: contract?.siteId,
             siteName: site?.name || selectedGroup.siteName,
-            memo: `[PC 출고검수 승인] 계약(${contract?.contractNo || item.contractId || '직출고'}) 현장(${site?.name || selectedGroup.siteName || '현장'}) 기사(${inspectorName}) 기능 점검 완료 (자산 대여중 전환)`,
+            memo: `[PC 출고검수 승인] 계약(${contract?.contractNo || item.contractId || '직출고'}) 현장(${site?.name || selectedGroup.siteName || '현장'}) 기사(${inspectorName}) 기능 점검 완료 (자산 운송대기 전환)`,
             createdAt: nowIso,
           });
         }
@@ -824,7 +877,7 @@ export const OutboundInspections: React.FC = () => {
       await issueHandoverTask({
         category: 'OUTBOUND_SHIPMENT_START',
         title: `[장비 상차 출발] ${selectedGroup.customerName} (${selectedGroup.items.length}대 PDI 완료)`,
-        content: `출고 PDI 검수 완료 승인 (자산 대여중 전환). 차량 상차 및 현장 배송을 시작하세요. (현장: ${selectedGroup.siteName || '-'})`,
+        content: `출고 PDI 검수 완료 승인 (자산 운송대기 전환). 차량 상차 및 현장 배송을 시작하세요. (현장: ${selectedGroup.siteName || '-'})`,
         targetDept: 'DISPATCH',
         targetRole: 'LOGISTICS',
         priority: 'HIGH',
@@ -837,7 +890,7 @@ export const OutboundInspections: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`[${selectedGroup.customerName}] 출고 검수가 최종 승인 마감되었습니다. (자산상태 RENTED 전환)`);
+      showToast(`[${selectedGroup.customerName}] 출고 검수가 최종 승인 마감되었습니다. (자산상태: 운송대기)`);
       setSelectedGroupId(null);
     } catch (err: any) {
       showErrorModal(`출고 승인 마감 실패: ${err?.message || err}`);
@@ -847,12 +900,12 @@ export const OutboundInspections: React.FC = () => {
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 4-B. 출고 승인 취소 롤백 (COMPLETED ➔ IN_PROGRESS & 자산 RENTED ➔ RESERVED)
+  // 4-B. 출고 승인 취소 롤백 (COMPLETED ➔ IN_PROGRESS & 자산 AWAITING_TRANSPORT ➔ OUTBOUND_INSPECTION)
   // ──────────────────────────────────────────────────────────────────────────
   const handleConfirmRollback = async () => {
     if (!selectedGroup || !canEdit || selectedGroup.status !== 'COMPLETED') return;
     if (!rollbackReason.trim()) {
-      showErrorModal('출고 승인 취소(롤백) 사유를 입력해 주세요.');
+      showErrorModal('출고 승인 취소 사유를 입력해 주세요.');
       return;
     }
 
@@ -862,25 +915,25 @@ export const OutboundInspections: React.FC = () => {
       const userName = currentUser?.name || '담당엔지니어';
       const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
 
-      // 1. 검수 레코드 원복 (COMPLETED ➔ PENDING 검수대기)
+      // 1. 검수 레코드 원복 (COMPLETED ➔ IN_PROGRESS 검수 진행중)
       selectedGroup.items.forEach(item => {
         db.updateRow<OutboundInspection>('outboundInspections', item.id, {
-          status: 'PENDING',
+          status: 'IN_PROGRESS',
           approvedAt: undefined,
           note: item.note ? `${item.note}\n[출고승인 취소 롤백] 사유: ${rollbackReason.trim()} (작업자: ${userName})` : `[출고승인 취소 롤백] 사유: ${rollbackReason.trim()}`,
           updatedAt: nowIso
         });
 
-        // 2. 자산 상태 롤백 (RENTED ➔ RESERVED 출고대기)
+        // 2. 자산 상태 롤백 (AWAITING_TRANSPORT / RENTED ➔ OUTBOUND_INSPECTION 출고검수)
         if (item.assetId) {
           db.updateRow<Asset>('assets', item.assetId, {
-            status: 'ASSIGNED',
+            status: 'OUTBOUND_INSPECTION',
             updatedAt: nowIso
           });
 
           if (item.contractAssetId) {
             db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
-              status: 'ASSIGNED',
+              status: 'OUTBOUND_INSPECTION',
               updatedAt: nowIso
             });
           }
@@ -903,7 +956,7 @@ export const OutboundInspections: React.FC = () => {
               contractId: contract.id,
               changeType: 'REGISTER',
               changeDate: nowIso.split('T')[0],
-              description: `[출고승인 취소 롤백] 자산(${targetAsset?.assetNo || item.assetId}) 출고 승인이 취소되고 검수 진행중(장비 할당)으로 롤백되었습니다. 사유: ${rollbackReason.trim()}`,
+              description: `[출고승인 취소 롤백] 자산(${targetAsset?.assetNo || item.assetId}) 출고 승인이 취소되고 출고검수 상태로 롤백되었습니다. 사유: ${rollbackReason.trim()}`,
               createdAt: nowIso
             });
           }
@@ -934,13 +987,13 @@ export const OutboundInspections: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`[${selectedGroup.customerName}] 건의 출고 승인이 취소되어 검수대기 상태로 롤백되었습니다. 장비 할당 취소 및 재검수가 가능합니다.`);
+      showToast(`[${selectedGroup.customerName}] 건의 출고 승인이 취소되어 출고검수 상태로 롤백되었습니다.`);
       setShowRollbackModal(false);
       setRollbackReason('');
-      setActiveTabStatus('PENDING');
+      setActiveTabStatus('IN_PROGRESS');
       handleSelectGroup({
         ...selectedGroup,
-        status: 'PENDING'
+        status: 'IN_PROGRESS'
       });
     } catch (err: any) {
       showErrorModal(`출고 승인 취소 롤백 실패: ${err?.message || err}`);
@@ -1729,6 +1782,26 @@ export const OutboundInspections: React.FC = () => {
                         </button>
                       </div>
                     )}
+                    {group.status === 'IN_PROGRESS' && canEdit && (
+                      <div style={{ marginTop: '10px', textAlign: 'right' }}>
+                        <button
+                          data-mid='btn-cancel-accept-job' onClick={(e) => { e.stopPropagation(); handleCancelAcceptGroup(group); }}
+                          disabled={isProcessing}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(239,68,68,0.1)',
+                            color: 'var(--danger)',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ↩️ 접수 취소
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -1767,10 +1840,10 @@ export const OutboundInspections: React.FC = () => {
                     flexWrap: 'wrap', gap: '8px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803d', fontSize: '13px', fontWeight: 700 }}>
-                      <CheckCircle size={16} /> 출고 승인 마감 완료 (자산 대여중 전환됨)
+                      <CheckCircle size={16} /> 출고 승인 마감 완료 (자산 운송대기 전환됨)
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                      장비 변경이나 재검수가 필요한 경우 하단의 [출고 승인 취소 (검수 롤백)]를 진행하세요.
+                      장비 변경이나 재검수가 필요한 경우 하단의 [출고 승인 취소]를 진행하세요.
                     </div>
                   </div>
                 )}
@@ -2058,6 +2131,28 @@ export const OutboundInspections: React.FC = () => {
                             : `[🟢 최종 출고 승인 마감] (할당 완료)`}
                         </button>
 
+                        {selectedGroup.status === 'IN_PROGRESS' && (
+                          <button
+                            onClick={() => handleCancelAcceptGroup(selectedGroup)}
+                            disabled={isProcessing}
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: '8px',
+                              backgroundColor: 'rgba(245,158,11,0.1)',
+                              color: 'var(--warning)',
+                              border: '1px solid rgba(245,158,11,0.35)',
+                              fontWeight: 800,
+                              fontSize: '13.5px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <RotateCcw size={16} /> 접수 취소
+                          </button>
+                        )}
                         <button
                           onClick={() => setShowRejectModal(true)}
                           disabled={isProcessing}
@@ -2075,7 +2170,7 @@ export const OutboundInspections: React.FC = () => {
                             gap: '6px'
                           }}
                         >
-                          <XCircle size={16} /> 🚫 요청 반려 (수리정비중 전환)
+                          <XCircle size={16} /> 🚫 요청 반려
                         </button>
                       </div>
                     </div>
@@ -2170,8 +2265,8 @@ export const OutboundInspections: React.FC = () => {
 
             <div style={{ padding: '12px 14px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '12px', color: 'var(--danger)', marginBottom: '16px', lineHeight: '1.5' }}>
               ⚠️ <strong>롤백 시 동작:</strong><br />
-              • 자산 상태가 <strong>대여중</strong>에서 <strong>출고배정</strong>로 안전하게 원복됩니다.<br />
-              • 검수 항목 재확인 및 <strong>[🔁 장비 교체]</strong>를 다시 진행할 수 있습니다.
+              • 자산 상태가 <strong>운송대기</strong>에서 <strong>출고검수</strong>로 원복됩니다.<br />
+              • 검수 항목 재확인 및 <strong>[🔁 장비 교체]</strong> 또는 <strong>[접수 취소]</strong>를 진행할 수 있습니다.
             </div>
 
             <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '6px', display: 'block', color: 'var(--text-primary)' }}>

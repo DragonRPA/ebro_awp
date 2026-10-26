@@ -1187,7 +1187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
         if (!stillActiveCa) {
           const targetAsset = db.assets.find(a => a.id === assetId);
-          if (targetAsset && (targetAsset.status === 'RENTED' || targetAsset.status === 'ASSIGNED')) {
+          if (targetAsset && (targetAsset.status === 'RENTED' || targetAsset.status === 'ASSIGNED' || targetAsset.status === 'OUTBOUND_INSPECTION' || targetAsset.status === 'AWAITING_TRANSPORT')) {
             db.updateRow<Asset>('assets', targetAsset.id, {
               status: 'AVAILABLE',
               currentCustomerId: null as any,
@@ -1282,8 +1282,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               !caObj.firstStartDate ||
               caObj.firstStartDate === caObj.startDate ||
               caObj.firstStartDate === loadStr;
-            if (caObj.startDate !== effUnload || (shouldSyncFirstStart && caObj.firstStartDate !== effUnload)) {
+            if (caObj.startDate !== effUnload || caObj.status === 'AWAITING_TRANSPORT' || (shouldSyncFirstStart && caObj.firstStartDate !== effUnload)) {
               db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+                status: 'RENTED',
                 startDate: effUnload,
                 ...(shouldSyncFirstStart ? { firstStartDate: effUnload } : {})
               });
@@ -1291,8 +1292,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             if (caObj.assetId) {
               const assetObj = db.assets.find(a => a.id === caObj.assetId);
-              if (assetObj && assetObj.status === 'RENTED' && assetObj.currentCustomerId && assetObj.contractStart !== effUnload) {
+              if (assetObj && (assetObj.status === 'RENTED' || assetObj.status === 'AWAITING_TRANSPORT') && assetObj.currentCustomerId && (assetObj.contractStart !== effUnload || assetObj.status !== 'RENTED')) {
                 db.updateRow<Asset>('assets', assetObj.id, {
+                  status: 'RENTED',
                   contractStart: effUnload
                 });
                 autoDeliverySyncTriggered = true;
@@ -4254,10 +4256,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ca => deliveryCaIds.includes(ca.id) && (!targetDelivery.contractId || ca.contractId === targetDelivery.contractId)
     );
     const hasRentedAsset = targetCas.some(ca => {
-      // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 대여중인 경우만 검수 완료로 간주
+      // 장비가 실제로 할당된 슬롯(ca.assetId 존재)이고 해당 자산이 실제 운송대기/대여중인 경우만 검수 완료로 간주
       if (!ca.assetId) return false;
       const a = db.assets.find(as => as.id === ca.assetId);
-      if (a?.status === 'RENTED') return true;
+      if (a?.status === 'RENTED' || a?.status === 'AWAITING_TRANSPORT') return true;
       return false;
     });
 
@@ -9621,12 +9623,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const origAssetId = origCa.assetId;
     const origAsset = db.assets.find(a => a.id === origAssetId);
 
-    // 🔴 [절차적 무결성 가드]: 이미 출고검수가 완료(COMPLETED)되었거나 대여중(RENTED)인 장비는 할당 취소 차단
+    // 🔴 [절차적 무결성 가드]: 이미 출고검수가 완료(COMPLETED)되었거나 운송대기(AWAITING_TRANSPORT)/대여중(RENTED)인 장비는 할당 취소 차단
     const completedInsp = db.outboundInspections.find(
       i => (i.contractAssetId === contractAssetId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status === 'COMPLETED'
     );
-    if (completedInsp || origCa.status === 'RENTED' || origAsset?.status === 'RENTED') {
-      const msg = '이미 출고검수가 완료되어 대여중으로 전환된 장비는 할당을 취소할 수 없습니다.\n장비를 변경하려면 먼저 [출고 검수] 메뉴에서 [출고 승인 취소 (검수 롤백)]을 수행해 주십시오.';
+    if (completedInsp || origCa.status === 'RENTED' || origCa.status === 'AWAITING_TRANSPORT' || origAsset?.status === 'RENTED' || origAsset?.status === 'AWAITING_TRANSPORT') {
+      const msg = '이미 출고검수가 완료되어 운송대기 또는 대여중으로 전환된 장비는 할당을 취소할 수 없습니다.\n장비를 변경하려면 먼저 [출고 검수] 메뉴에서 [출고 승인 취소]를 수행해 주십시오.';
       showErrorModal(msg, '장비 할당 취소 불가 (출고검수 완료 상태)');
       throw new Error(msg);
     }
@@ -9711,8 +9713,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           const completedInsp = db.outboundInspections.find(
             i => (i.contractAssetId === caId || (i.contractId === origCa.contractId && i.assetId === origCa.assetId)) && i.status === 'COMPLETED'
           );
-          if (completedInsp || origCa.status === 'RENTED' || origAsset?.status === 'RENTED') {
-            const msg = `장비(${origAsset?.assetNo || origCa.expectedModel})는 이미 출고검수가 완료되어 대여중 상태이므로 할당을 취소할 수 없습니다.\n[출고 검수]에서 검수 롤백을 먼저 수행해 주십시오.`;
+          if (completedInsp || origCa.status === 'RENTED' || origCa.status === 'AWAITING_TRANSPORT' || origAsset?.status === 'RENTED' || origAsset?.status === 'AWAITING_TRANSPORT') {
+            const msg = `장비(${origAsset?.assetNo || origCa.expectedModel})는 이미 출고검수가 완료되어 운송대기 또는 대여중 상태이므로 할당을 취소할 수 없습니다.\n[출고 검수]에서 검수 롤백을 먼저 수행해 주십시오.`;
             showErrorModal(msg, '일괄 할당 취소 불가 (출고검수 완료 포함)');
             throw new Error(msg);
           }
@@ -9894,9 +9896,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      // 2. 대체 장비: 배차지정으로 전환 및 계약 정보 매핑
+      // 2. 대체 장비: 현재 검수 단계(IN_PROGRESS면 출고검수, 아니면 출고대기) 상태 상속 및 계약 정보 매핑
+      const inheritedReplacementStatus = inspOrig?.status === 'IN_PROGRESS' ? 'OUTBOUND_INSPECTION' : 'ASSIGNED';
       db.updateRow<Asset>('assets', newAssetId, {
-        status: 'ASSIGNED',
+        status: inheritedReplacementStatus,
         currentCustomerId: oldAssetOrig.currentCustomerId,
         currentSiteId: oldAssetOrig.currentSiteId,
         contractStart: oldAssetOrig.contractStart,
@@ -9907,7 +9910,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       // 3. 계약 슬롯 assetId 교체
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: newAssetId,
-        expectedModel: newAssetOrig.modelName
+        expectedModel: newAssetOrig.modelName,
+        status: inheritedReplacementStatus
       });
 
       // 4. 출고 검수 의뢰건 assetId 교체 (없으면 신규 생성하여 검수 누락 방지)
@@ -12634,7 +12638,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         );
       }
 
-      // 3. 출고 검수 승인 완료(COMPLETED & 자산 RENTED 전환) 검증
+      // 3. 출고 검수 승인 완료(COMPLETED & 자산 AWAITING_TRANSPORT/RENTED 전환) 검증
       const uninspectedAssets: string[] = [];
       for (const ca of targetCas) {
         const asset = db.assets.find(a => a.id === ca.assetId);
@@ -12646,10 +12650,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         );
         const isInspCompleted = matchedInsps.length > 0
           ? matchedInsps.some(ins => ins.status === 'COMPLETED' || (ins.status as string) === 'APPROVED')
-          : (asset?.status === 'RENTED' && ca.status === 'RENTED');
-        const isAssetRented = asset?.status === 'RENTED';
+          : ((asset?.status === 'AWAITING_TRANSPORT' || asset?.status === 'RENTED') && (ca.status === 'AWAITING_TRANSPORT' || ca.status === 'RENTED'));
+        const isAssetReady = asset?.status === 'AWAITING_TRANSPORT' || asset?.status === 'RENTED';
 
-        if (!isInspCompleted || !isAssetRented) {
+        if (!isInspCompleted || !isAssetReady) {
           const label = asset ? `${asset.modelName}(${asset.assetNo})` : (ca.expectedModel || ca.id);
           uninspectedAssets.push(label);
         }
@@ -12718,12 +12722,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           caObj.firstStartDate === caObj.startDate ||
           caObj.firstStartDate === loadDateStr;
         db.updateRow<ContractAsset>('contractAssets', caObj.id, {
+          status: 'RENTED',
           startDate: effectiveUnloadingDate,
           ...(shouldSyncFirstStart ? { firstStartDate: effectiveUnloadingDate } : {})
         });
         if (caObj.assetId) {
           db.updateRow<Asset>('assets', caObj.assetId, {
-            contractStart: effectiveUnloadingDate
+            status: 'RENTED',
+            contractStart: effectiveUnloadingDate,
+            updatedAt: nowIso
           });
         }
       });

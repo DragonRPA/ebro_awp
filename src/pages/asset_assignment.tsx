@@ -117,7 +117,9 @@ export const AssetAssignment: React.FC = () => {
         const assignedAsset = assetMap.get(ca.assetId);
         const isAlreadyRented =
           ca.status === 'RENTED' ||
+          ca.status === 'AWAITING_TRANSPORT' ||
           assignedAsset?.status === 'RENTED' ||
+          assignedAsset?.status === 'AWAITING_TRANSPORT' ||
           completedInspectionCaIdSet.has(ca.id);
         if (isAlreadyRented) return;
       }

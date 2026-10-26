@@ -477,39 +477,43 @@ export function matchRecognizedAssetFromPool<T extends { id: string; assetNo?: s
 
     let bestScore = 0;
 
-    for (const rawTok of primaryTokens) {
+    for (let tokenIdx = 0; tokenIdx < primaryTokens.length; tokenIdx++) {
+      const rawTok = primaryTokens[tokenIdx];
       const tok = cleanToken(rawTok);
       const tokNoHyphen = tok.replace(/-/g, '');
       const tokDigits = digitsOnly(rawTok);
       if (!tok) continue;
 
-      // 1순위: 완전 일치 (100점)
+      // 중앙 조준선(0번 인덱스)에 가까운 토큰일수록 우선순위 가산점(0~0.9점) 부여
+      const centerLinePriorityBonus = Math.max(0, (10 - tokenIdx) * 0.09);
+
+      // 1순위: 완전 일치 (100점 + 중앙선 우선순위)
       if ((aNo && (aNo === tok || aNoNoHyphen === tokNoHyphen)) || (sNo && (sNo === tok || sNoNoHyphen === tokNoHyphen))) {
-        bestScore = Math.max(bestScore, 100);
+        bestScore = Math.max(bestScore, 100 + centerLinePriorityBonus);
         continue;
       }
 
       // 2순위: 접미사 일치 (예: K-3219-05 vs 3219-05 또는 19-05) (88점)
       if (tokNoHyphen.length >= 3 && aNoNoHyphen.endsWith(tokNoHyphen)) {
-        bestScore = Math.max(bestScore, 88);
+        bestScore = Math.max(bestScore, 88 + centerLinePriorityBonus);
         continue;
       }
 
       // 3순위: 숫자열 완전 일치 (예: 321905 vs SJ-3219-05) (82점)
       if (tokDigits.length >= 3 && aDigits && aDigits === tokDigits) {
-        bestScore = Math.max(bestScore, 82);
+        bestScore = Math.max(bestScore, 82 + centerLinePriorityBonus);
         continue;
       }
 
       // 4순위: 숫자열 접미사 일치 (예: 끝 2~4자리 번호가 고유하게 일치) (70점)
       if (tokDigits.length >= 2 && aDigits && aDigits.endsWith(tokDigits)) {
-        bestScore = Math.max(bestScore, 70);
+        bestScore = Math.max(bestScore, 70 + centerLinePriorityBonus);
         continue;
       }
 
       // 5순위: 부분 포함 (60점)
       if (tokNoHyphen.length >= 3 && (aNoNoHyphen.includes(tokNoHyphen) || (sNoNoHyphen && sNoNoHyphen.includes(tokNoHyphen)))) {
-        bestScore = Math.max(bestScore, 60);
+        bestScore = Math.max(bestScore, 60 + centerLinePriorityBonus);
       }
     }
 

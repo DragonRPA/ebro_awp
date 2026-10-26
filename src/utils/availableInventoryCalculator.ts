@@ -121,7 +121,9 @@ export function calculateAvailableInventorySSOT(params: {
       if (assignedAsset && isVirtualAsset(assignedAsset)) return;
       const isAlreadyRented =
         ca.status === 'RENTED' ||
+        ca.status === 'AWAITING_TRANSPORT' ||
         assignedAsset?.status === 'RENTED' ||
+        assignedAsset?.status === 'AWAITING_TRANSPORT' ||
         completedInspectionCaIdSet.has(ca.id);
       if (isAlreadyRented) return;
     }
