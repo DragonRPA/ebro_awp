@@ -118,10 +118,8 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          // @ts-ignore - 브라우저 지원 시 연속 중앙 초점 우선 적용
-          focusMode: { ideal: 'continuous' }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         },
         audio: false
       });
@@ -252,7 +250,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
 
         const canvas = canvasRef.current;
         const targetW = Math.min(800, cropW);
-        const targetH = Math.max(80, Math.round((cropH * targetW) / cropW));
+        const targetH = Math.max(48, Math.round((cropH * targetW) / cropW));
         canvas.width = targetW;
         canvas.height = targetH;
 
