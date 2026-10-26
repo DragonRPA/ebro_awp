@@ -26,9 +26,11 @@ interface MobileInlineCameraAssetScannerProps {
   onSequentialFill: (asset: Asset, targetCaId: string, recognizedText: string) => void;
 }
 
+type DistanceZoomPreset = 1 | 1.5 | 2;
+
 /**
- * 로컬 Tesseract OCR 전용 오프스크린 캔버스 대비 보정
- * 원본 캔버스를 훼손하지 않고 별도 캔버스에서만 수행하며, 중앙 녹색선 영역 기준으로 명암비를 보정한다.
+ * 1~2m 거리의 AWP 차체 도색(스텐실) 관리번호 판독을 위한 오프스크린 대비·선명도 보정
+ * 원본 캔버스는 보존하고, 중앙 조준 영역의 휘도 분포를 기준으로 도색 글자와 철판 배경 간 대비를 극대화한다.
  */
 function createPreprocessedCanvasForLocalOcr(sourceCanvas: HTMLCanvasElement): HTMLCanvasElement {
   const width = sourceCanvas.width;
@@ -43,7 +45,7 @@ function createPreprocessedCanvasForLocalOcr(sourceCanvas: HTMLCanvasElement): H
   const imgData = ctx.getImageData(0, 0, width, height);
   const data = imgData.data;
 
-  // 중앙 60% 영역의 휘도 분포를 기준으로 min/max 산출 (좌우 외곽 배경 노이즈 배제)
+  // 중앙 60% 핵심 영역의 휘도 분포를 기준으로 min/max 산출 (주기장 좌우 인접 장비·배경 노이즈 배제)
   const xStart = Math.floor(width * 0.2);
   const xEnd = Math.ceil(width * 0.8);
   const yStart = Math.floor(height * 0.15);
@@ -59,12 +61,13 @@ function createPreprocessedCanvasForLocalOcr(sourceCanvas: HTMLCanvasElement): H
       if (lum > maxLum) maxLum = lum;
     }
   }
-  const range = Math.max(20, maxLum - minLum);
+  const range = Math.max(18, maxLum - minLum);
 
+  // 1~2m 거리의 도색 페인트 번호(백색/흑색 스텐실)가 유색 철판 위에서도 선명히 분리되도록 대비 강화
   for (let i = 0; i < data.length; i += 4) {
     const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     const norm = Math.max(0, Math.min(255, ((lum - minLum) / range) * 255));
-    const contrasted = Math.max(0, Math.min(255, (norm - 128) * 1.35 + 128));
+    const contrasted = Math.max(0, Math.min(255, (norm - 128) * 1.5 + 128));
     data[i] = contrasted;
     data[i + 1] = contrasted;
     data[i + 2] = contrasted;
@@ -131,6 +134,9 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
   const [cameraError, setCameraError] = useState<boolean>(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  // 1~2m 거리의 AWP 도색 관리번호 촬영에 가장 적합한 기본 1.5배 중거리 화각 적용
+  const [zoomPreset, setZoomPreset] = useState<DistanceZoomPreset>(1.5);
+  const [cssZoomScale, setCssZoomScale] = useState<number>(1.5);
   const [isVisionScanning, setIsVisionScanning] = useState(false);
   const [lastDetectedHint, setLastDetectedHint] = useState<string>('');
 
@@ -240,37 +246,74 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     setTorchSupported(false);
   }, []);
 
-  const applyCenterFocusConstraint = useCallback(async (track?: MediaStreamTrack | null) => {
-    const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
-    if (!targetTrack || typeof targetTrack.applyConstraints !== 'function') return;
-    try {
-      const caps =
-        typeof targetTrack.getCapabilities === 'function'
-          ? (targetTrack.getCapabilities() as any)
-          : {};
-      const advancedConstraint: Record<string, any> = {};
-
-      if (Array.isArray(caps?.focusMode)) {
-        if (caps.focusMode.includes('continuous')) {
-          advancedConstraint.focusMode = 'continuous';
-        } else if (caps.focusMode.includes('single-shot')) {
-          advancedConstraint.focusMode = 'single-shot';
-        }
-      }
-      // 중앙 수평 조준선(0.5, 0.5)에 광학 초점 고정
-      if (caps?.pointsOfInterest !== undefined) {
-        advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+  /**
+   * 1~2m 중거리 피사체(AWP 차체 도색 번호) 촬영 최적화 제약 적용:
+   * - 중앙점(0.5, 0.5) 자동초점(AF) 및 자동노출(AE) 측광 고정 (야외 역광 및 창고 암부 보정)
+   * - 하드웨어 줌 지원 기기는 광학/하드웨어 배율 적용, 미지원 기기는 고해상도 센서 중앙 크롭 배율 적용
+   */
+  const applyDistanceCameraConstraints = useCallback(
+    async (targetZoom: DistanceZoomPreset, track?: MediaStreamTrack | null) => {
+      const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
+      if (!targetTrack || typeof targetTrack.applyConstraints !== 'function') {
+        setCssZoomScale(targetZoom);
+        return;
       }
 
-      if (Object.keys(advancedConstraint).length > 0) {
-        await targetTrack.applyConstraints({ advanced: [advancedConstraint as any] });
-      }
-    } catch {
+      let appliedHwZoom = 1;
       try {
-        await targetTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
-      } catch {}
-    }
-  }, []);
+        const caps =
+          typeof targetTrack.getCapabilities === 'function'
+            ? (targetTrack.getCapabilities() as any)
+            : {};
+        const advancedConstraint: Record<string, any> = {};
+
+        // 1. 연속 자동초점 (1~2m 이동 중 즉시 초점 추적)
+        if (Array.isArray(caps?.focusMode)) {
+          if (caps.focusMode.includes('continuous')) {
+            advancedConstraint.focusMode = 'continuous';
+          } else if (caps.focusMode.includes('single-shot')) {
+            advancedConstraint.focusMode = 'single-shot';
+          }
+        }
+
+        // 2. 야외 주기장 햇빛 반사 및 실내 창고 조도 대응 연속 자동노출·화이트밸런스
+        if (Array.isArray(caps?.exposureMode) && caps.exposureMode.includes('continuous')) {
+          advancedConstraint.exposureMode = 'continuous';
+        }
+        if (Array.isArray(caps?.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) {
+          advancedConstraint.whiteBalanceMode = 'continuous';
+        }
+
+        // 3. 중앙 녹색 횡선(0.5, 0.5)에 초점 및 노출 측광점 고정
+        if (caps?.pointsOfInterest !== undefined) {
+          advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+        }
+
+        // 4. 1~2m 거리 피사체 확대용 하드웨어 줌 적용
+        if (caps?.zoom && typeof caps.zoom === 'object') {
+          const minZ = typeof caps.zoom.min === 'number' ? caps.zoom.min : 1;
+          const maxZ = typeof caps.zoom.max === 'number' ? caps.zoom.max : 1;
+          if (maxZ > 1) {
+            appliedHwZoom = Math.min(maxZ, Math.max(minZ, targetZoom));
+            advancedConstraint.zoom = appliedHwZoom;
+          }
+        }
+
+        if (Object.keys(advancedConstraint).length > 0) {
+          await targetTrack.applyConstraints({ advanced: [advancedConstraint as any] });
+        }
+      } catch {
+        appliedHwZoom = 1;
+        try {
+          await targetTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+        } catch {}
+      }
+
+      const remainingCssScale = Math.max(1, Number((targetZoom / appliedHwZoom).toFixed(2)));
+      setCssZoomScale(remainingCssScale);
+    },
+    []
+  );
 
   const startCamera = useCallback(async () => {
     setCameraError(false);
@@ -283,23 +326,33 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     }
 
     try {
-      // 아이폰(iOS Safari) 및 아이패드(iPadOS) 호환성 보장:
-      // 1~2m 거리의 AWP 도색 번호를 선명하게 캡처하도록 FHD(1920x1080) 후면 카메라를 우선 요청하고, 제약 오류 시 즉시 폴백
+      // 1~2m 거리의 도색 번호 원거리 선명도 확보를 위해 QHD/FHD(2560x1440 -> 1920x1080) 고해상도 스트림 우선 요청
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 2560 },
+            height: { ideal: 1440 }
           },
           audio: false
         });
       } catch {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' },
+            audio: false
+          });
+        }
       }
 
       streamRef.current = stream;
@@ -334,12 +387,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
             }
           } catch {}
         }
-        await applyCenterFocusConstraint(track);
+        await applyDistanceCameraConstraints(zoomPreset, track);
       }
     } catch {
       setCameraError(true);
     }
-  }, [stopCamera, applyCenterFocusConstraint]);
+  }, [stopCamera, applyDistanceCameraConstraints, zoomPreset]);
 
   useEffect(() => {
     if (isOpen && unfilledSlots.length > 0) {
@@ -380,6 +433,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       await track.applyConstraints({ advanced: [{ torch: next } as any] });
       setTorchOn(next);
     } catch {}
+  };
+
+  const cycleDistanceZoom = async () => {
+    const nextZoom: DistanceZoomPreset = zoomPreset === 1.5 ? 2 : zoomPreset === 2 ? 1 : 1.5;
+    setZoomPreset(nextZoom);
+    await applyDistanceCameraConstraints(nextZoom);
   };
 
   const processRecognizedResult = useCallback(
@@ -431,8 +490,8 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   /**
    * 1~2m 거리에서 촬영되는 AWP 도색 관리번호를 위해
-   * 130pt 카메라 뷰포트의 중앙 녹색 횡선(top: 50%) 주변 슬릿 영역을
-   * 아이폰(세로 1080x1920) 및 아이패드(광폭 화면) 모두에서 종횡비 왜곡 없이 고해상도로 크롭
+   * 130pt 카메라 뷰포트의 중앙 녹색 횡선(top: 50%) 주변 영역을
+   * 주기장 좌우 인접 장비가 섞이지 않도록 중앙 집중 크롭 및 원본 해상도(최대 1024px)로 추출
    */
   const cropCenterGreenLineToCanvas = useCallback((): {
     canvas: HTMLCanvasElement;
@@ -449,22 +508,22 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     if (!vw || !vh) return null;
 
     const rect = video.getBoundingClientRect();
-    const cw = rect.width || video.clientWidth || 360;
-    const ch = rect.height || video.clientHeight || 130;
+    const baseCw = (rect.width ? rect.width / cssZoomScale : video.clientWidth) || 360;
+    const baseCh = (rect.height ? rect.height / cssZoomScale : video.clientHeight) || 130;
 
-    // object-fit: cover 스케일 역산 (비디오 중심과 화면 중심 녹색 횡선은 항상 일치)
-    const coverScale = Math.max(cw / vw, ch / vh);
+    // object-fit: cover 스케일 + 중거리 줌 배율(cssZoomScale) 역산
+    const effectiveScale = Math.max(baseCw / vw, baseCh / vh) * cssZoomScale;
 
-    // 아이패드 광폭 화면(750px+)에서는 중앙 520px 이내, 아이폰(360~390px)에서는 녹색선 전체(88%)를 크롭
-    const guideCssW = Math.min(cw * 0.88, 520);
-    const guideCssH = Math.min(ch * 0.65, 86);
+    // 1~2m 거리에서 주기장 좌우에 나란히 주차된 타 장비 번호가 들어오지 않도록 중앙 76%(최대 460px) 집중 크롭
+    const guideCssW = Math.min(baseCw * 0.76, 460);
+    const guideCssH = Math.min(baseCh * 0.62, 82);
 
-    const cropW = Math.max(160, Math.min(vw, Math.round(guideCssW / coverScale)));
-    const cropH = Math.max(56, Math.min(vh, Math.round(guideCssH / coverScale)));
+    const cropW = Math.max(160, Math.min(vw, Math.round(guideCssW / effectiveScale)));
+    const cropH = Math.max(56, Math.min(vh, Math.round(guideCssH / effectiveScale)));
     const cropX = Math.max(0, Math.round((vw - cropW) / 2));
     const cropY = Math.max(0, Math.round((vh - cropH) / 2));
 
-    // 1~2m 거리의 도색 번호 해상도 보존을 위해 최대 1024px 원본 화질 및 100% 원본 종횡비 유지
+    // 1~2m 원거리 도색 글자의 픽셀 디테일 보존을 위해 최대 1024px 유지 + 100% 원본 종횡비 보존
     const targetW = Math.min(1024, cropW);
     const targetH = Math.max(48, Math.round((cropH / cropW) * targetW));
 
@@ -475,13 +534,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     if (!ctx) return null;
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
 
-    // 아이폰/아이패드 카메라 초기 구동 직후 검은색 프레임이면 스킵
     if (isBlankOrDarkFrame(ctx, targetW, targetH)) {
       return null;
     }
 
     return { canvas, ctx, targetW, targetH };
-  }, []);
+  }, [cssZoomScale]);
 
   /**
    * 아이폰/아이패드(iOS/iPadOS Safari) 등 브라우저 내장 TextDetector 미지원 환경을 위한
@@ -599,7 +657,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           } catch {}
         }
 
-        // 3. 로컬 Tesseract OCR (원본 캔버스를 보존한 채 오프스크린 캔버스에서 대비 보정 후 판독)
+        // 3. 로컬 Tesseract OCR (원본 캔버스를 보존한 채 오프스크린 캔버스에서 도색 대비 보정 후 판독)
         const worker = await ensureLocalOcrWorker();
         if (worker) {
           const ocrCanvas = createPreprocessedCanvasForLocalOcr(canvas);
@@ -696,7 +754,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       className="relative w-full rounded-lg overflow-hidden border border-emerald-500/80 bg-black select-none"
       style={{ height: '130px', minHeight: '130px', maxHeight: '130px' }}
       onClick={() => {
-        applyCenterFocusConstraint();
+        applyDistanceCameraConstraints(zoomPreset);
         captureAndAnalyzeLocalFrame(true);
       }}
     >
@@ -710,7 +768,10 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           height: '130px',
           objectFit: 'cover',
           objectPosition: 'center center',
-          display: 'block'
+          display: 'block',
+          transform: cssZoomScale > 1 ? `scale(${cssZoomScale})` : undefined,
+          transformOrigin: 'center center',
+          transition: 'transform 150ms ease-out'
         }}
       />
       <canvas ref={canvasRef} className="hidden" />
@@ -736,8 +797,8 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       <div
         style={{
           position: 'absolute',
-          left: '6%',
-          right: '6%',
+          left: '12%',
+          right: '12%',
           top: '50%',
           transform: 'translateY(-50%)',
           height: '2px',
@@ -771,12 +832,20 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         </div>
       )}
 
-      {/* 우상단 최소 제어 버튼 */}
+      {/* 우상단 1~2m 중거리 배율(기본 1.5배) 및 제어 버튼 */}
       <div
         className="flex items-center gap-1"
         style={{ position: 'absolute', top: '5px', right: '6px', zIndex: 10 }}
         onClick={e => e.stopPropagation()}
       >
+        <button
+          type="button"
+          onClick={cycleDistanceZoom}
+          className="px-1.5 py-1 rounded bg-slate-900/80 text-emerald-300 border border-slate-700 text-[11px] font-black whitespace-nowrap"
+          aria-label="거리 배율 전환"
+        >
+          {zoomPreset}배
+        </button>
         {torchSupported && (
           <button
             type="button"
