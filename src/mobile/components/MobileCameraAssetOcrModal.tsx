@@ -58,6 +58,9 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<1 | 2>(1);
+  const [cssZoomScale, setCssZoomScale] = useState<number>(1);
+  const hardwareZoomAppliedRef = useRef<number>(1);
 
   const [lastRecognizedText, setLastRecognizedText] = useState<string>('');
   const [matchedCandidates, setMatchedCandidates] = useState<ScannableAssetItem[]>([]);
@@ -75,34 +78,62 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       });
       streamRef.current = null;
     }
+    hardwareZoomAppliedRef.current = 1;
     setCameraReady(false);
     setTorchOn(false);
     setTorchSupported(false);
   }, []);
 
-  const applyCenterFocusConstraint = useCallback(async (track?: MediaStreamTrack | null) => {
-    const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
-    if (!targetTrack || typeof (targetTrack as any).applyConstraints !== 'function') return;
-    try {
-      const caps = typeof (targetTrack as any).getCapabilities === 'function' ? (targetTrack as any).getCapabilities() : {};
-      const advancedConstraint: Record<string, any> = {};
-      if (Array.isArray(caps?.focusMode)) {
-        if (caps.focusMode.includes('continuous')) {
-          advancedConstraint.focusMode = 'continuous';
-        } else if (caps.focusMode.includes('single-shot')) {
-          advancedConstraint.focusMode = 'single-shot';
-        }
-      } else {
-        advancedConstraint.focusMode = 'continuous';
+  const applyCenterFocusConstraint = useCallback(
+    async (targetZoom: 1 | 2 = zoomLevel, track?: MediaStreamTrack | null) => {
+      const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
+      if (!targetTrack || typeof (targetTrack as any).applyConstraints !== 'function') {
+        hardwareZoomAppliedRef.current = 1;
+        setCssZoomScale(targetZoom);
+        return;
       }
-      advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
-      await (targetTrack as any).applyConstraints({ advanced: [advancedConstraint] });
-    } catch {
+
+      let hwZoom = 1;
       try {
-        await (targetTrack as any).applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-      } catch {}
-    }
-  }, []);
+        const caps =
+          typeof (targetTrack as any).getCapabilities === 'function'
+            ? (targetTrack as any).getCapabilities()
+            : {};
+        const advancedConstraint: Record<string, any> = {};
+        if (Array.isArray(caps?.focusMode)) {
+          if (caps.focusMode.includes('continuous')) {
+            advancedConstraint.focusMode = 'continuous';
+          } else if (caps.focusMode.includes('single-shot')) {
+            advancedConstraint.focusMode = 'single-shot';
+          }
+        }
+        if (caps?.pointsOfInterest !== undefined) {
+          advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+        }
+        if (caps?.zoom && typeof caps.zoom === 'object') {
+          const minZ = typeof caps.zoom.min === 'number' ? caps.zoom.min : 1;
+          const maxZ = typeof caps.zoom.max === 'number' ? caps.zoom.max : 1;
+          if (maxZ > 1) {
+            hwZoom = Math.min(maxZ, Math.max(minZ, targetZoom));
+            advancedConstraint.zoom = hwZoom;
+          }
+        }
+        if (Object.keys(advancedConstraint).length > 0) {
+          await (targetTrack as any).applyConstraints({ advanced: [advancedConstraint] });
+        }
+      } catch {
+        hwZoom = 1;
+        try {
+          await (targetTrack as any).applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        } catch {}
+      }
+
+      hardwareZoomAppliedRef.current = hwZoom;
+      const remainingCssScale = Math.max(1, Number((targetZoom / hwZoom).toFixed(2)));
+      setCssZoomScale(remainingCssScale);
+    },
+    [zoomLevel]
+  );
 
   const startCameraStream = useCallback(async () => {
     stopCameraStream();
@@ -115,19 +146,41 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
+        });
+      }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+      const videoEl = videoRef.current;
+      if (videoEl) {
+        videoEl.muted = true;
+        videoEl.playsInline = true;
+        videoEl.setAttribute('playsinline', 'true');
+        videoEl.setAttribute('webkit-playsinline', 'true');
+        videoEl.srcObject = stream;
+        if (videoEl.readyState < 1) {
+          await new Promise<void>(resolve => {
+            const timeoutId = setTimeout(resolve, 700);
+            videoEl.onloadedmetadata = () => {
+              clearTimeout(timeoutId);
+              resolve();
+            };
+          });
+        }
+        await videoEl.play().catch(() => {});
       }
 
       const videoTrack = stream.getVideoTracks()[0];
@@ -140,7 +193,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
             }
           } catch {}
         }
-        await applyCenterFocusConstraint(videoTrack);
+        await applyCenterFocusConstraint(zoomLevel, videoTrack);
       }
 
       setCameraReady(true);
@@ -149,7 +202,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       console.warn('[MobileCameraAssetOcrModal] getUserMedia error:', err);
       setCameraError('카메라 접근 권한이 거부되었거나 사용할 수 없습니다. 브라우저 카메라 권한을 허용하거나 아래 [사진 촬영 판독]을 눌러주세요.');
     }
-  }, [stopCameraStream, applyCenterFocusConstraint]);
+  }, [stopCameraStream, applyCenterFocusConstraint, zoomLevel]);
 
   useEffect(() => {
     if (isOpen) {
@@ -176,6 +229,12 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
     } catch {
       setStatusMessage('이 기기에서는 손전등 제어를 지원하지 않습니다.');
     }
+  };
+
+  const toggleZoomLevel = async () => {
+    const nextZoom: 1 | 2 = zoomLevel === 1 ? 2 : 1;
+    setZoomLevel(nextZoom);
+    await applyCenterFocusConstraint(nextZoom);
   };
 
   const handleProcessOcrResult = useCallback(
@@ -234,17 +293,17 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       }
 
       try {
-        // 1. 화면에 표시된 중앙 가이드 박스(가로 84%/최대 420px, 세로 130px)의 object-fit: cover 1:1 대응 영역 역산
+        // 1. 화면에 표시된 중앙 가이드 박스(가로 84%/최대 420px, 세로 130px)의 object-fit: cover + 배율(cssZoomScale) 1:1 대응 영역 역산
         const vw = video.videoWidth;
         const vh = video.videoHeight;
         const cw = video.clientWidth || 360;
         const ch = video.clientHeight || 260;
-        const coverScale = Math.max(cw / vw, ch / vh);
+        const effectiveScale = Math.max(cw / vw, ch / vh) * cssZoomScale;
 
         const guideBoxCssW = Math.min(cw * 0.84, 420);
         const guideBoxCssH = 130;
-        const cropW = Math.max(160, Math.min(vw, Math.round(guideBoxCssW / coverScale)));
-        const cropH = Math.max(64, Math.min(vh, Math.round((guideBoxCssH * 0.78) / coverScale)));
+        const cropW = Math.max(160, Math.min(vw, Math.round(guideBoxCssW / effectiveScale)));
+        const cropH = Math.max(64, Math.min(vh, Math.round((guideBoxCssH * 0.78) / effectiveScale)));
         const cropX = Math.max(0, Math.round((vw - cropW) / 2));
         const cropY = Math.max(0, Math.round((vh - cropH) / 2));
 
@@ -319,7 +378,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
         setIsAnalyzing(false);
       }
     },
-    [availableAssets, selectedAssetIds, expectedModels, handleProcessOcrResult]
+    [availableAssets, selectedAssetIds, expectedModels, handleProcessOcrResult, cssZoomScale]
   );
 
   // 실시간 자동 연속 스캔 타이머 (1.8초 주기)
@@ -382,14 +441,17 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       }}
       className="text-slate-100 font-sans"
     >
-      {/* 상단 헤더 */}
-      <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2">
+      {/* 상단 헤더 (아이폰 노치/다이내믹 아일랜드 Safe Area 반영) */}
+      <div
+        className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2"
+        style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+      >
         <div className="flex items-center gap-2 min-w-0">
           <Camera className="w-5 h-5 text-cyan-400 shrink-0" />
-          <span className="text-sm font-black text-white whitespace-nowrap">
+          <span className="text-sm font-black text-white whitespace-nowrap truncate">
             카메라 관리번호 실시간 스캔
           </span>
-          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-950 text-blue-300 border border-blue-800 whitespace-nowrap">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-950 text-blue-300 border border-blue-800 whitespace-nowrap shrink-0">
             선택 {selectedAssetIds.length} / {requiredSlotCount}대
           </span>
         </div>
@@ -397,7 +459,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
         <button
           type="button"
           onClick={onClose}
-          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
+          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1 whitespace-nowrap shrink-0"
         >
           <X className="w-4 h-4" />
           <span>닫기</span>
@@ -417,7 +479,19 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={toggleZoomLevel}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-black border whitespace-nowrap transition-colors ${
+              zoomLevel === 2
+                ? 'bg-emerald-700 text-white border-emerald-500'
+                : 'bg-slate-800 text-slate-300 border-slate-700'
+            }`}
+          >
+            {zoomLevel}배 확대
+          </button>
+
           <button
             type="button"
             onClick={() => setAutoScanEnabled(prev => !prev)}
@@ -462,7 +536,7 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       <div
         className="relative flex-1 bg-black flex items-center justify-center overflow-hidden min-h-[240px]"
         onClick={() => {
-          applyCenterFocusConstraint();
+          applyCenterFocusConstraint(zoomLevel);
           captureAndAnalyzeCurrentFrame(true);
         }}
       >
@@ -472,6 +546,11 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
           muted
           autoPlay
           className="w-full h-full object-cover"
+          style={{
+            transform: cssZoomScale > 1 ? `scale(${cssZoomScale})` : undefined,
+            transformOrigin: 'center center',
+            transition: 'transform 150ms ease-out'
+          }}
         />
         <canvas ref={canvasRef} className="hidden" />
 
@@ -556,8 +635,11 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
         )}
       </div>
 
-      {/* 하단 판독 결과 및 매칭 후보 제어 영역 */}
-      <div className="bg-slate-900 border-t border-slate-800 p-4 flex flex-col gap-3 max-h-[48vh] overflow-y-auto">
+      {/* 하단 판독 결과 및 매칭 후보 제어 영역 (아이폰 홈 인디케이터 Safe Area 반영) */}
+      <div
+        className="bg-slate-900 border-t border-slate-800 p-4 flex flex-col gap-3 max-h-[48vh] overflow-y-auto"
+        style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+      >
         {/* 상태 및 최근 판독 텍스트 */}
         <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">

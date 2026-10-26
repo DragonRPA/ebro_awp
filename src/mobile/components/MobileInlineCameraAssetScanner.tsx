@@ -5,6 +5,7 @@ import { Asset } from '../../services/db';
 import {
   analyzeAssetNumberFrame,
   matchRecognizedAssetFromPool,
+  processImageFile,
   AssetNumberOcrResult
 } from '../../services/visionOcrService';
 import { isModelMatch } from '../../utils/modelUtils';
@@ -73,6 +74,28 @@ function createPreprocessedCanvasForLocalOcr(sourceCanvas: HTMLCanvasElement): H
   return offCanvas;
 }
 
+/**
+ * 아이폰/아이패드 iOS Safari 초기 카메라 구동 직후 발생하는 검은색(Black) 프레임 여부 검사
+ */
+function isBlankOrDarkFrame(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
+  try {
+    const sampleW = Math.min(64, width);
+    const sampleH = Math.min(24, height);
+    const sx = Math.max(0, Math.floor((width - sampleW) / 2));
+    const sy = Math.max(0, Math.floor((height - sampleH) / 2));
+    const data = ctx.getImageData(sx, sy, sampleW, sampleH).data;
+    let maxLum = 0;
+    for (let i = 0; i < data.length; i += 16) {
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      if (lum > maxLum) maxLum = lum;
+      if (maxLum >= 14) return false;
+    }
+    return maxLum < 14;
+  } catch {
+    return false;
+  }
+}
+
 function extractAlphanumericTokens(rawText: string): string[] {
   if (!rawText) return [];
   const cleaned = rawText
@@ -103,11 +126,14 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
   const cooldownUntilRef = useRef<number>(0);
   const tesseractWorkerRef = useRef<any>(null);
   const workerInitializingRef = useRef<boolean>(false);
+  const hardwareZoomAppliedRef = useRef<number>(1);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<boolean>(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<1 | 2>(1);
+  const [cssZoomScale, setCssZoomScale] = useState<number>(1);
   const [isVisionScanning, setIsVisionScanning] = useState(false);
   const [lastDetectedHint, setLastDetectedHint] = useState<string>('');
 
@@ -212,37 +238,68 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       });
       streamRef.current = null;
     }
+    hardwareZoomAppliedRef.current = 1;
     setCameraReady(false);
     setTorchOn(false);
     setTorchSupported(false);
   }, []);
 
-  const applyCenterFocusConstraint = useCallback(async (track?: MediaStreamTrack | null) => {
-    const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
-    if (!targetTrack || typeof targetTrack.applyConstraints !== 'function') return;
-    try {
-      const caps = typeof targetTrack.getCapabilities === 'function' ? (targetTrack.getCapabilities() as any) : {};
-      const advancedConstraint: Record<string, any> = {};
-      if (Array.isArray(caps?.focusMode)) {
-        if (caps.focusMode.includes('continuous')) {
-          advancedConstraint.focusMode = 'continuous';
-        } else if (caps.focusMode.includes('single-shot')) {
-          advancedConstraint.focusMode = 'single-shot';
-        }
+  const applyZoomAndFocusConstraint = useCallback(
+    async (targetZoom: 1 | 2, track?: MediaStreamTrack | null) => {
+      const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
+      if (!targetTrack || typeof targetTrack.applyConstraints !== 'function') {
+        hardwareZoomAppliedRef.current = 1;
+        setCssZoomScale(targetZoom);
+        return;
       }
-      // 중앙 수평 조준선(0.5, 0.5)에 광학 초점 고정
-      if (caps?.pointsOfInterest !== undefined) {
-        advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
-      }
-      if (Object.keys(advancedConstraint).length > 0) {
-        await targetTrack.applyConstraints({ advanced: [advancedConstraint as any] });
-      }
-    } catch {
+
+      let hwZoom = 1;
       try {
-        await targetTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
-      } catch {}
-    }
-  }, []);
+        const caps =
+          typeof targetTrack.getCapabilities === 'function'
+            ? (targetTrack.getCapabilities() as any)
+            : {};
+        const advancedConstraint: Record<string, any> = {};
+
+        if (Array.isArray(caps?.focusMode)) {
+          if (caps.focusMode.includes('continuous')) {
+            advancedConstraint.focusMode = 'continuous';
+          } else if (caps.focusMode.includes('single-shot')) {
+            advancedConstraint.focusMode = 'single-shot';
+          }
+        }
+        // 중앙 수평 조준선(0.5, 0.5)에 광학 초점 고정
+        if (caps?.pointsOfInterest !== undefined) {
+          advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+        }
+
+        // 아이폰/모바일 하드웨어 줌 지원 시 광학/하드웨어 배율 우선 적용
+        if (caps?.zoom && typeof caps.zoom === 'object') {
+          const minZ = typeof caps.zoom.min === 'number' ? caps.zoom.min : 1;
+          const maxZ = typeof caps.zoom.max === 'number' ? caps.zoom.max : 1;
+          if (maxZ > 1) {
+            hwZoom = Math.min(maxZ, Math.max(minZ, targetZoom));
+            advancedConstraint.zoom = hwZoom;
+          }
+        }
+
+        if (Object.keys(advancedConstraint).length > 0) {
+          await targetTrack.applyConstraints({ advanced: [advancedConstraint as any] });
+        }
+      } catch {
+        hwZoom = 1;
+        try {
+          await targetTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+        } catch {}
+      }
+
+      hardwareZoomAppliedRef.current = hwZoom;
+      // 하드웨어 줌이 미지원되거나 일부만 적용된 경우, FHD 원본 센서의 중앙 픽셀을 무손실 크롭하도록 CSS 배율 보정
+      const remainingCssScale = Math.max(1, Number((targetZoom / hwZoom).toFixed(2)));
+      setCssZoomScale(remainingCssScale);
+    },
+    []
+  );
 
   const startCamera = useCallback(async () => {
     setCameraError(false);
@@ -255,21 +312,45 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     }
 
     try {
-      // iPadOS Safari/WebKit 호환성 보장: getUserMedia에는 표준 해상도/후면카메라 제약만 전달하고
-      // 초점(focusMode)은 스트림 획득 후 applyConstraints로 적용
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
+      // 아이폰(iOS Safari) 및 아이패드 호환성 보장:
+      // 1차로 FHD(1920x1080) 후면 카메라를 요청하고, 기기 제약 오류 시 기본 environment 스트림으로 즉시 폴백
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
+        });
+      }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+      const videoEl = videoRef.current;
+      if (videoEl) {
+        // iOS Safari 및 인앱 웹뷰(카카오톡 등) 전체화면 전환 방지 및 자동재생 보장
+        videoEl.muted = true;
+        videoEl.playsInline = true;
+        videoEl.setAttribute('playsinline', 'true');
+        videoEl.setAttribute('webkit-playsinline', 'true');
+        videoEl.srcObject = stream;
+
+        if (videoEl.readyState < 1) {
+          await new Promise<void>(resolve => {
+            const timeoutId = setTimeout(resolve, 700);
+            videoEl.onloadedmetadata = () => {
+              clearTimeout(timeoutId);
+              resolve();
+            };
+          });
+        }
+        await videoEl.play().catch(() => {});
       }
       setCameraReady(true);
 
@@ -283,12 +364,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
             }
           } catch {}
         }
-        await applyCenterFocusConstraint(track);
+        await applyZoomAndFocusConstraint(zoomLevel, track);
       }
     } catch {
       setCameraError(true);
     }
-  }, [stopCamera, applyCenterFocusConstraint]);
+  }, [stopCamera, applyZoomAndFocusConstraint, zoomLevel]);
 
   useEffect(() => {
     if (isOpen && unfilledSlots.length > 0) {
@@ -331,8 +412,14 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     } catch {}
   };
 
+  const toggleZoomLevel = async () => {
+    const nextZoom: 1 | 2 = zoomLevel === 1 ? 2 : 1;
+    setZoomLevel(nextZoom);
+    await applyZoomAndFocusConstraint(nextZoom);
+  };
+
   const processRecognizedResult = useCallback(
-    (ocrResult: AssetNumberOcrResult): boolean => {
+    (ocrResult: AssetNumberOcrResult, isFromServerVision = false): boolean => {
       if (unfilledSlots.length === 0 || !ocrResult.success) return false;
 
       const rawDisplay =
@@ -342,8 +429,6 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         ocrResult.rawTokens?.[0] ||
         '';
       if (!rawDisplay) return false;
-
-      setLastDetectedHint(rawDisplay);
 
       const targetMatches = matchRecognizedAssetFromPool(
         ocrResult,
@@ -365,6 +450,11 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         }
       }
 
+      // 유효 후보가 있거나 서버 Vision AI가 판독한 번호인 경우에만 하단 힌트 갱신 (로컬 노이즈 깜빡임 방지)
+      if (targetMatches.candidates.length > 0 || (isFromServerVision && rawDisplay.length >= 3)) {
+        setLastDetectedHint(rawDisplay);
+      }
+
       return false;
     },
     [
@@ -378,6 +468,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   /**
    * 화면에 표시된 130pt 카메라 뷰포트의 중앙 녹색 횡선(top: 50%) 주변 영역을
+   * 아이폰(세로 1080x1920 스트림) 및 아이패드(광폭 화면), 배율(1x/2x) 모두에서
    * 종횡비 왜곡 없이 1:1 역산하여 캔버스에 크롭
    */
   const cropCenterGreenLineToCanvas = useCallback((): {
@@ -395,25 +486,25 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     if (!vw || !vh) return null;
 
     const rect = video.getBoundingClientRect();
-    const cw = rect.width || video.clientWidth || 360;
-    const ch = rect.height || video.clientHeight || 130;
+    // video에 transform: scale(cssZoomScale)이 적용된 경우 rect.width는 스케일된 크기이므로 컨테이너 원래 CSS 크기로 환산
+    const baseCw = (rect.width ? rect.width / cssZoomScale : video.clientWidth) || 360;
+    const baseCh = (rect.height ? rect.height / cssZoomScale : video.clientHeight) || 130;
 
-    // object-fit: cover 스케일 역산 (비디오 중심과 화면 중심은 항상 (vw/2, vh/2) === (cw/2, ch/2)로 일치)
-    const coverScale = Math.max(cw / vw, ch / vh);
+    // object-fit: cover 스케일 + CSS 배율(cssZoomScale) 결합 역산
+    const effectiveScale = Math.max(baseCw / vw, baseCh / vh) * cssZoomScale;
 
-    // 아이패드처럼 화면 가로폭(cw)이 넓은 기기에서도 좌우 불필요한 배경이 들어오지 않도록
-    // 중앙 녹색 횡선 가이드 박스(최대 가로 440pt, 세로 중앙 72pt 대역)만 정확히 추출
-    const guideCssW = Math.min(cw * 0.84, 440);
-    const guideCssH = Math.min(ch * 0.62, 84);
+    // 중앙 녹색 횡선 가이드 박스(가로 84%/최대 440pt, 세로 64pt 주변 대역)만 정확히 추출
+    const guideCssW = Math.min(baseCw * 0.84, 440);
+    const guideCssH = Math.min(baseCh * 0.58, 76);
 
-    const cropW = Math.max(160, Math.min(vw, Math.round(guideCssW / coverScale)));
-    const cropH = Math.max(60, Math.min(vh, Math.round(guideCssH / coverScale)));
+    const cropW = Math.max(140, Math.min(vw, Math.round(guideCssW / effectiveScale)));
+    const cropH = Math.max(52, Math.min(vh, Math.round(guideCssH / effectiveScale)));
     const cropX = Math.max(0, Math.round((vw - cropW) / 2));
     const cropY = Math.max(0, Math.round((vh - cropH) / 2));
 
     // 원본 픽셀 종횡비(cropH / cropW)를 100% 보존하여 글자 찌그러짐 원천 차단
     const targetW = Math.min(720, cropW);
-    const targetH = Math.max(48, Math.round((cropH / cropW) * targetW));
+    const targetH = Math.max(44, Math.round((cropH / cropW) * targetW));
 
     canvas.width = targetW;
     canvas.height = targetH;
@@ -422,11 +513,16 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     if (!ctx) return null;
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
 
+    // 아이폰/아이패드 카메라 초기 구동 시 검은색 프레임이면 스킵
+    if (isBlankOrDarkFrame(ctx, targetW, targetH)) {
+      return null;
+    }
+
     return { canvas, ctx, targetW, targetH };
-  }, []);
+  }, [cssZoomScale]);
 
   /**
-   * iPadOS Safari 등 브라우저 내장 TextDetector/BarcodeDetector 미지원 환경을 위한
+   * 아이폰/아이패드(iOS/iPadOS Safari) 등 브라우저 내장 TextDetector/BarcodeDetector 미지원 환경을 위한
    * 서버 Vision AI (/api/vision-ocr) 병행 판독 (Tesseract WASM 로딩 대기 없이 즉시 병렬 실행)
    */
   const triggerVisionAiFallback = useCallback(
@@ -435,7 +531,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       if (Date.now() < cooldownUntilRef.current) return;
 
       const now = Date.now();
-      if (!forceImmediate && now - lastVisionCallAtRef.current < 1300) return;
+      if (!forceImmediate && now - lastVisionCallAtRef.current < 1200) return;
 
       visionInFlightRef.current = true;
       lastVisionCallAtRef.current = now;
@@ -453,7 +549,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         });
 
         if (Date.now() >= cooldownUntilRef.current) {
-          processRecognizedResult(ocrResult);
+          processRecognizedResult(ocrResult, true);
         }
       } catch {
         // 네트워크 일시 오류 무시
@@ -476,7 +572,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       const centerY = targetH / 2;
       const cleanSnapshotBase64 = canvas.toDataURL('image/jpeg', 0.86);
 
-      // iPadOS Safari 등 TextDetector 미지원 기기이거나 수동 터치 시 즉시 Vision AI 병렬 호출
+      // 아이폰/아이패드 Safari 등 TextDetector 미지원 기기이거나 수동 터치 시 즉시 Vision AI 병렬 호출
       const hasNativeDetector = 'TextDetector' in window || 'BarcodeDetector' in window;
       if (forceVisionAi || !hasNativeDetector) {
         triggerVisionAiFallback(cleanSnapshotBase64, forceVisionAi);
@@ -599,19 +695,22 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     localInFlightRef.current = true;
     setIsVisionScanning(true);
     try {
+      // 아이폰 고화질(12MP~48MP) 사진 촬영 시 EXIF 방향 정규화 및 메모리 보호를 위해 1280px 이하로 선행 리사이징
+      const normalizedBase64 = await processImageFile(file, 1280);
+
       const candidateAssetNos = targetModelAvailableAssets
         .map(a => a.assetNo)
         .filter(Boolean)
         .slice(0, 100);
-      const ocrResult = await analyzeAssetNumberFrame(file, {
+      const ocrResult = await analyzeAssetNumberFrame(normalizedBase64, {
         expectedModels: targetExpectedModels,
         candidateAssetNos
       });
-      if (processRecognizedResult(ocrResult)) return;
+      if (processRecognizedResult(ocrResult, true)) return;
 
       const worker = await ensureLocalOcrWorker();
       if (worker) {
-        const { data } = await worker.recognize(file);
+        const { data } = await worker.recognize(normalizedBase64);
         const tokens = extractAlphanumericTokens(data?.text || '');
         if (tokens.length > 0) {
           processRecognizedResult({
@@ -634,10 +733,10 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   return (
     <div
-      className="relative w-full rounded-xl overflow-hidden border border-emerald-500/80 bg-black"
+      className="relative w-full rounded-xl overflow-hidden border border-emerald-500/80 bg-black select-none"
       style={{ height: '130px', minHeight: '130px', maxHeight: '130px' }}
       onClick={() => {
-        applyCenterFocusConstraint();
+        applyZoomAndFocusConstraint(zoomLevel);
         captureAndAnalyzeLocalFrame(true);
       }}
     >
@@ -651,7 +750,10 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           height: '130px',
           objectFit: 'cover',
           objectPosition: 'center center',
-          display: 'block'
+          display: 'block',
+          transform: cssZoomScale > 1 ? `scale(${cssZoomScale})` : undefined,
+          transformOrigin: 'center center',
+          transition: 'transform 150ms ease-out'
         }}
       />
       <canvas ref={canvasRef} className="hidden" />
@@ -670,12 +772,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           position: 'absolute',
           inset: 0,
           background:
-            'linear-gradient(to bottom, rgba(2,6,23,0.62) 0%, rgba(2,6,23,0.08) 22%, rgba(2,6,23,0.08) 78%, rgba(2,6,23,0.62) 100%)',
+            'linear-gradient(to bottom, rgba(2,6,23,0.65) 0%, rgba(2,6,23,0.06) 24%, rgba(2,6,23,0.06) 76%, rgba(2,6,23,0.65) 100%)',
           pointerEvents: 'none'
         }}
       />
 
-      {/* 중앙 판독 타겟 가이드 박스 + 녹색 수평 초점 조준선 */}
+      {/* 중앙 판독 타겟 가이드 박스(높이 64px: 아이폰 소형 화면에서도 상하단 버튼과 겹치지 않음) + 녹색 수평 초점 조준선 */}
       <div
         style={{
           position: 'absolute',
@@ -690,7 +792,7 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
           style={{
             width: '84%',
             maxWidth: '440px',
-            height: '76px',
+            height: '64px',
             border: isVisionScanning
               ? '1.5px solid rgba(34, 211, 238, 0.85)'
               : '1.5px solid rgba(16, 185, 129, 0.65)',
@@ -714,20 +816,21 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         </div>
       </div>
 
-      {/* 좌하단 판독 상태 표시 (아이패드/모바일 실시간 피드백) */}
+      {/* 좌하단 판독 상태 표시 (아이폰 좁은 화면 폭에서도 말줄임 보호) */}
       <div
         className="flex items-center gap-1.5"
         style={{
           position: 'absolute',
-          bottom: '6px',
+          bottom: '5px',
           left: '8px',
+          right: '8px',
           zIndex: 10,
           pointerEvents: 'none'
         }}
       >
-        <span className="px-2 py-0.5 rounded bg-slate-950/85 border border-slate-700 text-[11px] font-bold text-emerald-300 flex items-center gap-1 whitespace-nowrap">
-          {isVisionScanning && <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />}
-          <span>
+        <span className="max-w-full px-2 py-0.5 rounded bg-slate-950/85 border border-slate-700 text-[11px] font-bold text-emerald-300 flex items-center gap-1 whitespace-nowrap overflow-hidden">
+          {isVisionScanning && <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin shrink-0" />}
+          <span className="truncate">
             {lastDetectedHint
               ? `인식: ${lastDetectedHint}`
               : currentTargetSlot?.expectedModel
@@ -737,12 +840,24 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         </span>
       </div>
 
-      {/* 우상단 제어 버튼 */}
+      {/* 우상단 제어 버튼 (아이폰 근접 초점 한계 극복용 1x/2x 배율 버튼 포함) */}
       <div
-        className="flex items-center gap-1.5"
-        style={{ position: 'absolute', top: '6px', right: '8px', zIndex: 10 }}
+        className="flex items-center gap-1"
+        style={{ position: 'absolute', top: '5px', right: '8px', zIndex: 10 }}
         onClick={e => e.stopPropagation()}
       >
+        <button
+          type="button"
+          onClick={toggleZoomLevel}
+          className={`px-2 py-1 rounded-lg bg-slate-900/85 border text-[11px] font-black whitespace-nowrap ${
+            zoomLevel === 2
+              ? 'text-emerald-300 border-emerald-500'
+              : 'text-slate-200 border-slate-700'
+          }`}
+          aria-label="배율 전환"
+        >
+          {zoomLevel}배
+        </button>
         {torchSupported && (
           <button
             type="button"

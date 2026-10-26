@@ -166,7 +166,7 @@ export function formatBizRegNo(raw: string): string {
 /**
  * 고해상도 모바일 사진 및 스캔본을 최적 Base64 이미지로 리사이징 변환
  */
-async function processImageFile(file: File, maxDim: number = 1800): Promise<string> {
+export async function processImageFile(file: File, maxDim: number = 1800): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
