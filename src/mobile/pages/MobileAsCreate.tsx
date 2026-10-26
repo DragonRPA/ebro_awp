@@ -48,6 +48,8 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     users,
     departments,
     currentUser,
+    inspectionChecklistItems,
+    saveInspectionChecklistItem,
   } = useApp();
 
   const [customerName, setCustomerName] = useState('');
@@ -59,11 +61,59 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   const [reporterContact, setReporterContact] = useState('');
   const [issueCategory, setIssueCategory] = useState('상하강불량');
   const [issueDescription, setIssueDescription] = useState('');
+  const [customSymptoms, setCustomSymptoms] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('erp_mobile_as_custom_symptoms');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+        }
+      }
+    } catch {}
+    return [];
+  });
   const [priority, setPriority] = useState<'NORMAL' | 'URGENT'>('NORMAL');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [assignedMechanicId, setAssignedMechanicId] = useState<string>('');
   const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 🌟 기본 고장 분류 + 사용자 저장 증상(로컬 & DB 동기화) 통합 퀵버튼 목록
+  const allQuickSymptoms = useMemo(() => {
+    const dbCustom = (inspectionChecklistItems || [])
+      .filter(item => item && item.isDefectSymptom && item.description === '모바일 웹앱 증상저장 퀵버튼' && item.name?.trim())
+      .map(item => item.name.trim());
+    const merged = new Set<string>([...CATEGORIES, ...dbCustom, ...customSymptoms.map(s => s.trim()).filter(Boolean)]);
+    return Array.from(merged);
+  }, [customSymptoms, inspectionChecklistItems]);
+
+  const trimmedIssueDescription = issueDescription.trim();
+  const isNewSymptom = Boolean(
+    trimmedIssueDescription.length > 0 &&
+    !allQuickSymptoms.some(sym => sym.trim() === trimmedIssueDescription)
+  );
+
+  const handleSaveCustomSymptom = async () => {
+    const newSym = issueDescription.trim();
+    if (!newSym) return;
+    const nextList = Array.from(new Set([...customSymptoms, newSym]));
+    setCustomSymptoms(nextList);
+    setIssueCategory(newSym);
+    try {
+      localStorage.setItem('erp_mobile_as_custom_symptoms', JSON.stringify(nextList));
+    } catch {}
+    try {
+      await saveInspectionChecklistItem?.({
+        category: '기타/접수',
+        code: `SYM-${Date.now().toString().slice(-6)}`,
+        name: newSym,
+        score: 0,
+        isDefectSymptom: true,
+        description: '모바일 웹앱 증상저장 퀵버튼',
+      });
+    } catch {}
+  };
 
   // 🌟 입력된 장비번호(자산번호)와 매칭되는 실물 자산 및 임차처 판별
   const matchedAsset = useMemo(() => {
@@ -715,13 +765,18 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {CATEGORIES.map((cat) => (
+          <div className="grid grid-cols-3 gap-1.5" data-testid="mobile-as-symptom-quick-buttons">
+            {allQuickSymptoms.map((cat) => (
               <button
                 key={cat}
                 type="button"
-                onClick={() => setIssueCategory(cat)}
-                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                onClick={() => {
+                  setIssueCategory(cat);
+                  if (!CATEGORIES.includes(cat) || !issueDescription.trim() || allQuickSymptoms.includes(issueDescription.trim())) {
+                    setIssueDescription(cat);
+                  }
+                }}
+                className={`py-2 px-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap truncate ${
                   issueCategory === cat
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-slate-900 text-slate-400 border border-slate-800'
@@ -736,19 +791,32 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         {/* 고장 상세 증상 */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">고장 상세 내용</label>
-          <textarea
-            rows={3}
-            value={issueDescription}
-            onChange={(e) => setIssueDescription(e.target.value)}
-            placeholder="고장 호소 내용 입력"
-            className="w-full rounded-xl p-3 text-sm placeholder-slate-500 focus:outline-none"
-            style={{
-              backgroundColor: '#090d16',
-              color: '#f8fafc',
-              border: '1px solid #334155',
-              colorScheme: 'dark'
-            }}
-          />
+          <div className="relative">
+            <textarea
+              rows={3}
+              value={issueDescription}
+              onChange={(e) => setIssueDescription(e.target.value)}
+              placeholder="고장 호소 내용 입력"
+              className={`w-full rounded-xl p-3 ${isNewSymptom ? 'pb-10' : ''} text-sm placeholder-slate-500 focus:outline-none`}
+              style={{
+                backgroundColor: '#090d16',
+                color: '#f8fafc',
+                border: '1px solid #334155',
+                colorScheme: 'dark'
+              }}
+            />
+            {isNewSymptom && (
+              <button
+                type="button"
+                data-testid="mobile-as-save-symptom-btn"
+                onClick={handleSaveCustomSymptom}
+                className="absolute right-2.5 bottom-2.5 px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white border border-emerald-400/40 shadow-md flex items-center gap-1 transition-all whitespace-nowrap z-10"
+              >
+                <Plus className="w-3 h-3" />
+                증상저장
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 접수자 성함 및 연락처 */}
