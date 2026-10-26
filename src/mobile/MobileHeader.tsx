@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LogOut, Wrench, Crown, Radio, RotateCw, Smartphone } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { WeatherWidget } from '../components/WeatherWidget';
+import { isDemoMode } from '../services/demoMode';
 
 import { isDeveloperUser, getUserDepartmentName, MobileDeptMode } from '../utils/userDepartmentHelper';
 
@@ -240,7 +241,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
             {/* 🏢 테넌트 회사 CI 로고 표출 (모바일 헤더) */}
             <img 
-              src={currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png'} 
+              src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
               alt="CI" 
               style={{ height: '24px', maxWidth: '65px', objectFit: 'contain', flexShrink: 0 }} 
               onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
@@ -264,7 +265,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             </div>
             <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-                <span style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.02em' }}>{currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || 'e-Bro ERP'}</span>
+                <span style={{ fontSize: '13px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.02em' }}>{isDemoMode() ? '(주)e-Bro렌탈' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || 'e-Bro ERP')}</span>
                 <span style={{
                   fontSize: '9px',
                   fontWeight: '700',
@@ -280,7 +281,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                 <span style={{ fontSize: '10.5px', color: '#e2e8f0', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>
-                  {currentUser?.name || '담당자'} ({currentUser?.role === 'ADMIN' ? '개발자' : currentUser?.role === 'MECHANIC' ? '정비기사' : '임직원'})
+                  {currentUser?.name || '담당자'} ({currentUser?.position || (currentUser?.role === 'ADMIN' ? '개발자' : currentUser?.role === 'MECHANIC' ? '정비기사' : '임직원')})
                 </span>
                 {/* 🌟 컴팩트 출근/퇴근 토글 버튼 (헌장 3.1 무수식어 건조 표준) */}
                 {onToggleWork && (

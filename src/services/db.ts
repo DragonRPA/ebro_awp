@@ -5967,6 +5967,7 @@ const FK_RULES_MAP: Record<string, { targetTable: string; targetProp: string | n
 export const isSystemDeveloperUser = (u: any): boolean => {
   if (!u) return false;
   const id = String(u.id || '').trim();
+  if (isDemoMode() && id === 'u-admin') return false;
   const loginId = String(u.loginId || '').trim().toLowerCase();
   return id === 'u-1' || id === 'sys-admin' || loginId === 'admin';
 };
@@ -6253,6 +6254,17 @@ class LocalDB {
           }
         }
       } catch (e) {}
+    }
+
+    // 🌐 [0.5순위] 데모 모드(awp-demo.ebro.run 등)에서는 (주)e-Bro렌탈 데모 테넌트 최우선 반환
+    if (isDemoMode()) {
+      const demoTenant = list.find(t => {
+        const code = (t.tenantCode || '').toLowerCase();
+        const subField = (t.subdomain || '').toLowerCase();
+        const dName = (t.displayName || '').toLowerCase();
+        return code === 'ebro_awp' || subField === 'awp-demo' || dName.includes('e-bro') || dName.includes('ebro') || t.id === 'giyeun';
+      });
+      if (demoTenant) return demoTenant;
     }
 
     // 🌐 [1순위] 브라우저 접속 도메인의 서브도메인 기반 자동 테넌트 매핑 (*.ebro.run)

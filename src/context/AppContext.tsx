@@ -18,7 +18,7 @@ import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentr
 import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, parseSessionUser, safeJsonParse, maskSalaryForRole } from '../utils/cryptoVault';
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
 import { calculatePaidOptionBillingItems, mergeOptionPricesIntoSpecs } from '../types/siteOption';
-import { isDemoMode } from '../services/demoMode';
+import { isDemoMode, DEMO_DEFAULT_ADMIN_USER } from '../services/demoMode';
 import { syncTenantPolicyToAgent } from '../services/agentService';
 
 export interface AssetSaleItem {
@@ -631,7 +631,22 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   console.log("[DEBUG] AppProvider Render!");
   const { fetchRuleForEvent, createApprovalRequest, processApprovalStep } = useApproval();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined' && isDemoMode()) {
+      try {
+        if (sessionStorage.getItem('demo_explicit_logout') !== 'true') {
+          const saved = sessionStorage.getItem('user');
+          if (saved) {
+            const parsed = parseSessionUser<User>(saved);
+            if (parsed) return parsed;
+          }
+          sessionStorage.setItem('user', signSessionUser(DEMO_DEFAULT_ADMIN_USER as User));
+          return DEMO_DEFAULT_ADMIN_USER as User;
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // React state of database tables
@@ -640,7 +655,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (typeof window !== 'undefined' ? localStorage.getItem('erp_current_tenant_id') : null) || db.currentTenant?.id || 'tenant-giyeonlift';
   });
 
-  const currentTenant = (tenants && tenants.length > 0 ? (tenants.find(t => t.id === currentTenantId || t.tenantCode === currentTenantId) || tenants.find(t => t.isDefault) || tenants[0]) : null) || db.currentTenant;
+  const currentTenant = isDemoMode()
+    ? ((tenants && tenants.length > 0 ? tenants.find(t => t.id === 'giyeun' || (t.subdomain || '').toLowerCase() === 'awp-demo' || (t.tenantCode || '').toLowerCase() === 'ebro_awp' || (t.displayName || '').toLowerCase().includes('e-bro')) : null) || db.currentTenant)
+    : ((tenants && tenants.length > 0 ? (tenants.find(t => t.id === currentTenantId || t.tenantCode === currentTenantId) || tenants.find(t => t.isDefault) || tenants[0]) : null) || db.currentTenant);
 
   const setCurrentTenantId = (id: string) => {
     if (typeof window !== 'undefined') {
@@ -1614,7 +1631,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rawParsed) {
           const parsed = normalizeDeveloperIdentity(rawParsed);
           const isDev = isSystemDeveloperUser(parsed);
-          if (isDev) {
+          if (isDev && !isDemoMode()) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
                 console.warn('🚨 [보안 차단] 비인가 물리 단말기에서의 개발자 세션 복원 차단');
@@ -1639,7 +1656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rawParsed) {
           const parsed = normalizeDeveloperIdentity(rawParsed);
           const isDev = isSystemDeveloperUser(parsed);
-          if (isDev) {
+          if (isDev && !isDemoMode()) {
             isCurrentDeviceAuthorizedForDeveloper().then(auth => {
               if (!auth.isAuthorized) {
                 console.warn('🚨 [보안 차단] 비인가 물리 단말기에서의 개발자 자동 로그인 차단');
@@ -1659,6 +1676,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.removeItem('auto_user');
         setCurrentUser(null);
       }
+    } else if (isDemoMode() && sessionStorage.getItem('demo_explicit_logout') !== 'true') {
+      const demoUser = DEMO_DEFAULT_ADMIN_USER as User;
+      sessionStorage.setItem('user', signSessionUser(demoUser));
+      setCurrentUser(demoUser);
     }
     
     // 초기 로딩: 전체 28개 테이블 Supabase pull (앱 최초 진입 1회만)
@@ -1700,7 +1721,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 개발자 / 최고관리자 마스터 계정 (DB/네트워크 상태와 무관하게 100% 무조건 보장)
     if (cleanId.toLowerCase() === 'admin' && cleanPw === 'admin123') {
       // 🛡️ [물리 단말기 2단계 인가 검증]
-      if (!bypassDeviceCheck) {
+      if (!bypassDeviceCheck && !isDemoMode()) {
         const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
         if (!deviceAuth.isAuthorized) {
           logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 개발자 마스터 로그인 시도 ('${cleanId}')`, {
@@ -1717,10 +1738,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      const fallbackAdmin: User = { 
-        id: 'sys-admin', loginId: 'admin', passwordHash: hashPassword('admin123'), 
-        name: '개발자', department: '개발자', position: '개발자', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
-      };
+      const fallbackAdmin: User = isDemoMode()
+        ? ({ ...DEMO_DEFAULT_ADMIN_USER } as User)
+        : { 
+            id: 'sys-admin', loginId: 'admin', passwordHash: hashPassword('admin123'), 
+            name: '개발자', department: '개발자', position: '개발자', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
+          };
+      sessionStorage.removeItem('demo_explicit_logout');
       setCurrentUser(fallbackAdmin);
       sessionStorage.setItem('user', signSessionUser(fallbackAdmin));
       if (keepLoggedIn) {
@@ -1942,7 +1966,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 🛡️ [물리 단말기 2단계 인가 검증 - 시스템 개발자 계정 전용]
     const isDevAdmin = isSystemDeveloperUser(user);
-    if (isDevAdmin && !bypassDeviceCheck) {
+    if (isDevAdmin && !bypassDeviceCheck && !isDemoMode()) {
       const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
       if (!deviceAuth.isAuthorized) {
         logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 개발자 권한 로그인 시도 (${user.name})`, {
@@ -1969,6 +1993,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         departmentId: ''
       };
     }
+    sessionStorage.removeItem('demo_explicit_logout');
     setCurrentUser(user);
     sessionStorage.setItem('user', signSessionUser(user));
     if (keepLoggedIn) {
@@ -1999,6 +2024,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('original_admin_user');
     localStorage.removeItem('auto_user');
+    if (isDemoMode()) {
+      sessionStorage.setItem('demo_explicit_logout', 'true');
+    }
     if (reasonStr && !isSyntheticEvent) {
       showNoticeModal(reasonStr, '보안 자동 로그아웃');
     }
@@ -3054,14 +3082,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData();
   };
 
+  const normalizeManufactureYear = (raw?: string | number | null): string => {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed) return '';
+    const exactFourDigits = trimmed.match(/^(\d{4})\s*\.?$/);
+    if (exactFourDigits) return `${exactFourDigits[1]}년`;
+    if (/^\d{4}(?!\d)/.test(trimmed) && !trimmed.includes('년')) {
+      return trimmed.replace(/^(\d{4})\s*[.\-/]?\s*/, '$1년 ').trim();
+    }
+    return trimmed;
+  };
+
   const saveAsset = async (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     let result;
     const existingAsset = asset.id ? db.assets.find(a => a.id === asset.id) : null;
     const isNew = !existingAsset;
     const resolvedMfg = db.resolveAssetManufacturer(asset.modelName || existingAsset?.modelName, asset.manufacturer || existingAsset?.manufacturer);
+    const resolvedManufactureYear = normalizeManufactureYear(asset.manufactureYear ?? existingAsset?.manufactureYear ?? '');
     const normalizedAsset = {
       ...asset,
       manufacturer: resolvedMfg,
+      manufactureYear: resolvedManufactureYear,
       yard: asset.yard || existingAsset?.yard || '용인'
     };
 
@@ -5477,7 +5518,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assetNo: assetData.assetNo || '',
       serialNo: assetData.serialNo || '',
       manufacturer: assetData.manufacturer || '',
-      manufactureYear: assetData.manufactureYear || '',
+      manufactureYear: normalizeManufactureYear(assetData.manufactureYear),
       ownerType: 'OWNED',
       yard: assetData.yard || '용인',
       status: 'AVAILABLE',
@@ -5858,7 +5899,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
     const targetModelName = (cleanAssetData.modelName || existing?.modelName || '').trim();
     const resolvedManufacturer = db.resolveAssetManufacturer(targetModelName, cleanAssetData.manufacturer || existing?.manufacturer);
-    const resolvedManufactureYear = cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '';
+    const resolvedManufactureYear = normalizeManufactureYear(cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '');
 
     if (existing) {
       const wasReturned = Boolean(isReactivating || existing.status === 'RENTED_RETURNED' || existing.actualRentReturnDate);

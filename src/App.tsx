@@ -389,7 +389,7 @@ const App: React.FC = () => {
   const [isMobileView, setIsMobileView] = useState<boolean>(() => {
     // 1. URL 경로 또는 쿼리 확인 (/mobile 또는 /m 또는 ?mode=mobile 또는 ?view=mobile)
     const pathname = window.location.pathname.toLowerCase();
-    const search = window.location.search;
+    const search = window.location.search.toLowerCase();
     if (
       pathname === '/mobile' ||
       pathname.startsWith('/mobile/') ||
@@ -400,16 +400,20 @@ const App: React.FC = () => {
     ) {
       return true;
     }
-    // 2. localStorage 저장값 확인 (사용자의 명시적 수동 선택 최우선)
-    const savedView = localStorage.getItem('erp_view_mode');
-    if (savedView === 'mobile') return true;
-    if (savedView === 'desktop') return false;
+    if (search.includes('view=desktop') || search.includes('mode=desktop') || search.includes('mode=pc')) {
+      return false;
+    }
 
-    // 3. 디바이스 환경 판별 (아이폰, 아이패드, 안드로이드 모바일 등)
+    // 2. 디바이스 환경 판별 (아이폰, 아이패드, 안드로이드 모바일 등)
     const ua = navigator.userAgent;
     const isIPhone = /iPhone|iPod/i.test(ua);
     const isIPad = /iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobileWidth = window.innerWidth < 768;
+
+    // 3. localStorage 저장값 확인 (사용자의 명시적 수동 선택 최우선)
+    const savedView = localStorage.getItem('erp_view_mode');
+    if (savedView === 'mobile') return true;
+    if (savedView === 'desktop') return false;
 
     // 아이폰 또는 768px 미만 소형 기기는 기본 모바일 뷰
     if (isIPhone || isMobileWidth) return true;
@@ -424,13 +428,21 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleUrlCheck = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
       if (
         pathname === '/mobile' ||
         pathname.startsWith('/mobile/') ||
         pathname === '/m' ||
-        pathname.startsWith('/m/')
+        pathname.startsWith('/m/') ||
+        search.includes('view=mobile') ||
+        search.includes('mode=mobile')
       ) {
         setIsMobileView(true);
+      } else if (pathname === '/' && !search.includes('mobile') && window.innerWidth >= 768) {
+        const savedView = localStorage.getItem('erp_view_mode');
+        if (savedView !== 'mobile') {
+          setIsMobileView(false);
+        }
       }
     };
     window.addEventListener('popstate', handleUrlCheck);
@@ -1496,6 +1508,9 @@ const App: React.FC = () => {
                 onClick={() => {
                   setIsMobileView(true);
                   localStorage.setItem('erp_view_mode', 'mobile');
+                  if (!window.location.pathname.toLowerCase().startsWith('/m')) {
+                    window.history.pushState(null, '', '/m');
+                  }
                 }}
                 style={{
                   padding: '5px 12px',
@@ -1520,6 +1535,12 @@ const App: React.FC = () => {
                 onClick={() => {
                   setIsMobileView(false);
                   localStorage.setItem('erp_view_mode', 'desktop');
+                  if (
+                    window.location.pathname.toLowerCase().startsWith('/mobile') ||
+                    window.location.pathname.toLowerCase().startsWith('/m')
+                  ) {
+                    window.history.pushState(null, '', '/');
+                  }
                 }}
                 style={{
                   padding: '5px 12px',
@@ -1830,7 +1851,7 @@ const App: React.FC = () => {
                         lineHeight: 1.15,
                       }}
                     >
-                      {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
+                      {isDemoMode() ? '(주)e-Bro렌탈' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
                     </span>
                     {currentTenant && (() => {
                       const subInfo = getTenantSubscriptionInfo(currentTenant);

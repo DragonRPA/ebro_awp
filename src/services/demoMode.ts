@@ -60,28 +60,31 @@ export function isDemoMode(): boolean {
   return false;
 }
 
+/** 데모 모드 기본 대표이사(관리자) 계정 */
+export const DEMO_DEFAULT_ADMIN_USER = {
+  id: 'u-admin',
+  loginId: 'admin',
+  name: '이정용',
+  department: '경영지원팀',
+  departmentId: 'dept-mgmt',
+  position: '대표이사',
+  status: 'ACTIVE' as const,
+  role: 'ADMIN' as const,
+  customRoleId: 'role_mgmt',
+  phone: '010-3344-5566',
+  email: 'ceo@ebro.run',
+  createdAt: '2026-01-01T00:00:00Z'
+};
+
 /** 데모 모드 활성화 및 대표이사 계정 자동 세팅 */
 export function enterDemoMode() {
   if (typeof window === 'undefined') return;
   localStorage.setItem('ebro_demo_mode', 'true');
-
-  // 관리자(대표이사) 계정 자동 로그인 세션 준비
-  const demoAdminUser = {
-    id: 'u-admin',
-    loginId: 'admin',
-    name: '이정용',
-    department: '경영지원팀',
-    departmentId: 'dept-mgmt',
-    position: '대표이사',
-    status: 'ACTIVE',
-    role: 'ADMIN',
-    phone: '010-3344-5566',
-    email: 'ceo@ebro.run'
-  };
-  sessionStorage.setItem('user', JSON.stringify(demoAdminUser));
+  sessionStorage.removeItem('demo_explicit_logout');
+  sessionStorage.setItem('user', JSON.stringify(DEMO_DEFAULT_ADMIN_USER));
   sessionStorage.removeItem('original_admin_user');
 
-  // URL에서 demo 쿼리 파라미터 정리 후 새로고침
+  // 현재 경로(/m 포함) 유지하며 새로고침
   window.location.href = window.location.pathname;
 }
 
