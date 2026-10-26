@@ -2,6 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CameraUploader } from '../components/CameraUploader';
+import {
+  MobileInlineCameraAssetScanner,
+  UnfilledSlotInfo
+} from '../components/MobileInlineCameraAssetScanner';
 import { InboundDefectDetail, Asset, InspectionChecklistItem } from '../../services/db';
 import { 
   CheckCircle2, 
@@ -15,7 +19,8 @@ import {
   Wrench,
   ChevronDown,
   RotateCcw,
-  ShieldCheck
+  ShieldCheck,
+  Camera
 } from 'lucide-react';
 
 interface DefectOption {
@@ -78,9 +83,12 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  // 자산 선택 바텀시트
+  // 자산 선택 바텀시트 및 카메라 OCR 상태
   const [isAssetSheetOpen, setIsAssetSheetOpen] = useState<boolean>(false);
   const [assetSearchQuery, setAssetSearchQuery] = useState<string>('');
+  const [isInlineCameraOpen, setIsInlineCameraOpen] = useState<boolean>(false);
+  const [isSheetCameraOpen, setIsSheetCameraOpen] = useState<boolean>(false);
+  const [quickAssetNoInput, setQuickAssetNoInput] = useState<string>('');
 
   // 1. 점검 마스터 항목 (SSOT 연동: inspectionChecklistItems 우선 구독)
   const availableDefects: DefectOption[] = useMemo(() => {
@@ -159,6 +167,60 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
   const currentAsset = useMemo(() => {
     return candidateAssets.find(a => a.id === selectedAssetId);
   }, [candidateAssets, selectedAssetId]);
+
+  // 카메라 OCR 스캐너용 정렬된 후보 자산 목록 (대여중 우선) 및 슬롯 정의
+  const sortedScannableAssets = useMemo(() => {
+    return [...candidateAssets].sort((a, b) => {
+      if (a.isRented && !b.isRented) return -1;
+      if (!a.isRented && b.isRented) return 1;
+      return (a.assetNo || '').localeCompare(b.assetNo || '');
+    });
+  }, [candidateAssets]);
+
+  const inboundScannerSlots: UnfilledSlotInfo[] = useMemo(
+    () => [
+      {
+        caId: 'inbound-target',
+        slotNumber: 1,
+        expectedModel: '*'
+      }
+    ],
+    []
+  );
+
+  const handleQuickAssetNoApply = () => {
+    const raw = quickAssetNoInput.trim().toUpperCase();
+    if (!raw) return;
+    const cleanNoHyphen = raw.replace(/[-_\s]/g, '');
+    const digits = raw.replace(/[^0-9]/g, '');
+
+    const matched =
+      sortedScannableAssets.find(
+        a =>
+          (a.assetNo || '').toUpperCase().replace(/[-_\s]/g, '') === cleanNoHyphen ||
+          (a.serialNo || '').toUpperCase().replace(/[-_\s]/g, '') === cleanNoHyphen
+      ) ||
+      sortedScannableAssets.find(
+        a =>
+          cleanNoHyphen.length >= 2 &&
+          (a.assetNo || '').toUpperCase().replace(/[-_\s]/g, '').endsWith(cleanNoHyphen)
+      ) ||
+      sortedScannableAssets.find(
+        a => digits.length >= 2 && (a.assetNo || '').replace(/[^0-9]/g, '').endsWith(digits)
+      ) ||
+      sortedScannableAssets.find(a => (a.assetNo || '').toUpperCase().includes(raw));
+
+    if (!matched) {
+      showErrorModal(`입력하신 번호(${quickAssetNoInput.trim()})와 일치하는 자산을 찾을 수 없습니다.`);
+      return;
+    }
+
+    setSelectedAssetId(matched.id);
+    setQuickAssetNoInput('');
+    setIsInlineCameraOpen(false);
+    setSuccessToast(`#${matched.assetNo} (${matched.modelName}) 선택 완료`);
+    setTimeout(() => setSuccessToast(null), 1500);
+  };
 
   // 출고 시 장착 옵션 및 보양 정보 상속
   const currentContract = useMemo(() => {
@@ -351,26 +413,82 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
 
       {/* ── 1. 대상 자산 선택 카드 ── */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 shadow-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
             입고 대상 장비
           </label>
-          {currentAsset && (
-            <div className="flex items-center gap-1.5">
-              {currentAsset.isSublease && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-300 border border-purple-700 whitespace-nowrap">
-                  타사전대
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {currentAsset && (
+              <>
+                {currentAsset.isSublease && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-300 border border-purple-700 whitespace-nowrap">
+                    타사전대
+                  </span>
+                )}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                  currentAsset.isRented
+                    ? 'bg-sky-950/80 border-sky-800 text-sky-400'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}>
+                  {currentAsset.isRented ? '대여중' : currentAsset.status}
                 </span>
-              )}
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
-                currentAsset.isRented
-                  ? 'bg-sky-950/80 border-sky-800 text-sky-400'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
-              }`}>
-                {currentAsset.isRented ? '대여중' : currentAsset.status}
-              </span>
-            </div>
-          )}
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsInlineCameraOpen(prev => !prev)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1 whitespace-nowrap ${
+                isInlineCameraOpen
+                  ? 'bg-cyan-600 text-white border-cyan-400'
+                  : 'bg-slate-800 text-slate-200 border-slate-700'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>카메라</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 장비할당·출고검수와 동일한 70px 슬림 카메라 OCR 스캐너 */}
+        <MobileInlineCameraAssetScanner
+          isOpen={isInlineCameraOpen}
+          onToggleOpen={() => setIsInlineCameraOpen(prev => !prev)}
+          allAvailableAssets={sortedScannableAssets}
+          unfilledSlots={inboundScannerSlots}
+          focusedSlotCaId="inbound-target"
+          mappedAssetIds={[]}
+          onSequentialFill={(scannedAsset) => {
+            setSelectedAssetId(scannedAsset.id);
+            setQuickAssetNoInput('');
+            setIsInlineCameraOpen(false);
+            setIsAssetSheetOpen(false);
+            setSuccessToast(`#${scannedAsset.assetNo} (${scannedAsset.modelName}) 인식 완료`);
+            setTimeout(() => setSuccessToast(null), 1500);
+          }}
+        />
+
+        {/* 자산번호 직접 입력 / 퀵 선택 */}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={quickAssetNoInput}
+            onChange={(e) => setQuickAssetNoInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleQuickAssetNoApply();
+              }
+            }}
+            placeholder="자산번호 직접 입력 (예: G19007 또는 007)"
+            className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 rounded-xl text-xs focus:outline-none focus:border-emerald-500 uppercase font-mono"
+          />
+          <button
+            type="button"
+            onClick={handleQuickAssetNoApply}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl whitespace-nowrap shrink-0"
+          >
+            선택
+          </button>
         </div>
 
         {/* 자산 선택 버튼 */}
@@ -709,18 +827,48 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
               </button>
             </div>
 
-            {/* 검색창 */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={assetSearchQuery}
-                onChange={(e) => setAssetSearchQuery(e.target.value)}
-                placeholder="관리번호, 모델명, 거래처, 현장 검색"
-                className="w-full py-2.5 pl-9 pr-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                autoFocus
-              />
+            {/* 검색창 + 카메라 OCR 버튼 */}
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={assetSearchQuery}
+                  onChange={(e) => setAssetSearchQuery(e.target.value)}
+                  placeholder="자산번호, 모델명, 거래처, 현장 검색"
+                  className="w-full py-2.5 pl-9 pr-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSheetCameraOpen(prev => !prev)}
+                className={`px-3 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-1 whitespace-nowrap shrink-0 ${
+                  isSheetCameraOpen
+                    ? 'bg-cyan-600 text-white border-cyan-400'
+                    : 'bg-slate-800 text-slate-200 border-slate-700'
+                }`}
+              >
+                <Camera className="w-4 h-4" />
+                <span>카메라</span>
+              </button>
             </div>
+
+            <MobileInlineCameraAssetScanner
+              isOpen={isSheetCameraOpen}
+              onToggleOpen={() => setIsSheetCameraOpen(prev => !prev)}
+              allAvailableAssets={sortedScannableAssets}
+              unfilledSlots={inboundScannerSlots}
+              focusedSlotCaId="inbound-target"
+              mappedAssetIds={[]}
+              onSequentialFill={(scannedAsset) => {
+                setSelectedAssetId(scannedAsset.id);
+                setIsSheetCameraOpen(false);
+                setIsAssetSheetOpen(false);
+                setSuccessToast(`#${scannedAsset.assetNo} (${scannedAsset.modelName}) 인식 완료`);
+                setTimeout(() => setSuccessToast(null), 1500);
+              }}
+            />
 
             {/* 자산 목록 */}
             <div className="flex flex-col gap-2 overflow-y-auto max-h-[50vh] pr-0.5">

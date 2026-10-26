@@ -94,7 +94,9 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
   }, [unfilledSlots, focusedSlotCaId]);
 
   const targetExpectedModels = useMemo(() => {
-    return Array.from(new Set(unfilledSlots.map(s => s.expectedModel).filter(Boolean)));
+    return Array.from(
+      new Set(unfilledSlots.map(s => s.expectedModel).filter(m => m && m !== '*'))
+    );
   }, [unfilledSlots]);
 
   const targetModelAvailableAssets = useMemo(() => {
@@ -102,16 +104,29 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     return allAvailableAssets.filter(
       a =>
         !mappedAssetIds.includes(a.id) &&
-        targetExpectedModels.some(m => isModelMatch(a.modelName, m))
+        (targetExpectedModels.length === 0 ||
+          targetExpectedModels.some(m => isModelMatch(a.modelName, m)))
     );
   }, [allAvailableAssets, unfilledSlots.length, mappedAssetIds, targetExpectedModels]);
 
   const resolveTargetSlotForAsset = useCallback(
     (asset: Asset): UnfilledSlotInfo | null => {
-      if (currentTargetSlot && isModelMatch(asset.modelName, currentTargetSlot.expectedModel)) {
+      if (
+        currentTargetSlot &&
+        (!currentTargetSlot.expectedModel ||
+          currentTargetSlot.expectedModel === '*' ||
+          isModelMatch(asset.modelName, currentTargetSlot.expectedModel))
+      ) {
         return currentTargetSlot;
       }
-      return unfilledSlots.find(s => isModelMatch(asset.modelName, s.expectedModel)) || null;
+      return (
+        unfilledSlots.find(
+          s =>
+            !s.expectedModel ||
+            s.expectedModel === '*' ||
+            isModelMatch(asset.modelName, s.expectedModel)
+        ) || null
+      );
     },
     [currentTargetSlot, unfilledSlots]
   );
