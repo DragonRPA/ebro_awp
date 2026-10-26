@@ -1,10 +1,23 @@
 // src/pages/SmartAsRequest.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { db } from '../services/db';
+import { db, Asset } from '../services/db';
 import { fetchMyDrafts, DraftDispatchOrder, discardDraft } from '../services/callUploadService';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+import { decryptSecret } from '../utils/cryptoVault';
 import { Wrench, Send, AlertTriangle, CheckCircle2, Search, Building2, MapPin, Phone, User, Tag, HelpCircle, PhoneCall, Sparkles, Clock, Check, ClipboardPaste, ChevronUp, ChevronDown, FolderOpen, Zap } from 'lucide-react';
+
+const UNKNOWN_ASSET_NO = '관리번호 모름';
+const isUnknownAssetLabel = (val?: string | null): boolean => {
+  const clean = String(val || '').trim();
+  return (
+    clean === UNKNOWN_ASSET_NO ||
+    clean === '관리번호모름' ||
+    clean === '모름' ||
+    clean === '미상' ||
+    clean === '현장확인'
+  );
+};
 
 const QUICK_ISSUE_PRESETS = [
   '현장 옵션 추가장착 (유상 의뢰)',
@@ -23,7 +36,7 @@ const QUICK_ISSUE_PRESETS = [
 ];
 
 export const SmartAsRequest: React.FC = () => {
-  const { customers, sites, contracts, contractAssets, assets, fieldAsTickets, createFieldAsTicket, currentUser, showErrorModal, setActiveTab, navigationPayload, setNavigationPayload } = useApp();
+  const { customers, sites, contracts, contractAssets, assets, products, vendors, fieldAsTickets, createFieldAsTicket, currentUser, showErrorModal, setActiveTab, navigationPayload, setNavigationPayload } = useApp();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -40,6 +53,8 @@ export const SmartAsRequest: React.FC = () => {
   const [selectedSiteId, setSelectedSiteId] = useState('');
   const [selectedAssetNo, setSelectedAssetNo] = useState('');
   const [customAssetNo, setCustomAssetNo] = useState('');
+  const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState('');
+  const [selectedModelName, setSelectedModelName] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
   const [reporterName, setReporterName] = useState(currentUser?.name || '');
   const [reporterContact, setReporterContact] = useState(currentUser?.phone || '');
@@ -306,6 +321,226 @@ export const SmartAsRequest: React.FC = () => {
 
   const siteRentedAssets = assets.filter(a => activeContractAssetIds.includes(a.id));
 
+  const safeDecrypt = (val?: string | null): string => {
+    const raw = String(val || '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('__EBRO_ENC__')) {
+      try {
+        return decryptSecret(raw).trim();
+      } catch {
+        return '';
+      }
+    }
+    return raw;
+  };
+
+  const modelQuickPresets = useMemo(() => {
+    const defaults = ['GS-1930', 'GS-2032', 'GS-2632', 'GS-2646', 'GS-3246', 'GS-4046', 'GS-4555', 'SJY-7.5'];
+    const fromProducts = (products || [])
+      .map(p => (p?.modelName || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set([...defaults, ...fromProducts])).slice(0, 12);
+  }, [products]);
+
+  const effectiveAssetQuery = (customAssetNo || (selectedAssetNo !== 'CUSTOM' ? selectedAssetNo : '')).trim();
+  const isUnknownAsset = isUnknownAssetLabel(effectiveAssetQuery);
+
+  // 🌟 관리번호 입력 시 매칭 자산 후보군 (대여중/현장배치 우선)
+  const matchingAssetCandidates = useMemo(() => {
+    const clean = effectiveAssetQuery.toUpperCase();
+    if (!clean || isUnknownAssetLabel(clean)) return [] as Asset[];
+    const cleanNoHyphen = clean.replace(/[-_\s]/g, '');
+    const cleanDigits = clean.replace(/[^0-9]/g, '');
+
+    const activeAssetIdSet = new Set<string>();
+    (contractAssets || []).forEach(ca => {
+      if (ca && ca.assetId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.actualReturnDate) {
+        activeAssetIdSet.add(ca.assetId);
+      }
+    });
+
+    const scored: { asset: Asset; score: number }[] = [];
+    for (const a of assets || []) {
+      if (!a) continue;
+      const aNo = (a.assetNo || '').trim().toUpperCase();
+      const aNoNoHyphen = aNo.replace(/[-_\s]/g, '');
+      const aDigits = aNo.replace(/[^0-9]/g, '');
+      const vNo = (a.vendorAssetNo || '').trim().toUpperCase();
+      const vNoNoHyphen = vNo.replace(/[-_\s]/g, '');
+      const vDigits = vNo.replace(/[^0-9]/g, '');
+
+      let baseScore = 0;
+      if (
+        (aNo && (aNo === clean || aNoNoHyphen === cleanNoHyphen)) ||
+        (vNo && (vNo === clean || vNoNoHyphen === cleanNoHyphen))
+      ) {
+        baseScore = 100;
+      } else if (
+        cleanNoHyphen.length >= 2 &&
+        ((aNoNoHyphen && aNoNoHyphen.endsWith(cleanNoHyphen)) ||
+          (vNoNoHyphen && vNoNoHyphen.endsWith(cleanNoHyphen)))
+      ) {
+        baseScore = 90;
+      } else if (
+        cleanDigits.length >= 2 &&
+        ((aDigits && (aDigits === cleanDigits || aDigits.endsWith(cleanDigits))) ||
+          (vDigits && (vDigits === cleanDigits || vDigits.endsWith(cleanDigits))))
+      ) {
+        baseScore = 85;
+      } else if (
+        cleanNoHyphen.length >= 2 &&
+        ((aNoNoHyphen && aNoNoHyphen.includes(cleanNoHyphen)) ||
+          (vNoNoHyphen && vNoNoHyphen.includes(cleanNoHyphen)))
+      ) {
+        baseScore = 70;
+      }
+
+      if (baseScore > 0) {
+        let deployBonus = 0;
+        if (a.status === 'RENTED' || activeAssetIdSet.has(a.id) || a.currentCustomerId || a.currentSiteId) {
+          deployBonus = 6;
+        } else if (a.status === 'ASSIGNED') {
+          deployBonus = 3;
+        }
+        scored.push({ asset: a, score: baseScore + deployBonus });
+      }
+    }
+
+    scored.sort((x, y) => {
+      if (y.score !== x.score) return y.score - x.score;
+      return (x.asset.assetNo || '').localeCompare(y.asset.assetNo || '');
+    });
+
+    return scored.slice(0, 6).map(s => s.asset);
+  }, [effectiveAssetQuery, assets, contractAssets]);
+
+  const matchedAsset = useMemo(() => {
+    if (matchingAssetCandidates.length === 0) return undefined;
+    if (selectedCandidateAssetId) {
+      const explicit = matchingAssetCandidates.find(a => a.id === selectedCandidateAssetId);
+      if (explicit) return explicit;
+    }
+    return matchingAssetCandidates[0];
+  }, [matchingAssetCandidates, selectedCandidateAssetId]);
+
+  const getAssetVendorName = (asset?: Asset): string => {
+    if (!asset) return '';
+    const isSublease =
+      asset.ownerType === 'RENTED' ||
+      (asset as any).ownership === 'SUBLEASE' ||
+      (asset as any).ownership === 'RENTED' ||
+      Boolean(asset.renter?.trim());
+    if (!isSublease) return '';
+    if (asset.renter?.trim()) return asset.renter.trim();
+    if (asset.vendorId) {
+      const v = (vendors || []).find(vnd => vnd && vnd.id === asset.vendorId);
+      if (v?.name?.trim()) return v.name.trim();
+    }
+    if (asset.supplier?.trim()) return asset.supplier.trim();
+    return '외부임차';
+  };
+
+  const isRentedAsset = Boolean(
+    matchedAsset &&
+    (matchedAsset.ownerType === 'RENTED' ||
+      (matchedAsset as any).ownership === 'SUBLEASE' ||
+      (matchedAsset as any).ownership === 'RENTED' ||
+      Boolean(matchedAsset.renter?.trim()))
+  );
+
+  const rentedVendorName = useMemo(() => getAssetVendorName(matchedAsset), [matchedAsset, vendors]);
+
+  const applySiteAndCustomerContactFallback = (site?: any, cust?: any) => {
+    const siteContacts = Array.isArray(site?.contacts) ? site.contacts : [];
+    const primaryContactObj = siteContacts.find(
+      (c: any) => c && (c.name?.trim() || c.contact?.trim() || c.phone?.trim())
+    );
+    const nextReporterName =
+      safeDecrypt(site?.contactName) ||
+      safeDecrypt(primaryContactObj?.name) ||
+      safeDecrypt(site?.safetyContactName) ||
+      safeDecrypt(site?.billingContactName) ||
+      '';
+    const nextReporterContact =
+      safeDecrypt(site?.contact) ||
+      safeDecrypt(primaryContactObj?.contact || primaryContactObj?.phone) ||
+      safeDecrypt(site?.safetyContactPhone) ||
+      safeDecrypt(site?.billingContactPhone) ||
+      safeDecrypt(cust?.repContact) ||
+      '';
+    if (nextReporterName) setReporterName(nextReporterName);
+    if (nextReporterContact) setReporterContact(nextReporterContact);
+  };
+
+  const applyAssetInfoToForm = (targetAsset: Asset) => {
+    if (!targetAsset) return;
+    if (targetAsset.modelName?.trim()) {
+      setSelectedModelName(targetAsset.modelName.trim());
+    }
+
+    const activeCa =
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status === 'RENTED' && !c.actualReturnDate) ||
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status === 'ASSIGNED' && !c.actualReturnDate) ||
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && !c.actualReturnDate);
+
+    const contract = activeCa
+      ? (contracts || []).find(c => c.id === activeCa.contractId)
+      : (targetAsset.currentCustomerId || targetAsset.currentSiteId)
+        ? (contracts || []).find(
+            c =>
+              c.status === 'ACTIVE' &&
+              ((targetAsset.currentSiteId && c.siteId === targetAsset.currentSiteId) ||
+                (targetAsset.currentCustomerId && c.customerId === targetAsset.currentCustomerId))
+          )
+        : undefined;
+
+    if (contract?.id) {
+      setSelectedContractId(contract.id);
+    }
+
+    const resolvedSiteId = contract?.siteId || targetAsset.currentSiteId || '';
+    const site = resolvedSiteId ? (sites || []).find(s => s.id === resolvedSiteId) : undefined;
+    const resolvedCustomerId = contract?.customerId || targetAsset.currentCustomerId || site?.customerId || '';
+    const cust = resolvedCustomerId ? (customers || []).find(c => c.id === resolvedCustomerId) : undefined;
+
+    if (resolvedCustomerId) {
+      setSelectedCustomerId(resolvedCustomerId);
+      setCustomerSearch('');
+    }
+    if (resolvedSiteId) {
+      setSelectedSiteId(resolvedSiteId);
+    }
+    applySiteAndCustomerContactFallback(site, cust);
+  };
+
+  useEffect(() => {
+    if (matchedAsset && !isUnknownAsset) {
+      applyAssetInfoToForm(matchedAsset);
+    }
+  }, [matchedAsset?.id, isUnknownAsset, customers.length, sites.length, contracts.length, contractAssets.length]);
+
+  const handleAssetInputChange = (val: string) => {
+    let nextVal = val;
+    if (nextVal.startsWith(UNKNOWN_ASSET_NO) && nextVal.length > UNKNOWN_ASSET_NO.length) {
+      nextVal = nextVal.slice(UNKNOWN_ASSET_NO.length).trimStart();
+    }
+    setCustomAssetNo(nextVal);
+    setSelectedAssetNo(nextVal ? 'CUSTOM' : '');
+    setSelectedCandidateAssetId('');
+  };
+
+  const handleToggleUnknownAsset = () => {
+    if (isUnknownAsset) {
+      setCustomAssetNo('');
+      setSelectedAssetNo('');
+      setSelectedCandidateAssetId('');
+    } else {
+      setCustomAssetNo(UNKNOWN_ASSET_NO);
+      setSelectedAssetNo('CUSTOM');
+      setSelectedCandidateAssetId('');
+    }
+  };
+
   const handlePresetClick = (preset: string) => {
     if (!issueDescription) {
       setIssueDescription(preset);
@@ -338,8 +573,12 @@ export const SmartAsRequest: React.FC = () => {
     try {
       const customer = customers.find(c => c.id === selectedCustomerId);
       const site = sites.find(s => s.id === selectedSiteId);
-      const finalAssetNo = selectedAssetNo === 'CUSTOM' ? (customAssetNo || '현장확인') : (selectedAssetNo || customAssetNo || '현장확인');
-      const matchedAsset = assets.find(a => a.assetNo === finalAssetNo);
+      const rawNo = (customAssetNo || (selectedAssetNo !== 'CUSTOM' ? selectedAssetNo : '')).trim();
+      const isUnknown = !rawNo || isUnknownAssetLabel(rawNo);
+      const finalAssetNo = isUnknown
+        ? UNKNOWN_ASSET_NO
+        : matchedAsset?.assetNo || rawNo.toUpperCase();
+      const finalModelName = selectedModelName.trim() || (!isUnknown ? matchedAsset?.modelName : '') || '';
 
       const ticket = await createFieldAsTicket({
         source: 'SALES_REQUEST',
@@ -349,8 +588,10 @@ export const SmartAsRequest: React.FC = () => {
         siteId: site?.id || '',
         siteName: site?.name || '현장 지정 요청',
         siteAddress: site?.address?.trim() || customer?.address?.trim() || '',
-        assetId: matchedAsset?.id || '',
+        assetId: isUnknown ? '' : (matchedAsset?.id || ''),
         assetNo: finalAssetNo,
+        modelName: finalModelName,
+        vendorId: isUnknown ? undefined : matchedAsset?.vendorId,
         locationDetail: locationDetail.trim(),
         reporterName: reporterName.trim(),
         reporterContact: reporterContact.trim(),
@@ -388,6 +629,8 @@ export const SmartAsRequest: React.FC = () => {
     setSelectedSiteId('');
     setSelectedAssetNo('');
     setCustomAssetNo('');
+    setSelectedCandidateAssetId('');
+    setSelectedModelName('');
     setLocationDetail('');
     setIssueDescription('');
     setErrorCode('');
@@ -683,13 +926,219 @@ export const SmartAsRequest: React.FC = () => {
             </div>
 
             <form data-mid="smart_as-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* 1. 현장 및 대상 장비 스코핑 카드 */}
+          {/* 1. 대상 장비 및 현장 스코핑 카드 (관리번호 최우선 입력 ➔ 기본정보 자동 채움 / 관리번호 모름 시 모델명 기록) */}
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px', boxShadow: 'var(--shadow-sm)' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Building2 size={18} color="var(--primary)" />
-              1. 현장 및 대상 장비 선택
+              1. 대상 장비 및 현장 선택
             </h3>
-            
+
+            {/* 1-1행: 관리번호 최우선 입력 + [관리번호 모름] 토글 & 모델명 기록 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              {/* 좌측: 관리번호 입력 (또는 관리번호 모름) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                      관리번호 (장비번호)
+                    </label>
+                    {isUnknownAsset && (
+                      <span
+                        data-testid="pc-as-unknown-asset-badge"
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                          color: '#d97706',
+                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        관리번호 모름 · 현장확인
+                      </span>
+                    )}
+                    {!isUnknownAsset && matchedAsset && (
+                      <span
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          fontFamily: 'monospace',
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          color: '#059669',
+                          border: '1px solid rgba(16, 185, 129, 0.4)',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        #{matchedAsset.assetNo} · {matchedAsset.modelName}
+                      </span>
+                    )}
+                    {!isUnknownAsset && isRentedAsset && (
+                      <span
+                        data-testid="pc-as-rented-vendor-badge"
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                          color: '#d97706',
+                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        임차처: {rentedVendorName}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="pc-as-unknown-asset-btn"
+                    onClick={handleToggleUnknownAsset}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      backgroundColor: isUnknownAsset ? '#f59e0b' : 'var(--bg-app)',
+                      color: isUnknownAsset ? '#0f172a' : '#d97706',
+                      border: isUnknownAsset ? '1px solid #d97706' : '1px solid rgba(245, 158, 11, 0.5)'
+                    }}
+                  >
+                    {isUnknownAsset && <Check size={13} strokeWidth={3} />}
+                    <span>관리번호 모름</span>
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={customAssetNo}
+                  onChange={(e) => handleAssetInputChange(e.target.value)}
+                  placeholder="예: 102, G19102, K7088 입력 시 고객사·현장·담당자 자동 채움 (모르면 [관리번호 모름] 클릭)"
+                  style={{
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: isUnknownAsset ? '1.5px solid #f59e0b' : '1px solid var(--border-color)',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    fontWeight: isUnknownAsset ? 800 : 600,
+                    backgroundColor: 'var(--bg-card)',
+                    color: isUnknownAsset ? '#d97706' : 'var(--text-main)'
+                  }}
+                />
+
+                {!isUnknownAsset && matchingAssetCandidates.length > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                    {matchingAssetCandidates.map(cand => {
+                      const isSelected = matchedAsset?.id === cand.id;
+                      const candVendor = getAssetVendorName(cand);
+                      return (
+                        <button
+                          key={cand.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCandidateAssetId(cand.id);
+                            setCustomAssetNo(cand.assetNo);
+                            setSelectedAssetNo(cand.assetNo);
+                            applyAssetInfoToForm(cand);
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            whiteSpace: 'nowrap',
+                            backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-app)',
+                            border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                            color: 'var(--text-main)'
+                          }}
+                        >
+                          <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--primary)' }}>#{cand.assetNo}</span>
+                          <span>{cand.modelName}</span>
+                          {candVendor && (
+                            <span style={{ padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#d97706', fontSize: '10px', fontWeight: 800 }}>
+                              임차처: {candVendor}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 우측: 모델명 기록 (관리번호 매칭 시 자동 채움 / 관리번호 모름 시 직접 선택·기록) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: isUnknownAsset ? '#d97706' : 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    모델명 {isUnknownAsset ? '(관리번호 모름 · 모델 기록)' : '(자동 채움 / 직접 수정 가능)'}
+                  </label>
+                  {selectedModelName && (
+                    <span style={{ fontSize: '11.5px', fontFamily: 'monospace', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                      모델: {selectedModelName}
+                    </span>
+                  )}
+                </div>
+
+                <input
+                  type="text"
+                  data-testid="pc-as-model-name-input"
+                  value={selectedModelName}
+                  onChange={(e) => setSelectedModelName(e.target.value)}
+                  placeholder="예: GS-1930, GS-2646, GS-3246 (아래 모델 버튼 클릭 또는 직접 입력)"
+                  style={{
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: isUnknownAsset ? '1.5px solid rgba(245, 158, 11, 0.55)' : '1px solid var(--border-color)',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                  }}
+                />
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  {modelQuickPresets.map(presetModel => {
+                    const active = selectedModelName.trim().toUpperCase() === presetModel.toUpperCase();
+                    return (
+                      <button
+                        key={presetModel}
+                        type="button"
+                        onClick={() => setSelectedModelName(active ? '' : presetModel)}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontFamily: 'monospace',
+                          fontWeight: active ? 800 : 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          backgroundColor: active ? '#f59e0b' : 'var(--bg-app)',
+                          color: active ? '#0f172a' : 'var(--text-secondary)',
+                          border: active ? '1px solid #d97706' : '1px solid var(--border-color)'
+                        }}
+                      >
+                        {presetModel}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 1-2행: 고객사 (자동 채움 / 검색 선택) & 공사 현장명 (자동 채움 / 선택) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               {/* 고객사 선택 (초성 검색 지원) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -723,9 +1172,17 @@ export const SmartAsRequest: React.FC = () => {
                 <select
                   value={selectedCustomerId}
                   onChange={(e) => {
-                    setSelectedCustomerId(e.target.value);
+                    const custId = e.target.value;
+                    setSelectedCustomerId(custId);
                     setSelectedSiteId('');
-                    setSelectedAssetNo('');
+                    const custObj = customers.find(c => c.id === custId);
+                    const cSites = custId ? sites.filter(s => s.customerId === custId) : [];
+                    if (cSites.length === 1) {
+                      setSelectedSiteId(cSites[0].id);
+                      applySiteAndCustomerContactFallback(cSites[0], custObj);
+                    } else if (custObj) {
+                      applySiteAndCustomerContactFallback(undefined, custObj);
+                    }
                   }}
                   style={{
                     padding: '8px 12px',
@@ -753,8 +1210,16 @@ export const SmartAsRequest: React.FC = () => {
                 <select
                   value={selectedSiteId}
                   onChange={(e) => {
-                    setSelectedSiteId(e.target.value);
-                    setSelectedAssetNo('');
+                    const sId = e.target.value;
+                    setSelectedSiteId(sId);
+                    const siteObj = sites.find(s => s.id === sId);
+                    const custObj = customers.find(c => c.id === (siteObj?.customerId || selectedCustomerId));
+                    if (siteObj?.customerId && !selectedCustomerId) {
+                      setSelectedCustomerId(siteObj.customerId);
+                    }
+                    if (siteObj) {
+                      applySiteAndCustomerContactFallback(siteObj, custObj);
+                    }
                   }}
                   style={{
                     padding: '9px 12px',
@@ -773,17 +1238,28 @@ export const SmartAsRequest: React.FC = () => {
               </div>
             </div>
 
-            {/* 관리번호 선택 (대여중 장비 드롭다운 + 직접/유연 입력) */}
+            {/* 1-3행: 해당 현장 대여 장비 보조 선택 & 현장 장비 위치 상세 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                  해당 현장 대여 장비 목록
+                  해당 현장 대여 장비 목록 (보조 선택)
                 </label>
                 <select
                   value={selectedAssetNo}
                   onChange={(e) => {
-                    setSelectedAssetNo(e.target.value);
-                    if (e.target.value !== 'CUSTOM') setCustomAssetNo('');
+                    const val = e.target.value;
+                    setSelectedAssetNo(val);
+                    if (val === UNKNOWN_ASSET_NO) {
+                      setCustomAssetNo(UNKNOWN_ASSET_NO);
+                      setSelectedCandidateAssetId('');
+                    } else if (val && val !== 'CUSTOM') {
+                      setCustomAssetNo(val);
+                      const found = assets.find(a => a.assetNo === val);
+                      if (found) {
+                        setSelectedCandidateAssetId(found.id);
+                        applyAssetInfoToForm(found);
+                      }
+                    }
                   }}
                   style={{
                     padding: '9px 12px',
@@ -794,65 +1270,26 @@ export const SmartAsRequest: React.FC = () => {
                     color: 'var(--text-main)'
                   }}
                 >
-                  <option value="">대여 장비 선택</option>
+                  <option value="">대여 장비 선택 (또는 상단 관리번호 입력)</option>
+                  <option value={UNKNOWN_ASSET_NO}>관리번호 모름 (모델명으로 진행)</option>
                   {siteRentedAssets.map(a => (
                     <option key={a.id} value={a.assetNo}>
                       {a.assetNo} ({a.modelName})
                     </option>
                   ))}
-                  <option value="CUSTOM">직접 입력 (전체장비 / 미확인 / 다수 장비)</option>
+                  <option value="CUSTOM">직접 입력 (전체장비 / 다수 장비)</option>
                 </select>
               </div>
 
-              {/* 장비번호 직접입력 또는 위치 상세 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                  {selectedAssetNo === 'CUSTOM' || !selectedAssetNo ? '장비번호 직접입력 (예: G10032, 14002 외 3대, 전체장비)' : '장비 세부 위치 (층/구역/열)'}
-                </label>
-                {selectedAssetNo === 'CUSTOM' || !selectedAssetNo ? (
-                  <input
-                    type="text"
-                    value={customAssetNo}
-                    onChange={(e) => setCustomAssetNo(e.target.value)}
-                    placeholder="예: G19190, 팹동 전체장비, 확인필요"
-                    style={{
-                      padding: '9px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '14px',
-                      backgroundColor: 'var(--bg-card)',
-                      color: 'var(--text-main)'
-                    }}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={locationDetail}
-                    onChange={(e) => setLocationDetail(e.target.value)}
-                    placeholder="예: 팹동 8층 X27 Y17, 지원동 B2"
-                    style={{
-                      padding: '9px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      fontSize: '14px',
-                      backgroundColor: 'var(--bg-card)',
-                      color: 'var(--text-main)'
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-
-            {selectedAssetNo && selectedAssetNo !== 'CUSTOM' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                  현장 장비 위치 상세 (선택)
+                  현장 장비 위치 상세 (층/구역/열)
                 </label>
                 <input
                   type="text"
                   value={locationDetail}
                   onChange={(e) => setLocationDetail(e.target.value)}
-                  placeholder="예: 팹동 8층 X27 Y17, 지원동 2공구 B2 몽골텐트옆"
+                  placeholder="예: 팹동 8층 X27 Y17, 지원동 2공구 B2"
                   style={{
                     padding: '9px 12px',
                     borderRadius: '6px',
@@ -863,7 +1300,7 @@ export const SmartAsRequest: React.FC = () => {
                   }}
                 />
               </div>
-            )}
+            </div>
           </div>
 
           {/* 2. 고장 증상 및 요청 내용 입력 카드 */}

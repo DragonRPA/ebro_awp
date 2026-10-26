@@ -56,6 +56,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     customers,
     sites,
     assets,
+    products,
     contracts,
     contractAssets,
     vendors,
@@ -75,6 +76,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   const [siteName, setSiteName] = useState('');
   const [siteAddress, setSiteAddress] = useState('');
   const [assetNo, setAssetNo] = useState(typeof initialAssetNo === 'string' ? initialAssetNo : '');
+  const [modelName, setModelName] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
   const [reporterName, setReporterName] = useState('');
   const [reporterContact, setReporterContact] = useState('');
@@ -136,6 +138,14 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
 
   const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState<string>('');
   const isUnknownAsset = isUnknownAssetLabel(assetNo);
+
+  const modelQuickPresets = useMemo(() => {
+    const defaults = ['GS-1930', 'GS-2032', 'GS-2632', 'GS-2646', 'GS-3246', 'GS-4046', 'GS-4555', 'SJY-7.5'];
+    const fromProducts = (products || [])
+      .map(p => (p?.modelName || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set([...defaults, ...fromProducts])).slice(0, 12);
+  }, [products]);
 
   // 🌟 입력된 장비번호(자산번호/끝자리 숫자 포함)와 매칭되는 실물 자산 후보군 및 최우선 매칭 자산 판별
   const matchingAssetCandidates = useMemo(() => {
@@ -338,6 +348,9 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   // 🌟 매칭된 자산으로부터 고객사·현장명·도로명주소·담당자 연락처를 일괄 추출하여 폼에 자동 반영
   const applyAssetInfoToForm = (targetAsset: Asset) => {
     if (!targetAsset) return;
+    if (targetAsset.modelName?.trim()) {
+      setModelName(targetAsset.modelName.trim());
+    }
 
     // 1순위: 활성 체결자산(RENTED -> ASSIGNED -> 미반납) 기반 계약 역추적
     const activeCa =
@@ -780,7 +793,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         siteAddress: siteAddress.trim(),
         assetId: isUnknown ? '' : matchedAsset?.id,
         assetNo: finalAssetNo,
-        modelName: isUnknown ? '' : matchedAsset?.modelName,
+        modelName: modelName.trim() || (!isUnknown ? matchedAsset?.modelName : '') || '',
         vendorId: isUnknown ? undefined : matchedAsset?.vendorId,
         locationDetail,
         reporterName,
@@ -920,6 +933,62 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* 모델명 기록 (관리번호 모름 선택 시 또는 직접 모델 지정 시) */}
+          {(isUnknownAsset || !matchedAsset || modelName) && (
+            <div
+              data-testid="mobile-as-model-name-section"
+              className={`flex flex-col gap-1.5 mt-1 p-2.5 rounded-xl border ${
+                isUnknownAsset
+                  ? 'bg-amber-950/20 border-amber-500/40'
+                  : 'bg-slate-900/60 border-slate-800'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+                  모델명 {isUnknownAsset && <span className="text-amber-300 font-extrabold">(관리번호 모름 · 모델 기록)</span>}
+                </label>
+                {modelName && (
+                  <span className="text-[11px] font-mono font-extrabold text-amber-300 whitespace-nowrap">
+                    선택됨: {modelName}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                {modelQuickPresets.map(presetModel => {
+                  const active = modelName.trim().toUpperCase() === presetModel.toUpperCase();
+                  return (
+                    <button
+                      key={presetModel}
+                      type="button"
+                      onClick={() => setModelName(active ? '' : presetModel)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold font-mono border whitespace-nowrap flex-shrink-0 transition-colors ${
+                        active
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                          : 'bg-slate-950 text-slate-300 border-slate-700 hover:bg-slate-800'
+                      }`}
+                    >
+                      {presetModel}
+                    </button>
+                  );
+                })}
+              </div>
+              <input
+                type="text"
+                data-testid="mobile-as-model-name-input"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                placeholder="모델명 직접 입력 또는 위 버튼 선택 (예: GS-1930, 2646, 3246)"
+                className="w-full rounded-lg p-2.5 text-xs font-mono placeholder-slate-500 focus:outline-none"
+                style={{
+                  backgroundColor: '#090d16',
+                  color: '#f8fafc',
+                  border: '1px solid #334155',
+                  colorScheme: 'dark',
+                }}
+              />
             </div>
           )}
         </div>

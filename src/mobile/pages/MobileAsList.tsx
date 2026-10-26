@@ -554,7 +554,7 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
                         >
                           {ticket.assetNo || '관리번호 모름'}
                         </span>
-                        {ticket.modelName && ticket.assetNo !== '관리번호 모름' && (
+                        {ticket.modelName && (
                           <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
                             {ticket.modelName}
                           </span>
