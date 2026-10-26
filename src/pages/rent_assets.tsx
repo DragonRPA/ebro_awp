@@ -1129,13 +1129,18 @@ export const RentAssets: React.FC = () => {
   };
 
   // ==========================================
-  // [탭 2] 임차자산 대장 현황 관련 상태
+  // [탭 1] 임차자산 대장 현황 관련 상태
   // ==========================================
   const [searchQuery, setSearchQuery] = useState('');
+  const [modelQuery, setModelQuery] = useState('');
   const [renterQuery, setRenterQuery] = useState('');
   const [startDateQuery, setStartDateQuery] = useState('');
   const [endDateQuery, setEndDateQuery] = useState('');
+  const [feeQuery, setFeeQuery] = useState('ALL');
   const [returnQuery, setReturnQuery] = useState('ALL');
+  const [operationStatusQuery, setOperationStatusQuery] = useState('ALL');
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [siteQuery, setSiteQuery] = useState('');
 
   const [showModal, setShowModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Partial<Asset> | null>(null);
@@ -1183,6 +1188,74 @@ export const RentAssets: React.FC = () => {
   const [returnVehicleType, setReturnVehicleType] = useState('3.5T');
   const [returnCost, setReturnCost] = useState(70000);
 
+  // 반납 지연일 및 초과 검사 헬퍼 (반납 완료 장비는 지연 및 경보 대상에서 100% 제외)
+  const calculateDelayDays = (asset: Asset): number => {
+    if (!asset.rentEnd) return 0;
+    if (asset.actualRentReturnDate || asset.status === 'RENTED_RETURNED') return 0;
+    const plannedEnd = new Date(asset.rentEnd);
+    const actualEnd = new Date();
+    plannedEnd.setHours(0,0,0,0);
+    actualEnd.setHours(0,0,0,0);
+    const diffTime = actualEnd.getTime() - plannedEnd.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const isSubleaseOverdue = (asset: Asset): boolean => {
+    if (asset.actualRentReturnDate || asset.status === 'RENTED_RETURNED') return false;
+    if (!asset.rentEnd || !asset.contractEnd) return false;
+    const leaseEnd = new Date(asset.rentEnd);
+    const subleaseEnd = new Date(asset.contractEnd);
+    leaseEnd.setHours(0,0,0,0);
+    subleaseEnd.setHours(0,0,0,0);
+    return subleaseEnd.getTime() > leaseEnd.getTime();
+  };
+
+  // 표 구성 요소별 동적 필터 옵션 추출
+  const tableModelOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of rentedAssets) {
+      if (a.modelName && a.modelName.trim()) set.add(a.modelName.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [rentedAssets]);
+
+  const tableRenterOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of rentedAssets) {
+      const rName = getAssetRenterName(a);
+      if (rName) set.add(rName);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [rentedAssets, vendorMap]);
+
+  const tableCustomerOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of rentedAssets) {
+      if (a.currentCustomerId) {
+        const c = customerMap.get(a.currentCustomerId);
+        if (c?.name) map.set(a.currentCustomerId, c.name);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [rentedAssets, customerMap]);
+
+  const tableSiteOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of rentedAssets) {
+      if (customerQuery && customerQuery !== '__UNASSIGNED__' && a.currentCustomerId !== customerQuery) continue;
+      if (a.currentSiteId) {
+        const s = siteMap.get(a.currentSiteId);
+        if (s?.name) map.set(a.currentSiteId, s.name);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  }, [rentedAssets, siteMap, customerQuery]);
+
   const filteredAssets = useMemo(() => {
     const sq = searchQuery.trim();
     const searchMatcher = sq ? createHangulMatcher(sq) : null;
@@ -1191,23 +1264,98 @@ export const RentAssets: React.FC = () => {
 
     return rentedAssets.filter(a => {
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+      const isFieldActive = !isReturned && (a.status === 'RENTED' || Boolean(a.currentCustomerId));
       const isAvailable = !isReturned && (a.status === 'AVAILABLE' || (!a.currentCustomerId && a.status !== 'RENTED' && a.status !== 'ASSIGNED' && a.status !== 'REPAIRING'));
+
+      // 1. 반납 상태 필터 (임차처 반납일 컬럼)
       const matchesReturn = returnQuery === 'ALL' ? true :
                             returnQuery === 'RETURNED' ? isReturned :
+                            returnQuery === 'ACTIVE_FIELD' ? isFieldActive :
                             returnQuery === 'AVAILABLE' ? isAvailable :
                             !isReturned;
       if (!matchesReturn) return false;
 
+      // 2. 운용 상태 필터 (운용 상태 컬럼)
+      if (operationStatusQuery !== 'ALL') {
+        if (operationStatusQuery === 'RETURNED' && !isReturned) return false;
+        if (operationStatusQuery === 'RENTED' && (isReturned || (a.status !== 'RENTED' && !a.currentCustomerId))) return false;
+        if (operationStatusQuery === 'AVAILABLE' && !isAvailable) return false;
+        if (operationStatusQuery === 'OUTBOUND_PREP' && (isReturned || !['ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT'].includes(a.status))) return false;
+        if (operationStatusQuery === 'REPAIRING' && (isReturned || a.status !== 'REPAIRING')) return false;
+        if (operationStatusQuery === 'OVERDUE' && !isSubleaseOverdue(a)) return false;
+        if (operationStatusQuery === 'DELAYED' && calculateDelayDays(a) <= 0) return false;
+      }
+
+      // 3. 모델명 필터 (모델명 컬럼)
+      if (modelQuery && (a.modelName || '').trim() !== modelQuery) return false;
+
+      // 4. 임차 계약기간 필터 (임차 계약기간 컬럼)
       if (startDateQuery && (!a.rentEnd || a.rentEnd < startDateQuery)) return false;
       if (endDateQuery && (!a.rentStart || a.rentStart > endDateQuery)) return false;
 
+      // 5. 월 임차료 필터 (월 임차료 컬럼)
+      if (feeQuery === 'PAID' && (a.monthlyRentFee || 0) <= 0) return false;
+      if (feeQuery === 'ZERO' && (a.monthlyRentFee || 0) > 0) return false;
+
+      // 6. 투입 고객사 / 현장 필터 (투입 현장 / 고객사 컬럼)
+      if (customerQuery === '__UNASSIGNED__') {
+        if (a.currentCustomerId) return false;
+      } else if (customerQuery) {
+        if (a.currentCustomerId !== customerQuery) return false;
+      }
+      if (siteQuery && a.currentSiteId !== siteQuery) return false;
+
+      // 7. 임차처 필터 (임차처 컬럼)
       const rName = getAssetRenterName(a);
       if (renterMatcher && !renterMatcher.test(rName)) return false;
-      if (searchMatcher && !(searchMatcher.test(a.assetNo) || searchMatcher.test(a.modelName) || searchMatcher.test(rName))) return false;
+
+      // 8. 통합 검색어 필터
+      if (searchMatcher) {
+        const cust = a.currentCustomerId ? customerMap.get(a.currentCustomerId) : undefined;
+        const site = a.currentSiteId ? siteMap.get(a.currentSiteId) : undefined;
+        const matched =
+          searchMatcher.test(a.assetNo || '') ||
+          searchMatcher.test(a.vendorAssetNo || '') ||
+          searchMatcher.test(a.modelName || '') ||
+          searchMatcher.test(rName) ||
+          searchMatcher.test(cust?.name || '') ||
+          searchMatcher.test(site?.name || '');
+        if (!matched) return false;
+      }
 
       return true;
     });
-  }, [rentedAssets, vendorMap, searchQuery, renterQuery, startDateQuery, endDateQuery, returnQuery]);
+  }, [
+    rentedAssets, vendorMap, customerMap, siteMap,
+    searchQuery, modelQuery, renterQuery, startDateQuery, endDateQuery,
+    feeQuery, returnQuery, operationStatusQuery, customerQuery, siteQuery
+  ]);
+
+  // 조회 결과 연동 KPI 집계 (상단 요약 카드 및 하단 요약 바 연동)
+  const filteredKpiStats = useMemo(() => {
+    const activeRentedList: Asset[] = [];
+    const returnedList: Asset[] = [];
+    let activeMonthlyRentCost = 0;
+    let allFilteredMonthlyRentCost = 0;
+    for (let i = 0; i < filteredAssets.length; i++) {
+      const a = filteredAssets[i];
+      const fee = a.monthlyRentFee || 0;
+      allFilteredMonthlyRentCost += fee;
+      if (Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED') {
+        returnedList.push(a);
+      } else {
+        activeRentedList.push(a);
+        activeMonthlyRentCost += fee;
+      }
+    }
+    const totalMonthlyRentCost = activeRentedList.length > 0 ? activeMonthlyRentCost : allFilteredMonthlyRentCost;
+    return {
+      totalCount: filteredAssets.length,
+      activeRentedList,
+      returnedList,
+      totalMonthlyRentCost
+    };
+  }, [filteredAssets]);
 
   // 3단계 정렬 (오름차순 ▲ ➔ 내림차순 ▼ ➔ 정렬안함 ↕)
   const {
@@ -1258,29 +1406,6 @@ export const RentAssets: React.FC = () => {
     const d = new Date(startStr);
     d.setDate(d.getDate() + 30);
     return d.toISOString().split('T')[0];
-  };
-
-  // 반납 지연일 및 초과 검사 헬퍼 (반납 완료 장비는 지연 및 경보 대상에서 100% 제외)
-  const calculateDelayDays = (asset: Asset): number => {
-    if (!asset.rentEnd) return 0;
-    if (asset.actualRentReturnDate || asset.status === 'RENTED_RETURNED') return 0;
-    const plannedEnd = new Date(asset.rentEnd);
-    const actualEnd = new Date();
-    plannedEnd.setHours(0,0,0,0);
-    actualEnd.setHours(0,0,0,0);
-    const diffTime = actualEnd.getTime() - plannedEnd.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
-  };
-
-  const isSubleaseOverdue = (asset: Asset): boolean => {
-    if (asset.actualRentReturnDate || asset.status === 'RENTED_RETURNED') return false;
-    if (!asset.rentEnd || !asset.contractEnd) return false;
-    const leaseEnd = new Date(asset.rentEnd);
-    const subleaseEnd = new Date(asset.contractEnd);
-    leaseEnd.setHours(0,0,0,0);
-    subleaseEnd.setHours(0,0,0,0);
-    return subleaseEnd.getTime() > leaseEnd.getTime();
   };
 
   // 임차 자산 신규 자동 채번 헬퍼 (R-xxx 형식 순차 증가)
@@ -1812,7 +1937,7 @@ export const RentAssets: React.FC = () => {
 
       {/* 📊 임차 장비 보유 및 월 임차료 요약 바 (임차자산 대장 탭 전용 노출로 정산화면 슬림화) */}
       {activeTab === 'CURRENT' && (() => {
-        const { activeRentedList, returnedList, totalMonthlyRentCost } = rentedKpiStats;
+        const { activeRentedList, returnedList, totalMonthlyRentCost } = filteredKpiStats;
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '8px', flexShrink: 0 }}>
@@ -3337,7 +3462,12 @@ export const RentAssets: React.FC = () => {
       {/* 탭 1: 임차자산 대장 현황 - 헌장 3.6 유형 B 고밀도 대장 */}
       {/* ========================================================================= */}
       {activeTab === 'CURRENT' && (() => {
-        const { activeRentedList, returnedList, totalMonthlyRentCost } = rentedKpiStats;
+        const { totalCount, activeRentedList, returnedList, totalMonthlyRentCost } = filteredKpiStats;
+        const isFilterActive = Boolean(
+          searchQuery || modelQuery || renterQuery || startDateQuery || endDateQuery ||
+          feeQuery !== 'ALL' || returnQuery !== 'ALL' || operationStatusQuery !== 'ALL' ||
+          customerQuery || siteQuery
+        );
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -3354,13 +3484,14 @@ export const RentAssets: React.FC = () => {
               flexWrap: 'wrap',
               flexShrink: 0
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
+              {/* 1. 통합 검색 (관리번호 / 임차처번호 / 모델명 / 임차처 / 고객사 / 현장) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 170px', minWidth: '160px' }}>
                 <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>자산 검색</label>
                 <div style={{ position: 'relative' }}>
                   <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
                   <input
                     type="text"
-                    placeholder="관리번호, 모델명, 임차처 검색"
+                    placeholder="관리번호, 모델명, 임차처, 현장 검색"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     style={{
@@ -3376,37 +3507,156 @@ export const RentAssets: React.FC = () => {
                 </div>
               </div>
 
+              {/* 2. 모델명 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>모델명</label>
+                <select
+                  value={modelQuery}
+                  onChange={e => setModelQuery(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '110px' }}
+                >
+                  <option value="">전체 모델</option>
+                  {tableModelOptions.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. 임차처 필터 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>임차처</label>
                 <select
                   value={renterQuery}
                   onChange={e => setRenterQuery(e.target.value)}
-                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '140px' }}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '125px' }}
                 >
                   <option value="">전체 임차처</option>
-                  {renterVendors.map(r => (
+                  {tableRenterOptions.map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
               </div>
 
+              {/* 4. 임차 계약기간 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>임차 계약기간</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="date"
+                    value={startDateQuery}
+                    onChange={e => setStartDateQuery(e.target.value)}
+                    title="임차 계약기간 시작일"
+                    style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', width: '116px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>~</span>
+                  <input
+                    type="date"
+                    value={endDateQuery}
+                    onChange={e => setEndDateQuery(e.target.value)}
+                    title="임차 계약기간 종료일"
+                    style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', width: '116px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 5. 월 임차료 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>월 임차료</label>
+                <select
+                  value={feeQuery}
+                  onChange={e => setFeeQuery(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '105px' }}
+                >
+                  <option value="ALL">전체 임차료</option>
+                  <option value="PAID">유상 임차</option>
+                  <option value="ZERO">단가 미입력 (₩0)</option>
+                </select>
+              </div>
+
+              {/* 6. 임차처 반납일 / 반납 상태 필터 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>반납 상태</label>
                 <select
                   value={returnQuery}
                   onChange={e => setReturnQuery(e.target.value)}
-                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '130px' }}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '125px' }}
                 >
                   <option value="ALL">전체 반납 상태</option>
-                  <option value="AVAILABLE">임대가능</option>
-                  <option value="ACTIVE">미반납 (임차 가동 중)</option>
+                  <option value="ACTIVE">미반납 전체 (임차 가동 중)</option>
+                  <option value="ACTIVE_FIELD">임차중(현장가동)</option>
+                  <option value="AVAILABLE">미반납(보관중)</option>
                   <option value="RETURNED">반납 완료</option>
                 </select>
               </div>
 
-              {(searchQuery || renterQuery || returnQuery !== 'ALL') && (
+              {/* 7. 운용 상태 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>운용 상태</label>
+                <select
+                  value={operationStatusQuery}
+                  onChange={e => setOperationStatusQuery(e.target.value)}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '120px' }}
+                >
+                  <option value="ALL">전체 운용 상태</option>
+                  <option value="RENTED">대여중</option>
+                  <option value="AVAILABLE">임대가능 (보관중)</option>
+                  <option value="OUTBOUND_PREP">출고대기 / 검수 / 운송</option>
+                  <option value="REPAIRING">정비중</option>
+                  <option value="OVERDUE">전대 기간 초과</option>
+                  <option value="DELAYED">임차 반납 지연</option>
+                  <option value="RETURNED">임차처 반납완료</option>
+                </select>
+              </div>
+
+              {/* 8. 투입 고객사 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>투입 고객사</label>
+                <select
+                  value={customerQuery}
+                  onChange={e => {
+                    setCustomerQuery(e.target.value);
+                    setSiteQuery('');
+                  }}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '130px', maxWidth: '170px' }}
+                >
+                  <option value="">전체 고객사</option>
+                  <option value="__UNASSIGNED__">미투입 (보관/반납)</option>
+                  {tableCustomerOptions.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 9. 투입 현장 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>투입 현장</label>
+                <select
+                  value={siteQuery}
+                  onChange={e => setSiteQuery(e.target.value)}
+                  disabled={customerQuery === '__UNASSIGNED__'}
+                  style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '130px', maxWidth: '180px' }}
+                >
+                  <option value="">전체 현장</option>
+                  {tableSiteOptions.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {isFilterActive && (
                 <button
-                  onClick={() => { setSearchQuery(''); setRenterQuery(''); setReturnQuery('ALL'); }}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setModelQuery('');
+                    setRenterQuery('');
+                    setStartDateQuery('');
+                    setEndDateQuery('');
+                    setFeeQuery('ALL');
+                    setReturnQuery('ALL');
+                    setOperationStatusQuery('ALL');
+                    setCustomerQuery('');
+                    setSiteQuery('');
+                  }}
                   style={{
                     marginTop: '16px',
                     padding: '4px 8px',
@@ -3706,12 +3956,19 @@ export const RentAssets: React.FC = () => {
                 fontSize: '11.5px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                  <span>조회 결과: <strong style={{ color: 'var(--text-main)' }}>{totalCount}대</strong></span>
+                  <span>|</span>
                   <span>가동중 전대장비: <strong style={{ color: 'var(--primary)' }}>{activeRentedList.length}대</strong></span>
                   <span>|</span>
                   <span>월 총 임차료 지출: <strong style={{ color: 'var(--danger)' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong></span>
                   <span>|</span>
                   <span>반납 완료 장비: <strong style={{ color: 'var(--text-muted)' }}>{returnedList.length}대</strong></span>
                 </div>
+                {isFilterActive && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    전체 {rentedAssets.length}대 중 {totalCount}대 조회됨
+                  </div>
+                )}
               </div>
             </div>
 
