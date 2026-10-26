@@ -54,6 +54,8 @@ const DDL_STATEMENTS = [
   `ALTER TABLE "mechanic_consumable_stocks" DROP CONSTRAINT IF EXISTS "mechanic_consumable_stocks_mechanicId_consumableId_key";`,
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "assetNature" TEXT;`,
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "yard" TEXT;`,
+  `ALTER TABLE "assets" DROP CONSTRAINT IF EXISTS "assets_status_check";`,
+  `ALTER TABLE "assets" ADD CONSTRAINT "assets_status_check" CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT', 'RENTED', 'REPAIRING', 'RENTED_RETURNED', 'SOLD', 'LOST', 'DISPOSED'));`,
   `ALTER TABLE "deliveries" ADD COLUMN IF NOT EXISTS "bundleGroupId" TEXT;`,
   `ALTER TABLE "deliveries" ADD COLUMN IF NOT EXISTS "bundleOrder" INTEGER;`,
   `ALTER TABLE "deliveries" ADD COLUMN IF NOT EXISTS "originalDispatchCategory" TEXT;`,
