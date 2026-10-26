@@ -1954,18 +1954,28 @@ export interface InboundDefectClaimMeta {
   assetId?: string;
   assetNo: string;
   modelName?: string;
+  ownerType?: 'OWN' | 'RENTED';         // 자사장비 / 임차장비 구분
+  vendorName?: string;                  // 임차처명 (임차자산인 경우)
   customerId?: string;
   customerName: string;
   siteId?: string;
   siteName: string;
+  siteAddress?: string;                 // 현장 주소
   contractId?: string;
   contractNo?: string;
+  outboundDate?: string;                // 계약 출고일(대여 시작일)
   inboundDate: string;                  // 최근 입고일자
+  billingDay?: number;                  // 명세서/계산서 마감일
   salespersonId?: string;
   salespersonName?: string;
+  customerContactName?: string;         // 고객/현장 담당자 성함
+  customerPhone?: string;               // 고객/현장 담당자 연락처
+  customerEmail?: string;               // 고객 세금계산서/청구 이메일
   registeredById?: string;
   registeredByName?: string;
   registeredAt: string;
+  inspectorMemo?: string;               // 출고팀 검수자 현장 소견 메모 (영업 협상 메모와 분리 보존)
+  displayName?: string;                 // 명세서 표기명 (영업사원 조정 가능)
   initialEstimatedAmount: number;       // 최초 예상 수리비 합계
   agreedAmount: number;                 // 최종 합의(조정) 수리비 합계
   negotiationStatus: ClaimNegotiationStatus;

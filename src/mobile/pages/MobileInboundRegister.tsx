@@ -49,7 +49,7 @@ const FALLBACK_DEFECT_PRESETS: DefectOption[] = [
 interface MobileInboundRegisterProps {
   onSuccess?: () => void;
   onBack?: () => void;
-  onOpenDefectClaim?: () => void;
+  onOpenDefectClaim?: (assetNo?: string) => void;
 }
 
 export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
@@ -402,11 +402,11 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
         {onOpenDefectClaim && (
           <button
             type="button"
-            onClick={onOpenDefectClaim}
+            onClick={() => onOpenDefectClaim(currentAsset?.assetNo)}
             className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-extrabold whitespace-nowrap flex items-center gap-1.5"
           >
             <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>미처리 불량·청구 등록</span>
+            <span>불량청구 등록</span>
           </button>
         )}
       </div>

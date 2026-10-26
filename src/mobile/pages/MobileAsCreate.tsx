@@ -10,6 +10,8 @@ import { parseAsCallTranscript } from '../../services/voiceOrderDraftService';
 import { resolveSiteDetailedAddress } from '../../utils/nativeLauncher';
 import { ttsService } from '../../services/ttsService';
 import { getUserDepartmentName, isDeveloperUser } from '../../utils/userDepartmentHelper';
+import { decryptSecret } from '../../utils/cryptoVault';
+import { Asset } from '../../services/db';
 
 interface MobileAsCreateProps {
   onBack: () => void;
@@ -50,7 +52,12 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     currentUser,
     inspectionChecklistItems,
     saveInspectionChecklistItem,
+    loadTablesForMenu,
   } = useApp();
+
+  useEffect(() => {
+    loadTablesForMenu?.('smart_as_request');
+  }, [loadTablesForMenu]);
 
   const [customerName, setCustomerName] = useState('');
   const [siteName, setSiteName] = useState('');
@@ -115,35 +122,123 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     } catch {}
   };
 
-  // 🌟 입력된 장비번호(자산번호)와 매칭되는 실물 자산 및 임차처 판별
-  const matchedAsset = useMemo(() => {
+  const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState<string>('');
+
+  // 🌟 입력된 장비번호(자산번호/끝자리 숫자 포함)와 매칭되는 실물 자산 후보군 및 최우선 매칭 자산 판별
+  const matchingAssetCandidates = useMemo(() => {
     const clean = (assetNo || '').trim().toUpperCase();
-    if (!clean) return undefined;
-    return (assets || []).find(a => {
-      if (!a) return false;
-      const aNo = (a.assetNo || '').trim().toUpperCase();
-      const vNo = (a.vendorAssetNo || '').trim().toUpperCase();
-      return aNo === clean || Boolean(vNo && vNo === clean);
+    if (!clean) return [] as Asset[];
+    const cleanNoHyphen = clean.replace(/[-_\s]/g, '');
+    const cleanDigits = clean.replace(/[^0-9]/g, '');
+
+    const activeAssetIdSet = new Set<string>();
+    (contractAssets || []).forEach(ca => {
+      if (ca && ca.assetId && ca.status !== 'RETURNED' && ca.status !== 'SOLD' && !ca.actualReturnDate) {
+        activeAssetIdSet.add(ca.assetId);
+      }
     });
-  }, [assetNo, assets]);
+
+    const scored: { asset: Asset; score: number }[] = [];
+
+    for (const a of assets || []) {
+      if (!a) continue;
+      const aNo = (a.assetNo || '').trim().toUpperCase();
+      const aNoNoHyphen = aNo.replace(/[-_\s]/g, '');
+      const aDigits = aNo.replace(/[^0-9]/g, '');
+      const vNo = (a.vendorAssetNo || '').trim().toUpperCase();
+      const vNoNoHyphen = vNo.replace(/[-_\s]/g, '');
+      const vDigits = vNo.replace(/[^0-9]/g, '');
+
+      let baseScore = 0;
+
+      // 1순위: 전체 번호 완전 일치 (100점)
+      if (
+        (aNo && (aNo === clean || aNoNoHyphen === cleanNoHyphen)) ||
+        (vNo && (vNo === clean || vNoNoHyphen === cleanNoHyphen))
+      ) {
+        baseScore = 100;
+      }
+      // 2순위: 접미사 일치 (예: '102' 입력 시 'G19102', 'G06102', 'R-102' 매칭) (90점)
+      else if (
+        cleanNoHyphen.length >= 2 &&
+        ((aNoNoHyphen && aNoNoHyphen.endsWith(cleanNoHyphen)) ||
+          (vNoNoHyphen && vNoNoHyphen.endsWith(cleanNoHyphen)))
+      ) {
+        baseScore = 90;
+      }
+      // 3순위: 숫자열 완전 일치 또는 숫자열 끝자리 일치 (85점)
+      else if (
+        cleanDigits.length >= 2 &&
+        ((aDigits && (aDigits === cleanDigits || aDigits.endsWith(cleanDigits))) ||
+          (vDigits && (vDigits === cleanDigits || vDigits.endsWith(cleanDigits))))
+      ) {
+        baseScore = 85;
+      }
+      // 4순위: 부분 포함 (70점)
+      else if (
+        cleanNoHyphen.length >= 2 &&
+        ((aNoNoHyphen && aNoNoHyphen.includes(cleanNoHyphen)) ||
+          (vNoNoHyphen && vNoNoHyphen.includes(cleanNoHyphen)))
+      ) {
+        baseScore = 70;
+      }
+
+      if (baseScore > 0) {
+        let deployBonus = 0;
+        if (a.status === 'RENTED' || activeAssetIdSet.has(a.id) || a.currentCustomerId || a.currentSiteId) {
+          deployBonus = 6;
+        } else if (a.status === 'ASSIGNED') {
+          deployBonus = 3;
+        }
+        scored.push({ asset: a, score: baseScore + deployBonus });
+      }
+    }
+
+    scored.sort((x, y) => {
+      if (y.score !== x.score) return y.score - x.score;
+      return (x.asset.assetNo || '').localeCompare(y.asset.assetNo || '');
+    });
+
+    return scored.slice(0, 6).map(s => s.asset);
+  }, [assetNo, assets, contractAssets]);
+
+  const matchedAsset = useMemo(() => {
+    if (matchingAssetCandidates.length === 0) return undefined;
+    if (selectedCandidateAssetId) {
+      const explicit = matchingAssetCandidates.find(a => a.id === selectedCandidateAssetId);
+      if (explicit) return explicit;
+    }
+    return matchingAssetCandidates[0];
+  }, [matchingAssetCandidates, selectedCandidateAssetId]);
+
+  const getAssetVendorName = (asset?: Asset): string => {
+    if (!asset) return '';
+    const isSublease =
+      asset.ownerType === 'RENTED' ||
+      (asset as any).ownership === 'SUBLEASE' ||
+      (asset as any).ownership === 'RENTED' ||
+      Boolean(asset.renter?.trim());
+    if (!isSublease) return '';
+    if (asset.renter?.trim()) return asset.renter.trim();
+    if (asset.vendorId) {
+      const v = (vendors || []).find(vnd => vnd && vnd.id === asset.vendorId);
+      if (v?.name?.trim()) return v.name.trim();
+    }
+    if (asset.supplier?.trim()) return asset.supplier.trim();
+    return '외부임차';
+  };
 
   const isRentedAsset = Boolean(
     matchedAsset &&
     (matchedAsset.ownerType === 'RENTED' ||
       (matchedAsset as any).ownership === 'SUBLEASE' ||
-      (matchedAsset as any).ownership === 'RENTED')
+      (matchedAsset as any).ownership === 'RENTED' ||
+      Boolean(matchedAsset.renter?.trim()))
   );
 
   const rentedVendorName = useMemo(() => {
-    if (!matchedAsset || !isRentedAsset) return '';
-    if (matchedAsset.vendorId) {
-      const v = (vendors || []).find(vnd => vnd && vnd.id === matchedAsset.vendorId);
-      if (v?.name?.trim()) return v.name.trim();
-    }
-    if (matchedAsset.renter?.trim()) return matchedAsset.renter.trim();
-    if (matchedAsset.supplier?.trim()) return matchedAsset.supplier.trim();
-    return '외부임차';
-  }, [matchedAsset, isRentedAsset, vendors]);
+    return getAssetVendorName(matchedAsset);
+  }, [matchedAsset, vendors]);
 
   // 🌟 AS팀 소속 인원 목록 (퀵버튼 할당용)
   const asTeamMembers = useMemo(() => {
@@ -214,35 +309,114 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // 🌟 1. 장비번호 입력 시 계약 현장 및 고객사·도로명 주소 실시간 자동 역추적
+  const safeDecrypt = (val?: string | null): string => {
+    const raw = String(val || '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('__EBRO_ENC__')) {
+      try {
+        return decryptSecret(raw).trim();
+      } catch {
+        return '';
+      }
+    }
+    return raw;
+  };
+
+  // 🌟 매칭된 자산으로부터 고객사·현장명·도로명주소·담당자 연락처를 일괄 추출하여 폼에 자동 반영
+  const applyAssetInfoToForm = (targetAsset: Asset) => {
+    if (!targetAsset) return;
+
+    // 1순위: 활성 체결자산(RENTED -> ASSIGNED -> 미반납) 기반 계약 역추적
+    const activeCa =
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status === 'RENTED' && !c.actualReturnDate) ||
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status === 'ASSIGNED' && !c.actualReturnDate) ||
+      (contractAssets || []).find(c => c.assetId === targetAsset.id && c.status !== 'RETURNED' && c.status !== 'SOLD' && !c.actualReturnDate);
+
+    const contract = activeCa
+      ? (contracts || []).find(c => c.id === activeCa.contractId)
+      : (targetAsset.currentCustomerId || targetAsset.currentSiteId)
+        ? (contracts || []).find(
+            c =>
+              c.status === 'ACTIVE' &&
+              ((targetAsset.currentSiteId && c.siteId === targetAsset.currentSiteId) ||
+                (targetAsset.currentCustomerId && c.customerId === targetAsset.currentCustomerId))
+          )
+        : undefined;
+
+    // 2순위: 자산 자체에 기록된 currentSiteId / currentCustomerId 직접 역추적
+    const resolvedSiteId = contract?.siteId || targetAsset.currentSiteId || '';
+    const site = resolvedSiteId ? (sites || []).find(s => s.id === resolvedSiteId) : undefined;
+
+    const resolvedCustomerId = contract?.customerId || targetAsset.currentCustomerId || site?.customerId || '';
+    const cust = resolvedCustomerId ? (customers || []).find(c => c.id === resolvedCustomerId) : undefined;
+
+    const nextCustomerName = cust?.name?.trim() || contract?.customerName?.trim() || '';
+    const nextSiteName = site?.name?.trim() || (contract as any)?.siteName?.trim() || '';
+
+    if (nextCustomerName) {
+      setCustomerName(nextCustomerName);
+    }
+    if (nextSiteName) {
+      setSiteName(nextSiteName);
+    }
+
+    const nextAddress =
+      site?.address?.trim() ||
+      cust?.address?.trim() ||
+      resolveSiteDetailedAddress({
+        siteName: nextSiteName,
+        customerName: nextCustomerName,
+        assetNo: targetAsset.assetNo,
+        customerSites: sites,
+        contracts,
+        contractAssets,
+        customers,
+      }) ||
+      '';
+    if (nextAddress && nextAddress !== (nextSiteName || nextCustomerName || '현장')) {
+      setSiteAddress(nextAddress);
+    }
+
+    // 현장 담당자 성함 및 연락처 기본 정보 자동 채움
+    const siteContacts = Array.isArray(site?.contacts) ? site!.contacts : [];
+    const primaryContactObj = siteContacts.find(
+      (c: any) => c && (c.name?.trim() || c.contact?.trim() || c.phone?.trim())
+    ) as any;
+    const nextReporterName =
+      safeDecrypt(site?.contactName) ||
+      safeDecrypt(primaryContactObj?.name) ||
+      safeDecrypt(site?.safetyContactName) ||
+      safeDecrypt(site?.billingContactName) ||
+      '';
+    const nextReporterContact =
+      safeDecrypt(site?.contact) ||
+      safeDecrypt(primaryContactObj?.contact || primaryContactObj?.phone) ||
+      safeDecrypt(site?.safetyContactPhone) ||
+      safeDecrypt(site?.billingContactPhone) ||
+      safeDecrypt((cust as any)?.repContact) ||
+      '';
+
+    if (nextReporterName) {
+      setReporterName(nextReporterName);
+    }
+    if (nextReporterContact) {
+      setReporterContact(nextReporterContact);
+    }
+  };
+
+  // 🌟 1. 장비번호 입력 시 계약 현장 및 고객사·도로명 주소·담당자 실시간 자동 역추적
   const handleAssetNoChange = (val: string) => {
     if (typeof val !== 'string') return;
     setAssetNo(val);
-    const clean = val.trim().toUpperCase();
-    if (!clean) return;
-
-    const matchedAsset = (assets || []).find(a => (a?.assetNo && typeof a.assetNo === 'string') && a.assetNo.toUpperCase() === clean);
-    if (matchedAsset) {
-      const ca = (contractAssets || []).find(c => c.assetId === matchedAsset.id && !c.actualReturnDate);
-      if (ca) {
-        const contract = (contracts || []).find(c => c.id === ca.contractId);
-        if (contract) {
-          const cust = (customers || []).find(c => c.id === contract.customerId);
-          if (cust && !customerName) setCustomerName(cust.name || '');
-          if (contract.siteId) {
-            const site = (sites || []).find(s => s.id === contract.siteId);
-            if (site) {
-              setSiteName(site.name || '');
-              if (site.address?.trim()) setSiteAddress(site.address.trim());
-              else if (cust?.address?.trim()) setSiteAddress(cust.address.trim());
-            }
-          } else if (cust?.address?.trim()) {
-            setSiteAddress(cust.address.trim());
-          }
-        }
-      }
-    }
+    setSelectedCandidateAssetId('');
   };
+
+  // 매칭된 자산이 결정되거나 마스터 테이블 로드가 완료되면 즉시 고객·현장 기본 정보 자동 채움
+  useEffect(() => {
+    if (matchedAsset) {
+      applyAssetInfoToForm(matchedAsset);
+    }
+  }, [matchedAsset?.id, customers.length, sites.length, contracts.length, contractAssets.length]);
 
   // 🌟 초기 인계 파라미터(내현장/자산조회 등에서 유입) 자동 바인딩 (헌장 1.1 & 과제 6)
   useEffect(() => {
@@ -538,7 +712,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         siteName: cleanSiteName,
         siteAddress: siteAddress.trim(),
         assetId: matchedAsset?.id,
-        assetNo: assetNo.trim().toUpperCase(),
+        assetNo: matchedAsset?.assetNo || assetNo.trim().toUpperCase(),
         modelName: matchedAsset?.modelName,
         vendorId: matchedAsset?.vendorId,
         locationDetail,
@@ -597,6 +771,11 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
             <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
               장비번호 <span className="text-red-400">*</span>
             </label>
+            {matchedAsset && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap flex-shrink-0 font-mono">
+                #{matchedAsset.assetNo} · {matchedAsset.modelName}
+              </span>
+            )}
             {isRentedAsset && (
               <span
                 data-testid="mobile-as-rented-vendor-badge"
@@ -611,7 +790,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
             required
             value={assetNo}
             onChange={(e) => handleAssetNoChange(e.target.value)}
-            placeholder="예: 102, G19-01, 1001"
+            placeholder="예: 102, G19102, K7088"
             className="w-full rounded-xl p-3 text-sm font-mono uppercase placeholder-slate-500 focus:outline-none"
             style={{
               backgroundColor: '#090d16',
@@ -620,6 +799,38 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
               colorScheme: 'dark'
             }}
           />
+          {matchingAssetCandidates.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              {matchingAssetCandidates.map(cand => {
+                const isSelected = matchedAsset?.id === cand.id;
+                const candVendor = getAssetVendorName(cand);
+                return (
+                  <button
+                    key={cand.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCandidateAssetId(cand.id);
+                      setAssetNo(cand.assetNo);
+                      applyAssetInfoToForm(cand);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap flex items-center gap-1.5 flex-shrink-0 transition-colors ${
+                      isSelected
+                        ? 'bg-blue-600/30 border-blue-400 text-white'
+                        : 'bg-slate-900 border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <span className="font-mono font-black text-emerald-300">#{cand.assetNo}</span>
+                    <span>{cand.modelName}</span>
+                    {candVendor && (
+                      <span className="px-1.5 py-0.2 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] font-black">
+                        임차처: {candVendor}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 고객사명 */}
