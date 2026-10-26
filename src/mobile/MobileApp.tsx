@@ -48,7 +48,7 @@ interface MobileAppProps {
 export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToPc }) => {
   const { 
     fieldAsTickets, deliveries, outboundInspections, currentUser, assets, 
-    customers, billings, currentTenant, contracts, contractAssets,
+    customers, billings, receivables, currentTenant, contracts, contractAssets,
     logout, departments, hasPermission 
   } = useApp();
 
@@ -134,6 +134,16 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     ).length;
   }, [customers]);
 
+  // 영업부 미결 수리비용(외상미수금 REPAIR) 건수 배지
+  const pendingRepairClaimCount = useMemo(() => {
+    return (receivables || []).filter(r => {
+      if (r.type !== 'REPAIR') return false;
+      if (r.status === 'CLEARED') return false;
+      if (r.claimMeta?.negotiationStatus === 'AGREED') return false;
+      return true;
+    }).length;
+  }, [receivables]);
+
   // 1. 🏛️ 부서 모드 결정
   const userResolvedMode = useMemo(() => {
     return resolveUserMobileDeptMode(currentUser, departments || []);
@@ -159,6 +169,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   const [isCreatingAs, setIsCreatingAs] = useState(false);
   const [orderInitialParams, setOrderInitialParams] = useState<{ customerId?: string; specFt?: string } | null>(null);
   const [asInitialParams, setAsInitialParams] = useState<{ assetNo?: string; siteId?: string } | null>(null);
+  const [defectClaimInitialAssetNo, setDefectClaimInitialAssetNo] = useState<string | undefined>(undefined);
 
   // 📻 무전기 모달 및 전원 상태
   const [isWalkieModalOpen, setIsWalkieModalOpen] = useState(false);
@@ -476,12 +487,16 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           <MobileInboundRegister 
             onSuccess={() => handleTabChange('inspection')}
             onBack={() => handleTabChange('home')}
-            onOpenDefectClaim={() => handleTabChange('inbound_defect_claim')}
+            onOpenDefectClaim={(assetNo) => {
+              setDefectClaimInitialAssetNo(typeof assetNo === 'string' ? assetNo : undefined);
+              handleTabChange('inbound_defect_claim');
+            }}
           />
         ) : activeTab === 'inbound_defect_claim' ? (
           <MobileInboundDefectClaim
             onNavigate={handleTabChange}
             initialViewMode={deptMode === 'SALES' ? 'NEGOTIATE' : 'REGISTER'}
+            initialAssetNo={defectClaimInitialAssetNo}
           />
         ) : activeTab === 'vehicle_log' ? (
           <MobileVehicleLog onBack={() => handleTabChange('home')} />
@@ -518,6 +533,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           subleaseLeakCount={subleaseLeakCount}
           overdueBadgeCount={overdueBadgeCount}
           incompleteCustomerCount={incompleteCustomerCount}
+          pendingRepairClaimCount={pendingRepairClaimCount}
         />
       )}
 

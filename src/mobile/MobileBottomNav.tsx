@@ -37,6 +37,7 @@ interface MobileBottomNavProps {
   subleaseLeakCount?: number;
   overdueBadgeCount?: number;
   incompleteCustomerCount?: number;
+  pendingRepairClaimCount?: number;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -52,6 +53,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   subleaseLeakCount = 0,
   overdueBadgeCount = 0,
   incompleteCustomerCount = 0,
+  pendingRepairClaimCount = 0,
 }) => {
   // 탭별 대응 시스템 메뉴 ID 매핑 (PC 모드 menu_config.ts 1:1 관통)
   const tabMenuMap: Partial<Record<MobileTabType, string>> = {
@@ -84,7 +86,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'assets', label: '가용재고', icon: ClipboardList, badge: 0 },
       { id: 'sales_order', label: '출고요청', icon: Send, badge: 0 },
-      { id: 'inbound_defect_claim', label: '수리비협상', icon: AlertTriangle, badge: 0 },
+      { id: 'inbound_defect_claim', label: '수리비용', icon: AlertTriangle, badge: pendingRepairClaimCount },
       { id: 'my_contracts', label: '내현장', icon: Building2, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'sales_journal', label: '영업일지', icon: BookOpen, badge: 0 },

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   Asset,
   AssetInOutLog,
@@ -13,6 +12,7 @@ import {
   Receivable,
   Repair,
   User,
+  Vendor,
 } from '../services/db';
 
 const LOCAL_CLAIM_META_STORAGE_KEY = 'ebro_inbound_defect_claim_meta_v1';
@@ -22,16 +22,21 @@ export interface RecentInboundLookupResult {
   assetId: string;
   assetNo: string;
   modelName: string;
+  ownerType: 'OWN' | 'RENTED';
+  vendorName: string;
   customerId: string;
   customerName: string;
   siteId: string;
   siteName: string;
   siteAddress: string;
+  outboundDate: string;
   inboundDate: string;
+  billingDay?: number;
   contractId: string;
   contractNo: string;
   salespersonId: string;
   salespersonName: string;
+  customerContactName: string;
   customerEmail: string;
   customerPhone: string;
   recentRepairId?: string;
@@ -62,7 +67,7 @@ export function getLocalClaimMetaCache(receivableId: string): InboundDefectClaim
 
 /**
  * 관리번호(자산번호)를 기준으로 최근 입고된 이력(입출고로그, 배차/입고, 입고정비, 체결자산, 계약)을
- * 역추적하여 고객명, 현장명, 입고일자, 계약/영업담당자 정보를 자동 완성한다.
+ * 역추적하여 고객명, 현장명, 현장주소, 대여출고일~입고일, 마감일, 계약/영업담당자, 고객 연락처, 임차처 정보를 자동 완성한다.
  */
 export function lookupRecentInboundInfoByAsset(
   assetQuery: string,
@@ -76,6 +81,7 @@ export function lookupRecentInboundInfoByAsset(
     customers: Customer[];
     sites: CustomerSite[];
     users?: User[];
+    vendors?: Vendor[];
   }
 ): RecentInboundLookupResult | null {
   const normalizedQuery = (assetQuery || '').trim().toUpperCase();
@@ -91,18 +97,36 @@ export function lookupRecentInboundInfoByAsset(
     customers = [],
     sites = [],
     users = [],
+    vendors = [],
   } = context;
 
-  // 1. 정확히 일치하는 자산번호 또는 ID 우선 검색, 없으면 부분 일치 검색
+  // 1. 정확히 일치하는 자산번호, 타사장비번호, 또는 ID 우선 검색, 없으면 부분 일치 검색
   const asset =
     assets.find(
       (a) =>
         (a.assetNo || '').trim().toUpperCase() === normalizedQuery ||
+        ((a as any).vendorAssetNo || '').trim().toUpperCase() === normalizedQuery ||
         (a.id || '').trim().toUpperCase() === normalizedQuery
     ) ||
     assets.find((a) => (a.assetNo || '').trim().toUpperCase().includes(normalizedQuery));
 
   if (!asset) return null;
+
+  const isRented =
+    asset.ownerType === 'RENTED' ||
+    (asset as any).ownership === 'SUBLEASE' ||
+    (asset as any).ownership === 'RENTED';
+  const ownerType: 'OWN' | 'RENTED' = isRented ? 'RENTED' : 'OWN';
+  let vendorName = '';
+  if (isRented) {
+    if (asset.vendorId) {
+      const vnd = vendors.find((v) => v && v.id === asset.vendorId);
+      if (vnd?.name?.trim()) vendorName = vnd.name.trim();
+    }
+    if (!vendorName && asset.renter?.trim()) vendorName = asset.renter.trim();
+    if (!vendorName && asset.supplier?.trim()) vendorName = asset.supplier.trim();
+    if (!vendorName) vendorName = '외부임차';
+  }
 
   const matchAsset = (targetAssetId?: string, targetAssetNo?: string) => {
     if (targetAssetId && targetAssetId === asset.id) return true;
@@ -120,7 +144,9 @@ export function lookupRecentInboundInfoByAsset(
   let siteId = '';
   let siteName = '';
   let siteAddress = '';
+  let outboundDate = '';
   let inboundDate = '';
+  let billingDay: number | undefined;
   let contractId = '';
   let contractNo = '';
   let salespersonId = '';
@@ -151,9 +177,9 @@ export function lookupRecentInboundInfoByAsset(
         matchAsset(d.assetId, d.assetNo) &&
         (d.type === 'INBOUND' ||
           d.type === 'RETURN' ||
-          d.dispatchCategory === '입고' ||
-          d.dispatchCategory === '반납' ||
-          d.dispatchCategory === '교환') &&
+          (d as any).dispatchCategory === '입고' ||
+          (d as any).dispatchCategory === '반납' ||
+          (d as any).dispatchCategory === '교환') &&
         d.status !== 'CANCELLED'
     )
     .sort((a, b) =>
@@ -167,13 +193,13 @@ export function lookupRecentInboundInfoByAsset(
     const delDate = (latestDel.completedAt || latestDel.date || latestDel.createdAt || '').slice(0, 10);
     if (!inboundDate || (delDate && delDate > inboundDate)) {
       inboundDate = delDate;
-      sourceLabel = '최근 입고·회수 배차';
+      sourceLabel = '최근 회수·입고 배차';
     }
     if (!customerId && latestDel.customerId) customerId = latestDel.customerId;
     if (!customerName && latestDel.customerName) customerName = latestDel.customerName;
     if (!siteId && latestDel.siteId) siteId = latestDel.siteId;
     if (!siteName && latestDel.siteName) siteName = latestDel.siteName;
-    if (!siteAddress && latestDel.siteAddress) siteAddress = latestDel.siteAddress;
+    if (!siteAddress && (latestDel as any).siteAddress) siteAddress = (latestDel as any).siteAddress;
     if (!contractId && latestDel.contractId) contractId = latestDel.contractId;
   }
 
@@ -202,7 +228,7 @@ export function lookupRecentInboundInfoByAsset(
 
   // 후보 4: 체결 자산(contractAssets) 중 최근 반납/체결 기록 보완
   const matchedContractAssets = contractAssets
-    .filter((ca) => matchAsset(ca.assetId, ca.assetNo))
+    .filter((ca) => matchAsset(ca.assetId, (ca as any).assetNo))
     .sort((a, b) =>
       (b.actualReturnDate || b.endDate || b.startDate || '').localeCompare(
         a.actualReturnDate || a.endDate || a.startDate || ''
@@ -215,6 +241,9 @@ export function lookupRecentInboundInfoByAsset(
       contractId = latestCa.contractId;
       if (sourceLabel === '자산 기본 정보') sourceLabel = '최근 계약 체결 자산';
     }
+    if (latestCa.startDate) {
+      outboundDate = latestCa.startDate.slice(0, 10);
+    }
     const caReturnDate = (latestCa.actualReturnDate || latestCa.endDate || '').slice(0, 10);
     if (!inboundDate && caReturnDate) {
       inboundDate = caReturnDate;
@@ -222,27 +251,29 @@ export function lookupRecentInboundInfoByAsset(
   }
 
   // 후보 5: 자산 자체의 현재/직전 계약 참조 보완
-  if (!contractId && asset.currentContractId) {
-    contractId = asset.currentContractId;
+  if (!contractId && (asset as any).currentContractId) {
+    contractId = (asset as any).currentContractId;
   }
-  if (!customerId && asset.currentCustomerId) {
-    customerId = asset.currentCustomerId;
+  if (!customerId && (asset as any).currentCustomerId) {
+    customerId = (asset as any).currentCustomerId;
   }
-  if (!siteName && asset.currentSiteName) {
-    siteName = asset.currentSiteName;
+  if (!siteName && (asset as any).currentSiteName) {
+    siteName = (asset as any).currentSiteName;
   }
 
-  // 계약(Contract)에서 고객/현장/영업사원 상세 보완
+  // 계약(Contract)에서 고객/현장/영업사원/마감일 상세 보완
   if (contractId) {
     const contract = contracts.find((c) => c.id === contractId);
     if (contract) {
       contractNo = contract.contractNo || contract.id;
       if (!customerId && contract.customerId) customerId = contract.customerId;
-      if (!customerName && contract.customerName) customerName = contract.customerName;
+      if (!customerName && (contract as any).customerName) customerName = (contract as any).customerName;
       if (!siteId && contract.siteId) siteId = contract.siteId;
-      if (!siteName && contract.siteName) siteName = contract.siteName;
-      if (!siteAddress && contract.siteAddress) siteAddress = contract.siteAddress;
+      if (!siteName && (contract as any).siteName) siteName = (contract as any).siteName;
+      if (!siteAddress && (contract as any).siteAddress) siteAddress = (contract as any).siteAddress;
       if (!salespersonId && contract.salespersonId) salespersonId = contract.salespersonId;
+      if (!outboundDate && contract.startDate) outboundDate = contract.startDate.slice(0, 10);
+      if (contract.billingDay) billingDay = contract.billingDay;
     }
   }
 
@@ -254,8 +285,14 @@ export function lookupRecentInboundInfoByAsset(
   if (customerObj) {
     customerId = customerObj.id;
     customerName = customerObj.name;
-    if (!salespersonId && customerObj.assignedSalespersonId) {
-      salespersonId = customerObj.assignedSalespersonId;
+    if (!salespersonId && (customerObj as any).assignedSalespersonId) {
+      salespersonId = (customerObj as any).assignedSalespersonId;
+    }
+    if (!salespersonId && customerObj.salespersonId) {
+      salespersonId = customerObj.salespersonId;
+    }
+    if (!billingDay && customerObj.billingDay) {
+      billingDay = customerObj.billingDay;
     }
   }
 
@@ -279,34 +316,55 @@ export function lookupRecentInboundInfoByAsset(
     if (spUser) salespersonName = spUser.name;
   }
 
-  // 고객 이메일/연락처 추출
+  // 고객 담당자 성함 / 이메일 / 연락처 추출
+  let customerContactName = '';
   let customerEmail = '';
   let customerPhone = '';
   if (siteObj) {
+    const siteAny = siteObj as any;
+    const primaryContact = Array.isArray(siteAny.contacts) && siteAny.contacts.length > 0 ? siteAny.contacts[0] : undefined;
+    customerContactName =
+      siteAny.contactName ||
+      siteAny.managerName ||
+      primaryContact?.name ||
+      '';
     customerEmail =
-      siteObj.billingContactEmail ||
-      siteObj.safetyContactEmail ||
-      (siteObj.contacts && siteObj.contacts.find((c) => c.email)?.email) ||
+      siteAny.billingContactEmail ||
+      siteAny.safetyContactEmail ||
+      (Array.isArray(siteAny.contacts) && siteAny.contacts.find((c: any) => c.email)?.email) ||
       '';
     customerPhone =
-      siteObj.billingContactPhone ||
-      siteObj.contactPhone ||
-      (siteObj.contacts && siteObj.contacts.find((c) => c.phone)?.phone) ||
+      siteAny.billingContactPhone ||
+      siteAny.contactPhone ||
+      siteAny.managerPhone ||
+      (Array.isArray(siteAny.contacts) && siteAny.contacts.find((c: any) => c.phone)?.phone) ||
       '';
   }
-  if (!customerEmail && customerObj) {
-    customerEmail =
-      customerObj.taxEmail ||
-      customerObj.email ||
-      (customerObj.contacts && customerObj.contacts.find((c) => c.email)?.email) ||
-      '';
-  }
-  if (!customerPhone && customerObj) {
-    customerPhone =
-      customerObj.phone ||
-      customerObj.contactPhone ||
-      (customerObj.contacts && customerObj.contacts.find((c) => c.phone)?.phone) ||
-      '';
+  if (customerObj) {
+    const custAny = customerObj as any;
+    if (!customerContactName) {
+      customerContactName =
+        custAny.contactName ||
+        (Array.isArray(custAny.contacts) && custAny.contacts[0]?.name) ||
+        customerObj.representative ||
+        '';
+    }
+    if (!customerEmail) {
+      customerEmail =
+        custAny.taxEmail ||
+        custAny.taxInvoiceEmail ||
+        custAny.email ||
+        (Array.isArray(custAny.contacts) && custAny.contacts.find((c: any) => c.email)?.email) ||
+        '';
+    }
+    if (!customerPhone) {
+      customerPhone =
+        custAny.phone ||
+        custAny.contactPhone ||
+        customerObj.repContact ||
+        (Array.isArray(custAny.contacts) && custAny.contacts.find((c: any) => c.phone)?.phone) ||
+        '';
+    }
   }
 
   if (!inboundDate) {
@@ -318,16 +376,21 @@ export function lookupRecentInboundInfoByAsset(
     assetId: asset.id,
     assetNo: asset.assetNo,
     modelName: asset.modelName || '',
+    ownerType,
+    vendorName,
     customerId,
     customerName: customerName || '미지정 고객',
     siteId,
     siteName: siteName || '미지정 현장',
     siteAddress,
+    outboundDate,
     inboundDate,
+    billingDay,
     contractId,
     contractNo,
     salespersonId,
     salespersonName,
+    customerContactName,
     customerEmail,
     customerPhone,
     recentRepairId,
@@ -337,7 +400,8 @@ export function lookupRecentInboundInfoByAsset(
 
 /**
  * 외상미수금(Receivable) 레코드와 연결된 정비(Repair)의 defectsJson 또는 로컬 캐시로부터
- * 입고 불량 청구 상세 메타데이터(InboundDefectClaimMeta)를 복원한다.
+ * 입고 불량 청구 상세 메타데이터(InboundDefectClaimMeta)를 복원하고,
+ * PC 모드에서 영업사원이 외상미수금 메뉴에서 처리할 때 필요한 계약/현장/고객연락처/임차처/검수자 정보를 보강한다.
  */
 export function resolveReceivableClaimMeta(
   receivable: Receivable,
@@ -347,39 +411,51 @@ export function resolveReceivableClaimMeta(
     customers?: Customer[];
     sites?: CustomerSite[];
     contracts?: Contract[];
+    contractAssets?: ContractAsset[];
+    users?: User[];
+    vendors?: Vendor[];
   }
 ): InboundDefectClaimMeta | null {
   if (!receivable) return null;
 
+  const {
+    repairs = [],
+    assets = [],
+    customers = [],
+    sites = [],
+    contracts = [],
+    contractAssets = [],
+    users = [],
+    vendors = [],
+  } = context;
+
+  const linkedRepair = receivable.repairId
+    ? repairs.find((r) => r.id === receivable.repairId)
+    : undefined;
+
+  let baseMeta: InboundDefectClaimMeta | null = null;
+
   // 1. 런타임 객체에 이미 claimMeta가 있는 경우
   if (receivable.claimMeta && receivable.claimMeta.kind === 'INBOUND_DEFECT_CLAIM_V1') {
-    return {
+    baseMeta = {
       ...receivable.claimMeta,
       receivableId: receivable.id,
       agreedAmount: receivable.totalAmount,
     };
   }
 
-  const { repairs = [], assets = [], customers = [], sites = [], contracts = [] } = context;
-  const linkedRepair = receivable.repairId
-    ? repairs.find((r) => r.id === receivable.repairId)
-    : undefined;
-
   // 2. 연결된 Repair의 defectsJson 파싱
-  if (linkedRepair?.defectsJson) {
+  if (!baseMeta && linkedRepair?.defectsJson) {
     try {
       const parsed = JSON.parse(linkedRepair.defectsJson);
       if (parsed && parsed.kind === 'INBOUND_DEFECT_CLAIM_V1') {
-        const meta: InboundDefectClaimMeta = {
+        baseMeta = {
           ...parsed,
           receivableId: receivable.id,
           repairId: linkedRepair.id,
           agreedAmount: receivable.totalAmount,
         };
-        return meta;
-      }
-      // 입고등록(MobileInboundRegister)에서 배열 형태로 저장한 defectsJson 호환 변환
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      } else if (Array.isArray(parsed) && parsed.length > 0) {
         const perItemCost =
           parsed.length > 0 ? Math.round((receivable.totalAmount || 0) / parsed.length) : 0;
         const defectItems: InboundClaimDefectItem[] = parsed.map((d: any, idx: number) => {
@@ -392,27 +468,15 @@ export function resolveReceivableClaimMeta(
             id: d.id || `DEF-${idx + 1}`,
             checkitemId: d.checkitemId || undefined,
             category: d.category || '입고불량',
-            symptomName: d.symptomName || d.itemName || `불량 증상 ${idx + 1}`,
+            symptomName: d.symptomName || d.itemName || d.checkitemName || `불량 증상 ${idx + 1}`,
             estimatedCost: Number(d.estimatedCost ?? perItemCost) || 0,
             agreedCost: Number(d.agreedCost ?? d.estimatedCost ?? perItemCost) || 0,
             photos,
             memo: d.memo || d.comment || '',
           };
         });
-        const customerObj = receivable.customerId
-          ? customers.find((c) => c.id === receivable.customerId)
-          : undefined;
-        const contractObj = receivable.contractId
-          ? contracts.find((c) => c.id === receivable.contractId)
-          : undefined;
-        const siteObj =
-          linkedRepair.siteId
-            ? sites.find((s) => s.id === linkedRepair.siteId)
-            : contractObj?.siteId
-              ? sites.find((s) => s.id === contractObj.siteId)
-              : undefined;
 
-        return {
+        baseMeta = {
           kind: 'INBOUND_DEFECT_CLAIM_V1',
           receivableId: receivable.id,
           repairId: linkedRepair.id,
@@ -420,19 +484,14 @@ export function resolveReceivableClaimMeta(
           assetNo: receivable.assetNo || linkedRepair.assetNo || '',
           modelName: linkedRepair.modelName || '',
           customerId: receivable.customerId || linkedRepair.customerId,
-          customerName:
-            linkedRepair.customerName ||
-            customerObj?.name ||
-            contractObj?.customerName ||
-            '미지정 고객',
-          siteId: linkedRepair.siteId || contractObj?.siteId,
-          siteName:
-            linkedRepair.siteName || siteObj?.name || contractObj?.siteName || '미지정 현장',
+          customerName: linkedRepair.customerName || '미지정 고객',
+          siteId: linkedRepair.siteId,
+          siteName: linkedRepair.siteName || '미지정 현장',
           contractId: receivable.contractId || linkedRepair.contractId,
-          contractNo: contractObj?.contractNo,
           inboundDate: (linkedRepair.requestDate || receivable.occurredDate || '').slice(0, 10),
-          salespersonId: contractObj?.salespersonId || customerObj?.assignedSalespersonId,
+          registeredByName: linkedRepair.reporterName || '출고팀',
           registeredAt: receivable.createdAt || new Date().toISOString(),
+          inspectorMemo: linkedRepair.memo || '',
           initialEstimatedAmount:
             defectItems.reduce((sum, item) => sum + (item.estimatedCost || 0), 0) ||
             receivable.totalAmount,
@@ -447,50 +506,36 @@ export function resolveReceivableClaimMeta(
   }
 
   // 3. 로컬 스토리지 캐시 조회
-  const cached = getLocalClaimMetaCache(receivable.id);
-  if (cached) {
-    return {
-      ...cached,
-      receivableId: receivable.id,
-      agreedAmount: receivable.totalAmount,
-    };
+  if (!baseMeta) {
+    const cached = getLocalClaimMetaCache(receivable.id);
+    if (cached) {
+      baseMeta = {
+        ...cached,
+        receivableId: receivable.id,
+        agreedAmount: receivable.totalAmount,
+      };
+    }
   }
 
-  // 4. 일반 REPAIR 외상미수금 레코드에 대한 기본 메타 생성 (연결된 Repair가 있거나 REPAIR 타입인 경우)
-  if (receivable.type === 'REPAIR') {
-    const customerObj = receivable.customerId
-      ? customers.find((c) => c.id === receivable.customerId)
-      : undefined;
-    const contractObj = receivable.contractId
-      ? contracts.find((c) => c.id === receivable.contractId)
-      : undefined;
-    const assetObj = receivable.assetNo
-      ? assets.find((a) => a.assetNo === receivable.assetNo)
-      : linkedRepair?.assetId
-        ? assets.find((a) => a.id === linkedRepair.assetId)
-        : undefined;
+  // 4. 일반 REPAIR 외상미수금 레코드에 대한 기본 메타 생성
+  if (!baseMeta && receivable.type === 'REPAIR') {
     const photos = (linkedRepair?.evidenceImages || []).slice(0, 2);
-
-    return {
+    baseMeta = {
       kind: 'INBOUND_DEFECT_CLAIM_V1',
       receivableId: receivable.id,
       repairId: linkedRepair?.id,
-      assetId: assetObj?.id || linkedRepair?.assetId,
-      assetNo: receivable.assetNo || linkedRepair?.assetNo || assetObj?.assetNo || '',
-      modelName: linkedRepair?.modelName || assetObj?.modelName || '',
+      assetId: linkedRepair?.assetId,
+      assetNo: receivable.assetNo || linkedRepair?.assetNo || '',
+      modelName: linkedRepair?.modelName || '',
       customerId: receivable.customerId || linkedRepair?.customerId,
-      customerName:
-        linkedRepair?.customerName ||
-        customerObj?.name ||
-        contractObj?.customerName ||
-        '미지정 고객',
-      siteId: linkedRepair?.siteId || contractObj?.siteId,
-      siteName: linkedRepair?.siteName || contractObj?.siteName || '미지정 현장',
+      customerName: linkedRepair?.customerName || '미지정 고객',
+      siteId: linkedRepair?.siteId,
+      siteName: linkedRepair?.siteName || '미지정 현장',
       contractId: receivable.contractId || linkedRepair?.contractId,
-      contractNo: contractObj?.contractNo,
       inboundDate: (linkedRepair?.requestDate || receivable.occurredDate || '').slice(0, 10),
-      salespersonId: contractObj?.salespersonId || customerObj?.assignedSalespersonId,
+      registeredByName: linkedRepair?.reporterName || '출고팀',
       registeredAt: receivable.createdAt || new Date().toISOString(),
+      inspectorMemo: linkedRepair?.memo || '',
       initialEstimatedAmount: linkedRepair?.billableAmount || receivable.totalAmount,
       agreedAmount: receivable.totalAmount,
       negotiationStatus:
@@ -515,10 +560,144 @@ export function resolveReceivableClaimMeta(
     };
   }
 
-  return null;
+  if (!baseMeta) return null;
+
+  // 5. PC 모드 영업사원 처리를 위한 컨텍스트 자동 보강 (계약/현장/고객연락처/임차처/담당자)
+  const assetObj =
+    (baseMeta.assetId ? assets.find((a) => a.id === baseMeta!.assetId) : undefined) ||
+    (baseMeta.assetNo ? assets.find((a) => a.assetNo === baseMeta!.assetNo) : undefined);
+
+  const contractObj =
+    (baseMeta.contractId ? contracts.find((c) => c.id === baseMeta!.contractId) : undefined) ||
+    (receivable.contractId ? contracts.find((c) => c.id === receivable.contractId) : undefined);
+
+  const resolvedCustId = baseMeta.customerId || receivable.customerId || contractObj?.customerId;
+  const customerObj = resolvedCustId
+    ? customers.find((c) => c.id === resolvedCustId)
+    : baseMeta.customerName
+      ? customers.find((c) => c.name === baseMeta!.customerName)
+      : undefined;
+
+  const resolvedSiteId = baseMeta.siteId || contractObj?.siteId || linkedRepair?.siteId;
+  const siteObj = resolvedSiteId
+    ? sites.find((s) => s.id === resolvedSiteId)
+    : baseMeta.siteName
+      ? sites.find((s) => s.name === baseMeta!.siteName)
+      : undefined;
+
+  const isRented = Boolean(
+    assetObj &&
+      (assetObj.ownerType === 'RENTED' ||
+        (assetObj as any).ownership === 'SUBLEASE' ||
+        (assetObj as any).ownership === 'RENTED')
+  );
+  const resolvedOwnerType: 'OWN' | 'RENTED' =
+    baseMeta.ownerType || (isRented ? 'RENTED' : 'OWN');
+
+  let resolvedVendorName = baseMeta.vendorName || '';
+  if (!resolvedVendorName && isRented && assetObj) {
+    if (assetObj.vendorId) {
+      const vnd = vendors.find((v) => v && v.id === assetObj.vendorId);
+      if (vnd?.name?.trim()) resolvedVendorName = vnd.name.trim();
+    }
+    if (!resolvedVendorName && assetObj.renter?.trim()) resolvedVendorName = assetObj.renter.trim();
+    if (!resolvedVendorName && assetObj.supplier?.trim()) resolvedVendorName = assetObj.supplier.trim();
+    if (!resolvedVendorName) resolvedVendorName = '외부임차';
+  }
+
+  let resolvedOutboundDate = baseMeta.outboundDate || '';
+  if (!resolvedOutboundDate) {
+    const ca = contractAssets.find(
+      (c) =>
+        (contractObj && c.contractId === contractObj.id && assetObj && c.assetId === assetObj.id) ||
+        (assetObj && c.assetId === assetObj.id)
+    );
+    resolvedOutboundDate = (ca?.startDate || contractObj?.startDate || '').slice(0, 10);
+  }
+
+  const resolvedSalespersonId =
+    baseMeta.salespersonId ||
+    contractObj?.salespersonId ||
+    (customerObj as any)?.assignedSalespersonId ||
+    customerObj?.salespersonId ||
+    '';
+  let resolvedSalespersonName = baseMeta.salespersonName || '';
+  if (!resolvedSalespersonName && resolvedSalespersonId && users.length > 0) {
+    const sp = users.find((u) => u.id === resolvedSalespersonId);
+    if (sp?.name) resolvedSalespersonName = sp.name;
+  }
+
+  const siteAny = siteObj as any;
+  const custAny = customerObj as any;
+  const sitePrimaryContact =
+    Array.isArray(siteAny?.contacts) && siteAny.contacts.length > 0 ? siteAny.contacts[0] : undefined;
+
+  const resolvedContactName =
+    baseMeta.customerContactName ||
+    siteAny?.contactName ||
+    siteAny?.managerName ||
+    sitePrimaryContact?.name ||
+    custAny?.contactName ||
+    customerObj?.representative ||
+    '';
+
+  const resolvedPhone =
+    baseMeta.customerPhone ||
+    siteAny?.billingContactPhone ||
+    siteAny?.contactPhone ||
+    siteAny?.managerPhone ||
+    sitePrimaryContact?.phone ||
+    custAny?.phone ||
+    customerObj?.repContact ||
+    '';
+
+  const resolvedEmail =
+    baseMeta.customerEmail ||
+    baseMeta.sentToEmail ||
+    siteAny?.billingContactEmail ||
+    siteAny?.safetyContactEmail ||
+    sitePrimaryContact?.email ||
+    custAny?.taxEmail ||
+    custAny?.taxInvoiceEmail ||
+    custAny?.email ||
+    '';
+
+  return {
+    ...baseMeta,
+    assetId: baseMeta.assetId || assetObj?.id,
+    assetNo: baseMeta.assetNo || receivable.assetNo || assetObj?.assetNo || '',
+    modelName: baseMeta.modelName || assetObj?.modelName || linkedRepair?.modelName || '',
+    ownerType: resolvedOwnerType,
+    vendorName: resolvedVendorName || undefined,
+    customerId: resolvedCustId,
+    customerName:
+      (baseMeta.customerName && baseMeta.customerName !== '미지정 고객'
+        ? baseMeta.customerName
+        : customerObj?.name || (contractObj as any)?.customerName) || '미지정 고객',
+    siteId: resolvedSiteId,
+    siteName:
+      (baseMeta.siteName && baseMeta.siteName !== '미지정 현장'
+        ? baseMeta.siteName
+        : siteObj?.name || (contractObj as any)?.siteName) || '미지정 현장',
+    siteAddress: baseMeta.siteAddress || siteObj?.address || (contractObj as any)?.siteAddress || '',
+    contractId: baseMeta.contractId || contractObj?.id,
+    contractNo: baseMeta.contractNo || contractObj?.contractNo,
+    outboundDate: resolvedOutboundDate || undefined,
+    billingDay: baseMeta.billingDay || contractObj?.billingDay || customerObj?.billingDay,
+    salespersonId: resolvedSalespersonId || undefined,
+    salespersonName: resolvedSalespersonName || undefined,
+    customerContactName: resolvedContactName || undefined,
+    customerPhone: resolvedPhone || undefined,
+    customerEmail: resolvedEmail || undefined,
+    inspectorMemo: baseMeta.inspectorMemo ?? baseMeta.negotiationMemo ?? linkedRepair?.memo ?? '',
+    displayName: receivable.displayName || baseMeta.displayName || '',
+  };
 }
 
-export function getNegotiationStatusBadgeInfo(status?: ClaimNegotiationStatus): {
+export function getNegotiationStatusBadgeInfo(
+  status?: ClaimNegotiationStatus,
+  agreedAmount?: number
+): {
   label: string;
   bgClass: string;
   textClass: string;
@@ -526,15 +705,23 @@ export function getNegotiationStatusBadgeInfo(status?: ClaimNegotiationStatus): 
 } {
   switch (status) {
     case 'AGREED':
+      if (agreedAmount !== undefined && agreedAmount <= 0) {
+        return {
+          label: '무상면제',
+          bgClass: 'bg-slate-500/20',
+          textClass: 'text-slate-300',
+          borderClass: 'border-slate-500/40',
+        };
+      }
       return {
-        label: '합의완료',
+        label: '청구확정',
         bgClass: 'bg-emerald-500/15',
         textClass: 'text-emerald-400',
         borderClass: 'border-emerald-500/40',
       };
     case 'SENT_TO_CUSTOMER':
       return {
-        label: '고객전달',
+        label: '협상중',
         bgClass: 'bg-sky-500/15',
         textClass: 'text-sky-400',
         borderClass: 'border-sky-500/40',
@@ -542,7 +729,7 @@ export function getNegotiationStatusBadgeInfo(status?: ClaimNegotiationStatus): 
     case 'PENDING_NEGOTIATION':
     default:
       return {
-        label: '협상대기',
+        label: '견적전달전',
         bgClass: 'bg-amber-500/15',
         textClass: 'text-amber-400',
         borderClass: 'border-amber-500/40',
