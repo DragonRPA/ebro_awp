@@ -17,9 +17,92 @@ import {
   sendRepairClaimPdfEmail,
   shareRepairClaimPdfMobile,
 } from '../../utils/repairClaimPdfBuilder';
-import { getSiteContactList, SiteContactDisplayItem } from '../../modules/dispatchRequest/dispatchOrderParser';
 import { matchHangul } from '../../utils/hangulSearch';
 import { CameraUploader } from '../components/CameraUploader';
+
+interface SiteContactDisplayItem {
+  id: string;
+  roleType: 'EQUIPMENT' | 'CLOSING' | 'SAFETY' | 'GENERAL' | 'OTHER';
+  roleLabel: string;
+  name: string;
+  position: string;
+  phone: string;
+  email: string;
+  isPrimary: boolean;
+}
+
+function isBlankVal(v?: string | null): boolean {
+  if (!v) return true;
+  const t = String(v).trim();
+  return t === '' || t === '미상' || t === '-' || t === '없음' || t === '미입력' || t.startsWith('__EBRO_ENC__');
+}
+
+function getSiteContactList(site: any, customerContacts?: any[]): SiteContactDisplayItem[] {
+  const result: SiteContactDisplayItem[] = [];
+  const seen = new Set<string>();
+  const pushUnique = (item: SiteContactDisplayItem) => {
+    if (isBlankVal(item.name) && isBlankVal(item.phone)) return;
+    const normPhone = (item.phone || '').replace(/[^0-9]/g, '');
+    const key = `${item.roleType}:${item.name}:${normPhone}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(item);
+  };
+  if (site) {
+    const activeContacts = (site.contacts || []).filter((c: any) => c && c.isActive !== false);
+    activeContacts.forEach((c: any, idx: number) => {
+      const rType = c.contactType === 'CLOSING' ? 'CLOSING' : c.contactType === 'SAFETY' ? 'SAFETY' : 'EQUIPMENT';
+      const rLabel = rType === 'CLOSING' ? '마감담당' : rType === 'SAFETY' ? '안전담당' : '현장담당';
+      pushUnique({
+        id: c.id || `sc-${idx}`,
+        roleType: rType,
+        roleLabel: rLabel,
+        name: !isBlankVal(c.name) ? c.name.trim() : '',
+        position: !isBlankVal(c.position) ? c.position.trim() : '',
+        phone: !isBlankVal(c.contact || c.phone) ? String(c.contact || c.phone).trim() : '',
+        email: !isBlankVal(c.email) ? c.email.trim() : '',
+        isPrimary: Boolean(c.isPrimary || idx === 0),
+      });
+    });
+    if (!isBlankVal(site.contactName) || !isBlankVal(site.contact || site.contactPhone)) {
+      pushUnique({
+        id: `flat-eq-${site.id}`,
+        roleType: 'EQUIPMENT',
+        roleLabel: '현장담당',
+        name: !isBlankVal(site.contactName) ? site.contactName.trim() : '현장담당',
+        position: '',
+        phone: !isBlankVal(site.contact || site.contactPhone) ? String(site.contact || site.contactPhone).trim() : '',
+        email: !isBlankVal(site.email) ? site.email.trim() : '',
+        isPrimary: result.length === 0,
+      });
+    }
+    if (!isBlankVal(site.billingContactName) || !isBlankVal(site.billingContactPhone)) {
+      pushUnique({
+        id: `flat-cl-${site.id}`,
+        roleType: 'CLOSING',
+        roleLabel: '마감담당',
+        name: !isBlankVal(site.billingContactName) ? site.billingContactName.trim() : '마감담당',
+        position: '',
+        phone: !isBlankVal(site.billingContactPhone) ? site.billingContactPhone.trim() : '',
+        email: !isBlankVal(site.billingContactEmail) ? site.billingContactEmail.trim() : '',
+        isPrimary: result.length === 0,
+      });
+    }
+  }
+  (customerContacts || []).forEach((cnt: any, idx: number) => {
+    pushUnique({
+      id: cnt.id || `cc-${idx}`,
+      roleType: 'GENERAL',
+      roleLabel: '고객담당',
+      name: !isBlankVal(cnt.name) ? cnt.name.trim() : '고객담당',
+      position: !isBlankVal(cnt.position) ? cnt.position.trim() : '',
+      phone: !isBlankVal(cnt.contact || cnt.phone) ? String(cnt.contact || cnt.phone).trim() : '',
+      email: !isBlankVal(cnt.email) ? cnt.email.trim() : '',
+      isPrimary: result.length === 0,
+    });
+  });
+  return result;
+}
 import {
   Search,
   Plus,
@@ -69,6 +152,19 @@ const QUICK_MEMO_CHIPS = [
   '당사 귀책 면제',
 ];
 
+const DEFAULT_DEFECT_QUICK_OPTIONS: { category: string; name: string }[] = [
+  { category: '외관/파손', name: '난간대 휨·파손' },
+  { category: '외관/파손', name: '조이스틱 파손' },
+  { category: '외관/파손', name: '외부 도색·시멘트 오염' },
+  { category: '전장/배터리', name: '충전기·케이블 단선' },
+  { category: '전장/배터리', name: '배터리 방전·파손' },
+  { category: '유압/실린더', name: '유압호스 파손·누유' },
+  { category: '타이어/바퀴', name: '타이어 찢어짐·손상' },
+  { category: '안전장치', name: '경광등·비상스위치 파손' },
+];
+
+const CUSTOM_CLAIM_SYMPTOM_STORAGE_KEY = 'ebro_mobile_inbound_claim_custom_symptoms_v1';
+
 export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> = ({
   onNavigate,
   initialViewMode,
@@ -87,6 +183,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
     sites,
     contacts,
     users,
+    vendors,
     receivables,
     inspectionChecklistItems,
     saveInspectionChecklistItem,
@@ -123,28 +220,43 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [selectedAssetNo, setSelectedAssetNo] = useState('');
   const [selectedModelName, setSelectedModelName] = useState('');
+  const [ownerType, setOwnerType] = useState<'OWN' | 'RENTED'>('OWN');
+  const [vendorName, setVendorName] = useState('');
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [siteId, setSiteId] = useState('');
   const [siteName, setSiteName] = useState('');
+  const [siteAddress, setSiteAddress] = useState('');
+  const [outboundDate, setOutboundDate] = useState('');
   const [inboundDate, setInboundDate] = useState(new Date().toISOString().slice(0, 10));
+  const [billingDay, setBillingDay] = useState<number | undefined>(undefined);
   const [contractId, setContractId] = useState('');
   const [contractNo, setContractNo] = useState('');
   const [salespersonId, setSalespersonId] = useState('');
   const [salespersonName, setSalespersonName] = useState('');
+  const [customerContactName, setCustomerContactName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [recentRepairId, setRecentRepairId] = useState<string | undefined>(undefined);
   const [autoFillSource, setAutoFillSource] = useState('');
   const [showAssetDropdown, setShowAssetDropdown] = useState(false);
+  const [showManualInfoEdit, setShowManualInfoEdit] = useState(false);
 
-  const [symptomAddMode, setSymptomAddMode] = useState<'SELECT_MASTER' | 'NEW_INPUT'>(
-    'SELECT_MASTER'
-  );
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('전체');
-  const [checklistSearchQuery, setChecklistSearchQuery] = useState('');
-
   const [newSymptomCategory, setNewSymptomCategory] = useState('외관/파손');
   const [newSymptomName, setNewSymptomName] = useState('');
-  const [newSymptomCost, setNewSymptomCost] = useState<string>('');
-  const [saveNewToMaster, setSaveNewToMaster] = useState(true);
+  const [customSavedSymptoms, setCustomSavedSymptoms] = useState<{ category: string; name: string }[]>(() => {
+    try {
+      const raw = localStorage.getItem(CUSTOM_CLAIM_SYMPTOM_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
 
   const [defectItems, setDefectItems] = useState<InboundClaimDefectItem[]>([]);
   const [claimMemo, setClaimMemo] = useState('');
@@ -178,7 +290,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
       [];
 
     const sortedLogs = [...(assetInOutLogs || [])]
-      .filter((l) => l.eventType === 'INBOUND' && l.assetNo)
+      .filter((l) => ((l as any).eventType === 'INBOUND' || (l as any).type === 'INBOUND') && l.assetNo)
       .sort((a, b) =>
         (b.eventDate || b.createdAt || '').localeCompare(a.eventDate || a.createdAt || '')
       );
@@ -247,35 +359,50 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
       customers,
       sites,
       users,
+      vendors,
     });
 
     if (lookup) {
       setSelectedAssetId(lookup.assetId);
       setSelectedAssetNo(lookup.assetNo);
       setSelectedModelName(lookup.modelName);
+      setOwnerType(lookup.ownerType);
+      setVendorName(lookup.vendorName || '');
       setCustomerId(lookup.customerId);
       setCustomerName(lookup.customerName);
       setSiteId(lookup.siteId);
       setSiteName(lookup.siteName);
+      setSiteAddress(lookup.siteAddress || '');
+      setOutboundDate(lookup.outboundDate || '');
       setInboundDate(lookup.inboundDate);
+      setBillingDay(lookup.billingDay);
       setContractId(lookup.contractId);
       setContractNo(lookup.contractNo);
       setSalespersonId(lookup.salespersonId);
       setSalespersonName(lookup.salespersonName);
+      setCustomerContactName(lookup.customerContactName || '');
+      setCustomerPhone(lookup.customerPhone || '');
+      setCustomerEmail(lookup.customerEmail || '');
+      setRecentRepairId(lookup.recentRepairId);
       setAutoFillSource(lookup.sourceLabel);
     } else {
       setSelectedAssetId('');
       setSelectedAssetNo(trimmed);
       setSelectedModelName('');
+      setOwnerType('OWN');
+      setVendorName('');
       setAutoFillSource('직접 입력');
     }
   };
 
   useEffect(() => {
-    if (initialAssetNo && initialAssetNo.trim()) {
-      handleSelectAssetAndAutoFill(initialAssetNo.trim());
+    const payloadAssetNo =
+      (initialAssetNo && initialAssetNo.trim()) ||
+      (navigationPayload?.assetNo && String(navigationPayload.assetNo).trim());
+    if (payloadAssetNo) {
+      handleSelectAssetAndAutoFill(payloadAssetNo);
     }
-  }, [initialAssetNo]);
+  }, [initialAssetNo, navigationPayload]);
 
   const checklistCategories = useMemo(() => {
     const set = new Set<string>(DEFAULT_CATEGORIES);
@@ -287,41 +414,41 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
     return ['전체', ...Array.from(set)];
   }, [inspectionChecklistItems]);
 
-  const filteredChecklistItems = useMemo(() => {
-    const q = checklistSearchQuery.trim().toLowerCase();
-    return (inspectionChecklistItems || []).filter((item) => {
-      if (item.isActive === false) return false;
-      if (selectedCategoryFilter !== '전체' && item.category !== selectedCategoryFilter) {
-        return false;
+  const allQuickSymptomOptions = useMemo(() => {
+    const map = new Map<string, { id?: string; category: string; name: string }>();
+    DEFAULT_DEFECT_QUICK_OPTIONS.forEach((opt) => {
+      map.set(opt.name, { category: opt.category, name: opt.name });
+    });
+    customSavedSymptoms.forEach((opt) => {
+      if (opt?.name) map.set(opt.name, { category: opt.category || '외관/파손', name: opt.name });
+    });
+    (inspectionChecklistItems || []).forEach((item) => {
+      const label = (item.name || (item as any).itemName || '').trim();
+      if (item.isActive !== false && label) {
+        map.set(label, { id: item.id, category: item.category || '외관/파손', name: label });
       }
-      if (
-        q &&
-        !(item.itemName || '').toLowerCase().includes(q) &&
-        !(item.category || '').toLowerCase().includes(q)
-      ) {
-        return false;
-      }
+    });
+    return Array.from(map.values());
+  }, [customSavedSymptoms, inspectionChecklistItems]);
+
+  const displayedQuickOptions = useMemo(() => {
+    return allQuickSymptomOptions.filter((opt) => {
+      if (selectedCategoryFilter !== '전체' && opt.category !== selectedCategoryFilter) return false;
       return true;
     });
-  }, [inspectionChecklistItems, selectedCategoryFilter, checklistSearchQuery]);
+  }, [allQuickSymptomOptions, selectedCategoryFilter]);
 
-  const handleAddFromChecklist = (item: InspectionChecklistItem) => {
-    const alreadyExists = defectItems.some(
-      (d) => d.checkitemId === item.id || d.symptomName === item.itemName
-    );
-    if (alreadyExists) {
-      showNoticeModal({
-        title: '중복 증상 안내',
-        message: `'${item.itemName}' 항목은 이미 추가되어 있습니다.`,
-      });
+  const handleToggleQuickSymptom = (opt: { id?: string; category: string; name: string }) => {
+    const existing = defectItems.find((d) => d.symptomName === opt.name);
+    if (existing) {
+      setDefectItems((prev) => prev.filter((d) => d.id !== existing.id));
       return;
     }
-
     const newItem: InboundClaimDefectItem = {
       id: `DEF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      checkitemId: item.id,
-      category: item.category || '입고불량',
-      symptomName: item.itemName,
+      checkitemId: opt.id,
+      category: opt.category || '외관/파손',
+      symptomName: opt.name,
       estimatedCost: 0,
       agreedCost: 0,
       photos: [],
@@ -330,56 +457,63 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
     setDefectItems((prev) => [...prev, newItem]);
   };
 
-  const handleAddNewSymptom = async () => {
+  const handleSaveNewSymptomQuickButton = async () => {
     const trimmedName = newSymptomName.trim();
     if (!trimmedName) {
-      showErrorModal('불량 증상명을 입력해 주십시오.');
+      showErrorModal('저장할 불량 증상명을 입력해 주십시오.');
       return;
     }
-
-    const parsedCost = Math.max(0, Math.round(Number(newSymptomCost.replace(/,/g, '')) || 0));
-    const category = (newSymptomCategory || '기타').trim();
+    const category = (newSymptomCategory || '외관/파손').trim();
     let createdCheckitemId: string | undefined;
 
     try {
-      if (saveNewToMaster) {
-        const existingMaster = (inspectionChecklistItems || []).find(
-          (it) => it.category === category && it.itemName === trimmedName
-        );
-        if (existingMaster) {
-          createdCheckitemId = existingMaster.id;
-        } else {
-          const newMasterId = `CHK-${Date.now()}`;
-          await saveInspectionChecklistItem({
-            id: newMasterId,
-            modelName: selectedModelName || '공통',
-            category,
-            itemName: trimmedName,
-            score: 10,
-            standardManHours: 1,
-            recommendedConsumableIds: [],
-            isActive: true,
-          });
-          createdCheckitemId = newMasterId;
-        }
+      const nextCustom = [
+        ...customSavedSymptoms.filter((s) => s.name !== trimmedName),
+        { category, name: trimmedName },
+      ];
+      setCustomSavedSymptoms(nextCustom);
+      try {
+        localStorage.setItem(CUSTOM_CLAIM_SYMPTOM_STORAGE_KEY, JSON.stringify(nextCustom));
+      } catch {
+        // ignore
       }
 
-      const newItem: InboundClaimDefectItem = {
-        id: `DEF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        checkitemId: createdCheckitemId,
-        category,
-        symptomName: trimmedName,
-        estimatedCost: parsedCost,
-        agreedCost: parsedCost,
-        photos: [],
-        memo: '',
-      };
+      const existingMaster = (inspectionChecklistItems || []).find(
+        (it) => (it.name || (it as any).itemName) === trimmedName
+      );
+      if (existingMaster) {
+        createdCheckitemId = existingMaster.id;
+      } else {
+        const newMasterId = `CHK-${Date.now()}`;
+        await saveInspectionChecklistItem({
+          id: newMasterId,
+          modelName: selectedModelName || 'ALL',
+          category,
+          name: trimmedName,
+          score: 10,
+          standardManHours: 1,
+          recommendedConsumableIds: [],
+          isActive: true,
+        });
+        createdCheckitemId = newMasterId;
+      }
 
-      setDefectItems((prev) => [...prev, newItem]);
+      if (!defectItems.some((d) => d.symptomName === trimmedName)) {
+        const newItem: InboundClaimDefectItem = {
+          id: `DEF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          checkitemId: createdCheckitemId,
+          category,
+          symptomName: trimmedName,
+          estimatedCost: 0,
+          agreedCost: 0,
+          photos: [],
+          memo: '',
+        };
+        setDefectItems((prev) => [...prev, newItem]);
+      }
       setNewSymptomName('');
-      setNewSymptomCost('');
     } catch (err: any) {
-      showErrorModal(err?.message || '신규 정비항목 저장 중 오류가 발생했습니다.');
+      showErrorModal(err?.message || '신규 증상 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -421,7 +555,8 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
       return;
     }
     if (!customerName.trim()) {
-      showErrorModal('고객명을 확인해 주십시오.');
+      setShowManualInfoEdit(true);
+      showErrorModal('고객사명을 확인하거나 직접 입력해 주십시오.');
       return;
     }
     if (defectItems.length === 0) {
@@ -433,25 +568,35 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
     try {
       const rcvId = await registerInboundDefectClaimReceivable({
         existingReceivableId: editingReceivableId,
+        repairId: recentRepairId,
         assetId: selectedAssetId || undefined,
         assetNo: finalAssetNo,
         modelName: selectedModelName || undefined,
+        ownerType,
+        vendorName: ownerType === 'RENTED' ? vendorName || '외부임차' : undefined,
         customerId: customerId || undefined,
         customerName: customerName.trim(),
         siteId: siteId || undefined,
         siteName: siteName.trim() || '미지정 현장',
+        siteAddress: siteAddress.trim() || undefined,
         contractId: contractId || undefined,
         contractNo: contractNo || undefined,
+        outboundDate: outboundDate || undefined,
         inboundDate: inboundDate || new Date().toISOString().slice(0, 10),
+        billingDay,
         salespersonId: salespersonId || undefined,
         salespersonName: salespersonName || undefined,
+        customerContactName: customerContactName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        customerEmail: customerEmail.trim() || undefined,
         defectItems,
+        inspectorMemo: claimMemo.trim(),
         negotiationMemo: claimMemo.trim(),
       });
 
       showNoticeModal({
-        title: '외상미수금 수리비용 등록 완료',
-        message: `자산번호 [${finalAssetNo}]의 수리비용 ₩${totalEstimatedCost.toLocaleString()}(증상 ${defectItems.length}건)이 외상미수금(${rcvId})으로 등록되었습니다.`,
+        title: '불량청구 등록 완료',
+        message: `장비 [${finalAssetNo}] 불량 증상 ${defectItems.length}건(사진 ${totalPhotoCount}장, 예상 ₩${totalEstimatedCost.toLocaleString()})이 PC 외상미수금 대장으로 인계되었습니다.`,
       });
 
       setEditingReceivableId(undefined);
@@ -878,7 +1023,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
       </div>
 
       {/* =====================================================================
-          탭 1: 출고팀 입고 불량 상태·사진(최대 2장)·예상 수리비 등록
+          탭 1: 출고팀 입고 불량 상태·사진(최대 2장)·예상 수리비 등록 (최소 조작 최적화)
          ===================================================================== */}
       {viewMode === 'REGISTER' && (
         <div className="p-3.5 space-y-3.5">
@@ -900,38 +1045,78 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
             </div>
           )}
 
-          {/* STEP 1: 자산번호 입력 및 입고 정보 자동 완성 */}
+          {/* STEP 1: 장비 선택 및 계약·고객·임차처 자동 매핑 */}
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3.5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
                   1
                 </span>
                 <h3 className="text-xs font-black text-white whitespace-nowrap">
-                  자산번호 입력 및 입고 정보 확인
+                  대상 장비 선택
                 </h3>
+                {selectedAssetNo && (
+                  <span
+                    className={`text-[10.5px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${
+                      ownerType === 'RENTED'
+                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                        : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                    }`}
+                    data-testid="inbound-claim-owner-badge"
+                  >
+                    {ownerType === 'RENTED' ? `임차처: ${vendorName || '외부임차'}` : '자사장비'}
+                  </span>
+                )}
               </div>
               {autoFillSource && (
-                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0">
                   {autoFillSource}
                 </span>
               )}
             </div>
 
+            {recentInboundAssetChips.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap shrink-0">
+                  최근입고:
+                </span>
+                {recentInboundAssetChips.map((chip) => (
+                  <button
+                    key={chip.assetNo}
+                    type="button"
+                    onClick={() => handleSelectAssetAndAutoFill(chip.assetNo)}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold whitespace-nowrap shrink-0 transition-all active:scale-95 ${
+                      selectedAssetNo === chip.assetNo
+                        ? 'bg-blue-600 text-white border-blue-500'
+                        : 'bg-slate-950 border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {chip.assetNo}
+                    {chip.customerName ? ` · ${chip.customerName}` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-col gap-1 relative">
-              <label className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
-                자산번호
-              </label>
               <div className="flex gap-1.5">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={assetNoQuery}
+                    data-testid="inbound-claim-asset-input"
                     onFocus={() => setShowAssetDropdown(true)}
                     onChange={(e) => {
-                      setAssetNoQuery(e.target.value);
+                      const val = e.target.value;
+                      setAssetNoQuery(val);
                       setShowAssetDropdown(true);
+                      const exact = (assets || []).find(
+                        (a) => (a.assetNo || '').toUpperCase() === val.trim().toUpperCase()
+                      );
+                      if (exact) {
+                        handleSelectAssetAndAutoFill(exact.assetNo);
+                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -939,16 +1124,16 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                         handleSelectAssetAndAutoFill(assetNoQuery);
                       }
                     }}
-                    placeholder="자산번호 입력"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white"
+                    placeholder="자산번호 입력 (예: G14002)"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-black text-white uppercase"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => handleSelectAssetAndAutoFill(assetNoQuery)}
-                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold whitespace-nowrap shrink-0"
+                  className="px-3.5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black whitespace-nowrap shrink-0 active:scale-95"
                 >
-                  조회
+                  선택
                 </button>
               </div>
 
@@ -968,7 +1153,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                         <span className="text-xs text-slate-300 truncate">{a.modelName}</span>
                       </div>
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 whitespace-nowrap">
-                        {a.status}
+                        {a.ownerType === 'RENTED' ? '임차' : '자사'}
                       </span>
                     </button>
                   ))}
@@ -976,71 +1161,80 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
               )}
             </div>
 
-            {recentInboundAssetChips.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
-                  최근 입고 자산 선택
-                </span>
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
-                  {recentInboundAssetChips.map((chip) => (
-                    <button
-                      key={chip.assetNo}
-                      type="button"
-                      onClick={() => handleSelectAssetAndAutoFill(chip.assetNo)}
-                      className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold whitespace-nowrap shrink-0 ${
-                        selectedAssetNo === chip.assetNo
-                          ? 'bg-blue-600 text-white border-blue-500'
-                          : 'bg-slate-950 border-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {chip.assetNo}
-                      {chip.customerName ? ` · ${chip.customerName}` : ''}
-                    </button>
-                  ))}
+            {/* 자동 매핑된 고객/현장/계약/영업담당 요약 배너 (1줄 확인 + 펼침 수정) */}
+            <div className="rounded-xl bg-slate-950 border border-slate-800 p-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-black text-white whitespace-nowrap">
+                      {customerName || '고객사 미지정'}
+                    </span>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-xs font-bold text-slate-300 truncate">
+                      {siteName || '현장 미지정'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10.5px] font-bold text-slate-400 flex-wrap">
+                    <span>입고일: {inboundDate}</span>
+                    {outboundDate && <span>(출고일: {outboundDate})</span>}
+                    {salespersonName && (
+                      <span className="text-emerald-400">영업담당: {salespersonName}</span>
+                    )}
+                    {customerPhone && <span>연락처: {customerPhone}</span>}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowManualInfoEdit((prev) => !prev)}
+                  className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10.5px] font-bold text-slate-300 whitespace-nowrap shrink-0"
+                >
+                  {showManualInfoEdit ? '접기' : '직접수정'}
+                </button>
               </div>
-            )}
 
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
-                  고객사명
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="고객사명"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-bold text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
-                  현장명
-                </label>
-                <input
-                  type="text"
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  placeholder="현장명"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-bold text-white"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
-                  입고일자
-                </label>
-                <input
-                  type="date"
-                  value={inboundDate}
-                  onChange={(e) => setInboundDate(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-bold text-white"
-                />
-              </div>
+              {showManualInfoEdit && (
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                      고객사명
+                    </label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="고객사명"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                      현장명
+                    </label>
+                    <input
+                      type="text"
+                      value={siteName}
+                      onChange={(e) => setSiteName(e.target.value)}
+                      placeholder="현장명"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                      입고일자
+                    </label>
+                    <input
+                      type="date"
+                      value={inboundDate}
+                      onChange={(e) => setInboundDate(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* STEP 2: 불량 증상 선택 또는 신규 입력 */}
+          {/* STEP 2: 불량 증상 원터치 퀵버튼 + 신규 증상저장 */}
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1048,7 +1242,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                   2
                 </span>
                 <h3 className="text-xs font-black text-white whitespace-nowrap">
-                  불량 증상 선택 또는 신규 입력
+                  불량 증상 선택
                 </h3>
               </div>
               <span className="text-xs font-bold text-blue-400 whitespace-nowrap">
@@ -1056,150 +1250,97 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setSymptomAddMode('SELECT_MASTER')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold whitespace-nowrap ${
-                  symptomAddMode === 'SELECT_MASTER'
-                    ? 'bg-slate-800 text-blue-300'
-                    : 'text-slate-400'
-                }`}
-              >
-                정비항목에서 선택
-              </button>
-              <button
-                type="button"
-                onClick={() => setSymptomAddMode('NEW_INPUT')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold whitespace-nowrap ${
-                  symptomAddMode === 'NEW_INPUT' ? 'bg-slate-800 text-blue-300' : 'text-slate-400'
-                }`}
-              >
-                + 신규 증상 입력
-              </button>
+            {/* 카테고리 필터 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {checklistCategories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategoryFilter(cat)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                    selectedCategoryFilter === cat
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-950 text-slate-300 border border-slate-800'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
 
-            {symptomAddMode === 'SELECT_MASTER' ? (
-              <div className="space-y-2">
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
-                  {checklistCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setSelectedCategoryFilter(cat)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 ${
-                        selectedCategoryFilter === cat
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-950 text-slate-300 border border-slate-800'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
+            {/* 원터치 퀵버튼 그리드 */}
+            <div className="max-h-44 overflow-y-auto grid grid-cols-2 gap-1.5">
+              {displayedQuickOptions.map((opt) => {
+                const isAdded = defectItems.some((d) => d.symptomName === opt.name);
+                return (
+                  <button
+                    key={`${opt.category}-${opt.name}`}
+                    type="button"
+                    onClick={() => handleToggleQuickSymptom(opt)}
+                    className={`px-2.5 py-2 rounded-xl border text-left flex items-center justify-between gap-1.5 transition-all active:scale-95 ${
+                      isAdded
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                        : 'bg-slate-950 border-slate-800 text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-xs font-bold truncate">{opt.name}</span>
+                    {isAdded ? (
+                      <Check className="w-3.5 h-3.5 text-white shrink-0" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
+            {/* 신규 증상 직접 입력 + 증상저장 버튼 (저장 시 다음부터 퀵버튼 사용 가능) */}
+            <div className="pt-2 border-t border-slate-800 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
+                  신규 불량 증상 추가 (저장 시 퀵버튼 등록)
+                </label>
+                <select
+                  value={newSymptomCategory}
+                  onChange={(e) => setNewSymptomCategory(e.target.value)}
+                  className="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-[10.5px] font-bold text-slate-300"
+                >
+                  {DEFAULT_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-1.5">
                 <input
                   type="text"
-                  value={checklistSearchQuery}
-                  onChange={(e) => setChecklistSearchQuery(e.target.value)}
-                  placeholder="정비항목명 검색..."
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
+                  value={newSymptomName}
+                  data-testid="inbound-claim-new-symptom-input"
+                  onChange={(e) => setNewSymptomName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSaveNewSymptomQuickButton();
+                    }
+                  }}
+                  placeholder="새로운 불량 증상 입력"
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white"
                 />
-
-                <div className="max-h-44 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {filteredChecklistItems.map((item) => {
-                    const isAdded = defectItems.some(
-                      (d) => d.checkitemId === item.id || d.symptomName === item.itemName
-                    );
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleAddFromChecklist(item)}
-                        className={`px-2.5 py-2 rounded-xl border text-left flex items-center justify-between gap-2 ${
-                          isAdded
-                            ? 'bg-blue-500/15 border-blue-500/50 text-blue-300'
-                            : 'bg-slate-950 border-slate-800 text-slate-200'
-                        }`}
-                      >
-                        <div className="min-w-0 truncate">
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 mr-1.5">
-                            {item.category}
-                          </span>
-                          <span className="text-xs font-bold">{item.itemName}</span>
-                        </div>
-                        {isAdded ? (
-                          <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                        ) : (
-                          <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  type="button"
+                  data-testid="inbound-claim-save-symptom-btn"
+                  onClick={handleSaveNewSymptomQuickButton}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black whitespace-nowrap shrink-0 flex items-center gap-1 active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>증상저장</span>
+                </button>
               </div>
-            ) : (
-              <div className="space-y-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-slate-400">정비 구분</label>
-                    <select
-                      value={newSymptomCategory}
-                      onChange={(e) => setNewSymptomCategory(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                    >
-                      {DEFAULT_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] font-bold text-slate-400">예상 수리비 (원)</label>
-                    <input
-                      type="number"
-                      value={newSymptomCost}
-                      onChange={(e) => setNewSymptomCost(e.target.value)}
-                      placeholder="50000"
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-bold text-slate-400">불량 증상명</label>
-                  <input
-                    type="text"
-                    value={newSymptomName}
-                    onChange={(e) => setNewSymptomName(e.target.value)}
-                    placeholder="예: 조이스틱 파손, 난간대 휨"
-                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white"
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={saveNewToMaster}
-                      onChange={(e) => setSaveNewToMaster(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded text-blue-600"
-                    />
-                    <span>정비항목 마스터에 함께 저장</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddNewSymptom}
-                    className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>증상 추가</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
 
-          {/* STEP 3: 증상별 사진 및 예상 수리비 입력 */}
+          {/* STEP 3: 선택된 증상별 사진 촬영 및 예상 수리비 (선택 입력) */}
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1207,17 +1348,17 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                   3
                 </span>
                 <h3 className="text-xs font-black text-white whitespace-nowrap">
-                  증상별 사진 및 예상 수리비 입력
+                  증상별 사진 촬영 및 비용 기록
                 </h3>
               </div>
               <span className="text-xs font-black text-rose-400 whitespace-nowrap">
-                합계 ₩{totalEstimatedCost.toLocaleString()}
+                사진 {totalPhotoCount}장 · ₩{totalEstimatedCost.toLocaleString()}
               </span>
             </div>
 
             {defectItems.length === 0 ? (
-              <div className="py-6 text-center rounded-xl border border-dashed border-slate-800 text-xs text-slate-500">
-                위 2단계에서 불량 증상을 선택하거나 추가해 주십시오.
+              <div className="py-5 text-center rounded-xl border border-dashed border-slate-800 text-xs font-bold text-slate-500">
+                위 퀵버튼을 눌러 불량 증상을 선택해 주십시오.
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -1229,12 +1370,12 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10.5px] font-bold whitespace-nowrap">
-                          증상 {idx + 1}
+                          #{idx + 1}
                         </span>
                         <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10.5px] font-bold whitespace-nowrap">
                           {item.category}
                         </span>
-                        <span className="text-xs font-bold text-white truncate">
+                        <span className="text-xs font-black text-white truncate">
                           {item.symptomName}
                         </span>
                       </div>
@@ -1247,24 +1388,29 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                       </button>
                     </div>
 
+                    <CameraUploader
+                      images={(item.photos || []).slice(0, 2)}
+                      maxImages={2}
+                      label="파손·불량 사진 촬영 (최대 2장)"
+                      onChange={(newPhotos) =>
+                        handleUpdateDefectItem(item.id, { photos: newPhotos.slice(0, 2) })
+                      }
+                    />
+
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-bold text-slate-400">
-                        예상 수리비용 (원)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={item.estimatedCost || ''}
-                          onChange={(e) =>
-                            handleUpdateDefectItem(item.id, {
-                              estimatedCost: Number(e.target.value) || 0,
-                            })
-                          }
-                          placeholder="예상 수리비 입력"
-                          className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-rose-400"
-                        />
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10.5px] font-bold text-slate-400">
+                          예상 수리비 (미정 시 0원 가능)
+                        </label>
                         <div className="flex gap-1">
-                          {[30000, 50000, 100000].map((amt) => (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateDefectItem(item.id, { estimatedCost: 0 })}
+                            className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-bold text-slate-400 whitespace-nowrap"
+                          >
+                            미정(0원)
+                          </button>
+                          {[10000, 30000, 50000, 100000].map((amt) => (
                             <button
                               key={amt}
                               type="button"
@@ -1273,31 +1419,34 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                                   estimatedCost: (item.estimatedCost || 0) + amt,
                                 })
                               }
-                              className="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[10.5px] font-bold text-slate-300 whitespace-nowrap"
+                              className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-[10px] font-bold text-blue-300 whitespace-nowrap active:scale-95"
                             >
                               +{amt / 10000}만
                             </button>
                           ))}
                         </div>
                       </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          type="number"
+                          value={item.estimatedCost || ''}
+                          onChange={(e) =>
+                            handleUpdateDefectItem(item.id, {
+                              estimatedCost: Number(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="예상 수리비 (원)"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-rose-400"
+                        />
+                        <input
+                          type="text"
+                          value={item.memo || ''}
+                          onChange={(e) => handleUpdateDefectItem(item.id, { memo: e.target.value })}
+                          placeholder="부위 메모 (선택)"
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                        />
+                      </div>
                     </div>
-
-                    <CameraUploader
-                      images={(item.photos || []).slice(0, 2)}
-                      maxImages={2}
-                      label="증상 사진 촬영 (최대 2장)"
-                      onImagesChange={(newPhotos) =>
-                        handleUpdateDefectItem(item.id, { photos: newPhotos.slice(0, 2) })
-                      }
-                    />
-
-                    <input
-                      type="text"
-                      value={item.memo || ''}
-                      onChange={(e) => handleUpdateDefectItem(item.id, { memo: e.target.value })}
-                      placeholder="파손 부위 및 수리 상세 내용 입력 (선택)"
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
-                    />
                   </div>
                 ))}
               </div>
@@ -1305,28 +1454,29 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
 
             <div className="flex flex-col gap-1 pt-1">
               <label className="text-[11px] font-bold text-slate-400">
-                영업부 전달 메모 (선택)
+                영업사원 전달 메모 (PC 외상미수금 대장 표시)
               </label>
               <input
                 type="text"
                 value={claimMemo}
                 onChange={(e) => setClaimMemo(e.target.value)}
-                placeholder="영업담당자 참고 사항 입력"
-                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white"
+                placeholder="현장 파손 경위 등 영업담당자 참고 사항 (선택)"
+                className="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white"
               />
             </div>
 
             <button
               type="button"
+              data-testid="inbound-claim-submit-btn"
               disabled={isSubmittingClaim}
               onClick={handleSubmitInboundDefectClaim}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md"
+              className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md active:scale-98"
             >
               <Save className="w-4 h-4" />
               <span>
                 {isSubmittingClaim
                   ? '저장 중...'
-                  : `외상미수금 수리비용 등록 (₩${totalEstimatedCost.toLocaleString()})`}
+                  : `불량청구 등록 완료 (${defectItems.length}건 · ₩${totalEstimatedCost.toLocaleString()})`}
               </span>
             </button>
           </div>
