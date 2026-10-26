@@ -2054,6 +2054,7 @@ export type DeliveryStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED
 
 /** 전사 표준 차종/톤수 옵션 목록 */
 export const VEHICLE_TYPE_OPTIONS: string[] = [
+  '1T',
   '1.4T',
   '2.5T',
   '3.5T',

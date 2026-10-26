@@ -210,6 +210,7 @@ export function parseTransportNegotiationText(
   else if (/5톤\s*장축\s*셀프|5T\s*장축\s*셀프/i.test(text)) vehicleType = '5T장축 셀프';
   else if (/5톤\s*셀프|5T\s*셀프/i.test(text)) vehicleType = '5T 셀프';
   else if (/8\.5톤\s*셀프|8\.5T\s*셀프/i.test(text)) vehicleType = '8.5T 셀프';
+  else if (/(?:^|[^\d.])(?:1톤|1T)(?!\d)/i.test(text)) vehicleType = '1T';
   else if (/1\.4톤|1\.4T/i.test(text)) vehicleType = '1.4T';
   else if (/2\.5톤|2\.5T/i.test(text)) vehicleType = '2.5T';
   else if (/3\.5톤|3\.5T/i.test(text)) vehicleType = '3.5T';
