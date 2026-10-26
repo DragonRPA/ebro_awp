@@ -11,7 +11,6 @@ import {
   Printer,
   Send,
   MessageSquare,
-  Copy,
   Sun,
   Navigation,
   ArrowUp,
@@ -101,7 +100,6 @@ interface MobileDispatchStudioSheetProps {
   onCancelOrRevertDelivery: (deliveryId: string) => Promise<void>;
   onSendSms: (d: Delivery) => void;
   onCopyKakao: (d: Delivery) => void;
-  onCopyDriverPortal: (d: Delivery) => void;
   onRemotePrint: (d: Delivery, docType: 'OUTBOUND' | 'INBOUND') => void;
   onOpenWeather: (address: string, title?: string) => void;
   onOpenNav: (address: string) => void;
@@ -157,7 +155,6 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
   onCancelOrRevertDelivery,
   onSendSms,
   onCopyKakao,
-  onCopyDriverPortal,
   onRemotePrint,
   onOpenWeather,
   onOpenNav,
@@ -1783,7 +1780,7 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
           />
         </div>
 
-        {/* 2-6. 인쇄 · 문자 · 카톡 · 포털 퀵버튼 (좌우 스크롤 없이 아래로 줄바꿈 배치) */}
+        {/* 2-6. 인쇄 · 문자 · 카톡 퀵버튼 (좌우 스크롤 없이 아래로 줄바꿈 배치) */}
         <div
           style={{
             display: 'flex',
@@ -1795,7 +1792,7 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
             type="button"
             onClick={() => onRemotePrint(delivery, 'OUTBOUND')}
             style={{
-              flex: '1 1 30%',
+              flex: '1 1 22%',
               padding: '9px 8px',
               borderRadius: '8px',
               backgroundColor: '#1e293b',
@@ -1817,7 +1814,7 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
             type="button"
             onClick={() => onRemotePrint(delivery, 'INBOUND')}
             style={{
-              flex: '1 1 30%',
+              flex: '1 1 22%',
               padding: '9px 8px',
               borderRadius: '8px',
               backgroundColor: '#1e293b',
@@ -1839,7 +1836,7 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
             type="button"
             onClick={() => onSendSms(delivery)}
             style={{
-              flex: '1 1 30%',
+              flex: '1 1 22%',
               padding: '9px 8px',
               borderRadius: '8px',
               backgroundColor: '#1e293b',
@@ -1861,7 +1858,7 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
             type="button"
             onClick={() => onCopyKakao(delivery)}
             style={{
-              flex: '1 1 45%',
+              flex: '1 1 22%',
               padding: '9px 8px',
               borderRadius: '8px',
               backgroundColor: 'rgba(245, 158, 11, 0.2)',
@@ -1878,28 +1875,6 @@ export const MobileDispatchStudioSheet: React.FC<MobileDispatchStudioSheetProps>
           >
             <MessageSquare size={14} />
             <span>카톡복사</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onCopyDriverPortal(delivery)}
-            style={{
-              flex: '1 1 45%',
-              padding: '9px 8px',
-              borderRadius: '8px',
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              color: '#e2e8f0',
-              fontSize: '12px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Copy size={14} />
-            <span>포털링크</span>
           </button>
         </div>
       </div>

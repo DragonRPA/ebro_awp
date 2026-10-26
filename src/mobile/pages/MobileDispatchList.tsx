@@ -792,13 +792,6 @@ export const MobileDispatchList: React.FC = () => {
     showToast('카카오톡 배차 안내문 복사 완료');
   };
 
-  // Driver Portal Link Copy
-  const handleCopyDriverPortalUrl = async (d: Delivery) => {
-    const portalUrl = `${window.location.origin}/driver-portal?deliveryId=${encodeURIComponent(d.id)}`;
-    await copyToClipboard(portalUrl);
-    showToast('기사 포털 링크 복사 완료');
-  };
-
   // Remote Print Queue (`출고요청서` / `입고요청서`)
   const handleRemotePrint = async (d: Delivery, forceDocType?: 'OUTBOUND' | 'INBOUND') => {
     const origCat = getOriginalDeliveryCategoryLabel(d);
@@ -2522,7 +2515,6 @@ export const MobileDispatchList: React.FC = () => {
         onCancelOrRevertDelivery={handleCancelOrRevertDelivery}
         onSendSms={(d) => handleSendDriverSms(d)}
         onCopyKakao={handleCopyKakaoDispatchMessage}
-        onCopyDriverPortal={handleCopyDriverPortalUrl}
         onRemotePrint={handleRemotePrint}
         onOpenWeather={(address, title) => setWeatherTarget({ address, title })}
         onOpenNav={(address) => setNavTargetAddress(address)}
