@@ -1131,10 +1131,14 @@ export const RentAssets: React.FC = () => {
   // ==========================================
   // [탭 1] 임차자산 대장 현황 관련 상태
   // ==========================================
+  const getCurrentMonthStartDate = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [renterQuery, setRenterQuery] = useState('');
-  const [startDateQuery, setStartDateQuery] = useState('');
+  const [startDateQuery, setStartDateQuery] = useState(getCurrentMonthStartDate);
   const [endDateQuery, setEndDateQuery] = useState('');
   const [feeQuery, setFeeQuery] = useState('ALL');
   const [returnQuery, setReturnQuery] = useState('ALL');
@@ -1289,9 +1293,9 @@ export const RentAssets: React.FC = () => {
       // 3. 모델명 필터 (모델명 컬럼)
       if (modelQuery && (a.modelName || '').trim() !== modelQuery) return false;
 
-      // 4. 임차 계약기간 필터 (임차 계약기간 컬럼)
-      if (startDateQuery && (!a.rentEnd || a.rentEnd < startDateQuery)) return false;
-      if (endDateQuery && (!a.rentStart || a.rentStart > endDateQuery)) return false;
+      // 4. 임차 계약기간 필터 (임차 계약기간 컬럼: 시작일 a.rentStart 및 종료일 a.rentEnd 기준)
+      if (startDateQuery && (!a.rentStart || a.rentStart < startDateQuery)) return false;
+      if (endDateQuery && (!a.rentEnd || a.rentEnd > endDateQuery)) return false;
 
       // 5. 월 임차료 필터 (월 임차료 컬럼)
       if (feeQuery === 'PAID' && (a.monthlyRentFee || 0) <= 0) return false;
