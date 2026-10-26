@@ -165,6 +165,31 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     setTorchSupported(false);
   }, []);
 
+  const applyCenterFocusConstraint = useCallback(async (track?: MediaStreamTrack | null) => {
+    const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
+    if (!targetTrack || typeof targetTrack.applyConstraints !== 'function') return;
+    try {
+      const caps = typeof targetTrack.getCapabilities === 'function' ? (targetTrack.getCapabilities() as any) : {};
+      const advancedConstraint: Record<string, any> = {};
+      if (Array.isArray(caps?.focusMode)) {
+        if (caps.focusMode.includes('continuous')) {
+          advancedConstraint.focusMode = 'continuous';
+        } else if (caps.focusMode.includes('single-shot')) {
+          advancedConstraint.focusMode = 'single-shot';
+        }
+      } else {
+        advancedConstraint.focusMode = 'continuous';
+      }
+      // 중앙 수평 조준선(0.5, 0.5)에 광학 초점 고정
+      advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+      await targetTrack.applyConstraints({ advanced: [advancedConstraint as any] });
+    } catch {
+      try {
+        await targetTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+      } catch {}
+    }
+  }, []);
+
   const startCamera = useCallback(async () => {
     setCameraError(false);
     setCameraReady(false);
@@ -180,7 +205,9 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         video: {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          // @ts-ignore - 브라우저 지원 시 연속 중앙 초점 우선 적용
+          focusMode: { ideal: 'continuous' }
         },
         audio: false
       });
@@ -193,16 +220,19 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       setCameraReady(true);
 
       const track = stream.getVideoTracks()[0];
-      if (track && typeof track.getCapabilities === 'function') {
-        const caps = track.getCapabilities() as any;
-        if (caps && caps.torch) {
-          setTorchSupported(true);
+      if (track) {
+        if (typeof track.getCapabilities === 'function') {
+          const caps = track.getCapabilities() as any;
+          if (caps && caps.torch) {
+            setTorchSupported(true);
+          }
         }
+        await applyCenterFocusConstraint(track);
       }
     } catch {
       setCameraError(true);
     }
-  }, [stopCamera]);
+  }, [stopCamera, applyCenterFocusConstraint]);
 
   useEffect(() => {
     if (isOpen && unfilledSlots.length > 0) {
@@ -302,34 +332,21 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
     inFlightRef.current = true;
 
     try {
-      if ('BarcodeDetector' in window) {
-        try {
-          const BarcodeDetectorCls = (window as any).BarcodeDetector;
-          const detector = new BarcodeDetectorCls({
-            formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
-          });
-          const barcodes = await detector.detect(video);
-          if (Array.isArray(barcodes) && barcodes.length > 0) {
-            const rawVal = String(barcodes[0].rawValue || '').trim();
-            if (rawVal) {
-              processRecognizedResult({
-                success: true,
-                assetNo: rawVal,
-                rawTokens: [rawVal]
-              });
-              return;
-            }
-          }
-        } catch {}
-      }
+      // 1. 화면에 실제 렌더링된 70px 컨테이너(object-fit: cover) 영역과 1:1 일치하는 비디오 픽셀 영역 역산
+      const cw = video.clientWidth || 360;
+      const ch = video.clientHeight || 70;
+      const coverScale = Math.max(cw / vw, ch / vh);
+      const visibleVideoW = Math.min(vw, cw / coverScale);
+      const visibleVideoH = Math.min(vh, ch / coverScale);
 
-      const cropW = Math.floor(vw * 0.84);
-      const cropH = Math.floor(vh * 0.36);
-      const cropX = Math.floor((vw - cropW) / 2);
-      const cropY = Math.floor((vh - cropH) / 2);
+      // 중앙 녹색 가로선(top: 50%) 주변 슬릿 영역만 정밀 크롭 (화면 밖 영역 원천 배제)
+      const cropW = Math.max(120, Math.floor(visibleVideoW * 0.88));
+      const cropH = Math.max(40, Math.floor(visibleVideoH * 0.72));
+      const cropX = Math.max(0, Math.floor((vw - cropW) / 2));
+      const cropY = Math.max(0, Math.floor((vh - cropH) / 2));
 
-      const targetW = Math.min(560, cropW);
-      const targetH = Math.max(140, Math.floor((cropH / cropW) * targetW));
+      const targetW = Math.min(640, cropW);
+      const targetH = Math.max(72, Math.floor((cropH / cropW) * targetW));
       canvas.width = targetW;
       canvas.height = targetH;
 
@@ -337,13 +354,50 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
       if (!ctx) return;
       ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
 
+      const centerY = targetH / 2;
+
+      // 2. BarcodeDetector도 원본 video가 아닌 크롭된 중앙 슬릿 canvas만 판독 + 중앙선 근접순 정렬
+      if ('BarcodeDetector' in window) {
+        try {
+          const BarcodeDetectorCls = (window as any).BarcodeDetector;
+          const detector = new BarcodeDetectorCls({
+            formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
+          });
+          const barcodes = await detector.detect(canvas);
+          if (Array.isArray(barcodes) && barcodes.length > 0) {
+            const sortedBarcodes = [...barcodes].sort((a: any, b: any) => {
+              const ay = a?.boundingBox ? a.boundingBox.y + a.boundingBox.height / 2 : centerY;
+              const by = b?.boundingBox ? b.boundingBox.y + b.boundingBox.height / 2 : centerY;
+              return Math.abs(ay - centerY) - Math.abs(by - centerY);
+            });
+            const rawVals = sortedBarcodes
+              .map((b: any) => String(b?.rawValue || '').trim())
+              .filter(Boolean);
+            if (rawVals.length > 0) {
+              const matched = processRecognizedResult({
+                success: true,
+                assetNo: rawVals[0],
+                rawTokens: rawVals
+              });
+              if (matched) return;
+            }
+          }
+        } catch {}
+      }
+
+      // 3. TextDetector: 중앙 가로선(centerY)에 가장 가까운 텍스트 블록부터 최우선 정렬 후 판독
       if ('TextDetector' in window) {
         try {
           const TextDetectorCls = (window as any).TextDetector;
           const textDetector = new TextDetectorCls();
           const detectedBlocks = await textDetector.detect(canvas);
           if (Array.isArray(detectedBlocks) && detectedBlocks.length > 0) {
-            const joined = detectedBlocks.map((b: any) => String(b.rawValue || '')).join(' ');
+            const sortedBlocks = [...detectedBlocks].sort((a: any, b: any) => {
+              const ay = a?.boundingBox ? a.boundingBox.y + a.boundingBox.height / 2 : centerY;
+              const by = b?.boundingBox ? b.boundingBox.y + b.boundingBox.height / 2 : centerY;
+              return Math.abs(ay - centerY) - Math.abs(by - centerY);
+            });
+            const joined = sortedBlocks.map((b: any) => String(b.rawValue || '')).join(' ');
             const tokens = extractAlphanumericTokens(joined);
             if (tokens.length > 0) {
               const matched = processRecognizedResult({
@@ -357,11 +411,21 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         } catch {}
       }
 
+      // 4. 로컬 Tesseract OCR: 라인별 Y좌표를 기준으로 중앙 가로선(centerY)에 걸친 텍스트 최우선 추출
       preprocessCanvasForLocalOcr(ctx, targetW, targetH);
       const worker = await ensureLocalOcrWorker();
       if (worker) {
         const { data } = await worker.recognize(canvas);
-        const tokens = extractAlphanumericTokens(data?.text || '');
+        let orderedText = data?.text || '';
+        if (Array.isArray(data?.lines) && data.lines.length > 1) {
+          const sortedLines = [...data.lines].sort((a: any, b: any) => {
+            const ay = a?.bbox ? (a.bbox.y0 + a.bbox.y1) / 2 : centerY;
+            const by = b?.bbox ? (b.bbox.y0 + b.bbox.y1) / 2 : centerY;
+            return Math.abs(ay - centerY) - Math.abs(by - centerY);
+          });
+          orderedText = sortedLines.map((l: any) => String(l?.text || '')).join(' ');
+        }
+        const tokens = extractAlphanumericTokens(orderedText);
         if (tokens.length > 0) {
           processRecognizedResult({
             success: true,
@@ -424,8 +488,12 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
 
   return (
     <div
-      className="relative w-full rounded-lg overflow-hidden border border-cyan-500/70 bg-black"
+      className="relative w-full rounded-lg overflow-hidden border border-emerald-500/80 bg-black"
       style={{ height: '70px', minHeight: '70px', maxHeight: '70px' }}
+      onClick={() => {
+        applyCenterFocusConstraint();
+        captureAndAnalyzeLocalFrame();
+      }}
     >
       <video
         ref={videoRef}
@@ -444,15 +512,26 @@ export const MobileInlineCameraAssetScanner: React.FC<MobileInlineCameraAssetSca
         className="hidden"
       />
 
-      {/* 중앙 수평 조준선 */}
+      {/* 상하단 비인식 외곽 음영 가이드 & 중앙 녹색 수평 초점 조준선 */}
       <div
         style={{
           position: 'absolute',
-          left: '16px',
-          right: '16px',
+          inset: 0,
+          background:
+            'linear-gradient(to bottom, rgba(2,6,23,0.45) 0%, rgba(2,6,23,0) 18%, rgba(2,6,23,0) 82%, rgba(2,6,23,0.45) 100%)',
+          pointerEvents: 'none'
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: '6%',
+          right: '6%',
           top: '50%',
-          height: '1px',
-          backgroundColor: 'rgba(34, 211, 238, 0.45)',
+          transform: 'translateY(-50%)',
+          height: '1.5px',
+          backgroundColor: '#10b981',
+          boxShadow: '0 0 6px rgba(16, 185, 129, 0.85)',
           pointerEvents: 'none'
         }}
       />

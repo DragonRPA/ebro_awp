@@ -80,6 +80,30 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
     setTorchSupported(false);
   }, []);
 
+  const applyCenterFocusConstraint = useCallback(async (track?: MediaStreamTrack | null) => {
+    const targetTrack = track || streamRef.current?.getVideoTracks()?.[0];
+    if (!targetTrack || typeof (targetTrack as any).applyConstraints !== 'function') return;
+    try {
+      const caps = typeof (targetTrack as any).getCapabilities === 'function' ? (targetTrack as any).getCapabilities() : {};
+      const advancedConstraint: Record<string, any> = {};
+      if (Array.isArray(caps?.focusMode)) {
+        if (caps.focusMode.includes('continuous')) {
+          advancedConstraint.focusMode = 'continuous';
+        } else if (caps.focusMode.includes('single-shot')) {
+          advancedConstraint.focusMode = 'single-shot';
+        }
+      } else {
+        advancedConstraint.focusMode = 'continuous';
+      }
+      advancedConstraint.pointsOfInterest = [{ x: 0.5, y: 0.5 }];
+      await (targetTrack as any).applyConstraints({ advanced: [advancedConstraint] });
+    } catch {
+      try {
+        await (targetTrack as any).applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      } catch {}
+    }
+  }, []);
+
   const startCameraStream = useCallback(async () => {
     stopCameraStream();
     setCameraError(null);
@@ -95,7 +119,9 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
         video: {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          // @ts-ignore - 브라우저 지원 시 연속 중앙 초점 우선 적용
+          focusMode: { ideal: 'continuous' }
         },
         audio: false
       });
@@ -107,22 +133,25 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       }
 
       const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && typeof (videoTrack as any).getCapabilities === 'function') {
-        try {
-          const caps = (videoTrack as any).getCapabilities();
-          if (caps && caps.torch) {
-            setTorchSupported(true);
-          }
-        } catch {}
+      if (videoTrack) {
+        if (typeof (videoTrack as any).getCapabilities === 'function') {
+          try {
+            const caps = (videoTrack as any).getCapabilities();
+            if (caps && caps.torch) {
+              setTorchSupported(true);
+            }
+          } catch {}
+        }
+        await applyCenterFocusConstraint(videoTrack);
       }
 
       setCameraReady(true);
-      setStatusMessage('실시간 자동 스캔 중 — 관리번호 스티커나 도색 번호를 사각 프레임에 맞추세요.');
+      setStatusMessage('실시간 자동 스캔 중 — 관리번호 스티커나 도색 번호를 중앙 녹색 선에 맞추세요.');
     } catch (err: any) {
       console.warn('[MobileCameraAssetOcrModal] getUserMedia error:', err);
       setCameraError('카메라 접근 권한이 거부되었거나 사용할 수 없습니다. 브라우저 카메라 권한을 허용하거나 아래 [사진 촬영 판독]을 눌러주세요.');
     }
-  }, [stopCameraStream]);
+  }, [stopCameraStream, applyCenterFocusConstraint]);
 
   useEffect(() => {
     if (isOpen) {
@@ -207,41 +236,23 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       }
 
       try {
-        // 1차: 브라우저 내장 BarcodeDetector 지원 시 바코드/QR 즉시 감지 시도
-        const BarcodeDetectorClass = (window as any).BarcodeDetector;
-        if (BarcodeDetectorClass) {
-          try {
-            const detector = new BarcodeDetectorClass({
-              formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
-            });
-            const barcodes = await detector.detect(video);
-            if (Array.isArray(barcodes) && barcodes.length > 0 && barcodes[0].rawValue) {
-              const rawVal = String(barcodes[0].rawValue).trim();
-              handleProcessOcrResult({
-                success: true,
-                assetNo: rawVal,
-                rawTokens: [rawVal],
-                rawText: rawVal,
-                confidence: 0.99
-              });
-              isAnalyzingRef.current = false;
-              setIsAnalyzing(false);
-              return;
-            }
-          } catch {}
-        }
-
-        // 2차: 중앙 가이드 영역(가로 84%, 세로 42%) 크롭하여 고대비 JPEG 생성
+        // 1. 화면에 표시된 중앙 가이드 박스(가로 84%/최대 420px, 세로 130px)의 object-fit: cover 1:1 대응 영역 역산
         const vw = video.videoWidth;
         const vh = video.videoHeight;
-        const cropW = Math.round(vw * 0.84);
-        const cropH = Math.round(vh * 0.42);
-        const cropX = Math.round((vw - cropW) / 2);
-        const cropY = Math.round((vh - cropH) / 2);
+        const cw = video.clientWidth || 360;
+        const ch = video.clientHeight || 260;
+        const coverScale = Math.max(cw / vw, ch / vh);
+
+        const guideBoxCssW = Math.min(cw * 0.84, 420);
+        const guideBoxCssH = 130;
+        const cropW = Math.max(160, Math.min(vw, Math.round(guideBoxCssW / coverScale)));
+        const cropH = Math.max(64, Math.min(vh, Math.round((guideBoxCssH * 0.78) / coverScale)));
+        const cropX = Math.max(0, Math.round((vw - cropW) / 2));
+        const cropY = Math.max(0, Math.round((vh - cropH) / 2));
 
         const canvas = canvasRef.current;
         const targetW = Math.min(800, cropW);
-        const targetH = Math.round((cropH * targetW) / cropW);
+        const targetH = Math.max(80, Math.round((cropH * targetW) / cropW));
         canvas.width = targetW;
         canvas.height = targetH;
 
@@ -253,6 +264,41 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
         }
 
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
+        const centerY = targetH / 2;
+
+        // 2. 브라우저 내장 BarcodeDetector: 원본 video가 아닌 크롭된 중앙 가이드 canvas만 판독 + 중앙선 근접순 정렬
+        const BarcodeDetectorClass = (window as any).BarcodeDetector;
+        if (BarcodeDetectorClass) {
+          try {
+            const detector = new BarcodeDetectorClass({
+              formats: ['qr_code', 'code_128', 'code_39', 'ean_13']
+            });
+            const barcodes = await detector.detect(canvas);
+            if (Array.isArray(barcodes) && barcodes.length > 0) {
+              const sortedBarcodes = [...barcodes].sort((a: any, b: any) => {
+                const ay = a?.boundingBox ? a.boundingBox.y + a.boundingBox.height / 2 : centerY;
+                const by = b?.boundingBox ? b.boundingBox.y + b.boundingBox.height / 2 : centerY;
+                return Math.abs(ay - centerY) - Math.abs(by - centerY);
+              });
+              const rawVals = sortedBarcodes
+                .map((b: any) => String(b?.rawValue || '').trim())
+                .filter(Boolean);
+              if (rawVals.length > 0) {
+                handleProcessOcrResult({
+                  success: true,
+                  assetNo: rawVals[0],
+                  rawTokens: rawVals,
+                  rawText: rawVals[0],
+                  confidence: 0.99
+                });
+                isAnalyzingRef.current = false;
+                setIsAnalyzing(false);
+                return;
+              }
+            }
+          } catch {}
+        }
+
         const base64Jpeg = canvas.toDataURL('image/jpeg', 0.84);
 
         const candidateAssetNos = availableAssets
@@ -415,7 +461,13 @@ export const MobileCameraAssetOcrModal: React.FC<MobileCameraAssetOcrModalProps>
       </div>
 
       {/* 중앙 라이브 카메라 뷰파인더 영역 */}
-      <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden min-h-[240px]">
+      <div
+        className="relative flex-1 bg-black flex items-center justify-center overflow-hidden min-h-[240px]"
+        onClick={() => {
+          applyCenterFocusConstraint();
+          captureAndAnalyzeCurrentFrame(true);
+        }}
+      >
         <video
           ref={videoRef}
           playsInline
