@@ -228,7 +228,12 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
     const allAssets = db.assets || [];
 
     if (ticket.assetId) candidateIds.add(ticket.assetId);
-    if (ticket.assetNo && ticket.assetNo !== '현장확인' && ticket.assetNo !== '전체장비') {
+    if (
+      ticket.assetNo &&
+      ticket.assetNo !== '현장확인' &&
+      ticket.assetNo !== '관리번호 모름' &&
+      ticket.assetNo !== '전체장비'
+    ) {
       const direct = allAssets.find((a) => (a.assetNo || '').toUpperCase() === ticket.assetNo!.toUpperCase());
       if (direct) candidateIds.add(direct.id);
     }
@@ -275,15 +280,17 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
     const allAssets = db.assets || [];
     const rawId = (ticket.assetId || '').trim();
     const rawNo = (ticket.assetNo || '').trim();
+    const isUnknownTicketAsset =
+      !rawNo || rawNo === '현장확인' || rawNo === '관리번호 모름' || rawNo === '전체장비';
     let matched = rawId ? allAssets.find((a) => a.id === rawId) : undefined;
-    if (!matched && rawNo && rawNo !== '현장확인' && rawNo !== '전체장비') {
+    if (!matched && !isUnknownTicketAsset) {
       matched = allAssets.find((a) => (a.assetNo || '').toUpperCase() === rawNo.toUpperCase());
     }
-    if (!matched && (!rawNo || rawNo === '현장확인') && siteCandidateAssets.length === 1) {
+    if (!matched && isUnknownTicketAsset && siteCandidateAssets.length === 1) {
       matched = siteCandidateAssets[0];
     }
     setSelectedAssetId(matched?.id || rawId || '');
-    setSelectedAssetNo(matched?.assetNo || rawNo || '현장확인');
+    setSelectedAssetNo(matched?.assetNo || rawNo || '관리번호 모름');
   }, [ticket?.id, ticket?.assetId, ticket?.assetNo, siteCandidateAssets]);
 
   // 기사 차량 적재 소모품을 품목별(다중 로트 합산)로 집계
@@ -437,7 +444,11 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
     }
 
     const effectiveAssetNo = (selectedAssetNo || ticket.assetNo || '').trim();
-    const isUnmappedAsset = !effectiveAssetNo || effectiveAssetNo === '현장확인' || effectiveAssetNo === '전체장비';
+    const isUnmappedAsset =
+      !effectiveAssetNo ||
+      effectiveAssetNo === '현장확인' ||
+      effectiveAssetNo === '관리번호 모름' ||
+      effectiveAssetNo === '전체장비';
     if (partsUsed.length > 0 && isUnmappedAsset && siteCandidateAssets.length > 0) {
       showErrorModal('소모품을 사용한 현장 정비 건은 소모품 재고 소진 및 자산 정비이력 매핑을 위해 [정비 대상 자산]을 먼저 선택해 주세요.');
       return;
@@ -1287,8 +1298,8 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
       {/* 부품 사용 차감 섹션 (탑차 재고 연동) 및 정비 대상 자산 매핑 */}
       <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3 shadow-lg">
         <div className="flex flex-col gap-1.5 pb-2 border-b border-slate-800">
-          <label className={`text-xs font-bold ${(!selectedAssetNo || selectedAssetNo === '현장확인') ? 'text-amber-400' : 'text-slate-300'}`}>
-            정비 대상 자산 {!selectedAssetNo || selectedAssetNo === '현장확인' ? '• 현장확인 장비 지정 필요' : ''}
+          <label className={`text-xs font-bold ${(!selectedAssetNo || selectedAssetNo === '현장확인' || selectedAssetNo === '관리번호 모름') ? 'text-amber-400' : 'text-slate-300'}`}>
+            정비 대상 자산 {!selectedAssetNo || selectedAssetNo === '현장확인' || selectedAssetNo === '관리번호 모름' ? '• 관리번호 모름 장비 지정 필요' : ''}
           </label>
           <select
             value={selectedAssetId}
@@ -1296,19 +1307,19 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
               const selId = e.target.value;
               setSelectedAssetId(selId);
               if (!selId) {
-                setSelectedAssetNo('현장확인');
+                setSelectedAssetNo('관리번호 모름');
               } else {
                 const found = (db.assets || []).find((a) => a.id === selId);
                 if (found) setSelectedAssetNo(found.assetNo);
               }
             }}
             className={`w-full bg-slate-950 rounded-xl p-2.5 text-xs font-bold text-white focus:outline-none ${
-              (!selectedAssetNo || selectedAssetNo === '현장확인')
+              (!selectedAssetNo || selectedAssetNo === '현장확인' || selectedAssetNo === '관리번호 모름')
                 ? 'border-2 border-amber-500/80'
                 : 'border border-slate-700'
             }`}
           >
-            <option value="">현장확인 / 미지정</option>
+            <option value="">관리번호 모름 / 현장확인</option>
             {siteCandidateAssets.length > 0 && (
               <optgroup label="해당 현장/고객 투입 장비">
                 {siteCandidateAssets.map((a) => (

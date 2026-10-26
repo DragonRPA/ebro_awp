@@ -545,12 +545,20 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-black font-mono border border-blue-500/30 whitespace-nowrap">
-                          {ticket.assetNo || '장비번호미상'}
+                        <span
+                          className={`px-2.5 py-0.5 rounded-lg text-xs font-black font-mono border whitespace-nowrap ${
+                            !ticket.assetNo || ticket.assetNo === '관리번호 모름' || ticket.assetNo === '현장확인'
+                              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          }`}
+                        >
+                          {ticket.assetNo || '관리번호 모름'}
                         </span>
-                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                          {ticket.modelName || ''}
-                        </span>
+                        {ticket.modelName && ticket.assetNo !== '관리번호 모름' && (
+                          <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                            {ticket.modelName}
+                          </span>
+                        )}
                         {(() => {
                           const sInfo = getTicketAssetSourcingInfo(ticket, assets || [], vendors || []);
                           return (

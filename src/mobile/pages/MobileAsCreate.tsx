@@ -32,6 +32,18 @@ const CATEGORIES = [
   '기타',
 ];
 
+const UNKNOWN_ASSET_NO = '관리번호 모름';
+const isUnknownAssetLabel = (val?: string | null): boolean => {
+  const clean = String(val || '').trim();
+  return (
+    clean === UNKNOWN_ASSET_NO ||
+    clean === '관리번호모름' ||
+    clean === '모름' ||
+    clean === '미상' ||
+    clean === '현장확인'
+  );
+};
+
 export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({ 
   onBack, 
   onCreated,
@@ -123,11 +135,12 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   };
 
   const [selectedCandidateAssetId, setSelectedCandidateAssetId] = useState<string>('');
+  const isUnknownAsset = isUnknownAssetLabel(assetNo);
 
   // 🌟 입력된 장비번호(자산번호/끝자리 숫자 포함)와 매칭되는 실물 자산 후보군 및 최우선 매칭 자산 판별
   const matchingAssetCandidates = useMemo(() => {
     const clean = (assetNo || '').trim().toUpperCase();
-    if (!clean) return [] as Asset[];
+    if (!clean || isUnknownAssetLabel(clean)) return [] as Asset[];
     const cleanNoHyphen = clean.replace(/[-_\s]/g, '');
     const cleanDigits = clean.replace(/[^0-9]/g, '');
 
@@ -407,8 +420,22 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
   // 🌟 1. 장비번호 입력 시 계약 현장 및 고객사·도로명 주소·담당자 실시간 자동 역추적
   const handleAssetNoChange = (val: string) => {
     if (typeof val !== 'string') return;
-    setAssetNo(val);
+    let nextVal = val;
+    if (nextVal.startsWith(UNKNOWN_ASSET_NO) && nextVal.length > UNKNOWN_ASSET_NO.length) {
+      nextVal = nextVal.slice(UNKNOWN_ASSET_NO.length).trimStart();
+    }
+    setAssetNo(nextVal);
     setSelectedCandidateAssetId('');
+  };
+
+  const handleToggleUnknownAsset = () => {
+    if (isUnknownAsset) {
+      setAssetNo('');
+      setSelectedCandidateAssetId('');
+    } else {
+      setAssetNo(UNKNOWN_ASSET_NO);
+      setSelectedCandidateAssetId('');
+    }
   };
 
   // 매칭된 자산이 결정되거나 마스터 테이블 로드가 완료되면 즉시 고객·현장 기본 정보 자동 채움
@@ -434,6 +461,33 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     }
   }, [initialAssetNo, initialSiteId]);
 
+  // 🌟 고객사/현장 객체로부터 담당자 연락처 기본값 보조 채움
+  const applySiteAndCustomerContactFallback = (site?: any, cust?: any) => {
+    const siteContacts = Array.isArray(site?.contacts) ? site.contacts : [];
+    const primaryContactObj = siteContacts.find(
+      (c: any) => c && (c.name?.trim() || c.contact?.trim() || c.phone?.trim())
+    );
+    const nextReporterName =
+      safeDecrypt(site?.contactName) ||
+      safeDecrypt(primaryContactObj?.name) ||
+      safeDecrypt(site?.safetyContactName) ||
+      safeDecrypt(site?.billingContactName) ||
+      '';
+    const nextReporterContact =
+      safeDecrypt(site?.contact) ||
+      safeDecrypt(primaryContactObj?.contact || primaryContactObj?.phone) ||
+      safeDecrypt(site?.safetyContactPhone) ||
+      safeDecrypt(site?.billingContactPhone) ||
+      safeDecrypt(cust?.repContact) ||
+      '';
+    if (nextReporterName && !reporterName.trim()) {
+      setReporterName(nextReporterName);
+    }
+    if (nextReporterContact && !reporterContact.trim()) {
+      setReporterContact(nextReporterContact);
+    }
+  };
+
   // 🌟 2. 고객사명 입력 시 마스터 일치 및 현장·도로명 주소 상속
   const handleCustomerNameChange = (val: string) => {
     if (typeof val !== 'string') return;
@@ -451,8 +505,12 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         } else if (cust.address?.trim()) {
           setSiteAddress(cust.address.trim());
         }
-      } else if (cust.address?.trim() && !siteAddress) {
-        setSiteAddress(cust.address.trim());
+        applySiteAndCustomerContactFallback(cSites[0], cust);
+      } else {
+        if (cust.address?.trim() && !siteAddress) {
+          setSiteAddress(cust.address.trim());
+        }
+        applySiteAndCustomerContactFallback(undefined, cust);
       }
     }
   };
@@ -468,8 +526,11 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
     const matchedCust = (customers || []).find(c => (c?.name && typeof c.name === 'string') && (c.name.trim() === cNameClean || c.name.includes(cNameClean)));
     const cSites = matchedCust ? (sites || []).filter(s => s.customerId === matchedCust.id) : (sites || []);
     const site = cSites.find(s => (s?.name && typeof s.name === 'string') && (s.name.trim() === clean || s.name.includes(clean) || clean.includes(s.name.trim())));
-    if (site?.address?.trim()) {
-      setSiteAddress(site.address.trim());
+    if (site) {
+      if (site.address?.trim()) {
+        setSiteAddress(site.address.trim());
+      }
+      applySiteAndCustomerContactFallback(site, matchedCust);
     }
   };
 
@@ -685,10 +746,16 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName.trim() || !assetNo.trim()) {
-      showErrorModal('고객사명과 장비번호는 필수 입력 항목입니다.');
+    if (!customerName.trim()) {
+      showErrorModal('고객사명은 필수 입력 항목입니다.');
       return;
     }
+
+    const rawAssetNo = assetNo.trim();
+    const isUnknown = !rawAssetNo || isUnknownAssetLabel(rawAssetNo);
+    const finalAssetNo = isUnknown
+      ? UNKNOWN_ASSET_NO
+      : matchedAsset?.assetNo || rawAssetNo.toUpperCase();
 
     setIsSubmitting(true);
     try {
@@ -711,10 +778,10 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
         siteId: matchedSite?.id,
         siteName: cleanSiteName,
         siteAddress: siteAddress.trim(),
-        assetId: matchedAsset?.id,
-        assetNo: matchedAsset?.assetNo || assetNo.trim().toUpperCase(),
-        modelName: matchedAsset?.modelName,
-        vendorId: matchedAsset?.vendorId,
+        assetId: isUnknown ? '' : matchedAsset?.id,
+        assetNo: finalAssetNo,
+        modelName: isUnknown ? '' : matchedAsset?.modelName,
+        vendorId: isUnknown ? undefined : matchedAsset?.vendorId,
         locationDetail,
         reporterName,
         reporterContact,
@@ -765,41 +832,65 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
 
       {/* AS 접수 폼 */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* 장비번호 */}
+        {/* 장비번호 (관리번호) */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-              장비번호 <span className="text-red-400">*</span>
-            </label>
-            {matchedAsset && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap flex-shrink-0 font-mono">
-                #{matchedAsset.assetNo} · {matchedAsset.modelName}
-              </span>
-            )}
-            {isRentedAsset && (
-              <span
-                data-testid="mobile-as-rented-vendor-badge"
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap flex-shrink-0"
-              >
-                임차처: {rentedVendorName}
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+                장비번호
+              </label>
+              {isUnknownAsset && (
+                <span
+                  data-testid="mobile-as-unknown-asset-badge"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap flex-shrink-0"
+                >
+                  관리번호 모름 · 현장확인
+                </span>
+              )}
+              {!isUnknownAsset && matchedAsset && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 whitespace-nowrap flex-shrink-0 font-mono">
+                  #{matchedAsset.assetNo} · {matchedAsset.modelName}
+                </span>
+              )}
+              {!isUnknownAsset && isRentedAsset && (
+                <span
+                  data-testid="mobile-as-rented-vendor-badge"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap flex-shrink-0"
+                >
+                  임차처: {rentedVendorName}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              data-testid="mobile-as-unknown-asset-btn"
+              onClick={handleToggleUnknownAsset}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border whitespace-nowrap flex items-center gap-1 flex-shrink-0 active:scale-95 transition-all ${
+                isUnknownAsset
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                  : 'bg-slate-900 text-amber-300 border-amber-500/40 hover:bg-slate-800'
+              }`}
+            >
+              {isUnknownAsset && <Check className="w-3 h-3 stroke-[3]" />}
+              <span>관리번호 모름</span>
+            </button>
           </div>
           <input
             type="text"
-            required
             value={assetNo}
             onChange={(e) => handleAssetNoChange(e.target.value)}
-            placeholder="예: 102, G19102, K7088"
-            className="w-full rounded-xl p-3 text-sm font-mono uppercase placeholder-slate-500 focus:outline-none"
+            placeholder="예: 102, G19102, K7088 (모르면 [관리번호 모름] 선택)"
+            className={`w-full rounded-xl p-3 text-sm font-mono uppercase placeholder-slate-500 focus:outline-none ${
+              isUnknownAsset ? 'font-bold text-amber-300' : ''
+            }`}
             style={{
               backgroundColor: '#090d16',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              color: isUnknownAsset ? '#fcd34d' : '#f8fafc',
+              border: isUnknownAsset ? '1px solid rgba(245, 158, 11, 0.55)' : '1px solid #334155',
               colorScheme: 'dark'
             }}
           />
-          {matchingAssetCandidates.length > 1 && (
+          {!isUnknownAsset && matchingAssetCandidates.length > 1 && (
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
               {matchingAssetCandidates.map(cand => {
                 const isSelected = matchedAsset?.id === cand.id;
@@ -869,6 +960,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
                     setSiteName(s.name);
                     if (s.address?.trim()) setSiteAddress(s.address.trim());
                     else if (matchedCustomer?.address?.trim()) setSiteAddress(matchedCustomer.address.trim());
+                    applySiteAndCustomerContactFallback(s, matchedCustomer);
                   }}
                   className={`text-xs px-2.5 py-1 rounded-lg border whitespace-nowrap flex-shrink-0 transition-colors ${
                     siteName === s.name

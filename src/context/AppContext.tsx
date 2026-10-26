@@ -117,7 +117,7 @@ interface AppContextType {
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
   showErrorModal: (message: string, title?: string, type?: 'system' | 'business') => void;
-  showNoticeModal: (message: string, title?: string) => void;
+  showNoticeModal: (messageOrObj: string | { title?: string; message: string }, title?: string) => void;
   showPrintSuccessModal: (params: {
     docType?: string;
     docTitle: string;
@@ -988,11 +988,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const showNoticeModal = (message: string, title: string = '업무 처리 안내') => {
+  const showNoticeModal = (messageOrObj: string | { title?: string; message: string }, title: string = '업무 처리 안내') => {
+    const resolvedMessage = typeof messageOrObj === 'string' ? messageOrObj : (messageOrObj?.message || '');
+    const resolvedTitle = typeof messageOrObj === 'string' ? title : (messageOrObj?.title || title);
     setErrorModal({
       isOpen: true,
-      title,
-      message,
+      title: resolvedTitle,
+      message: resolvedMessage,
       type: 'business'
     });
   };
@@ -6907,7 +6909,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      if (resolvedContractId && (!resolvedAssetId || resolvedAssetId === '현장확인' || resolvedAssetNo === '현장확인')) {
+      const isExplicitUnknownAsset =
+        resolvedAssetNo === '관리번호 모름' || resolvedAssetNo === '관리번호모름';
+
+      if (
+        !isExplicitUnknownAsset &&
+        resolvedContractId &&
+        (!resolvedAssetId || resolvedAssetId === '현장확인' || resolvedAssetNo === '현장확인')
+      ) {
         const cas = db.contractAssets.filter(ca => ca.contractId === resolvedContractId && ca.status !== 'RETURNED');
         if (cas.length === 1 && cas[0].assetId) {
           const singleAsset = db.assets.find(a => a.id === cas[0].assetId);
@@ -6966,8 +6975,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         siteName: data.siteName || '',
         siteAddress: resolvedSiteAddress || '',
         assetId: resolvedAssetId || '',
-        assetNo: resolvedAssetNo || '현장확인',
-        modelName: resolvedModelName || '고소작업대',
+        assetNo: resolvedAssetNo || '관리번호 모름',
+        modelName: resolvedModelName || (isExplicitUnknownAsset ? '' : '고소작업대'),
         locationDetail: data.locationDetail || (resolvedSiteAddress ? resolvedSiteAddress : ''),
         reporterName: data.reporterName || '',
         reporterContact: data.reporterContact || '',
