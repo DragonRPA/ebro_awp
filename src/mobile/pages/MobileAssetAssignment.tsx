@@ -626,33 +626,88 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     setSlotAssetMap(nextMap);
   };
 
+  const resolveMultiTokensToSlotMap = (
+    rawText: string,
+    baseMap: Record<string, string>
+  ): { nextMap: Record<string, string>; addedCount: number; skippedTokens: string[] } => {
+    const tokens = rawText
+      .split(/[\s,]+/)
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    const nextMap = { ...baseMap };
+    const usedAssetIds = new Set(Object.values(nextMap).filter(Boolean));
+    let addedCount = 0;
+    const skippedTokens: string[] = [];
+
+    for (const token of tokens) {
+      // 출고요청 내 빈 슬롯이 남아있는 모델의 가용 장비 중 검색 (선택 중인 모델과 무관하게 전체 모델 대상)
+      const findAssignable = (exactOnly: boolean) =>
+        availableAssetsForActiveTask.find(a => {
+          if (usedAssetIds.has(a.id)) return false;
+          const isMatch = exactOnly
+            ? a.assetNo?.toLowerCase() === token
+            : a.assetNo?.toLowerCase() === token ||
+              a.assetNo?.toLowerCase().endsWith(token) ||
+              a.serialNo?.toLowerCase().includes(token);
+          if (!isMatch) return false;
+          return activeUnassignedSlots.some(
+            ca => !nextMap[ca.id] && isModelMatch(a.modelName, ca.expectedModel, products)
+          );
+        });
+
+      const matched = findAssignable(true) || findAssignable(false);
+      if (!matched) {
+        skippedTokens.push(token);
+        continue;
+      }
+
+      // 포커스된 슬롯과 모델이 같으면 우선 배치, 아니면 해당 모델의 첫 번째 빈 슬롯에 배치
+      let targetCaId: string | null = null;
+      if (focusedSlotCaId && !nextMap[focusedSlotCaId]) {
+        const fSlot = activeUnassignedSlots.find(ca => ca.id === focusedSlotCaId);
+        if (fSlot && isModelMatch(matched.modelName, fSlot.expectedModel, products)) {
+          targetCaId = focusedSlotCaId;
+        }
+      }
+      if (!targetCaId) {
+        const slot = activeUnassignedSlots.find(
+          ca => !nextMap[ca.id] && isModelMatch(matched.modelName, ca.expectedModel, products)
+        );
+        if (slot) targetCaId = slot.id;
+      }
+
+      if (targetCaId) {
+        nextMap[targetCaId] = matched.id;
+        usedAssetIds.add(matched.id);
+        addedCount++;
+      } else {
+        skippedTokens.push(token);
+      }
+    }
+
+    return { nextMap, addedCount, skippedTokens };
+  };
+
   const handleQuickInput = () => {
     if (!quickInputText.trim()) return;
-    const query = quickInputText.trim().toLowerCase();
+    const { nextMap, addedCount, skippedTokens } = resolveMultiTokensToSlotMap(
+      quickInputText,
+      slotAssetMap
+    );
 
-    const matched =
-      candidateAssetsForTargetModel.find(
-        a =>
-          !mappedAssetIds.includes(a.id) &&
-          (a.assetNo?.toLowerCase() === query ||
-            a.assetNo?.toLowerCase().endsWith(query) ||
-            a.serialNo?.toLowerCase() === query)
-      ) ||
-      availableAssetsForActiveTask.find(
-        a =>
-          !mappedAssetIds.includes(a.id) &&
-          (a.assetNo?.toLowerCase() === query ||
-            a.assetNo?.toLowerCase().endsWith(query) ||
-            a.serialNo?.toLowerCase() === query)
-      );
-
-    if (!matched) {
-      showToast(`'${quickInputText}' 장비를 찾을 수 없습니다.`, 'error');
+    if (addedCount === 0) {
+      showToast(`'${quickInputText}'에 해당하는 할당 가능 장비를 찾을 수 없습니다.`, 'error');
       return;
     }
 
-    handleSequentialFillAsset(matched);
+    setSlotAssetMap(nextMap);
     setQuickInputText('');
+    if (skippedTokens.length > 0) {
+      showToast(`${addedCount}대 매칭 완료 (일부 제외: ${skippedTokens.join(', ')})`, 'error');
+    } else if (addedCount > 1) {
+      showToast(`총 ${addedCount}대 장비가 모델별로 동시 매칭되었습니다.`, 'success');
+    }
   };
 
   const handleExecuteAssignment = async () => {
@@ -661,7 +716,17 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
       return;
     }
 
-    const pairs = Object.entries(slotAssetMap)
+    let finalMap = { ...slotAssetMap };
+    if (quickInputText.trim()) {
+      const { nextMap, addedCount } = resolveMultiTokensToSlotMap(quickInputText, finalMap);
+      if (addedCount > 0) {
+        finalMap = nextMap;
+        setSlotAssetMap(nextMap);
+        setQuickInputText('');
+      }
+    }
+
+    const pairs = Object.entries(finalMap)
       .filter(([caId, assetId]) => Boolean(caId && assetId))
       .map(([contractAssetId, assetId]) => ({ contractAssetId, assetId }));
 
@@ -671,7 +736,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     try {
       await batchAssignAssetsToContract(pairs);
       await refreshAllData();
-      showToast(`${pairs.length}대 장비 할당 완료`, 'success');
+      showToast(`${pairs.length}대 장비 동시 할당 완료`, 'success');
       setSlotAssetMap({});
       setFocusedSlotCaId(null);
     } catch (err: any) {
