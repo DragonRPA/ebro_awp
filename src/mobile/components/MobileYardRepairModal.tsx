@@ -374,7 +374,7 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
 
               {/* 입고 사진 미리보기 */}
               {inboundPhotos.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <span className="text-[10px] text-slate-400 shrink-0 flex items-center gap-1">
                     <ImageIcon className="w-3 h-3 text-red-400" /> 입고증빙 ({inboundPhotos.length}장):
                   </span>
@@ -391,7 +391,7 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
               )}
 
               {/* 원터치 액션 버튼군 */}
-              <div className="flex items-center gap-2 pt-1 border-t border-red-500/20">
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-red-500/20">
                 <button
                   type="button"
                   onClick={handleAutoFillDetails}
@@ -604,8 +604,8 @@ export const MobileYardRepairModal: React.FC<MobileYardRepairModalProps> = ({
           </div>
 
           {/* 6. 유무상 청구 설정 */}
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-bold text-slate-300">청구 구분:</span>
               <button
                 type="button"

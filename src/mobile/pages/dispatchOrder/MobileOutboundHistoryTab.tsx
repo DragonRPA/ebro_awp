@@ -509,7 +509,7 @@ export const MobileOutboundHistoryTab: React.FC<MobileOutboundHistoryTabProps> =
         </div>
 
         {/* 상태 필터 칩 */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-1.5 pb-1">
           {[
             { id: 'ALL', label: `전체 (${statusCounts.ALL})` },
             { id: 'UNASSIGNED', label: `장비미할당 (${statusCounts.UNASSIGNED})` },
@@ -1005,7 +1005,7 @@ export const MobileOutboundHistoryTab: React.FC<MobileOutboundHistoryTabProps> =
                       일정 · 개시일 변경
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <button
                         type="button"
                         disabled={isSavingSchedule}

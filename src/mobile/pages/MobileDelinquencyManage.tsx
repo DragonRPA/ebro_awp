@@ -450,7 +450,7 @@ export const MobileDelinquencyManage: React.FC = () => {
           />
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
           {[
             { id: 'ALL', label: '전체' },
             { id: 'HIGH_RISK', label: '고위험 (🔴)' },

@@ -326,7 +326,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
         </div>
 
         {/* 초성 자음 빠른 검색 필터 바 */}
-        <div className="flex items-center gap-2 px-0.5 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-1.5 px-0.5">
           <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap flex-shrink-0">
             초성
           </span>
@@ -337,7 +337,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
           />
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
           {myCustomerIds.size > 0 && (
             <button
               type="button"
@@ -371,7 +371,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
         </div>
 
         {/* 고객 정렬 바 */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pt-0.5">
+        <div className="flex flex-wrap items-center gap-1 pt-0.5">
           <span className="text-[10.5px] font-bold text-slate-400 flex items-center gap-1 mr-1 whitespace-nowrap flex-shrink-0">
             <ArrowUpDown className="w-3 h-3 text-blue-400" />
             정렬

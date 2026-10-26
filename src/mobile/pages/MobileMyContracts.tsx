@@ -256,8 +256,8 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
           />
         </div>
 
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mr-1 whitespace-nowrap">
               <ArrowUpDown className="w-3 h-3 text-blue-400" />
               정렬

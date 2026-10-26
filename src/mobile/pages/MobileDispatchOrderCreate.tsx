@@ -1439,8 +1439,8 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
         {/* NEW 탭 전용 보조 툴바: 카톡 텍스트 파싱 / 초안 보관함 / 원격 인쇄 */}
         {mainTab === 'NEW' && (
-          <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-0.5">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 pb-0.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setShowTextParserPanel(prev => !prev)}
@@ -2137,7 +2137,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
               {openBlocks.has('EQUIPMENT') && (
                 <div className="p-3.5 flex flex-col gap-3">
                   {/* 규격 탭 (가용 대수 실시간 표시 — 가상자산 제외) */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <div className="flex flex-wrap items-center gap-1.5 pb-1">
                     {specFtOrder.map(ft => {
                       const availUnits = availUnitsByFtMap.get(ft) || 0;
                       const isActive = activeSpecFt === ft;

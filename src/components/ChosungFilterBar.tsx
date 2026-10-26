@@ -32,12 +32,8 @@ export const ChosungFilterBar: React.FC<ChosungFilterBarProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: compact ? '3px' : '4px',
-        overflowX: 'auto',
-        scrollbarWidth: 'thin',
         padding: compact ? '2px 0' : '4px 0',
-        whiteSpace: 'nowrap',
-        flexWrap: 'nowrap',
-        WebkitOverflowScrolling: 'touch',
+        flexWrap: 'wrap',
         ...style
       }}
     >

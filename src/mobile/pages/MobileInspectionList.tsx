@@ -1244,14 +1244,14 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
         {/* 3. 할당 자산별 옵션 전체 충족 여부 확인 및 자산 교체 / 수량조정 */}
         {activeGroup && (
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
                 {viewMode === 'PENDING'
                   ? `할당 자산 확인 (${satisfiedItems.length}/${activeGroup.items.length}대 충족)`
                   : `검수 완료 자산 (${activeGroup.items.length}대)`}
               </span>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {viewMode === 'PENDING' && canEdit && (
                   activeGroup.items.some(i => i.status === 'IN_PROGRESS') ? (
                     <button
@@ -1450,11 +1450,11 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
                         </div>
 
                         {/* 다른 자산으로 교체 영역 헤더 (장비할당 카메라 코드 그대로 재사용) */}
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
                             교체 후보 · {modelName} ({swapCandidateAssets.length}대)
                           </span>
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex flex-wrap items-center gap-1">
                             {swapCandidateAssets.length > 0 && (
                               <button
                                 type="button"

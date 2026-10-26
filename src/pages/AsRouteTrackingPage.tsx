@@ -884,7 +884,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
             >
               조회 일자
             </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"
                 onClick={() => shiftDate(-1)}
@@ -1075,6 +1075,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             gap: '4px',
             padding: '3px',
             borderRadius: '8px',
@@ -1266,15 +1267,15 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                     <div
                       style={{
                         display: 'flex',
+                        flexWrap: 'wrap',
                         alignItems: 'center',
-                        gap: '10px',
+                        gap: '6px 10px',
                         fontSize: '11px',
                         color: 'var(--text-muted, #94a3b8)',
                         padding: '4px 10px',
                         borderRadius: '6px',
                         background: 'var(--bg-card, #1e293b)',
                         border: '1px solid var(--border-color, #334155)',
-                        whiteSpace: 'nowrap',
                       }}
                     >
                       <span>출근 <strong style={{ color: '#10b981' }}>{clockInTime}</strong></span>
@@ -1290,7 +1291,7 @@ export const AsRouteTrackingPage: React.FC<AsRouteTrackingPageProps> = ({
                       <span>퇴근 <strong style={{ color: '#f43f5e' }}>{clockOutTime}</strong></span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
                       <button
                         type="button"
                         onClick={() => handleQuickRecord('CLOCK_IN', null, mechanic.id, mechanic.name)}

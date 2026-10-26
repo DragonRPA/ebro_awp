@@ -1076,7 +1076,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
             </div>
 
             {recentInboundAssetChips.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              <div className="flex flex-wrap items-center gap-1.5 pb-1">
                 <span className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap shrink-0">
                   최근입고:
                 </span>
@@ -1251,7 +1251,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
             </div>
 
             {/* 카테고리 필터 */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex flex-wrap gap-1.5 pb-1">
               {checklistCategories.map((cat) => (
                 <button
                   key={cat}
@@ -1398,11 +1398,11 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
                     />
 
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10.5px] font-bold text-slate-400">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <label className="text-[10.5px] font-bold text-slate-400 whitespace-nowrap">
                           예상 수리비 (미정 시 0원 가능)
                         </label>
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap gap-1">
                           <button
                             type="button"
                             onClick={() => handleUpdateDefectItem(item.id, { estimatedCost: 0 })}
@@ -1493,7 +1493,7 @@ export const MobileInboundDefectClaim: React.FC<MobileInboundDefectClaimProps> =
             <>
               {/* 진행 상태 필터 칩 + 검색창 */}
               <div className="bg-slate-900 rounded-2xl border border-slate-800 p-3 space-y-2.5">
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                <div className="flex flex-wrap gap-1.5">
                   {(
                     [
                       { id: 'UNRESOLVED', label: `미결 (${statusCounts.unresolved})` },

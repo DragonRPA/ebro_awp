@@ -274,7 +274,7 @@ export const MobileYardConsumableStock: React.FC<MobileYardConsumableStockProps>
         {/* 4. 필터 칩 바 */}
         <div className="flex flex-col gap-2">
           {/* 재고 상태 칩 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 pb-1 text-xs">
             <button
               type="button"
               onClick={() => setStockStatusFilter('ALL')}
@@ -312,7 +312,7 @@ export const MobileYardConsumableStock: React.FC<MobileYardConsumableStockProps>
 
           {/* 카테고리 칩 (동적) */}
           {categories.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 pb-1 text-xs">
               <button
                 type="button"
                 onClick={() => setSelectedCategory('ALL')}

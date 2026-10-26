@@ -623,7 +623,7 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
           </div>
 
           {/* 카테고리 퀵 필터 칩 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex flex-wrap items-center gap-1.5 pb-1">
             {categories.map(cat => {
               const isActive = selectedCategory === cat;
               // 해당 카테고리에 선택된 항목 수

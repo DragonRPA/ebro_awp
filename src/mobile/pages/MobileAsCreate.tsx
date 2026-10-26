@@ -904,7 +904,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
             }}
           />
           {!isUnknownAsset && matchingAssetCandidates.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+            <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
               {matchingAssetCandidates.map(cand => {
                 const isSelected = matchedAsset?.id === cand.id;
                 const candVendor = getAssetVendorName(cand);
@@ -956,7 +956,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+              <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
                 {modelQuickPresets.map(presetModel => {
                   const active = modelName.trim().toUpperCase() === presetModel.toUpperCase();
                   return (
@@ -1020,7 +1020,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
             <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap flex-shrink-0">
               등록 현장 선택
             </span>
-            <div className="w-full min-w-0 max-w-full overflow-x-auto flex items-center gap-1.5 pb-1 scrollbar-none">
+            <div className="w-full min-w-0 max-w-full flex flex-wrap items-center gap-1.5 pb-1">
               {matchedCustomerSites.map(s => (
                 <button
                   key={s.id}

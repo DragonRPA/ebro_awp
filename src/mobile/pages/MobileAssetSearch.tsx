@@ -484,7 +484,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         </div>
 
         {viewMode === 'INVENTORY_TABLE' && (
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
             <button
               type="button"
               onClick={() => setFeetFilter('ALL')}

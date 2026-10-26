@@ -201,7 +201,7 @@ export const MobileManualViewer: React.FC<MobileManualViewerProps> = ({
       </div>
 
       {/* ⚡ 현장 다발 증상/에러 원터치 핫 키워드 칩 */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex flex-wrap items-center gap-1.5 pb-1">
         <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 whitespace-nowrap pl-0.5">
           <Sparkles className="w-3 h-3 text-amber-400" />
           <span>빠른 증상:</span>
@@ -226,7 +226,7 @@ export const MobileManualViewer: React.FC<MobileManualViewerProps> = ({
       </div>
 
       {/* 모델 퀵 필터 (가로 스크롤 칩) */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex flex-wrap gap-1.5 pb-1">
         <button
           type="button"
           onClick={() => setSelectedModel('전체')}

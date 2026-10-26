@@ -553,8 +553,8 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
           )}
         </div>
 
-        {/* 4대 세그먼트 탭 필터 (nowrap & shrink-0 준수) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+        {/* 4대 세그먼트 탭 필터 (줄바꿈 배치) */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-1 max-w-full">
           <button
             type="button"
             onClick={() => setStatusFilter('ALL')}

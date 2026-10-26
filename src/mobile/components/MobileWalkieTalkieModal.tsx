@@ -638,7 +638,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
           padding: '6px 8px',
           backgroundColor: '#0f172a',
           borderBottom: '1px solid #1e293b',
-          overflowX: 'auto',
+          flexWrap: 'wrap',
           flexShrink: 0,
           scrollbarWidth: 'none'
         }}>
@@ -892,7 +892,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                   <span>대화 피드 ({currentChMessages.length}건)</span>
                 </span>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3.5px', flexWrap: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3.5px', flexWrap: 'wrap' }}>
                   {/* ⚡ Groq STT 단일 뱃지 */}
                   <span
                     style={{

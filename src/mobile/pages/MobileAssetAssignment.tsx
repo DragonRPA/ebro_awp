@@ -925,12 +925,12 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
         {/* 2. 모델별 할당 수량 요약 (개별 슬롯 나열 대신 모델 + 수량으로 간결화) */}
         {activeContract && activeUnassignedSlots.length > 0 && (
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-slate-200 whitespace-nowrap">
                 할당 현황 ({mappedAssetIds.length}/{activeUnassignedSlots.length}대)
               </span>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex flex-wrap items-center gap-1">
                 {mappedAssetIds.length > 0 && (
                   <button
                     type="button"
