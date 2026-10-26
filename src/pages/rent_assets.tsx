@@ -1268,8 +1268,8 @@ export const RentAssets: React.FC = () => {
 
     return rentedAssets.filter(a => {
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
-      const isFieldActive = !isReturned && (a.status === 'RENTED' || Boolean(a.currentCustomerId));
-      const isAvailable = !isReturned && (a.status === 'AVAILABLE' || (!a.currentCustomerId && a.status !== 'RENTED' && a.status !== 'ASSIGNED' && a.status !== 'REPAIRING'));
+      const isFieldActive = !isReturned && a.status === 'RENTED';
+      const isAvailable = !isReturned && a.status === 'AVAILABLE';
 
       // 1. 반납 상태 필터 (임차처 반납일 컬럼)
       const matchesReturn = returnQuery === 'ALL' ? true :
@@ -1282,8 +1282,11 @@ export const RentAssets: React.FC = () => {
       // 2. 운용 상태 필터 (운용 상태 컬럼)
       if (operationStatusQuery !== 'ALL') {
         if (operationStatusQuery === 'RETURNED' && !isReturned) return false;
-        if (operationStatusQuery === 'RENTED' && (isReturned || (a.status !== 'RENTED' && !a.currentCustomerId))) return false;
+        if (operationStatusQuery === 'RENTED' && !isFieldActive) return false;
         if (operationStatusQuery === 'AVAILABLE' && !isAvailable) return false;
+        if (operationStatusQuery === 'AWAITING_TRANSPORT' && (isReturned || a.status !== 'AWAITING_TRANSPORT')) return false;
+        if (operationStatusQuery === 'OUTBOUND_INSPECTION' && (isReturned || a.status !== 'OUTBOUND_INSPECTION')) return false;
+        if (operationStatusQuery === 'ASSIGNED' && (isReturned || a.status !== 'ASSIGNED')) return false;
         if (operationStatusQuery === 'OUTBOUND_PREP' && (isReturned || !['ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT'].includes(a.status))) return false;
         if (operationStatusQuery === 'REPAIRING' && (isReturned || a.status !== 'REPAIRING')) return false;
         if (operationStatusQuery === 'OVERDUE' && !isSubleaseOverdue(a)) return false;
@@ -1384,11 +1387,14 @@ export const RentAssets: React.FC = () => {
       case 'actualRentReturnDate':
         if (a.actualRentReturnDate) return a.actualRentReturnDate;
         if (isReturned) return '반납완료';
-        if (a.status === 'RENTED' || a.currentCustomerId) return '임차중(현장가동)';
+        if (a.status === 'RENTED') return '임차중(현장가동)';
+        if (['ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT'].includes(a.status)) return '미반납(출고준비)';
         return '미반납(보관중)';
       case 'operationStatus':
         if (isReturned) return '임차처 반납완료';
-        if (a.status === 'RENTED' || a.currentCustomerId) return '대여중';
+        if (a.status === 'RENTED') return '대여중';
+        if (a.status === 'AWAITING_TRANSPORT') return '운송대기';
+        if (a.status === 'OUTBOUND_INSPECTION') return '출고검수';
         if (a.status === 'ASSIGNED') return '출고대기';
         if (a.status === 'REPAIRING') return '정비중';
         return '임대가능 (보관중)';
@@ -3603,8 +3609,11 @@ export const RentAssets: React.FC = () => {
                 >
                   <option value="ALL">전체 운용 상태</option>
                   <option value="RENTED">대여중</option>
+                  <option value="AWAITING_TRANSPORT">운송대기</option>
+                  <option value="OUTBOUND_INSPECTION">출고검수</option>
+                  <option value="ASSIGNED">출고대기</option>
+                  <option value="OUTBOUND_PREP">출고준비 전체</option>
                   <option value="AVAILABLE">임대가능 (보관중)</option>
-                  <option value="OUTBOUND_PREP">출고대기 / 검수 / 운송</option>
                   <option value="REPAIRING">정비중</option>
                   <option value="OVERDUE">전대 기간 초과</option>
                   <option value="DELAYED">임차 반납 지연</option>
@@ -3886,9 +3895,13 @@ export const RentAssets: React.FC = () => {
                                 <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '11px' }}>
                                   반납완료
                                 </span>
-                              ) : (a.status === 'RENTED' || a.currentCustomerId) ? (
+                              ) : a.status === 'RENTED' ? (
                                 <span style={{ color: 'var(--text-secondary)', fontSize: '10.5px' }}>
                                   임차중(현장가동)
+                                </span>
+                              ) : ['ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT'].includes(a.status) ? (
+                                <span style={{ color: 'var(--warning)', fontWeight: 600, fontSize: '10.5px' }}>
+                                  미반납(출고준비)
                                 </span>
                               ) : (
                                 <span style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>미반납(보관중)</span>
