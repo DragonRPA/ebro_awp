@@ -1809,7 +1809,7 @@ export const MobileDispatchList: React.FC = () => {
               }`}
             >
               <Link2 className="w-4 h-4" />
-              {bundleMode ? '합짐선택중' : '합짐묶기'}
+              {bundleMode ? '배차선택중' : '배차묶기'}
             </button>
             <button
               type="button"
