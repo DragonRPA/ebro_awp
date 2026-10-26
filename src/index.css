@@ -376,6 +376,35 @@ html, body, #root {
   }
 }
 
+/* 📱 모바일 웹앱(.mobile-app-root) 상하 스크롤 100% 보장 및 다중 중첩 스크롤 잠김 원천 해제 */
+html:has(.mobile-app-root),
+body:has(.mobile-app-root) {
+  height: auto !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+}
+
+#root:has(.mobile-app-root) {
+  height: auto !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.mobile-app-root {
+  min-height: 100dvh !important;
+  height: auto !important;
+  max-height: none !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
 /* 🌟 모바일 수평 슬라이드/스크롤바 숨김 유틸리티 */
 .scrollbar-none::-webkit-scrollbar {
   display: none !important;

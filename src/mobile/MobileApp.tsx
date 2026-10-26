@@ -369,7 +369,16 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
   return (
     <div
       data-theme="dark"
-      className="mobile-app-root min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full overflow-x-hidden"
+      className="mobile-app-root min-h-screen bg-slate-950 text-white flex flex-col font-sans selection:bg-blue-500 selection:text-white w-full max-w-full"
+      style={{
+        minHeight: '100dvh',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'clip',
+        overflowY: 'visible',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
     >
       {/* 상단 모바일 헤더 + 부서 퀵 체인저 + 무전기 버튼 */}
       <MobileHeader 
@@ -390,7 +399,18 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       <PwaInstallBanner />
 
       {/* 본문 라우팅 */}
-      <main className="flex-1 w-full max-w-lg md:max-w-3xl mx-auto px-1.5 sm:px-3 min-w-0 max-w-full overflow-x-hidden">
+      <main
+        className="flex-1 w-full mx-auto px-2 sm:px-3 min-w-0 max-w-full"
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
+          overflowX: 'clip',
+          overflowY: 'visible',
+          boxSizing: 'border-box',
+        }}
+      >
         {selectedAsTicketId ? (
           <MobileAsDetail
             ticketId={selectedAsTicketId}

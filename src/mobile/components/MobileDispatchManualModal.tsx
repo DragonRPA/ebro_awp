@@ -12,7 +12,7 @@ import {
 import {
   MANUAL_CATEGORY_QUICK_OPTIONS,
   TIME_SLOT_QUICK_OPTIONS,
-  COST_PRESET_QUICK_OPTIONS,
+  COST_DELTA_QUICK_OPTIONS,
   CargoItem,
   findSubleaseVendorForAsset,
   getDateOffsetStr,
@@ -85,7 +85,6 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
 
   const [vehicleType, setVehicleType] = useState<string>('3.5T');
   const [expectedCost, setExpectedCost] = useState<number>(0);
-  const [billableToCustomer, setBillableToCustomer] = useState<boolean>(false);
   const [memo, setMemo] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -211,7 +210,7 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
         returnAssetIds,
         vehicleType,
         expectedCost,
-        billableToCustomer,
+        billableToCustomer: false,
         memo,
       });
     } finally {
@@ -220,160 +219,340 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-slate-900 border-t sm:border border-slate-700 w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden">
-        {/* 상단 헤더 */}
-        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-          <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-sky-400 flex-shrink-0" />
-            <span className="text-sm font-black text-white whitespace-nowrap flex-shrink-0">
-              배차 등록
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white"
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9500,
+        width: '100vw',
+        height: '100dvh',
+        backgroundColor: '#0b0f19',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* 상단 고정 헤더 */}
+      <div
+        style={{
+          padding: 'max(10px, env(safe-area-inset-top, 10px)) 14px 10px',
+          borderBottom: '1px solid #334155',
+          backgroundColor: '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Truck size={18} color="#38bdf8" />
+          <span
+            style={{
+              fontSize: '15px',
+              fontWeight: 900,
+              color: '#ffffff',
+              whiteSpace: 'nowrap',
+            }}
           >
-            <X className="w-4 h-4" />
-          </button>
+            배차 등록
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            padding: '8px 12px',
+            borderRadius: '8px',
+            backgroundColor: '#1e293b',
+            border: '1px solid #475569',
+            color: '#f1f5f9',
+            fontSize: '12px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <X size={16} />
+          <span>닫기</span>
+        </button>
+      </div>
+
+      {/* 상하 스크롤 본문 (좌우 스크롤 없음) */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          padding: '12px 12px 28px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        {/* 1. 구분 선택 (아래로 줄바꿈 배치) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            backgroundColor: '#111827',
+            padding: '12px',
+            borderRadius: '14px',
+            border: '1px solid #1e293b',
+          }}
+        >
+          <label
+            style={{
+              fontSize: '12px',
+              fontWeight: 800,
+              color: '#cbd5e1',
+              margin: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            구분
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {MANUAL_CATEGORY_QUICK_OPTIONS.map((cat) => {
+              const active = category === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => handleCategoryPick(cat)}
+                  style={{
+                    flex: '1 1 30%',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    backgroundColor: active ? '#2563eb' : '#0b0f19',
+                    border: active ? '1px solid #60a5fa' : '1px solid #334155',
+                    color: active ? '#ffffff' : '#cbd5e1',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 본문 스크롤 */}
-        <div className="p-3.5 overflow-y-auto flex-1 flex flex-col gap-3.5">
-          {/* 1. 구분 퀵버튼 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-              구분
-            </label>
-            <div className="grid grid-cols-6 gap-1">
-              {MANUAL_CATEGORY_QUICK_OPTIONS.map((cat) => {
-                const active = category === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => handleCategoryPick(cat)}
-                    className={`py-2 px-1 rounded-lg text-xs font-black border whitespace-nowrap flex-shrink-0 transition-colors ${
-                      active
-                        ? 'bg-blue-600 border-blue-400 text-white'
-                        : 'bg-slate-950 border-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. 반납 시 임차장비 퀵버튼 / 일반 시 거래처·계약 퀵버튼 */}
-          {category === '반납' ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-rose-300 whitespace-nowrap flex-shrink-0">
-                  반납 임차장비 선택
-                </label>
-                <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-                  {returnAssetIds.length}대 선택
-                </span>
-              </div>
-              {availableReturnAssets.length === 0 ? (
-                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-400">
-                  반납 대상 임차장비 없음
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 rounded-xl bg-slate-950 border border-slate-800">
-                  {availableReturnAssets.map((a) => {
-                    const selected = returnAssetIds.includes(a.id);
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => handleToggleReturnAsset(a)}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 whitespace-nowrap flex-shrink-0 ${
-                          selected
-                            ? 'bg-rose-600 border-rose-400 text-white'
-                            : 'bg-slate-900 border-slate-700 text-slate-200'
-                        }`}
-                      >
-                        {selected && <Check className="w-3 h-3" />}
-                        <span>{a.modelName}</span>
-                        <span className="font-mono text-[10px] opacity-90">({a.assetNo})</span>
-                        {a.renter && <span className="text-[10px] text-amber-300">· {a.renter}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-                거래처 선택
+        {/* 2. 반납 시 임차장비 / 일반 시 거래처·현장 선택 (아래로 줄바꿈 배치) */}
+        {category === '반납' ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              backgroundColor: '#111827',
+              padding: '12px',
+              borderRadius: '14px',
+              border: '1px solid rgba(244, 63, 94, 0.4)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#fda4af',
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                반납 임차장비 선택
               </label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="거래처 검색"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg py-1.5 pl-8 pr-2.5 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {filteredCustomers.map((c) => {
-                  const active = customerId === c.id;
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1' }}>
+                {returnAssetIds.length}대 선택
+              </span>
+            </div>
+            {availableReturnAssets.length === 0 ? (
+              <div style={{ fontSize: '12px', color: '#94a3b8' }}>반납 대상 임차장비 없음</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {availableReturnAssets.map((a) => {
+                  const selected = returnAssetIds.includes(a.id);
                   return (
                     <button
-                      key={c.id}
+                      key={a.id}
                       type="button"
-                      onClick={() => handleSelectCustomer(c)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                        active
-                          ? 'bg-blue-600 border-blue-400 text-white'
-                          : 'bg-slate-950 border-slate-700 text-slate-200'
-                      }`}
+                      onClick={() => handleToggleReturnAsset(a)}
+                      style={{
+                        padding: '7px 10px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        backgroundColor: selected ? '#e11d48' : '#0b0f19',
+                        border: selected ? '1px solid #fb7185' : '1px solid #334155',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
-                      {c.name}
+                      {selected && <Check size={12} />}
+                      <span>{a.modelName}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        ({a.assetNo})
+                      </span>
+                      {a.renter && (
+                        <span style={{ fontSize: '11px', color: '#fde68a' }}>· {a.renter}</span>
+                      )}
                     </button>
                   );
                 })}
               </div>
-
-              {customerContracts.length > 0 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                  {customerContracts.map((ct) => {
-                    const site = sites.find((s) => s.id === ct.siteId);
-                    const active = contractId === ct.id;
-                    return (
-                      <button
-                        key={ct.id}
-                        type="button"
-                        onClick={() => handleSelectContract(ct)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                          active
-                            ? 'bg-sky-600 border-sky-400 text-white'
-                            : 'bg-slate-950 border-slate-700 text-slate-300'
-                        }`}
-                      >
-                        {site?.name || ct.contractNo}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              backgroundColor: '#111827',
+              padding: '12px',
+              borderRadius: '14px',
+              border: '1px solid #1e293b',
+            }}
+          >
+            <label
+              style={{
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#cbd5e1',
+                margin: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              거래처 선택
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Search
+                size={15}
+                color="#94a3b8"
+                style={{
+                  position: 'absolute',
+                  left: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                }}
+              />
+              <input
+                type="text"
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="거래처 검색"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0b0f19',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '8px 10px 8px 32px',
+                  fontSize: '13px',
+                  color: '#ffffff',
+                }}
+              />
             </div>
-          )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {filteredCustomers.map((c) => {
+                const active = customerId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleSelectCustomer(c)}
+                    style={{
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: active ? '#2563eb' : '#0b0f19',
+                      border: active ? '1px solid #60a5fa' : '1px solid #334155',
+                      color: active ? '#ffffff' : '#e2e8f0',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* 3. 상차일·시간 퀵버튼 */}
-          <div className="flex flex-col gap-1.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-[11px] font-bold text-sky-300 whitespace-nowrap flex-shrink-0">
+            {customerContracts.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '4px' }}>
+                {customerContracts.map((ct) => {
+                  const site = sites.find((s) => s.id === ct.siteId);
+                  const active = contractId === ct.id;
+                  return (
+                    <button
+                      key={ct.id}
+                      type="button"
+                      onClick={() => handleSelectContract(ct)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        backgroundColor: active ? '#0284c7' : '#0b0f19',
+                        border: active ? '1px solid #38bdf8' : '1px solid #334155',
+                        color: active ? '#ffffff' : '#cbd5e1',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {site?.name || ct.contractNo}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3. 상차 · 하차 일시 및 주소 */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            backgroundColor: '#111827',
+            padding: '12px',
+            borderRadius: '14px',
+            border: '1px solid #1e293b',
+          }}
+        >
+          {/* 상차일시 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '6px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#7dd3fc',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 상차일시
-              </label>
-              <div className="flex items-center gap-1">
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                 {[
                   { label: '오늘', val: todayStr },
                   { label: '내일', val: tomorrowStr },
@@ -386,11 +565,17 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                       setLoadingDate(d.val);
                       if (unloadingDate < d.val) setUnloadingDate(d.val);
                     }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                      loadingDate === d.val
-                        ? 'bg-sky-600 border-sky-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-300'
-                    }`}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: loadingDate === d.val ? '#0284c7' : '#0b0f19',
+                      border:
+                        loadingDate === d.val ? '1px solid #38bdf8' : '1px solid #334155',
+                      color: '#ffffff',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {d.label}
                   </button>
@@ -399,21 +584,35 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                   type="date"
                   value={loadingDate}
                   onChange={(e) => setLoadingDate(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-white font-mono"
+                  style={{
+                    width: 'auto',
+                    backgroundColor: '#0b0f19',
+                    border: '1px solid #334155',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                  }}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {TIME_SLOT_QUICK_OPTIONS.map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setLoadingTimeSlot(t)}
-                  className={`px-2 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                    loadingTimeSlot === t
-                      ? 'bg-blue-600 border-blue-400 text-white'
-                      : 'bg-slate-900 border-slate-700 text-slate-300'
-                  }`}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    backgroundColor: loadingTimeSlot === t ? '#2563eb' : '#0b0f19',
+                    border: loadingTimeSlot === t ? '1px solid #60a5fa' : '1px solid #334155',
+                    color: loadingTimeSlot === t ? '#ffffff' : '#cbd5e1',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   {t}
                 </button>
@@ -421,13 +620,36 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
             </div>
           </div>
 
-          {/* 4. 하차일·시간 퀵버튼 */}
-          <div className="flex flex-col gap-1.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-[11px] font-bold text-emerald-300 whitespace-nowrap flex-shrink-0">
+          {/* 하차일시 */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              paddingTop: '8px',
+              borderTop: '1px solid #1e293b',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '6px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#6ee7b7',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 하차일시
-              </label>
-              <div className="flex items-center gap-1">
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                 {[
                   { label: '상차동일', val: loadingDate },
                   { label: '오늘', val: todayStr },
@@ -437,11 +659,17 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                     key={d.label}
                     type="button"
                     onClick={() => setUnloadingDate(d.val)}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                      unloadingDate === d.val
-                        ? 'bg-emerald-600 border-emerald-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-300'
-                    }`}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: unloadingDate === d.val ? '#059669' : '#0b0f19',
+                      border:
+                        unloadingDate === d.val ? '1px solid #34d399' : '1px solid #334155',
+                      color: '#ffffff',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {d.label}
                   </button>
@@ -450,21 +678,36 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                   type="date"
                   value={unloadingDate}
                   onChange={(e) => setUnloadingDate(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-white font-mono"
+                  style={{
+                    width: 'auto',
+                    backgroundColor: '#0b0f19',
+                    border: '1px solid #334155',
+                    borderRadius: '6px',
+                    padding: '5px 8px',
+                    fontSize: '12px',
+                    color: '#ffffff',
+                    fontFamily: 'monospace',
+                  }}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {TIME_SLOT_QUICK_OPTIONS.map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setUnloadingTimeSlot(t)}
-                  className={`px-2 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                    unloadingTimeSlot === t
-                      ? 'bg-emerald-600 border-emerald-400 text-white'
-                      : 'bg-slate-900 border-slate-700 text-slate-300'
-                  }`}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    backgroundColor: unloadingTimeSlot === t ? '#059669' : '#0b0f19',
+                    border:
+                      unloadingTimeSlot === t ? '1px solid #34d399' : '1px solid #334155',
+                    color: unloadingTimeSlot === t ? '#ffffff' : '#cbd5e1',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   {t}
                 </button>
@@ -472,17 +715,34 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
             </div>
           </div>
 
-          {/* 5. 상차지 / 하차지 */}
-          <div className="grid grid-cols-1 gap-2">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+          {/* 상차지 / 하차지 */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              paddingTop: '8px',
+              borderTop: '1px solid #1e293b',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', margin: 0 }}>
                   상차지
                 </label>
                 <button
                   type="button"
                   onClick={() => setOriginAddress('당사 보관소')}
-                  className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-sky-300 whitespace-nowrap flex-shrink-0"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#7dd3fc',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   당사 보관소
                 </button>
@@ -492,19 +752,36 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                 value={originAddress}
                 onChange={(e) => setOriginAddress(e.target.value)}
                 placeholder="상차지 주소"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0b0f19',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '9px 10px',
+                  fontSize: '13px',
+                  color: '#ffffff',
+                }}
               />
             </div>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', margin: 0 }}>
                   하차지
                 </label>
                 <button
                   type="button"
                   onClick={() => setDestinationAddress('당사 보관소')}
-                  className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-sky-300 whitespace-nowrap flex-shrink-0"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: '#7dd3fc',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   당사 보관소
                 </button>
@@ -514,192 +791,333 @@ export const MobileDispatchManualModal: React.FC<MobileDispatchManualModalProps>
                 value={destinationAddress}
                 onChange={(e) => setDestinationAddress(e.target.value)}
                 placeholder="하차지 주소"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0b0f19',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '9px 10px',
+                  fontSize: '13px',
+                  color: '#ffffff',
+                }}
               />
             </div>
           </div>
+        </div>
 
-          {/* 6. 장비 모델 퀵버튼 (반납 외) */}
-          {category !== '반납' && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-                장비 선택
-              </label>
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                {quickModels.map((mName) => (
-                  <button
-                    key={mName}
-                    type="button"
-                    onClick={() => handleAddCargoModel(mName)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 hover:border-blue-500 text-[11px] font-bold text-slate-200 whitespace-nowrap flex-shrink-0"
+        {/* 4. 장비 선택 (반납 외, 아래로 줄바꿈 배치) */}
+        {category !== '반납' && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              backgroundColor: '#111827',
+              padding: '12px',
+              borderRadius: '14px',
+              border: '1px solid #1e293b',
+            }}
+          >
+            <label style={{ fontSize: '12px', fontWeight: 800, color: '#cbd5e1', margin: 0 }}>
+              장비 선택
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {quickModels.map((mName) => (
+                <button
+                  key={mName}
+                  type="button"
+                  onClick={() => handleAddCargoModel(mName)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#0b0f19',
+                    border: '1px solid #334155',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#e2e8f0',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  + {mName}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input
+                type="text"
+                value={customModelInput}
+                onChange={(e) => setCustomModelInput(e.target.value)}
+                placeholder="모델 직접 입력"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#0b0f19',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  color: '#ffffff',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  handleAddCargoModel(customModelInput);
+                  setCustomModelInput('');
+                }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #475569',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                추가
+              </button>
+            </div>
+            {cargos.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '4px' }}>
+                {cargos.map((c) => (
+                  <div
+                    key={c.modelName}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(30, 58, 138, 0.5)',
+                      border: '1px solid #3b82f6',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      color: '#ffffff',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
-                    + {mName}
-                  </button>
+                    <span>{c.modelName}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustCargoCount(c.modelName, -1)}
+                      style={{
+                        padding: '3px',
+                        borderRadius: '4px',
+                        backgroundColor: '#1e293b',
+                        color: '#ffffff',
+                      }}
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span style={{ fontFamily: 'monospace', color: '#7dd3fc' }}>{c.count}대</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustCargoCount(c.modelName, 1)}
+                      style={{
+                        padding: '3px',
+                        borderRadius: '4px',
+                        backgroundColor: '#1e293b',
+                        color: '#ffffff',
+                      }}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={customModelInput}
-                  onChange={(e) => setCustomModelInput(e.target.value)}
-                  placeholder="모델 직접 입력"
-                  className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAddCargoModel(customModelInput);
-                    setCustomModelInput('');
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-bold text-white whitespace-nowrap flex-shrink-0"
-                >
-                  추가
-                </button>
-              </div>
-              {cargos.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {cargos.map((c) => (
-                    <div
-                      key={c.modelName}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-950/60 border border-blue-500/40 text-xs font-bold text-white whitespace-nowrap flex-shrink-0"
-                    >
-                      <span>{c.modelName}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleAdjustCargoCount(c.modelName, -1)}
-                        className="p-0.5 rounded bg-slate-800 text-slate-200"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="font-mono text-sky-300">{c.count}대</span>
-                      <button
-                        type="button"
-                        onClick={() => handleAdjustCargoCount(c.modelName, 1)}
-                        className="p-0.5 rounded bg-slate-800 text-slate-200"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* 7. 차종(톤수) 퀵버튼 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-              차종
-            </label>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-              {VEHICLE_TYPE_OPTIONS.map((vt) => (
+        {/* 5. 차종 선택 (아래로 줄바꿈 배치) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+            backgroundColor: '#111827',
+            padding: '12px',
+            borderRadius: '14px',
+            border: '1px solid #1e293b',
+          }}
+        >
+          <label style={{ fontSize: '12px', fontWeight: 800, color: '#cbd5e1', margin: 0 }}>
+            차종 선택
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {VEHICLE_TYPE_OPTIONS.map((vt) => {
+              const active = vehicleType === vt;
+              return (
                 <button
                   key={vt}
                   type="button"
                   onClick={() => setVehicleType(vt)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap flex-shrink-0 ${
-                    vehicleType === vt
-                      ? 'bg-blue-600 border-blue-400 text-white'
-                      : 'bg-slate-950 border-slate-700 text-slate-300'
-                  }`}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    backgroundColor: active ? '#2563eb' : '#0b0f19',
+                    border: active ? '1px solid #60a5fa' : '1px solid #334155',
+                    color: active ? '#ffffff' : '#cbd5e1',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   {vt}
                 </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 6. 운송료 입력 ("0", "+1만", "+5만", "+10만" 4개 퀵버튼만 지원, 당사/고객부담 선택 제거) */}
+        {canViewCost && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              backgroundColor: '#111827',
+              padding: '12px',
+              borderRadius: '14px',
+              border: '1px solid #1e293b',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ fontSize: '12px', fontWeight: 800, color: '#cbd5e1', margin: 0 }}>
+                운송료 입력
+              </label>
+              <span
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 900,
+                  color: '#34d399',
+                  fontFamily: 'monospace',
+                }}
+              >
+                ₩{expectedCost.toLocaleString()}원
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: '6px',
+              }}
+            >
+              {COST_DELTA_QUICK_OPTIONS.map((btn) => (
+                <button
+                  key={btn.label}
+                  type="button"
+                  onClick={() =>
+                    setExpectedCost(btn.isReset ? 0 : Math.max(0, expectedCost + btn.delta))
+                  }
+                  style={{
+                    padding: '10px 6px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 900,
+                    backgroundColor: btn.isReset ? '#1e293b' : '#065f46',
+                    border: btn.isReset ? '1px solid #475569' : '1px solid #10b981',
+                    color: '#ffffff',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'center',
+                  }}
+                >
+                  {btn.label}
+                </button>
               ))}
             </div>
-          </div>
 
-          {/* 8. 운송비 부담 & 금액 퀵버튼 */}
-          {canViewCost && (
-            <div className="flex flex-col gap-1.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-                  운송비
-                </label>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setBillableToCustomer(false)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                      !billableToCustomer
-                        ? 'bg-blue-600 border-blue-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-300'
-                    }`}
-                  >
-                    당사부담
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBillableToCustomer(true)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                      billableToCustomer
-                        ? 'bg-amber-600 border-amber-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-300'
-                    }`}
-                  >
-                    고객부담
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                {COST_PRESET_QUICK_OPTIONS.map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => setExpectedCost(p.value)}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
-                      expectedCost === p.value
-                        ? 'bg-emerald-600 border-emerald-400 text-white'
-                        : 'bg-slate-900 border-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="number"
-                value={expectedCost || ''}
-                onChange={(e) => setExpectedCost(Math.max(0, Number(e.target.value) || 0))}
-                placeholder="운송비 직접 입력"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
-              />
-            </div>
-          )}
-
-          {/* 9. 메모 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-              메모
-            </label>
             <input
-              type="text"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="현장 전달사항"
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-white"
+              type="number"
+              value={expectedCost || ''}
+              onChange={(e) => setExpectedCost(Math.max(0, Number(e.target.value) || 0))}
+              placeholder="운송료 직접 입력 (원)"
+              style={{
+                width: '100%',
+                backgroundColor: '#0b0f19',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                padding: '9px 12px',
+                fontSize: '13px',
+                color: '#ffffff',
+                fontFamily: 'monospace',
+              }}
             />
           </div>
-        </div>
+        )}
 
-        {/* 하단 버튼 */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
-          >
-            닫기
-          </button>
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleSave}
-            className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black whitespace-nowrap flex-shrink-0"
-          >
-            {isSubmitting ? '등록 중...' : '배차 등록'}
-          </button>
+        {/* 7. 메모 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1', margin: 0 }}>
+            메모
+          </label>
+          <input
+            type="text"
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="현장 전달사항"
+            style={{
+              width: '100%',
+              backgroundColor: '#111827',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              padding: '9px 12px',
+              fontSize: '13px',
+              color: '#ffffff',
+            }}
+          />
         </div>
+      </div>
+
+      {/* 하단 고정 버튼 */}
+      <div
+        style={{
+          padding: '10px 12px max(12px, env(safe-area-inset-bottom, 12px))',
+          borderTop: '1px solid #334155',
+          backgroundColor: '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexShrink: 0,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            padding: '12px 16px',
+            borderRadius: '10px',
+            backgroundColor: '#1e293b',
+            border: '1px solid #475569',
+            color: '#cbd5e1',
+            fontSize: '13px',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          닫기
+        </button>
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={handleSave}
+          style={{
+            flex: 1,
+            padding: '12px 16px',
+            borderRadius: '10px',
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
+            fontSize: '14px',
+            fontWeight: 900,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {isSubmitting ? '등록 중...' : '배차 등록'}
+        </button>
       </div>
     </div>
   );

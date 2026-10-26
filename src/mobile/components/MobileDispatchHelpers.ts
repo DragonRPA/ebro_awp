@@ -55,17 +55,11 @@ export const TIME_SLOT_QUICK_OPTIONS = [
   '야간',
 ];
 
-export const COST_PRESET_QUICK_OPTIONS: { label: string; value: number }[] = [
-  { label: '0', value: 0 },
-  { label: '5만', value: 50000 },
-  { label: '7만', value: 70000 },
-  { label: '8만', value: 80000 },
-  { label: '10만', value: 100000 },
-  { label: '12만', value: 120000 },
-  { label: '15만', value: 150000 },
-  { label: '18만', value: 180000 },
-  { label: '20만', value: 200000 },
-  { label: '25만', value: 250000 },
+export const COST_DELTA_QUICK_OPTIONS: { label: string; delta: number; isReset?: boolean }[] = [
+  { label: '0', delta: 0, isReset: true },
+  { label: '+1만', delta: 10000 },
+  { label: '+5만', delta: 50000 },
+  { label: '+10만', delta: 100000 },
 ];
 
 export interface AssignedVehicleRow {

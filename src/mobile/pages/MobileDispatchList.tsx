@@ -1814,47 +1814,77 @@ export const MobileDispatchList: React.FC = () => {
   }, [selectedDelivery, contractAssets, outboundInspections, assetMap]);
 
   return (
-    <div className="flex flex-col gap-2.5 pb-24 pt-2 px-1 font-sans text-slate-100">
+    <div
+      className="font-sans text-slate-100"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        width: '100%',
+        maxWidth: '100%',
+        paddingBottom: '96px',
+        paddingTop: '4px',
+        boxSizing: 'border-box',
+        overflowX: 'hidden',
+      }}
+    >
       {/* 토스트 알림 */}
       {toast && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-black px-4 py-2 rounded-full shadow-xl flex items-center gap-1.5 whitespace-nowrap">
-          <Check className="w-3.5 h-3.5" />
+        <div
+          style={{
+            position: 'fixed',
+            top: '60px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9700,
+          }}
+          className="bg-emerald-600 text-white text-sm font-black px-4 py-2.5 rounded-full shadow-xl flex items-center gap-1.5 whitespace-nowrap"
+        >
+          <Check className="w-4 h-4" />
           <span>{toast}</span>
         </div>
       )}
 
       {/* 1. 상단 타이틀 & 액션 퀵버튼 바 */}
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-1.5">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div className="flex items-center gap-2">
           <Truck className="w-5 h-5 text-sky-400 flex-shrink-0" />
-          <h2 className="text-base font-black text-white whitespace-nowrap flex-shrink-0">
+          <h2 className="text-lg font-black text-white whitespace-nowrap flex-shrink-0">
             배차관리
           </h2>
         </div>
 
         {canSave && (
-          <div className="flex items-center gap-1.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => {
                 setBundleMode((v) => !v);
                 setSelectedBundleIds([]);
               }}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-black border flex items-center gap-1 whitespace-nowrap flex-shrink-0 ${
+              className={`px-3 py-2 rounded-xl text-sm font-black border flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${
                 bundleMode
                   ? 'bg-indigo-600 border-indigo-400 text-white'
                   : 'bg-slate-900 border-slate-700 text-indigo-300'
               }`}
             >
-              <Link2 className="w-3.5 h-3.5" />
+              <Link2 className="w-4 h-4" />
               {bundleMode ? '합짐선택중' : '합짐묶기'}
             </button>
             <button
               type="button"
               onClick={() => setManualModalOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-black flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black flex items-center gap-1.5 whitespace-nowrap flex-shrink-0"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
               배차등록
             </button>
           </div>
@@ -1863,18 +1893,27 @@ export const MobileDispatchList: React.FC = () => {
 
       {/* 합짐 다중선택 실행 바 */}
       {bundleMode && (
-        <div className="bg-indigo-950/80 border border-indigo-500 rounded-xl p-2.5 flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-indigo-200 whitespace-nowrap flex-shrink-0">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap',
+          }}
+          className="bg-indigo-950/80 border border-indigo-500 rounded-xl p-3"
+        >
+          <span className="text-sm font-bold text-indigo-200 whitespace-nowrap flex-shrink-0">
             합짐 선택: {selectedBundleIds.length}건
           </span>
-          <div className="flex items-center gap-1.5">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => {
                 setBundleMode(false);
                 setSelectedBundleIds([]);
               }}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
             >
               취소
             </button>
@@ -1882,7 +1921,7 @@ export const MobileDispatchList: React.FC = () => {
               type="button"
               disabled={selectedBundleIds.length < 2}
               onClick={() => handleCreateBundleFromIds(selectedBundleIds)}
-              className="px-3 py-1 rounded-lg bg-indigo-600 disabled:opacity-40 text-white text-xs font-black whitespace-nowrap flex-shrink-0"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 disabled:opacity-40 text-white text-xs font-black whitespace-nowrap flex-shrink-0"
             >
               {selectedBundleIds.length}건 합짐 확정
             </button>
@@ -1890,8 +1929,14 @@ export const MobileDispatchList: React.FC = () => {
         </div>
       )}
 
-      {/* 2. 상태 5단 퀵탭 */}
-      <div className="grid grid-cols-5 gap-1">
+      {/* 2. 상태 퀵탭 (좌우 스크롤 없이 줄바꿈 배치) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+          gap: '6px',
+        }}
+      >
         {[
           { key: 'PENDING' as const, label: '대기', count: statusCounts.pending },
           { key: 'DISPATCHED' as const, label: '배차완료', count: statusCounts.dispatched },
@@ -1905,7 +1950,7 @@ export const MobileDispatchList: React.FC = () => {
               key={tab.key}
               type="button"
               onClick={() => setStatusTab(tab.key)}
-              className={`py-2 px-1 rounded-xl border text-xs font-black flex flex-col items-center justify-center gap-0.5 whitespace-nowrap flex-shrink-0 transition-colors ${
+              className={`py-2.5 px-1 rounded-xl border text-xs font-black flex flex-col items-center justify-center gap-0.5 whitespace-nowrap transition-colors ${
                 active
                   ? 'bg-blue-600 border-blue-400 text-white shadow'
                   : 'bg-slate-900 border-slate-800 text-slate-300'
@@ -1913,7 +1958,7 @@ export const MobileDispatchList: React.FC = () => {
             >
               <span>{tab.label}</span>
               <span
-                className={`text-[11px] font-mono ${
+                className={`text-xs font-mono font-black ${
                   active ? 'text-white' : 'text-sky-400'
                 }`}
               >
@@ -1924,10 +1969,13 @@ export const MobileDispatchList: React.FC = () => {
         })}
       </div>
 
-      {/* 3. 기간 퀵버튼 + 구분 퀵버튼 + 검색창 */}
-      <div className="flex flex-col gap-1.5 bg-slate-900 border border-slate-800 rounded-xl p-2">
+      {/* 3. 기간 퀵버튼 + 구분 퀵버튼 + 검색창 (좌우 스크롤 없이 아래로 줄바꿈) */}
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+        className="bg-slate-900 border border-slate-800 rounded-xl p-3"
+      >
         {/* 기간 퀵버튼 */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {[
             { key: 'ALL' as const, label: '전체기간' },
             { key: 'TODAY' as const, label: '오늘' },
@@ -1939,7 +1987,8 @@ export const MobileDispatchList: React.FC = () => {
               key={d.key}
               type="button"
               onClick={() => setDateQuick(d.key)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
+              style={{ flex: '1 1 auto' }}
+              className={`px-3 py-2 rounded-lg text-xs font-black border whitespace-nowrap text-center ${
                 dateQuick === d.key
                   ? 'bg-sky-600 border-sky-400 text-white'
                   : 'bg-slate-950 border-slate-700 text-slate-300'
@@ -1951,13 +2000,14 @@ export const MobileDispatchList: React.FC = () => {
         </div>
 
         {/* 구분 퀵버튼 */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {(['ALL', ...CATEGORY_QUICK_OPTIONS] as const).map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setCategoryQuick(cat)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border whitespace-nowrap flex-shrink-0 ${
+              style={{ flex: '1 1 auto' }}
+              className={`px-3 py-2 rounded-lg text-xs font-black border whitespace-nowrap text-center ${
                 categoryQuick === cat
                   ? 'bg-blue-600 border-blue-400 text-white'
                   : 'bg-slate-950 border-slate-700 text-slate-300'
@@ -1970,21 +2020,22 @@ export const MobileDispatchList: React.FC = () => {
 
         {/* 검색창 */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="거래처, 현장, 기사, 차량번호 검색"
-            className="w-full bg-slate-950 border border-slate-700 rounded-lg py-1.5 pl-8 pr-7 text-xs text-white focus:outline-none focus:border-blue-500"
+            style={{ paddingLeft: '34px', paddingRight: '32px' }}
+            className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -1992,11 +2043,11 @@ export const MobileDispatchList: React.FC = () => {
 
       {/* 4. 배차 카드 리스트 */}
       {filteredDeliveries.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-xs text-slate-400">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-sm text-slate-400">
           조회된 배차 내역이 없습니다.
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filteredDeliveries.map((d) => {
             const normSt = getNormalizedDeliveryStatus(d);
             const cat = getDeliveryCategoryLabel(d);
@@ -2047,7 +2098,8 @@ export const MobileDispatchList: React.FC = () => {
                   }
                   handleSelectDelivery(d, true);
                 }}
-                className={`bg-slate-900 rounded-xl p-3 border flex flex-col gap-2 cursor-pointer transition-colors ${
+                style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+                className={`bg-slate-900 rounded-xl p-3.5 border cursor-pointer transition-colors ${
                   isBundleSelected
                     ? 'border-indigo-400 bg-indigo-950/30'
                     : d.bundleGroupId
@@ -2059,12 +2111,20 @@ export const MobileDispatchList: React.FC = () => {
                     : 'border-slate-800'
                 }`}
               >
-                {/* Row 1: 배지 + 상하차 일시 */}
-                <div className="flex items-center justify-between gap-1.5">
-                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {/* Row 1: 배지 + 상하차 일시 (줄바꿈 허용) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '6px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {bundleMode && (
                       <span
-                        className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] font-black flex-shrink-0 ${
+                        className={`w-5 h-5 rounded flex items-center justify-center border text-xs font-black flex-shrink-0 ${
                           isBundleSelected
                             ? 'bg-indigo-600 border-indigo-400 text-white'
                             : 'bg-slate-950 border-slate-600 text-transparent'
@@ -2074,18 +2134,18 @@ export const MobileDispatchList: React.FC = () => {
                       </span>
                     )}
                     <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-black whitespace-nowrap flex-shrink-0 ${catColor}`}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-black whitespace-nowrap flex-shrink-0 ${catColor}`}
                     >
                       {cat}
                     </span>
                     {cat === '경유/합짐' && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-indigo-300 whitespace-nowrap flex-shrink-0">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-xs font-bold text-indigo-300 whitespace-nowrap flex-shrink-0">
                         {d.bundleOrder || 1}순위·{origCat}
                       </span>
                     )}
                     {readiness.isOutboundLike && readiness.badgeLabel && (
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-black border whitespace-nowrap flex-shrink-0 ${
+                        className={`px-2 py-0.5 rounded text-xs font-black border whitespace-nowrap flex-shrink-0 ${
                           readiness.ready
                             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                             : readiness.stage === 'REJECTED'
@@ -2097,45 +2157,61 @@ export const MobileDispatchList: React.FC = () => {
                       </span>
                     )}
                     {d.loadingCompletedAt && (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black whitespace-nowrap flex-shrink-0">
+                      <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black whitespace-nowrap flex-shrink-0">
                         상차완료
                       </span>
                     )}
                     {printJob && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-sky-300 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-300 text-xs font-bold whitespace-nowrap flex-shrink-0">
                         {printJob.status === 'COMPLETED' ? '인쇄완료' : '인쇄대기'}
                       </span>
                     )}
                   </div>
 
-                  <span className="text-[11px] font-mono font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
+                  <span className="text-xs font-mono font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
                     {loadShort}({d.loadingTimeSlot || '오전'})➔{unloadShort}({d.unloadingTimeSlot || '오전'})
                   </span>
                 </div>
 
-                {/* Row 2: 고객사·현장 + 장비 요약 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-black text-white truncate">
+                {/* Row 2: 고객사·현장 + 장비 요약 (줄바꿈 배치) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span className="text-sm font-black text-white break-words">
                     {getCustomerNameForDelivery(d)}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-[11px] font-bold text-sky-300 whitespace-nowrap flex-shrink-0">
-                    {cargoText}
-                  </span>
+                  {cargoText && (
+                    <span className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-bold text-sky-300 whitespace-nowrap flex-shrink-0">
+                      {cargoText}
+                    </span>
+                  )}
                 </div>
 
                 {/* Row 3: 상차지 ➔ 하차지 + 날씨/내비 */}
                 <div
-                  className="flex items-center justify-between gap-1.5 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800/80"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
+                  className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800/80"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-[11px] text-slate-300 truncate min-w-0">
+                  <div className="text-xs text-slate-300 min-w-0 break-words">
                     <span className="text-slate-400">{d.originAddress || '당사 보관소'}</span>
-                    <span className="mx-1 text-slate-500">➔</span>
+                    <span className="mx-1.5 text-slate-500">➔</span>
                     <span className="text-slate-100 font-bold">
                       {d.destinationAddress || '현장'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
                       type="button"
                       onClick={() =>
@@ -2144,69 +2220,74 @@ export const MobileDispatchList: React.FC = () => {
                           title: getCustomerNameForDelivery(d),
                         })
                       }
-                      className="p-1 rounded bg-slate-800 text-amber-300 hover:bg-slate-700"
+                      className="p-2 rounded-lg bg-slate-800 text-amber-300 hover:bg-slate-700"
                     >
-                      <Sun className="w-3.5 h-3.5" />
+                      <Sun className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setNavTargetAddress(d.destinationAddress || '당사 보관소')}
-                      className="p-1 rounded bg-slate-800 text-emerald-300 hover:bg-slate-700"
+                      className="p-2 rounded-lg bg-slate-800 text-emerald-300 hover:bg-slate-700"
                     >
-                      <Navigation className="w-3.5 h-3.5" />
+                      <Navigation className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Row 4: 배정된 기사 · 차량 · 운송비 요약 */}
+                {/* Row 4: 배정된 운송사 · 기사 · 차량 · 운송료 요약 (좌우 스크롤 없이 줄바꿈, 당사/고객부담 제거) */}
                 {(d.driverName || d.transportCompany || d.vehicleNo || effCost > 0) && (
                   <div
-                    className="flex items-center justify-between gap-2 text-xs px-1"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                    }}
+                    className="text-xs px-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
                       {d.transportCompany && (
-                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 text-xs font-bold whitespace-nowrap">
                           {d.transportCompany}
                         </span>
                       )}
                       {d.driverName && (
-                        <span className="font-bold text-white whitespace-nowrap flex-shrink-0">
+                        <span className="font-bold text-white text-sm whitespace-nowrap">
                           {d.driverName}
                         </span>
                       )}
                       {d.vehicleNo && (
-                        <span className="text-[11px] font-mono text-slate-300 whitespace-nowrap flex-shrink-0">
+                        <span className="text-xs font-mono text-slate-300 whitespace-nowrap">
                           {d.vehicleNo}
                         </span>
                       )}
                       {d.vehicleType && (
-                        <span className="text-[10px] font-bold text-amber-300 whitespace-nowrap flex-shrink-0">
+                        <span className="text-xs font-bold text-amber-300 whitespace-nowrap">
                           {d.vehicleType}
                         </span>
                       )}
                       {d.driverContact && (
                         <a
                           href={`tel:${d.driverContact}`}
-                          className="p-1 rounded bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 flex-shrink-0"
+                          className="p-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 flex-shrink-0"
                         >
-                          <Phone className="w-3 h-3" />
+                          <Phone className="w-3.5 h-3.5" />
                         </a>
                       )}
                     </div>
 
-                    {canViewCost && (
+                    {canViewCost && effCost > 0 && (
                       <div className="flex items-center gap-1 flex-shrink-0">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex-shrink-0 ${
-                            d.billableToCustomer
-                              ? 'bg-amber-500/20 text-amber-300'
-                              : 'bg-slate-800 text-slate-300'
-                          }`}
-                        >
-                          {d.billableToCustomer ? '고객부담' : '당사부담'}
-                        </span>
-                        <span className="font-mono font-black text-emerald-400 text-xs whitespace-nowrap flex-shrink-0">
+                        <span className="font-mono font-black text-emerald-400 text-sm whitespace-nowrap flex-shrink-0">
                           ₩{effCost.toLocaleString()}
                         </span>
                       </div>
@@ -2214,10 +2295,17 @@ export const MobileDispatchList: React.FC = () => {
                   </div>
                 )}
 
-                {/* Row 5: 카드 인라인 원터치 퀵액션 버튼 바 */}
+                {/* Row 5: 카드 인라인 퀵액션 버튼 바 (좌우 스크롤 없이 줄바꿈 배치) */}
                 {!bundleMode && (
                   <div
-                    className="flex items-center gap-1 pt-1.5 border-t border-slate-800 overflow-x-auto no-scrollbar"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      flexWrap: 'wrap',
+                      paddingTop: '8px',
+                    }}
+                    className="border-t border-slate-800"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {normSt === 'PENDING' && (
@@ -2225,29 +2313,30 @@ export const MobileDispatchList: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleSelectDelivery(d, true)}
-                          className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-black whitespace-nowrap flex-shrink-0"
+                          style={{ flex: '1 1 auto' }}
+                          className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-black whitespace-nowrap text-center"
                         >
                           배차하기
                         </button>
                         <button
                           type="button"
                           onClick={() => handleQuickCustomerDirect(d)}
-                          className="py-1.5 px-2.5 rounded-lg bg-teal-600/30 border border-teal-500/50 text-teal-200 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-3 rounded-xl bg-teal-600/30 border border-teal-500/50 text-teal-200 text-xs font-bold whitespace-nowrap"
                         >
                           고객직접
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemotePrint(d)}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
                         >
-                          <Printer className="w-3 h-3" />
+                          <Printer className="w-3.5 h-3.5" />
                           인쇄
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCancelOrRevertDelivery(d.id)}
-                          className="py-1.5 px-2 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold whitespace-nowrap"
                         >
                           취소
                         </button>
@@ -2261,15 +2350,16 @@ export const MobileDispatchList: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleCompleteLoadingStatus(d.id)}
-                              className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0"
+                              style={{ flex: '1 1 auto' }}
+                              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black flex items-center justify-center gap-1 whitespace-nowrap"
                             >
-                              <Check className="w-3.5 h-3.5" />
+                              <Check className="w-4 h-4" />
                               운송완료
                             </button>
                             <button
                               type="button"
                               onClick={() => handleRevertLoadingStatus(d.id)}
-                              className="py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                              className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold whitespace-nowrap"
                             >
                               상차취소
                             </button>
@@ -2278,41 +2368,42 @@ export const MobileDispatchList: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCompleteLoadingStatus(d.id)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-1 whitespace-nowrap flex-shrink-0"
+                            style={{ flex: '1 1 auto' }}
+                            className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black flex items-center justify-center gap-1 whitespace-nowrap"
                           >
-                            <Truck className="w-3.5 h-3.5" />
+                            <Truck className="w-4 h-4" />
                             상차완료
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => handleSelectDelivery(d, true)}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold whitespace-nowrap"
                         >
                           수정
                         </button>
                         <button
                           type="button"
                           onClick={() => handleSendDriverSms(d)}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-emerald-300 text-xs font-bold flex items-center gap-0.5 whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-emerald-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
                         >
-                          <Send className="w-3 h-3" />
+                          <Send className="w-3.5 h-3.5" />
                           문자
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCopyKakaoDispatchMessage(d)}
-                          className="py-1.5 px-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-0.5 whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
                         >
-                          <MessageSquare className="w-3 h-3" />
+                          <MessageSquare className="w-3.5 h-3.5" />
                           카톡
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemotePrint(d)}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sky-300 text-xs font-bold whitespace-nowrap"
                         >
-                          <Printer className="w-3 h-3" />
+                          <Printer className="w-3.5 h-3.5" />
                         </button>
                       </>
                     )}
@@ -2322,22 +2413,23 @@ export const MobileDispatchList: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleSelectDelivery(d, true)}
-                          className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          style={{ flex: '1 1 auto' }}
+                          className="py-2.5 px-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold whitespace-nowrap text-center"
                         >
                           상세/수정
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRevertLoadingStatus(d.id)}
-                          className="py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 text-xs font-bold flex items-center gap-1 whitespace-nowrap"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-3.5 h-3.5" />
                           완료취소
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCopyKakaoDispatchMessage(d)}
-                          className="py-1.5 px-2.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold whitespace-nowrap"
                         >
                           카톡
                         </button>
@@ -2349,14 +2441,15 @@ export const MobileDispatchList: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleSelectDelivery(d, true)}
-                          className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600 text-white text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          style={{ flex: '1 1 auto' }}
+                          className="py-2.5 px-3 rounded-xl bg-blue-600 text-white text-xs font-bold whitespace-nowrap text-center"
                         >
                           재배차
                         </button>
                         <button
                           type="button"
                           onClick={() => handleCancelOrRevertDelivery(d.id)}
-                          className="py-1.5 px-2.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold whitespace-nowrap flex-shrink-0"
+                          className="py-2.5 px-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold whitespace-nowrap"
                         >
                           대기원복
                         </button>
@@ -2464,7 +2557,16 @@ export const MobileDispatchList: React.FC = () => {
       {/* 8. 내비게이션 선택 시트 */}
       {navTargetAddress && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 flex items-end justify-center p-4"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9600,
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
           onClick={() => setNavTargetAddress(null)}
         >
           <div
@@ -2472,30 +2574,30 @@ export const MobileDispatchList: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-white">내비게이션 실행</span>
+              <span className="text-sm font-black text-white">내비게이션 실행</span>
               <button
                 type="button"
                 onClick={() => setNavTargetAddress(null)}
                 className="p-1 text-slate-400"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-xs text-slate-300 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <p className="text-xs text-slate-300 bg-slate-950 p-3 rounded-xl border border-slate-800 break-words">
               {navTargetAddress}
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => launchTmap(navTargetAddress)}
-                className="py-2.5 rounded-xl bg-blue-600 text-white text-xs font-black"
+                className="py-3 rounded-xl bg-blue-600 text-white text-xs font-black whitespace-nowrap"
               >
                 티맵
               </button>
               <button
                 type="button"
                 onClick={() => launchKakaoNavi(navTargetAddress)}
-                className="py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black"
+                className="py-3 rounded-xl bg-amber-500 text-slate-950 text-xs font-black whitespace-nowrap"
               >
                 카카오내비
               </button>
@@ -2506,7 +2608,7 @@ export const MobileDispatchList: React.FC = () => {
                   setNavTargetAddress(null);
                   showToast('주소 복사 완료');
                 }}
-                className="py-2.5 rounded-xl bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1"
+                className="py-3 rounded-xl bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1 whitespace-nowrap"
               >
                 <Copy className="w-3.5 h-3.5" />
                 복사
@@ -2519,7 +2621,16 @@ export const MobileDispatchList: React.FC = () => {
       {/* 9. 카카오톡 배차 안내문 모달 */}
       {kakaoModalData && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9600,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
           onClick={() => setKakaoModalData(null)}
         >
           <div
@@ -2527,13 +2638,13 @@ export const MobileDispatchList: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-amber-300">카카오톡 배차 안내문</span>
+              <span className="text-sm font-black text-amber-300">카카오톡 배차 안내문</span>
               <button
                 type="button"
                 onClick={() => setKakaoModalData(null)}
                 className="p-1 text-slate-400"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             <textarea
@@ -2546,7 +2657,7 @@ export const MobileDispatchList: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setKakaoModalData(null)}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                className="px-4 py-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap"
               >
                 닫기
               </button>
@@ -2556,9 +2667,9 @@ export const MobileDispatchList: React.FC = () => {
                   await copyToClipboard(kakaoModalData.text);
                   showToast('복사 완료');
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center gap-1"
+                className="flex-1 py-3 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center gap-1 whitespace-nowrap"
               >
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-4 h-4" />
                 전문 다시 복사
               </button>
             </div>

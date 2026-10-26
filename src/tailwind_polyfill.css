@@ -431,3 +431,59 @@ input.h-9, select.h-9, button.h-9 {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
+
+/* Mobile Layout, Scroll & Modal Utilities */
+.min-h-screen { min-height: 100dvh; }
+.max-w-full { max-width: 100%; }
+.max-w-lg { max-width: 100%; }
+.max-w-md { max-width: 480px; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.min-h-0 { min-height: 0; }
+.overflow-y-auto { overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+.overflow-x-hidden { overflow-x: clip; }
+.overflow-x-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.fixed { position: fixed; }
+.absolute { position: absolute; }
+.relative { position: relative; }
+.sticky { position: sticky; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.top-0 { top: 0; }
+.bottom-0 { bottom: 0; }
+.left-0 { left: 0; }
+.right-0 { right: 0; }
+.z-20 { z-index: 20; }
+.z-30 { z-index: 30; }
+.z-40 { z-index: 40; }
+.z-50 { z-index: 9500; }
+.pb-20 { padding-bottom: 80px; }
+.pb-24 { padding-bottom: 96px; }
+.pb-28 { padding-bottom: 112px; }
+.pb-36 { padding-bottom: 144px; }
+.pt-1 { padding-top: 4px; }
+.pt-1\.5 { padding-top: 6px; }
+.pt-2 { padding-top: 8px; }
+.grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.w-3 { width: 12px; }
+.w-3\.5 { width: 14px; }
+.w-4 { width: 16px; }
+.w-5 { width: 20px; }
+.h-3 { height: 12px; }
+.h-3\.5 { height: 14px; }
+.h-4 { height: 16px; }
+.h-5 { height: 20px; }
+.text-base { font-size: 16px; line-height: 24px; }
+.text-lg { font-size: 18px; line-height: 28px; }
+.text-xl { font-size: 20px; line-height: 28px; }
+.text-2xl { font-size: 24px; line-height: 32px; }
+.text-\[10px\] { font-size: 11px; line-height: 15px; }
+.text-\[11px\] { font-size: 12px; line-height: 16px; }
+.border { border: 1px solid var(--border-color); }
+.border-t { border-top: 1px solid var(--border-color); }
+.border-b { border-bottom: 1px solid var(--border-color); }
+.cursor-pointer { cursor: pointer; }
+.max-h-\[94vh\] { max-height: 94dvh; }
+.max-h-\[92vh\] { max-height: 92dvh; }
+.rounded-t-2xl { border-top-left-radius: 16px; border-top-right-radius: 16px; }
+.rounded-2xl { border-radius: 16px; }
+.rounded-3xl { border-radius: 20px; }
