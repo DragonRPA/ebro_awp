@@ -8883,43 +8883,73 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const nowIso = new Date().toISOString();
 
-    // 0. 날짜 보존: 1현장은 이동일 당일까지 청구(종료), 2현장은 이동 다음 날부터 개시 (역일 공백/중복 0일)
-    const getNextDate = (dStr: string): string => {
-      const d = new Date(dStr);
-      d.setDate(d.getDate() + 1);
+    // 0. 날짜 보존 원칙:
+    // - 이동 현장(2현장)의 청구개시일은 현장이동일(relocationDate) 당일로 적용한다.
+    // - 개시일 당일 즉시 이동(relocationDate <= sourceCA.startDate)인 경우: 1현장은 단 하루도 사용하지 않았으므로 1현장 슬롯을 제거하여 청구 0일로 처리한다.
+    // - 1현장에서 1일 이상 사용 후 이동(relocationDate > sourceCA.startDate)인 경우: 1현장은 이동 전일(relocationDate - 1일)까지 청구 마감한다.
+    const getPrevDate = (dStr: string): string => {
+      const [y, m, day] = dStr.split('-').map(Number);
+      const d = new Date(Date.UTC(y, m - 1, day - 1));
       return d.toISOString().split('T')[0];
     };
-    const relocationStartDate = getNextDate(relocationDate);
+    const relocationStartDate = relocationDate;
+    const isSameDayImmediateMove = !sourceCA.startDate || relocationDate <= sourceCA.startDate;
+    const sourceEndDate = isSameDayImmediateMove ? '' : getPrevDate(relocationDate);
 
-    // 1. 1현장(출발 계약): 해당 contractAsset의 endDate를 relocationDate로 단축 마감
-    db.updateRow<ContractAsset>('contractAssets', sourceCA.id, {
-      endDate: relocationDate
-    });
+    // 1. 1현장(출발 계약) 처리
+    if (isSameDayImmediateMove) {
+      // 개시일 당일 즉시 이동: 출발 현장 사용일수 0일이므로 출발 계약 슬롯 삭제 (청구 0일 보장)
+      db.deleteRow('contractAssets', sourceCA.id);
 
-    // 1현장 계약 이력에 [현장 이동 출고] 기록
-    db.insertRow<ContractHistory>('contractHistory', {
-      contractId: sourceContract.id,
-      changeType: 'SHORTEN',
-      changeDate: relocationDate,
-      prevEndDate: oldEndDate,
-      newEndDate: relocationDate,
-      description: `장비 [${assetNo} / ${modelName}] 현장간 이동 출고 (도착지: ${targetSiteName}, 이동일: ${relocationDate})${reason ? ' - 사유: ' + reason : ''}`,
-      createdAt: nowIso
-    });
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: sourceContract.id,
+        changeType: 'SHORTEN',
+        changeDate: relocationDate,
+        prevEndDate: oldEndDate,
+        newEndDate: relocationDate,
+        description: `장비 [${assetNo} / ${modelName}] 개시 당일 현장 즉시 이동 (도착지: ${targetSiteName}, 이동일: ${relocationDate}, 출발현장 청구 0일)${reason ? ' - 사유: ' + reason : ''}`,
+        createdAt: nowIso
+      });
+    } else {
+      // 중도 현장 이동: 1현장 슬롯의 endDate를 이동 전일(relocationDate - 1일)로 단축 마감
+      db.updateRow<ContractAsset>('contractAssets', sourceCA.id, {
+        endDate: sourceEndDate
+      });
 
-    // 1현장에 다른 활성 자산 잔여 여부 검사 (단일 장비 계약 시 부모 계약 COMPLETED 종결 처리)
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: sourceContract.id,
+        changeType: 'SHORTEN',
+        changeDate: relocationDate,
+        prevEndDate: oldEndDate,
+        newEndDate: sourceEndDate,
+        description: `장비 [${assetNo} / ${modelName}] 현장간 이동 출고 (도착지: ${targetSiteName}, 이동일: ${relocationDate}, 1현장 마감일: ${sourceEndDate})${reason ? ' - 사유: ' + reason : ''}`,
+        createdAt: nowIso
+      });
+    }
+
+    // 1현장에 다른 활성 자산 잔여 여부 검사
     const remainingSourceCAs = db.contractAssets.filter(ca =>
       ca.contractId === sourceContract.id &&
       ca.id !== sourceCA.id &&
-      (!ca.endDate || ca.endDate > relocationDate)
+      ca.status !== 'CANCELLED' &&
+      (!ca.endDate || ca.endDate >= relocationDate)
     );
 
     if (remainingSourceCAs.length === 0) {
-      db.updateRow<Contract>('contracts', sourceContract.id, {
-        status: 'COMPLETED',
-        endDate: relocationDate,
-        updatedAt: nowIso
-      });
+      if (isSameDayImmediateMove) {
+        // 1현장에 다른 체결 자산이 전혀 없고 개시 당일 즉시 타 현장으로 이동한 경우: 1현장 계약은 사용 0일이므로 COMPLETED 종결 처리 (청구 슬롯 0건으로 청구 0일 보장)
+        db.updateRow<Contract>('contracts', sourceContract.id, {
+          status: 'COMPLETED',
+          endDate: relocationDate,
+          updatedAt: nowIso
+        });
+      } else {
+        db.updateRow<Contract>('contracts', sourceContract.id, {
+          status: 'COMPLETED',
+          endDate: sourceEndDate,
+          updatedAt: nowIso
+        });
+      }
     } else {
       const maxRemainingEndDate = remainingSourceCAs.map(ca => ca.endDate).filter(Boolean).sort().pop();
       if (maxRemainingEndDate && sourceContract.endDate !== maxRemainingEndDate) {
@@ -8955,6 +8985,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       destinationContract = db.insertRow<Contract>('contracts', {
         contractNo: newContractNo,
         customerId: sourceContract.customerId,
+        customerName: sourceContract.customerName,
         contactId: sourceContract.contactId,
         siteId: targetSiteId,
         startDate: relocationStartDate,
@@ -8962,6 +8993,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         billingDay: sourceContract.billingDay,
         statementClosingDay: sourceContract.statementClosingDay,
         paymentDueDay: sourceContract.paymentDueDay,
+        paymentDueMonthOffset: sourceContract.paymentDueMonthOffset,
+        freightBillingStandard: sourceContract.freightBillingStandard,
         lateInterestRate: sourceContract.lateInterestRate || 0,
         salespersonId: sourceContract.salespersonId,
         status: 'ACTIVE',
@@ -8972,17 +9005,19 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // 3. 2현장 계약에 contractAssets 슬롯 신규 삽입 (이동 익일부터 시작, 단가 및 조건 100% 자동 상속 - 헌장 2.2)
+    // 3. 2현장 계약에 contractAssets 슬롯 신규 삽입 (이동일 당일부터 청구 개시, 단가 및 조건 100% 자동 상속 - 헌장 2.2)
     db.insertRow<ContractAsset>('contractAssets', {
       contractId: destinationContract.id,
       assetId: sourceCA.assetId,
+      expectedModel: sourceCA.expectedModel || modelName,
+      status: sourceCA.status || 'RENTED',
       monthlyRentalFee: sourceCA.monthlyRentalFee,
       dailyRentalFee: sourceCA.dailyRentalFee,
       startDate: relocationStartDate,
-      firstStartDate: relocationStartDate,
+      firstStartDate: sourceCA.firstStartDate || relocationStartDate,
       endDate: oldEndDate,
       predecessorContractId: sourceContract.id,
-      predecessorContractAssetId: sourceCA.id,
+      predecessorContractAssetId: isSameDayImmediateMove ? sourceCA.predecessorContractAssetId : sourceCA.id,
       createdAt: nowIso
     });
 
@@ -8993,8 +9028,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       changeDate: relocationStartDate,
       newEndDate: oldEndDate,
       description: isNewDestinationContract
-        ? `신규 계약 생성 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`
-        : `기존 계약 편입 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`,
+        ? `신규 계약 생성 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo}, 개시일: ${relocationStartDate})`
+        : `기존 계약 편입 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo}, 개시일: ${relocationStartDate})`,
       createdAt: nowIso
     });
 
