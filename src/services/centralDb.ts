@@ -62,12 +62,36 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
       const rawAllowedPages = Array.isArray((decrypted as any).allowedPages)
         ? [...(decrypted as any).allowedPages]
         : undefined;
+      let rawHiddenPages = Array.isArray((decrypted as any).hiddenPages)
+        ? [...(decrypted as any).hiddenPages]
+        : undefined;
       if (Array.isArray(rawAllowedPages) && rawAllowedPages.length > 0 && !rawAllowedPages.includes('as_route_tracking')) {
         rawAllowedPages.push('as_route_tracking');
+      }
+      if (row.id === 'tenant-giyeonlift' || row.id === 'tenant-ebro-awp') {
+        const tradeMenus = [
+          'trade_products',
+          'trade_purchases',
+          'trade_contracts',
+          'trade_outbounds',
+          'courier_dispatch',
+          'trade_billing',
+          'trade_returns',
+          'trade_profitability'
+        ];
+        if (Array.isArray(rawAllowedPages) && rawAllowedPages.length > 0) {
+          tradeMenus.forEach(tm => {
+            if (!rawAllowedPages.includes(tm)) rawAllowedPages.push(tm);
+          });
+        }
+        if (Array.isArray(rawHiddenPages)) {
+          rawHiddenPages = rawHiddenPages.filter(hm => !tradeMenus.includes(hm));
+        }
       }
       return {
         ...decrypted,
         ...(rawAllowedPages ? { allowedPages: rawAllowedPages } : {}),
+        ...(rawHiddenPages ? { hiddenPages: rawHiddenPages } : {}),
         allowContractTradeOutbound: resolvedAllowContractTradeOutbound,
         specialFeatures,
         excelMappingRules: decrypted.excelMappingRules || decrypted.features?.excelMappingRules,

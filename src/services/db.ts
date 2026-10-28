@@ -5023,6 +5023,14 @@ const SEED_ROLE_CONFIG: Record<string, Record<string, { canView: boolean; canSav
   },
   role_sales: {
     dashboard: { canView: true, canSave: false },
+    trade_products: { canView: true, canSave: true },
+    trade_purchases: { canView: true, canSave: true },
+    trade_contracts: { canView: true, canSave: true },
+    trade_outbounds: { canView: true, canSave: true },
+    courier_dispatch: { canView: true, canSave: true },
+    trade_billing: { canView: true, canSave: true },
+    trade_returns: { canView: true, canSave: true },
+    trade_profitability: { canView: true, canSave: true },
     customer: { canView: true, canSave: true },
     contract: { canView: true, canSave: true },
     smart_dispatch: { canView: true, canSave: true },
@@ -7346,6 +7354,28 @@ class LocalDB {
           normalized.features?.allowContractTradeOutbound !== false
         ) {
           normalized.specialFeatures = [...normalized.specialFeatures, 'btn:contracts:trade_outbound'];
+        }
+        if (normalized.id === 'tenant-giyeonlift' || normalized.id === 'tenant-ebro-awp') {
+          const tradeMenus = [
+            'trade_products',
+            'trade_purchases',
+            'trade_contracts',
+            'trade_outbounds',
+            'courier_dispatch',
+            'trade_billing',
+            'trade_returns',
+            'trade_profitability'
+          ];
+          if (Array.isArray(normalized.allowedPages) && normalized.allowedPages.length > 0) {
+            const nextAllowed = [...normalized.allowedPages];
+            tradeMenus.forEach(tm => {
+              if (!nextAllowed.includes(tm)) nextAllowed.push(tm);
+            });
+            normalized.allowedPages = nextAllowed;
+          }
+          if (Array.isArray(normalized.hiddenPages)) {
+            normalized.hiddenPages = normalized.hiddenPages.filter((hm: string) => !tradeMenus.includes(hm));
+          }
         }
         if (!normalized.excelMappingRules && normalized.features?.excelMappingRules) {
           normalized.excelMappingRules = normalized.features.excelMappingRules;

@@ -136,6 +136,23 @@ export const UsersPermissions: React.FC = () => {
         map['as_route_tracking'] = { canView: true, canSave: false };
       }
     }
+    if (selectedRoleId === 'role_sales') {
+      const tradeMenus = [
+        'trade_products',
+        'trade_purchases',
+        'trade_contracts',
+        'trade_outbounds',
+        'courier_dispatch',
+        'trade_billing',
+        'trade_returns',
+        'trade_profitability'
+      ];
+      tradeMenus.forEach(tm => {
+        if (!rolePermissions.some(p => p.roleId === 'role_sales' && normalizeMenuId(p.menuId) === tm)) {
+          map[tm] = { canView: true, canSave: true };
+        }
+      });
+    }
 
     setWorkingRolePerms(map);
     setIsRoleDirty(false);

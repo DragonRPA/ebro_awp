@@ -63,9 +63,18 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   agent_badge: { canView: true, canSave: false }
 };
 
-// 3. 영업부 (고객 / 계약 / 출고의뢰 / AS의뢰) - DEPT-0000003
+// 3. 영업부 (고객 / 계약 / 출고의뢰 / AS의뢰 / 유통계약) - DEPT-0000003
 export const SALES_TEMPLATE: PermissionRuleMap = {
   ...BASE_COMMON_PERMISSIONS,
+  // 영업-유통 (유통계약 관련 모든 권한)
+  trade_products: { canView: true, canSave: true },
+  trade_purchases: { canView: true, canSave: true },
+  trade_contracts: { canView: true, canSave: true },
+  trade_outbounds: { canView: true, canSave: true },
+  courier_dispatch: { canView: true, canSave: true },
+  trade_billing: { canView: true, canSave: true },
+  trade_returns: { canView: true, canSave: true },
+  trade_profitability: { canView: true, canSave: true },
   sales_journal: { canView: true, canSave: true },
   customer: { canView: true, canSave: true },
   site_options: { canView: true, canSave: true },

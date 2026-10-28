@@ -2134,7 +2134,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (rolePerm) {
           return action === 'view' ? Boolean(rolePerm.canView) : Boolean(rolePerm.canSave);
         }
-        if (normMenuId === 'sales_journal' || normMenuId === 'available_inventory' || normMenuId === 'as_route_tracking') {
+        if (
+          normMenuId === 'sales_journal' ||
+          normMenuId === 'available_inventory' ||
+          normMenuId === 'as_route_tracking' ||
+          normMenuId.startsWith('trade_') ||
+          normMenuId === 'courier_dispatch'
+        ) {
           const dept = currentUser.departmentId || currentUser.department;
           const fallbackRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
           if (fallbackRule !== undefined) return fallbackRule;
