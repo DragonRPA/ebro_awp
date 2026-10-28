@@ -2092,10 +2092,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
-    // 1. 시스템 개발자 계정 및 최고관리자(ADMIN)는 모든 메뉴에 100% 무조건 권한 부여
-    if (isSuperAdmin) return true;
-
-    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (일반 임직원 대상)]
+    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (관리자 포함 테넌트 전원 적용)]
     if (currentTenant) {
       const rawHidden = Array.isArray(currentTenant.hiddenPages) ? currentTenant.hiddenPages : [];
       const rawAllowed = Array.isArray(currentTenant.allowedPages) ? currentTenant.allowedPages : [];
@@ -2120,6 +2117,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
     }
+
+    // 1. 시스템 개발자 계정 및 최고관리자(ADMIN)는 노출 허용된 메뉴에 한해 100% 권한 부여
+    if (isSuperAdmin) return true;
 
     // 2-1. 대시보드 및 가용재고조회는 기본 진입/열람 화면이므로 모든 임직원(영업부, 경영진, 출고팀 등)에게 조회 개방
     if (normMenuId === 'dashboard' || (normMenuId === 'available_inventory' && action === 'view')) {

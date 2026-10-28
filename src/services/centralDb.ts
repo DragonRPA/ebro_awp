@@ -69,9 +69,8 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
         rawAllowedPages.push('as_route_tracking');
       }
       if (row.id === 'tenant-giyeonlift' || row.id === 'tenant-ebro-awp') {
-        const tradeMenus = [
-          'trade_products',
-          'trade_purchases',
+        const exposedTradeMenus = ['trade_products', 'trade_purchases'];
+        const hiddenTradeMenus = [
           'trade_contracts',
           'trade_outbounds',
           'courier_dispatch',
@@ -80,12 +79,20 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
           'trade_profitability'
         ];
         if (Array.isArray(rawAllowedPages) && rawAllowedPages.length > 0) {
-          tradeMenus.forEach(tm => {
+          exposedTradeMenus.forEach(tm => {
             if (!rawAllowedPages.includes(tm)) rawAllowedPages.push(tm);
           });
+          for (let i = rawAllowedPages.length - 1; i >= 0; i--) {
+            if (hiddenTradeMenus.includes(rawAllowedPages[i])) {
+              rawAllowedPages.splice(i, 1);
+            }
+          }
         }
         if (Array.isArray(rawHiddenPages)) {
-          rawHiddenPages = rawHiddenPages.filter(hm => !tradeMenus.includes(hm));
+          rawHiddenPages = rawHiddenPages.filter(hm => !exposedTradeMenus.includes(hm));
+          hiddenTradeMenus.forEach(hm => {
+            if (!rawHiddenPages!.includes(hm)) rawHiddenPages!.push(hm);
+          });
         }
       }
       return {

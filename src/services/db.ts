@@ -7356,9 +7356,8 @@ class LocalDB {
           normalized.specialFeatures = [...normalized.specialFeatures, 'btn:contracts:trade_outbound'];
         }
         if (normalized.id === 'tenant-giyeonlift' || normalized.id === 'tenant-ebro-awp') {
-          const tradeMenus = [
-            'trade_products',
-            'trade_purchases',
+          const exposedTradeMenus = ['trade_products', 'trade_purchases'];
+          const hiddenTradeMenus = [
             'trade_contracts',
             'trade_outbounds',
             'courier_dispatch',
@@ -7367,14 +7366,18 @@ class LocalDB {
             'trade_profitability'
           ];
           if (Array.isArray(normalized.allowedPages) && normalized.allowedPages.length > 0) {
-            const nextAllowed = [...normalized.allowedPages];
-            tradeMenus.forEach(tm => {
+            const nextAllowed = normalized.allowedPages.filter((m: string) => !hiddenTradeMenus.includes(m));
+            exposedTradeMenus.forEach(tm => {
               if (!nextAllowed.includes(tm)) nextAllowed.push(tm);
             });
             normalized.allowedPages = nextAllowed;
           }
           if (Array.isArray(normalized.hiddenPages)) {
-            normalized.hiddenPages = normalized.hiddenPages.filter((hm: string) => !tradeMenus.includes(hm));
+            const nextHidden = normalized.hiddenPages.filter((hm: string) => !exposedTradeMenus.includes(hm));
+            hiddenTradeMenus.forEach(hm => {
+              if (!nextHidden.includes(hm)) nextHidden.push(hm);
+            });
+            normalized.hiddenPages = nextHidden;
           }
         }
         if (!normalized.excelMappingRules && normalized.features?.excelMappingRules) {
