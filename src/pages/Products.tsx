@@ -39,7 +39,7 @@ interface R2DocFile {
 export const Products: React.FC = () => {
   const { 
     products, saveProduct, hasPermission, assets, 
-    refreshAllData, officialMailConfigs, setActiveTab, currentTenant 
+    refreshAllData, officialMailConfigs, setActiveTab, currentTenant, loadTablesForMenu 
   } = useApp();
   
   const canSave = hasPermission('product', 'save');
@@ -124,12 +124,14 @@ export const Products: React.FC = () => {
   };
 
   useEffect(() => {
+    if (loadTablesForMenu) loadTablesForMenu('product');
     fetchR2Files();
   }, [officialMailConfigs]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      await Promise.all([db.pullTableFromSupabase('products'), db.pullTableFromSupabase('assets')]);
       await refreshAllData();
       await fetchR2Files();
       showToast('최신 데이터를 동기화하였습니다.');

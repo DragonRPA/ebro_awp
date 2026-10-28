@@ -8487,7 +8487,16 @@ class LocalDB {
   insertRow<T extends { id: string }>(key: keyof LocalDB | string, row: Omit<T, 'id'> & { id?: string }): T {
     const tableKey = this.normalizeKey(key as string);
     const list = ((this[tableKey] || []) as unknown) as T[];
-    const newId = row.id || this.generateNextId(tableKey as string, list as any, row);
+    let newId = row.id || this.generateNextId(tableKey as string, list as any, row);
+    if (tableKey === 'products' && !row.id && (row as any).modelName) {
+      const targetModelUpper = String((row as any).modelName || '').trim().toUpperCase();
+      const existingByModel = (list as any[]).find(
+        item => item && String(item.modelName || '').trim().toUpperCase() === targetModelUpper
+      );
+      if (existingByModel && existingByModel.id) {
+        newId = existingByModel.id;
+      }
+    }
     const nowIso = new Date().toISOString();
     const formattedRow: any = {
       createdAt: nowIso,
@@ -8597,6 +8606,37 @@ class LocalDB {
               const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
               if (!retryRes.error) {
                 return retryRes.data;
+              }
+            }
+
+            // 제품(products) 테이블에서 동일 modelName 유니크 제약(products_modelName_key) 충돌 시 기존 레코드 ID를 채택하여 안전하게 병합 갱신
+            if (tableName === 'products' && (error.code === '23505' || msg.includes('products_modelName_key') || msg.includes('duplicate key'))) {
+              const targetModel = String(payloadForSupabase.modelName || '').trim();
+              if (targetModel) {
+                const { data: existingProd } = await targetClient
+                  .from('products')
+                  .select('*')
+                  .ilike('modelName', targetModel)
+                  .maybeSingle();
+                if (existingProd && existingProd.id) {
+                  const mergedPayload = {
+                    ...payloadForSupabase,
+                    id: existingProd.id,
+                    modelName: existingProd.modelName || targetModel
+                  };
+                  const { data: updateData, error: updateErr } = await targetClient
+                    .from('products')
+                    .update(mergedPayload)
+                    .eq('id', existingProd.id)
+                    .select();
+                  if (!updateErr) {
+                    const currentList = ((this[tableKey] || []) as unknown) as any[];
+                    const cleaned = currentList.filter(item => item && item.id !== newId && item.id !== existingProd.id);
+                    cleaned.push({ ...existingProd, ...newRow, id: existingProd.id, modelName: existingProd.modelName || targetModel });
+                    this.set(tableKey, cleaned);
+                    return updateData;
+                  }
+                }
               }
             }
 
@@ -8735,6 +8775,36 @@ class LocalDB {
                 : await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
               if (!retryRes.error) {
                 return retryRes.data;
+              }
+            }
+
+            if (tableName === 'products' && (error.code === '23505' || msg.includes('products_modelName_key') || msg.includes('duplicate key'))) {
+              const targetModel = String((payloadForSupabase as any).modelName || '').trim();
+              if (targetModel) {
+                const { data: existingProd } = await targetClient
+                  .from('products')
+                  .select('*')
+                  .ilike('modelName', targetModel)
+                  .maybeSingle();
+                if (existingProd && existingProd.id) {
+                  const mergedPayload = {
+                    ...payloadForSupabase,
+                    id: existingProd.id,
+                    modelName: existingProd.modelName || targetModel
+                  };
+                  const { data: updateData, error: updateErr } = await targetClient
+                    .from('products')
+                    .update(mergedPayload as any)
+                    .eq('id', existingProd.id)
+                    .select();
+                  if (!updateErr) {
+                    const currentList = ((this[tableKey] || []) as unknown) as any[];
+                    const cleaned = currentList.filter(item => item && item.id !== id && item.id !== existingProd.id);
+                    cleaned.push({ ...existingProd, ...updated, id: existingProd.id, modelName: existingProd.modelName || targetModel });
+                    this.set(tableKey, cleaned);
+                    return updateData;
+                  }
+                }
               }
             }
 

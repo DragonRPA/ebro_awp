@@ -1494,7 +1494,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 메뉴별 관련 테이블만 Supabase pull (메뉴 전환 시 호출 — 최신 데이터 보장)
   const MENU_TABLE_MAP: Record<string, string[]> = {
-    'dashboard':            ['deliveries', 'contracts', 'contractAssets', 'outboundInspections', 'repairs', 'customers', 'sites', 'vendors', 'contractHistory', 'billings', 'todos', 'assets', 'consumablePurchases', 'purchaseSettlements', 'leaveUsages', 'users', 'departments', 'permissions', 'customRoles', 'rolePermissions'],
+    'dashboard':            ['deliveries', 'contracts', 'contractAssets', 'outboundInspections', 'repairs', 'customers', 'sites', 'vendors', 'contractHistory', 'billings', 'todos', 'assets', 'products', 'consumablePurchases', 'purchaseSettlements', 'leaveUsages', 'users', 'departments', 'permissions', 'customRoles', 'rolePermissions'],
     'delivery':             ['deliveries', 'transportCompanies', 'transportDrivers', 'contracts', 'assets', 'sites', 'siteMasters', 'standardOptions', 'printStations', 'printQueue'],
     'transport_master':     ['transportCompanies', 'transportDrivers'],
     'field_as':             ['repairs', 'assets', 'products', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'siteMasters', 'contracts', 'contractAssets', 'vendors'],
@@ -1507,7 +1507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'sales_journal':        ['salesJournals', 'customers', 'users', 'departments'],
     'site_options':         ['siteMasters', 'sites', 'standardOptions', 'customers', 'contracts', 'assets'],
     'available_inventory':  ['products', 'assets', 'contracts', 'contractAssets', 'deliveries', 'outboundInspections', 'customers', 'sites', 'contractHistory'],
-    'product':              ['products'],
+    'product':              ['products', 'assets'],
     'asset':                ['assets', 'products', 'vendors', 'assetInOutLogs'],
     'acquisition_disposal': ['assets', 'products', 'vendors', 'assetInOutLogs'],
     'rent_asset':           ['assets', 'products', 'vendors', 'assetInOutLogs', 'deliveries'],
@@ -2857,16 +2857,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveProduct = async (prod: Omit<Product, 'id' | 'createdAt'> & { id?: string }) => {
     let result;
-    const prevProduct = prod.id ? db.products.find(p => p.id === prod.id) : undefined;
-    const oldModelName = prevProduct?.modelName?.trim();
     const newModelName = prod.modelName?.trim();
+    const targetModelUpper = (newModelName || '').toUpperCase();
+
+    // 1. 로컬 및 원격 동일 모델명 존재 여부 선행 확인 (신규 등록 시 중복 ID 생성으로 인한 products_modelName_key 제약 위반 원천 방지)
+    let resolvedId = prod.id;
+    const duplicateInLocal = targetModelUpper
+      ? db.products.find(p => p && p.id !== prod.id && (p.modelName || '').trim().toUpperCase() === targetModelUpper)
+      : undefined;
+
+    if (!resolvedId && duplicateInLocal) {
+      resolvedId = duplicateInLocal.id;
+    } else if (!resolvedId && supabase && newModelName) {
+      const { data: remoteExisting } = await supabase
+        .from('products')
+        .select('*')
+        .ilike('modelName', newModelName)
+        .maybeSingle();
+      if (remoteExisting && remoteExisting.id) {
+        resolvedId = remoteExisting.id;
+        if (!db.products.some(p => p && p.id === remoteExisting.id)) {
+          db.products = [...db.products, remoteExisting as Product];
+        }
+      }
+    } else if (resolvedId && duplicateInLocal) {
+      showErrorModal(`이미 동일한 모델명 [${duplicateInLocal.modelName}]이 등록되어 있습니다.`, '모델명 중복 안내');
+      throw new Error(`이미 동일한 모델명 [${duplicateInLocal.modelName}]이 등록되어 있습니다.`);
+    }
+
+    const prevProduct = resolvedId ? db.products.find(p => p.id === resolvedId) : undefined;
+    const oldModelName = prevProduct?.modelName?.trim();
     const normalizedProd = {
       ...prod,
+      ...(resolvedId ? { id: resolvedId } : {}),
       modelName: newModelName || prod.modelName
     };
 
-    if (prod.id) {
-      result = db.updateRow<Product>('products', prod.id, normalizedProd as Product);
+    if (resolvedId) {
+      result = db.updateRow<Product>('products', resolvedId, normalizedProd as Product);
     } else {
       result = db.insertRow<Product>('products', {
         ...normalizedProd,
