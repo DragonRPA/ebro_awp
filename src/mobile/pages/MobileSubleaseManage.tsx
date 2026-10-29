@@ -35,6 +35,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
 }) => {
   const { 
     assets, 
+    products,
     vendors, 
     contracts, 
     contractAssets,
@@ -61,7 +62,8 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
   const [newCustomVendor, setNewCustomVendor] = useState('');
   const [newVendorAssetNo, setNewVendorAssetNo] = useState('');
   const [newAssetNo, setNewAssetNo] = useState('');
-  const [newModelName, setNewModelName] = useState('GS-1930');
+  const [newModelName, setNewModelName] = useState('');
+  const [newModelSearch, setNewModelSearch] = useState('');
   const [newManufactureYear, setNewManufactureYear] = useState('');
   const [newRentStart, setNewRentStart] = useState(() => new Date().toISOString().split('T')[0]);
   const [newMonthlyRentFee, setNewMonthlyRentFee] = useState<number>(450000);
@@ -319,6 +321,23 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
       return;
     }
 
+    const rawModel = (newModelName.trim() || newModelSearch.trim());
+    if (!rawModel) {
+      showErrorModal('장비 제품(모델 규격)을 검색하여 선택하십시오.', '제품 미지정 오류');
+      return;
+    }
+    const matchedProd = (products || []).find(p => {
+      const pm = (p.modelName || '').trim().toLowerCase();
+      const ps = (p.shortName || '').trim().toLowerCase();
+      const q = rawModel.toLowerCase();
+      return pm === q || (ps !== '' && ps === q);
+    });
+    if (!matchedProd && (products || []).length > 0) {
+      showErrorModal(`입력하신 모델명 [${rawModel}]은(는) 등록된 제품 목록에 존재하지 않습니다.\n등록된 제품 목록에서 선택하십시오.`, '제품 미지정 오류');
+      return;
+    }
+    const resolvedModelName = matchedProd ? matchedProd.modelName : rawModel;
+
     setIsRegistering(true);
     try {
       const sanitizedMonthlyFee = Math.max(0, Number(newMonthlyRentFee) || 0);
@@ -327,7 +346,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
         vendorAssetNo: newVendorAssetNo.trim().toUpperCase() || cleanAssetNo,
         vendorId: newVendorId || undefined,
         renter: finalRenter,
-        modelName: newModelName.trim(),
+        modelName: resolvedModelName,
         manufactureYear: normalizeManufactureYear(newManufactureYear),
         rentStart: newRentStart,
         monthlyRentFee: sanitizedMonthlyFee,
@@ -339,6 +358,8 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
       // 폼 초기화
       setNewVendorAssetNo('');
       setNewAssetNo('');
+      setNewModelName('');
+      setNewModelSearch('');
       setNewManufactureYear('');
       setNewCustomVendor('');
     } catch (err: any) {
@@ -885,25 +906,60 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
                 </div>
               </div>
 
-              {/* 모델명 & 연식 & 시작일 */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col gap-1">
+              {/* 제품(모델 규격) 검색 및 선택 */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">
-                    장비 모델 규격
+                    장비 모델 규격 (필수)
                   </label>
-                  <select
-                    value={newModelName}
-                    onChange={(e) => setNewModelName(e.target.value)}
-                    className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
-                  >
-                    <option value="GS-1930">GS-1930</option>
-                    <option value="2646">2646 (26ft 광폭)</option>
-                    <option value="3246">3246</option>
-                    <option value="4047">4047</option>
-                    <option value="GS-1530">GS-1530</option>
-                    <option value="GTJZ0608ME">GTJZ0608ME</option>
-                  </select>
+                  <span className={`text-[10px] font-bold ${newModelName ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {newModelName ? `선택됨: ${newModelName}` : '제품 미선택'}
+                  </span>
                 </div>
+                <input
+                  type="text"
+                  value={newModelSearch}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewModelSearch(val);
+                    const exact = (products || []).find(
+                      p => (p.modelName || '').trim().toLowerCase() === val.trim().toLowerCase()
+                    );
+                    setNewModelName(exact ? exact.modelName : '');
+                  }}
+                  placeholder="제품 모델명 검색 (예: GS-1930, 2646)"
+                  className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                />
+                <select
+                  value={newModelName}
+                  onChange={(e) => {
+                    setNewModelName(e.target.value);
+                    setNewModelSearch(e.target.value);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
+                >
+                  <option value="">-- 등록된 제품 선택 (필수) --</option>
+                  {[...(products || [])]
+                    .sort((a, b) => (a.modelName || '').localeCompare(b.modelName || ''))
+                    .filter(p => {
+                      const q = newModelSearch.trim().toLowerCase();
+                      if (!q || p.modelName === newModelName) return true;
+                      return (
+                        (p.modelName || '').toLowerCase().includes(q) ||
+                        (p.shortName || '').toLowerCase().includes(q) ||
+                        (p.manufacturer || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .map(p => (
+                      <option key={p.id} value={p.modelName}>
+                        {p.modelName} ({p.manufacturer || '제조사미상'}{p.feet ? ` / ${p.feet}ft` : ''})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* 연식 & 시작일 */}
+              <div className="grid grid-cols-2 gap-2">
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-300 whitespace-nowrap flex-shrink-0">

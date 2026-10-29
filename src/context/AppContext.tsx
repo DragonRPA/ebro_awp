@@ -5587,6 +5587,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const acquireAsset = async (assetData: Partial<Asset>): Promise<Asset> => {
+    const trimmedModelName = (assetData.modelName || '').trim();
+    if (!trimmedModelName) {
+      const errMsg = '등록할 장비의 제품(모델명)을 지정해 주세요.';
+      showErrorModal(errMsg, '제품 필수 누락');
+      throw new Error(errMsg);
+    }
     const trimmedAssetNo = (assetData.assetNo || '').trim();
     if (!trimmedAssetNo) {
       const errMsg = '관리번호(자산번호)를 입력해 주세요.';
@@ -6039,6 +6045,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const resolvedOwnership = cleanAssetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
     const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
     const targetModelName = (cleanAssetData.modelName || existing?.modelName || '').trim();
+    if (!targetModelName) {
+      const errMsg = '임차 장비의 제품(모델명)을 지정해 주세요.';
+      showErrorModal(errMsg, '제품 필수 누락');
+      throw new Error(errMsg);
+    }
     const resolvedManufacturer = db.resolveAssetManufacturer(targetModelName, cleanAssetData.manufacturer || existing?.manufacturer);
     const resolvedManufactureYear = normalizeManufactureYear(cleanAssetData.manufactureYear ?? existing?.manufactureYear ?? '');
 

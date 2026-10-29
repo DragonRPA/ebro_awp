@@ -1493,15 +1493,14 @@ export const RentAssets: React.FC = () => {
     const defaultRenter = renterQuery || lastUsedRenter || (rentedAssets.length > 0 ? (rentedAssets[0].renter || '') : '') || renterVendors[0] || '';
     const matchedVendor = vendors.find(v => v.name === defaultRenter);
     const nextAssetNo = generateNextRentedAssetNo(assets);
-    const initialProduct = sortedProducts[0];
     setRenterSearchQuery(defaultRenter);
     setIsRenterDropdownOpen(false);
     setEditingAsset({
-      modelName: initialProduct?.modelName || '',
+      modelName: '',
       assetNo: nextAssetNo,
       vendorAssetNo: '',
       serialNo: '',
-      manufacturer: initialProduct?.manufacturer || '',
+      manufacturer: '',
       manufactureYear: '',
       ownerType: 'RENTED',
       antiEntrapmentOwnership: 'VENDOR', // 기본값: 임차처 소유 (오탈거 방지 기본 방어)
@@ -1561,10 +1560,26 @@ export const RentAssets: React.FC = () => {
 
   const handleSubmitAsset = async (assetData?: Partial<Asset>, searchRenter?: string) => {
     const targetAsset = assetData || editingAsset;
-    if (!canSave || !targetAsset || !targetAsset.assetNo || !targetAsset.modelName) {
-      showToast('필수 입력을 확인해 주세요.', 'error');
+    if (!canSave || !targetAsset || !targetAsset.assetNo?.trim()) {
+      showToast('자사 관리번호를 입력해 주세요.', 'error');
       return;
     }
+    const rawModel = (targetAsset.modelName || '').trim();
+    if (!rawModel) {
+      showToast('제품(모델명)을 검색하여 선택해 주세요.', 'error');
+      return;
+    }
+    const matchedProd = productByModelMap.get(rawModel) || products.find(p => {
+      const pm = (p.modelName || '').trim().toLowerCase();
+      const ps = (p.shortName || '').trim().toLowerCase();
+      const q = rawModel.toLowerCase();
+      return pm === q || (ps !== '' && ps === q);
+    });
+    if (!matchedProd) {
+      showToast(`등록된 제품 목록에서 모델명을 조회하여 선택해 주세요. (${rawModel})`, 'error');
+      return;
+    }
+    targetAsset.modelName = matchedProd.modelName;
     if (targetAsset.rentStart && targetAsset.rentEnd && targetAsset.rentStart > targetAsset.rentEnd) {
       showToast('임차 시작일이 만료예정일보다 늦을 수 없습니다.', 'error');
       return;

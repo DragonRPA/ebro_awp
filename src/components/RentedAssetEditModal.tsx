@@ -66,6 +66,15 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   }, []);
 
   useEffect(() => {
+    setFormData({ ...asset });
+    setModelSearch(asset.modelName || '');
+    setModelError('');
+    setRenterSearch(
+      asset.renter || (asset.vendorId ? vendors.find(v => v.id === asset.vendorId)?.name : '') || ''
+    );
+  }, [asset, vendors]);
+
+  useEffect(() => {
     if (formData.modelName && formData.modelName !== modelSearch) {
       setModelSearch(formData.modelName);
     }
@@ -81,6 +90,14 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
 
   // 정렬된 모델 목록 및 검색 필터링
   const sortedProducts = [...products].sort((a, b) => (a.modelName || '').localeCompare(b.modelName || ''));
+  const currentMatchedProduct = sortedProducts.find(p => {
+    const raw = (formData.modelName || modelSearch || '').trim();
+    if (!raw) return false;
+    const pm = (p.modelName || '').trim().toLowerCase();
+    const ps = (p.shortName || '').trim().toLowerCase();
+    const q = raw.toLowerCase();
+    return pm === q || (ps !== '' && ps === q);
+  });
   const filteredProducts = modelSearch.trim()
     ? sortedProducts.filter(p => {
         const q = modelSearch.trim();
@@ -165,6 +182,11 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const rawModel = (formData.modelName || modelSearch || '').trim();
+    if (!rawModel) {
+      setModelError('임차할 장비의 제품(모델명)을 검색하여 선택해 주세요.');
+      setIsModelDropdownOpen(true);
+      return;
+    }
     const matchedProd = sortedProducts.find(p => {
       const pm = (p.modelName || '').trim().toLowerCase();
       const ps = (p.shortName || '').trim().toLowerCase();
@@ -172,7 +194,7 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
       return pm === q || (ps !== '' && ps === q);
     });
     if (!matchedProd) {
-      setModelError('등록된 제품 목록에서 모델명을 조회하여 선택해 주세요.');
+      setModelError(`입력하신 모델명 [${rawModel}]은(는) 등록된 제품 목록에 없습니다. 목록에서 선택해 주세요.`);
       setIsModelDropdownOpen(true);
       return;
     }
@@ -272,19 +294,38 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={modelComboboxRef}>
-            <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
+              {currentMatchedProduct ? (
+                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', whiteSpace: 'nowrap' }}>
+                  제품 확인됨
+                </span>
+              ) : modelSearch.trim() ? (
+                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--danger)', whiteSpace: 'nowrap' }}>
+                  목록에서 선택 필요
+                </span>
+              ) : (
+                <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--warning)', whiteSpace: 'nowrap' }}>
+                  제품 미선택
+                </span>
+              )}
+            </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 type="text"
-                required
-                placeholder="모델명, 제조사, 피트 검색 (예: 1230ES, JLG, 20ft)"
+                placeholder="제품 검색 후 선택 (예: 1230ES, JLG, 20ft)"
                 value={modelSearch}
                 onChange={e => {
                   const val = e.target.value;
                   setModelSearch(val);
                   setModelError('');
                   setIsModelDropdownOpen(true);
-                  const exactProd = sortedProducts.find(p => (p.modelName || '').toLowerCase() === val.trim().toLowerCase());
+                  const exactProd = sortedProducts.find(p => {
+                    const pm = (p.modelName || '').trim().toLowerCase();
+                    const ps = (p.shortName || '').trim().toLowerCase();
+                    const q = val.trim().toLowerCase();
+                    return q !== '' && (pm === q || (ps !== '' && ps === q));
+                  });
                   if (exactProd) {
                     const autoManufacturer = findProductManufacturer(exactProd.modelName);
                     setFormData({
@@ -295,7 +336,8 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
                   } else {
                     setFormData({
                       ...formData,
-                      modelName: val
+                      modelName: val,
+                      manufacturer: val.trim() ? formData.manufacturer : ''
                     });
                   }
                 }}
@@ -304,8 +346,8 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
                   width: '100%',
                   padding: '6px 30px 6px 10px',
                   borderRadius: '6px',
-                  border: modelError ? '1px solid var(--danger)' : '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
+                  border: modelError ? '1.5px solid var(--danger)' : currentMatchedProduct ? '1.5px solid var(--success)' : '1px solid var(--border-color)',
+                  backgroundColor: modelError ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-app)',
                   color: 'var(--text-main)',
                   fontSize: '12px',
                   boxSizing: 'border-box'
@@ -317,7 +359,7 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
                   onClick={() => {
                     setModelSearch('');
                     setModelError('');
-                    setFormData({ ...formData, modelName: '' });
+                    setFormData({ ...formData, modelName: '', manufacturer: '' });
                     setIsModelDropdownOpen(true);
                   }}
                   style={{
@@ -337,7 +379,7 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
             </div>
             {modelError && (
               <div style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600 }}>
-                {modelError}
+                ⚠️ {modelError}
               </div>
             )}
 

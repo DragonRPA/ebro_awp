@@ -128,9 +128,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     return cand;
   };
 
-  // 단건 취득 폼 상태
-  const [singleModelName, setSingleModelName] = useState<string>(products[0]?.modelName || '');
-  const [acqModelSearch, setAcqModelSearch] = useState<string>(products[0]?.modelName || '');
+  // 단건 취득 폼 상태 (오등록 실수 방지를 위해 모델명/검색어 기본값은 공백 유지)
+  const [singleModelName, setSingleModelName] = useState<string>('');
+  const [acqModelSearch, setAcqModelSearch] = useState<string>('');
+  const [acqModelError, setAcqModelError] = useState<string>('');
   const [isAcqModelDropdownOpen, setIsAcqModelDropdownOpen] = useState<boolean>(false);
   const acqModelComboboxRef = useRef<HTMLDivElement>(null);
   const [singleAssetNo, setSingleAssetNo] = useState<string>('');
@@ -185,6 +186,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   const handleModelChange = (newModel: string) => {
     setSingleModelName(newModel);
     setAcqModelSearch(newModel);
+    setAcqModelError('');
     setMultiSlots(prev => prev.map(s => ({ ...s, modelName: newModel })));
   };
 
@@ -213,13 +215,6 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     );
   }, [products, acqModelSearch]);
 
-  // 💡 모델 초기 동기화 보장: products 로드 시 singleModelName이 비어있거나 불일치 시 첫 번째 모델로 즉시 동기화
-  useEffect(() => {
-    if (products.length > 0 && (!singleModelName || !productByModelMap.has(singleModelName))) {
-      handleModelChange(products[0].modelName);
-    }
-  }, [products, productByModelMap]);
-
   // 취득가 변경 핸들러: 메인 취득가 변경 시 슬롯들의 기본 취득가도 동일하게 자동 동기화
   const handleAcqPriceChange = (newPrice: number) => {
     setSingleAcqPrice(newPrice);
@@ -234,17 +229,31 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     setMultiSlots(prev => prev.map(s => (!s.manufactureYear || s.manufactureYear === singleManufactureYear) ? { ...s, manufactureYear: normalized } : s));
   };
 
-  // 모델 선택 시 제품 마스터 제원 자동 상속 (O(1) 룩업)
+  // 모델 선택 시 제품 마스터 제원 자동 상속 (O(1) 룩업 + 대소문자/약칭 호환)
   const selectedProduct = useMemo(() => {
-    return productByModelMap.get(singleModelName);
-  }, [productByModelMap, singleModelName]);
+    const q = singleModelName.trim();
+    if (!q) return undefined;
+    return (
+      productByModelMap.get(q) ||
+      products.find(p => {
+        const pm = (p.modelName || '').trim().toLowerCase();
+        const ps = (p.shortName || '').trim().toLowerCase();
+        const lower = q.toLowerCase();
+        return pm === lower || (ps !== '' && ps === lower);
+      })
+    );
+  }, [productByModelMap, products, singleModelName]);
 
   useEffect(() => {
+    if (!singleModelName.trim()) {
+      return;
+    }
     if (selectedProduct) {
       if (selectedProduct.manufacturer) setSingleManufacturer(selectedProduct.manufacturer);
     }
     // 동종 모델 기존 자산의 표준 렌탈료 및 제원 참조 상속 (헌장 1.1 임직원 입력 편익 극대화)
-    const peerAsset = assets.find(a => a.modelName === singleModelName && (a.monthlyRentalFee || a.dailyRentalFee));
+    const targetModel = selectedProduct?.modelName || singleModelName;
+    const peerAsset = assets.find(a => a.modelName === targetModel && (a.monthlyRentalFee || a.dailyRentalFee));
     if (peerAsset) {
       if (peerAsset.monthlyRentalFee && !singleMonthlyRentalFee) {
         setSingleMonthlyRentalFee(peerAsset.monthlyRentalFee);
@@ -318,6 +327,12 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 슬롯 추가 핸들러 (동일 모델·취득가·제조년도 자동 상속 및 다음 관리번호 순차 자동 채번)
   const handleAddSlot = () => {
+    if (!selectedProduct) {
+      setAcqModelError('슬롯을 추가하기 전에 먼저 등록된 제품(모델명)을 검색하여 선택해 주세요.');
+      setIsAcqModelDropdownOpen(true);
+      showErrorModal('동일 모델 슬롯을 추가하려면 먼저 등록할 제품(모델명)을 검색하여 선택해 주세요.', '제품 지정 필수');
+      return;
+    }
     const baseNo = multiSlots.length > 0 ? multiSlots[multiSlots.length - 1].assetNo : singleAssetNo;
     const nextNo = getNextSequentialAssetNo(baseNo, 1);
     const newId = `slot_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
@@ -326,7 +341,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       {
         id: newId,
         assetNo: nextNo,
-        modelName: singleModelName, // 💡 메인 모델과 동일
+        modelName: selectedProduct.modelName, // 💡 메인 모델과 동일
         serialNo: '',
         manufactureYear: singleManufactureYear || '', // 💡 제조년도 상속
         price: singleAcqPrice // 💡 메인 취득가와 동일
@@ -497,17 +512,26 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       showErrorModal('자산 취득 저장 권한이 없습니다.');
       return;
     }
-    if (!singleModelName) {
-      showErrorModal('모델명을 선택해 주세요.');
+    const rawModel = (singleModelName || acqModelSearch || '').trim();
+    if (!rawModel) {
+      setAcqModelError('제품(모델명)을 검색하여 선택해 주세요.');
+      setIsAcqModelDropdownOpen(true);
+      showErrorModal('취득할 장비의 제품(모델명)이 지정되지 않았습니다.\n모델명 검색란에서 등록된 제품을 선택해 주세요.', '제품 미지정 오류');
       return;
     }
-    const matchedRegisteredProduct = products.find(
-      p => (p.modelName || '').trim().toLowerCase() === singleModelName.trim().toLowerCase()
-    );
+    const matchedRegisteredProduct = products.find(p => {
+      const pm = (p.modelName || '').trim().toLowerCase();
+      const ps = (p.shortName || '').trim().toLowerCase();
+      const q = rawModel.toLowerCase();
+      return pm === q || (ps !== '' && ps === q);
+    });
     if (!matchedRegisteredProduct) {
-      showErrorModal('등록된 제품 목록에서 모델명을 조회하여 선택해 주세요.');
+      setAcqModelError('등록된 제품 목록에서 모델명을 조회하여 선택해 주세요.');
+      setIsAcqModelDropdownOpen(true);
+      showErrorModal(`입력하신 모델명 [${rawModel}]은(는) 등록된 제품 목록에 존재하지 않습니다.\n드롭다운 목록에서 정확한 제품을 클릭하여 선택해 주세요.`, '제품 미지정 오류');
       return;
     }
+    setAcqModelError('');
     const resolvedModelName = matchedRegisteredProduct.modelName;
     if (!singleAssetNo.trim()) {
       showErrorModal('기본 관리번호를 입력해 주세요.');
@@ -601,7 +625,11 @@ export const AssetAcquisitionDisposal: React.FC = () => {
         setMultiSlots([]);
       }
 
-      // 다음 추천 번호 및 폼 입력값 초기화
+      // 다음 추천 번호 및 폼 입력값 초기화 (연속 등록 시 이전 모델 오등록 방지를 위해 모델명 공백 초기화)
+      setSingleModelName('');
+      setAcqModelSearch('');
+      setAcqModelError('');
+      setSingleManufacturer('');
       setSingleAssetNo(getNextRecommendedAssetNo('KL-'));
       setSingleSerialNo('');
       setSingleMemo('');
@@ -1667,7 +1695,22 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 
                 {/* 1. 모델명 선택 (등록된 제품 검색 콤보박스) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={acqModelComboboxRef}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>모델명 (필수)</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>모델명 (필수)</label>
+                    {selectedProduct ? (
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', whiteSpace: 'nowrap' }}>
+                        제품 확인됨
+                      </span>
+                    ) : acqModelSearch.trim() ? (
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--danger)', whiteSpace: 'nowrap' }}>
+                        목록에서 선택 필요
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--warning)', whiteSpace: 'nowrap' }}>
+                        제품 미선택
+                      </span>
+                    )}
+                  </div>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type="text"
@@ -1675,29 +1718,36 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       onChange={e => {
                         const val = e.target.value;
                         setAcqModelSearch(val);
+                        setAcqModelError('');
                         setIsAcqModelDropdownOpen(true);
-                        const exactProd = products.find(p => (p.modelName || '').toLowerCase() === val.trim().toLowerCase());
+                        const exactProd = products.find(p => {
+                          const pm = (p.modelName || '').trim().toLowerCase();
+                          const ps = (p.shortName || '').trim().toLowerCase();
+                          const q = val.trim().toLowerCase();
+                          return q !== '' && (pm === q || (ps !== '' && ps === q));
+                        });
                         if (exactProd) {
                           setSingleModelName(exactProd.modelName);
+                          if (exactProd.manufacturer) setSingleManufacturer(exactProd.manufacturer);
                           setMultiSlots(prev => prev.map(s => ({ ...s, modelName: exactProd.modelName })));
                         } else {
                           setSingleModelName(val);
+                          if (!val.trim()) setSingleManufacturer('');
                           setMultiSlots(prev => prev.map(s => ({ ...s, modelName: val })));
                         }
                       }}
                       onFocus={() => setIsAcqModelDropdownOpen(true)}
-                      placeholder="모델명, 제조사, 피트 검색 (예: OPTIMUM 8, JLG, 20ft)"
+                      placeholder="제품 검색 후 선택 (예: OPTIMUM 8, JLG, 20ft)"
                       style={{
                         width: '100%',
                         padding: '8px 30px 8px 10px',
                         borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
+                        border: acqModelError ? '1.5px solid var(--danger)' : selectedProduct ? '1.5px solid var(--success)' : '1px solid var(--border-color)',
+                        backgroundColor: acqModelError ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-app)',
                         color: 'var(--text-primary)',
                         fontSize: '12.5px',
                         boxSizing: 'border-box'
                       }}
-                      required
                     />
                     {acqModelSearch && (
                       <button
@@ -1705,6 +1755,9 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                         onClick={() => {
                           setAcqModelSearch('');
                           setSingleModelName('');
+                          setSingleManufacturer('');
+                          setAcqModelError('');
+                          setMultiSlots(prev => prev.map(s => ({ ...s, modelName: '' })));
                           setIsAcqModelDropdownOpen(true);
                         }}
                         style={{
@@ -1722,6 +1775,11 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       </button>
                     )}
                   </div>
+                  {acqModelError && (
+                    <span style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600, lineHeight: 1.3 }}>
+                      ⚠️ {acqModelError}
+                    </span>
+                  )}
 
                   {isAcqModelDropdownOpen && (
                     <div
