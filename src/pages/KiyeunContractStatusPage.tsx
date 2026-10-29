@@ -75,6 +75,7 @@ export interface KiyeunContractRow {
   // 필터링/내부 참조용
   isSubleased: boolean;
   contractId: string;
+  assetId?: string;
 }
 
 function parseYmdToUtcDate(ymd?: string | null): Date | null {
@@ -419,10 +420,10 @@ export const KiyeunContractStatusPage: React.FC = () => {
         const currentMonthTotal = currentMonthRent + extraAmt;
 
         // 당사자산(OWNED) vs 임차자산(RENTED) 분기
+        // ※ 당사자산(OWNED)도 매입처(vendorId/supplier)를 보유하므로, 오직 ownerType === 'RENTED' 또는 renter 존재 여부로만 임차자산을 판별해야 함
         const isSubleased = Boolean(
           asset?.ownerType === 'RENTED' ||
-          asset?.renter ||
-          asset?.vendorId
+          (!asset?.ownerType && asset?.renter)
         );
 
         const modelName = asset?.modelName || ca.expectedModel || '';
@@ -430,11 +431,14 @@ export const KiyeunContractStatusPage: React.FC = () => {
           ? (asset?.vendorAssetNo || asset?.assetNo || '')
           : (asset?.assetNo || '');
 
-        // 임차업체 약칭
-        const rawVendorName =
-          asset?.renter ||
-          (asset?.vendorId ? vendorByIdMap.get(asset.vendorId)?.name : '') ||
-          '';
+        // 임차업체 약칭 (임차자산인 경우에만 표출)
+        const rawVendorName = isSubleased
+          ? (
+              asset?.renter ||
+              (asset?.vendorId ? vendorByIdMap.get(asset.vendorId)?.name : '') ||
+              ''
+            )
+          : '';
         const subVendorName = normalizeVendorShortName(rawVendorName);
 
         // 협착소유 (Q열): OURS -> '기연', VENDOR -> 임차업체 약칭, NONE/미지정 -> ''
@@ -510,6 +514,7 @@ export const KiyeunContractStatusPage: React.FC = () => {
           remarks: '', // AG열 비고는 공란 유지
           isSubleased,
           contractId: contract.id,
+          assetId: ca.assetId,
         });
       });
 
@@ -664,6 +669,8 @@ export const KiyeunContractStatusPage: React.FC = () => {
   const summary = useMemo(() => {
     let ownCount = 0;
     let subCount = 0;
+    const uniqueOwnAssets = new Set<string>();
+    const uniqueSubAssets = new Set<string>();
     let totalMonthlyContractFee = 0;
     let totalCurrentMonthRent = 0;
     let totalCurrentMonthExtra = 0;
@@ -672,11 +679,14 @@ export const KiyeunContractStatusPage: React.FC = () => {
 
     filteredRows.forEach(r => {
       if (!r.isExtraOnlyRow) {
+        const assetKey = r.assetId || r.subAssetCode || r.ownAssetCode || r.rowKey;
         if (r.isSubleased) {
           subCount += r.subQty || 1;
+          uniqueSubAssets.add(assetKey);
           totalSubleaseCost += r.subMonthlyFee || 0;
         } else {
           ownCount += r.ownQty || 1;
+          uniqueOwnAssets.add(assetKey);
         }
       }
       totalMonthlyContractFee += r.monthlyRentalFee;
@@ -691,6 +701,8 @@ export const KiyeunContractStatusPage: React.FC = () => {
       totalRows: filteredRows.length,
       ownCount,
       subCount,
+      uniqueOwnCount: uniqueOwnAssets.size,
+      uniqueSubCount: uniqueSubAssets.size,
       totalMonthlyContractFee,
       totalCurrentMonthRent,
       totalCurrentMonthExtra,
@@ -1072,11 +1084,17 @@ export const KiyeunContractStatusPage: React.FC = () => {
             </span>
             <span className="text-slate-300">|</span>
             <span className="text-slate-600">
-              당사자산 <strong className="text-blue-700 font-bold">{summary.ownCount.toLocaleString()}</strong>대
+              당사자산 <strong className="text-blue-700 font-bold">{summary.ownCount.toLocaleString()}</strong>건
+              {summary.uniqueOwnCount !== summary.ownCount && (
+                <span className="text-slate-500 ml-1">({summary.uniqueOwnCount.toLocaleString()}대)</span>
+              )}
             </span>
             <span className="text-slate-300">|</span>
             <span className="text-slate-600">
-              임차자산 <strong className="text-purple-700 font-bold">{summary.subCount.toLocaleString()}</strong>대
+              임차자산 <strong className="text-purple-700 font-bold">{summary.subCount.toLocaleString()}</strong>건
+              {summary.uniqueSubCount !== summary.subCount && (
+                <span className="text-slate-500 ml-1">({summary.uniqueSubCount.toLocaleString()}대)</span>
+              )}
             </span>
           </div>
 
