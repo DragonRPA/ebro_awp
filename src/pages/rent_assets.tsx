@@ -313,11 +313,16 @@ export const RentAssets: React.FC = () => {
       // 2단계: 관리번호 불일치 시 [모델명 + 임차처] 조합 2차 보조 추적
       if (!matched && row.modelName) {
         const rowCleanModel = cleanStr(row.modelName);
-        matched = rentedAssets.find(a => 
-          cleanStr(a.modelName) === rowCleanModel &&
-          (!selectedVendor || cleanStr(getAssetRenterName(a)) === cleanSelectedVendor) &&
-          !matchedAssetIds.has(a.id)
-        );
+        matched = rentedAssets.find(a => {
+          const cleanAV = cleanStr(getAssetRenterName(a));
+          const vMatch = !selectedVendor ||
+            cleanAV === cleanSelectedVendor ||
+            (cleanSelectedVendor.includes('aj') && cleanAV.includes('아주')) ||
+            (cleanSelectedVendor.includes('아주') && cleanAV.includes('aj')) ||
+            (cleanSelectedVendor.includes('하이로드') && cleanAV.includes('중부')) ||
+            (cleanSelectedVendor.includes('중부') && cleanAV.includes('하이로드'));
+          return cleanStr(a.modelName) === rowCleanModel && vMatch && !matchedAssetIds.has(a.id);
+        });
       }
 
       if (!matched) {
@@ -500,46 +505,50 @@ export const RentAssets: React.FC = () => {
       }
     });
 
-    // B. 선택된 임차처의 자사 임차 자산 중 당월 1일 이상 존재했으나 청구되지 않은 장비 추출
-    const [yearStr, monthStr] = (selectedYm || new Date().toISOString().slice(0, 7)).split('-');
-    const yearNum = parseInt(yearStr, 10);
-    const monthNum = parseInt(monthStr, 10);
-    const monthStart = `${selectedYm || yearStr + '-' + monthStr}-01`;
-    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
-    const monthEnd = `${selectedYm || yearStr + '-' + monthStr}-${String(daysInMonth).padStart(2, '0')}`;
+    // B. 선택된 임차처의 자사 임차 자산 중 당월 1일 이상 존재했으나 청구되지 않은 장비 추출 (전체 임차처 상태에서는 거래명세서 업로드 시에만 표시)
+    if (selectedVendor || statementRows.length > 0) {
+      const [yearStr, monthStr] = (selectedYm || new Date().toISOString().slice(0, 7)).split('-');
+      const yearNum = parseInt(yearStr, 10);
+      const monthNum = parseInt(monthStr, 10);
+      const monthStart = `${selectedYm || yearStr + '-' + monthStr}-01`;
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+      const monthEnd = `${selectedYm || yearStr + '-' + monthStr}-${String(daysInMonth).padStart(2, '0')}`;
 
-    const cleanVendor = (s?: string) => (s || '').replace(/[\s\-_주식회사\(\)㈜]/g, '').toLowerCase();
-    const cleanSelectedV = cleanVendor(selectedVendor);
-    const targetRented = rentedAssets.filter(a => {
-      const aVendor = getAssetRenterName(a);
-      const cleanAV = cleanVendor(aVendor);
-      const matchesVendor = !selectedVendor ||
-        aVendor === selectedVendor ||
-        cleanAV === cleanSelectedV ||
-        (cleanSelectedV.includes('aj') && cleanAV.includes('아주')) ||
-        (cleanSelectedV.includes('아주') && cleanAV.includes('aj'));
-      const assetStart = a.rentStart || '1900-01-01';
-      const assetEnd = a.actualRentReturnDate || a.rentEnd || '9999-12-31';
-      const isOverlapped = (assetStart <= monthEnd) && (assetEnd >= monthStart);
-      return matchesVendor && isOverlapped;
-    });
+      const cleanVendor = (s?: string) => (s || '').replace(/[\s\-_주식회사\(\)㈜]/g, '').toLowerCase();
+      const cleanSelectedV = cleanVendor(selectedVendor);
+      const targetRented = rentedAssets.filter(a => {
+        const aVendor = getAssetRenterName(a);
+        const cleanAV = cleanVendor(aVendor);
+        const matchesVendor = !selectedVendor ||
+          aVendor === selectedVendor ||
+          cleanAV === cleanSelectedV ||
+          (cleanSelectedV.includes('aj') && cleanAV.includes('아주')) ||
+          (cleanSelectedV.includes('아주') && cleanAV.includes('aj')) ||
+          (cleanSelectedV.includes('하이로드') && cleanAV.includes('중부')) ||
+          (cleanSelectedV.includes('중부') && cleanAV.includes('하이로드'));
+        const assetStart = a.rentStart || '1900-01-01';
+        const assetEnd = a.actualRentReturnDate || a.rentEnd || '9999-12-31';
+        const isOverlapped = (assetStart <= monthEnd) && (assetEnd >= monthStart);
+        return matchesVendor && isOverlapped;
+      });
 
-    targetRented.forEach(asset => {
-      if (!matchedAssetIds.has(asset.id)) {
-        const isAcked = ackedSet.has(asset.id);
-        // 🔵 임차처 미청구 자산 (반납 또는 청구제외 대상)
-        results.push({
-          id: `recon-missing-${asset.id}`,
-          status: 'MISSING_BILLING',
-          statusLabel: isAcked ? '청구제외' : '미청구',
-          badgeClass: isAcked ? 'badge-secondary' : 'badge-warning',
-          matchedAsset: asset,
-          priceDiff: isAcked ? 0 : -(asset.monthlyRentFee || 0),
-          expectedAmount: asset.monthlyRentFee || 0,
-          reason: isAcked ? '청구제외 확인 완료' : '임차처 미청구 (반납/제외 대상)'
-        });
-      }
-    });
+      targetRented.forEach(asset => {
+        if (!matchedAssetIds.has(asset.id)) {
+          const isAcked = ackedSet.has(asset.id);
+          // 🔵 임차처 미청구 자산 (반납 또는 청구제외 대상)
+          results.push({
+            id: `recon-missing-${asset.id}`,
+            status: 'MISSING_BILLING',
+            statusLabel: isAcked ? '청구제외' : '미청구',
+            badgeClass: isAcked ? 'badge-secondary' : 'badge-warning',
+            matchedAsset: asset,
+            priceDiff: isAcked ? 0 : -(asset.monthlyRentFee || 0),
+            expectedAmount: asset.monthlyRentFee || 0,
+            reason: isAcked ? '청구제외 확인 완료' : '임차처 미청구 (반납/제외 대상)'
+          });
+        }
+      });
+    }
 
     return results;
   }, [statementRows, rentedAssets, rentedAssetByCleanNoMap, vendorMap, selectedVendor, selectedYm, acknowledgedMissingAssetIds]);
@@ -757,7 +766,7 @@ export const RentAssets: React.FC = () => {
       try {
         const data = event.target?.result as ArrayBuffer;
 
-        // 거래처명 정규화 매칭 헬퍼 (주식회사/(주)/공백 무시 + 아주/AJ 상호 호환)
+        // 거래처명 정규화 매칭 헬퍼 (주식회사/(주)/공백 무시 + 아주/AJ 및 중부/하이로드 상호 호환)
         const matchVendor = (detected?: string): string => {
           if (!detected) return '';
           const clean = (s: string) => s.replace(/주식회사|\(주\)|㈜|\(유\)|유한회사|\s+/g, '').toLowerCase();
@@ -765,7 +774,8 @@ export const RentAssets: React.FC = () => {
           const found = renterVendors.find(v => {
             const cv = clean(v);
             return cv === target || target.includes(cv) || cv.includes(target) ||
-              (target.includes('아주') && cv.includes('aj')) || (target.includes('aj') && cv.includes('아주'));
+              (target.includes('아주') && cv.includes('aj')) || (target.includes('aj') && cv.includes('아주')) ||
+              (target.includes('하이로드') && cv.includes('중부')) || (target.includes('중부') && cv.includes('하이로드'));
           });
           return found || detected;
         };
