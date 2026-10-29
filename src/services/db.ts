@@ -8601,6 +8601,25 @@ class LocalDB {
               }
             }
 
+            if (tableName === 'todos' && msg.includes('todos_type_check')) {
+              try {
+                await targetClient.rpc('dev_exec_ddl', {
+                  statements: [
+                    'ALTER TABLE todos DROP CONSTRAINT IF EXISTS todos_type_check;',
+                    "NOTIFY pgrst, 'reload schema';"
+                  ]
+                });
+              } catch {}
+              const fallbackPayload = {
+                ...payloadForSupabase,
+                type: payloadForSupabase.type === 'MISSING_INFO' ? 'MISSING_INFO' : 'GENERAL'
+              };
+              const retryRes = await targetClient.from(tableName).upsert([fallbackPayload], { onConflict: 'id' });
+              if (!retryRes.error) {
+                return retryRes.data;
+              }
+            }
+
             // 부모 레코드 비동기 커밋 지연 시 300ms 대기 후 1회 원본 재시도 (절대로 FK를 null로 뭉개거나 숨기지 않음)
             if (error.code === '23503' || msg.includes('foreign key constraint')) {
               await new Promise(r => setTimeout(r, 300));

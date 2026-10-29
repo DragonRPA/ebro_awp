@@ -65,7 +65,7 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
     targetDept: params.targetDept,
     targetRole: params.targetRole,
     taskCategory: params.category,
-    type: params.priority === 'URGENT' ? 'URGENT' : 'GENERAL',
+    type: params.category === 'MISSING_INFO' ? 'MISSING_INFO' : 'GENERAL',
     title: params.title,
     content: params.content,
     priority: params.priority || 'NORMAL',

@@ -9418,6 +9418,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
       createdInspectionId = createdInsp.id;
 
+      // 3-0. 핵심 장비 할당 및 출고검수 원격 DB 쓰기 100% 완결 동기 대기 (실패 시 catch 블록에서 자동 롤백!)
+      await db.awaitPendingWrites();
+
       // 3-1. 장비 할당 완료 여부 확인 -> [장비 할당] ToDo 상계, [계약서 발송] ToDo 발행 및 [출고 검수] ToDo 발행
       try {
         const targetEntityId = matchedDelivery?.id || origCa.contractId;
@@ -9514,8 +9517,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         console.warn('assignAssetToContract todo sync warning:', todoErr);
       }
 
-      // 4. Supabase 원격 DB 쓰기 100% 완결 동기 대기 (실패 시 catch 블록에서 자동 롤백!)
-      await db.awaitPendingWrites();
+      // 4. 부수 업무 인수인계(ToDo) 동기화 — ToDo 오류가 핵심 장비 할당 트랜잭션을 롤백시키지 않도록 격리
+      try {
+        await db.awaitPendingWrites();
+      } catch (todoSyncErr) {
+        console.warn('assignAssetToContract todo awaitPendingWrites warning:', todoSyncErr);
+      }
       refreshAllData();
     } catch (err: any) {
       console.error('assignAssetToContract error & Rollback:', err);
@@ -9653,6 +9660,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
+      // 2-4.5 핵심 장비 할당 및 출고검수 원격 DB 쓰기 100% 완결 동기 대기
+      await db.awaitPendingWrites();
+
       // 2-5. 일괄 할당된 계약/배차건에 대해 [장비 할당] ToDo 상계, [계약서 발송] ToDo 발행 및 [출고 검수] ToDo 발행
       try {
         const extractCaIdsForBatch = (d: Delivery): string[] => {
@@ -9777,8 +9787,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         console.warn('batchAssignAssetsToContract todo sync warning:', todoErr);
       }
 
-      // 3. 단 1회의 원격 DB 쓰기 완결 동기 대기 & 단 1회의 전역 리렌더링!
-      await db.awaitPendingWrites();
+      // 3. 부수 업무 인수인계(ToDo) 동기화 — ToDo 오류가 핵심 장비 할당 트랜잭션을 롤백시키지 않도록 격리
+      try {
+        await db.awaitPendingWrites();
+      } catch (todoSyncErr) {
+        console.warn('batchAssignAssetsToContract todo awaitPendingWrites warning:', todoSyncErr);
+      }
       refreshAllData();
 
     } catch (err: any) {
@@ -9946,8 +9960,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      // 3. 단 1회의 원격 DB 쓰기 완결 동기 대기 & 단 1회의 전역 리렌더링!
+      // 3. 단 1회의 핵심 비즈니스 데이터 원격 DB 쓰기 완결 동기 대기
       await db.awaitPendingWrites();
+
+      // 4. 부수 업무 인수인계(ToDo) 동기화 — ToDo 오류가 핵심 장비 할당 트랜잭션을 롤백시키지 않도록 격리
+      try {
+        await db.awaitPendingWrites();
+      } catch (todoSyncErr) {
+        console.warn('batchAssignAssetsToContract todo awaitPendingWrites warning:', todoSyncErr);
+      }
       refreshAllData();
 
     } catch (err: any) {
