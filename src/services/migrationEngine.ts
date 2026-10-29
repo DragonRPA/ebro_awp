@@ -90,13 +90,15 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   customers: [
     'id', 'name', 'bizRegNo', 'isClosed', 'address', 'representative', 'repContact', 'repEmail', 'driveFolderId', 'prepaidBalance',
     'createdAt', 'updatedAt', 'defaultBillingDay', 'defaultStatementClosingDay', 'bankAccounts', 'paymentDueDay', 'paymentTermDays',
-    'defaultPaidOptions', 'defaultProtection', 'defaultCheckedSpecs', 'specialNotes', 'transactionStatus', 'bizType', 'bizItem',
+    'defaultPaidOptions', 'defaultProtection', 'defaultAttachments', 'defaultCheckedSpecs', 'specialNotes', 'transactionStatus', 'bizType', 'bizItem',
     'openingDate', 'taxOffice', 'headOfficeAddress', 'businessCertFileUrl', 'passbookFileUrl', 'passbookFileName', 'taxType', 'taxTypeCd',
-    'businessStatus', 'closedDate', 'lastStatusCheckDate', 'tenant_id', 'paymentDueMonthOffset'
+    'businessStatus', 'closedDate', 'lastStatusCheckDate', 'tenant_id', 'paymentDueMonthOffset',
+    'defaultFreightBillingStandard', 'defaultTaxInvoiceIssueType', 'defaultPaymentMethod', 'defaultPaymentTermsNote'
   ],
   customer_sites: [
     'id', 'customerId', 'name', 'address', 'contactName', 'contact', 'email', 'createdAt', 'updatedAt', 'paidOptions', 'protection',
-    'checkedSpecs', 'tenant_id', 'isActive', 'billingDay', 'statementClosingDay', 'paymentDueDay', 'paymentDueMonthOffset', 'contacts', 'siteMasterId'
+    'attachments', 'checkedSpecs', 'tenant_id', 'isActive', 'billingDay', 'statementClosingDay', 'paymentDueDay', 'paymentDueMonthOffset', 'contacts', 'siteMasterId',
+    'freightBillingStandard', 'taxInvoiceIssueType', 'paymentMethod', 'paymentTermsNote'
   ],
   customer_contacts: [
     'id', 'customerId', 'name', 'position', 'contact', 'email', 'createdAt', 'updatedAt', 'isPrimary', 'tenant_id', 'isActive', 'memo', 'siteMasterId'
@@ -106,7 +108,8 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'rentStart', 'rentEnd', 'actualRentReturnDate', 'monthlyRentFee', 'dailyRentFee', 'currentCustomerId', 'currentSiteId', 'contractStart', 'contractEnd',
     'acquisitionDate', 'acquisitionPrice', 'depreciationMonths', 'residualValueRate', 'accumDepreciation', 'bookValue', 'cumRentalFee', 'cumRepairCost',
     'status', 'memo', 'note', 'createdAt', 'updatedAt', 'tenant_id', 'maintenanceScore', 'billingDay', 'monthlyRentalFee', 'dailyRentalFee',
-    'renter', 'disposalDate', 'disposalPrice', 'buyer', 'memo1', 'memo2', 'safetyInspectionUrl', 'preDeliveryChecklistUrl', 'fullDefectSummary', 'assetNature', 'yard'
+    'renter', 'disposalDate', 'disposalPrice', 'buyer', 'memo1', 'memo2', 'safetyInspectionUrl', 'preDeliveryChecklistUrl', 'fullDefectSummary', 'assetNature', 'yard',
+    'antiEntrapmentOwnership'
   ],
   contracts: [
     'id', 'contractNo', 'customerId', 'salespersonId', 'contactId', 'siteId', 'billingDay', 'status', 'driveFolderId', 'startDate', 'endDate',

@@ -82,6 +82,11 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
           exposedTradeMenus.forEach(tm => {
             if (!rawAllowedPages.includes(tm)) rawAllowedPages.push(tm);
           });
+          if (row.id === 'tenant-giyeonlift' && !(rawHiddenPages && rawHiddenPages.includes('kiyeun_contract_status'))) {
+            if (!rawAllowedPages.includes('kiyeun_contract_status')) {
+              rawAllowedPages.push('kiyeun_contract_status');
+            }
+          }
           for (let i = rawAllowedPages.length - 1; i >= 0; i--) {
             if (hiddenTradeMenus.includes(rawAllowedPages[i])) {
               rawAllowedPages.splice(i, 1);
@@ -93,6 +98,15 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
           hiddenTradeMenus.forEach(hm => {
             if (!rawHiddenPages!.includes(hm)) rawHiddenPages!.push(hm);
           });
+        }
+      } else {
+        // 기연리프트 외 타 테넌트: 테넌트관리 노출관리에서 명시적으로 허용하지 않은 경우 기본 숨김
+        const explicitlyAllowed = Array.isArray(rawAllowedPages) && rawAllowedPages.includes('kiyeun_contract_status');
+        if (!explicitlyAllowed) {
+          if (!Array.isArray(rawHiddenPages)) rawHiddenPages = [];
+          if (!rawHiddenPages.includes('kiyeun_contract_status')) {
+            rawHiddenPages.push('kiyeun_contract_status');
+          }
         }
       }
       return {

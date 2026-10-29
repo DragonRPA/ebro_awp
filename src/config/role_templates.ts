@@ -41,6 +41,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   organization: { canView: true, canSave: true },
   privacy_audit: { canView: true, canSave: true },   // 개인정보 접속 감사 권한
   regular_reports: { canView: true, canSave: true },
+  kiyeun_contract_status: { canView: true, canSave: true },
   data_formation: { canView: true, canSave: true },
   acquisition_disposal: { canView: true, canSave: true },
   // 열람만 허용 (영업/자산 상태 대사)
@@ -90,6 +91,7 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   daily_inout: { canView: true, canSave: false },
   // 열람만 허용
   billing: { canView: true, canSave: false },
+  kiyeun_contract_status: { canView: true, canSave: false },
   available_inventory: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },

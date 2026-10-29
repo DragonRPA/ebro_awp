@@ -109,7 +109,8 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'corporate_card', name: '법인카드 매입정산' },
       { id: 'cash_flow', name: '자금 흐름 분석' },
       { id: 'depreciation_execution', name: '감가상각 마감 실행' },
-      { id: 'regular_reports', name: '정기보고서 생성' }
+      { id: 'regular_reports', name: '정기보고서 생성' },
+      { id: 'kiyeun_contract_status', name: '계약현황(기연전용)' }
     ]
   },
   {
@@ -275,7 +276,11 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'available-inventory': 'available_inventory',
   'availableinventory': 'available_inventory',
   '가용재고조회': 'available_inventory',
-  '가용재고': 'available_inventory'
+  '가용재고': 'available_inventory',
+  'kiyeun-contract-status': 'kiyeun_contract_status',
+  'kiyeuncontractstatus': 'kiyeun_contract_status',
+  '계약현황': 'kiyeun_contract_status',
+  '계약현황(기연전용)': 'kiyeun_contract_status'
 };
 
 export function normalizeMenuId(menuId: string): string {

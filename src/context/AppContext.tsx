@@ -1540,6 +1540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'leave_ot':             ['users', 'annualLeaveQuotas', 'leaveUsages', 'overtimeRecords'],
     'vehicle_log':          ['corporateVehicles', 'vehicleOperationLogs', 'vehicleFuelLogs', 'users'],
     'regular_reports':      ['contracts', 'contractAssets', 'deliveries', 'assets', 'repairs', 'purchaseSettlements', 'purchaseSettlementItems', 'externalLeases', 'depreciationLogs', 'billings', 'billingDetails', 'bankTransactions', 'customers', 'payrollClosings', 'vehicleFuelLogs', 'monthlyIncomeStatements'],
+    'kiyeun_contract_status': ['contracts', 'contractAssets', 'assets', 'customers', 'sites', 'vendors', 'billings', 'billingDetails', 'payments', 'bankTransactions', 'paymentDepositLinks', 'assetInOutLogs'],
     'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'siteMasters', 'billings', 'billingDetails', 'bankTransactions', 'bankMatchingRules', 'bankInitialBalances', 'paymentDepositLinks'],
     'data_formation':       ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'siteMasters', 'products'],
     'print_queue_monitor':  ['printStations', 'printQueue'],
@@ -2105,6 +2106,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
+      // 1-2) 기연전용 계약현황(kiyeun_contract_status): 기연리프트는 기본 노출(단, hiddenPages로 숨긴 경우 차단), 타 테넌트는 allowedPages에 명시 허용된 경우에만 노출
+      if (normMenuId === 'kiyeun_contract_status') {
+        const tCode = (currentTenant.tenantCode || '').toUpperCase();
+        const tSub = (currentTenant.subdomain || '').toLowerCase();
+        const isGiyeunTenant =
+          currentTenant.id === 'tenant-giyeonlift' ||
+          tCode.includes('GIYEON') ||
+          tCode.includes('GIYUEN') ||
+          tSub.includes('giyeon') ||
+          tSub.includes('giyuen');
+        if (!isGiyeunTenant && !normAllowedPages.includes('kiyeun_contract_status')) {
+          return false;
+        }
+      }
+
       // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드 및 신규 영업일지/가용재고조회/현장정비동선관리 기본 개방 제외, 숨김은 hiddenPages에서 제어)
       if (
         normAllowedPages.length > 0 &&
@@ -2112,6 +2128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         normMenuId !== 'sales_journal' &&
         normMenuId !== 'available_inventory' &&
         normMenuId !== 'as_route_tracking' &&
+        !(normMenuId === 'kiyeun_contract_status' && (currentTenant.id === 'tenant-giyeonlift' || (currentTenant.tenantCode || '').toUpperCase().includes('GIYEON') || (currentTenant.tenantCode || '').toUpperCase().includes('GIYUEN'))) &&
         !normAllowedPages.includes(normMenuId)
       ) {
         return false;
@@ -2138,6 +2155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           normMenuId === 'sales_journal' ||
           normMenuId === 'available_inventory' ||
           normMenuId === 'as_route_tracking' ||
+          normMenuId === 'kiyeun_contract_status' ||
           normMenuId.startsWith('trade_') ||
           normMenuId === 'courier_dispatch'
         ) {

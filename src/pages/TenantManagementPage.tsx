@@ -416,8 +416,8 @@ export const TenantManagementPage: React.FC = () => {
         isDefault: false,
         allowCustomBillingStatement: false,
         allowContractTradeOutbound: true,
-        allowedPages: allMenuIds,
-        hiddenPages: [],
+        allowedPages: allMenuIds.filter(id => id !== 'kiyeun_contract_status'),
+        hiddenPages: ['kiyeun_contract_status'],
         specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id),
         subscription: {
           plan: 'STANDARD',
@@ -610,6 +610,12 @@ export const TenantManagementPage: React.FC = () => {
     if (hidden.includes(pageId)) return false;
     const allowed = formData.allowedPages || [];
     if (allowed.length > 0 && !allowed.includes(pageId)) return false;
+    if (pageId === 'kiyeun_contract_status') {
+      const code = String(formData.tenantCode || editingTenant?.tenantCode || '').toUpperCase();
+      const id = String(editingTenant?.id || '').toLowerCase();
+      const isGiyeun = id === 'tenant-giyeonlift' || code === 'GIYEONLIFT' || code === 'GIYEUN';
+      return isGiyeun ? true : allowed.includes('kiyeun_contract_status');
+    }
     return true;
   };
 

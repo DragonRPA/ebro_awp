@@ -9,7 +9,7 @@ import {
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronLeft, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
   FileCheck, ShieldCheck, Bot, Download, Bell, ClipboardList, Brain
-, CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail, Mic } from 'lucide-react';
+, CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail, Mic, FileSpreadsheet } from 'lucide-react';
 const OfficialMailPage = React.lazy(() => import('./pages/OfficialMailPage').then(module => ({ default: module.OfficialMailPage })));
 import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent, startGlobalAgentHealthMonitor } from './services/agentService';
 
@@ -104,6 +104,7 @@ const DailyInOutStatus = React.lazy(() => import('./pages/DailyInOutStatus').the
 const SiteOptionManage = React.lazy(() => import('./pages/SiteOptionManage').then(module => ({ default: module.SiteOptionManage })));
 
 const RegularReportsPage = React.lazy(() => import('./pages/RegularReportsPage').then(module => ({ default: module.RegularReportsPage })));
+const KiyeunContractStatusPage = React.lazy(() => import('./pages/KiyeunContractStatusPage').then(module => ({ default: module.KiyeunContractStatusPage })));
 const InitialDbUploader = React.lazy(() => import('./pages/InitialDbUploader').then(module => ({ default: module.InitialDbUploader })));
 
 import { AgentRequiredModal } from './components/AgentRequiredModal';
@@ -771,6 +772,7 @@ const App: React.FC = () => {
         { id: 'cash_flow', name: '자금 흐름 분석', icon: <TrendingUp size={16} />, component: <CashFlowPage /> },
         { id: 'depreciation_execution', name: '감가상각 마감 실행', icon: <TrendingUp size={16} />, component: <DepreciationExecution /> },
         { id: 'regular_reports', name: '정기보고서 생성', icon: <FileText size={16} />, component: <RegularReportsPage /> },
+        { id: 'kiyeun_contract_status', name: '계약현황(기연전용)', icon: <FileSpreadsheet size={16} />, component: <KiyeunContractStatusPage /> },
       ]
     },
     {

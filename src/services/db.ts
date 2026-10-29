@@ -381,6 +381,7 @@ export async function autoApplyTenantsDdl(): Promise<boolean> {
 export const ASSETS_DDL_STATEMENTS: string[] = [
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "yard" TEXT DEFAULT '용인';`,
   `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "assetNature" TEXT DEFAULT 'PHYSICAL';`,
+  `ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "antiEntrapmentOwnership" TEXT;`,
   `ALTER TABLE "assets" DROP CONSTRAINT IF EXISTS "assets_status_check";`,
   `ALTER TABLE "assets" ADD CONSTRAINT "assets_status_check" CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT', 'RENTED', 'REPAIRING', 'RENTED_RETURNED', 'SOLD', 'LOST', 'DISPOSED'));`,
   `UPDATE "assets" SET "yard" = '용인' WHERE "yard" IS NULL OR "yard" = '';`,
@@ -7371,6 +7372,11 @@ class LocalDB {
             exposedTradeMenus.forEach(tm => {
               if (!nextAllowed.includes(tm)) nextAllowed.push(tm);
             });
+            if (normalized.id === 'tenant-giyeonlift' && !(Array.isArray(normalized.hiddenPages) && normalized.hiddenPages.includes('kiyeun_contract_status'))) {
+              if (!nextAllowed.includes('kiyeun_contract_status')) {
+                nextAllowed.push('kiyeun_contract_status');
+              }
+            }
             normalized.allowedPages = nextAllowed;
           }
           if (Array.isArray(normalized.hiddenPages)) {
@@ -7378,6 +7384,15 @@ class LocalDB {
             hiddenTradeMenus.forEach(hm => {
               if (!nextHidden.includes(hm)) nextHidden.push(hm);
             });
+            normalized.hiddenPages = nextHidden;
+          }
+        } else {
+          const explicitlyAllowed = Array.isArray(normalized.allowedPages) && normalized.allowedPages.includes('kiyeun_contract_status');
+          if (!explicitlyAllowed) {
+            const nextHidden = Array.isArray(normalized.hiddenPages) ? [...normalized.hiddenPages] : [];
+            if (!nextHidden.includes('kiyeun_contract_status')) {
+              nextHidden.push('kiyeun_contract_status');
+            }
             normalized.hiddenPages = nextHidden;
           }
         }
