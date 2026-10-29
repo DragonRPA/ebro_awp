@@ -501,3 +501,186 @@ export function reconstructOutboundHistoryRows(
     };
   });
 }
+
+export interface OutboundContractLogInfo {
+  actor: string;
+  timeStr: string;
+  desc: string;
+}
+
+export interface OutboundContractSendEvaluation {
+  isAssignmentCompleted: boolean;
+  isSent: boolean;
+  isIssuedOnly: boolean;
+  isReadyToSend: boolean;
+  sentLog?: any;
+  issuedLog?: any;
+  sentInfo?: OutboundContractLogInfo;
+  issuedInfo?: OutboundContractLogInfo;
+  targetLogs: any[];
+}
+
+export function formatOutboundContractLogActorAndTime(log: any): OutboundContractLogInfo {
+  const desc = String(log?.description || '');
+  const actorMatch = desc.match(/(?:발송자|발급자|처리자)\s*:\s*([^)\/,\s]+)/);
+  const actor = actorMatch ? actorMatch[1].trim() : '담당자';
+  let timeStr = log?.changeDate || '';
+  if (log?.createdAt) {
+    const d = new Date(log.createdAt);
+    if (!isNaN(d.getTime())) {
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mi = String(d.getMinutes()).padStart(2, '0');
+      timeStr = `${mm}-${dd} ${hh}:${mi}`;
+    }
+  }
+  return { actor, timeStr, desc };
+}
+
+/**
+ * 단일 출고 요청 행(OutboundHistoryRow)에 대한 장비할당 완료(계약서 발송 가능 상태) 및 계약서 발송 완료 여부 판정 SSOT
+ */
+export function evaluateOutboundRowContractSendStatus(
+  row: Pick<OutboundHistoryRow, 'id' | 'contractId' | 'dispatchStatus' | 'totalAssignedCount' | 'totalUnassignedCount'>,
+  contractHistory: any[] = [],
+  todos: any[] = []
+): OutboundContractSendEvaluation {
+  const isAssignmentCompleted =
+    row.dispatchStatus !== 'CANCELLED' &&
+    Boolean(row.contractId) &&
+    row.totalAssignedCount > 0 &&
+    row.totalUnassignedCount === 0;
+
+  if (!row.contractId) {
+    return {
+      isAssignmentCompleted: false,
+      isSent: false,
+      isIssuedOnly: false,
+      isReadyToSend: false,
+      targetLogs: []
+    };
+  }
+
+  const cLogs = (contractHistory || [])
+    .filter(
+      h =>
+        h.contractId === row.contractId &&
+        (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+        !(h.description || '').includes('월간 안전점검 체크리스트') &&
+        !(h.description || '').includes('영업담당자 변경') &&
+        !(h.description || '').includes('[거래명세서')
+    )
+    .sort((a, b) => String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || '')));
+
+  const exactDelLogs = cLogs.filter(h => (h.description || '').includes(`[배차:${row.id}]`));
+
+  // 해당 출고요청 건에 대해 명시적으로 열려 있는 CONTRACT_PACKAGE_SEND 할일이 존재하는 경우,
+  // 그 할일 생성 시각 이전에 기록된 무태그(과거 다른 출고건) 발송 로그는 현재 출고건의 발송 완료로 간주하지 않는다.
+  const openSendTodo = (todos || []).find(
+    t =>
+      !t.isCompleted &&
+      t.taskCategory === 'CONTRACT_PACKAGE_SEND' &&
+      (t.entityId === row.id || t.relatedEntityId === row.id)
+  );
+  const openTodoTime = openSendTodo?.createdAt ? new Date(openSendTodo.createdAt).getTime() : 0;
+
+  const untaggedLogs = cLogs.filter(h => {
+    if ((h.description || '').includes('[배차:')) return false;
+    if (openTodoTime && h.createdAt) {
+      const hTime = new Date(h.createdAt).getTime();
+      if (!isNaN(hTime) && hTime < openTodoTime) return false;
+    }
+    return true;
+  });
+
+  const targetLogs = exactDelLogs.length > 0 ? exactDelLogs : untaggedLogs;
+  const sentLog = targetLogs.find(h => !(h.description || '').includes('[계약서패키지 발급]'));
+  const issuedLog = targetLogs.find(h => (h.description || '').includes('[계약서패키지 발급]'));
+
+  const isSent = Boolean(sentLog);
+  const isIssuedOnly = !isSent && Boolean(issuedLog);
+  const isReadyToSend = isAssignmentCompleted && !isSent;
+
+  return {
+    isAssignmentCompleted,
+    isSent,
+    isIssuedOnly,
+    isReadyToSend,
+    sentLog,
+    issuedLog,
+    sentInfo: sentLog ? formatOutboundContractLogActorAndTime(sentLog) : undefined,
+    issuedInfo: issuedLog ? formatOutboundContractLogActorAndTime(issuedLog) : undefined,
+    targetLogs
+  };
+}
+
+export interface UnsentContractOutboundItem {
+  row: OutboundHistoryRow;
+  contractAssetIds: string[];
+  equipSummary: string;
+  assignedAssetSummary: string;
+  issuedInfo?: OutboundContractLogInfo;
+}
+
+/**
+ * 업무 흐름이 계약서 발송 가능 상태(출고요청의 장비할당이 완료된 상태)이면서
+ * 아직 계약서를 발송하지 않은 출고요청 건을 추출하는 전사 단일 SSOT
+ */
+export function findUnsentContractOutboundRows(
+  params: ReconstructOutboundHistoryParams & { contractHistory?: any[] }
+): UnsentContractOutboundItem[] {
+  const rows = reconstructOutboundHistoryRows(params);
+  const contractMap = new Map((params.contracts || []).map(c => [c.id, c]));
+  const caMap = new Map((params.contractAssets || []).map(ca => [ca.id, ca]));
+  const contractHistory = params.contractHistory || [];
+  const todos = params.todos || [];
+
+  const result: UnsentContractOutboundItem[] = [];
+
+  for (const row of rows) {
+    if (row.dispatchStatus === 'CANCELLED' || !row.contractId) continue;
+    const contract = contractMap.get(row.contractId);
+    if (!contract) continue;
+    const cStatus = String(contract.status || '').toUpperCase();
+    if (cStatus === 'CANCELLED' || cStatus === 'TERMINATED' || cStatus === 'COMPLETED') continue;
+
+    const allCaIds = row.equipmentItems.flatMap(e => e.contractAssetIds || []).filter(Boolean);
+    if (allCaIds.length > 0) {
+      const matchedCas = allCaIds.map(id => caMap.get(id)).filter(Boolean);
+      if (
+        matchedCas.length > 0 &&
+        matchedCas.every(ca => ca.status === 'RETURNED' || ca.status === 'SOLD')
+      ) {
+        continue;
+      }
+    }
+
+    const evalStatus = evaluateOutboundRowContractSendStatus(row, contractHistory, todos);
+    if (!evalStatus.isReadyToSend) continue;
+
+    const equipSummary = row.equipmentItems
+      .map(eq => `${eq.modelName} × ${eq.qty}대`)
+      .join(', ');
+    const assignedAssetList = row.equipmentItems.flatMap(eq => eq.assignedAssets || []).filter(Boolean);
+    const assignedAssetSummary = assignedAssetList.join(', ');
+
+    result.push({
+      row,
+      contractAssetIds: allCaIds,
+      equipSummary: equipSummary || `${row.totalAssignedCount}대`,
+      assignedAssetSummary,
+      issuedInfo: evalStatus.issuedInfo
+    });
+  }
+
+  // 정렬: 진행중인 출고건(배차대기/배차완료) 우선 ➔ 상차예정일/생성일 최신순
+  return result.sort((a, b) => {
+    const isADone = a.row.dispatchStatus === 'DELIVERED' || a.row.dispatchStatus === 'COMPLETED' ? 1 : 0;
+    const isBDone = b.row.dispatchStatus === 'DELIVERED' || b.row.dispatchStatus === 'COMPLETED' ? 1 : 0;
+    if (isADone !== isBDone) return isADone - isBDone;
+    const da = a.row.loadingDateVal || a.row.createdAt || '';
+    const dbStr = b.row.loadingDateVal || b.row.createdAt || '';
+    return dbStr.localeCompare(da);
+  });
+}

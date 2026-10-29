@@ -1537,7 +1537,25 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
           }
         }
 
-        // 🌟 [ToDo 자동 상계]: 계약서패키지 재발송 ToDo가 존재했다면 원자적 자동 완료
+        // 🌟 [ToDo 자동 상계]: 계약서 미발송(CONTRACT_PACKAGE_SEND) 및 재발송(CONTRACT_PACKAGE_RESEND) ToDo 원자적 자동 완료
+        if (activeDelId) {
+          await clearHandoverTasks({
+            entityId: activeDelId,
+            category: 'CONTRACT_PACKAGE_SEND',
+            completedByUserId: currentUser?.id,
+            completedByName: currentUser?.name || senderName,
+            completionAction: 'PACKAGE_SENT',
+            resolutionNote: `계약서패키지 이메일 발송 완료 (${recipients.length}명 수신)`
+          });
+        }
+        await clearHandoverTasks({
+          entityId: selectedContract.id,
+          category: 'CONTRACT_PACKAGE_SEND',
+          completedByUserId: currentUser?.id,
+          completedByName: currentUser?.name || senderName,
+          completionAction: 'PACKAGE_SENT',
+          resolutionNote: `계약서패키지 이메일 발송 완료 (${recipients.length}명 수신)`
+        });
         await clearHandoverTasks({
           entityType: 'CONTRACT',
           entityId: selectedContract.id,

@@ -187,6 +187,8 @@ export const SmartDispatch4: React.FC = () => {
     siteMasters = [],
     inspectionChecklistItems = [],
     setActiveTab: setGlobalActiveTab,
+    navigationPayload,
+    setNavigationPayload,
     refreshAllData
   } = useApp();
 
@@ -268,6 +270,21 @@ export const SmartDispatch4: React.FC = () => {
   const [historyEndDate, setHistoryEndDate] = useState<string>(() => getLocalTodayDateStr());
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'UNASSIGNED' | 'REQUESTED' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED'>('ALL');
   const [selectedHistoryDeliveryId, setSelectedHistoryDeliveryId] = useState<string | null>(null);
+
+  // 대시보드 할일 카드에서 '출고 요청 이동'으로 진입 시 해당 출고 요청 내역으로 자동 포커싱
+  useEffect(() => {
+    if (!navigationPayload) return;
+    if (navigationPayload.deliveryId || navigationPayload.targetMenuId === 'smart_dispatch4') {
+      setActiveTabState('HISTORY');
+      setHistoryStartDate('');
+      setHistoryEndDate('');
+      setHistoryStatusFilter('ALL');
+      if (navigationPayload.deliveryId) {
+        setSelectedHistoryDeliveryId(navigationPayload.deliveryId);
+      }
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, setNavigationPayload]);
   const [cancelTargetRow, setCancelTargetRow] = useState<{
     id: string;
     contractNo: string;
@@ -7831,14 +7848,14 @@ export const SmartDispatch4: React.FC = () => {
                           <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                             {row.dispatchStatus === 'CANCELLED' ? (
                               <span className="text-[11px] text-slate-500 font-bold whitespace-nowrap">-</span>
-                            ) : row.totalAssignedCount === 0 ? (
+                            ) : row.totalAssignedCount === 0 || row.totalUnassignedCount > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => showToast('장비 할당이 완료된 후 해당 출고 건의 계약서패키지를 생성·발송할 수 있습니다.', 'error')}
+                                onClick={() => showToast('장비 할당이 모두 완료된 후 해당 출고 건의 계약서패키지를 생성·발송할 수 있습니다.', 'error')}
                                 className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-slate-900 text-slate-500 border border-slate-800 whitespace-nowrap cursor-not-allowed"
                                 title="장비 할당 완료 후 계약서패키지 발송 가능"
                               >
-                                할당대기
+                                {row.totalAssignedCount > 0 ? `할당대기 (${row.totalAssignedCount}/${row.totalQty})` : '할당대기'}
                               </button>
                             ) : (() => {
                               const cLogs = (contractHistory || [])

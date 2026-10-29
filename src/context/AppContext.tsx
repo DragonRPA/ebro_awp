@@ -9418,12 +9418,17 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
       createdInspectionId = createdInsp.id;
 
-      // 3-1. 장비 할당 완료 여부 확인 -> [장비 할당] ToDo 상계 및 [출고 검수] ToDo 발행
+      // 3-1. 장비 할당 완료 여부 확인 -> [장비 할당] ToDo 상계, [계약서 발송] ToDo 발행 및 [출고 검수] ToDo 발행
       try {
         const targetEntityId = matchedDelivery?.id || origCa.contractId;
-        const remainingUnassigned = db.contractAssets.filter(
-          c => c.contractId === origCa.contractId && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
-        );
+        const delivCaIds = matchedDelivery ? extractCaIdsFromDeliv(matchedDelivery) : [];
+        const remainingUnassigned = delivCaIds.length > 0
+          ? db.contractAssets.filter(
+              c => delivCaIds.includes(c.id) && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+            )
+          : db.contractAssets.filter(
+              c => c.contractId === origCa.contractId && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+            );
         if (remainingUnassigned.length === 0) {
           await clearHandoverTasks({
             entityId: targetEntityId,
@@ -9432,6 +9437,50 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             completedByName: currentUser?.name,
             completionAction: 'ASSET_ASSIGNED'
           });
+
+          // 🌟 [장비할당 완료 ➔ 계약서 발송 가능 상태 진입]: 해당 출고요청 건의 계약서 미발송 시 할일(CONTRACT_PACKAGE_SEND) 발행
+          if (matchedDelivery && contract) {
+            const alreadySentForDeliv = (db.contractHistory || []).some(
+              h =>
+                h.contractId === contract.id &&
+                (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+                !(h.description || '').includes('월간 안전점검 체크리스트') &&
+                !(h.description || '').includes('영업담당자 변경') &&
+                !(h.description || '').includes('[거래명세서') &&
+                !(h.description || '').includes('[계약서패키지 발급]') &&
+                (h.description || '').includes(`[배차:${matchedDelivery.id}]`)
+            );
+            const existingSendTodo = db.todos.find(
+              t =>
+                !t.isCompleted &&
+                t.taskCategory === 'CONTRACT_PACKAGE_SEND' &&
+                (t.entityId === matchedDelivery.id || t.relatedEntityId === matchedDelivery.id)
+            );
+            if (!alreadySentForDeliv && !existingSendTodo) {
+              const custObj = contract.customerId ? db.customers.find(c => c.id === contract.customerId) : undefined;
+              const siteObj = contract.siteId ? db.sites.find(s => s.id === contract.siteId) : undefined;
+              const assignedSlots = delivCaIds.length > 0
+                ? db.contractAssets.filter(c => delivCaIds.includes(c.id) && c.assetId)
+                : db.contractAssets.filter(c => c.contractId === contract.id && c.assetId && c.status !== 'RETURNED' && c.status !== 'SOLD');
+              const assignedAssetNos = assignedSlots
+                .map(s => db.assets.find(a => a.id === s.assetId)?.assetNo || s.expectedModel)
+                .filter(Boolean)
+                .join(', ');
+              await issueHandoverTask({
+                category: 'CONTRACT_PACKAGE_SEND',
+                title: `[계약서 미발송] ${custObj?.name || '고객사'} (${siteObj?.name || '현장'} · ${assignedSlots.length || 1}대 할당완료)`,
+                content: `출고요청 ${matchedDelivery.id} (${contract.contractNo}) 장비할당 완료${assignedAssetNos ? ` | 할당장비: ${assignedAssetNos}` : ''} | 상차예정: ${(matchedDelivery.loadingDate || contract.startDate || '').slice(0, 10) || '미정'}`,
+                targetDept: 'SALES',
+                priority: 'URGENT',
+                dueDate: (matchedDelivery.loadingDate || contract.startDate || '').slice(0, 10) || undefined,
+                actionUrl: `/admin/smart_dispatch4?deliveryId=${matchedDelivery.id}&contractId=${contract.id}`,
+                entityType: 'DELIVERY',
+                entityId: matchedDelivery.id,
+                senderId: currentUser?.id,
+                senderName: currentUser?.name || '출고팀'
+              });
+            }
+          }
         }
         const existingPdiTodo = db.todos.find(
           t =>
@@ -9604,18 +9653,44 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         }
       }
 
-      // 2-5. 일괄 할당된 계약/배차건에 대해 [장비 할당] ToDo 상계 및 [출고 검수] ToDo 발행
+      // 2-5. 일괄 할당된 계약/배차건에 대해 [장비 할당] ToDo 상계, [계약서 발송] ToDo 발행 및 [출고 검수] ToDo 발행
       try {
+        const extractCaIdsForBatch = (d: Delivery): string[] => {
+          if (!d.cargoItems) return [];
+          try {
+            const raw = typeof d.cargoItems === 'string' ? JSON.parse(d.cargoItems) : d.cargoItems;
+            if (!Array.isArray(raw)) return [];
+            const ids: string[] = [];
+            raw.forEach((ci: any) => {
+              if (Array.isArray(ci?.contractAssetIds)) ids.push(...ci.contractAssetIds.filter(Boolean));
+            });
+            return ids;
+          } catch {
+            return [];
+          }
+        };
+        const assignedCaIdSet = new Set(pairs.map(p => p.contractAssetId));
         const affectedContractIds = Array.from(new Set(pairs.map(p => db.contractAssets.find(c => c.id === p.contractAssetId)?.contractId).filter(Boolean))) as string[];
         for (const cid of affectedContractIds) {
           const contract = db.contracts.find(c => c.id === cid);
           const matchedDeliv = db.deliveries.find(
+            d =>
+              d.status !== 'CANCELLED' &&
+              (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') &&
+              (!d.contractId || d.contractId === cid) &&
+              extractCaIdsForBatch(d).some(caId => assignedCaIdSet.has(caId))
+          ) || db.deliveries.find(
             d => d.contractId === cid && d.status !== 'CANCELLED' && (d.type === 'OUTBOUND' || d.type === 'EXCHANGE') && d.status !== 'DELIVERED'
           );
           const targetEntityId = matchedDeliv?.id || cid;
-          const remainingUnassigned = db.contractAssets.filter(
-            c => c.contractId === cid && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
-          );
+          const delivCaIds = matchedDeliv ? extractCaIdsForBatch(matchedDeliv) : [];
+          const remainingUnassigned = delivCaIds.length > 0
+            ? db.contractAssets.filter(
+                c => delivCaIds.includes(c.id) && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+              )
+            : db.contractAssets.filter(
+                c => c.contractId === cid && c.status !== 'RETURNED' && c.status !== 'SOLD' && c.status !== 'RENTED' && !c.assetId
+              );
           if (remainingUnassigned.length === 0) {
             await clearHandoverTasks({
               entityId: targetEntityId,
@@ -9624,6 +9699,50 @@ ${currentTenant?.corporateName || tenantCorp} 배상
               completedByName: currentUser?.name,
               completionAction: 'ASSET_ASSIGNED'
             });
+
+            // 🌟 [장비할당 완료 ➔ 계약서 발송 가능 상태 진입]: 해당 출고요청 건의 계약서 미발송 시 할일(CONTRACT_PACKAGE_SEND) 발행
+            if (matchedDeliv && contract) {
+              const alreadySentForDeliv = (db.contractHistory || []).some(
+                h =>
+                  h.contractId === contract.id &&
+                  (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+                  !(h.description || '').includes('월간 안전점검 체크리스트') &&
+                  !(h.description || '').includes('영업담당자 변경') &&
+                  !(h.description || '').includes('[거래명세서') &&
+                  !(h.description || '').includes('[계약서패키지 발급]') &&
+                  (h.description || '').includes(`[배차:${matchedDeliv.id}]`)
+              );
+              const existingSendTodo = db.todos.find(
+                t =>
+                  !t.isCompleted &&
+                  t.taskCategory === 'CONTRACT_PACKAGE_SEND' &&
+                  (t.entityId === matchedDeliv.id || t.relatedEntityId === matchedDeliv.id)
+              );
+              if (!alreadySentForDeliv && !existingSendTodo) {
+                const custObj = contract.customerId ? db.customers.find(c => c.id === contract.customerId) : undefined;
+                const siteObj = contract.siteId ? db.sites.find(s => s.id === contract.siteId) : undefined;
+                const assignedSlots = delivCaIds.length > 0
+                  ? db.contractAssets.filter(c => delivCaIds.includes(c.id) && c.assetId)
+                  : db.contractAssets.filter(c => c.contractId === contract.id && c.assetId && c.status !== 'RETURNED' && c.status !== 'SOLD');
+                const assignedAssetNos = assignedSlots
+                  .map(s => db.assets.find(a => a.id === s.assetId)?.assetNo || s.expectedModel)
+                  .filter(Boolean)
+                  .join(', ');
+                await issueHandoverTask({
+                  category: 'CONTRACT_PACKAGE_SEND',
+                  title: `[계약서 미발송] ${custObj?.name || '고객사'} (${siteObj?.name || '현장'} · ${assignedSlots.length || pairs.length}대 할당완료)`,
+                  content: `출고요청 ${matchedDeliv.id} (${contract.contractNo}) 장비할당 완료${assignedAssetNos ? ` | 할당장비: ${assignedAssetNos}` : ''} | 상차예정: ${(matchedDeliv.loadingDate || contract.startDate || '').slice(0, 10) || '미정'}`,
+                  targetDept: 'SALES',
+                  priority: 'URGENT',
+                  dueDate: (matchedDeliv.loadingDate || contract.startDate || '').slice(0, 10) || undefined,
+                  actionUrl: `/admin/smart_dispatch4?deliveryId=${matchedDeliv.id}&contractId=${contract.id}`,
+                  entityType: 'DELIVERY',
+                  entityId: matchedDeliv.id,
+                  senderId: currentUser?.id,
+                  senderName: currentUser?.name || '출고팀'
+                });
+              }
+            }
           }
           const existingPdiTodo = db.todos.find(
             t =>

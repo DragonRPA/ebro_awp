@@ -159,6 +159,68 @@ export function isTaskEntityAlreadyResolved(t: Todo): boolean {
     return false;
   }
 
+  // 1-0. 출고요청 장비할당 완료 후 계약서 미발송 건 발송 (CONTRACT_PACKAGE_SEND)
+  if (cat === 'CONTRACT_PACKAGE_SEND') {
+    if (!eid) return true;
+    if (db.contracts.length === 0 || db.deliveries.length === 0) return false;
+    const deliv = db.deliveries.find(d => d.id === eid || d.id === t.relatedEntityId);
+    const contractId = deliv?.contractId || (eid.startsWith('CONT') ? eid : (t.relatedEntityId || ''));
+    const contract = contractId ? db.contracts.find(c => c.id === contractId) : undefined;
+    if (!contract) return true;
+    const cStatus = (contract.status || '').toUpperCase();
+    if (cStatus === 'TERMINATED' || cStatus === 'CANCELLED' || cStatus === 'COMPLETED') return true;
+    if (deliv && (deliv.status || '').toUpperCase() === 'CANCELLED') return true;
+
+    // 해당 출고요청 건에 지정된 발송 로그([배차:DLV-...]) 또는 ToDo 생성 시각 이후의 발송 로그가 있으면 완료 판정
+    const todoTime = new Date(t.updatedAt || t.createdAt || 0).getTime();
+    const sentLogs = (db.contractHistory || []).filter(
+      h =>
+        h.contractId === contract.id &&
+        (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+        !(h.description || '').includes('월간 안전점검 체크리스트') &&
+        !(h.description || '').includes('영업담당자 변경') &&
+        !(h.description || '').includes('[거래명세서') &&
+        !(h.description || '').includes('[계약서패키지 발급]')
+    );
+    if (deliv && sentLogs.some(h => (h.description || '').includes(`[배차:${deliv.id}]`))) {
+      return true;
+    }
+    if (
+      sentLogs.some(
+        h => !(h.description || '').includes('[배차:') && new Date(h.createdAt || 0).getTime() >= todoTime
+      )
+    ) {
+      return true;
+    }
+
+    // 할당이 취소되어 다시 미할당 상태로 돌아갔거나 체결자산이 모두 반납/매각된 경우 상계
+    if (deliv?.cargoItems) {
+      try {
+        const parsed = typeof deliv.cargoItems === 'string' ? JSON.parse(deliv.cargoItems) : deliv.cargoItems;
+        if (Array.isArray(parsed)) {
+          const caIds: string[] = [];
+          parsed.forEach((ci: any) => {
+            if (Array.isArray(ci?.contractAssetIds)) caIds.push(...ci.contractAssetIds.filter(Boolean));
+          });
+          if (caIds.length > 0 && db.contractAssets.length > 0) {
+            const matchedCas = caIds.map(id => db.contractAssets.find(c => c.id === id)).filter(Boolean);
+            if (
+              matchedCas.length > 0 &&
+              matchedCas.every(ca => ca!.status === 'RETURNED' || ca!.status === 'SOLD')
+            ) {
+              return true;
+            }
+            if (matchedCas.some(ca => !ca!.assetId && ca!.status !== 'RETURNED' && ca!.status !== 'SOLD')) {
+              return true;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return false;
+  }
+
   // 1. 계약서패키지 재발송 (CONTRACT_PACKAGE_RESEND)
   if (cat === 'CONTRACT_PACKAGE_RESEND') {
     if (!eid) return true;
@@ -1042,12 +1104,43 @@ export function synthesizeMissingDomainTasks(existingOpenTodos: Todo[]): Todo[] 
   return synthesized;
 }
 
+export function canUserSendContract(
+  currentUser: { id?: string; department?: string; role?: string } | null,
+  hasPermission?: (menuId: string, action: 'view' | 'save') => boolean,
+  overrideDeptMode?: string
+): boolean {
+  if (!currentUser) return false;
+  if (overrideDeptMode) {
+    const mode = overrideDeptMode.toUpperCase();
+    if (mode === 'OUTBOUND' || mode === 'AS') return false;
+  }
+  const rawDept = (currentUser.department || '').toUpperCase();
+  const rawRole = (currentUser.role || '').toUpperCase();
+  if (hasPermission) {
+    return hasPermission('contract', 'save') || hasPermission('contract', 'view');
+  }
+  if (rawRole === 'ADMIN' || rawRole === 'EXECUTIVE' || rawRole === 'MASTER') return true;
+  if (
+    rawDept.includes('영업') ||
+    rawDept.includes('SALES') ||
+    rawDept.includes('관리') ||
+    rawDept.includes('경영') ||
+    rawDept.includes('대표')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function resolveTaskMenuId(t: Todo): string {
   const cat = (t.taskCategory || '').toUpperCase();
   const etype = (t.entityType || '').toUpperCase();
   const url = (t.actionUrl || '').toLowerCase();
   const eid = (t.entityId || t.relatedEntityId || '').toUpperCase();
 
+  if (cat === 'CONTRACT_PACKAGE_SEND') {
+    return 'smart_dispatch4';
+  }
   if (cat.includes('ASSIGN') && !cat.includes('VEHICLE')) {
     return 'dispatch_assign';
   }
@@ -1105,7 +1198,7 @@ export function matchesDepartmentTask(
   const title = t.title || '';
 
   if (deptMode === 'EXECUTIVE') {
-    return td === 'EXECUTIVE' || td.includes('경영') || td.includes('대표');
+    return td === 'EXECUTIVE' || td.includes('경영') || td.includes('대표') || cat === 'CONTRACT_PACKAGE_SEND';
   }
 
   if (deptMode === 'SALES') {
@@ -1113,6 +1206,7 @@ export function matchesDepartmentTask(
     return (
       td === 'SALES' ||
       td.includes('영업') ||
+      cat === 'CONTRACT_PACKAGE_SEND' ||
       cat === 'CONTRACT_PACKAGE_RESEND' ||
       cat === 'SITE_ARRIVAL_CONFIRM' ||
       taskMenuId === 'contract' ||
@@ -1146,6 +1240,7 @@ export function matchesDepartmentTask(
   }
 
   if (deptMode === 'ADMIN') {
+    if (cat === 'CONTRACT_PACKAGE_SEND' || cat === 'CONTRACT_PACKAGE_RESEND') return true;
     if (td === 'YARD' || td === 'AS' || td === 'SALES') return false;
     return (
       taskMenuId === 'delivery' ||
@@ -1176,6 +1271,9 @@ export function resolveMobileTabForTask(t: Todo): string {
   const cat = (t.taskCategory || '').toUpperCase();
   const url = (t.actionUrl || '').toLowerCase();
 
+  if (cat === 'CONTRACT_PACKAGE_SEND') {
+    return 'sales_order';
+  }
   if (cat === 'CLAIM_DAMAGE_BILLING' || (t.entityType || '').toUpperCase() === 'RECEIVABLE' || url.includes('receivables')) {
     return 'inbound_defect_claim';
   }
@@ -1209,8 +1307,10 @@ export function resolveMobileTabForTask(t: Todo): string {
 export function getTaskDisplayBadges(t: Todo): { menuLabel: string; deptLabel: string; categoryKey: 'ASSIGN' | 'INSPECT' | 'DISPATCH' | 'REPAIR' } {
   const menuId = resolveTaskMenuId(t);
   const td = (t.targetDept || '').toUpperCase();
+  const cat = (t.taskCategory || '').toUpperCase();
 
   const menuLabel =
+    cat === 'CONTRACT_PACKAGE_SEND' ? '계약서 발송' :
     menuId === 'dispatch_assign' ? '장비 할당' :
     menuId === 'outbound_inspections' ? '출고 검수' :
     menuId === 'delivery' ? '배차 관리' :
@@ -1225,6 +1325,7 @@ export function getTaskDisplayBadges(t: Todo): { menuLabel: string; deptLabel: s
     menuId === 'customer' ? '고객 관리' : '일반 업무';
 
   const deptLabel =
+    cat === 'CONTRACT_PACKAGE_SEND' ? '계약서 발송' :
     td === 'YARD' || menuId === 'dispatch_assign' || menuId === 'outbound_inspections' ? '출고팀' :
     td === 'DISPATCH' || menuId === 'delivery' ? '배차/관리부' :
     td === 'AS' || menuId === 'field_as' ? 'AS팀' :
@@ -1334,9 +1435,21 @@ export function findActiveTasksForUser(
   const synthesizedTodos = synthesizeMissingDomainTasks(openDbTodos);
   const combinedOpenTodos = [...openDbTodos, ...synthesizedTodos];
 
+  const canSendContract = canUserSendContract(currentUser, hasPermission, activeMode);
+
   const filtered = combinedOpenTodos.filter(t => {
     const taskMenuId = resolveTaskMenuId(t);
     const td = (t.targetDept || '').toUpperCase();
+    const cat = (t.taskCategory || '').toUpperCase();
+
+    // 0. 계약서 발송/재발송 업무는 계약서 발송 권한 보유자만 표출
+    if (cat === 'CONTRACT_PACKAGE_SEND' || cat === 'CONTRACT_PACKAGE_RESEND') {
+      if (!canSendContract) return false;
+      if (t.targetType === 'USER' && t.assignedUserId && t.assignedUserId !== currentUser.id) {
+        return false;
+      }
+      return true;
+    }
 
     // 1. 특정 개인에게 지정된 건은 타 직원은 볼 수 없음 (격리)
     if (t.targetType === 'USER' && t.assignedUserId && t.assignedUserId !== currentUser.id) {
@@ -1389,10 +1502,14 @@ export function findActiveTasksForUser(
   });
 
   // 정렬 우선순위:
-  // 1) EXECUTIVE_DIRECTIVE (경영진 특별지시) 최우선
+  // 1) CONTRACT_PACKAGE_SEND / CONTRACT_PACKAGE_RESEND (장비할당 완료 후 계약서 미발송/재발송) 및 EXECUTIVE_DIRECTIVE 최우선
   // 2) priority (URGENT > HIGH > NORMAL > LOW)
   // 3) 마감기한 임박순 / 최신순
   return filtered.sort((a, b) => {
+    const isATopContract = a.taskCategory === 'CONTRACT_PACKAGE_SEND' || a.taskCategory === 'CONTRACT_PACKAGE_RESEND' ? 1 : 0;
+    const isBTopContract = b.taskCategory === 'CONTRACT_PACKAGE_SEND' || b.taskCategory === 'CONTRACT_PACKAGE_RESEND' ? 1 : 0;
+    if (isATopContract !== isBTopContract) return isBTopContract - isATopContract;
+
     const isAExec = a.taskCategory === 'EXECUTIVE_DIRECTIVE' ? 1 : 0;
     const isBExec = b.taskCategory === 'EXECUTIVE_DIRECTIVE' ? 1 : 0;
     if (isAExec !== isBExec) return isBExec - isAExec;

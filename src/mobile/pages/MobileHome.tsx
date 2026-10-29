@@ -10,7 +10,9 @@ import { MobileTabType } from '../MobileBottomNav';
 import { MobileDeptMode } from '../MobileHeader';
 import { CallAudioUploadModal } from '../../components/CallAudioUploadModal';
 
-import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask as resolveCanonicalMobileTab, getTaskDisplayBadges, resolveTaskMenuId } from '../../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabForTask as resolveCanonicalMobileTab, getTaskDisplayBadges, resolveTaskMenuId, canUserSendContract } from '../../utils/taskHandoverPipeline';
+import { findUnsentContractOutboundRows } from '../../modules/dispatchRequest/dispatchOrderHistoryReconstructor';
+import { ContractDocumentBundleModal } from '../../components/ContractDocumentBundleModal';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
 import { db, Todo } from '../../services/db';
 import { MobileApprovalInboxSection } from '../components/MobileApprovalInboxSection';
@@ -37,8 +39,14 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
     assets, 
     contracts, 
     contractAssets, 
+    contractHistory,
     mechanicConsumableStocks, 
     customers, 
+    sites,
+    siteMasters,
+    contacts,
+    users,
+    standardOptions,
     currentTenant, 
     repairs, 
     consumables, 
@@ -54,15 +62,65 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [taskCategoryFilter, setTaskCategoryFilter] = useState<string>('ALL');
+  const [bundleModalTarget, setBundleModalTarget] = useState<{
+    contractId: string;
+    deliveryId: string;
+    contractAssetIds: string[];
+  } | null>(null);
 
   useEffect(() => {
     setTaskCategoryFilter('ALL');
   }, [deptMode]);
 
+  const canSendContract = useMemo(
+    () => canUserSendContract(currentUser, hasPermission, deptMode),
+    [currentUser, hasPermission, deptMode]
+  );
+
+  const unsentContractOutboundItems = useMemo(() => {
+    if (!canSendContract) return [];
+    return findUnsentContractOutboundRows({
+      deliveries: deliveries || [],
+      contracts: contracts || [],
+      contractAssets: contractAssets || [],
+      contractHistory: contractHistory || [],
+      todos: todos || [],
+      customers: customers || [],
+      sites: sites || [],
+      siteMasters: siteMasters || [],
+      contacts: contacts || [],
+      assets: assets || [],
+      outboundInspections: outboundInspections || [],
+      users: users || [],
+      standardOptions: standardOptions || [],
+    });
+  }, [
+    canSendContract,
+    deliveries,
+    contracts,
+    contractAssets,
+    contractHistory,
+    todos,
+    customers,
+    sites,
+    siteMasters,
+    contacts,
+    assets,
+    outboundInspections,
+    users,
+    standardOptions,
+  ]);
+
+  const unsentDeliveryIdSet = useMemo(
+    () => new Set(unsentContractOutboundItems.map(item => item.row.id)),
+    [unsentContractOutboundItems]
+  );
+
   // ── 로그인 사용자 직무 맞춤형 ToDo 필터링 (헌장 3.3 정책 & 실물 엔티티 완료 교차검증) ──
   const userTodos = useMemo(() => {
-    return findActiveTasksForUser(todos || [], currentUser, hasPermission, deptMode);
-  }, [todos, currentUser, hasPermission, deptMode, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, fieldAsTickets, billings]);
+    const raw = findActiveTasksForUser(todos || [], currentUser, hasPermission, deptMode);
+    return raw.filter(t => !(t.taskCategory === 'CONTRACT_PACKAGE_SEND' && t.entityId && unsentDeliveryIdSet.has(t.entityId)));
+  }, [todos, currentUser, hasPermission, deptMode, contracts, contractAssets, deliveries, outboundInspections, assets, repairs, fieldAsTickets, billings, unsentDeliveryIdSet]);
 
   const resolveMobileTabForTask = (task: Todo): MobileTabType | null => {
     return resolveCanonicalMobileTab(task) as MobileTabType;
@@ -431,6 +489,116 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
     );
   };
 
+  // ── [최상단 할일 카드] 계약서 발송 권한 임직원 전용: 장비할당 완료 후 계약서 미발송 출고 요청 ──
+  const renderUnsentContractOutboundSection = () => {
+    if (!canSendContract || unsentContractOutboundItems.length === 0) return null;
+
+    return (
+      <details open className="bg-slate-900 border-2 border-indigo-500/80 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <summary className="flex items-center justify-between cursor-pointer outline-none list-none [&::-webkit-details-marker]:hidden gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 flex-shrink-0">
+              <FileText className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-black text-white" style={{ whiteSpace: 'nowrap' }}>
+              계약서 미발송 출고 요청
+            </span>
+          </div>
+          <span
+            className="text-xs font-black px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            미발송 {unsentContractOutboundItems.length}건
+          </span>
+        </summary>
+
+        <div className="flex flex-col gap-2.5 mt-2">
+          {unsentContractOutboundItems.map(({ row, issuedInfo, equipSummary, assignedAssetSummary, contractAssetIds }) => (
+            <div
+              key={row.id}
+              className="p-3 rounded-xl border border-indigo-500/50 bg-indigo-950/30 flex flex-col gap-2"
+            >
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-indigo-600 text-white" style={{ whiteSpace: 'nowrap' }}>
+                    계약서 미발송
+                  </span>
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" style={{ whiteSpace: 'nowrap' }}>
+                    장비할당 완료 {row.totalAssignedCount}대
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700" style={{ whiteSpace: 'nowrap' }}>
+                    {row.reqTypeLabel}
+                  </span>
+                  {row.loadingDateVal && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40" style={{ whiteSpace: 'nowrap' }}>
+                      상차 {row.loadingDateVal}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-300 font-mono" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {row.id}
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black text-white leading-snug">
+                  [{row.customerName}] {row.siteName}
+                </h4>
+                <p className="text-[11px] text-indigo-300 font-bold mt-1 leading-relaxed">
+                  {equipSummary} ({assignedAssetSummary})
+                </p>
+                <div className="text-[10px] text-slate-300 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>계약번호: {row.contractNo}</span>
+                  <span>요청자: {row.requesterName}</span>
+                  {issuedInfo && (
+                    <span className="text-amber-300">발급이력: {issuedInfo.actor} {issuedInfo.timeStr}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-700/80 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!row.contractId) return;
+                    setBundleModalTarget({
+                      contractId: row.contractId,
+                      deliveryId: row.id,
+                      contractAssetIds,
+                    });
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  <FileText className="w-3 h-3" />
+                  <span>계약서 발송</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setNavigationPayload) {
+                      setNavigationPayload({
+                        deliveryId: row.id,
+                        contractId: row.contractId,
+                        targetMenuId: 'smart_dispatch4',
+                      });
+                    }
+                    onNavigate('sales_order');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all"
+                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  <span>출고 요청 이동</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+    );
+  };
+
   // 1. [영업부 전용 홈 화면]
   if (deptMode === 'SALES') {
     return (
@@ -440,6 +608,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
           details[open] summary ~ * { animation: slideDown 0.2s ease-out; }
           @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         `}} />
+
+        {/* 최상단: 장비할당 완료 후 계약서 미발송 출고 요청 할일 카드 */}
+        {renderUnsentContractOutboundSection()}
 
         {/* 상단 현장 피드 배너 */}
         <div className="bg-gradient-to-br from-blue-900/70 to-slate-900 border border-blue-500/50 rounded-3xl p-5 shadow-xl">
@@ -607,6 +778,16 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             alert('통화 녹음 파일이 업로드되었습니다.\n분석 완료 후 출고 요청 대기 목록에 초안으로 등록됩니다.');
           }}
         />
+
+        {bundleModalTarget && (
+          <ContractDocumentBundleModal
+            isOpen={!!bundleModalTarget}
+            onClose={() => setBundleModalTarget(null)}
+            initialContractId={bundleModalTarget.contractId}
+            initialDeliveryId={bundleModalTarget.deliveryId}
+            initialContractAssetIds={bundleModalTarget.contractAssetIds}
+          />
+        )}
       </div>
     );
   }

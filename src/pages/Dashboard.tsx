@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Activity, CheckCircle, Bell, ArrowRight, FileText, CheckSquare, RefreshCw, ClipboardList, Package } from 'lucide-react';
 import { isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
-import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload, resolveTaskMenuId, getTaskDisplayBadges } from '../utils/taskHandoverPipeline';
+import { findActiveTasksForUser, reconcileCompletedTodosInDb, buildTaskNavigationPayload, resolveTaskMenuId, getTaskDisplayBadges, canUserSendContract } from '../utils/taskHandoverPipeline';
+import { findUnsentContractOutboundRows } from '../modules/dispatchRequest/dispatchOrderHistoryReconstructor';
 import { normalizeMenuId } from '../config/menu_config';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -18,12 +19,17 @@ export const Dashboard: React.FC = () => {
     assets,
     contracts,
     contractAssets,
+    contractHistory,
     deliveries,
     outboundInspections,
     repairs,
     fieldAsTickets,
     customers,
     sites,
+    siteMasters,
+    contacts,
+    users,
+    standardOptions,
     completeTodo, 
     resolveExecutiveDirective,
     setActiveTab,
@@ -39,6 +45,8 @@ export const Dashboard: React.FC = () => {
 
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
+  const [bundleTargetDeliveryId, setBundleTargetDeliveryId] = useState<string | undefined>(undefined);
+  const [bundleTargetContractAssetIds, setBundleTargetContractAssetIds] = useState<string[] | undefined>(undefined);
 
   const [, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [, setAgentCallsign] = useState<string>('');
@@ -59,10 +67,55 @@ export const Dashboard: React.FC = () => {
     });
   }, []);
 
-  const activeTasks = useMemo(
-    () => findActiveTasksForUser(todos, currentUser, hasPermission),
-    [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, repairs, fieldAsTickets, assets, customers, sites]
+  const canSendContract = useMemo(
+    () => canUserSendContract(currentUser, hasPermission),
+    [currentUser, hasPermission]
   );
+
+  // 장비할당이 완료되었으나 계약서가 아직 발송되지 않은 출고 요청 건 (실물 SSOT 기반)
+  const unsentContractOutboundItems = useMemo(() => {
+    if (!canSendContract) return [];
+    return findUnsentContractOutboundRows({
+      deliveries: deliveries || [],
+      contracts: contracts || [],
+      contractAssets: contractAssets || [],
+      contractHistory: contractHistory || [],
+      todos: todos || [],
+      customers: customers || [],
+      sites: sites || [],
+      siteMasters: siteMasters || [],
+      contacts: contacts || [],
+      assets: assets || [],
+      outboundInspections: outboundInspections || [],
+      users: users || [],
+      standardOptions: standardOptions || [],
+    });
+  }, [
+    canSendContract,
+    deliveries,
+    contracts,
+    contractAssets,
+    contractHistory,
+    todos,
+    customers,
+    sites,
+    siteMasters,
+    contacts,
+    assets,
+    outboundInspections,
+    users,
+    standardOptions,
+  ]);
+
+  const unsentDeliveryIdSet = useMemo(
+    () => new Set(unsentContractOutboundItems.map(item => item.row.id)),
+    [unsentContractOutboundItems]
+  );
+
+  const activeTasks = useMemo(() => {
+    const raw = findActiveTasksForUser(todos, currentUser, hasPermission);
+    return raw.filter(t => !(t.taskCategory === 'CONTRACT_PACKAGE_SEND' && t.entityId && unsentDeliveryIdSet.has(t.entityId)));
+  }, [todos, currentUser, hasPermission, contracts, contractAssets, deliveries, outboundInspections, repairs, fieldAsTickets, assets, customers, sites, unsentDeliveryIdSet]);
 
   const taskGroupCounts = useMemo(() => {
     let assign = 0;
@@ -247,6 +300,242 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* ── [최상단 할일 카드] 계약서 발송 권한 임직원 전용: 장비할당 완료 후 계약서 미발송 출고 요청 ── */}
+      {canSendContract && unsentContractOutboundItems.length > 0 && (
+        <details
+          data-mid="dashboard-unsent-contract-feed"
+          open
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: '12px',
+            padding: '18px 22px',
+            border: '1.5px solid #4f46e5',
+            borderLeft: '5px solid #4f46e5',
+          }}
+        >
+          <summary style={{ cursor: 'pointer', listStyle: 'none', outline: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  backgroundColor: '#4f46e5',
+                  padding: '3px 9px',
+                  borderRadius: '4px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  계약서 발송 대기
+                </span>
+                <h4 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <FileText size={17} color="#4f46e5" />
+                  계약서 미발송 출고 요청
+                </h4>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  장비할당 완료 · 계약서 발송 가능 상태
+                </span>
+              </div>
+              <span style={{
+                fontSize: '12px',
+                fontWeight: 800,
+                padding: '3px 10px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                color: '#4f46e5',
+                border: '1px solid rgba(79, 70, 229, 0.3)',
+                whiteSpace: 'nowrap',
+              }}>
+                미발송 {unsentContractOutboundItems.length}건
+              </span>
+            </div>
+          </summary>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {unsentContractOutboundItems.map(({ row, issuedInfo, equipSummary, assignedAssetSummary, contractAssetIds }) => {
+              const dispatchStatusLabel =
+                row.dispatchStatus === 'DELIVERED' || row.dispatchStatus === 'COMPLETED'
+                  ? '운송완료'
+                  : row.dispatchStatus === 'DISPATCHED'
+                  ? '배차완료'
+                  : '배차대기';
+              return (
+              <div
+                key={row.id}
+                style={{
+                  backgroundColor: 'rgba(79, 70, 229, 0.04)',
+                  padding: '14px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(79, 70, 229, 0.28)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '260px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      backgroundColor: '#4f46e5',
+                      color: '#ffffff',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      계약서 미발송
+                    </span>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                      color: '#059669',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      장비할당 완료 {row.totalAssignedCount}대
+                    </span>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {row.reqTypeLabel}
+                    </span>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 7px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {dispatchStatusLabel}
+                    </span>
+                    {row.loadingDateVal && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        color: '#d97706',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        상차예정 {row.loadingDateVal}{row.loadingTimeSlotVal ? ` (${row.loadingTimeSlotVal})` : ''}
+                      </span>
+                    )}
+                    {issuedInfo && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 7px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.14)',
+                        color: '#b45309',
+                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        발급이력 {issuedInfo.actor} {issuedInfo.timeStr} (이메일 미발송)
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 800, fontSize: '14.5px', color: 'var(--text-main)' }}>
+                      [{row.customerName}] {row.siteName}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#4f46e5' }}>
+                      {equipSummary} ({assignedAssetSummary})
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <span>출고요청번호: <strong>{row.id}</strong></span>
+                    <span>계약번호: <strong>{row.contractNo}</strong></span>
+                    <span>요청자: <strong>{row.requesterName}</strong></span>
+                    {row.siteContactName && row.siteContactName !== '-' && (
+                      <span>현장담당자: {row.siteContactName}{row.siteContactPhone && row.siteContactPhone !== '-' ? ` (${row.siteContactPhone})` : ''}</span>
+                    )}
+                    {row.siteContactEmail && (
+                      <span>수신이메일: {row.siteContactEmail}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBundleTargetContractId(row.contractId);
+                      setBundleTargetDeliveryId(row.id);
+                      setBundleTargetContractAssetIds(contractAssetIds);
+                      setShowBundleModal(true);
+                    }}
+                    style={{
+                      fontSize: '12px',
+                      padding: '7px 13px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#4f46e5',
+                      color: '#ffffff',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <FileText size={13} /> 계약서 발송
+                  </button>
+
+                  {hasPermission('smart_dispatch4', 'view') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setNavigationPayload) {
+                          setNavigationPayload({
+                            deliveryId: row.id,
+                            contractId: row.contractId,
+                            targetMenuId: 'smart_dispatch4',
+                          });
+                        }
+                        setActiveTab('smart_dispatch4');
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: '12px',
+                        padding: '6px 11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 700,
+                      }}
+                    >
+                      출고 요청 이동 <ArrowRight size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
+
       {/* ── 영업부·경영진·출고팀 핵심 지표: 가용재고 및 출고예정 요약 바로가기 ── */}
       <div
         className="card"
@@ -413,6 +702,7 @@ export const Dashboard: React.FC = () => {
               {filteredActiveTasks.map(task => {
                 const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
                 const isPackageResend = task.taskCategory === 'CONTRACT_PACKAGE_RESEND';
+                const isPackageSend = task.taskCategory === 'CONTRACT_PACKAGE_SEND';
                 const priorityColor = task.priority === 'URGENT' ? 'var(--danger)' : task.priority === 'HIGH' ? 'var(--warning)' : 'var(--primary)';
                 const priorityLabel = task.priority === 'URGENT' ? '긴급' : task.priority === 'HIGH' ? '높음' : '일반';
                 const targetMenuId = resolveTaskMenuId(task);
@@ -420,9 +710,9 @@ export const Dashboard: React.FC = () => {
                 
                 return (
                   <div key={task.id} style={{
-                    backgroundColor: isDirective ? 'rgba(220, 38, 38, 0.05)' : isPackageResend ? 'rgba(29, 78, 216, 0.05)' : 'var(--bg-secondary)',
+                    backgroundColor: isDirective ? 'rgba(220, 38, 38, 0.05)' : (isPackageResend || isPackageSend) ? 'rgba(29, 78, 216, 0.05)' : 'var(--bg-secondary)',
                     padding: '14px 16px', borderRadius: '8px',
-                    border: isDirective ? '1.5px solid var(--danger)' : isPackageResend ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                    border: isDirective ? '1.5px solid var(--danger)' : (isPackageResend || isPackageSend) ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap'
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, minWidth: '260px' }}>
@@ -433,6 +723,13 @@ export const Dashboard: React.FC = () => {
                             backgroundColor: 'var(--danger)', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
                           }}>
                             ⚡ 경영진 특별지시
+                          </span>
+                        ) : isPackageSend ? (
+                          <span style={{
+                            fontSize: '11px', fontWeight: '900', padding: '2px 8px', borderRadius: '4px',
+                            backgroundColor: '#4f46e5', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
+                          }}>
+                            <FileText size={11} /> 계약서 미발송
                           </span>
                         ) : isPackageResend ? (
                           <span style={{
@@ -487,20 +784,29 @@ export const Dashboard: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
-                      {isPackageResend && (
+                      {(isPackageResend || isPackageSend) && (
                         <button
                           onClick={() => {
-                            setBundleTargetContractId(task.entityId);
+                            if (isPackageSend) {
+                              const matchedDel = (deliveries || []).find(d => d.id === task.entityId);
+                              setBundleTargetContractId(matchedDel?.contractId || task.entityId);
+                              setBundleTargetDeliveryId(matchedDel?.id);
+                              setBundleTargetContractAssetIds(undefined);
+                            } else {
+                              setBundleTargetContractId(task.entityId);
+                              setBundleTargetDeliveryId(undefined);
+                              setBundleTargetContractAssetIds(undefined);
+                            }
                             setShowBundleModal(true);
                           }}
                           style={{
                             fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none',
-                            backgroundColor: 'var(--primary)', color: '#fff', fontWeight: '800', cursor: 'pointer',
+                            backgroundColor: isPackageSend ? '#4f46e5' : 'var(--primary)', color: '#fff', fontWeight: '800', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', gap: '4px',
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          <FileText size={13} /> 패키지 재발송 ➔
+                          <FileText size={13} /> {isPackageSend ? '계약서 발송' : '패키지 재발송 ➔'}
                         </button>
                       )}
 
@@ -545,7 +851,7 @@ export const Dashboard: React.FC = () => {
         </details>
       )}
 
-      {activeTasks.length === 0 && (
+      {activeTasks.length === 0 && (!canSendContract || unsentContractOutboundItems.length === 0) && (
         <div className="card" style={{ padding: '36px 24px', textAlign: 'center', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
           <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', backgroundColor: 'var(--success-light)', color: 'var(--success)', marginBottom: '12px' }}>
             <CheckCircle size={36} />
@@ -629,8 +935,12 @@ export const Dashboard: React.FC = () => {
         onClose={() => {
           setShowBundleModal(false);
           setBundleTargetContractId(undefined);
+          setBundleTargetDeliveryId(undefined);
+          setBundleTargetContractAssetIds(undefined);
         }}
         initialContractId={bundleTargetContractId}
+        initialDeliveryId={bundleTargetDeliveryId}
+        initialContractAssetIds={bundleTargetContractAssetIds}
       />
     </div>
   );
