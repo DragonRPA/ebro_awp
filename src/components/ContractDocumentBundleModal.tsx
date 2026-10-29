@@ -60,6 +60,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, officialMailConfigs, currentUser,
     currentTenant, showErrorModal, hasPermission, users, outboundInspections, standardOptions,
+    contractHistory = [],
     refreshAllData
   } = useApp();
 
@@ -1314,6 +1315,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
   const handleOpenLocalFile = async () => {
     try {
       let pdf = generatedResult;
+      const wasGeneratedNow = !pdf || !pdf.filePath;
       if (!pdf || !pdf.filePath) {
         pdf = await buildBundlePdf();
       }
@@ -1328,6 +1330,30 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
       if (!openResp.ok) {
         const errJson = await openResp.json().catch(() => null);
         throw new Error(errJson?.error || `로컬 파일 열기 실패 (HTTP ${openResp.status})`);
+      }
+
+      // 계약서패키지 PDF 발급 로그 DB 기록
+      if (selectedContract && wasGeneratedNow) {
+        try {
+          const historyId = db.generateNextId('contractHistory', db.contractHistory);
+          const issuerName = currentUser?.name || '영업담당';
+          const activeDelId = filterDate.startsWith('DELIVERY:')
+            ? filterDate.slice('DELIVERY:'.length)
+            : initialDeliveryId || outboundDelivery?.id || '';
+          const deliveryTag = activeDelId ? ` [배차:${activeDelId}]` : '';
+          db.insertRow<any>('contractHistory', {
+            id: historyId,
+            contractId: selectedContract.id,
+            changeType: 'DOCUMENT_SENT',
+            description: `[계약서패키지 발급]${deliveryTag} 계약서패키지 PDF 발급 완료 (총 ${pdf.pageCount}p / 발급자: ${issuerName})`,
+            changeDate: new Date().toISOString().split('T')[0],
+            createdAt: new Date().toISOString()
+          });
+          await db.awaitPendingWrites();
+          refreshAllData?.();
+        } catch (logErr) {
+          console.warn('계약서패키지 발급 로그 저장 경고:', logErr);
+        }
       }
     } catch (err: any) {
       showErrorModal?.(`파일 열기 실패:\n${err.message || err}`);
@@ -1386,12 +1412,16 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
         const historyId = db.generateNextId('contractHistory', db.contractHistory);
         const recipientSummary = recipients.map(r => `${r.name ? `${r.name}(${r.email})` : r.email}`).join(', ');
         const senderName = currentUser?.name || '영업담당';
+        const activeDelId = filterDate.startsWith('DELIVERY:')
+          ? filterDate.slice('DELIVERY:'.length)
+          : initialDeliveryId || outboundDelivery?.id || '';
+        const deliveryTag = activeDelId ? ` [배차:${activeDelId}]` : '';
 
         db.insertRow<any>('contractHistory', {
           id: historyId,
           contractId: selectedContract.id,
           changeType: 'DOCUMENT_SENT',
-          description: `계약서패키지 이메일 발송 완료 (총 ${recipients.length}명: ${recipientSummary} / 발송자: ${senderName})`,
+          description: `계약서패키지 이메일 발송 완료${deliveryTag} (총 ${recipients.length}명: ${recipientSummary} / 발송자: ${senderName})`,
           changeDate: new Date().toISOString().split('T')[0],
           createdAt: new Date().toISOString()
         });
@@ -2295,6 +2325,50 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({
               )}
             </div>
           )}
+
+          {/* 8. 계약서 발급 및 이메일 발송 로그 */}
+          {selectedContract && (() => {
+            const docLogs = (contractHistory || [])
+              .filter(h =>
+                h.contractId === selectedContract.id &&
+                (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+                !(h.description || '').includes('월간 안전점검 체크리스트') &&
+                !(h.description || '').includes('영업담당자 변경') &&
+                !(h.description || '').includes('[거래명세서')
+              )
+              .sort((a, b) => String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || '')));
+            if (docLogs.length === 0) return null;
+            return (
+              <div style={{ backgroundColor: 'var(--bg-app)', borderRadius: '8px', padding: '10px 14px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  계약서 발급 및 이메일 발송 이력 ({docLogs.length}건)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '110px', overflowY: 'auto' }}>
+                  {docLogs.map(log => {
+                    const isIssuedOnly = (log.description || '').includes('[계약서패키지 발급]');
+                    const timeStr = log.createdAt
+                      ? new Date(log.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+                      : log.changeDate;
+                    return (
+                      <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '11.5px', padding: '4px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                          <span className={`badge ${isIssuedOnly ? 'badge-info' : 'badge-success'}`} style={{ fontSize: '10px', flexShrink: 0 }}>
+                            {isIssuedOnly ? 'PDF 발급' : '발송완료'}
+                          </span>
+                          <span style={{ color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.description}>
+                            {log.description}
+                          </span>
+                        </div>
+                        <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {timeStr}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
         </div>
 

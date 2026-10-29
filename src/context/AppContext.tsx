@@ -10212,11 +10212,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
       // 계약이력 기록
       if (billing.contractId) {
+        const senderName = currentUser?.name || '관리담당';
         db.insertRow<ContractHistory>('contractHistory', {
+          id: db.generateNextId('contractHistory', db.contractHistory),
           contractId: billing.contractId,
           changeType: 'BILLING_SENT',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `청구서 발송: ${billing.billingYm} / ${billing.totalAmount.toLocaleString()}원 (청구번호: ${billingId})`,
+          description: `[거래명세서 발송] ${billing.billingYm} 거래명세서 발송 완료 / ${billing.totalAmount.toLocaleString()}원 (청구번호: ${billingId} / 발송자: ${senderName})`,
           createdAt: new Date().toISOString()
         });
       }

@@ -61,9 +61,85 @@ export const Billings: React.FC = () => {
     receivables, linkReceivableToBilling,
     currentTenant, tenants,
     standardOptions,
+    contractHistory = [],
     saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement,
     navigationPayload, setNavigationPayload
   } = useApp();
+
+  // 청구서별 거래명세서 발급 및 이메일 발송 로그 맵
+  const billingDocLogMap = useMemo(() => {
+    type DocLogInfo = {
+      id: string;
+      type: 'SENT' | 'ISSUED' | 'CREATED';
+      actor: string;
+      timeShort: string;
+      timeFull: string;
+      desc: string;
+    };
+    const byBillingId = new Map<string, { sent?: DocLogInfo; issued?: DocLogInfo; created?: DocLogInfo; logs: DocLogInfo[] }>();
+    const byContractYm = new Map<string, { sent?: DocLogInfo; issued?: DocLogInfo; created?: DocLogInfo; logs: DocLogInfo[] }>();
+
+    const parseEntry = (h: any, type: 'SENT' | 'ISSUED' | 'CREATED'): DocLogInfo => {
+      const desc = String(h.description || '');
+      const actorMatch = desc.match(/(?:발송자|발급자|처리자)\s*:\s*([^)\/,\s]+)/);
+      const actor = actorMatch ? actorMatch[1].trim() : '관리부';
+      let timeShort = h.changeDate || '';
+      let timeFull = h.changeDate || '';
+      if (h.createdAt) {
+        const d = new Date(h.createdAt);
+        if (!isNaN(d.getTime())) {
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mi = String(d.getMinutes()).padStart(2, '0');
+          timeShort = `${mm}-${dd} ${hh}:${mi}`;
+          timeFull = `${d.getFullYear()}-${mm}-${dd} ${hh}:${mi}`;
+        }
+      }
+      return { id: h.id, type, actor, timeShort, timeFull, desc };
+    };
+
+    const sorted = [...(contractHistory || [])].sort((a, b) =>
+      String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || ''))
+    );
+
+    for (const h of sorted) {
+      const desc = String(h.description || '');
+      let type: 'SENT' | 'ISSUED' | 'CREATED' | null = null;
+      if (h.changeType === 'BILLING_SENT' || desc.includes('[거래명세서 발송]')) {
+        type = 'SENT';
+      } else if (desc.includes('[거래명세서 발급]')) {
+        type = 'ISSUED';
+      } else if (h.changeType === 'BILLING_CREATED') {
+        type = 'CREATED';
+      }
+      if (!type) continue;
+
+      const entry = parseEntry(h, type);
+      const billIdMatch = desc.match(/청구번호\s*:\s*([A-Za-z0-9_-]+)/);
+      if (billIdMatch) {
+        const bId = billIdMatch[1];
+        const cur = byBillingId.get(bId) || { logs: [] };
+        if (type === 'SENT' && !cur.sent) cur.sent = entry;
+        if (type === 'ISSUED' && !cur.issued) cur.issued = entry;
+        if (type === 'CREATED' && !cur.created) cur.created = entry;
+        if (type === 'SENT' || type === 'ISSUED') cur.logs.push(entry);
+        byBillingId.set(bId, cur);
+      }
+      const ymMatch = desc.match(/(20\d{2}-\d{2})/);
+      if (h.contractId && ymMatch) {
+        const key = `${h.contractId}::${ymMatch[1]}`;
+        const cur = byContractYm.get(key) || { logs: [] };
+        if (type === 'SENT' && !cur.sent) cur.sent = entry;
+        if (type === 'ISSUED' && !cur.issued) cur.issued = entry;
+        if (type === 'CREATED' && !cur.created) cur.created = entry;
+        if (type === 'SENT' || type === 'ISSUED') cur.logs.push(entry);
+        byContractYm.set(key, cur);
+      }
+    }
+
+    return { byBillingId, byContractYm };
+  }, [contractHistory]);
 
   // ⚡ 고속 O(1) 해시맵 인덱스 (헌장 1.1 최우선 개발 사명: 렌더링 랙 제로화)
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
@@ -1229,6 +1305,21 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      if (billing?.contractId) {
+        const historyId = db.generateNextId('contractHistory', db.contractHistory);
+        const issuerName = currentUser?.name || '관리담당';
+        db.insertRow<ContractHistory>('contractHistory', {
+          id: historyId,
+          contractId: billing.contractId,
+          changeType: 'DOCUMENT_SENT',
+          changeDate: new Date().toISOString().split('T')[0],
+          description: `[거래명세서 발급] ${billing.billingYm} PDF 거래명세서 발급 완료 (청구번호: ${billing.id} / 발급자: ${issuerName})`,
+          createdAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
+      }
     } catch (err: any) {
       showErrorModal('거래명세서 PDF 생성 및 다운로드 실패:\n\n' + (err?.message || String(err)));
     }
@@ -1352,6 +1443,21 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      if (billing?.contractId) {
+        const historyId = db.generateNextId('contractHistory', db.contractHistory);
+        const issuerName = currentUser?.name || '관리담당';
+        db.insertRow<ContractHistory>('contractHistory', {
+          id: historyId,
+          contractId: billing.contractId,
+          changeType: 'DOCUMENT_SENT',
+          changeDate: new Date().toISOString().split('T')[0],
+          description: `[거래명세서 발급] ${billing.billingYm} 엑셀 거래명세서 발급 완료 (청구번호: ${billing.id} / 발급자: ${issuerName})`,
+          createdAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
+      }
     } catch (err: any) {
       showErrorModal('거래명세서 엑셀 원본 생성 실패:\n\n' + (err?.message || String(err)));
     }
@@ -1562,19 +1668,22 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       );
 
       // 3. 청구 상태 및 이력 업데이트
-      if (billing && billing.status === 'UNPAID') {
+      if (billing) {
         db.updateRow<Billing>('billings', billing.id, {
-          status: 'REQUESTED',
+          status: billing.status === 'UNPAID' ? 'REQUESTED' : billing.status,
           updatedAt: new Date().toISOString()
         });
       }
 
       if (billing?.contractId) {
+        const historyId = db.generateNextId('contractHistory', db.contractHistory);
+        const senderName = currentUser?.name || '관리담당';
         db.insertRow<ContractHistory>('contractHistory', {
+          id: historyId,
           contractId: billing.contractId,
-          changeType: 'TERMINATE',
+          changeType: 'DOCUMENT_SENT',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `[거래명세서 발송] ${billing.billingYm} PDF 거래명세서 및 청구서 이메일 발송 완료 (수신: ${mailTo})`,
+          description: `[거래명세서 발송] ${billing.billingYm} PDF 거래명세서 이메일 발송 완료 (청구번호: ${billing.id} / 수신: ${mailTo} / 발송자: ${senderName})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -2594,11 +2703,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       await db.awaitPendingWrites();
 
       // 계약이력 기록
+      const creatorName = currentUser?.name || '관리담당';
       db.insertRow<ContractHistory>('contractHistory', {
+        id: db.generateNextId('contractHistory', db.contractHistory),
         contractId: selectedContractForWizard.id,
         changeType: 'BILLING_CREATED',
         changeDate: targetDate,
-        description: `청구 생성: ${targetYm} / ${overallTotal.toLocaleString()}원 (청구번호: ${billing.id})`,
+        description: `청구 생성: ${targetYm} / ${overallTotal.toLocaleString()}원 (청구번호: ${billing.id} / 처리자: ${creatorName})`,
         createdAt: new Date().toISOString()
       });
       await db.awaitPendingWrites();
@@ -3123,46 +3234,73 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           ₩{unpaid.toLocaleString()}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <span className={`badge ${
-                              b.status === 'UNPAID'    ? 'badge-secondary' :
-                              b.status === 'REQUESTED' ? 'badge-warning' :
-                              b.status === 'REJECTED'  ? 'badge-danger' :
-                              b.status === 'PAID'      ? 'badge-success' :
-                              b.status === 'PARTIAL'   ? 'badge-info' : 'badge-secondary'
-                            }`}>
-                              {b.status === 'UNPAID'    ? '미발송' :
-                               b.status === 'REQUESTED' ? '발송완료' :
-                               b.status === 'REJECTED'  ? '이의제기' :
-                               b.status === 'PAID'      ? '완납' :
-                               b.status === 'PARTIAL'   ? '일부납' : b.status}
-                            </span>
+                          {(() => {
+                            const docInfo =
+                              billingDocLogMap.byBillingId.get(b.id) ||
+                              (b.contractId ? billingDocLogMap.byContractYm.get(`${b.contractId}::${b.billingYm}`) : undefined);
+                            const primaryLog = docInfo?.sent || docInfo?.issued || (b.status === 'REQUESTED' ? docInfo?.created : undefined);
+                            let subLabel = '';
+                            let subTitle = '';
+                            if (primaryLog) {
+                              subLabel = `${primaryLog.type === 'ISSUED' && b.status !== 'REQUESTED' ? '발급: ' : ''}${primaryLog.actor} ${primaryLog.timeShort}`;
+                              subTitle = primaryLog.desc;
+                            } else if (b.status === 'REQUESTED' && (b.updatedAt || b.createdAt)) {
+                              const d = new Date(b.updatedAt || b.createdAt || '');
+                              if (!isNaN(d.getTime())) {
+                                const ts = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                                subLabel = `관리부 ${ts}`;
+                              }
+                            }
+                            return (
+                              <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className={`badge ${
+                                    b.status === 'UNPAID'    ? 'badge-secondary' :
+                                    b.status === 'REQUESTED' ? 'badge-warning' :
+                                    b.status === 'REJECTED'  ? 'badge-danger' :
+                                    b.status === 'PAID'      ? 'badge-success' :
+                                    b.status === 'PARTIAL'   ? 'badge-info' : 'badge-secondary'
+                                  }`}>
+                                    {b.status === 'UNPAID'    ? '미발송' :
+                                     b.status === 'REQUESTED' ? '발송완료' :
+                                     b.status === 'REJECTED'  ? '이의제기' :
+                                     b.status === 'PAID'      ? '완납' :
+                                     b.status === 'PARTIAL'   ? '일부납' : b.status}
+                                  </span>
 
-                            {/* 🌟 완납/일부납 배지 오른쪽 바로 옆 수납취소 버튼 */}
-                            {canSave && (b.paidAmount > 0 || isPaid) && b.status !== 'REJECTED' && (
-                              <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelAllPayments(b.id, isPaid ? grandTotal : (b.paidAmount || 0));
-                                }}
-                                style={{
-                                  padding: '2px 6px',
-                                  fontSize: '10.5px',
-                                  fontWeight: '600',
-                                  backgroundColor: 'var(--danger-light)',
-                                  color: 'var(--danger)',
-                                  border: '1px solid #fca5a5',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  whiteSpace: 'nowrap'
-                                }}
-                                title="수납 취소 및 롤백 (통장 잔액/미수금 복원)"
-                              >
-                                수납취소
-                              </button>
-                            )}
-                          </div>
+                                  {/* 🌟 완납/일부납 배지 오른쪽 바로 옆 수납취소 버튼 */}
+                                  {canSave && (b.paidAmount > 0 || isPaid) && b.status !== 'REJECTED' && (
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCancelAllPayments(b.id, isPaid ? grandTotal : (b.paidAmount || 0));
+                                      }}
+                                      style={{
+                                        padding: '2px 6px',
+                                        fontSize: '10.5px',
+                                        fontWeight: '600',
+                                        backgroundColor: 'var(--danger-light)',
+                                        color: 'var(--danger)',
+                                        border: '1px solid #fca5a5',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title="수납 취소 및 롤백 (통장 잔액/미수금 복원)"
+                                    >
+                                      수납취소
+                                    </button>
+                                  )}
+                                </div>
+                                {subLabel && (
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }} title={subTitle}>
+                                    {subLabel}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
@@ -3374,6 +3512,40 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       </button>
                     </div>
                   </div>
+
+                  {/* 거래명세서 발급 및 이메일 발송 로그 */}
+                  {(() => {
+                    const docInfo =
+                      billingDocLogMap.byBillingId.get(activeBilling.id) ||
+                      (activeBilling.contractId ? billingDocLogMap.byContractYm.get(`${activeBilling.contractId}::${activeBilling.billingYm}`) : undefined);
+                    const logs = docInfo?.logs || [];
+                    const fallbackCreated = docInfo?.created;
+                    if (logs.length === 0 && !fallbackCreated) return null;
+                    return (
+                      <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>
+                          거래명세서 발급 및 이메일 발송 이력 ({logs.length > 0 ? `${logs.length}건` : '청구 발행 1건'})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '96px', overflowY: 'auto' }}>
+                          {(logs.length > 0 ? logs : fallbackCreated ? [fallbackCreated] : []).map(item => (
+                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '11px', padding: '4px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                <span className={`badge ${item.type === 'SENT' ? 'badge-success' : item.type === 'ISSUED' ? 'badge-info' : 'badge-secondary'}`} style={{ fontSize: '9.5px', flexShrink: 0 }}>
+                                  {item.type === 'SENT' ? '발송완료' : item.type === 'ISSUED' ? '명세서발급' : '청구생성'}
+                                </span>
+                                <span style={{ color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.desc}>
+                                  {item.desc}
+                                </span>
+                              </div>
+                              <span style={{ fontFamily: 'monospace', fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                {item.actor} · {item.timeFull}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 특수 거래명세서 적용 건 알림 배너 */}
                   {activeBilling.hasCustomStatement && (

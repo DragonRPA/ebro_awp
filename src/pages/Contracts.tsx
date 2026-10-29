@@ -367,17 +367,58 @@ export const Contracts: React.FC = () => {
     return map;
   }, [outboundInspections]);
 
-  const packageSentContractIds = useMemo(() => {
+  const { packageSentContractIds, packageSentInfoMap, billingSentInfoMap } = useMemo(() => {
     const set = new Set<string>();
-    for (const h of (contractHistory || [])) {
+    const infoMap = new Map<string, { actor: string; timeShort: string; timeFull: string; desc: string }>();
+    const billMap = new Map<string, { actor: string; timeShort: string; timeFull: string; desc: string }>();
+
+    const formatLogInfo = (h: any) => {
+      const desc = String(h.description || '');
+      const actorMatch = desc.match(/(?:발송자|발급자|처리자)\s*:\s*([^)\/,\s]+)/);
+      const actor = actorMatch ? actorMatch[1].trim() : '담당자';
+      let timeShort = h.changeDate || '';
+      let timeFull = h.changeDate || '';
+      if (h.createdAt) {
+        const d = new Date(h.createdAt);
+        if (!isNaN(d.getTime())) {
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mi = String(d.getMinutes()).padStart(2, '0');
+          timeShort = `${mm}-${dd} ${hh}:${mi}`;
+          timeFull = `${d.getFullYear()}-${mm}-${dd} ${hh}:${mi}`;
+        }
+      }
+      return { actor, timeShort, timeFull, desc };
+    };
+
+    const sortedHistory = [...(contractHistory || [])].sort((a, b) =>
+      String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || ''))
+    );
+
+    for (const h of sortedHistory) {
+      const desc = String(h.description || '');
       if (
-        (h.changeType === 'DOCUMENT_SENT' && !(h.description && h.description.includes('월간 안전점검 체크리스트'))) ||
-        (h.description && h.description.includes('계약서패키지'))
+        ((h.changeType === 'DOCUMENT_SENT' &&
+          !desc.includes('월간 안전점검 체크리스트') &&
+          !desc.includes('영업담당자 변경') &&
+          !desc.includes('[거래명세서')) ||
+          desc.includes('계약서패키지')) &&
+        !desc.includes('[계약서패키지 발급]')
       ) {
         set.add(h.contractId);
+        if (!infoMap.has(h.contractId)) {
+          infoMap.set(h.contractId, formatLogInfo(h));
+        }
+      }
+      if (h.changeType === 'BILLING_SENT' || desc.includes('[거래명세서 발송]') || desc.includes('[거래명세서 발급]')) {
+        const billIdMatch = desc.match(/청구번호\s*:\s*([A-Za-z0-9_-]+)/);
+        if (billIdMatch && !billMap.has(billIdMatch[1])) {
+          billMap.set(billIdMatch[1], formatLogInfo(h));
+        }
       }
     }
-    return set;
+    return { packageSentContractIds: set, packageSentInfoMap: infoMap, billingSentInfoMap: billMap };
   }, [contractHistory]);
 
   const billingsByContractMap = useMemo(() => {
@@ -592,6 +633,7 @@ export const Contracts: React.FC = () => {
 
     // 4. 계약서패키지 발송 여부: packageSentAt 존재 또는 DOCUMENT_SENT / 계약서패키지 이력
     const isPackageSent = Boolean(c.packageSentAt) || packageSentContractIds.has(c.id);
+    const packageSentInfo = packageSentInfoMap.get(c.id);
 
     return {
       outboundDel,
@@ -607,7 +649,8 @@ export const Contracts: React.FC = () => {
       relInsps,
       isInspected,
       isInspecting,
-      isPackageSent
+      isPackageSent,
+      packageSentInfo
     };
   };
 
@@ -697,12 +740,19 @@ export const Contracts: React.FC = () => {
 
         {/* 4. 계약서패키지 */}
         {m.isPackageSent ? (
-          <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
-            title="계약서패키지 발송 완료"
-          >
-            ✓ 패키지발송
-          </span>
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '1px', flexShrink: 0 }}>
+            <span
+              style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+              title={m.packageSentInfo?.desc || '계약서패키지 발송 완료'}
+            >
+              발송완료
+            </span>
+            {m.packageSentInfo && (
+              <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                {m.packageSentInfo.actor} {m.packageSentInfo.timeShort}
+              </span>
+            )}
+          </div>
         ) : (
           <span
             onClick={(e) => {
@@ -3682,7 +3732,7 @@ export const Contracts: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 700 }}>4. 계약서패키지 발송</span>
                       {m.isPackageSent ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 패키지발송</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>발송완료</span>
                       ) : (
                         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: '4px' }}>패키지미발송</span>
                       )}
@@ -3690,7 +3740,11 @@ export const Contracts: React.FC = () => {
                     <div style={{ fontSize: '12.5px', color: 'var(--text-main)', fontWeight: 600 }}>
                       {m.isPackageSent ? '고객사 이메일 발송 완료' : '고객사 서류 미발송 (발송 필요)'}
                     </div>
-                    
+                    {m.isPackageSent && m.packageSentInfo && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                        발송자: {m.packageSentInfo.actor} · {m.packageSentInfo.timeFull}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4693,19 +4747,44 @@ export const Contracts: React.FC = () => {
                                     {unpaid.toLocaleString()}원
                                   </td>
                                   <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                                    <span className={`badge ${
-                                      b.status === 'UNPAID' ? 'badge-secondary' :
-                                      b.status === 'REQUESTED' ? 'badge-warning' :
-                                      b.status === 'REJECTED' ? 'badge-danger' :
-                                      b.status === 'PAID' ? 'badge-success' :
-                                      b.status === 'PARTIAL' ? 'badge-info' : 'badge-secondary'
-                                    }`} style={{ fontSize: '10px' }}>
-                                      {b.status === 'UNPAID' ? '미발송' :
-                                       b.status === 'REQUESTED' ? '발송완료' :
-                                       b.status === 'REJECTED' ? '이의제기' :
-                                       b.status === 'PAID' ? '완납' :
-                                       b.status === 'PARTIAL' ? '일부납' : b.status}
-                                    </span>
+                                    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                      <span className={`badge ${
+                                        b.status === 'UNPAID' ? 'badge-secondary' :
+                                        b.status === 'REQUESTED' ? 'badge-warning' :
+                                        b.status === 'REJECTED' ? 'badge-danger' :
+                                        b.status === 'PAID' ? 'badge-success' :
+                                        b.status === 'PARTIAL' ? 'badge-info' : 'badge-secondary'
+                                      }`} style={{ fontSize: '10px' }}>
+                                        {b.status === 'UNPAID' ? '미발송' :
+                                         b.status === 'REQUESTED' ? '발송완료' :
+                                         b.status === 'REJECTED' ? '이의제기' :
+                                         b.status === 'PAID' ? '완납' :
+                                         b.status === 'PARTIAL' ? '일부납' : b.status}
+                                      </span>
+                                      {b.status === 'REQUESTED' && (() => {
+                                        const bLog = billingSentInfoMap.get(b.id);
+                                        if (bLog) {
+                                          return (
+                                            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }} title={bLog.desc}>
+                                              {bLog.actor} {bLog.timeShort}
+                                            </span>
+                                          );
+                                        }
+                                        const fallbackTime = b.updatedAt || b.createdAt;
+                                        if (fallbackTime) {
+                                          const d = new Date(fallbackTime);
+                                          const ts = !isNaN(d.getTime())
+                                            ? `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+                                            : '';
+                                          return (
+                                            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                              관리부 {ts}
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
                                   </td>
                                 </tr>
                               );

@@ -178,6 +178,7 @@ export const SmartDispatch4: React.FC = () => {
     saveSmartDispatch, cancelOutboundRequest, deleteCancelledOutboundRequests, updateOutboundRequestPricing, assets, deliveries, standardOptions,
     contracts = [],
     contractAssets = [],
+    contractHistory = [],
     todos = [],
     outboundInspections = [],
     users = [],
@@ -7755,7 +7756,7 @@ export const SmartDispatch4: React.FC = () => {
                 <thead>
                   <tr>
                     <th style={{ width: 68, textAlign: 'center' }}>상세</th>
-                    <th style={{ width: 92, textAlign: 'center' }}>계약서발송</th>
+                    <th style={{ width: 112, textAlign: 'center' }}>계약서발송</th>
                     <th style={{ width: 84, textAlign: 'center' }}>배차상태</th>
                     <th style={{ width: 105, textAlign: 'center' }}>장비할당</th>
                     <th style={{ width: 88, textAlign: 'center' }}>출고검수</th>
@@ -7839,26 +7840,98 @@ export const SmartDispatch4: React.FC = () => {
                               >
                                 할당대기
                               </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!row.contractId) {
-                                    showToast('연결된 계약 정보를 찾을 수 없습니다.', 'error');
-                                    return;
+                            ) : (() => {
+                              const cLogs = (contractHistory || [])
+                                .filter(h =>
+                                  h.contractId === row.contractId &&
+                                  (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+                                  !(h.description || '').includes('월간 안전점검 체크리스트') &&
+                                  !(h.description || '').includes('영업담당자 변경') &&
+                                  !(h.description || '').includes('[거래명세서')
+                                )
+                                .sort((a, b) => String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || '')));
+                              const exactDelLogs = cLogs.filter(h => (h.description || '').includes(`[배차:${row.id}]`));
+                              const untaggedLogs = cLogs.filter(h => !(h.description || '').includes('[배차:'));
+                              const targetLogs = exactDelLogs.length > 0 ? exactDelLogs : untaggedLogs;
+                              const sentLog = targetLogs.find(h => !(h.description || '').includes('[계약서패키지 발급]'));
+                              const issuedLog = targetLogs.find(h => (h.description || '').includes('[계약서패키지 발급]'));
+
+                              const formatLogActorAndTime = (log: any) => {
+                                const desc = String(log.description || '');
+                                const actorMatch = desc.match(/(?:발송자|발급자|처리자)\s*:\s*([^)\/,\s]+)/);
+                                const actor = actorMatch ? actorMatch[1].trim() : '담당자';
+                                let timeStr = log.changeDate || '';
+                                if (log.createdAt) {
+                                  const d = new Date(log.createdAt);
+                                  if (!isNaN(d.getTime())) {
+                                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                    const dd = String(d.getDate()).padStart(2, '0');
+                                    const hh = String(d.getHours()).padStart(2, '0');
+                                    const mi = String(d.getMinutes()).padStart(2, '0');
+                                    timeStr = `${mm}-${dd} ${hh}:${mi}`;
                                   }
-                                  setBundleModalTarget({
-                                    contractId: row.contractId,
-                                    deliveryId: row.id,
-                                    contractAssetIds: row.equipmentItems.flatMap(e => e.contractAssetIds || [])
-                                  });
-                                }}
-                                className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-indigo-950/90 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/80 transition whitespace-nowrap cursor-pointer"
-                                title="이 출고 요청 건의 할당 장비 목록만 계약서패키지로 생성·발송"
-                              >
-                                계약서 발송
-                              </button>
-                            )}
+                                }
+                                return { actor, timeStr, desc };
+                              };
+
+                              if (sentLog) {
+                                const info = formatLogActorAndTime(sentLog);
+                                return (
+                                  <div className="inline-flex flex-col items-center leading-tight gap-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!row.contractId) {
+                                          showToast('연결된 계약 정보를 찾을 수 없습니다.', 'error');
+                                          return;
+                                        }
+                                        setBundleModalTarget({
+                                          contractId: row.contractId,
+                                          deliveryId: row.id,
+                                          contractAssetIds: row.equipmentItems.flatMap(e => e.contractAssetIds || [])
+                                        });
+                                      }}
+                                      className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-emerald-950/90 hover:bg-emerald-700 text-emerald-300 hover:text-white border border-emerald-700/80 transition whitespace-nowrap cursor-pointer"
+                                      title={`${info.desc}\n(클릭 시 발송 이력 확인 및 재발송)`}
+                                    >
+                                      발송완료
+                                    </button>
+                                    <span className="text-[10px] text-slate-300 font-mono whitespace-nowrap">
+                                      {info.actor} {info.timeStr}
+                                    </span>
+                                  </div>
+                                );
+                              }
+
+                              const issuedInfo = issuedLog ? formatLogActorAndTime(issuedLog) : null;
+                              return (
+                                <div className="inline-flex flex-col items-center leading-tight gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!row.contractId) {
+                                        showToast('연결된 계약 정보를 찾을 수 없습니다.', 'error');
+                                        return;
+                                      }
+                                      setBundleModalTarget({
+                                        contractId: row.contractId,
+                                        deliveryId: row.id,
+                                        contractAssetIds: row.equipmentItems.flatMap(e => e.contractAssetIds || [])
+                                      });
+                                    }}
+                                    className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-indigo-950/90 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-700/80 transition whitespace-nowrap cursor-pointer"
+                                    title={issuedInfo ? `${issuedInfo.desc}\n(이메일 미발송 — 클릭하여 발송)` : '이 출고 요청 건의 할당 장비 목록만 계약서패키지로 생성·발송'}
+                                  >
+                                    계약서 발송
+                                  </button>
+                                  {issuedInfo && (
+                                    <span className="text-[10px] text-amber-300 font-mono whitespace-nowrap" title={issuedInfo.desc}>
+                                      발급: {issuedInfo.actor} {issuedInfo.timeStr}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border whitespace-nowrap ${
@@ -8079,6 +8152,44 @@ export const SmartDispatch4: React.FC = () => {
                         )}
                       </div>
                     </div>
+                    {(() => {
+                      const cLogs = (contractHistory || [])
+                        .filter(h =>
+                          h.contractId === selectedRow.contractId &&
+                          (h.changeType === 'DOCUMENT_SENT' || (h.description || '').includes('계약서패키지')) &&
+                          !(h.description || '').includes('월간 안전점검 체크리스트') &&
+                          !(h.description || '').includes('영업담당자 변경') &&
+                          !(h.description || '').includes('[거래명세서')
+                        )
+                        .sort((a, b) => String(b.createdAt || b.changeDate || '').localeCompare(String(a.createdAt || a.changeDate || '')));
+                      const exactDelLogs = cLogs.filter(h => (h.description || '').includes(`[배차:${selectedRow.id}]`));
+                      const untaggedLogs = cLogs.filter(h => !(h.description || '').includes('[배차:'));
+                      const targetLogs = exactDelLogs.length > 0 ? exactDelLogs : untaggedLogs;
+                      if (targetLogs.length === 0) return null;
+                      return (
+                        <div className="pt-2 border-t border-slate-800 flex flex-col gap-1">
+                          <span className="font-bold text-slate-400 text-[11px]">계약서 발급 및 이메일 발송 로그 ({targetLogs.length}건)</span>
+                          {targetLogs.slice(0, 3).map(log => {
+                            const desc = String(log.description || '');
+                            const isIssuedOnly = desc.includes('[계약서패키지 발급]');
+                            const actorMatch = desc.match(/(?:발송자|발급자|처리자)\s*:\s*([^)\/,\s]+)/);
+                            const actor = actorMatch ? actorMatch[1].trim() : '담당자';
+                            const timeFull = log.createdAt ? new Date(log.createdAt).toLocaleString('ko-KR') : log.changeDate;
+                            return (
+                              <div key={log.id} className="flex flex-col gap-0.5 bg-slate-900/80 border border-slate-800 rounded p-2 text-[11px]">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isIssuedOnly ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'}`}>
+                                    {isIssuedOnly ? 'PDF 발급' : '발송완료'}
+                                  </span>
+                                  <span className="font-mono text-slate-300">{actor} · {timeFull}</span>
+                                </div>
+                                <span className="text-slate-400 text-[10.5px] break-all">{desc}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* 2. 고객사 및 투입 현장 정보 */}
