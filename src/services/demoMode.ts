@@ -62,11 +62,11 @@ export function isDemoMode(): boolean {
 
 /** 데모 모드 기본 대표이사(관리자) 계정 */
 export const DEMO_DEFAULT_ADMIN_USER = {
-  id: 'u-admin',
-  loginId: 'admin',
-  name: '이정용',
-  department: '경영지원팀',
-  departmentId: 'dept-mgmt',
+  id: 'USR-0000002',
+  loginId: '이수용',
+  name: '이수용',
+  department: '기연리프트',
+  departmentId: 'DEPT-0000001',
   position: '대표이사',
   status: 'ACTIVE' as const,
   role: 'ADMIN' as const,
@@ -142,29 +142,36 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
 
     // 2. 정순 주입 순서 (부모 테이블 -> 자식 테이블)
     const insertOrder = [
-      'tenants', 'departments', 'users',
+      'tenants', 'departments', 'custom_roles', 'users', 'role_permissions', 'permissions',
       'products', 'standard_options', 'vendors', 'consumables', 'consumable_lots',
       'mechanic_consumable_stocks', 'transport_companies',
       'transport_drivers',
       'customers', 'site_masters', 'customer_sites', 'customer_contacts',
       'assets',
-      'contracts', 'contract_assets', 'contract_history',
+      'contracts', 'contract_assets', 'contract_history', 'external_leases',
       'deliveries', 'outbound_inspections',
       'repairs', 'repair_consumables', 'as_route_logs',
       'consumable_logs', 'collected_parts', 'asset_inout_logs',
       'billing_invoices', 'billings', 'billing_details', 'receivables', 'payments',
+      'purchase_settlements', 'purchase_settlement_items',
       'bank_initial_balances', 'bank_transactions',
-      'todos'
+      'approval_rules', 'rule_consensus', 'approval_requests', 'approval_steps',
+      'equipment_manuals', 'print_stations', 'print_queue', 'label_templates',
+      'delinquency_action_logs', 'todos'
     ];
 
+    const CHUNK_SIZE = 300;
     for (const tbl of insertOrder) {
       const rows = dataset[tbl];
       if (!rows || rows.length === 0) continue;
 
       if (onProgress) onProgress(`골든 데이터 복원 중: ${tbl} (${rows.length}건)...`);
-      const { error } = await supabase.from(tbl).upsert(rows, { onConflict: 'id' });
-      if (error) {
-        throw new Error(`[데모 데이터 복원 저장 오류] 테이블(${tbl}): ${error.message}`);
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + CHUNK_SIZE);
+        const { error } = await supabase.from(tbl).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw new Error(`[데모 데이터 복원 저장 오류] 테이블(${tbl}): ${error.message}`);
+        }
       }
     }
 
