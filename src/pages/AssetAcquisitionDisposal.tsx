@@ -103,6 +103,9 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 단건 취득 폼 상태
   const [singleModelName, setSingleModelName] = useState<string>(products[0]?.modelName || '');
+  const [acqModelSearch, setAcqModelSearch] = useState<string>(products[0]?.modelName || '');
+  const [isAcqModelDropdownOpen, setIsAcqModelDropdownOpen] = useState<boolean>(false);
+  const acqModelComboboxRef = useRef<HTMLDivElement>(null);
   const [singleAssetNo, setSingleAssetNo] = useState<string>('');
   const [singleSerialNo, setSingleSerialNo] = useState<string>('');
   const [singleManufacturer, setSingleManufacturer] = useState<string>('');
@@ -154,8 +157,34 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   // 모델 변경 핸들러: 메인 모델 변경 시 슬롯들의 모델명도 동일 모델로 자동 동기화 (헌장 1.1)
   const handleModelChange = (newModel: string) => {
     setSingleModelName(newModel);
+    setAcqModelSearch(newModel);
     setMultiSlots(prev => prev.map(s => ({ ...s, modelName: newModel })));
   };
+
+  // 외부 클릭 시 모델 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (acqModelComboboxRef.current && !acqModelComboboxRef.current.contains(e.target as Node)) {
+        setIsAcqModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 취득 모델명 검색 필터링 (초성/부분일치/제조사/피트 검색 지원)
+  const filteredAcqProducts = useMemo(() => {
+    const sorted = [...products].sort((a, b) => (a.modelName || '').localeCompare(b.modelName || ''));
+    const q = acqModelSearch.trim();
+    if (!q) return sorted;
+    const matcher = createHangulMatcher(q);
+    return sorted.filter(p =>
+      matcher.test(p.modelName || '') ||
+      matcher.test(p.shortName || '') ||
+      matcher.test(p.manufacturer || '') ||
+      matcher.test(p.feet ? `${p.feet}ft` : '')
+    );
+  }, [products, acqModelSearch]);
 
   // 💡 모델 초기 동기화 보장: products 로드 시 singleModelName이 비어있거나 불일치 시 첫 번째 모델로 즉시 동기화
   useEffect(() => {
@@ -345,6 +374,14 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       showErrorModal('모델명을 선택해 주세요.');
       return;
     }
+    const matchedRegisteredProduct = products.find(
+      p => (p.modelName || '').trim().toLowerCase() === singleModelName.trim().toLowerCase()
+    );
+    if (!matchedRegisteredProduct) {
+      showErrorModal('등록된 제품 목록에서 모델명을 조회하여 선택해 주세요.');
+      return;
+    }
+    const resolvedModelName = matchedRegisteredProduct.modelName;
     if (!singleAssetNo.trim()) {
       showErrorModal('기본 관리번호를 입력해 주세요.');
       return;
@@ -386,7 +423,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
         : undefined;
 
       const mainPayload: Partial<Asset> = {
-        modelName: singleModelName,
+        modelName: resolvedModelName,
         assetNo: singleAssetNo.trim(),
         serialNo: singleSerialNo.trim(),
         manufacturer: singleManufacturer.trim(),
@@ -412,7 +449,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           if (!slot.assetNo.trim()) continue;
           batchPayload.push({
             ...mainPayload,
-            modelName: singleModelName, // 💡 동일 모델 보장
+            modelName: resolvedModelName, // 💡 동일 모델 보장
             assetNo: slot.assetNo.trim(),
             serialNo: slot.serialNo.trim(),
             manufactureYear: slot.manufactureYear?.trim() || singleManufactureYear.trim(), // 💡 개별 슬롯 제조년도 반영
@@ -1398,21 +1435,123 @@ export const AssetAcquisitionDisposal: React.FC = () => {
               {/* 폼 필드 그리드 (헌장 3.4 상하 세로 스택 원칙 준수) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
                 
-                {/* 1. 모델명 선택 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {/* 1. 모델명 선택 (등록된 제품 검색 콤보박스) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={acqModelComboboxRef}>
                   <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>모델명 (필수)</label>
-                  <select
-                    value={singleModelName}
-                    onChange={e => handleModelChange(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', fontSize: '12.5px' }}
-                    required
-                  >
-                    {products.map(p => (
-                      <option key={p.id} value={p.modelName}>
-                        {p.modelName} ({p.manufacturer || '제조사미상'} / {p.feet ? `${p.feet}ft` : '제원'})
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={acqModelSearch}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setAcqModelSearch(val);
+                        setIsAcqModelDropdownOpen(true);
+                        const exactProd = products.find(p => (p.modelName || '').toLowerCase() === val.trim().toLowerCase());
+                        if (exactProd) {
+                          setSingleModelName(exactProd.modelName);
+                          setMultiSlots(prev => prev.map(s => ({ ...s, modelName: exactProd.modelName })));
+                        } else {
+                          setSingleModelName(val);
+                          setMultiSlots(prev => prev.map(s => ({ ...s, modelName: val })));
+                        }
+                      }}
+                      onFocus={() => setIsAcqModelDropdownOpen(true)}
+                      placeholder="모델명, 제조사, 피트 검색 (예: OPTIMUM 8, JLG, 20ft)"
+                      style={{
+                        width: '100%',
+                        padding: '8px 30px 8px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-app)',
+                        color: 'var(--text-primary)',
+                        fontSize: '12.5px',
+                        boxSizing: 'border-box'
+                      }}
+                      required
+                    />
+                    {acqModelSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAcqModelSearch('');
+                          setSingleModelName('');
+                          setIsAcqModelDropdownOpen(true);
+                        }}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {isAcqModelDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '4px',
+                        backgroundColor: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        maxHeight: '220px',
+                        overflowY: 'auto',
+                        zIndex: 1050
+                      }}
+                    >
+                      {filteredAcqProducts.length === 0 ? (
+                        <div style={{ padding: '8px 12px', fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          일치하는 등록 제품 없음
+                        </div>
+                      ) : (
+                        filteredAcqProducts.map(p => {
+                          const isSelected = singleModelName === p.modelName;
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => {
+                                handleModelChange(p.modelName);
+                                setIsAcqModelDropdownOpen(false);
+                              }}
+                              style={{
+                                padding: '7px 12px',
+                                fontSize: '12.5px',
+                                fontWeight: isSelected ? 700 : 500,
+                                color: isSelected ? 'var(--primary)' : 'var(--text-primary)',
+                                backgroundColor: isSelected ? 'rgba(59,130,246,0.08)' : 'transparent',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid var(--border-color)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-app)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = isSelected ? 'rgba(59,130,246,0.08)' : 'transparent')}
+                            >
+                              <span>
+                                {p.modelName}{' '}
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                                  ({p.manufacturer || '제조사미상'} / {p.feet ? `${p.feet}ft` : '제원'})
+                                </span>
+                              </span>
+                              {isSelected && <Check size={13} color="var(--primary)" />}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. 관리번호 */}

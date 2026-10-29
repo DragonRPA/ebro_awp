@@ -29,11 +29,15 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   generateNextRentedAssetNo
 }) => {
   const [formData, setFormData] = useState<Partial<Asset>>({ ...asset });
+  const [modelSearch, setModelSearch] = useState<string>(asset.modelName || '');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [modelError, setModelError] = useState<string>('');
   const [renterSearch, setRenterSearch] = useState<string>(
     asset.renter || (asset.vendorId ? vendors.find(v => v.id === asset.vendorId)?.name : '') || ''
   );
   const [isRenterDropdownOpen, setIsRenterDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const modelComboboxRef = useRef<HTMLDivElement>(null);
   const renterComboboxRef = useRef<HTMLDivElement>(null);
 
   const findProductManufacturer = (modelName?: string): string => {
@@ -50,6 +54,9 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (modelComboboxRef.current && !modelComboboxRef.current.contains(e.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
       if (renterComboboxRef.current && !renterComboboxRef.current.contains(e.target as Node)) {
         setIsRenterDropdownOpen(false);
       }
@@ -59,6 +66,9 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   }, []);
 
   useEffect(() => {
+    if (formData.modelName && formData.modelName !== modelSearch) {
+      setModelSearch(formData.modelName);
+    }
     if (formData.modelName) {
       const autoMfg = findProductManufacturer(formData.modelName);
       if (autoMfg && formData.manufacturer !== autoMfg) {
@@ -69,8 +79,19 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 정렬된 모델 목록
+  // 정렬된 모델 목록 및 검색 필터링
   const sortedProducts = [...products].sort((a, b) => (a.modelName || '').localeCompare(b.modelName || ''));
+  const filteredProducts = modelSearch.trim()
+    ? sortedProducts.filter(p => {
+        const q = modelSearch.trim();
+        return (
+          matchHangul(p.modelName || '', q) ||
+          matchHangul(p.shortName || '', q) ||
+          matchHangul(p.manufacturer || '', q) ||
+          matchHangul(p.feet ? `${p.feet}ft` : '', q)
+        );
+      })
+    : sortedProducts;
 
   // 등록된 임차처 목록
   const rentalVendorNames = (vendors || [])
@@ -143,12 +164,29 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const rawModel = (formData.modelName || modelSearch || '').trim();
+    const matchedProd = sortedProducts.find(p => {
+      const pm = (p.modelName || '').trim().toLowerCase();
+      const ps = (p.shortName || '').trim().toLowerCase();
+      const q = rawModel.toLowerCase();
+      return pm === q || (ps !== '' && ps === q);
+    });
+    if (!matchedProd) {
+      setModelError('등록된 제품 목록에서 모델명을 조회하여 선택해 주세요.');
+      setIsModelDropdownOpen(true);
+      return;
+    }
+    setModelError('');
     setIsSubmitting(true);
     try {
+      const autoManufacturer = findProductManufacturer(matchedProd.modelName);
       const normalizedData: Partial<Asset> = {
         ...formData,
+        modelName: matchedProd.modelName,
+        manufacturer: formData.manufacturer || autoManufacturer || '',
         manufactureYear: normalizeManufactureYear(formData.manufactureYear)
       };
+      setModelSearch(matchedProd.modelName);
       setFormData(normalizedData);
       await onSave(normalizedData, renterSearch);
     } finally {
@@ -233,25 +271,142 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={modelComboboxRef}>
             <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
-            <select
-              value={formData.modelName || ''}
-              onChange={e => {
-                const selectedModel = e.target.value;
-                const autoManufacturer = findProductManufacturer(selectedModel);
-                setFormData({
-                  ...formData,
-                  modelName: selectedModel,
-                  manufacturer: autoManufacturer || formData.manufacturer || ''
-                });
-              }}
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-            >
-              {sortedProducts.map(p => (
-                <option key={p.id} value={p.modelName}>{p.modelName}</option>
-              ))}
-            </select>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="text"
+                required
+                placeholder="모델명, 제조사, 피트 검색 (예: 1230ES, JLG, 20ft)"
+                value={modelSearch}
+                onChange={e => {
+                  const val = e.target.value;
+                  setModelSearch(val);
+                  setModelError('');
+                  setIsModelDropdownOpen(true);
+                  const exactProd = sortedProducts.find(p => (p.modelName || '').toLowerCase() === val.trim().toLowerCase());
+                  if (exactProd) {
+                    const autoManufacturer = findProductManufacturer(exactProd.modelName);
+                    setFormData({
+                      ...formData,
+                      modelName: exactProd.modelName,
+                      manufacturer: autoManufacturer || formData.manufacturer || ''
+                    });
+                  } else {
+                    setFormData({
+                      ...formData,
+                      modelName: val
+                    });
+                  }
+                }}
+                onFocus={() => setIsModelDropdownOpen(true)}
+                style={{
+                  width: '100%',
+                  padding: '6px 30px 6px 10px',
+                  borderRadius: '6px',
+                  border: modelError ? '1px solid var(--danger)' : '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-main)',
+                  fontSize: '12px',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {modelSearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModelSearch('');
+                    setModelError('');
+                    setFormData({ ...formData, modelName: '' });
+                    setIsModelDropdownOpen(true);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            {modelError && (
+              <div style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600 }}>
+                {modelError}
+              </div>
+            )}
+
+            {isModelDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1060
+                }}
+              >
+                {filteredProducts.length === 0 ? (
+                  <div style={{ padding: '8px 12px', fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    일치하는 등록 제품 없음
+                  </div>
+                ) : (
+                  filteredProducts.map(p => {
+                    const isSelected = (formData.modelName || modelSearch) === p.modelName;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          const autoManufacturer = findProductManufacturer(p.modelName);
+                          setModelSearch(p.modelName);
+                          setModelError('');
+                          setFormData({
+                            ...formData,
+                            modelName: p.modelName,
+                            manufacturer: autoManufacturer || formData.manufacturer || ''
+                          });
+                          setIsModelDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: '7px 12px',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? 700 : 500,
+                          color: isSelected ? 'var(--primary)' : 'var(--text-main)',
+                          backgroundColor: isSelected ? 'rgba(59,130,246,0.08)' : 'transparent',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border-color)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-app)')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = isSelected ? 'rgba(59,130,246,0.08)' : 'transparent')}
+                      >
+                        <span>
+                          {p.modelName}{' '}
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                            ({p.manufacturer || '제조사미상'} / {p.feet ? `${p.feet}ft` : '제원'})
+                          </span>
+                        </span>
+                        {isSelected && <Check size={13} color="var(--primary)" />}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
