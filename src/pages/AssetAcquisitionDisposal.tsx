@@ -497,8 +497,6 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       '내용월수',
       '잔존가치율',
       '공급처',
-      '월렌탈료',
-      '일렌탈료',
       '비고'
     ];
     const sampleRow = [
@@ -512,8 +510,6 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       96, // 💡 내용월수 기본값 96개월 (8년 고소작업대 표준)
       10,
       '한국시노붐',
-      400000,
-      15000,
       '신규 장비 입고'
     ];
 
@@ -563,9 +559,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           const rawResidual = r[8];
           const residualValueRate = (rawResidual !== undefined && rawResidual !== '' && !isNaN(Number(rawResidual))) ? Number(rawResidual) : 10;
           const supplier = String(r[9] || '').trim();
-          const monthlyRentalFee = Number(r[10]) || 0;
-          const dailyRentalFee = Number(r[11]) || 0;
-          const memo1 = String(r[12] || '').trim();
+          const memo1 = String(r[10] || '').trim();
 
           // 유효성 검증
           if (!assetNo) {
@@ -593,8 +587,6 @@ export const AssetAcquisitionDisposal: React.FC = () => {
             depreciationMonths,
             residualValueRate,
             supplier,
-            monthlyRentalFee,
-            dailyRentalFee,
             memo1,
             hasError: errors.some(e => e.row === rowNum)
           });
@@ -622,21 +614,22 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
     setIsProcessingExcel(true);
     try {
-      const payloadList: Partial<Asset>[] = excelPreviewData.map(r => ({
-        assetNo: r.assetNo,
-        modelName: r.modelName,
-        serialNo: r.serialNo,
-        manufacturer: r.manufacturer,
-        manufactureYear: r.manufactureYear,
-        acquisitionDate: r.acquisitionDate,
-        acquisitionPrice: r.acquisitionPrice,
-        depreciationMonths: r.depreciationMonths,
-        residualValueRate: r.residualValueRate,
-        supplier: r.supplier,
-        monthlyRentalFee: r.monthlyRentalFee,
-        dailyRentalFee: r.dailyRentalFee,
-        memo1: r.memo1
-      }));
+      const payloadList: Partial<Asset>[] = excelPreviewData.map(r => {
+        const matchedProd = products.find(p => (p.modelName || '').trim().toLowerCase() === (r.modelName || '').trim().toLowerCase());
+        return {
+          assetNo: r.assetNo,
+          modelName: matchedProd?.modelName || r.modelName,
+          serialNo: r.serialNo,
+          manufacturer: r.manufacturer || matchedProd?.manufacturer || '',
+          manufactureYear: r.manufactureYear,
+          acquisitionDate: r.acquisitionDate,
+          acquisitionPrice: r.acquisitionPrice,
+          depreciationMonths: r.depreciationMonths,
+          residualValueRate: r.residualValueRate,
+          supplier: r.supplier,
+          memo1: r.memo1
+        };
+      });
 
       await batchAcquireAssets(payloadList);
       showToast(`총 ${payloadList.length}대 자산 엑셀 일괄 취득 완료 (AVAILABLE 입고)`);
