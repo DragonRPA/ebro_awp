@@ -136,11 +136,11 @@ function resolveFreightLabel(
   return '왕복';
 }
 
-function resolveClosingDayLabel(
+function resolveClosingDayNumber(
   contract: Contract,
   site?: CustomerSite,
   customer?: Customer
-): string {
+): number {
   const day =
     contract.statementClosingDay ??
     site?.statementClosingDay ??
@@ -148,8 +148,54 @@ function resolveClosingDayLabel(
     contract.billingDay ??
     site?.billingDay ??
     customer?.defaultBillingDay;
-  if (day === 31 || day === 30 || day === 0 || day === undefined || day === null) return '말일';
+  if (!day || day <= 0 || day >= 30) return 31;
+  return Number(day);
+}
+
+function resolveClosingDayLabel(
+  contract: Contract,
+  site?: CustomerSite,
+  customer?: Customer
+): string {
+  const day = resolveClosingDayNumber(contract, site, customer);
+  if (day >= 30) return '말일';
   return `${day}일`;
+}
+
+/**
+ * 계약별 명세서 마감일 기준 당월 정산 기간(E열 개시일 ~ F열 종료일) 산출
+ * - 말일(30/31일): 당월 1일 ~ 당월 말일 (예: 2026-10-01 ~ 2026-10-31)
+ * - N일(15/20/25일 등): 전월 (N+1)일 ~ 당월 N일 (예: 20일 마감 -> 2026-09-21 ~ 2026-10-20)
+ */
+function getBillingCycleBounds(
+  yearMonth: string,
+  closingDayNum: number
+): { cycleStart: string; cycleEnd: string; fullCycleDays: number } {
+  const [yStr, mStr] = yearMonth.split('-');
+  const y = Number(yStr) || new Date().getFullYear();
+  const m = Number(mStr) || 1;
+  const lastDayOfCur = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, '0');
+
+  if (closingDayNum >= 30 || closingDayNum >= lastDayOfCur) {
+    const dd = String(lastDayOfCur).padStart(2, '0');
+    return {
+      cycleStart: `${y}-${mm}-01`,
+      cycleEnd: `${y}-${mm}-${dd}`,
+      fullCycleDays: lastDayOfCur,
+    };
+  }
+
+  const effCurDay = Math.min(closingDayNum, lastDayOfCur);
+  const prevMonth = m === 1 ? 12 : m - 1;
+  const prevYear = m === 1 ? y - 1 : y;
+  const lastDayOfPrev = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+  const effPrevDay = Math.min(closingDayNum, lastDayOfPrev);
+  const startObj = new Date(Date.UTC(prevYear, prevMonth - 1, effPrevDay + 1));
+  const cycleStart = startObj.toISOString().slice(0, 10);
+  const cycleEnd = `${y}-${mm}-${String(effCurDay).padStart(2, '0')}`;
+  const fullCycleDays = calcDiffDaysInclusive(cycleStart, cycleEnd);
+  return { cycleStart, cycleEnd, fullCycleDays };
 }
 
 function resolvePaymentTerms(
@@ -286,8 +332,6 @@ export const KiyeunContractStatusPage: React.FC = () => {
 
   // 전체 행 데이터 빌드 (계약현황양식.xlsx 1:1 매핑)
   const allRows = useMemo<KiyeunContractRow[]>(() => {
-    const { firstDay, lastDay, daysInMonth } = getMonthBounds(targetMonth);
-
     // 계약별 체결자산 그룹화
     const caByContract = new Map<string, ContractAsset[]>();
     contractAssets.forEach(ca => {
@@ -297,13 +341,17 @@ export const KiyeunContractStatusPage: React.FC = () => {
       caByContract.set(ca.contractId, list);
     });
 
-    // 활성/유효 렌탈 계약 필터링 (당월 기간과 교집합이 있는 계약)
+    // 활성/유효 렌탈 계약 필터링 (계약별 마감일 기준 정산 주기와 교집합이 있는 계약)
     const activeContracts = contracts.filter(c => {
       if (c.contractType === 'SALE') return false;
+      const cust = customerMap.get(c.customerId);
+      const site = c.siteId ? siteMap.get(c.siteId) : undefined;
+      const closingDayNum = resolveClosingDayNumber(c, site, cust);
+      const { cycleStart, cycleEnd } = getBillingCycleBounds(targetMonth, closingDayNum);
       const cStart = (c.startDate || '').slice(0, 10);
       const cEnd = (c.endDate || '').slice(0, 10);
-      if (cStart && cStart > lastDay) return false;
-      if (cEnd && cEnd < firstDay) return false;
+      if (cStart && cStart > cycleEnd) return false;
+      if (cEnd && cEnd < cycleStart) return false;
       return true;
     });
 
@@ -326,6 +374,9 @@ export const KiyeunContractStatusPage: React.FC = () => {
       const customerName = customer?.name || contract.customerName || contract.customerId || '-';
       const siteName = site?.name || '-';
       const groupKey = `${customerName}__${siteName}__${contract.id}`;
+
+      const closingDayNum = resolveClosingDayNumber(contract, site, customer);
+      const { cycleStart, cycleEnd, fullCycleDays } = getBillingCycleBounds(targetMonth, closingDayNum);
 
       const cBillings = billingByContractMap.get(contract.id) || [];
       const primaryBilling = cBillings[0];
@@ -381,6 +432,7 @@ export const KiyeunContractStatusPage: React.FC = () => {
       });
 
       const cAssets = caByContract.get(contract.id) || [];
+      const consumedAssetExtraIds = new Set<string>();
 
       cAssets.forEach((ca, idx) => {
         const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
@@ -389,13 +441,13 @@ export const KiyeunContractStatusPage: React.FC = () => {
         const rawStart = (ca.startDate || contract.startDate || '').slice(0, 10);
         const rawEnd = (ca.actualReturnDate || ca.endDate || contract.endDate || '').slice(0, 10);
 
-        // 당월 교집합 검증
-        if (rawStart && rawStart > lastDay) return;
-        if (rawEnd && rawEnd < firstDay) return;
+        // 계약별 마감일 기준 정산 주기(cycleStart ~ cycleEnd)와 교집합 검증
+        if (rawStart && rawStart > cycleEnd) return;
+        if (rawEnd && rawEnd < cycleStart) return;
 
-        // 당월 개시일/종료일 산정
-        const effStart = rawStart && rawStart > firstDay ? rawStart : firstDay;
-        const effEnd = rawEnd && rawEnd < lastDay ? rawEnd : lastDay;
+        // 정산 주기 내 개시일(E열)/종료일(F열) 산정
+        const effStart = rawStart && rawStart > cycleStart ? rawStart : cycleStart;
+        const effEnd = rawEnd && rawEnd < cycleEnd ? rawEnd : cycleEnd;
 
         // 월대/일대 구분
         const monthlyFee = Number(ca.monthlyRentalFee || 0);
@@ -403,17 +455,22 @@ export const KiyeunContractStatusPage: React.FC = () => {
         const isDailyContract = monthlyFee === 0 && dailyFee > 0;
         const contractType = isDailyContract ? '일대' : '월대';
 
-        // 당월 전체 가동이면 30일 고정, 월중 개시/반납 또는 일대 계약이면 실제 일수(+F-E+1)
-        const spansFullMonth = !isDailyContract && effStart <= firstDay && effEnd >= lastDay;
+        // 정산 주기 전체 가동이면 30일 고정, 월중 개시/반납 또는 일대 계약이면 실제 일수(+F-E+1)
+        const spansFullCycle = !isDailyContract && effStart <= cycleStart && effEnd >= cycleEnd;
         const actualDays = calcDiffDaysInclusive(effStart, effEnd);
-        const days = spansFullMonth ? 30 : (actualDays >= daysInMonth && !isDailyContract ? 30 : actualDays);
-        const isFullMonthDays = spansFullMonth || (!isDailyContract && days === 30 && actualDays >= daysInMonth);
+        const days = spansFullCycle ? 30 : (actualDays >= fullCycleDays && !isDailyContract ? 30 : actualDays);
+        const isFullMonthDays = spansFullCycle || (!isDailyContract && days === 30 && actualDays >= fullCycleDays);
 
         const baseMonthlyFee = isDailyContract ? dailyFee * 30 : monthlyFee;
         const currentMonthRent = Math.round(((baseMonthlyFee / 30) * days) / 1000) * 1000;
 
-        // 자산 귀속 기타청구
-        const assetExtra = ca.assetId ? extraByAssetId.get(ca.assetId) : undefined;
+        // 자산 귀속 기타청구 (동일 계약 내 동일 자산이 2회 이상 등장할 경우 첫 행에만 1회 합산하여 중복 가산 방지)
+        const assetExtra = (ca.assetId && !consumedAssetExtraIds.has(ca.assetId))
+          ? extraByAssetId.get(ca.assetId)
+          : undefined;
+        if (ca.assetId && assetExtra) {
+          consumedAssetExtraIds.add(ca.assetId);
+        }
         const extraAmt = assetExtra ? assetExtra.amount : 0;
         const extraNotes = assetExtra ? [...assetExtra.notes] : [];
 
@@ -665,19 +722,22 @@ export const KiyeunContractStatusPage: React.FC = () => {
     });
   }, [allRows, contractTypeFilter, ownershipFilter, closingDayFilter, searchTerm]);
 
-  // 집계 요약 (우하단 대차대조 검증식 포함)
+  // 집계 요약 (우하단 대차대조 검증식 + 청구관리 기발행 청구액 대조 포함)
   const summary = useMemo(() => {
     let ownCount = 0;
     let subCount = 0;
     const uniqueOwnAssets = new Set<string>();
     const uniqueSubAssets = new Set<string>();
+    const visibleContractIds = new Set<string>();
     let totalMonthlyContractFee = 0;
     let totalCurrentMonthRent = 0;
     let totalCurrentMonthExtra = 0;
     let totalCurrentMonthBilling = 0;
     let totalSubleaseCost = 0;
+    let billedContractBillingTotal = 0;
 
     filteredRows.forEach(r => {
+      visibleContractIds.add(r.contractId);
       if (!r.isExtraOnlyRow) {
         const assetKey = r.assetId || r.subAssetCode || r.ownAssetCode || r.rowKey;
         if (r.isSubleased) {
@@ -695,6 +755,25 @@ export const KiyeunContractStatusPage: React.FC = () => {
       totalCurrentMonthBilling += r.currentMonthTotal;
     });
 
+    let issuedBillingCount = 0;
+    let issuedBillingSupplyTotal = 0;
+    visibleContractIds.forEach(cId => {
+      const cBills = billingByContractMap.get(cId) || [];
+      if (cBills.length > 0) {
+        cBills.forEach(b => {
+          issuedBillingCount += 1;
+          issuedBillingSupplyTotal += Number(b.totalAmount || 0);
+        });
+      }
+    });
+
+    filteredRows.forEach(r => {
+      const cBills = billingByContractMap.get(r.contractId) || [];
+      if (cBills.length > 0) {
+        billedContractBillingTotal += r.currentMonthTotal;
+      }
+    });
+
     const reconciliationDiff = totalCurrentMonthBilling - (totalCurrentMonthRent + totalCurrentMonthExtra);
 
     return {
@@ -709,8 +788,12 @@ export const KiyeunContractStatusPage: React.FC = () => {
       totalCurrentMonthBilling,
       totalSubleaseCost,
       reconciliationDiff,
+      issuedBillingCount,
+      issuedBillingSupplyTotal,
+      billedContractBillingTotal,
+      unbilledEstimateTotal: Math.max(0, totalCurrentMonthBilling - billedContractBillingTotal),
     };
-  }, [filteredRows]);
+  }, [filteredRows, billingByContractMap]);
 
   const handleResetFilters = useCallback(() => {
     setTargetMonth(todayYmd.slice(0, 7));
@@ -1308,13 +1391,20 @@ export const KiyeunContractStatusPage: React.FC = () => {
 
       {/* ④ 우하단 종점: 대차대조 합계 검증식 및 최종 엑셀 추출 액션 */}
       <div className="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 border-t border-slate-700">
-        <div className="flex flex-wrap items-center gap-4 text-xs whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-3 text-xs whitespace-nowrap">
           <span className="text-slate-300">
             계약 월렌탈료 합계: <strong className="text-white font-mono">₩{summary.totalMonthlyContractFee.toLocaleString()}</strong>
           </span>
           <span className="text-slate-600">|</span>
           <span className="text-slate-300">
             임차단가 합계: <strong className="text-purple-300 font-mono">₩{summary.totalSubleaseCost.toLocaleString()}</strong>
+          </span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-300">
+            청구관리 기발행({summary.issuedBillingCount}건): <strong className="text-cyan-300 font-mono">₩{summary.issuedBillingSupplyTotal.toLocaleString()}</strong>
+            <span className="text-slate-400 ml-1.5">
+              (미발행 예상액 <strong className="text-slate-200 font-mono">₩{summary.unbilledEstimateTotal.toLocaleString()}</strong>)
+            </span>
           </span>
         </div>
 
