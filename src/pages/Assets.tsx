@@ -934,46 +934,48 @@ export const Assets: React.FC = () => {
       {/* ③ 필터 컨트롤 바 (Vertical Header-Label Layout: 헌장 3.4) */}
       <div data-mid="asset-filter-bar" style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '6px 12px',
+        flexDirection: 'column',
+        gap: '5px',
+        padding: '6px 10px',
         backgroundColor: 'var(--bg-card)',
         borderRadius: '6px',
         border: '1px solid var(--border-color)',
-        flexWrap: 'wrap',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', padding: '1px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
-              <span>
-                조회 결과: 총 <strong style={{ color: 'var(--primary)' }}>{filteredStats.totalCount}대</strong>
+        {/* 1행: 조회 결과 및 실물자산 가동률 인라인 요약 바 (드롭다운과 줄바꿈 겹침 방지) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>통합 검색</label>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '1px 7px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap', flexWrap: 'wrap' }}>
+            <span>
+              조회 결과: 총 <strong style={{ color: 'var(--primary)' }}>{filteredStats.totalCount}대</strong>
+            </span>
+            <span style={{ color: 'var(--border-color)' }}>|</span>
+            <span>
+              실물 <strong style={{ color: 'var(--text-main)' }}>{filteredStats.physicalCount}대</strong>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '10.5px', marginLeft: '3px' }}>
+                (당사 <strong>{filteredStats.ownedPhysicalTotal}</strong>
+                {filteredStats.ownedPhysicalDisposed > 0 ? `[운용 ${filteredStats.ownedPhysicalActive}·매각 ${filteredStats.ownedPhysicalDisposed}]` : ''}
+                {' + '}임차 <strong style={{ color: '#0284c7' }}>{filteredStats.rentedPhysicalTotal}</strong>)
               </span>
-              <span style={{ color: 'var(--border-color)' }}>|</span>
-              <span>
-                실물 <strong style={{ color: 'var(--text-main)' }}>{filteredStats.physicalCount}대</strong>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '11px', marginLeft: '3px' }}>
-                  (당사 <strong>{filteredStats.ownedPhysicalTotal}</strong>
-                  {filteredStats.ownedPhysicalDisposed > 0 ? `[운용 ${filteredStats.ownedPhysicalActive}·매각 ${filteredStats.ownedPhysicalDisposed}]` : ''}
-                  {' + '}임차 <strong style={{ color: '#0284c7' }}>{filteredStats.rentedPhysicalTotal}</strong>)
-                </span>
-                {' + '}가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
+              {' + '}가상 <strong style={{ color: '#7c3aed' }}>{filteredStats.virtualCount}대</strong>
+            </span>
+            <span style={{ color: 'var(--border-color)' }}>|</span>
+            <span>
+              실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{filteredStats.physicalOpRate}%</strong>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '10.5px', marginLeft: '4px', fontWeight: 600 }}>
+                [당사 {filteredStats.ownedPhysicalOpRate}% · 임차 {filteredStats.rentedPhysicalOpRate}%]
               </span>
-              <span style={{ color: 'var(--border-color)' }}>|</span>
-              <span>
-                실물자산 가동률: <strong style={{ color: 'var(--success)' }}>{filteredStats.physicalOpRate}%</strong>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '11px', marginLeft: '4px', fontWeight: 600 }}>
-                  [당사 {filteredStats.ownedPhysicalOpRate}% · 임차 {filteredStats.rentedPhysicalOpRate}%]
-                </span>
-                <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>
-                  (가동 {filteredStats.physicalOperatingCount}대[당사 {filteredStats.ownedPhysicalOperating}·임차 {filteredStats.rentedPhysicalOperating}] / 실물운용 {filteredStats.physicalActiveCount}대[당사 {filteredStats.ownedPhysicalActive}·임차 {filteredStats.rentedPhysicalActive}], 임대가능 {filteredStats.physicalAvailableCount}대[당사 {filteredStats.ownedPhysicalAvailable}·임차 {filteredStats.rentedPhysicalAvailable}]{filteredStats.physicalRepairingCount > 0 ? `, 수리중 ${filteredStats.physicalRepairingCount}대` : ''})
-                </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', marginLeft: '4px' }}>
+                (가동 {filteredStats.physicalOperatingCount}대[당사 {filteredStats.ownedPhysicalOperating}·임차 {filteredStats.rentedPhysicalOperating}] / 실물운용 {filteredStats.physicalActiveCount}대[당사 {filteredStats.ownedPhysicalActive}·임차 {filteredStats.rentedPhysicalActive}], 임대가능 {filteredStats.physicalAvailableCount}대[당사 {filteredStats.ownedPhysicalAvailable}·임차 {filteredStats.rentedPhysicalAvailable}]{filteredStats.physicalRepairingCount > 0 ? `, 수리중 ${filteredStats.physicalRepairingCount}대` : ''})
               </span>
-            </div>
+            </span>
           </div>
-          <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
+        </div>
+
+        {/* 2행: 좌측 통합 검색창 + 우측 정렬 컴팩트 필터 드롭다운군 */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: '520px', minWidth: '200px' }}>
+            <Search size={12} style={{ position: 'absolute', left: '8px', top: '6px', color: 'var(--text-muted)' }} />
             <input
               type="text"
               placeholder="관리번호, 모델명, 제조사, 제조번호, 주기장, 임차처"
@@ -981,134 +983,138 @@ export const Assets: React.FC = () => {
               onChange={e => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                padding: '4px 8px 4px 26px',
+                padding: '3px 8px 3px 24px',
+                height: '25px',
                 borderRadius: '4px',
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-app)',
                 color: 'var(--text-main)',
-                fontSize: '12px'
+                fontSize: '11.5px'
               }}
             />
           </div>
-        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>규격(피트)</label>
-          <select
-            value={feetFilter}
-            onChange={e => setFeetFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '90px' }}
-          >
-            <option value="ALL">전체 규격</option>
-            {uniqueFeetList.map(ft => (
-              <option key={ft} value={ft}>{ft}</option>
-            ))}
-          </select>
-        </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', flexWrap: 'wrap', marginLeft: 'auto', paddingLeft: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>규격(피트)</label>
+              <select
+                value={feetFilter}
+                onChange={e => setFeetFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '76px' }}
+              >
+                <option value="ALL">전체 규격</option>
+                {uniqueFeetList.map(ft => (
+                  <option key={ft} value={ft}>{ft}</option>
+                ))}
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>소유구분</label>
-          <select
-            value={ownerFilter}
-            onChange={e => setOwnerFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '90px' }}
-          >
-            <option value="ALL">전체 소유</option>
-            <option value="OWNED">당사자산</option>
-            <option value="RENTED">임차자산</option>
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>소유구분</label>
+              <select
+                value={ownerFilter}
+                onChange={e => setOwnerFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '76px' }}
+              >
+                <option value="ALL">전체 소유</option>
+                <option value="OWNED">당사자산</option>
+                <option value="RENTED">임차자산</option>
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>자산구분</label>
-          <select
-            value={natureFilter}
-            onChange={e => setNatureFilter(e.target.value as 'ALL' | 'PHYSICAL' | 'VIRTUAL')}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '85px' }}
-          >
-            <option value="ALL">전체 구분</option>
-            <option value="PHYSICAL">실물</option>
-            <option value="VIRTUAL">가상</option>
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>자산구분</label>
+              <select
+                value={natureFilter}
+                onChange={e => setNatureFilter(e.target.value as 'ALL' | 'PHYSICAL' | 'VIRTUAL')}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '72px' }}
+              >
+                <option value="ALL">전체 구분</option>
+                <option value="PHYSICAL">실물</option>
+                <option value="VIRTUAL">가상</option>
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>주기장</label>
-          <select
-            value={yardFilter}
-            onChange={e => setYardFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '85px' }}
-          >
-            <option value="ALL">전체 주기장</option>
-            {uniqueYards.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>주기장</label>
+              <select
+                value={yardFilter}
+                onChange={e => setYardFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '76px' }}
+              >
+                <option value="ALL">전체 주기장</option>
+                {uniqueYards.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 상태</label>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '110px' }}
-          >
-            <option value="ALL">전체 상태</option>
-            {Object.values(ASSET_STATUS_SSOT).filter(st => st.code !== 'RENTED_RETURNED').map(st => (
-              <option key={st.code} value={st.code}>{st.label}</option>
-            ))}
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 상태</label>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '92px' }}
+              >
+                <option value="ALL">전체 상태</option>
+                {Object.values(ASSET_STATUS_SSOT).filter(st => st.code !== 'RENTED_RETURNED').map(st => (
+                  <option key={st.code} value={st.code}>{st.label}</option>
+                ))}
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>제조사</label>
-          <select
-            value={manufacturerFilter}
-            onChange={e => setManufacturerFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '100px' }}
-          >
-            <option value="ALL">전체 제조사</option>
-            {uniqueManufacturers.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>제조사</label>
+              <select
+                value={manufacturerFilter}
+                onChange={e => setManufacturerFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '84px' }}
+              >
+                <option value="ALL">전체 제조사</option>
+                {uniqueManufacturers.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>현재 고객사</label>
-          <select
-            value={customerFilter}
-            onChange={e => setCustomerFilter(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '130px' }}
-          >
-            <option value="ALL">전체 고객사</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>현재 고객사</label>
+              <select
+                value={customerFilter}
+                onChange={e => setCustomerFilter(e.target.value)}
+                style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '108px' }}
+              >
+                <option value="ALL">전체 고객사</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
 
-        {(searchTerm || feetFilter !== 'ALL' || ownerFilter !== 'ALL' || natureFilter !== 'ALL' || yardFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
-          <button
-            onClick={() => { setSearchTerm(''); setFeetFilter('ALL'); setOwnerFilter('ALL'); setNatureFilter('ALL'); setYardFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
-            style={{
-              marginTop: '16px',
-              padding: '4px 8px',
-              fontSize: '11.5px',
-              border: '1px solid var(--border-color)',
-              borderRadius: '4px',
-              backgroundColor: 'transparent',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <RefreshCw size={11} /> 초기화
-          </button>
-        )}
+            {(searchTerm || feetFilter !== 'ALL' || ownerFilter !== 'ALL' || natureFilter !== 'ALL' || yardFilter !== 'ALL' || statusFilter !== 'ALL' || manufacturerFilter !== 'ALL' || customerFilter !== 'ALL') && (
+              <button
+                onClick={() => { setSearchTerm(''); setFeetFilter('ALL'); setOwnerFilter('ALL'); setNatureFilter('ALL'); setYardFilter('ALL'); setStatusFilter('ALL'); setManufacturerFilter('ALL'); setCustomerFilter('ALL'); }}
+                style={{
+                  padding: '2px 7px',
+                  height: '25px',
+                  fontSize: '11px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '4px',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+              >
+                <RefreshCw size={11} /> 초기화
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ④ 고밀도 전사 자산 대장 그리드 (Body / Inspection: 헌장 3.6 유형 B) */}
