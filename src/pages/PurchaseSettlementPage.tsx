@@ -11,6 +11,7 @@ import {
   ChevronDown, ChevronUp, FileText, AlertCircle, RefreshCw, X, Download, ExternalLink, Eye, Wrench, Database
 } from 'lucide-react';
 import { HometaxPurchaseInvoiceModal } from '../components/HometaxPurchaseInvoiceModal';
+import { PurchaseStatementModal } from '../components/PurchaseStatementModal';
 import { useApproval } from '../hooks/useApproval';
 
 // 정산 유형 탭 정의
@@ -42,11 +43,14 @@ export const PurchaseSettlementPage: React.FC = () => {
     settlementPaymentLogs,
     consumablePurchases,
     deliveries,
+    vendors,
+    transportCompanies,
     bankTransactions,
     generateMonthlyPurchaseSettlements,
     confirmPurchaseSettlement,
     recordPurchaseSettlementPayment,
     savePurchaseSettlement,
+    savePurchaseStatementFile,
     showErrorModal
   } = useApp();
   const { isRuleEnabled, createApprovalRequest } = useApproval();
@@ -74,6 +78,8 @@ export const PurchaseSettlementPage: React.FC = () => {
 
   // 🔍 지급 대사 상세 명세서 모달 상태 (Audit 1:N 이력)
   const [detailModalSettlementId, setDetailModalSettlementId] = useState<string | null>(null);
+  // 📄 매입거래명세서 보관 및 열람 모달 상태
+  const [statementModalSettlementId, setStatementModalSettlementId] = useState<string | null>(null);
 
   const [memoEditId, setMemoEditId]                = useState(null as string | null);
   const [memoText, setMemoText]                    = useState('');
@@ -749,6 +755,24 @@ export const PurchaseSettlementPage: React.FC = () => {
                             </span>
                           )}
 
+                          {/* 매입거래명세서 열람 및 저장 버튼 (소모품/운송료/임차자산 전 상태 상시 제공) */}
+                          <button
+                            type="button"
+                            onClick={() => setStatementModalSettlementId(p.id)}
+                            title="매입거래명세서 열람 및 원본 파일 보관"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '3px',
+                              padding: '3px 7px', borderRadius: '4px',
+                              border: items.some(it => Boolean(getItemEvidenceUrl(it))) ? '1px solid #10B981' : '1px solid var(--primary)',
+                              background: items.some(it => Boolean(getItemEvidenceUrl(it))) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.08)',
+                              color: items.some(it => Boolean(getItemEvidenceUrl(it))) ? '#059669' : 'var(--primary)',
+                              fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <FileText size={12} />
+                            {items.some(it => Boolean(getItemEvidenceUrl(it))) ? '매입명세서(원본보관)' : '매입거래명세서'}
+                          </button>
+
                           {/* 지급 대사 이력 명세서 버튼 */}
                           {(p.paidAmount > 0 || p.bankTransactionId) && (
                             <button
@@ -762,7 +786,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                                 fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
                               }}
                             >
-                              <FileText size={12} /> 명세서
+                              <CreditCard size={12} /> 지급이력
                             </button>
                           )}
                         </div>
@@ -1320,6 +1344,61 @@ export const PurchaseSettlementPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 📄 매입거래명세서 열람 및 원본 파일 저장 모달 */}
+      {statementModalSettlementId && (() => {
+        const targetSettlement = settlementMap.get(statementModalSettlementId);
+        if (!targetSettlement) return null;
+        const targetItems = itemsBySettlementIdMap.get(statementModalSettlementId) || [];
+        const matchedVendor =
+          vendors.find(v => v.id === targetSettlement.vendorId || v.name === targetSettlement.vendorName) ||
+          undefined;
+        const matchedTc =
+          targetSettlement.settlementType === 'TRANSPORT'
+            ? transportCompanies.find(tc => tc.id === targetSettlement.vendorId || tc.name === targetSettlement.vendorName)
+            : undefined;
+        const firstEvidenceUrl = targetItems.map(it => getItemEvidenceUrl(it)).find(Boolean);
+
+        return (
+          <PurchaseStatementModal
+            isOpen={Boolean(statementModalSettlementId)}
+            onClose={() => setStatementModalSettlementId(null)}
+            settlementId={targetSettlement.id}
+            settlementType={targetSettlement.settlementType}
+            settlementYm={targetSettlement.settlementYm}
+            vendorName={targetSettlement.vendorName}
+            vendorBizNo={targetSettlement.taxInvoiceBizNo || matchedVendor?.bizRegNo}
+            vendorRepName={matchedVendor?.representative}
+            vendorPhone={matchedVendor?.contact || matchedTc?.contact}
+            vendorAddress={matchedVendor?.address}
+            vendorBankAccount={
+              targetSettlement.bankAccount ||
+              (matchedVendor?.bankAccount ? `${matchedVendor.bankName || ''} ${matchedVendor.bankAccount} (${matchedVendor.accountHolder || ''})` : undefined) ||
+              (matchedTc?.bankAccount ? `${matchedTc.bankName || ''} ${matchedTc.bankAccount} (${matchedTc.bankHolder || ''})` : undefined)
+            }
+            status={targetSettlement.status}
+            confirmedAt={targetSettlement.confirmedAt}
+            confirmedBy={targetSettlement.confirmedBy}
+            paymentDate={targetSettlement.paymentDate}
+            paidAmount={targetSettlement.paidAmount}
+            totalAmount={targetSettlement.totalAmount}
+            memo={targetSettlement.memo}
+            statementFileUrl={firstEvidenceUrl}
+            items={targetItems.map(it => ({
+              id: it.id,
+              description: it.itemDescription,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              amount: it.amount,
+              evidenceFileUrl: getItemEvidenceUrl(it)
+            }))}
+            onSaveStatementFile={async (fileUrl, fileName) => {
+              await savePurchaseStatementFile(targetSettlement.id, fileUrl, fileName);
+              showToast(`${targetSettlement.vendorName} 매입거래명세서 파일(${fileName})이 저장되었습니다.`);
+            }}
+          />
+        );
+      })()}
 
       {/* 🏛️ 국세청 매입세금계산서 대사 & 업데이트 모달 */}
       {isHometaxModalOpen && (

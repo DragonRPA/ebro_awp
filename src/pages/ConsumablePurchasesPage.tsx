@@ -9,6 +9,7 @@ import {
 import { exportToExcel } from '../services/excel';
 import { Consumable, ConsumablePurchaseRequest, db } from '../services/db';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
+import { PurchaseStatementModal } from '../components/PurchaseStatementModal';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
@@ -23,6 +24,8 @@ export const ConsumablePurchasesPage: React.FC = () => {
     acceptConsumablePurchase,
     completeConsumablePurchase,
     updatePurchaseUnitPrice,
+    updateEvidenceFileUrls,
+    savePurchaseStatementFile,
     hasPermission,
     currentUser,
     showErrorModal
@@ -49,6 +52,8 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
   // 엑셀 일괄 업로드 모달 상태
   const [excelModalOpen, setExcelModalOpen] = useState(false);
+  // 매입거래명세서 열람 및 파일 저장 모달 대상 구매건
+  const [statementTargetPurchaseId, setStatementTargetPurchaseId] = useState<string | null>(null);
 
   // 엑셀 일괄 업로드 컬럼 정의
   const consumableExcelColumns: ExcelColumnDef[] = [
@@ -607,21 +612,28 @@ export const ConsumablePurchasesPage: React.FC = () => {
                         </td>
                         <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{p.requesterName || '-'}</td>
                         <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          {p.statementFileUrl ? (
-                            <a 
-                              href={p.statementFileUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="btn-secondary" 
-                              style={{ padding: '2px 6px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                              title="거래명세서 / 영수증 증빙 열기"
-                            >
-                              <FileText size={11} />
-                              <span>명세서</span>
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setStatementTargetPurchaseId(p.id)}
+                            style={{
+                              padding: '3px 7px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              border: p.statementFileUrl ? '1px solid #10b981' : '1px solid var(--border-color)',
+                              backgroundColor: p.statementFileUrl ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-app)',
+                              color: p.statementFileUrl ? '#059669' : 'var(--text-secondary)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="매입거래명세서 열람 및 원본 파일 저장"
+                          >
+                            <FileText size={11} />
+                            <span>{p.statementFileUrl ? '매입명세서 열람' : '명세서 저장/열람'}</span>
+                          </button>
                         </td>
                         <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <span style={{
@@ -969,6 +981,53 @@ export const ConsumablePurchasesPage: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* 소모품 매입거래명세서 열람 및 파일 저장 모달 */}
+      {statementTargetPurchaseId && (() => {
+        const targetReq = consumablePurchases.find(p => p.id === statementTargetPurchaseId);
+        if (!targetReq) return null;
+        const effectiveQty = (targetReq.receivedQty && targetReq.receivedQty > 0) ? targetReq.receivedQty : targetReq.requestedQty;
+        const totalAmt = effectiveQty * (targetReq.unitPrice || 0);
+        const matchedVendor = vendors.find(v => v.id === targetReq.vendorId || v.name === targetReq.sellerName);
+        return (
+          <PurchaseStatementModal
+            isOpen={Boolean(statementTargetPurchaseId)}
+            onClose={() => setStatementTargetPurchaseId(null)}
+            settlementId={targetReq.settlementId || targetReq.id}
+            settlementType="CONSUMABLE"
+            settlementYm={(targetReq.completedDate || targetReq.requestDate || new Date().toISOString()).slice(0, 7)}
+            vendorName={targetReq.sellerName || '소모품 공급처'}
+            vendorBizNo={matchedVendor?.bizRegNo}
+            vendorRepName={matchedVendor?.representative}
+            vendorPhone={matchedVendor?.contact}
+            vendorAddress={matchedVendor?.address}
+            vendorBankAccount={matchedVendor?.bankAccount ? `${matchedVendor.bankName || ''} ${matchedVendor.bankAccount} (${matchedVendor.accountHolder || ''})` : undefined}
+            status={targetReq.status === 'COMPLETED' ? 'CONFIRMED' : 'PENDING'}
+            confirmedAt={targetReq.completedDate}
+            confirmedBy={targetReq.completerName || targetReq.requesterName}
+            totalAmount={totalAmt}
+            statementFileUrl={targetReq.statementFileUrl}
+            items={[
+              {
+                id: targetReq.id,
+                date: targetReq.requestDate,
+                description: `${targetReq.modelName} (${targetReq.requestDate})`,
+                quantity: effectiveQty,
+                unitPrice: targetReq.unitPrice || 0,
+                amount: totalAmt,
+                evidenceFileUrl: targetReq.statementFileUrl
+              }
+            ]}
+            onSaveStatementFile={async (fileUrl, fileName) => {
+              await updateEvidenceFileUrls([{ id: targetReq.id, url: fileUrl }]);
+              if (targetReq.settlementId) {
+                await savePurchaseStatementFile(targetReq.settlementId, fileUrl, fileName);
+              }
+              showToast(`[${targetReq.modelName}] 매입거래명세서 파일(${fileName})이 저장되었습니다.`);
+            }}
+          />
+        );
+      })()}
 
       {/* 엑셀 일괄 업로드 모달 */}
       <ExcelUploadModal

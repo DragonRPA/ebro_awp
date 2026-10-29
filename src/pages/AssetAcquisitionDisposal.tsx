@@ -85,6 +85,24 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   // ==========================================================================
   const [acqMode, setAcqMode] = useState<'SINGLE' | 'EXCEL'>('SINGLE');
 
+  // 관리번호 정규화 키 헬퍼 (공백·하이픈·언더바 제거 및 소문자화)
+  const cleanAssetNoKey = (raw?: string | null) => (raw || '').replace(/[\s\-_]/g, '').toLowerCase();
+
+  // 기존 등록 자산 관리번호 O(1) 해시맵 (정확 일치 + 하이픈/공백 제거 유사 일치 동시 인덱싱)
+  const existingAssetMaps = useMemo(() => {
+    const exactMap = new Map<string, Asset>();
+    const cleanMap = new Map<string, Asset>();
+    assets.forEach(a => {
+      const trimmed = (a.assetNo || '').trim();
+      if (!trimmed) return;
+      const lower = trimmed.toLowerCase();
+      if (!exactMap.has(lower)) exactMap.set(lower, a);
+      const clean = cleanAssetNoKey(trimmed);
+      if (clean && !cleanMap.has(clean)) cleanMap.set(clean, a);
+    });
+    return { exactMap, cleanMap };
+  }, [assets]);
+
   // 자동 관리번호 채번 헬퍼
   const getNextRecommendedAssetNo = (prefix = 'KL-') => {
     let maxNum = 0;
@@ -98,7 +116,16 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       }
     });
     if (maxNum === 0) maxNum = 800;
-    return `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+    let candNum = maxNum + 1;
+    let cand = `${prefix}${String(candNum).padStart(4, '0')}`;
+    while (
+      existingAssetMaps.exactMap.has(cand.toLowerCase()) ||
+      existingAssetMaps.cleanMap.has(cleanAssetNoKey(cand))
+    ) {
+      candNum++;
+      cand = `${prefix}${String(candNum).padStart(4, '0')}`;
+    }
+    return cand;
   };
 
   // 단건 취득 폼 상태
@@ -255,19 +282,32 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   // 다음 순차 관리번호 자동 채번 (DB 등록 자산 + 폼 입력 자산 중복 방어)
   const getNextSequentialAssetNo = (baseAssetNo: string, offset: number = 1): string => {
     const usedNos = new Set<string>();
+    const usedCleanNos = new Set<string>();
     assets.forEach(a => {
-      if (a.assetNo) usedNos.add(a.assetNo.trim().toLowerCase());
+      if (a.assetNo) {
+        usedNos.add(a.assetNo.trim().toLowerCase());
+        const cl = cleanAssetNoKey(a.assetNo);
+        if (cl) usedCleanNos.add(cl);
+      }
     });
-    if (singleAssetNo.trim()) usedNos.add(singleAssetNo.trim().toLowerCase());
+    if (singleAssetNo.trim()) {
+      usedNos.add(singleAssetNo.trim().toLowerCase());
+      const cl = cleanAssetNoKey(singleAssetNo);
+      if (cl) usedCleanNos.add(cl);
+    }
     multiSlots.forEach(s => {
-      if (s.assetNo.trim()) usedNos.add(s.assetNo.trim().toLowerCase());
+      if (s.assetNo.trim()) {
+        usedNos.add(s.assetNo.trim().toLowerCase());
+        const cl = cleanAssetNoKey(s.assetNo);
+        if (cl) usedCleanNos.add(cl);
+      }
     });
 
     const parsed = parseAssetNo(baseAssetNo);
     if (parsed) {
       let candidateNum = parsed.num + offset;
       let candidateNo = `${parsed.prefix}${String(candidateNum).padStart(parsed.digits, '0')}`;
-      while (usedNos.has(candidateNo.toLowerCase())) {
+      while (usedNos.has(candidateNo.toLowerCase()) || usedCleanNos.has(cleanAssetNoKey(candidateNo))) {
         candidateNum++;
         candidateNo = `${parsed.prefix}${String(candidateNum).padStart(parsed.digits, '0')}`;
       }
@@ -319,15 +359,24 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     if (!parsed) return;
 
     const usedByDb = new Set(assets.map(a => (a.assetNo || '').trim().toLowerCase()));
+    const usedCleanByDb = new Set(assets.map(a => cleanAssetNoKey(a.assetNo)).filter(Boolean));
+    if (base.trim()) {
+      usedByDb.add(base.trim().toLowerCase());
+      const cl = cleanAssetNoKey(base);
+      if (cl) usedCleanByDb.add(cl);
+    }
     let curNum = parsed.num;
 
     setMultiSlots(prev => prev.map(s => {
       curNum++;
       let cand = `${parsed.prefix}${String(curNum).padStart(parsed.digits, '0')}`;
-      while (usedByDb.has(cand.toLowerCase())) {
+      while (usedByDb.has(cand.toLowerCase()) || usedCleanByDb.has(cleanAssetNoKey(cand))) {
         curNum++;
         cand = `${parsed.prefix}${String(curNum).padStart(parsed.digits, '0')}`;
       }
+      usedByDb.add(cand.toLowerCase());
+      const cl = cleanAssetNoKey(cand);
+      if (cl) usedCleanByDb.add(cl);
       return {
         ...s,
         assetNo: cand,
@@ -345,6 +394,84 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       handleRenumberSlotsSequentially(nextRecNo);
     }
   };
+
+  // 🛡️ 실시간 관리번호 중복 검증 엔진 (기본 관리번호 + 추가 슬롯 전체 실시간 교차 검증)
+  const assetNoValidation = useMemo(() => {
+    const mainTrimmed = singleAssetNo.trim();
+    const mainLower = mainTrimmed.toLowerCase();
+    const mainClean = cleanAssetNoKey(mainTrimmed);
+
+    let mainError: string | null = null;
+    if (!mainTrimmed) {
+      mainError = '관리번호를 입력해 주세요.';
+    } else {
+      const dbMatch = existingAssetMaps.exactMap.get(mainLower) || (mainClean ? existingAssetMaps.cleanMap.get(mainClean) : undefined);
+      if (dbMatch) {
+        const ownerLabel = dbMatch.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+        mainError = `기등록 자산 중복 ([${dbMatch.assetNo}] ${dbMatch.modelName} · ${ownerLabel})`;
+      } else {
+        const dupSlotIdx = multiSlots.findIndex(s => {
+          const sTrim = s.assetNo.trim();
+          if (!sTrim) return false;
+          return sTrim.toLowerCase() === mainLower || (mainClean && cleanAssetNoKey(sTrim) === mainClean);
+        });
+        if (dupSlotIdx !== -1) {
+          mainError = `추가 슬롯 #${dupSlotIdx + 1}의 관리번호와 중복됩니다.`;
+        }
+      }
+    }
+
+    const slotErrors: Record<string, string> = {};
+    const seenSlotLower = new Map<string, number>();
+    const seenSlotClean = new Map<string, number>();
+
+    multiSlots.forEach((s, idx) => {
+      const sTrim = s.assetNo.trim();
+      const sLower = sTrim.toLowerCase();
+      const sClean = cleanAssetNoKey(sTrim);
+
+      if (!sTrim) {
+        slotErrors[s.id] = '관리번호 누락';
+        return;
+      }
+
+      const dbMatch = existingAssetMaps.exactMap.get(sLower) || (sClean ? existingAssetMaps.cleanMap.get(sClean) : undefined);
+      if (dbMatch) {
+        const ownerLabel = dbMatch.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+        slotErrors[s.id] = `기등록 중복 ([${dbMatch.assetNo}] ${dbMatch.modelName} · ${ownerLabel})`;
+        return;
+      }
+
+      if (mainTrimmed && (sLower === mainLower || (sClean && sClean === mainClean))) {
+        slotErrors[s.id] = `기본 관리번호(${mainTrimmed})와 중복`;
+        return;
+      }
+
+      if (seenSlotLower.has(sLower)) {
+        const prevIdx = seenSlotLower.get(sLower)!;
+        slotErrors[s.id] = `추가 슬롯 #${prevIdx + 1}과 중복`;
+        return;
+      }
+      if (sClean && seenSlotClean.has(sClean)) {
+        const prevIdx = seenSlotClean.get(sClean)!;
+        slotErrors[s.id] = `추가 슬롯 #${prevIdx + 1}과 유사 번호 중복`;
+        return;
+      }
+
+      seenSlotLower.set(sLower, idx);
+      if (sClean) seenSlotClean.set(sClean, idx);
+    });
+
+    const hasAnyError = Boolean(mainError) || Object.keys(slotErrors).length > 0;
+    const errorCount = (mainError ? 1 : 0) + Object.keys(slotErrors).length;
+
+    return {
+      mainError,
+      slotErrors,
+      hasAnyError,
+      errorCount
+    };
+  }, [singleAssetNo, multiSlots, existingAssetMaps]);
 
   // 감가상각 시뮬레이터 (정액법, 기본 96개월)
   const depreciationSimulation = useMemo(() => {
@@ -389,26 +516,39 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
     // 💡 전체 관리번호 중복 검증 (메인 + 슬롯 상호 중복 및 기존 DB 중복 원천 차단)
     const allAssetNos = [
-      { type: '메인', no: singleAssetNo.trim() },
+      { type: '기본 자산', no: singleAssetNo.trim() },
       ...multiSlots.map((s, i) => ({ type: `추가 슬롯 #${i + 1}`, no: s.assetNo.trim() }))
     ];
 
-    const seenNos = new Set<string>();
+    const seenNos = new Map<string, string>();
+    const seenCleanNos = new Map<string, { type: string; no: string }>();
     for (const item of allAssetNos) {
       if (!item.no) {
-        showErrorModal(`${item.type}의 관리번호를 입력해 주세요.`);
+        showErrorModal(`${item.type}의 관리번호를 입력해 주세요.`, '관리번호 필수 누락');
         return;
       }
       const lower = item.no.toLowerCase();
+      const clean = cleanAssetNoKey(item.no);
       if (seenNos.has(lower)) {
-        showErrorModal(`입력된 관리번호 중 중복 번호 ${item.no}가 존재합니다.`);
+        const prevType = seenNos.get(lower)!;
+        showErrorModal(`${prevType}와(과) ${item.type}의 관리번호 [${item.no}]가 중복됩니다.\n중복된 관리번호를 수정하거나 [관리번호 순차 재정렬]을 실행해 주세요.`, '관리번호 중복 오류');
         return;
       }
-      seenNos.add(lower);
+      if (clean && seenCleanNos.has(clean)) {
+        const prev = seenCleanNos.get(clean)!;
+        showErrorModal(`${prev.type}(${prev.no})와(과) ${item.type}(${item.no})의 관리번호가 하이픈/공백 제외 시 동일합니다.\n중복된 관리번호를 수정해 주세요.`, '관리번호 중복 오류');
+        return;
+      }
+      seenNos.set(lower, item.type);
+      if (clean) seenCleanNos.set(clean, { type: item.type, no: item.no });
 
-      const existingAsset = assets.find(a => a.assetNo?.trim().toLowerCase() === lower);
+      const existingAsset = existingAssetMaps.exactMap.get(lower) || (clean ? existingAssetMaps.cleanMap.get(clean) : undefined);
       if (existingAsset) {
-        showErrorModal(`관리번호 ${item.no}는 이미 시스템에 등록되어 있습니다.`);
+        const ownerLabel = existingAsset.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+        showErrorModal(
+          `${item.type}의 관리번호 [${item.no}]는 이미 시스템에 등록된 자산([${existingAsset.assetNo}] ${existingAsset.modelName} · ${ownerLabel})과 중복됩니다.\n다른 관리번호를 입력하거나 [관리번호 재채번]을 눌러 주세요.`,
+          '관리번호 중복 오류'
+        );
         return;
       }
     }
@@ -442,7 +582,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
       if (multiSlots.length === 0) {
         await acquireAsset(mainPayload);
-        showToast(`자산 ${singleAssetNo} 취득 등록 완료 (임대가능 AVAILABLE 입고)`);
+        showToast(`자산 ${singleAssetNo} 취득 등록 완료 (임대가능 입고)`);
       } else {
         const batchPayload: Partial<Asset>[] = [mainPayload];
         for (const slot of multiSlots) {
@@ -457,7 +597,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           });
         }
         await batchAcquireAssets(batchPayload);
-        showToast(`총 ${batchPayload.length}대 자산 일괄 취득 등록 완료 (임대가능 AVAILABLE 입고)`);
+        showToast(`총 ${batchPayload.length}대 자산 일괄 취득 등록 완료 (임대가능 입고)`);
         setMultiSlots([]);
       }
 
@@ -484,6 +624,120 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   const [excelValidationErrors, setExcelValidationErrors] = useState<{ row: number; error: string }[]>([]);
   const [isProcessingExcel, setIsProcessingExcel] = useState<boolean>(false);
 
+  // 엑셀 행 목록에 대한 실시간 중복/필수값 재검증 헬퍼
+  const revalidateExcelRows = (rowsToValidate: any[]) => {
+    const errors: { row: number; error: string }[] = [];
+    const fileNosLower = new Map<string, number>();
+    const fileNosClean = new Map<string, { rowNum: number; rawNo: string }>();
+
+    const nextRows = rowsToValidate.map(r => {
+      const rowNum = r.rowNum;
+      const assetNo = String(r.assetNo || '').trim();
+      const modelName = String(r.modelName || '').trim();
+      const rowErrorMessages: string[] = [];
+
+      if (!assetNo) {
+        rowErrorMessages.push('관리번호 누락');
+      } else {
+        const lower = assetNo.toLowerCase();
+        const clean = cleanAssetNoKey(assetNo);
+        const existingAsset = existingAssetMaps.exactMap.get(lower) || (clean ? existingAssetMaps.cleanMap.get(clean) : undefined);
+
+        if (existingAsset) {
+          const ownerLabel = existingAsset.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+          rowErrorMessages.push(`관리번호 중복 (기등록: [${existingAsset.assetNo}] ${existingAsset.modelName} · ${ownerLabel})`);
+        } else if (fileNosLower.has(lower)) {
+          const firstRow = fileNosLower.get(lower)!;
+          rowErrorMessages.push(`엑셀 내 관리번호 중복 (${firstRow}행과 동일)`);
+        } else if (clean && fileNosClean.has(clean)) {
+          const firstInfo = fileNosClean.get(clean)!;
+          rowErrorMessages.push(`엑셀 내 유사 관리번호 중복 (${firstInfo.rowNum}행 [${firstInfo.rawNo}]와 동일)`);
+        } else {
+          fileNosLower.set(lower, rowNum);
+          if (clean) fileNosClean.set(clean, { rowNum, rawNo: assetNo });
+        }
+      }
+
+      if (!modelName) {
+        rowErrorMessages.push('모델명 누락');
+      }
+
+      rowErrorMessages.forEach(msg => {
+        errors.push({ row: rowNum, error: msg });
+      });
+
+      return {
+        ...r,
+        assetNo,
+        modelName,
+        rowErrors: rowErrorMessages,
+        hasError: rowErrorMessages.length > 0
+      };
+    });
+
+    setExcelPreviewData(nextRows);
+    setExcelValidationErrors(errors);
+  };
+
+  // 엑셀 미리보기 테이블에서 관리번호 인라인 수정 시 즉시 재검증
+  const handleUpdateExcelRowAssetNo = (rowNum: number, newAssetNo: string) => {
+    const updated = excelPreviewData.map(r => (r.rowNum === rowNum ? { ...r, assetNo: newAssetNo } : r));
+    revalidateExcelRows(updated);
+  };
+
+  // 엑셀 미리보기에서 중복/오류 관리번호 일괄 자동 재채번 보정
+  const handleAutoFixExcelDuplicateAssetNos = () => {
+    const usedLower = new Set<string>();
+    const usedClean = new Set<string>();
+    assets.forEach(a => {
+      const no = (a.assetNo || '').trim();
+      if (no) {
+        usedLower.add(no.toLowerCase());
+        const cl = cleanAssetNoKey(no);
+        if (cl) usedClean.add(cl);
+      }
+    });
+
+    let maxNum = 800;
+    assets.forEach(a => {
+      if (a.assetNo && a.assetNo.startsWith('KL-')) {
+        const n = parseInt(a.assetNo.slice(3), 10);
+        if (!isNaN(n) && n > maxNum) maxNum = n;
+      }
+    });
+
+    const fixedRows = excelPreviewData.map(r => {
+      const trimmed = String(r.assetNo || '').trim();
+      const lower = trimmed.toLowerCase();
+      const clean = cleanAssetNoKey(trimmed);
+
+      const isMissingOrDup = !trimmed || usedLower.has(lower) || (clean && usedClean.has(clean));
+      if (!isMissingOrDup) {
+        usedLower.add(lower);
+        if (clean) usedClean.add(clean);
+        return r;
+      }
+
+      const parsed = parseAssetNo(trimmed);
+      let prefix = parsed ? parsed.prefix : 'KL-';
+      let digits = parsed ? parsed.digits : 4;
+      let candNum = parsed ? parsed.num + 1 : ++maxNum;
+      let cand = `${prefix}${String(candNum).padStart(digits, '0')}`;
+      while (usedLower.has(cand.toLowerCase()) || usedClean.has(cleanAssetNoKey(cand))) {
+        candNum++;
+        cand = `${prefix}${String(candNum).padStart(digits, '0')}`;
+      }
+      usedLower.add(cand.toLowerCase());
+      const candClean = cleanAssetNoKey(cand);
+      if (candClean) usedClean.add(candClean);
+
+      return { ...r, assetNo: cand };
+    });
+
+    revalidateExcelRows(fixedRows);
+    showToast('중복 및 누락된 관리번호가 사용 가능한 번호로 자동 보정되었습니다.');
+  };
+
   // 엑셀 표준 양식 다운로드
   const handleDownloadTemplate = () => {
     const headers = [
@@ -500,7 +754,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       '비고'
     ];
     const sampleRow = [
-      'KL-0899',
+      getNextRecommendedAssetNo('KL-'),
       products[0]?.modelName || 'S-0808',
       'SN-2024-001',
       products[0]?.manufacturer || '시노붐',
@@ -540,13 +794,9 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
         const rows = data.slice(1);
         const parsedRows: any[] = [];
-        const errors: { row: number; error: string }[] = [];
-
-        const existingNos = new Set(assets.map(a => a.assetNo.trim().toLowerCase()));
-        const fileNos = new Set<string>();
 
         rows.forEach((r, idx) => {
-          if (!r || r.length === 0 || !r[0]) return; // 빈 행 무시
+          if (!r || r.length === 0 || (r[0] === undefined && r[1] === undefined)) return; // 빈 행 무시
           const rowNum = idx + 2;
           const assetNo = String(r[0] || '').trim();
           const modelName = String(r[1] || '').trim();
@@ -561,20 +811,6 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           const supplier = String(r[9] || '').trim();
           const memo1 = String(r[10] || '').trim();
 
-          // 유효성 검증
-          if (!assetNo) {
-            errors.push({ row: rowNum, error: '관리번호가 누락되었습니다.' });
-          } else if (existingNos.has(assetNo.toLowerCase())) {
-            errors.push({ row: rowNum, error: `관리번호 ${assetNo}가 기존 자산과 중복됩니다.` });
-          } else if (fileNos.has(assetNo.toLowerCase())) {
-            errors.push({ row: rowNum, error: `엑셀 파일 내에서 관리번호 ${assetNo}가 중복 등장합니다.` });
-          }
-          fileNos.add(assetNo.toLowerCase());
-
-          if (!modelName) {
-            errors.push({ row: rowNum, error: '모델명이 누락되었습니다.' });
-          }
-
           parsedRows.push({
             rowNum,
             assetNo,
@@ -588,12 +824,12 @@ export const AssetAcquisitionDisposal: React.FC = () => {
             residualValueRate,
             supplier,
             memo1,
-            hasError: errors.some(e => e.row === rowNum)
+            rowErrors: [],
+            hasError: false
           });
         });
 
-        setExcelPreviewData(parsedRows);
-        setExcelValidationErrors(errors);
+        revalidateExcelRows(parsedRows);
       } catch (err: any) {
         showErrorModal(`엑셀 파일 파싱 오류:\n\n${err?.message || err}`);
       }
@@ -603,8 +839,9 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 엑셀 일괄 등록 실행
   const handleExecuteExcelImport = async () => {
-    if (excelValidationErrors.length > 0) {
-      showErrorModal(`유효성 검사 오류가 ${excelValidationErrors.length}건 존재합니다. 오류를 수정한 후 다시 업로드해 주세요.`);
+    const errorRowsCount = excelPreviewData.filter(r => r.hasError).length;
+    if (excelValidationErrors.length > 0 || errorRowsCount > 0) {
+      showErrorModal(`유효성 검사 오류가 ${errorRowsCount}행(${excelValidationErrors.length}건) 존재합니다.\n표에서 관리번호를 직접 수정하거나 [중복 관리번호 자동 재채번] 버튼을 눌러 오류를 해결해 주세요.`, '유효성 검사 오류');
       return;
     }
     if (excelPreviewData.length === 0) {
@@ -632,7 +869,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       });
 
       await batchAcquireAssets(payloadList);
-      showToast(`총 ${payloadList.length}대 자산 엑셀 일괄 취득 완료 (AVAILABLE 입고)`);
+      showToast(`총 ${payloadList.length}대 자산 엑셀 일괄 취득 완료 (임대가능 입고)`);
       setExcelPreviewData([]);
       setExcelValidationErrors([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1547,17 +1784,43 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   )}
                 </div>
 
-                {/* 2. 관리번호 */}
+                {/* 2. 관리번호 (실시간 중복 검증 피드백 내장) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>관리번호 (자산번호)</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>관리번호 (자산번호)</label>
+                    {singleAssetNo.trim() && (
+                      assetNoValidation.mainError ? (
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--danger)', whiteSpace: 'nowrap' }}>
+                          중복 오류
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', whiteSpace: 'nowrap' }}>
+                          사용 가능
+                        </span>
+                      )
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={singleAssetNo}
                     onChange={e => setSingleAssetNo(e.target.value)}
                     placeholder="예: KL-0850"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', fontSize: '12.5px', fontWeight: 700 }}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: assetNoValidation.mainError ? '1.5px solid var(--danger)' : '1px solid var(--border-color)',
+                      backgroundColor: assetNoValidation.mainError ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-app)',
+                      color: assetNoValidation.mainError ? 'var(--danger)' : 'var(--text-primary)',
+                      fontSize: '12.5px',
+                      fontWeight: 700
+                    }}
                     required
                   />
+                  {assetNoValidation.mainError && (
+                    <span style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600, lineHeight: 1.3 }}>
+                      ⚠️ {assetNoValidation.mainError}
+                    </span>
+                  )}
                 </div>
 
                 {/* 3. 제조번호 */}
@@ -1872,149 +2135,181 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     </div>
 
                     {/* 슬롯 행 목록 */}
-                    {multiSlots.map((slot, sIdx) => (
-                      <div
-                        key={slot.id}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '40px 170px 130px 1fr 110px 130px 36px',
-                          gap: '8px',
-                          alignItems: 'center',
-                          backgroundColor: 'var(--bg-app)',
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-color)'
-                        }}
-                      >
-                        {/* 1. 순번 */}
-                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                          #{sIdx + 1}
-                        </span>
+                    {multiSlots.map((slot, sIdx) => {
+                      const slotErr = assetNoValidation.slotErrors[slot.id];
+                      return (
+                        <div
+                          key={slot.id}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '40px 170px 130px 1fr 110px 130px 36px',
+                            gap: '8px',
+                            alignItems: 'center',
+                            backgroundColor: slotErr ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-app)',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: slotErr ? '1.5px solid var(--danger)' : '1px solid var(--border-color)'
+                          }}
+                        >
+                          {/* 1. 순번 */}
+                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: slotErr ? 'var(--danger)' : 'var(--text-muted)' }}>
+                            #{sIdx + 1}
+                          </span>
 
-                        {/* 2. 채번 관리번호 (배지 및 입력 필드) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {/* 2. 채번 관리번호 (배지 및 입력 필드) */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <input
+                              type="text"
+                              placeholder="관리번호"
+                              value={slot.assetNo}
+                              onChange={e => handleUpdateSlot(slot.id, 'assetNo', e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '5px 8px',
+                                fontSize: '12px',
+                                fontWeight: 800,
+                                borderRadius: '4px',
+                                border: slotErr ? '1.5px solid var(--danger)' : '1px solid var(--primary)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: slotErr ? 'var(--danger)' : 'var(--primary)',
+                                boxSizing: 'border-box'
+                              }}
+                              required
+                            />
+                            {slotErr && (
+                              <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 700, lineHeight: 1.2 }}>
+                                ⚠️ {slotErr}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 3. 등록 모델 (메인 모델 동일 상속 표시) */}
+                          <div style={{ whiteSpace: 'nowrap' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: 'var(--bg-card)',
+                              border: '1px solid var(--border-color)',
+                              fontSize: '11.5px',
+                              fontWeight: 700,
+                              color: 'var(--text-primary)'
+                            }}>
+                              {singleModelName || '-'}
+                            </span>
+                          </div>
+
+                          {/* 4. 제조번호 */}
                           <input
                             type="text"
-                            placeholder="관리번호"
-                            value={slot.assetNo}
-                            onChange={e => handleUpdateSlot(slot.id, 'assetNo', e.target.value)}
+                            placeholder="차대/제조일련번호"
+                            value={slot.serialNo}
+                            onChange={e => handleUpdateSlot(slot.id, 'serialNo', e.target.value)}
                             style={{
-                              width: '100%',
                               padding: '5px 8px',
                               fontSize: '12px',
-                              fontWeight: 800,
                               borderRadius: '4px',
-                              border: '1px solid var(--primary)',
+                              border: '1px solid var(--border-color)',
                               backgroundColor: 'var(--bg-card)',
-                              color: 'var(--primary)'
+                              color: 'var(--text-primary)'
+                            }}
+                          />
+
+                          {/* 5. 제조년도 (슬롯별 개별 연식) */}
+                          <input
+                            type="text"
+                            placeholder={singleManufactureYear || '2024'}
+                            value={slot.manufactureYear}
+                            onChange={e => handleUpdateSlot(slot.id, 'manufactureYear', e.target.value)}
+                            style={{
+                              padding: '5px 8px',
+                              fontSize: '12px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-primary)'
+                            }}
+                          />
+
+                          {/* 6. 취득원가 (메인 취득가 동일 상속) */}
+                          <input
+                            type="number"
+                            placeholder="취득가"
+                            value={slot.price}
+                            onChange={e => handleUpdateSlot(slot.id, 'price', parseInt(e.target.value, 10) || 0)}
+                            style={{
+                              padding: '5px 8px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-card)',
+                              color: 'var(--text-primary)',
+                              textAlign: 'right'
                             }}
                             required
                           />
+
+                          {/* 7. 삭제 버튼 */}
+                          <div style={{ textAlign: 'center' }}>
+                            <button data-hs-trigger="Delete"
+                              type="button"
+                              onClick={() => handleRemoveSlot(slot.id)}
+                              title="슬롯 삭제"
+                              style={{
+                                border: 'none',
+                                background: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
-
-                        {/* 3. 등록 모델 (메인 모델 동일 상속 표시) */}
-                        <div style={{ whiteSpace: 'nowrap' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: 'var(--bg-card)',
-                            border: '1px solid var(--border-color)',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            color: 'var(--text-primary)'
-                          }}>
-                            {singleModelName || '-'}
-                          </span>
-                        </div>
-
-                        {/* 4. 제조번호 */}
-                        <input
-                          type="text"
-                          placeholder="차대/제조일련번호"
-                          value={slot.serialNo}
-                          onChange={e => handleUpdateSlot(slot.id, 'serialNo', e.target.value)}
-                          style={{
-                            padding: '5px 8px',
-                            fontSize: '12px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--bg-card)',
-                            color: 'var(--text-primary)'
-                          }}
-                        />
-
-                        {/* 5. 제조년도 (슬롯별 개별 연식) */}
-                        <input
-                          type="text"
-                          placeholder={singleManufactureYear || '2024'}
-                          value={slot.manufactureYear}
-                          onChange={e => handleUpdateSlot(slot.id, 'manufactureYear', e.target.value)}
-                          style={{
-                            padding: '5px 8px',
-                            fontSize: '12px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--bg-card)',
-                            color: 'var(--text-primary)'
-                          }}
-                        />
-
-                        {/* 6. 취득원가 (메인 취득가 동일 상속) */}
-                        <input
-                          type="number"
-                          placeholder="취득가"
-                          value={slot.price}
-                          onChange={e => handleUpdateSlot(slot.id, 'price', parseInt(e.target.value, 10) || 0)}
-                          style={{
-                            padding: '5px 8px',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            backgroundColor: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            textAlign: 'right'
-                          }}
-                          required
-                        />
-
-                        {/* 6. 삭제 버튼 */}
-                        <div style={{ textAlign: 'center' }}>
-                          <button data-hs-trigger="Delete"
-                            type="button"
-                            onClick={() => handleRemoveSlot(slot.id)}
-                            title="슬롯 삭제"
-                            style={{
-                              border: 'none',
-                              background: 'none',
-                              color: 'var(--danger)',
-                              cursor: 'pointer',
-                              padding: '4px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* 우하단 Gutenberg Z-패턴 터미널 완결 버튼 */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+              {/* 관리번호 중복 오류 요약 배너 및 우하단 Gutenberg Z-패턴 터미널 완결 버튼 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                <div>
+                  {assetNoValidation.hasAnyError ? (
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertCircle size={15} />
+                      관리번호 중복 또는 누락 오류가 {assetNoValidation.errorCount}건 감지되었습니다. 관리번호를 수정하거나 [관리번호 재채번]을 눌러 주세요.
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={15} />
+                      전체 {1 + multiSlots.length}대 관리번호 중복 검증 통과
+                    </span>
+                  )}
+                </div>
+
                 <button data-hs-trigger="Register"
                   type="submit"
                   className="btn-primary"
-                  disabled={isSubmittingAcq}
-                  style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
+                  disabled={isSubmittingAcq || assetNoValidation.hasAnyError}
+                  style={{
+                    padding: '10px 24px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    opacity: (isSubmittingAcq || assetNoValidation.hasAnyError) ? 0.55 : 1,
+                    cursor: (isSubmittingAcq || assetNoValidation.hasAnyError) ? 'not-allowed' : 'pointer'
+                  }}
                 >
                   <Plus size={16} />
-                  {isSubmittingAcq ? '취득 등록 중...' : `신규 자산 취득 등록 (총 ${1 + multiSlots.length}대 AVAILABLE 입고)`}
+                  {isSubmittingAcq ? '취득 등록 중...' : `신규 자산 취득 등록 (총 ${1 + multiSlots.length}대 임대가능 입고)`}
                 </button>
               </div>
 
@@ -2072,77 +2367,119 @@ export const AssetAcquisitionDisposal: React.FC = () => {
               </div>
 
               {/* 엑셀 파싱 미리보기 및 검증 결과 */}
-              {excelPreviewData.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12.5px', fontWeight: 700 }}>
-                      파싱 결과: 총 {excelPreviewData.length}행 (정상: {excelPreviewData.length - excelValidationErrors.length}건 / 오류: {excelValidationErrors.length}건)
-                    </span>
-                    {excelValidationErrors.length > 0 && (
-                      <span style={{ fontSize: '11.5px', color: 'var(--danger)', fontWeight: 700 }}>
-                        ⚠️ 오류가 있는 행을 수정한 후 다시 업로드해 주세요.
+              {excelPreviewData.length > 0 && (() => {
+                const errorRowCount = excelPreviewData.filter(r => r.hasError).length;
+                const validRowCount = excelPreviewData.length - errorRowCount;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 700 }}>
+                        파싱 결과: 총 {excelPreviewData.length}행 (정상: <span style={{ color: 'var(--success)' }}>{validRowCount}건</span> / 오류: <span style={{ color: errorRowCount > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{errorRowCount}건</span>)
                       </span>
-                    )}
-                  </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {errorRowCount > 0 && (
+                          <>
+                            <span style={{ fontSize: '11.5px', color: 'var(--danger)', fontWeight: 700 }}>
+                              ⚠️ 표에서 관리번호를 직접 수정하거나 자동 재채번 버튼으로 즉시 보정할 수 있습니다.
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={handleAutoFixExcelDuplicateAssetNos}
+                              style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
+                            >
+                              <RefreshCw size={12} /> 중복 관리번호 자동 재채번
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="table-container" style={{ maxHeight: '320px', overflowY: 'auto' }}>
-                    <table>
-                      <thead>
-                        <tr style={{ backgroundColor: 'var(--bg-app)' }}>
-                          <th style={{ whiteSpace: 'nowrap' }}>행</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>관리번호</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>제조번호</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>제조사</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>취득일자</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>취득원가</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>검증 결과</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {excelPreviewData.map(r => {
-                          const err = excelValidationErrors.find(e => e.row === r.rowNum);
-                          return (
-                            <tr key={r.rowNum} style={{ backgroundColor: err ? 'rgba(239, 68, 68, 0.08)' : 'transparent' }}>
-                              <td style={{ whiteSpace: 'nowrap' }}>{r.rowNum}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}><strong>{r.assetNo}</strong></td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{r.modelName}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{r.serialNo || '-'}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{r.manufacturer || '-'}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{r.acquisitionDate}</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>₩{r.acquisitionPrice.toLocaleString()}원</td>
-                              <td style={{ whiteSpace: 'nowrap' }}>
-                                {err ? (
-                                  <span style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '11px' }}>
-                                    🔴 {err.error}
-                                  </span>
-                                ) : (
-                                  <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '11px' }}>
-                                    🟢 정상
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                    <div className="table-container" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                      <table>
+                        <thead>
+                          <tr style={{ backgroundColor: 'var(--bg-app)' }}>
+                            <th style={{ whiteSpace: 'nowrap' }}>행</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>관리번호 (인라인 수정 가능)</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>제조번호</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>제조사</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>취득일자</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>취득원가</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>검증 결과</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {excelPreviewData.map(r => {
+                            const rowErrs: string[] = r.rowErrors || excelValidationErrors.filter(e => e.row === r.rowNum).map(e => e.error);
+                            const hasErr = rowErrs.length > 0;
+                            return (
+                              <tr key={r.rowNum} style={{ backgroundColor: hasErr ? 'rgba(239, 68, 68, 0.08)' : 'transparent' }}>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.rowNum}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  <input
+                                    type="text"
+                                    value={r.assetNo}
+                                    onChange={e => handleUpdateExcelRowAssetNo(r.rowNum, e.target.value)}
+                                    style={{
+                                      width: '130px',
+                                      padding: '4px 8px',
+                                      fontSize: '12px',
+                                      fontWeight: 700,
+                                      borderRadius: '4px',
+                                      border: hasErr ? '1.5px solid var(--danger)' : '1px solid var(--border-color)',
+                                      backgroundColor: 'var(--bg-card)',
+                                      color: hasErr ? 'var(--danger)' : 'var(--text-primary)'
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.modelName}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.serialNo || '-'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.manufacturer || '-'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.acquisitionDate}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>₩{r.acquisitionPrice.toLocaleString()}원</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {hasErr ? (
+                                    <span style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '11px' }}>
+                                      🔴 {rowErrs.join(' / ')}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '11px' }}>
+                                      🟢 정상 (사용 가능)
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px' }}>
-                    <button data-hs-trigger="Register"
-                      type="button"
-                      className="btn-primary"
-                      disabled={isProcessingExcel || excelValidationErrors.length > 0}
-                      onClick={handleExecuteExcelImport}
-                      style={{ padding: '10px 24px', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}
-                    >
-                      <Check size={16} />
-                      {isProcessingExcel ? '일괄 등록 진행 중...' : `총 ${excelPreviewData.length}대 일괄 취득 등록 (AVAILABLE 입고)`}
-                    </button>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px' }}>
+                      <button data-hs-trigger="Register"
+                        type="button"
+                        className="btn-primary"
+                        disabled={isProcessingExcel || errorRowCount > 0}
+                        onClick={handleExecuteExcelImport}
+                        style={{
+                          padding: '10px 24px',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          opacity: (isProcessingExcel || errorRowCount > 0) ? 0.55 : 1,
+                          cursor: (isProcessingExcel || errorRowCount > 0) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        <Check size={16} />
+                        {isProcessingExcel ? '일괄 등록 진행 중...' : `총 ${excelPreviewData.length}대 일괄 취득 등록 (임대가능 입고)`}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
             </div>
           )}

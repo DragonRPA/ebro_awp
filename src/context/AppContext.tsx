@@ -281,7 +281,7 @@ interface AppContextType {
   useConsumable: (data: { consumableId: string; quantity: number; targetAssetId: string; description: string }) => Promise<void>;
   requestConsumablePurchase: (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string; purchaseUrl?: string; requestAttachmentUrl?: string; vendorId?: string; paymentMethod?: 'CARD' | 'CREDIT'; }) => Promise<void>;
   acceptConsumablePurchase: (id: string) => Promise<void>;
-  completeConsumablePurchase: (id: string) => Promise<void>;
+  completeConsumablePurchase: (id: string, statementFileUrl?: string) => Promise<void>;
   inboundConsumablePurchase: (id: string, qty: number, statementFileUrl: string) => Promise<void>;
   clearEvidenceFileUrls: (ids: string[]) => Promise<void>;  // Storage 삭제 후 DB URL 초기화
   updateEvidenceFileUrls: (updates: { id: string; url: string }[]) => Promise<void>; // Storage 삭제 후 Drive URL로 교체
@@ -520,6 +520,7 @@ interface AppContextType {
   confirmPurchaseSettlement: (id: string) => Promise<void>;
   recordPurchaseSettlementPayment: (id: string, data: { paidAmount: number; paymentDate: string; paymentMethod: string; bankAccount?: string; bankTransactionId?: string; memo?: string }) => Promise<void>;
   savePurchaseSettlement: (settlement: Partial<PurchaseSettlement>) => Promise<void>;
+  savePurchaseStatementFile: (settlementId: string, fileUrl: string, fileName?: string) => Promise<void>;
   convertReconciledDeliveriesToSettlement: (settlementYm: string, transportCompanyId?: string) => Promise<number>;
 
   // Depreciation Execution Mutators
@@ -3151,10 +3152,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let result;
     const existingAsset = asset.id ? db.assets.find(a => a.id === asset.id) : null;
     const isNew = !existingAsset;
+
+    // 🛡️ 관리번호(assetNo) 중복 검증 가드 (휴먼에러 원천 차단)
+    const trimmedAssetNo = (asset.assetNo || '').trim();
+    if (!trimmedAssetNo) {
+      const errMsg = '관리번호(자산번호)를 입력해 주세요.';
+      showErrorModal(errMsg, '관리번호 필수 누락');
+      throw new Error(errMsg);
+    }
+    const cleanInputNo = trimmedAssetNo.replace(/[\s\-_]/g, '').toLowerCase();
+    const dupAsset = db.assets.find(a => {
+      if (existingAsset && a.id === existingAsset.id) return false;
+      const aNo = (a.assetNo || '').trim();
+      if (!aNo) return false;
+      return aNo.toLowerCase() === trimmedAssetNo.toLowerCase() || (cleanInputNo && aNo.replace(/[\s\-_]/g, '').toLowerCase() === cleanInputNo);
+    });
+    if (dupAsset) {
+      const ownerLabel = dupAsset.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+      const errMsg = `관리번호 [${trimmedAssetNo}]는 이미 등록된 자산([${dupAsset.assetNo}] ${dupAsset.modelName} · ${ownerLabel})과 중복됩니다.\n다른 관리번호를 입력해 주세요.`;
+      showErrorModal(errMsg, '관리번호 중복 오류');
+      throw new Error(errMsg);
+    }
+
     const resolvedMfg = db.resolveAssetManufacturer(asset.modelName || existingAsset?.modelName, asset.manufacturer || existingAsset?.manufacturer);
     const resolvedManufactureYear = normalizeManufactureYear(asset.manufactureYear ?? existingAsset?.manufactureYear ?? '');
     const normalizedAsset = {
       ...asset,
+      assetNo: trimmedAssetNo,
       manufacturer: resolvedMfg,
       manufactureYear: resolvedManufactureYear,
       yard: asset.yard || existingAsset?.yard || '용인'
@@ -5563,14 +5587,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const acquireAsset = async (assetData: Partial<Asset>): Promise<Asset> => {
+    const trimmedAssetNo = (assetData.assetNo || '').trim();
+    if (!trimmedAssetNo) {
+      const errMsg = '관리번호(자산번호)를 입력해 주세요.';
+      showErrorModal(errMsg, '관리번호 필수 누락');
+      throw new Error(errMsg);
+    }
+    const cleanInputNo = trimmedAssetNo.replace(/[\s\-_]/g, '').toLowerCase();
+    const dupAsset = db.assets.find(a => {
+      const aNo = (a.assetNo || '').trim();
+      if (!aNo) return false;
+      return aNo.toLowerCase() === trimmedAssetNo.toLowerCase() || (cleanInputNo && aNo.replace(/[\s\-_]/g, '').toLowerCase() === cleanInputNo);
+    });
+    if (dupAsset) {
+      const ownerLabel = dupAsset.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+      const errMsg = `관리번호 [${trimmedAssetNo}]는 이미 시스템에 등록된 자산([${dupAsset.assetNo}] ${dupAsset.modelName} · ${ownerLabel})과 중복됩니다.\n다른 관리번호를 입력해 주세요.`;
+      showErrorModal(errMsg, '관리번호 중복 오류');
+      throw new Error(errMsg);
+    }
+
     const residualRate = assetData.residualValueRate ?? 10;
     const price = assetData.acquisitionPrice ?? 0;
     const bookVal = price;
     
     const newAsset = db.insertRow<Asset>('assets', {
       modelName: assetData.modelName || '',
-      assetNo: assetData.assetNo || '',
-      serialNo: assetData.serialNo || '',
+      assetNo: trimmedAssetNo,
+      serialNo: (assetData.serialNo || '').trim(),
       manufacturer: assetData.manufacturer || '',
       manufactureYear: normalizeManufactureYear(assetData.manufactureYear),
       ownerType: 'OWNED',
@@ -5615,16 +5658,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const batchAcquireAssets = async (assetsData: Partial<Asset>[]): Promise<Asset[]> => {
+    // 🛡️ 일괄 취득 실행 전 전체 관리번호 사전 검증 (원자적 트랜잭션 보호: 1건이라도 중복 시 전체 롤백/차단)
+    const batchSeenLower = new Map<string, number>();
+    const batchSeenClean = new Map<string, { idx: number; rawNo: string }>();
+
+    for (let i = 0; i < assetsData.length; i++) {
+      const item = assetsData[i];
+      const trimmedNo = (item.assetNo || '').trim();
+      if (!trimmedNo) {
+        const errMsg = `일괄 등록 항목(${i + 1}번째)의 관리번호가 누락되었습니다.`;
+        showErrorModal(errMsg, '관리번호 필수 누락');
+        throw new Error(errMsg);
+      }
+      const lowerNo = trimmedNo.toLowerCase();
+      const cleanNo = trimmedNo.replace(/[\s\-_]/g, '').toLowerCase();
+
+      if (batchSeenLower.has(lowerNo)) {
+        const prevIdx = batchSeenLower.get(lowerNo)!;
+        const errMsg = `일괄 등록 목록 내에서 관리번호 [${trimmedNo}]가 중복되었습니다 (${prevIdx + 1}번째와 ${i + 1}번째 항목).`;
+        showErrorModal(errMsg, '관리번호 중복 오류');
+        throw new Error(errMsg);
+      }
+      if (cleanNo && batchSeenClean.has(cleanNo)) {
+        const prev = batchSeenClean.get(cleanNo)!;
+        const errMsg = `일괄 등록 목록 내에서 유사 관리번호가 중복되었습니다 ([${prev.rawNo}] ↔ [${trimmedNo}]).`;
+        showErrorModal(errMsg, '관리번호 중복 오류');
+        throw new Error(errMsg);
+      }
+      batchSeenLower.set(lowerNo, i);
+      if (cleanNo) batchSeenClean.set(cleanNo, { idx: i, rawNo: trimmedNo });
+
+      const existingAsset = db.assets.find(a => {
+        const aNo = (a.assetNo || '').trim();
+        if (!aNo) return false;
+        return aNo.toLowerCase() === lowerNo || (cleanNo && aNo.replace(/[\s\-_]/g, '').toLowerCase() === cleanNo);
+      });
+      if (existingAsset) {
+        const ownerLabel = existingAsset.ownerType === 'RENTED' ? '임차자산' : '당사자산';
+        const errMsg = `관리번호 [${trimmedNo}]는 이미 시스템에 등록된 자산([${existingAsset.assetNo}] ${existingAsset.modelName} · ${ownerLabel})과 중복됩니다.\n중복된 관리번호를 수정한 후 다시 시도해 주세요.`;
+        showErrorModal(errMsg, '관리번호 중복 오류');
+        throw new Error(errMsg);
+      }
+    }
+
     const createdList: Asset[] = [];
     for (const assetData of assetsData) {
       const residualRate = assetData.residualValueRate ?? 10;
       const price = assetData.acquisitionPrice ?? 0;
       const bookVal = price;
+      const trimmedNo = (assetData.assetNo || '').trim();
       
       const newAsset = db.insertRow<Asset>('assets', {
         modelName: assetData.modelName || '',
-        assetNo: assetData.assetNo || '',
-        serialNo: assetData.serialNo || '',
+        assetNo: trimmedNo,
+        serialNo: (assetData.serialNo || '').trim(),
         manufacturer: assetData.manufacturer || '',
         manufactureYear: normalizeManufactureYear(assetData.manufactureYear),
         ownerType: 'OWNED',
@@ -8111,7 +8198,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     await db.awaitPendingWrites(); refreshAllData(); };
 
-  const completeConsumablePurchase = async (id: string) => {
+  const completeConsumablePurchase = async (id: string, statementFileUrl?: string) => {
     const req = db.consumablePurchases.find(p => p.id === id);
     if (!req) return;
 
@@ -8120,6 +8207,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const settlementYm = req.requestDate ? req.requestDate.substring(0, 7) : todayStr.substring(0, 7);
     const effectiveQty = (req.receivedQty && req.receivedQty > 0) ? req.receivedQty : req.requestedQty;
     const totalAmount = effectiveQty * (req.unitPrice || 0);
+    const effectiveStatementUrl = statementFileUrl || req.statementFileUrl || undefined;
 
     // 1. 월말 매입 정산 마스터 레코드 생성
     const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
@@ -8150,7 +8238,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       quantity: effectiveQty,
       unitPrice: req.unitPrice || 0,
       amount: totalAmount,
-      evidenceFileUrl: req.statementFileUrl || undefined,
+      evidenceFileUrl: effectiveStatementUrl,
       createdAt: nowIso
     });
 
@@ -8160,6 +8248,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       completedDate: todayStr,
       completerName: currentUser?.name || '구매신청자',
       settlementId: settlement.id,
+      ...(effectiveStatementUrl ? { statementFileUrl: effectiveStatementUrl } : {}),
       updatedAt: nowIso
     });
 
@@ -14419,6 +14508,62 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     });
     await db.awaitPendingWrites(); refreshAllData(); };
 
+  const savePurchaseStatementFile = async (settlementId: string, fileUrl: string, fileName?: string): Promise<void> => {
+    const settlement = db.purchaseSettlements.find(p => p.id === settlementId);
+    if (!settlement) return;
+    const nowIso = new Date().toISOString();
+    const existingItems = db.purchaseSettlementItems.filter(i => i.settlementId === settlementId);
+
+    if (existingItems.length > 0) {
+      existingItems.forEach(item => {
+        db.updateRow<PurchaseSettlementItem>('purchaseSettlementItems', item.id, {
+          evidenceFileUrl: fileUrl
+        });
+        if (item.sourceType === 'CONSUMABLE_PURCHASE' && item.sourceId) {
+          db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', item.sourceId, {
+            statementFileUrl: fileUrl,
+            updatedAt: nowIso
+          });
+        } else if (item.sourceType === 'DELIVERY' && item.sourceId) {
+          db.updateRow<Delivery>('deliveries', item.sourceId, {
+            statementFileUrl: fileUrl,
+            updatedAt: nowIso
+          });
+        }
+      });
+    } else {
+      const sourceTypeMap: Record<string, PurchaseSettlementItem['sourceType']> = {
+        TRANSPORT: 'DELIVERY',
+        CONSUMABLE: 'CONSUMABLE_PURCHASE',
+        EQUIPMENT_LEASE: 'EQUIPMENT_LEASE',
+        EXTERNAL_REPAIR: 'REPAIR'
+      };
+      const newItemId = db.generateNextId('purchaseSettlementItems', db.purchaseSettlementItems);
+      db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
+        id: newItemId,
+        settlementId,
+        sourceType: sourceTypeMap[settlement.settlementType] || 'EQUIPMENT_LEASE',
+        sourceId: settlementId,
+        itemDescription: `${settlement.vendorName} 매입거래명세서 (${fileName || settlement.settlementYm})`,
+        quantity: 1,
+        unitPrice: settlement.totalAmount || 0,
+        amount: settlement.totalAmount || 0,
+        evidenceFileUrl: fileUrl,
+        createdAt: nowIso
+      });
+    }
+
+    const cleanMemo = (settlement.memo || '').replace(/\s*\[명세서파일:[^\]]+\]/g, '').trim();
+    const fileTag = fileName ? `[명세서파일:${fileName}]` : '[명세서파일:보관완료]';
+    db.updateRow<PurchaseSettlement>('purchaseSettlements', settlementId, {
+      memo: cleanMemo ? `${cleanMemo} ${fileTag}` : fileTag,
+      updatedAt: nowIso
+    });
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
   // ── 월말 감가상각 결산 취소 (롤백) ──
   const cancelMonthlyDepreciation = async (depreciationYm: string): Promise<void> => {
     try {
@@ -14518,6 +14663,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             quantity: 1,
             unitPrice: cost,
             amount: cost,
+            evidenceFileUrl: d.statementFileUrl || undefined,
             createdAt: new Date().toISOString()
           });
 
@@ -15229,7 +15375,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       logFieldAsTimelineEvent,
       recordAsRouteEvent,
       saveTransportDataOnFly,
-      generateMonthlyPurchaseSettlements, confirmPurchaseSettlement, recordPurchaseSettlementPayment, savePurchaseSettlement, convertReconciledDeliveriesToSettlement,
+      generateMonthlyPurchaseSettlements, confirmPurchaseSettlement, recordPurchaseSettlementPayment, savePurchaseSettlement, savePurchaseStatementFile, convertReconciledDeliveriesToSettlement,
       cancelMonthlyDepreciation, linkRepairToBilling, unlinkRepairFromBilling,
       waiveRepairBilling, cancelRepairWaiver, linkDeliveryToBilling, unlinkDeliveryFromBilling, waiveDeliveryBilling, cancelDeliveryWaiver,
       chargePrepaidBalance, applyPrepaidBalanceForBilling, refundPrepaidBalance,
