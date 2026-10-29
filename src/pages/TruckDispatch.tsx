@@ -17,6 +17,7 @@ import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from 
 import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
+import { PurchaseStatementModal, uploadStatementFileSafe } from '../components/PurchaseStatementModal';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import {
   buildDispatchSmsText,
@@ -1693,6 +1694,8 @@ export const TruckDispatch: React.FC = () => {
   // 1:1 Pair 행 배열 state 및 독립 듀얼 패널 선택 state
   const [reconPairs, setReconPairs] = useState<ReconPairRow[]>([]);
   const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [uploadedStatementUrl, setUploadedStatementUrl] = useState<string>('');
+  const [showTransportStatementModal, setShowTransportStatementModal] = useState<boolean>(false);
   const [selectedPairIds, setSelectedPairIds] = useState<Set<string>>(new Set());
   const [reconNotificationMsg, setReconNotificationMsg] = useState<string>('');
   const [selectedSystemDeliveryId, setSelectedSystemDeliveryId] = useState<string | null>(null);
@@ -2041,6 +2044,9 @@ export const TruckDispatch: React.FC = () => {
     if (!file) return;
 
     setUploadedFileName(file.name);
+    uploadStatementFileSafe(file, 'transport_statements', `TR_${reconStartDate.slice(0, 7)}`).then(res => {
+      if (res.fileUrl) setUploadedStatementUrl(res.fileUrl);
+    }).catch(() => {});
     const reader = new FileReader();
 
     reader.onload = (evt) => {
@@ -2774,6 +2780,7 @@ export const TruckDispatch: React.FC = () => {
       });
 
       // 2. 1:1 매칭 상세 항목 생성 및 배차 레코드 갱신
+      const effectiveStatementFileUrl = uploadedStatementUrl || uploadedFileName || undefined;
       for (const pair of reconciledPairs) {
         if (pair.systemDelivery) {
           db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
@@ -2784,7 +2791,7 @@ export const TruckDispatch: React.FC = () => {
             quantity: 1,
             unitPrice: pair.systemCost,
             amount: pair.systemCost,
-            evidenceFileUrl: uploadedFileName || undefined,
+            evidenceFileUrl: effectiveStatementFileUrl,
             createdAt: nowIso
           });
 
@@ -2794,6 +2801,7 @@ export const TruckDispatch: React.FC = () => {
             deliveryCostConfirmed: pair.systemCost,
             finalCost: pair.systemCost,
             purchaseBillId: settlement.id,
+            ...(effectiveStatementFileUrl ? { statementFileUrl: effectiveStatementFileUrl } : {}),
             memo: `[통합지급요청: ${bundleCode}] ${pair.memo || pair.systemDelivery.memo || ''}`
           } as any);
         }
@@ -8308,7 +8316,7 @@ export const TruckDispatch: React.FC = () => {
               </button>
 
               {/* 하단 파이프라인 보조 버튼군 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 <button
                   onClick={handleDownloadExcelTemplate}
                   className="btn-reset btn-sm"
@@ -8321,6 +8329,28 @@ export const TruckDispatch: React.FC = () => {
                   className="btn-excel-download btn-sm"
                 >
                   <Download size={12} /> 대사 리포트
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowTransportStatementModal(true)}
+                  style={{
+                    padding: '6px 8px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    borderRadius: '5px',
+                    border: '1px solid rgba(16,185,129,0.5)',
+                    backgroundColor: 'rgba(16,185,129,0.1)',
+                    color: '#059669',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <FileText size={12} /> 매입거래명세서
                 </button>
 
                 <button
@@ -10238,6 +10268,92 @@ export const TruckDispatch: React.FC = () => {
         siteName={destWeatherParams.siteName}
         rawAddress={destWeatherParams.rawAddress}
       />
+
+      {/* 🚚 운송료 매입거래명세서 보관 및 열람 모달 */}
+      {showTransportStatementModal && (() => {
+        const targetYm = reconStartDate ? reconStartDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
+        const targetTc = transportCompanies.find(tc => tc.id === selectedReconCompany || tc.name === selectedReconCompany);
+        const effectiveVendorName = targetTc?.name || (selectedReconCompany !== 'ALL' ? selectedReconCompany : '전체 운송사');
+        const matchedSettlement = (db.purchaseSettlements || []).find(
+          s => s.settlementType === 'TRANSPORT' && s.settlementYm === targetYm && (selectedReconCompany === 'ALL' || s.vendorName === effectiveVendorName || s.vendorId === targetTc?.id)
+        );
+        const settlementItems = matchedSettlement
+          ? (db.purchaseSettlementItems || []).filter(i => i.settlementId === matchedSettlement.id)
+          : [];
+
+        const displayItems = settlementItems.length > 0
+          ? settlementItems.map(it => ({
+              id: it.id,
+              description: it.itemDescription,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              amount: it.amount,
+              evidenceFileUrl: it.evidenceFileUrl
+            }))
+          : completedDeliveriesForRecon.map(d => {
+              const cost = getEffectiveDeliveryCost(d);
+              return {
+                id: d.id,
+                date: d.unloadingDate || d.loadingDate || d.scheduledDate || d.requestDate,
+                description: `[${d.dispatchCategory || d.type}] ${d.originAddress || '상차지'} ➔ ${d.destinationAddress || '하차지'} (${d.driverName || d.transportCompany || '운송'})`,
+                quantity: 1,
+                unitPrice: cost,
+                amount: cost,
+                evidenceFileUrl: d.statementFileUrl || uploadedStatementUrl || undefined
+              };
+            });
+
+        const totalAmt = matchedSettlement
+          ? matchedSettlement.totalAmount
+          : displayItems.reduce((s, i) => s + (i.amount || 0), 0);
+
+        const savedStmtUrl =
+          uploadedStatementUrl ||
+          settlementItems.find(i => i.evidenceFileUrl)?.evidenceFileUrl ||
+          completedDeliveriesForRecon.find(d => d.statementFileUrl)?.statementFileUrl ||
+          uploadedFileName ||
+          undefined;
+
+        return (
+          <PurchaseStatementModal
+            isOpen={showTransportStatementModal}
+            onClose={() => setShowTransportStatementModal(false)}
+            settlementId={matchedSettlement?.id}
+            settlementType="TRANSPORT"
+            settlementYm={targetYm}
+            vendorName={effectiveVendorName}
+            vendorBizNo={targetTc?.businessNo}
+            vendorPhone={targetTc?.contact}
+            vendorBankAccount={targetTc?.bankAccount ? `${targetTc.bankName || ''} ${targetTc.bankAccount} (${targetTc.bankHolder || ''})` : matchedSettlement?.bankAccount}
+            status={matchedSettlement?.status || 'PENDING'}
+            confirmedAt={matchedSettlement?.confirmedAt}
+            confirmedBy={matchedSettlement?.confirmedBy}
+            paymentDate={matchedSettlement?.paymentDate}
+            paidAmount={matchedSettlement?.paidAmount || 0}
+            totalAmount={totalAmt}
+            memo={matchedSettlement?.memo}
+            statementFileUrl={savedStmtUrl}
+            statementFileName={uploadedFileName || undefined}
+            items={displayItems}
+            onSaveStatementFile={async (fileUrl, fileName) => {
+              setUploadedStatementUrl(fileUrl);
+              setUploadedFileName(fileName);
+              for (const d of completedDeliveriesForRecon) {
+                db.updateRow<Delivery>('deliveries', d.id, { statementFileUrl: fileUrl });
+              }
+              if (matchedSettlement) {
+                const itemsToUpdate = (db.purchaseSettlementItems || []).filter(i => i.settlementId === matchedSettlement.id);
+                itemsToUpdate.forEach(it => {
+                  db.updateRow<PurchaseSettlementItem>('purchaseSettlementItems', it.id, { evidenceFileUrl: fileUrl });
+                });
+              }
+              await db.awaitPendingWrites();
+              await refreshAllData();
+              showToast(`운송료 매입거래명세서 파일(${fileName})이 저장되었습니다.`);
+            }}
+          />
+        );
+      })()}
 
       {/* 🚚 배차 의뢰 엑셀 일괄 등록 모달 */}
       <ExcelUploadModal

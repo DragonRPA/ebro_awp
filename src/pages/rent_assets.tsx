@@ -12,6 +12,7 @@ import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendo
 import { parsePdfStatement } from '../services/pdfStatementParser';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
+import { PurchaseStatementModal, uploadStatementFileSafe } from '../components/PurchaseStatementModal';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 
@@ -35,6 +36,7 @@ export const RentAssets: React.FC = () => {
     assets, products, customers, vendors, contracts, sites, billings, billingDetails,
     purchaseSettlements, purchaseSettlementItems, deliveries, receivables, assetInOutLogs,
     subleaseNegotiations, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable,
+    savePurchaseStatementFile,
     hasPermission, refreshAllData, setActiveTab: setGlobalActiveTab
   } = useApp();
   
@@ -74,6 +76,8 @@ export const RentAssets: React.FC = () => {
   const [statementRows, setStatementRows] = useState<VendorStatementRow[]>([]);
   const [loadedFileName, setLoadedFileName] = useState<string>('');
   const [loadedFileSize, setLoadedFileSize] = useState<number>(0);
+  const [loadedFileUrl, setLoadedFileUrl] = useState<string>('');
+  const [showLeaseStatementModal, setShowLeaseStatementModal] = useState<boolean>(false);
   const [selectedReconcileIds, setSelectedReconcileIds] = useState<string[]>([]);
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [reconcileStatusFilter, setReconcileStatusFilter] = useState('ALL');
@@ -743,6 +747,9 @@ export const RentAssets: React.FC = () => {
     if (!files || files.length === 0) return;
 
     const file = files[0];
+    uploadStatementFileSafe(file, 'lease_statements', `LEASE_${selectedYm || 'STMT'}`).then(res => {
+      if (res.fileUrl) setLoadedFileUrl(res.fileUrl);
+    }).catch(() => {});
     const isPdf = file.name.toLowerCase().endsWith('.pdf');
     const reader = new FileReader();
 
@@ -822,6 +829,7 @@ export const RentAssets: React.FC = () => {
     setSelectedReconcileIds([]);
     setLoadedFileName('');
     setLoadedFileSize(0);
+    setLoadedFileUrl('');
     if (fileInputRef.current) fileInputRef.current.value = '';
     showToast('로드된 거래명세서 파일이 해제되었습니다.');
   };
@@ -1098,6 +1106,7 @@ export const RentAssets: React.FC = () => {
       });
 
       // 2. 1:1 매칭 상세 항목 생성
+      const effectiveLeaseFileUrl = loadedFileUrl || loadedFileName || undefined;
       targetRows.forEach(row => {
         const matched = rentedAssets.find(a => a.assetNo === row.assetNo);
         db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
@@ -1108,6 +1117,7 @@ export const RentAssets: React.FC = () => {
           quantity: 1,
           unitPrice: row.billedAmount,
           amount: row.billedAmount,
+          evidenceFileUrl: effectiveLeaseFileUrl,
           createdAt: nowStr
         });
       });
@@ -2199,7 +2209,7 @@ export const RentAssets: React.FC = () => {
                 </div>
 
                 {/* 2단 보조 파이프라인 버튼군 */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
@@ -2222,6 +2232,18 @@ export const RentAssets: React.FC = () => {
                     }}
                   >
                     <FileSpreadsheet size={12} /> 대사 리포트 다운로드
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowLeaseStatementModal(true)}
+                    style={{
+                      padding: '4px 8px', fontSize: '10.5px', fontWeight: 800, borderRadius: '4px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.45)', color: '#059669',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <FileText size={12} /> 매입거래명세서 열람/보관
                   </button>
                 </div>
               </div>
@@ -4898,6 +4920,94 @@ export const RentAssets: React.FC = () => {
               </button>
             </div>
           </div>
+        );
+      })()}
+
+      {/* 📄 임차자산 매입거래명세서 보관 및 열람 모달 */}
+      {showLeaseStatementModal && (() => {
+        const targetYm = selectedYm || new Date().toISOString().slice(0, 7);
+        const matchedVendorObj = vendors.find(v => v.name === selectedVendor);
+        const matchedSettlement = (purchaseSettlements || []).find(
+          s => s.settlementType === 'EQUIPMENT_LEASE' && s.settlementYm === targetYm && (!selectedVendor || s.vendorName === selectedVendor || s.vendorId === matchedVendorObj?.id)
+        );
+        const settlementItems = matchedSettlement
+          ? (purchaseSettlementItems || []).filter(i => i.settlementId === matchedSettlement.id)
+          : [];
+
+        const displayItems = statementRows.length > 0
+          ? statementRows.map((row, idx) => ({
+              id: row.id || String(idx),
+              description: `${row.modelName || row.assetNo} (관리번호: ${row.assetNo}, 기간: ${row.rentStart}~${row.rentEnd})`,
+              quantity: 1,
+              unitPrice: row.unitPrice || row.billedAmount,
+              amount: row.billedAmount,
+              evidenceFileUrl: loadedFileUrl || undefined,
+              note: row.memo
+            }))
+          : settlementItems.length > 0
+            ? settlementItems.map(it => ({
+                id: it.id,
+                description: it.itemDescription,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                amount: it.amount,
+                evidenceFileUrl: it.evidenceFileUrl
+              }))
+            : filteredReconcileResults.map((r, idx) => ({
+                id: r.id || String(idx),
+                description: `${r.matchedAsset?.modelName || r.statementRow?.modelName || '-'} (관리번호: ${r.matchedAsset?.assetNo || r.statementRow?.assetNo || '-'})`,
+                quantity: 1,
+                unitPrice: r.statementRow?.billedAmount ?? r.expectedAmount ?? 0,
+                amount: r.statementRow?.billedAmount ?? r.expectedAmount ?? 0
+              }));
+
+        const totalAmt = statementRows.length > 0
+          ? statementRows.reduce((s, r) => s + (r.billedAmount || 0), 0)
+          : matchedSettlement
+            ? matchedSettlement.totalAmount
+            : displayItems.reduce((s, i) => s + (i.amount || 0), 0);
+
+        const savedStmtUrl =
+          loadedFileUrl ||
+          settlementItems.find(i => i.evidenceFileUrl)?.evidenceFileUrl ||
+          loadedFileName ||
+          undefined;
+
+        return (
+          <PurchaseStatementModal
+            isOpen={showLeaseStatementModal}
+            onClose={() => setShowLeaseStatementModal(false)}
+            settlementId={matchedSettlement?.id}
+            settlementType="EQUIPMENT_LEASE"
+            settlementYm={targetYm}
+            vendorName={selectedVendor || matchedSettlement?.vendorName || '전체 임차처'}
+            vendorBizNo={matchedVendorObj?.bizRegNo}
+            vendorRepName={matchedVendorObj?.representative}
+            vendorPhone={matchedVendorObj?.contact}
+            vendorAddress={matchedVendorObj?.address}
+            vendorBankAccount={
+              matchedSettlement?.bankAccount ||
+              (matchedVendorObj?.bankAccount ? `${matchedVendorObj.bankName || ''} ${matchedVendorObj.bankAccount} (${matchedVendorObj.accountHolder || ''})` : undefined)
+            }
+            status={matchedSettlement?.status || 'PENDING'}
+            confirmedAt={matchedSettlement?.confirmedAt}
+            confirmedBy={matchedSettlement?.confirmedBy}
+            paymentDate={matchedSettlement?.paymentDate}
+            paidAmount={matchedSettlement?.paidAmount || 0}
+            totalAmount={totalAmt}
+            memo={matchedSettlement?.memo}
+            statementFileUrl={savedStmtUrl}
+            statementFileName={loadedFileName || undefined}
+            items={displayItems}
+            onSaveStatementFile={async (fileUrl, fileName) => {
+              setLoadedFileUrl(fileUrl);
+              setLoadedFileName(fileName);
+              if (matchedSettlement) {
+                await savePurchaseStatementFile(matchedSettlement.id, fileUrl, fileName);
+              }
+              showToast(`임차자산 매입거래명세서 파일(${fileName})이 저장되었습니다.`);
+            }}
+          />
         );
       })()}
 </div>
