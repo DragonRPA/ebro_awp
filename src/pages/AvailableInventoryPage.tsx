@@ -1,11 +1,42 @@
 // src/pages/AvailableInventoryPage.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { isVirtualAsset } from '../services/db';
 import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from '../utils/modelUtils';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { exportToExcel } from '../services/excel';
-import { Search, Download, RefreshCw, Copy, Check, Layers, Truck, Package } from 'lucide-react';
+import { getAssetStatusLabel } from '../config/asset_status_config';
+import { Search, Download, RefreshCw, Copy, Check, Truck } from 'lucide-react';
+
+export interface StockHoverItem {
+  id: string;
+  assetNo: string;
+  modelName: string;
+  ownerType: 'OWNED' | 'RENTED';
+  ownerLabel: string;
+  status: string;
+  statusLabel: string;
+  manufactureYear: string;
+  yard: string;
+  renterName?: string;
+  customerName?: string;
+  siteName?: string;
+  contractNo?: string;
+}
+
+export interface ScheduledHoverItem {
+  slotId: string;
+  contractId: string;
+  contractNo: string;
+  customerName: string;
+  siteName: string;
+  scheduledDate: string;
+  expectedModel: string;
+  assetNo?: string;
+  ownerType: 'OWNED' | 'RENTED' | 'UNASSIGNED';
+  allocatedBucket: 'OWNED' | 'RENTED';
+  statusLabel: string;
+}
 
 interface InventoryModelRow {
   key: string;
@@ -19,6 +50,11 @@ interface InventoryModelRow {
   stockRented: number;
   scheduledOwned: number;
   scheduledRented: number;
+  stockOwnedItems: StockHoverItem[];
+  stockRentedItems: StockHoverItem[];
+  availableOnlyItems: StockHoverItem[];
+  scheduledOwnedItems: ScheduledHoverItem[];
+  scheduledRentedItems: ScheduledHoverItem[];
 }
 
 interface ScheduledOutboundLine {
@@ -76,6 +112,62 @@ export const AvailableInventoryPage: React.FC = () => {
   const [pendingScopeFilter, setPendingScopeFilter] = useState<'UNASSIGNED_ONLY' | 'PRE_INSPECTION_ALL'>('PRE_INSPECTION_ALL');
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  type HoverColumnType =
+    | 'AVAILABLE_CONTRACT'
+    | 'STOCK_OWNED'
+    | 'STOCK_RENTED'
+    | 'SCHEDULED_OWNED'
+    | 'SCHEDULED_RENTED';
+
+  const [hoverInfo, setHoverInfo] = useState<{
+    row: InventoryModelRow;
+    colType: HoverColumnType;
+    rect: { top: number; bottom: number; left: number; right: number; width: number };
+  } | null>(null);
+  const hoverCloseTimerRef = useRef<number | null>(null);
+
+  const handleCellMouseEnter = (
+    e: React.MouseEvent<HTMLElement>,
+    row: InventoryModelRow,
+    colType: HoverColumnType
+  ) => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    const r = e.currentTarget.getBoundingClientRect();
+    setHoverInfo({
+      row,
+      colType,
+      rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width }
+    });
+  };
+
+  const handleCellMouseLeave = () => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+    }
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      setHoverInfo(null);
+    }, 130);
+  };
+
+  const handlePopoverMouseEnter = () => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  };
+
+  const handlePopoverMouseLeave = () => {
+    if (hoverCloseTimerRef.current) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+    }
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      setHoverInfo(null);
+    }, 100);
+  };
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -295,6 +387,11 @@ export const AvailableInventoryPage: React.FC = () => {
       assignedPreInspOwned: number;
       assignedPreInspRented: number;
       unassignedPendingCount: number;
+      stockOwnedItems: StockHoverItem[];
+      stockRentedItems: StockHoverItem[];
+      assignedOwnedItems: ScheduledHoverItem[];
+      assignedRentedItems: ScheduledHoverItem[];
+      unassignedItems: ScheduledHoverItem[];
     }
 
     const modelMap = new Map<string, ModelAccumulator>();
@@ -303,6 +400,36 @@ export const AvailableInventoryPage: React.FC = () => {
     const canonicalToKey = new Map<string, string>();
     const shortByCanon = new Map<string, string>();
     const yards = new Set<string>();
+
+    // 슬롯별 컨텍스트 맵 및 할당 자산별 슬롯 역참조 맵 구성
+    const slotContextMap = new Map<string, { contract: (typeof contracts)[number]; scheduledDate: string }>();
+    const assignedAssetContextMap = new Map<string, { ca: (typeof contractAssets)[number]; contract: (typeof contracts)[number]; scheduledDate: string }>();
+
+    unfinishedRequestGroups.forEach(grp => {
+      grp.slots.forEach(ca => {
+        slotContextMap.set(ca.id, {
+          contract: grp.contract,
+          scheduledDate: grp.scheduledDate || grp.contract.startDate || ''
+        });
+        if (ca.assetId) {
+          assignedAssetContextMap.set(ca.assetId, {
+            ca,
+            contract: grp.contract,
+            scheduledDate: grp.scheduledDate || grp.contract.startDate || ''
+          });
+        }
+      });
+    });
+
+    const resolveCustomerAndSite = (c?: (typeof contracts)[number], ca?: (typeof contractAssets)[number]) => {
+      const custObj = c?.customerId ? customerMap.get(c.customerId) : undefined;
+      const customerName = ((c as any)?.customerName || custObj?.name || '미상').trim();
+      const siteId = (ca as any)?.siteId || c?.siteId;
+      const siteObj = siteId ? siteMap.get(siteId) : undefined;
+      const siteName = ((ca as any)?.siteName || (c as any)?.siteName || siteObj?.name || '현장미지정').trim();
+      const contractNo = c?.contractNo || (c as any)?.contractNumber || c?.id || '-';
+      return { customerName, siteName, contractNo };
+    };
 
     (assets || []).forEach(a => {
       if (a.yard && a.yard.trim()) yards.add(a.yard.trim());
@@ -332,7 +459,12 @@ export const AvailableInventoryPage: React.FC = () => {
           stockRented: 0,
           assignedPreInspOwned: 0,
           assignedPreInspRented: 0,
-          unassignedPendingCount: 0
+          unassignedPendingCount: 0,
+          stockOwnedItems: [],
+          stockRentedItems: [],
+          assignedOwnedItems: [],
+          assignedRentedItems: [],
+          unassignedItems: []
         });
       } else {
         if (!existing.feet && feetVal) existing.feet = feetVal;
@@ -383,7 +515,12 @@ export const AvailableInventoryPage: React.FC = () => {
         stockRented: 0,
         assignedPreInspOwned: 0,
         assignedPreInspRented: 0,
-        unassignedPendingCount: 0
+        unassignedPendingCount: 0,
+        stockOwnedItems: [],
+        stockRentedItems: [],
+        assignedOwnedItems: [],
+        assignedRentedItems: [],
+        unassignedItems: []
       };
       modelMap.set(cKey, newBucket);
       canonicalToKey.set(cKey, cKey);
@@ -407,10 +544,30 @@ export const AvailableInventoryPage: React.FC = () => {
       if (!isAvailable && !isAssignedPreInsp) return;
 
       const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
+      const assignedCtx = assignedAssetContextMap.get(a.id);
+      const csInfo = assignedCtx ? resolveCustomerAndSite(assignedCtx.contract, assignedCtx.ca) : undefined;
+      const hoverItem: StockHoverItem = {
+        id: a.id,
+        assetNo: a.assetNo || a.id,
+        modelName: a.modelName || bucket.modelName,
+        ownerType: a.ownerType === 'RENTED' ? 'RENTED' : 'OWNED',
+        ownerLabel: a.ownerType === 'RENTED' ? '임차자산' : '당사자산',
+        status: a.status || 'AVAILABLE',
+        statusLabel: getAssetStatusLabel(a.status || 'AVAILABLE'),
+        manufactureYear: a.manufactureYear ? `${a.manufactureYear}년` : '-',
+        yard: (a.yard || '용인').trim(),
+        renterName: a.ownerType === 'RENTED' ? (a.renter || (a as any).vendorName || '') : undefined,
+        customerName: csInfo?.customerName || (a.status !== 'AVAILABLE' ? (a.currentCustomerId ? customerMap.get(a.currentCustomerId)?.name : undefined) : undefined),
+        siteName: csInfo?.siteName || (a.status !== 'AVAILABLE' ? (a.currentSiteId ? siteMap.get(a.currentSiteId)?.name : undefined) : undefined),
+        contractNo: csInfo?.contractNo
+      };
+
       if (a.ownerType === 'RENTED') {
         bucket.stockRented += 1;
+        bucket.stockRentedItems.push(hoverItem);
       } else {
         bucket.stockOwned += 1;
+        bucket.stockOwnedItems.push(hoverItem);
       }
     });
 
@@ -423,14 +580,47 @@ export const AvailableInventoryPage: React.FC = () => {
       const modelStr = assignedAsset?.modelName || ca.expectedModel || '미지정';
       const bucket = resolveOrAddModelBucket(modelStr, assignedAsset?.manufacturer);
 
+      const ctx = slotContextMap.get(ca.id);
+      const { customerName, siteName, contractNo } = resolveCustomerAndSite(ctx?.contract, ca);
+      const scheduledDate = (ctx?.scheduledDate || ca.startDate || '').slice(0, 10) || '미정';
+
       if (assignedAsset) {
-        if (assignedAsset.ownerType === 'RENTED') {
+        const isRented = assignedAsset.ownerType === 'RENTED';
+        const schedItem: ScheduledHoverItem = {
+          slotId: ca.id,
+          contractId: ca.contractId,
+          contractNo,
+          customerName,
+          siteName,
+          scheduledDate,
+          expectedModel: assignedAsset.modelName || ca.expectedModel || bucket.modelName,
+          assetNo: assignedAsset.assetNo || assignedAsset.id,
+          ownerType: isRented ? 'RENTED' : 'OWNED',
+          allocatedBucket: isRented ? 'RENTED' : 'OWNED',
+          statusLabel: getAssetStatusLabel(assignedAsset.status || ca.status || 'ASSIGNED')
+        };
+        if (isRented) {
           bucket.assignedPreInspRented += 1;
+          bucket.assignedRentedItems.push(schedItem);
         } else {
           bucket.assignedPreInspOwned += 1;
+          bucket.assignedOwnedItems.push(schedItem);
         }
       } else {
         bucket.unassignedPendingCount += 1;
+        bucket.unassignedItems.push({
+          slotId: ca.id,
+          contractId: ca.contractId,
+          contractNo,
+          customerName,
+          siteName,
+          scheduledDate,
+          expectedModel: ca.expectedModel || bucket.modelName,
+          assetNo: undefined,
+          ownerType: 'UNASSIGNED',
+          allocatedBucket: 'OWNED',
+          statusLabel: '미할당'
+        });
       }
     });
 
@@ -441,6 +631,23 @@ export const AvailableInventoryPage: React.FC = () => {
     const rows: InventoryModelRow[] = [];
     const feetSet = new Set<number>();
     const mfgSet = new Set<string>();
+
+    const sortStockItems = (items: StockHoverItem[]) =>
+      items.slice().sort((a, b) => {
+        const aAvail = a.status === 'AVAILABLE' ? 0 : 1;
+        const bAvail = b.status === 'AVAILABLE' ? 0 : 1;
+        if (aAvail !== bAvail) return aAvail - bAvail;
+        return a.assetNo.localeCompare(b.assetNo, 'ko', { numeric: true });
+      });
+
+    const sortScheduledItems = (items: ScheduledHoverItem[]) =>
+      items.slice().sort((a, b) => {
+        const dCmp = a.scheduledDate.localeCompare(b.scheduledDate);
+        if (dCmp !== 0) return dCmp;
+        const cCmp = a.customerName.localeCompare(b.customerName, 'ko');
+        if (cCmp !== 0) return cCmp;
+        return (a.assetNo || '').localeCompare(b.assetNo || '', 'ko', { numeric: true });
+      });
 
     modelMap.forEach(b => {
       const remOwnedStock = Math.max(0, b.stockOwned - b.assignedPreInspOwned);
@@ -461,6 +668,31 @@ export const AvailableInventoryPage: React.FC = () => {
       const totalScheduled = scheduledOwned + scheduledRented;
       const availableContractQty = totalStock - totalScheduled;
 
+      const sortedStockOwned = sortStockItems(b.stockOwnedItems);
+      const sortedStockRented = sortStockItems(b.stockRentedItems);
+      const availableOnlyItems = [...sortedStockOwned, ...sortedStockRented].filter(
+        item => item.status === 'AVAILABLE'
+      );
+
+      const sortedUnassigned = sortScheduledItems(b.unassignedItems);
+      const unassignedForOwned = [
+        ...sortedUnassigned.slice(0, allocToOwned),
+        ...sortedUnassigned.slice(allocToOwned + allocToRented)
+      ].map(item => ({ ...item, allocatedBucket: 'OWNED' as const }));
+
+      const unassignedForRented = sortedUnassigned
+        .slice(allocToOwned, allocToOwned + allocToRented)
+        .map(item => ({ ...item, allocatedBucket: 'RENTED' as const }));
+
+      const scheduledOwnedItems = [
+        ...sortScheduledItems(b.assignedOwnedItems),
+        ...unassignedForOwned
+      ];
+      const scheduledRentedItems = [
+        ...sortScheduledItems(b.assignedRentedItems),
+        ...unassignedForRented
+      ];
+
       if (b.feet > 0) feetSet.add(b.feet);
       if (b.manufacturer && b.manufacturer !== '-') mfgSet.add(b.manufacturer);
 
@@ -475,7 +707,12 @@ export const AvailableInventoryPage: React.FC = () => {
         stockOwned: b.stockOwned,
         stockRented: b.stockRented,
         scheduledOwned,
-        scheduledRented
+        scheduledRented,
+        stockOwnedItems: sortedStockOwned,
+        stockRentedItems: sortedStockRented,
+        availableOnlyItems,
+        scheduledOwnedItems,
+        scheduledRentedItems
       });
     });
 
@@ -486,7 +723,7 @@ export const AvailableInventoryPage: React.FC = () => {
       uniqueYardList: Array.from(yards).sort(),
       shortNameByCanonicalMap: shortByCanon
     };
-  }, [products, assets, targetPendingSlots, assetMap, yardFilter, pendingScopeFilter]);
+  }, [products, assets, targetPendingSlots, unfinishedRequestGroups, assetMap, customerMap, siteMap, yardFilter, pendingScopeFilter]);
 
   // 필터링 및 정렬된 가용재고 표 데이터
   const filteredRows = useMemo(() => {
@@ -549,6 +786,41 @@ export const AvailableInventoryPage: React.FC = () => {
       { availableContractQty: 0, stockOwned: 0, stockRented: 0, scheduledOwned: 0, scheduledRented: 0 }
     );
   }, [filteredRows]);
+
+  const totalSummaryRow = useMemo<InventoryModelRow>(() => {
+    const stockOwnedItems: StockHoverItem[] = [];
+    const stockRentedItems: StockHoverItem[] = [];
+    const availableOnlyItems: StockHoverItem[] = [];
+    const scheduledOwnedItems: ScheduledHoverItem[] = [];
+    const scheduledRentedItems: ScheduledHoverItem[] = [];
+
+    filteredRows.forEach(r => {
+      stockOwnedItems.push(...r.stockOwnedItems);
+      stockRentedItems.push(...r.stockRentedItems);
+      availableOnlyItems.push(...r.availableOnlyItems);
+      scheduledOwnedItems.push(...r.scheduledOwnedItems);
+      scheduledRentedItems.push(...r.scheduledRentedItems);
+    });
+
+    return {
+      key: '__TOTAL_SUMMARY__',
+      feet: 0,
+      feetLabel: '-',
+      manufacturer: '-',
+      modelName: `전체 합계 (${filteredRows.length}종)`,
+      shortName: '',
+      availableContractQty: totals.availableContractQty,
+      stockOwned: totals.stockOwned,
+      stockRented: totals.stockRented,
+      scheduledOwned: totals.scheduledOwned,
+      scheduledRented: totals.scheduledRented,
+      stockOwnedItems,
+      stockRentedItems,
+      availableOnlyItems,
+      scheduledOwnedItems,
+      scheduledRentedItems
+    };
+  }, [filteredRows, totals]);
 
   // 표 2: 하단 출고 예정 일정 및 수량 리스트 산출 (두 번째 이미지 양식: *{고객명}({현장명}) : {모델명}*{수량}({일}일))
   const scheduledOutboundLines = useMemo<ScheduledOutboundLine[]>(() => {
@@ -780,23 +1052,39 @@ export const AvailableInventoryPage: React.FC = () => {
 
       {/* ② 핵심 요약 지표 카드 바 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '8px', flexShrink: 0 }}>
-        <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <div
+          onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'AVAILABLE_CONTRACT')}
+          onMouseLeave={handleCellMouseLeave}
+          style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap', cursor: 'help' }}
+        >
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>계약가능 재고 합계</span>
-          <strong style={{ fontSize: '15px', color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)', fontWeight: 800 }}>
+          <strong style={{ fontSize: '15px', color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)', fontWeight: 800, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
             {totals.availableContractQty}대
           </strong>
         </div>
-        <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <div
+          onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_OWNED')}
+          onMouseLeave={handleCellMouseLeave}
+          style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap', cursor: 'help' }}
+        >
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>재고 (당사자산)</span>
-          <strong style={{ fontSize: '15px', color: 'var(--text-main)', fontWeight: 800 }}>{totals.stockOwned}대</strong>
+          <strong style={{ fontSize: '15px', color: 'var(--text-main)', fontWeight: 800, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>{totals.stockOwned}대</strong>
         </div>
-        <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <div
+          onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_RENTED')}
+          onMouseLeave={handleCellMouseLeave}
+          style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap', cursor: 'help' }}
+        >
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>재고 (임차자산)</span>
-          <strong style={{ fontSize: '15px', color: '#b45309', fontWeight: 800 }}>{totals.stockRented}대</strong>
+          <strong style={{ fontSize: '15px', color: '#b45309', fontWeight: 800, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>{totals.stockRented}대</strong>
         </div>
-        <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        <div
+          onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_OWNED')}
+          onMouseLeave={handleCellMouseLeave}
+          style={{ padding: '8px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap', cursor: 'help' }}
+        >
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>출고예정 (당사 / 임차)</span>
-          <strong style={{ fontSize: '15px', color: '#d97706', fontWeight: 800 }}>
+          <strong style={{ fontSize: '15px', color: '#d97706', fontWeight: 800, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
             {totals.scheduledOwned + totals.scheduledRented}대 <span style={{ fontSize: '11.5px', fontWeight: 600 }}>({totals.scheduledOwned}/{totals.scheduledRented})</span>
           </strong>
         </div>

@@ -11,7 +11,7 @@ interface RentedAssetEditModalProps {
   products: Product[];
   rentedAssets: Asset[];
   allAssets: Asset[];
-  onSave: (assetData: Partial<Asset>, renterSearch: string) => Promise<void>;
+  onSave: (assetData: Partial<Asset>, renterSearch: string) => Promise<boolean | void>;
   calcRentEnd: (startStr: string) => string;
   generateNextRentedAssetNo: (allAssets: Asset[]) => string;
 }
@@ -37,8 +37,10 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
   );
   const [isRenterDropdownOpen, setIsRenterDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredHistory, setRegisteredHistory] = useState<{ assetNo: string; modelName: string; serialNo?: string; manufactureYear?: string }[]>([]);
   const modelComboboxRef = useRef<HTMLDivElement>(null);
   const renterComboboxRef = useRef<HTMLDivElement>(null);
+  const assetNoInputRef = useRef<HTMLInputElement>(null);
 
   const findProductManufacturer = (modelName?: string): string => {
     if (!modelName) return '';
@@ -69,10 +71,11 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
     setFormData({ ...asset });
     setModelSearch(asset.modelName || '');
     setModelError('');
+    setRegisteredHistory([]);
     setRenterSearch(
       asset.renter || (asset.vendorId ? vendors.find(v => v.id === asset.vendorId)?.name : '') || ''
     );
-  }, [asset, vendors]);
+  }, [asset, isOpen]);
 
   useEffect(() => {
     if (formData.modelName && formData.modelName !== modelSearch) {
@@ -202,15 +205,47 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
     setIsSubmitting(true);
     try {
       const autoManufacturer = findProductManufacturer(matchedProd.modelName);
+      const savedAssetNo = (formData.assetNo || '').trim();
+      const savedYear = normalizeManufactureYear(formData.manufactureYear);
+      const savedSerial = (formData.serialNo || '').trim();
       const normalizedData: Partial<Asset> = {
         ...formData,
         modelName: matchedProd.modelName,
         manufacturer: formData.manufacturer || autoManufacturer || '',
-        manufactureYear: normalizeManufactureYear(formData.manufactureYear)
+        manufactureYear: savedYear
       };
       setModelSearch(matchedProd.modelName);
-      setFormData(normalizedData);
-      await onSave(normalizedData, renterSearch);
+      const savedOk = await onSave(normalizedData, renterSearch);
+      if (savedOk !== false) {
+        if (savedAssetNo) {
+          setRegisteredHistory(prev => [
+            ...prev,
+            {
+              assetNo: savedAssetNo,
+              modelName: matchedProd.modelName,
+              serialNo: savedSerial,
+              manufactureYear: savedYear
+            }
+          ]);
+        }
+        // 저장 후 3개 필드(제조번호, 관리번호, 연식)만 공백 초기화하고 나머지 필드 값 유지
+        setFormData(prev => ({
+          ...prev,
+          id: undefined,
+          assetNo: '',
+          vendorAssetNo: '',
+          serialNo: '',
+          manufactureYear: '',
+          modelName: matchedProd.modelName,
+          manufacturer: prev.manufacturer || autoManufacturer || '',
+          isReactivating: false
+        } as any));
+        setTimeout(() => {
+          assetNoInputRef.current?.focus();
+        }, 50);
+      } else {
+        setFormData(normalizedData);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -248,6 +283,7 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
                 )}
               </div>
               <input
+                ref={assetNoInputRef}
                 type="text"
                 list="past-returned-asset-nos"
                 required
@@ -707,14 +743,61 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
             </div>
           </div>
 
+          {registeredHistory.length > 0 && (
+            <div style={{
+              marginTop: '4px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--success)' }}>
+                  등록된 임차자산 관리번호 ({registeredHistory.length}건)
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                {registeredHistory.map((item, idx) => (
+                  <span
+                    key={`${item.assetNo}-${idx}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.35)',
+                      color: 'var(--text-main)',
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <CheckCircle2 size={12} color="var(--success)" />
+                    <span>{item.assetNo}</span>
+                    {item.serialNo && (
+                      <span style={{ fontSize: '10.5px', fontWeight: 500, color: 'var(--text-muted)' }}>
+                        ({item.serialNo})
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
             <button
               type="button"
               disabled={isSubmitting}
               onClick={onClose}
-              style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer' }}
+              style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-              취소
+              닫기
             </button>
             <button
               data-hs-trigger="Save"

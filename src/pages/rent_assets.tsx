@@ -1568,16 +1568,16 @@ export const RentAssets: React.FC = () => {
     setShowReturnModal(true);
   };
 
-  const handleSubmitAsset = async (assetData?: Partial<Asset>, searchRenter?: string) => {
+  const handleSubmitAsset = async (assetData?: Partial<Asset>, searchRenter?: string): Promise<boolean> => {
     const targetAsset = assetData || editingAsset;
     if (!canSave || !targetAsset || !targetAsset.assetNo?.trim()) {
       showToast('자사 관리번호를 입력해 주세요.', 'error');
-      return;
+      return false;
     }
     const rawModel = (targetAsset.modelName || '').trim();
     if (!rawModel) {
       showToast('제품(모델명)을 검색하여 선택해 주세요.', 'error');
-      return;
+      return false;
     }
     const matchedProd = productByModelMap.get(rawModel) || products.find(p => {
       const pm = (p.modelName || '').trim().toLowerCase();
@@ -1587,18 +1587,18 @@ export const RentAssets: React.FC = () => {
     });
     if (!matchedProd) {
       showToast(`등록된 제품 목록에서 모델명을 조회하여 선택해 주세요. (${rawModel})`, 'error');
-      return;
+      return false;
     }
     targetAsset.modelName = matchedProd.modelName;
     if (targetAsset.rentStart && targetAsset.rentEnd && targetAsset.rentStart > targetAsset.rentEnd) {
       showToast('임차 시작일이 만료예정일보다 늦을 수 없습니다.', 'error');
-      return;
+      return false;
     }
 
     const resolvedRenter = (searchRenter !== undefined ? searchRenter.trim() : renterSearchQuery.trim()) || targetAsset.renter || (targetAsset.vendorId ? vendors.find(v => v.id === targetAsset.vendorId)?.name : '') || '';
     if (!resolvedRenter) {
       showToast('임차처를 선택해 주세요.', 'error');
-      return;
+      return false;
     }
     targetAsset.renter = resolvedRenter;
     if (!targetAsset.vendorId) {
@@ -1629,12 +1629,11 @@ export const RentAssets: React.FC = () => {
         } catch {}
       }
       showToast(`임차 자산 ${targetAsset.assetNo} 등록/수정이 완료되었습니다.`);
-      setShowModal(false);
-      setEditingAsset(null);
-      setIsRenterDropdownOpen(false);
-      setRenterSearchQuery('');
+      // 수정 모드인 경우에도 사용자가 직접 닫기 버튼을 누르거나 연속 등록할 수 있도록 팝업을 자동으로 닫지 않음
+      return true;
     } catch (err: any) {
       showToast(`처리 오류: ${err?.message || err}`, 'error');
+      return false;
     }
   };
 
@@ -4048,6 +4047,8 @@ export const RentAssets: React.FC = () => {
           onClose={() => {
             setShowModal(false);
             setEditingAsset(null);
+            setIsRenterDropdownOpen(false);
+            setRenterSearchQuery('');
           }}
           asset={editingAsset}
           vendors={vendors}
