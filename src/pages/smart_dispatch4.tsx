@@ -5221,11 +5221,15 @@ export const SmartDispatch4: React.FC = () => {
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-slate-400 font-normal whitespace-nowrap">월단가</span>
                                   <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     placeholder="월단가"
-                                    value={eq.monthlyRate ?? ''}
-                                    onChange={e => setModelRate(idx, 'monthlyRate', Number(e.target.value) || 0)}
-                                    className="w-20 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-amber-300 focus:outline-none focus:border-amber-400"
+                                    value={eq.monthlyRate !== undefined && eq.monthlyRate !== null ? Number(eq.monthlyRate).toLocaleString() : ''}
+                                    onChange={e => {
+                                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                                      setModelRate(idx, 'monthlyRate', raw === '' ? 0 : parseInt(raw, 10));
+                                    }}
+                                    className="w-24 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-amber-300 focus:outline-none focus:border-amber-400"
                                     title="월 렌탈료 단가 (영업사원/청구담당자 전용)"
                                   />
                                   <span className="text-[10px] text-slate-500">원</span>
@@ -5233,11 +5237,15 @@ export const SmartDispatch4: React.FC = () => {
                                 <div className="flex items-center gap-1">
                                   <span className="text-[10px] text-slate-400 font-normal whitespace-nowrap">일단가</span>
                                   <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     placeholder="일단가"
-                                    value={eq.dailyRate ?? ''}
-                                    onChange={e => setModelRate(idx, 'dailyRate', Number(e.target.value) || 0)}
-                                    className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-emerald-300 focus:outline-none focus:border-emerald-400"
+                                    value={eq.dailyRate !== undefined && eq.dailyRate !== null ? Number(eq.dailyRate).toLocaleString() : ''}
+                                    onChange={e => {
+                                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                                      setModelRate(idx, 'dailyRate', raw === '' ? 0 : parseInt(raw, 10));
+                                    }}
+                                    className="w-20 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-emerald-300 focus:outline-none focus:border-emerald-400"
                                     title="일할 단가 (영업사원/청구담당자 전용)"
                                   />
                                   <span className="text-[10px] text-slate-500">원</span>
