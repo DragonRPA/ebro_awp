@@ -138,11 +138,16 @@ export const AvailableInventoryPage: React.FC = () => {
       if (caStatus === 'RETURNED' || caStatus === 'SOLD' || caStatus === 'CANCELLED' || caStatus === 'REPLACED') return;
       if (ca.actualReturnDate) return;
 
+      if (ca.expectedModel && String(ca.expectedModel).includes('가상')) return;
+
       if (ca.assetId) {
         const assignedAsset = assetMap.get(ca.assetId);
+        if (assignedAsset && isVirtualAsset(assignedAsset)) return;
         const isAlreadyRented =
           ca.status === 'RENTED' ||
+          ca.status === 'AWAITING_TRANSPORT' ||
           assignedAsset?.status === 'RENTED' ||
+          assignedAsset?.status === 'AWAITING_TRANSPORT' ||
           completedInspectionCaIdSet.has(ca.id);
         if (isAlreadyRented) return;
       }
@@ -380,7 +385,11 @@ export const AvailableInventoryPage: React.FC = () => {
       return newBucket;
     };
 
-    // 2. 실물 자산 재고 집계 (AVAILABLE 상태 및 필요 시 ASSIGNED 상태)
+    // 2. 실물 자산 재고 집계 (AVAILABLE 상태 및 출고검수 전 전체 모드 시 출고예정 슬롯에 할당된 자산 포함)
+    const pendingAssignedAssetIdSet = new Set<string>(
+      targetPendingSlots.map(ca => ca.assetId).filter((id): id is string => Boolean(id))
+    );
+
     (assets || []).forEach(a => {
       if ((a as any).isDeleted) return;
       if (isVirtualAsset(a)) return;
@@ -388,7 +397,8 @@ export const AvailableInventoryPage: React.FC = () => {
       if (yardFilter !== 'ALL' && (a.yard || '용인') !== yardFilter) return;
 
       const isAvailable = a.status === 'AVAILABLE';
-      const isAssignedPreInsp = pendingScopeFilter === 'PRE_INSPECTION_ALL' && a.status === 'ASSIGNED';
+      const isAssignedPreInsp =
+        pendingScopeFilter === 'PRE_INSPECTION_ALL' && pendingAssignedAssetIdSet.has(a.id);
       if (!isAvailable && !isAssignedPreInsp) return;
 
       const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
@@ -405,7 +415,7 @@ export const AvailableInventoryPage: React.FC = () => {
       if (yardFilter !== 'ALL' && assignedAsset && (assignedAsset.yard || '용인') !== yardFilter) {
         return;
       }
-      const modelStr = ca.expectedModel || assignedAsset?.modelName || '미지정';
+      const modelStr = assignedAsset?.modelName || ca.expectedModel || '미지정';
       const bucket = resolveOrAddModelBucket(modelStr, assignedAsset?.manufacturer);
 
       if (assignedAsset) {
