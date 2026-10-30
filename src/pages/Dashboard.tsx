@@ -611,6 +611,15 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('available_inventory')}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap', fontWeight: 700 }}
+          >
+            <ClipboardList size={14} />
+            가용재고 보기
+          </button>
           {hasPermission('smart_dispatch4', 'view') && (
             <button
               type="button"
