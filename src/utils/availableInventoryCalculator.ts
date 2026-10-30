@@ -81,6 +81,7 @@ export function calculateAvailableInventorySSOT(params: {
   contractAssets?: ContractAsset[];
   deliveries?: Delivery[];
   outboundInspections?: OutboundInspection[];
+  pendingScopeFilter?: 'UNASSIGNED_ONLY' | 'PRE_INSPECTION_ALL';
 }): AvailableInventoryCalculationResult {
   const {
     products = [],
@@ -89,6 +90,7 @@ export function calculateAvailableInventorySSOT(params: {
     contractAssets = [],
     deliveries = [],
     outboundInspections = [],
+    pendingScopeFilter = 'PRE_INSPECTION_ALL',
   } = params;
 
   const assetMap = new Map(assets.map((a) => [a.id, a]));
@@ -237,9 +239,16 @@ export function calculateAvailableInventorySSOT(params: {
     }
 
     for (const grp of contractGroups) {
-      if (grp.unassignedSlots.length > 0) {
-        unfinishedRequestGroups.push(grp);
-        targetPendingSlots.push(...grp.unassignedSlots);
+      if (pendingScopeFilter === 'UNASSIGNED_ONLY') {
+        if (grp.unassignedSlots.length > 0) {
+          unfinishedRequestGroups.push(grp);
+          targetPendingSlots.push(...grp.unassignedSlots);
+        }
+      } else {
+        if (grp.slots.length > 0) {
+          unfinishedRequestGroups.push(grp);
+          targetPendingSlots.push(...grp.slots);
+        }
       }
     }
   }
@@ -345,11 +354,19 @@ export function calculateAvailableInventorySSOT(params: {
     return newBucket;
   };
 
+  const pendingAssignedAssetIdSet = new Set<string>(
+    targetPendingSlots.map((ca) => ca.assetId).filter((id): id is string => Boolean(id))
+  );
+
   assets.forEach((a) => {
     if ((a as any).isDeleted) return;
     if (isVirtualAsset(a)) return;
     if (a.actualRentReturnDate) return;
-    if (a.status !== 'AVAILABLE') return;
+
+    const isAvailable = a.status === 'AVAILABLE';
+    const isAssignedPreInsp =
+      pendingScopeFilter === 'PRE_INSPECTION_ALL' && pendingAssignedAssetIdSet.has(a.id);
+    if (!isAvailable && !isAssignedPreInsp) return;
 
     const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
     if (a.ownerType === 'RENTED') {
@@ -361,7 +378,7 @@ export function calculateAvailableInventorySSOT(params: {
 
   targetPendingSlots.forEach((ca) => {
     const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
-    const modelStr = ca.expectedModel || assignedAsset?.modelName || '미지정';
+    const modelStr = assignedAsset?.modelName || ca.expectedModel || '미지정';
     const bucket = resolveOrAddModelBucket(modelStr, assignedAsset?.manufacturer);
 
     if (assignedAsset) {

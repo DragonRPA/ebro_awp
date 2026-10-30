@@ -232,7 +232,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     const lines: ScheduledOutboundLine[] = [];
 
     unfinishedRequestGroups.forEach(grp => {
-      const targetSlots = grp.unassignedSlots;
+      const targetSlots = grp.slots;
       if (targetSlots.length === 0) return;
 
       const filteredGroupSlots = targetSlots.filter(ca => {

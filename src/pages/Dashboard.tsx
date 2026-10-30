@@ -602,7 +602,7 @@ export const Dashboard: React.FC = () => {
               border: inventorySummary.pendingUnassignedCount > 0 ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-color)',
               display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap'
             }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>미할당 출고예정</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>출고예정</span>
               <strong style={{ fontSize: '14px', fontWeight: 800, color: inventorySummary.pendingUnassignedCount > 0 ? '#d97706' : 'var(--text-main)' }}>
                 {inventorySummary.pendingUnassignedCount}대
               </strong>

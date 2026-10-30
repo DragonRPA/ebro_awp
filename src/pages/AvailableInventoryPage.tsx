@@ -73,7 +73,7 @@ export const AvailableInventoryPage: React.FC = () => {
   const [manufacturerFilter, setManufacturerFilter] = useState<string>('ALL');
   const [yardFilter, setYardFilter] = useState<string>('ALL');
   const [modelScopeFilter, setModelScopeFilter] = useState<'ACTIVE_ONLY' | 'ALL_MODELS'>('ACTIVE_ONLY');
-  const [pendingScopeFilter, setPendingScopeFilter] = useState<'UNASSIGNED_ONLY' | 'PRE_INSPECTION_ALL'>('UNASSIGNED_ONLY');
+  const [pendingScopeFilter, setPendingScopeFilter] = useState<'UNASSIGNED_ONLY' | 'PRE_INSPECTION_ALL'>('PRE_INSPECTION_ALL');
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -885,8 +885,8 @@ export const AvailableInventoryPage: React.FC = () => {
             onChange={e => setPendingScopeFilter(e.target.value as any)}
             style={{ height: '28px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
           >
-            <option value="UNASSIGNED_ONLY">미완결 출고요청 (장비 미할당)</option>
             <option value="PRE_INSPECTION_ALL">출고검수 전 전체 (미할당+검수대기)</option>
+            <option value="UNASSIGNED_ONLY">미완결 출고요청 (장비 미할당)</option>
           </select>
         </div>
 
@@ -902,7 +902,7 @@ export const AvailableInventoryPage: React.FC = () => {
           </select>
         </div>
 
-        {(searchTerm || feetFilter !== 'ALL' || manufacturerFilter !== 'ALL' || yardFilter !== 'ALL' || modelScopeFilter !== 'ACTIVE_ONLY' || pendingScopeFilter !== 'UNASSIGNED_ONLY') && (
+        {(searchTerm || feetFilter !== 'ALL' || manufacturerFilter !== 'ALL' || yardFilter !== 'ALL' || modelScopeFilter !== 'ACTIVE_ONLY' || pendingScopeFilter !== 'PRE_INSPECTION_ALL') && (
           <button
             type="button"
             onClick={() => {
@@ -911,7 +911,7 @@ export const AvailableInventoryPage: React.FC = () => {
               setManufacturerFilter('ALL');
               setYardFilter('ALL');
               setModelScopeFilter('ACTIVE_ONLY');
-              setPendingScopeFilter('UNASSIGNED_ONLY');
+              setPendingScopeFilter('PRE_INSPECTION_ALL');
             }}
             style={{
               height: '28px',
