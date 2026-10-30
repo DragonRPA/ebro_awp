@@ -123,10 +123,15 @@ export function calculateAvailableInventorySSOT(params: {
       if (assignedAsset && isVirtualAsset(assignedAsset)) return;
       const isAlreadyRented =
         ca.status === 'RENTED' ||
-        ca.status === 'AWAITING_TRANSPORT' ||
         assignedAsset?.status === 'RENTED' ||
-        assignedAsset?.status === 'AWAITING_TRANSPORT' ||
-        completedInspectionCaIdSet.has(ca.id);
+        assignedAsset?.status === 'RENTED_RETURNED' ||
+        assignedAsset?.status === 'DISPOSED' ||
+        (assignedAsset?.status as string) === 'SOLD' ||
+        (assignedAsset?.status as string) === 'SCRAPPED' ||
+        (pendingScopeFilter === 'UNASSIGNED_ONLY' &&
+          (ca.status === 'AWAITING_TRANSPORT' ||
+            assignedAsset?.status === 'AWAITING_TRANSPORT' ||
+            completedInspectionCaIdSet.has(ca.id)));
       if (isAlreadyRented) return;
     }
 

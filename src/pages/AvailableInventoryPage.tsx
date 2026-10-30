@@ -145,10 +145,15 @@ export const AvailableInventoryPage: React.FC = () => {
         if (assignedAsset && isVirtualAsset(assignedAsset)) return;
         const isAlreadyRented =
           ca.status === 'RENTED' ||
-          ca.status === 'AWAITING_TRANSPORT' ||
           assignedAsset?.status === 'RENTED' ||
-          assignedAsset?.status === 'AWAITING_TRANSPORT' ||
-          completedInspectionCaIdSet.has(ca.id);
+          assignedAsset?.status === 'RENTED_RETURNED' ||
+          assignedAsset?.status === 'DISPOSED' ||
+          (assignedAsset?.status as string) === 'SOLD' ||
+          (assignedAsset?.status as string) === 'SCRAPPED' ||
+          (pendingScopeFilter === 'UNASSIGNED_ONLY' &&
+            (ca.status === 'AWAITING_TRANSPORT' ||
+              assignedAsset?.status === 'AWAITING_TRANSPORT' ||
+              completedInspectionCaIdSet.has(ca.id)));
         if (isAlreadyRented) return;
       }
 
@@ -885,7 +890,7 @@ export const AvailableInventoryPage: React.FC = () => {
             onChange={e => setPendingScopeFilter(e.target.value as any)}
             style={{ height: '28px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
           >
-            <option value="PRE_INSPECTION_ALL">출고검수 전 전체 (미할당+검수대기)</option>
+            <option value="PRE_INSPECTION_ALL">대여 전환 전 전체 (미할당+출고대기)</option>
             <option value="UNASSIGNED_ONLY">미완결 출고요청 (장비 미할당)</option>
           </select>
         </div>
