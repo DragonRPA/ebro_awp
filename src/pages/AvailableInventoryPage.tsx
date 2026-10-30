@@ -1432,28 +1432,86 @@ export const AvailableInventoryPage: React.FC = () => {
                       <td style={{ padding: '7px 14px', textAlign: 'center', borderRight: '1px solid var(--table-row-border)', fontWeight: 700, color: 'var(--primary)' }}>
                         {row.modelName}
                       </td>
-                      <td style={{
-                        padding: '7px 12px',
-                        textAlign: 'center',
-                        borderRight: '1px solid var(--table-row-border)',
-                        backgroundColor: 'rgba(245, 158, 11, 0.10)',
-                        fontWeight: 800,
-                        fontSize: '13px',
-                        color: row.availableContractQty < 0 ? 'var(--danger)' : row.availableContractQty > 0 ? 'var(--text-main)' : 'var(--text-muted)'
-                      }}>
-                        {row.availableContractQty}
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'AVAILABLE_CONTRACT')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '7px 12px',
+                          textAlign: 'center',
+                          borderRight: '1px solid var(--table-row-border)',
+                          backgroundColor: 'rgba(245, 158, 11, 0.10)',
+                          fontWeight: 800,
+                          fontSize: '13px',
+                          cursor: 'help',
+                          color: row.availableContractQty < 0 ? 'var(--danger)' : row.availableContractQty > 0 ? 'var(--text-main)' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                          {row.availableContractQty}
+                        </span>
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'center', borderRight: '1px solid var(--table-row-border)', fontWeight: row.stockOwned > 0 ? 700 : 400, color: row.stockOwned > 0 ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                        {row.stockOwned}
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'STOCK_OWNED')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '7px 12px',
+                          textAlign: 'center',
+                          borderRight: '1px solid var(--table-row-border)',
+                          fontWeight: row.stockOwned > 0 ? 700 : 400,
+                          cursor: row.stockOwned > 0 ? 'help' : 'default',
+                          color: row.stockOwned > 0 ? 'var(--text-main)' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={row.stockOwned > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' } : undefined}>
+                          {row.stockOwned}
+                        </span>
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'center', borderRight: '1px solid var(--table-row-border)', fontWeight: row.stockRented > 0 ? 700 : 400, color: row.stockRented > 0 ? '#b45309' : 'var(--text-muted)' }}>
-                        {row.stockRented}
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'STOCK_RENTED')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '7px 12px',
+                          textAlign: 'center',
+                          borderRight: '1px solid var(--table-row-border)',
+                          fontWeight: row.stockRented > 0 ? 700 : 400,
+                          cursor: row.stockRented > 0 ? 'help' : 'default',
+                          color: row.stockRented > 0 ? '#b45309' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={row.stockRented > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' } : undefined}>
+                          {row.stockRented}
+                        </span>
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'center', borderRight: '1px solid var(--table-row-border)', fontWeight: row.scheduledOwned > 0 ? 700 : 400, color: row.scheduledOwned > 0 ? '#d97706' : 'var(--text-muted)' }}>
-                        {row.scheduledOwned}
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_OWNED')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '7px 12px',
+                          textAlign: 'center',
+                          borderRight: '1px solid var(--table-row-border)',
+                          fontWeight: row.scheduledOwned > 0 ? 700 : 400,
+                          cursor: row.scheduledOwned > 0 ? 'help' : 'default',
+                          color: row.scheduledOwned > 0 ? '#d97706' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={row.scheduledOwned > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' } : undefined}>
+                          {row.scheduledOwned}
+                        </span>
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'center', fontWeight: row.scheduledRented > 0 ? 700 : 400, color: row.scheduledRented > 0 ? '#c2410c' : 'var(--text-muted)' }}>
-                        {row.scheduledRented}
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_RENTED')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '7px 12px',
+                          textAlign: 'center',
+                          fontWeight: row.scheduledRented > 0 ? 700 : 400,
+                          cursor: row.scheduledRented > 0 ? 'help' : 'default',
+                          color: row.scheduledRented > 0 ? '#c2410c' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={row.scheduledRented > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' } : undefined}>
+                          {row.scheduledRented}
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -1480,50 +1538,85 @@ export const AvailableInventoryPage: React.FC = () => {
                   >
                     합계
                   </td>
-                  <td style={{
-                    padding: '8px 12px',
-                    textAlign: 'center',
-                    borderRight: '1px solid var(--table-border-color)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.24)',
-                    color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--text-main)',
-                    fontSize: '13.5px'
-                  }}>
-                    {totals.availableContractQty}
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'AVAILABLE_CONTRACT')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      borderRight: '1px solid var(--table-border-color)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.24)',
+                      color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--text-main)',
+                      fontSize: '13.5px',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                      {totals.availableContractQty}
+                    </span>
                   </td>
-                  <td style={{
-                    padding: '8px 12px',
-                    textAlign: 'center',
-                    borderRight: '1px solid var(--table-border-color)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                    color: 'var(--text-main)'
-                  }}>
-                    {totals.stockOwned}
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_OWNED')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      borderRight: '1px solid var(--table-border-color)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      color: 'var(--text-main)',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                      {totals.stockOwned}
+                    </span>
                   </td>
-                  <td style={{
-                    padding: '8px 12px',
-                    textAlign: 'center',
-                    borderRight: '1px solid var(--table-border-color)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                    color: '#b45309'
-                  }}>
-                    {totals.stockRented}
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_RENTED')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      borderRight: '1px solid var(--table-border-color)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      color: '#b45309',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                      {totals.stockRented}
+                    </span>
                   </td>
-                  <td style={{
-                    padding: '8px 12px',
-                    textAlign: 'center',
-                    borderRight: '1px solid var(--table-border-color)',
-                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                    color: '#d97706'
-                  }}>
-                    {totals.scheduledOwned}
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_OWNED')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      borderRight: '1px solid var(--table-border-color)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      color: '#d97706',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                      {totals.scheduledOwned}
+                    </span>
                   </td>
-                  <td style={{
-                    padding: '8px 12px',
-                    textAlign: 'center',
-                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
-                    color: '#c2410c'
-                  }}>
-                    {totals.scheduledRented}
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_RENTED')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      color: '#c2410c',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '3px' }}>
+                      {totals.scheduledRented}
+                    </span>
                   </td>
                 </tr>
               </tfoot>
@@ -1641,6 +1734,266 @@ export const AvailableInventoryPage: React.FC = () => {
           <span>계약가능 재고: <strong style={{ color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{totals.availableContractQty}대</strong></span>
         </div>
       </div>
+
+      {/* 마우스오버 상세 내역 팝오버 (가용재고 관리번호 목록 / 출고예정 요청내역) */}
+      {hoverInfo && (() => {
+        const { row, colType, rect } = hoverInfo;
+        const isInventoryCol =
+          colType === 'AVAILABLE_CONTRACT' ||
+          colType === 'STOCK_OWNED' ||
+          colType === 'STOCK_RENTED';
+
+        const stockItems: StockHoverItem[] =
+          colType === 'STOCK_OWNED'
+            ? row.stockOwnedItems
+            : colType === 'STOCK_RENTED'
+              ? row.stockRentedItems
+              : [...row.stockOwnedItems, ...row.stockRentedItems];
+
+        const scheduledItems: ScheduledHoverItem[] =
+          colType === 'SCHEDULED_OWNED'
+            ? row.scheduledOwnedItems
+            : row.scheduledRentedItems;
+
+        const popoverWidth = 580;
+        const maxPopHeight = 360;
+        const winW = typeof window !== 'undefined' ? window.innerWidth : 1400;
+        const winH = typeof window !== 'undefined' ? window.innerHeight : 900;
+
+        const leftPos = Math.max(12, Math.min(rect.left + rect.width / 2 - popoverWidth / 2, winW - popoverWidth - 16));
+        const showAbove = rect.bottom + maxPopHeight + 20 > winH && rect.top > maxPopHeight + 20;
+
+        const titleText =
+          colType === 'AVAILABLE_CONTRACT'
+            ? `${row.modelName} · 계약가능 재고 산출 및 관리번호 목록`
+            : colType === 'STOCK_OWNED'
+              ? `${row.modelName} · 재고 당사자산 관리번호 목록 (${row.stockOwned}대)`
+              : colType === 'STOCK_RENTED'
+                ? `${row.modelName} · 재고 임차자산 관리번호 목록 (${row.stockRented}대)`
+                : colType === 'SCHEDULED_OWNED'
+                  ? `${row.modelName} · 출고예정 당사자산 출고요청 내역 (${row.scheduledOwned}대)`
+                  : `${row.modelName} · 출고예정 임차자산 출고요청 내역 (${row.scheduledRented}대)`;
+
+        const unassignedDeductionCount = row.availableOnlyItems.length - row.availableContractQty;
+
+        return (
+          <div
+            onMouseEnter={handlePopoverMouseEnter}
+            onMouseLeave={handlePopoverMouseLeave}
+            style={{
+              position: 'fixed',
+              left: `${leftPos}px`,
+              ...(showAbove
+                ? { bottom: `${winH - rect.top + 6}px` }
+                : { top: `${rect.bottom + 6}px` }),
+              width: `${popoverWidth}px`,
+              maxHeight: `${maxPopHeight}px`,
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--primary)',
+              borderRadius: '8px',
+              boxShadow: '0 10px 28px rgba(0, 0, 0, 0.24)',
+              zIndex: 9998,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              fontSize: '12px'
+            }}
+          >
+            {/* 팝오버 헤더 */}
+            <div style={{
+              padding: '8px 12px',
+              backgroundColor: 'var(--bg-app)',
+              borderBottom: '1px solid var(--table-border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '8px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}>
+              <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '12.5px' }}>
+                {titleText}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {isInventoryCol
+                  ? `임대가능 ${row.availableOnlyItems.filter(i => colType === 'STOCK_OWNED' ? i.ownerType === 'OWNED' : colType === 'STOCK_RENTED' ? i.ownerType === 'RENTED' : true).length}대 / 전체재고 ${stockItems.length}대`
+                  : `할당완료 ${scheduledItems.filter(i => Boolean(i.assetNo)).length}대 / 미할당 ${scheduledItems.filter(i => !i.assetNo).length}대`}
+              </span>
+            </div>
+
+            {/* 계약가능 재고 컬럼일 때 산출 공식 요약 바 */}
+            {colType === 'AVAILABLE_CONTRACT' && (
+              <div style={{
+                padding: '6px 12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                borderBottom: '1px solid var(--table-border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+                fontSize: '11.5px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}>
+                <div>
+                  <span>재고 <strong>{row.stockOwned + row.stockRented}대</strong> (당사 {row.stockOwned} + 임차 {row.stockRented})</span>
+                  <span style={{ margin: '0 6px' }}>−</span>
+                  <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledOwned + row.scheduledRented}대</strong> (당사 {row.scheduledOwned} + 임차 {row.scheduledRented})</span>
+                  <span style={{ margin: '0 6px' }}>=</span>
+                  <span>계약가능 <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{row.availableContractQty}대</strong></span>
+                </div>
+                {unassignedDeductionCount !== 0 && (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                    ※ 순수 임대가능 자산 <strong>{row.availableOnlyItems.length}대</strong>에서 미할당 출고요청 <strong>{unassignedDeductionCount}대</strong>가 차감되어 계약가능 재고 <strong>{row.availableContractQty}대</strong>로 산출됨
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 팝오버 본문 테이블 */}
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
+              {isInventoryCol ? (
+                stockItems.length === 0 ? (
+                  <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    보유 중인 재고 자산이 없습니다.
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
+                      <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '5px 8px', textAlign: 'center', width: '36px' }}>순번</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>관리번호</th>
+                        {row.key === '__TOTAL_SUMMARY__' && (
+                          <th style={{ padding: '5px 8px', textAlign: 'left' }}>모델명</th>
+                        )}
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>소유구분</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>상태</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>연식</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>주기장</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>배정현황 / 임차처</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockItems.map((item, idx) => {
+                        const isPureAvail = item.status === 'AVAILABLE';
+                        return (
+                          <tr
+                            key={item.id}
+                            style={{
+                              borderBottom: '1px solid var(--table-row-border)',
+                              backgroundColor: isPureAvail ? 'transparent' : 'rgba(245, 158, 11, 0.06)'
+                            }}
+                          >
+                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                            <td style={{ padding: '5px 8px', fontWeight: 800, color: 'var(--primary)' }}>{item.assetNo}</td>
+                            {row.key === '__TOTAL_SUMMARY__' && (
+                              <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--text-main)' }}>{item.modelName}</td>
+                            )}
+                            <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 600, color: item.ownerType === 'RENTED' ? '#b45309' : 'var(--text-main)' }}>
+                              {item.ownerLabel}
+                            </td>
+                            <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                backgroundColor: isPureAvail ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.18)',
+                                color: isPureAvail ? 'var(--success)' : '#d97706'
+                              }}>
+                                {item.statusLabel}
+                              </span>
+                            </td>
+                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.manufactureYear}</td>
+                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.yard}</td>
+                            <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
+                              {!isPureAvail && item.customerName
+                                ? `${item.customerName}${item.siteName ? ` · ${item.siteName}` : ''} (출고예정 차감)`
+                                : item.renterName
+                                  ? `임차처: ${item.renterName}`
+                                  : '즉시 계약·할당 가능'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )
+              ) : (
+                scheduledItems.length === 0 ? (
+                  <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    출고예정 요청 내역이 없습니다.
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
+                      <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                        <th style={{ padding: '5px 8px', textAlign: 'center', width: '36px' }}>순번</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>출고예정일</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>고객사</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>현장명</th>
+                        {row.key === '__TOTAL_SUMMARY__' && (
+                          <th style={{ padding: '5px 8px', textAlign: 'left' }}>모델명</th>
+                        )}
+                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>할당 관리번호 / 상태</th>
+                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>계약번호</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scheduledItems.map((item, idx) => (
+                        <tr key={`${item.slotId}_${idx}`} style={{ borderBottom: '1px solid var(--table-row-border)' }}>
+                          <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                          <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-main)' }}>
+                            {item.scheduledDate}
+                          </td>
+                          <td style={{ padding: '5px 8px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            {item.customerName}
+                          </td>
+                          <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
+                            {item.siteName}
+                          </td>
+                          {row.key === '__TOTAL_SUMMARY__' && (
+                            <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--primary)' }}>
+                              {item.expectedModel}
+                            </td>
+                          )}
+                          <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                            {item.assetNo ? (
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10.5px',
+                                fontWeight: 800,
+                                backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                                color: 'var(--primary)'
+                              }}>
+                                {item.assetNo} · {item.statusLabel}
+                              </span>
+                            ) : (
+                              <span style={{
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10.5px',
+                                fontWeight: 700,
+                                backgroundColor: 'rgba(234, 88, 12, 0.14)',
+                                color: '#d97706'
+                              }}>
+                                미할당 · {item.allocatedBucket === 'RENTED' ? '임차재고 차감' : '당사재고 차감'}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '5px 8px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                            {item.contractNo}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {toastMessage && (
         <div style={{
