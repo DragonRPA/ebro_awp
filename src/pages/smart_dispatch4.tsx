@@ -7525,7 +7525,22 @@ export const SmartDispatch4: React.FC = () => {
     });
 
     const q = historySearchQuery.trim();
-    const matcher = q ? createHangulMatcher(q) : null;
+    const fullMatcher = q ? createHangulMatcher(q) : null;
+    const rawTokens = q
+      ? q
+          .split(/[\s,;|/\n]+/)
+          .map(t => t.trim())
+          .filter(Boolean)
+      : [];
+    const CORP_STOPWORDS = new Set(['주식회사', '(주)', '㈜', '유한회사', '(유)', '합자회사', '(합)']);
+    const effectiveTokens = rawTokens.length > 1
+      ? rawTokens.filter(t => !CORP_STOPWORDS.has(t))
+      : rawTokens;
+    const tokenMatchers = effectiveTokens.map(t => ({
+      rawUpper: t.toUpperCase(),
+      isExactDlvId: /^DLV-\d{4,}$/i.test(t),
+      matcher: createHangulMatcher(t)
+    }));
 
     const toLocalDateStr = (raw: string): string => {
       if (!raw) return '';
@@ -7538,27 +7553,48 @@ export const SmartDispatch4: React.FC = () => {
       return trimmed.slice(0, 10);
     };
 
+    const testRowWithMatcher = (
+      r: typeof reconstructedRows[0],
+      m: { test: (val: string) => boolean },
+      equipStr: string,
+      optStr: string
+    ): boolean => (
+      m.test(r.id) ||
+      m.test(r.contractNo) ||
+      m.test(r.customerName) ||
+      m.test(r.siteName) ||
+      m.test(r.siteAddress) ||
+      m.test(r.requesterName) ||
+      m.test(r.siteContactName) ||
+      m.test(r.siteContactEmail) ||
+      m.test(equipStr) ||
+      m.test(optStr)
+    );
+
     // 1단계: 날짜 범위 및 검색어가 적용된 기본 대상 행 (진행 상태 탭 숫자 집계 및 목록 필터링의 공통 기준)
     const baseScopedRows = reconstructedRows.filter(r => {
-      const datePart = toLocalDateStr(r.createdAt || r.delivery.requestDate || '');
-      if (historyStartDate && datePart && datePart < historyStartDate) return false;
-      if (historyEndDate && datePart && datePart > historyEndDate) return false;
+      const rowIdUpper = (r.id || '').toUpperCase();
+      const isDirectExactDlvMatch =
+        tokenMatchers.length > 0 &&
+        tokenMatchers.some(tm => tm.isExactDlvId && rowIdUpper === tm.rawUpper);
 
-      if (!matcher) return true;
+      const datePart = toLocalDateStr(r.createdAt || r.delivery.requestDate || '');
+      if (!isDirectExactDlvMatch) {
+        if (historyStartDate && datePart && datePart < historyStartDate) return false;
+        if (historyEndDate && datePart && datePart > historyEndDate) return false;
+      }
+
+      if (!fullMatcher && tokenMatchers.length === 0) return true;
+      if (isDirectExactDlvMatch) return true;
+
       const equipStr = r.equipmentItems.map(e => `${e.modelName} ${e.assignedAssets.join(' ')}`).join(' ');
       const optStr = r.paidOptionItems.map(o => o.name).join(' ');
-      return (
-        matcher.test(r.id) ||
-        matcher.test(r.contractNo) ||
-        matcher.test(r.customerName) ||
-        matcher.test(r.siteName) ||
-        matcher.test(r.siteAddress) ||
-        matcher.test(r.requesterName) ||
-        matcher.test(r.siteContactName) ||
-        matcher.test(r.siteContactEmail) ||
-        matcher.test(equipStr) ||
-        matcher.test(optStr)
-      );
+
+      if (fullMatcher && testRowWithMatcher(r, fullMatcher, equipStr, optStr)) return true;
+      if (tokenMatchers.length > 0) {
+        return tokenMatchers.some(tm => testRowWithMatcher(r, tm.matcher, equipStr, optStr));
+      }
+      return false;
     });
 
     // 2단계: 진행 상태 필터 적용 (실제 테이블에 표시되는 데이터 목록)
@@ -7682,8 +7718,8 @@ export const SmartDispatch4: React.FC = () => {
                   type="text"
                   value={historySearchQuery}
                   onChange={e => setHistorySearchQuery(e.target.value)}
-                  placeholder="고객사, 현장명, 모델명, 요청자, 배차번호"
-                  className="h-8 pl-8 pr-3 w-64 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 placeholder-slate-500"
+                  placeholder="배차번호 공백구분 다중검색, 고객사, 현장명, 모델명"
+                  className="h-8 pl-8 pr-3 w-80 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 placeholder-slate-500"
                 />
               </div>
             </div>
