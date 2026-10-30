@@ -1444,10 +1444,11 @@ export const TenantManagementPage: React.FC = () => {
                       {/* 솔루션 배지 */}
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
                         {(() => {
-                          const sType = (tenant.solutionType || 'AWP') as 'AWP' | 'IT' | 'MULTI';
+                          const sType = (tenant.solutionType || 'AWP') as 'AWP' | 'IT' | 'FL' | 'MULTI';
                           const badgeConfig = {
                             AWP: { bg: '#dbeafe', color: '#1d4ed8', label: 'AWP' },
                             IT: { bg: '#f3e8ff', color: '#7e22ce', label: 'IT' },
+                            FL: { bg: '#fef3c7', color: '#b45309', label: 'FL' },
                             MULTI: { bg: '#d1fae5', color: '#047857', label: 'MULTI' },
                           }[sType] || { bg: '#dbeafe', color: '#1d4ed8', label: 'AWP' };
 
@@ -1981,7 +1982,7 @@ export const TenantManagementPage: React.FC = () => {
                       value={formData.solutionType || 'AWP'}
                       onChange={e => {
                         const sType = e.target.value as SolutionType;
-                        const defaultRepo = sType === 'AWP' ? 'DragonRPA/ebro_awp' : sType === 'IT' ? 'DragonRPA/ebro_it' : (formData.targetRepo || 'DragonRPA/ebro_awp');
+                        const defaultRepo = sType === 'AWP' ? 'DragonRPA/ebro_awp' : sType === 'IT' ? 'DragonRPA/ebro_it' : sType === 'FL' ? 'DragonRPA/ebro_fl' : (formData.targetRepo || 'DragonRPA/ebro_awp');
                         setFormData(prev => ({ 
                           ...prev, 
                           solutionType: sType,
@@ -1998,6 +1999,7 @@ export const TenantManagementPage: React.FC = () => {
                       }}
                     >
                       <option value="AWP">고소작업대</option>
+                      <option value="FL">지게차</option>
                       <option value="IT">정보통신 장비</option>
                       <option value="MULTI">복합 사업군</option>
                     </select>
