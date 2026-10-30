@@ -10,6 +10,29 @@ export const DEMO_SUPABASE_CONFIG = {
   projectRef: 'idfecoovqkjopgbezcpo'
 };
 
+export const KIYEUN_PROD_SUPABASE_CONFIG = {
+  url: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 'https://wywgkikkjgbnlljkkmnz.supabase.co',
+  anonKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU',
+  projectRef: 'wywgkikkjgbnlljkkmnz'
+};
+
+/** 브라우저 localStorage 내 캐시된 ERP 테이블 데이터 초기화 (복제/초기화 후 재로드 시 최신 DB 강제 동기화) */
+export function clearLocalErpCache() {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('erp_') && k !== 'erp_current_tenant_id') {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
+  } catch {}
+}
+
 /** 실운영 프로덕션 도메인 판별 (기연리프트 등 실제 운영사 도메인) */
 export function isProductionDomain(): boolean {
   if (typeof window === 'undefined') return false;
@@ -101,7 +124,334 @@ export function exitDemoMode() {
 
 /** 데모 전용 Supabase 클라이언트 인스턴스 생성 */
 export function getDemoSupabaseClient() {
-  return createClient(DEMO_SUPABASE_CONFIG.url, DEMO_SUPABASE_CONFIG.anonKey);
+  return createClient(DEMO_SUPABASE_CONFIG.url, DEMO_SUPABASE_CONFIG.anonKey, {
+    auth: { persistSession: false }
+  });
+}
+
+/** 기연리프트 실운영 DB 읽기 전용 클라이언트 생성 (복제 소스 전용) */
+export function getKiyeunProdSupabaseClient() {
+  return createClient(KIYEUN_PROD_SUPABASE_CONFIG.url, KIYEUN_PROD_SUPABASE_CONFIG.anonKey, {
+    auth: { persistSession: false }
+  });
+}
+
+const ALL_CLONE_TABLES = [
+  'tenants',
+  'departments',
+  'custom_roles',
+  'users',
+  'role_permissions',
+  'permissions',
+  'products',
+  'standard_options',
+  'vendors',
+  'transport_companies',
+  'transport_drivers',
+  'customers',
+  'site_masters',
+  'customer_sites',
+  'customer_contacts',
+  'assets',
+  'consumables',
+  'consumable_lots',
+  'consumable_logs',
+  'consumable_purchases',
+  'mechanic_consumable_stocks',
+  'stocktaking_audits',
+  'stocktaking_audit_items',
+  'collected_parts',
+  'contracts',
+  'contract_assets',
+  'contract_history',
+  'external_leases',
+  'deliveries',
+  'outbound_inspections',
+  'asset_inout_logs',
+  'inspection_checklist_items',
+  'repairs',
+  'repair_consumables',
+  'as_route_logs',
+  'billings',
+  'billing_details',
+  'billing_invoices',
+  'receivables',
+  'payments',
+  'bank_transactions',
+  'bank_matching_rules',
+  'bank_initial_balances',
+  'payment_deposit_links',
+  'prepaid_transactions',
+  'purchase_settlements',
+  'purchase_settlement_items',
+  'settlement_payment_logs',
+  'depreciation_logs',
+  'cash_flow_snapshots',
+  'delinquency_action_logs',
+  'legal_notice_templates',
+  'legal_notice_logs',
+  'annual_leave_quotas',
+  'leave_usages',
+  'overtime_records',
+  'payroll_closings',
+  'corporate_vehicles',
+  'vehicle_operation_logs',
+  'vehicle_fuel_logs',
+  'approval_rules',
+  'rule_consensus',
+  'approval_requests',
+  'approval_steps',
+  'delegation_records',
+  'equipment_manuals',
+  'print_stations',
+  'print_queue',
+  'label_templates',
+  'todos',
+  'privacy_access_logs',
+  'error_reports',
+  'monthly_income_statements',
+  'developer_authorized_devices',
+  'sales_journals',
+  'trade_products',
+  'trade_purchases',
+  'trade_purchase_items',
+  'trade_inventory_lots',
+  'trade_sales_orders',
+  'trade_sales_order_lines',
+  'trade_outbounds',
+  'trade_billings',
+  'trade_returns',
+  'trade_cogs_ledgers',
+  'trade_inventory_adjustments'
+];
+
+function inferPostgresType(val: any): string {
+  if (typeof val === 'boolean') return 'boolean';
+  if (typeof val === 'number') {
+    return Number.isInteger(val) ? 'bigint' : 'numeric';
+  }
+  if (val && typeof val === 'object') return 'jsonb';
+  return 'text';
+}
+
+/**
+ * 기연리프트 실운영 DB의 최신 데이터를 시연용 DB(awp-demo)로 1:1 실시간 복제
+ * - 실운영 DB(wywgkikkjgbnlljkkmnz)에서는 오직 SELECT(읽기)만 수행
+ * - 시연 DB(idfecoovqkjopgbezcpo)의 기존 데이터를 비우고 기연리프트 최신 데이터를 전체 덮어쓰기
+ */
+export async function cloneKiyeunProdToDemoDb(
+  onProgress?: (msg: string) => void
+): Promise<{ success: boolean; totalRows?: number; tableCount?: number; error?: string }> {
+  try {
+    if (!isDemoMode()) {
+      throw new Error('기연리프트 DB 복제는 시연 모드에서만 실행할 수 있습니다.');
+    }
+
+    const prod = getKiyeunProdSupabaseClient();
+    const demo = getDemoSupabaseClient();
+
+    const fetchAllFromProd = async (table: string): Promise<{ exists: boolean; rows: any[] }> => {
+      const PAGE_SIZE = 1000;
+      const all: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await prod
+          .from(table)
+          .select('*')
+          .order('id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          if (
+            error.code === 'PGRST205' ||
+            error.code === '42P01' ||
+            error.message?.includes('Could not find') ||
+            error.message?.includes('does not exist')
+          ) {
+            return { exists: false, rows: [] };
+          }
+          throw new Error(`기연리프트 DB 조회 오류 (${table}): ${error.message}`);
+        }
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return { exists: true, rows: all };
+    };
+
+    // 1. 기연리프트 실운영 DB 전체 테이블 병렬 배치 조회
+    const prodData: Record<string, any[]> = {};
+    const FETCH_BATCH_SIZE = 6;
+    for (let i = 0; i < ALL_CLONE_TABLES.length; i += FETCH_BATCH_SIZE) {
+      const batch = ALL_CLONE_TABLES.slice(i, i + FETCH_BATCH_SIZE);
+      if (onProgress) {
+        onProgress(`기연리프트 DB 조회 중... (${Math.min(i + batch.length, ALL_CLONE_TABLES.length)}/${ALL_CLONE_TABLES.length} 테이블)`);
+      }
+      const results = await Promise.all(batch.map(tbl => fetchAllFromProd(tbl)));
+      batch.forEach((tbl, idx) => {
+        prodData[tbl] = results[idx].rows;
+      });
+    }
+
+    // 2. 시연 DB 내 존재하는 테이블 확인 및 전체 초기화 (TRUNCATE CASCADE 우선, 역순 DELETE 폴백)
+    if (onProgress) onProgress('시연 DB 기존 데이터 비우는 중...');
+    const existingDemoTables: string[] = [];
+    const CHECK_BATCH_SIZE = 10;
+    for (let i = 0; i < ALL_CLONE_TABLES.length; i += CHECK_BATCH_SIZE) {
+      const batch = ALL_CLONE_TABLES.slice(i, i + CHECK_BATCH_SIZE);
+      const checks = await Promise.all(
+        batch.map(async tbl => {
+          const { error } = await demo.from(tbl).select('id').limit(1);
+          return !error ? tbl : null;
+        })
+      );
+      checks.forEach(t => {
+        if (t) existingDemoTables.push(t);
+      });
+    }
+
+    if (existingDemoTables.length > 0) {
+      const truncateSql = `TRUNCATE TABLE ${existingDemoTables.map(t => `"${t}"`).join(', ')} CASCADE;`;
+      const truncRes = await demo.rpc('dev_exec_ddl', { statements: [truncateSql] });
+      if (truncRes.error) {
+        for (const tbl of [...existingDemoTables].reverse()) {
+          if (onProgress) onProgress(`기존 시연 데이터 정리 중: ${tbl}...`);
+          await demo.from(tbl).delete().neq('id', '___NEVER_MATCH___');
+        }
+      }
+    }
+
+    // 3. 기연리프트 데이터 시연 DB로 복제 주입
+    let totalClonedRows = 0;
+    let clonedTableCount = 0;
+    const CHUNK_SIZE = 300;
+
+    for (const tbl of ALL_CLONE_TABLES) {
+      const rows = prodData[tbl];
+      if (!rows || rows.length === 0) continue;
+
+      if (onProgress) {
+        onProgress(`기연리프트 데이터 복제 중: ${tbl} (${rows.length}건)...`);
+      }
+
+      // 순환 참조 외래키 1차 패스 보호
+      let rowsToInsert = rows;
+      if (tbl === 'departments') {
+        rowsToInsert = rows.map(r => ({ ...r, managerId: null, parentDepartmentId: null }));
+      } else if (tbl === 'users') {
+        rowsToInsert = rows.map(r => ({ ...r, managerId: null }));
+      } else if (tbl === 'contracts') {
+        rowsToInsert = rows.map(r => ({ ...r, predecessorContractId: null, successorContractId: null }));
+      }
+
+      for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
+        const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE);
+        let { error } = await demo.from(tbl).upsert(chunk, { onConflict: 'id' });
+
+        let retries = 0;
+        while (error && retries < 8) {
+          const msg = error.message || '';
+          const colMatch =
+            msg.match(/Could not find the '([^']+)' column of '([^']+)'/) ||
+            msg.match(/column "([^"]+)" of relation "([^"]+)" does not exist/);
+
+          if (colMatch) {
+            const missingCol = colMatch[1];
+            let sampleVal: any = null;
+            for (const r of rows) {
+              if (r[missingCol] !== null && r[missingCol] !== undefined) {
+                sampleVal = r[missingCol];
+                break;
+              }
+            }
+            const colType = inferPostgresType(sampleVal);
+            await demo.rpc('dev_exec_ddl', {
+              statements: [
+                `ALTER TABLE "${tbl}" ADD COLUMN IF NOT EXISTS "${missingCol}" ${colType};`,
+                `NOTIFY pgrst, 'reload schema';`
+              ]
+            });
+            await new Promise(r => setTimeout(r, 1000));
+            const retryRes = await demo.from(tbl).upsert(chunk, { onConflict: 'id' });
+            error = retryRes.error;
+            retries++;
+          } else if (msg.includes('violates not-null constraint') || error.code === '23502') {
+            const nnMatch = msg.match(/null value in column "([^"]+)"/);
+            if (nnMatch) {
+              await demo.rpc('dev_exec_ddl', {
+                statements: [
+                  `ALTER TABLE "${tbl}" ALTER COLUMN "${nnMatch[1]}" DROP NOT NULL;`,
+                  `NOTIFY pgrst, 'reload schema';`
+                ]
+              });
+              await new Promise(r => setTimeout(r, 400));
+              const retryRes = await demo.from(tbl).upsert(chunk, { onConflict: 'id' });
+              error = retryRes.error;
+              retries++;
+            } else {
+              break;
+            }
+          } else if (
+            msg.includes('duplicate key value violates unique constraint') ||
+            error.code === '23505' ||
+            msg.includes('foreign key constraint') ||
+            error.code === '23503' ||
+            msg.includes('check constraint') ||
+            error.code === '23514'
+          ) {
+            const cMatch = msg.match(/constraint "([^"]+)"/);
+            if (cMatch && !cMatch[1].endsWith('_pkey')) {
+              await demo.rpc('dev_exec_ddl', {
+                statements: [
+                  `ALTER TABLE "${tbl}" DROP CONSTRAINT IF EXISTS "${cMatch[1]}";`,
+                  `DROP INDEX IF EXISTS "${cMatch[1]}";`,
+                  `NOTIFY pgrst, 'reload schema';`
+                ]
+              });
+              await new Promise(r => setTimeout(r, 400));
+              const retryRes = await demo.from(tbl).upsert(chunk, { onConflict: 'id' });
+              error = retryRes.error;
+              retries++;
+            } else {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+
+        if (error) {
+          if (error.message?.includes('Could not find the table') || error.code === 'PGRST205') {
+            break;
+          }
+          throw new Error(`[기연리프트 DB 복제 저장 오류] 테이블(${tbl}): ${error.message}`);
+        }
+      }
+
+      totalClonedRows += rows.length;
+      clonedTableCount++;
+    }
+
+    // 4. 순환 참조 필드 2차 패스 복원 (departments, users, contracts)
+    if (onProgress) onProgress('부서·임직원·계약 연결 참조 복원 중...');
+    for (const tbl of ['departments', 'users', 'contracts']) {
+      const rows = prodData[tbl];
+      if (rows && rows.length > 0) {
+        for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+          const chunk = rows.slice(i, i + CHUNK_SIZE);
+          await demo.from(tbl).upsert(chunk, { onConflict: 'id' });
+        }
+      }
+    }
+
+    clearLocalErpCache();
+    if (onProgress) onProgress(`기연리프트 DB 복제 완료! (${clonedTableCount}개 테이블, 총 ${totalClonedRows.toLocaleString()}건)`);
+    return { success: true, totalRows: totalClonedRows, tableCount: clonedTableCount };
+  } catch (err: any) {
+    console.error('Failed to clone Kiyeun Prod to Demo DB:', err);
+    return { success: false, error: err?.message || String(err) };
+  }
 }
 
 /** 데모 데이터 골든 데이터셋으로 초기화 */
@@ -175,6 +525,7 @@ export async function resetDemoDataToGolden(onProgress?: (msg: string) => void):
       }
     }
 
+    clearLocalErpCache();
     if (onProgress) onProgress('✅ 데모 데이터 복원 완료!');
     return { success: true };
   } catch (err: any) {
