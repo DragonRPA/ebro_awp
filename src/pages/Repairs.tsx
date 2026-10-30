@@ -14,12 +14,14 @@ import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
+import { lookupRecentInboundInfoByAsset } from '../utils/inboundDefectClaimHelper';
 
 export const Repairs: React.FC = () => {
   const {
     repairs, assets, consumables, repairConsumables, registerRepair, updateRepairStatus, 
     hasPermission, users, permissions, currentUser, vendors, assetInOutLogs, showErrorModal,
-    inspectionChecklistItems, navigationPayload, setNavigationPayload
+    inspectionChecklistItems, navigationPayload, setNavigationPayload,
+    customers, contracts, contractAssets, sites, deliveries
   } = useApp();
   const { isRuleEnabled, createApprovalRequest } = useApproval();
 
@@ -50,7 +52,7 @@ export const Repairs: React.FC = () => {
   const [inboundMeta, setInboundMeta] = useState<{ inboundNo?: string; requestDate?: string; details?: string } | null>(null);
 
   // 우측 워크벤치 입력 폼 상태
-  const [maintenanceType, setMaintenanceType] = useState<'INHOUSE_REPAIR' | 'PREVENTIVE' | 'EXTERNAL'>('INHOUSE_REPAIR');
+  const [maintenanceType, setMaintenanceType] = useState<'INHOUSE_REPAIR' | 'PREVENTIVE' | 'EXTERNAL' | 'VENDOR_REPAIR'>('INHOUSE_REPAIR');
   const [repairDate, setRepairDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedMechanicId, setSelectedMechanicId] = useState<string>(currentUser?.id || '');
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
@@ -60,14 +62,17 @@ export const Repairs: React.FC = () => {
   const [externalCost, setExternalCost] = useState<number>(0);
   const [billableType, setBillableType] = useState<'FREE' | 'BILLABLE'>('FREE');
   const [billableAmount, setBillableAmount] = useState<number>(0);
+  const [targetCustomerId, setTargetCustomerId] = useState<string>('');
+  const [targetContractId, setTargetContractId] = useState<string>('');
 
   // 사용 소모품 목록: { consumableId, quantity, unitPrice }
   const [usedConsumables, setUsedConsumables] = useState<{ consumableId: string; quantity: number }[]>([]);
   const [tempConsumableId, setTempConsumableId] = useState<string>('');
   const [tempConsumableQty, setTempConsumableQty] = useState<number>(1);
 
-  // 사진 증빙
-  const [beforeImage, setBeforeImage] = useState<string>('');
+  // 사진 증빙 (정비 전 사진 최대 4장)
+  const [beforeImages, setBeforeImages] = useState<string[]>([]);
+  const beforeImage = beforeImages[0] || '';
   const [afterImage, setAfterImage] = useState<string>('');
   const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
 
@@ -214,22 +219,27 @@ export const Repairs: React.FC = () => {
     });
   }, [users, permissionsByUserMap]);
 
-  // 담당자 선택 자동 동기화
+  // 담당자 선택 자동 동기화 (임차처 수리인 경우 담당자 지정 불필요)
   useEffect(() => {
+    if (maintenanceType === 'VENDOR_REPAIR') {
+      if (selectedMechanicId !== '') setSelectedMechanicId('');
+      return;
+    }
     if (eligibleAssignees.length > 0) {
       if (!selectedMechanicId || !eligibleAssignees.some(u => u.id === selectedMechanicId)) {
         const myMatch = eligibleAssignees.find(u => u.id === currentUser?.id);
         setSelectedMechanicId(myMatch ? myMatch.id : eligibleAssignees[0].id);
       }
     }
-  }, [eligibleAssignees, currentUser]);
+  }, [eligibleAssignees, currentUser, maintenanceType]);
 
   // =========================================================================
   // [3] 연산 및 필터링
   // =========================================================================
   const getAssetNo = (id?: string) => (id ? assetMap.get(id)?.assetNo : '') || '-';
   const getAssetModel = (id?: string) => (id ? assetMap.get(id)?.modelName : '') || '-';
-  const getMechanicName = (id?: string) => (id ? userMap.get(id)?.name : '') || '담당자';
+  const getMechanicName = (id?: string, mType?: string) =>
+    mType === 'VENDOR_REPAIR' ? '임차처 수리 (담당불필요)' : ((id ? userMap.get(id)?.name : '') || '미지정');
   const getVendorName = (id?: string) => (id ? vendorMap.get(id)?.name : '') || '-';
 
   // 주기장 대상 자산 목록 (RENTED_RETURNED, REPAIRING, AVAILABLE 및 진행중인 외주정비 자산)
@@ -347,8 +357,47 @@ export const Repairs: React.FC = () => {
     }, 0);
   }, [usedConsumables, consumableMap]);
 
-  // 총 정비 비용 (소모품비 + 외주비)
-  const totalCost = totalConsumablesCost + (maintenanceType === 'EXTERNAL' ? externalCost : 0);
+  // 총 정비 비용 (임차처 수리는 임차처 청구 금액 전체가 곧 정비원가, 일반/외주는 소모품비 + 외주비)
+  const totalCost = maintenanceType === 'VENDOR_REPAIR'
+    ? Math.max(0, Number(externalCost) || 0)
+    : totalConsumablesCost + (maintenanceType === 'EXTERNAL' ? externalCost : 0);
+
+  // 선택된 자산의 최근 입고/계약/임차처 자동 역추적 정보
+  const selectedAssetLookup = useMemo(() => {
+    if (!selectedAsset) return null;
+    return lookupRecentInboundInfoByAsset(selectedAsset.assetNo, {
+      assets,
+      assetInOutLogs,
+      contractAssets,
+      contracts,
+      deliveries,
+      repairs,
+      customers,
+      sites,
+      users,
+      vendors,
+    });
+  }, [selectedAsset, assets, assetInOutLogs, contractAssets, contracts, deliveries, repairs, customers, sites, users, vendors]);
+
+  // 선택된 자산의 임차처 명칭 추론 (vendorId -> renter -> supplier -> note 내 '임차...장비: XXX')
+  const inferredRentedVendorName = useMemo(() => {
+    if (!selectedAsset) return '';
+    if (selectedVendorId) {
+      const v = vendorMap.get(selectedVendorId);
+      if (v?.name) return v.name;
+    }
+    if (selectedAsset.vendorId) {
+      const v = vendorMap.get(selectedAsset.vendorId);
+      if (v?.name) return v.name;
+    }
+    if (selectedAsset.renter?.trim()) return selectedAsset.renter.trim();
+    if (selectedAsset.supplier?.trim()) return selectedAsset.supplier.trim();
+    if (selectedAsset.note) {
+      const m = selectedAsset.note.match(/임차[^:]*:\s*([^\n/]+)/);
+      if (m && m[1]?.trim()) return m[1].trim();
+    }
+    return selectedAssetLookup?.vendorName || '';
+  }, [selectedAsset, selectedVendorId, vendorMap, selectedAssetLookup]);
 
   // 대장 목록 필터링 (한글 초성 매처 + O(1) 조회)
   const filteredLedgerRepairs = useMemo(() => {
@@ -395,12 +444,43 @@ export const Repairs: React.FC = () => {
         case 'totalCost': return r.totalCost || 0;
         case 'inspectionItemCode': return r.inspectionItemCode || '';
         case 'degradationScore': return r.degradationScore || 0;
-        case 'mechanic': return getMechanicName(r.mechanicId);
+        case 'mechanic': return getMechanicName(r.mechanicId, r.maintenanceType);
         case 'status': return r.status;
         default: return (r as any)[key];
       }
     }
   );
+
+  // 정비 구분 변경 핸들러 (임차처 수리 선택 시 담당자 불필요·0분·유상·임차처 자동 세팅)
+  const handleMaintenanceTypeChange = (nextType: 'INHOUSE_REPAIR' | 'PREVENTIVE' | 'EXTERNAL' | 'VENDOR_REPAIR') => {
+    setMaintenanceType(nextType);
+    if (nextType === 'VENDOR_REPAIR') {
+      setSelectedMechanicId('');
+      setDurationMinutes(0);
+      setBillableType('BILLABLE');
+      setUsedConsumables([]);
+      if (selectedAsset) {
+        let matchedVendorId = selectedAsset.vendorId || '';
+        if (!matchedVendorId) {
+          const rName =
+            selectedAsset.renter?.trim() ||
+            selectedAsset.supplier?.trim() ||
+            (selectedAsset.note?.match(/임차[^:]*:\s*([^\n/]+)/)?.[1]?.trim() || '');
+          if (rName) {
+            const vMatch = vendors.find(v => v.name.includes(rName) || rName.includes(v.name));
+            if (vMatch) matchedVendorId = vMatch.id;
+          }
+        }
+        if (matchedVendorId) setSelectedVendorId(matchedVendorId);
+      }
+      if (selectedAssetLookup) {
+        if (selectedAssetLookup.customerId) setTargetCustomerId(selectedAssetLookup.customerId);
+        if (selectedAssetLookup.contractId) setTargetContractId(selectedAssetLookup.contractId);
+      }
+    } else {
+      if (durationMinutes === 0) setDurationMinutes(30);
+    }
+  };
 
   // =========================================================================
   // [4] 핸들러
@@ -422,15 +502,42 @@ export const Repairs: React.FC = () => {
     setRepairDate(new Date().toISOString().split('T')[0]);
     setSelectedMechanicId(currentUser?.id || '');
     setUsedConsumables([]);
-    setBeforeImage('');
+    setBeforeImages([]);
     setAfterImage('');
     setInspectionItemCode('');
     setDegradationScore(asset.maintenanceScore || 0);
 
+    const lookup = lookupRecentInboundInfoByAsset(asset.assetNo, {
+      assets,
+      assetInOutLogs,
+      contractAssets,
+      contracts,
+      deliveries,
+      repairs,
+      customers,
+      sites,
+      users,
+      vendors,
+    });
+    setTargetCustomerId(lookup?.customerId || '');
+    setTargetContractId(lookup?.contractId || '');
+
+    let defaultAssetVendorId = asset.vendorId || '';
+    if (!defaultAssetVendorId) {
+      const rName =
+        asset.renter?.trim() ||
+        asset.supplier?.trim() ||
+        (asset.note?.match(/임차[^:]*:\s*([^\n/]+)/)?.[1]?.trim() || '');
+      if (rName) {
+        const vMatch = vendors.find(v => v.name.includes(rName) || rName.includes(v.name));
+        if (vMatch) defaultAssetVendorId = vMatch.id;
+      }
+    }
+
     if (pendingOutbound) {
       // 🌟 출고 불량 교체 건 정비 모드로 프리셋
       setMaintenanceType('INHOUSE_REPAIR');
-      setSelectedVendorId('');
+      setSelectedVendorId(defaultAssetVendorId);
       setExternalCost(0);
       setDegradationScore(pendingOutbound.degradationScore || asset.maintenanceScore || 0);
       setInspectionItemCode(pendingOutbound.inspectionItemCode || '');
@@ -442,7 +549,7 @@ export const Repairs: React.FC = () => {
     } else if (pendingInbound) {
       // 🌟 입고 결함 정비 모드로 프리셋
       setMaintenanceType('INHOUSE_REPAIR');
-      setSelectedVendorId('');
+      setSelectedVendorId(defaultAssetVendorId);
       setExternalCost(0);
       setDegradationScore(pendingInbound.degradationScore || asset.maintenanceScore || 0);
       setInspectionItemCode(pendingInbound.inspectionItemCode || '');
@@ -458,6 +565,9 @@ export const Repairs: React.FC = () => {
       }
       setInboundDefects(parsedDefects);
       setInboundPhotos(pendingInbound.evidenceImages || []);
+      if (pendingInbound.evidenceImages && pendingInbound.evidenceImages.length > 0) {
+        setBeforeImages(pendingInbound.evidenceImages.slice(0, 4));
+      }
       setInboundMeta({
         inboundNo: pendingInbound.inboundNo,
         requestDate: pendingInbound.requestDate,
@@ -473,15 +583,23 @@ export const Repairs: React.FC = () => {
       setInboundPhotos([]);
       setInboundMeta(null);
       setMaintenanceType('EXTERNAL');
-      setSelectedVendorId(activeExternal.vendorId || '');
+      setSelectedVendorId(activeExternal.vendorId || defaultAssetVendorId);
       setExternalCost(activeExternal.totalCost || 0);
       setRepairDetails(`[외주정비 완료 입고검수] 업체: ${getVendorName(activeExternal.vendorId)}\n• 외주 수리내역 확인 및 장비 정상 작동 테스트 완료`);
     } else if (unresolvedRepair) {
       setInboundDefects([]);
       setInboundPhotos([]);
       setInboundMeta(null);
-      setMaintenanceType(unresolvedRepair.maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : unresolvedRepair.maintenanceType === 'PREVENTIVE' ? 'PREVENTIVE' : 'INHOUSE_REPAIR');
-      setSelectedVendorId(unresolvedRepair.vendorId || '');
+      setMaintenanceType(
+        unresolvedRepair.maintenanceType === 'VENDOR_REPAIR'
+          ? 'VENDOR_REPAIR'
+          : unresolvedRepair.maintenanceType === 'EXTERNAL'
+            ? 'EXTERNAL'
+            : unresolvedRepair.maintenanceType === 'PREVENTIVE'
+              ? 'PREVENTIVE'
+              : 'INHOUSE_REPAIR'
+      );
+      setSelectedVendorId(unresolvedRepair.vendorId || defaultAssetVendorId);
       setExternalCost(unresolvedRepair.totalCost || 0);
       setRepairDetails(`[소모품대기 해제 및 정비 재개]\n• 보류사유: ${unresolvedRepair.unresolvedReason || '소모품 대기'}\n• 소모품 투입 및 정비 완료 조치`);
     } else {
@@ -489,7 +607,7 @@ export const Repairs: React.FC = () => {
       setInboundPhotos([]);
       setInboundMeta(null);
       setMaintenanceType('INHOUSE_REPAIR');
-      setSelectedVendorId('');
+      setSelectedVendorId(defaultAssetVendorId);
       setExternalCost(0);
       const cleanNote = asset.note && !asset.note.startsWith('[정비완료') && asset.note !== '정상 입고 점검 완료' ? asset.note : '';
       setRepairDetails(cleanNote ? `[정비 메모] ${cleanNote}\n` : '');
@@ -610,7 +728,9 @@ export const Repairs: React.FC = () => {
     setSelectedInspectionItemId(item.id);
     setInspectionItemCode(item.code);
     if (item.score) setDegradationScore(item.score);
-    if (item.standardManHours) {
+    if (maintenanceType === 'VENDOR_REPAIR') {
+      setDurationMinutes(0);
+    } else if (item.standardManHours) {
       setDurationMinutes(Math.round(item.standardManHours * 60));
     }
     if (item.actionGuide) {
@@ -653,14 +773,34 @@ export const Repairs: React.FC = () => {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'BEFORE' | 'AFTER') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
     try {
       setIsProcessingImage(true);
-      const compressed = await compressFileIfNeeded(file);
-      if (type === 'BEFORE') setBeforeImage(compressed.base64);
-      else setAfterImage(compressed.base64);
+      if (type === 'BEFORE') {
+        const remainingSlots = Math.max(0, 4 - beforeImages.length);
+        if (remainingSlots <= 0) {
+          showToast('정비 전 사진은 최대 4개까지 업로드 가능합니다.', 'error');
+          setIsProcessingImage(false);
+          e.target.value = '';
+          return;
+        }
+        const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
+        const compressedList: string[] = [];
+        for (const f of filesToProcess) {
+          const compressed = await compressFileIfNeeded(f);
+          if (compressed.base64) compressedList.push(compressed.base64);
+        }
+        setBeforeImages(prev => [...prev, ...compressedList].slice(0, 4));
+        if (fileList.length > remainingSlots) {
+          showToast(`최대 4장 제한으로 ${remainingSlots}장만 추가되었습니다.`);
+        }
+      } else {
+        const compressed = await compressFileIfNeeded(fileList[0]);
+        setAfterImage(compressed.base64);
+      }
       setIsProcessingImage(false);
+      e.target.value = '';
     } catch (err: any) {
       console.error(err);
       showErrorModal(`사진 처리 실패: ${err?.message || err}`);
@@ -668,7 +808,11 @@ export const Repairs: React.FC = () => {
     }
   };
 
-  // ✅ 정비 완료 ➔ AVAILABLE 전환
+  const handleRemoveBeforeImage = (idx: number) => {
+    setBeforeImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // ✅ 정비 완료 ➔ AVAILABLE 전환 (임차처 수리는 외상미수금 고객 청구협상 단계로 자동 등록)
   const handleCompleteRepair = async () => {
     if (isSubmittingRepair) return;
     if (!canSave) return;
@@ -680,45 +824,67 @@ export const Repairs: React.FC = () => {
       showToast('정비 상세 내용 또는 점검 조치 내역을 입력해 주십시오.', 'error');
       return;
     }
+    if (maintenanceType === 'VENDOR_REPAIR' && !(Number(externalCost) > 0)) {
+      showToast('임차처에서 청구받은 수리 금액(정비원가)을 0원보다 크게 입력해 주십시오.', 'error');
+      return;
+    }
 
     setIsSubmittingRepair(true);
     try {
-      const evidenceImages: string[] = [];
-      if (beforeImage) evidenceImages.push(beforeImage);
+      const evidenceImages: string[] = [...beforeImages];
       if (afterImage) evidenceImages.push(afterImage);
+
+      const isVendorRepair = maintenanceType === 'VENDOR_REPAIR';
+      const parsedDuration = isVendorRepair
+        ? Math.max(0, Number(durationMinutes) || 0)
+        : Math.max(0, Number(durationMinutes ?? 30));
+      const finalTotalCost = Math.max(0, Number(totalCost) || 0);
+      const finalBillableType = isVendorRepair ? 'BILLABLE' : billableType;
+      const finalBillableAmount = isVendorRepair
+        ? (Number(billableAmount) > 0 ? Math.round(Number(billableAmount)) : finalTotalCost)
+        : (billableType === 'BILLABLE' ? Math.max(0, Number(billableAmount) || 0) : 0);
+
+      const resolvedCustObj = targetCustomerId ? customers.find(c => c.id === targetCustomerId) : undefined;
+      const resolvedContractObj = targetContractId ? contracts.find(c => c.id === targetContractId) : undefined;
+      const resolvedSiteObj = resolvedContractObj?.siteId ? sites.find(s => s.id === resolvedContractObj.siteId) : undefined;
 
       const payload: Partial<Repair> = {
         id: selectedRepairId || undefined, // 🟢 기존 PENDING 티켓(입고결함 등)이 있으면 업데이트, 없으면 신규
         assetId: selectedAsset.id,
         assetNo: selectedAsset.assetNo,
         modelName: selectedAsset.modelName,
-        workLocation: 'YARD',
+        customerId: targetCustomerId || selectedAssetLookup?.customerId || undefined,
+        customerName: resolvedCustObj?.name || selectedAssetLookup?.customerName || undefined,
+        contractId: targetContractId || selectedAssetLookup?.contractId || undefined,
+        siteId: resolvedSiteObj?.id || selectedAssetLookup?.siteId || undefined,
+        siteName: resolvedSiteObj?.name || selectedAssetLookup?.siteName || undefined,
+        workLocation: isVendorRepair ? 'VENDOR_SHOP' : 'YARD',
         stockSource: 'YARD_STOCK',
         maintenanceType,
-        repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+        repairType: maintenanceType === 'EXTERNAL' || isVendorRepair ? 'EXTERNAL' : 'INTERNAL',
         status: 'COMPLETED',
         targetAssetStatus: 'AVAILABLE',
-        mechanicId: selectedMechanicId || currentUser?.id,
-        vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
+        mechanicId: isVendorRepair ? '' : (selectedMechanicId || currentUser?.id),
+        vendorId: (maintenanceType === 'EXTERNAL' || isVendorRepair) ? (selectedVendorId || selectedAsset.vendorId || undefined) : undefined,
         repairDate,
         requestDate: repairDate,
         details: repairDetails,
-        totalCost: Math.max(0, Number(totalCost) || 0),
-        beforeImage,
+        totalCost: finalTotalCost,
+        beforeImage: beforeImages[0] || '',
         afterImage,
         evidenceImages,
-        billableType,
-        billableAmount: billableType === 'BILLABLE' ? Math.max(0, Number(billableAmount) || 0) : 0,
-        billableToCustomer: billableType === 'BILLABLE',
-        durationMinutes: Math.max(1, Number(durationMinutes) || 30),
-        spentManHours: (Math.max(1, Number(durationMinutes) || 30)) / 60,
+        billableType: finalBillableType,
+        billableAmount: finalBillableAmount,
+        billableToCustomer: finalBillableType === 'BILLABLE',
+        durationMinutes: parsedDuration,
+        spentManHours: parsedDuration / 60,
         inspectionItemId: selectedInspectionItemId || undefined,
         inspectionItemCode: inspectionItemCode || undefined,
         degradationScore,
         inboundNo: inboundMeta?.inboundNo
       };
 
-      if (billableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING')) {
+      if (!isVendorRepair && billableType === 'BILLABLE' && isRuleEnabled('REPAIR_BILLING')) {
         const billAmt = Math.max(0, Number(billableAmount) || 0);
         if (billAmt <= 0) {
           showToast('유상 수리비 청구 금액을 0원보다 크게 입력해 주십시오.', 'error');
@@ -742,9 +908,15 @@ export const Repairs: React.FC = () => {
         });
         showToast(`${selectedAsset.assetNo} 유상 수리비 청구 품의가 상신되었습니다. (전결권자 승인 후 정비 완료 및 청구 반영)`);
       } else {
-        await registerRepair(payload, usedConsumables);
+        await registerRepair(payload, isVendorRepair ? [] : usedConsumables);
         await db.awaitPendingWrites();
-        showToast(`${selectedAsset.assetNo} 정비 완료: '임대가능' 복원 및 소모품 차감 완료`);
+        if (isVendorRepair) {
+          showToast(
+            `${selectedAsset.assetNo} 임차처 수리 등록 완료: 정비원가 ₩${finalTotalCost.toLocaleString()}원 및 사진(${beforeImages.length}장)이 외상미수금 대장에 고객 청구협상 단계로 등록되었습니다.`
+          );
+        } else {
+          showToast(`${selectedAsset.assetNo} 정비 완료: '임대가능' 복원 및 소모품 차감 완료`);
+        }
       }
 
       // 폼 초기화
@@ -755,13 +927,14 @@ export const Repairs: React.FC = () => {
       setInboundMeta(null);
       setRepairDetails('');
       setUsedConsumables([]);
-      setBeforeImage('');
+      setBeforeImages([]);
       setAfterImage('');
       setInspectionItemCode('');
       setSelectedInspectionItemId('');
       setSelectedInspectionItemActionGuide('');
       setDurationMinutes(30);
       setDegradationScore(0);
+      setExternalCost(0);
       setBillableType('FREE');
       setBillableAmount(0);
     } catch (err: any) {
@@ -783,8 +956,7 @@ export const Repairs: React.FC = () => {
 
     setIsSubmittingRepair(true);
     try {
-      const evidenceImages: string[] = [];
-      if (beforeImage) evidenceImages.push(beforeImage);
+      const evidenceImages: string[] = [...beforeImages];
       if (afterImage) evidenceImages.push(afterImage);
 
       const payload: Partial<Repair> = {
@@ -795,18 +967,18 @@ export const Repairs: React.FC = () => {
         workLocation: 'YARD',
         stockSource: 'YARD_STOCK',
         maintenanceType,
-        repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+        repairType: maintenanceType === 'EXTERNAL' || maintenanceType === 'VENDOR_REPAIR' ? 'EXTERNAL' : 'INTERNAL',
         status: 'UNRESOLVED',
         targetAssetStatus: 'REPAIRING',
         unresolvedReason,
         nextAction: 'NONE',
-        mechanicId: selectedMechanicId || currentUser?.id,
-        vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
+        mechanicId: maintenanceType === 'VENDOR_REPAIR' ? '' : (selectedMechanicId || currentUser?.id),
+        vendorId: (maintenanceType === 'EXTERNAL' || maintenanceType === 'VENDOR_REPAIR') ? selectedVendorId : undefined,
         repairDate,
         requestDate: repairDate,
         details: (repairDetails ? repairDetails + '\n' : '') + `[부품대기 사유: ${unresolvedReason}]`,
         totalCost: Math.max(0, Number(totalCost) || 0),
-        beforeImage,
+        beforeImage: beforeImages[0] || '',
         afterImage,
         evidenceImages,
         billableType,
@@ -886,15 +1058,25 @@ export const Repairs: React.FC = () => {
       '순번': idx + 1,
       '접수번호': r.ticketNo || r.id,
       '정비일자': r.repairDate || r.requestDate || '-',
-      '정비구분': r.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' : r.maintenanceType === 'PREVENTIVE' ? '예방점검' : '주기장 내 정비',
+      '정비구분':
+        r.maintenanceType === 'VENDOR_REPAIR'
+          ? '임차처 수리'
+          : r.maintenanceType === 'EXTERNAL'
+            ? '외주공업사 위탁'
+            : r.maintenanceType === 'PREVENTIVE'
+              ? '예방점검'
+              : '주기장 내 정비',
       '자산번호': r.assetNo || getAssetNo(r.assetId),
       '모델명': r.modelName || getAssetModel(r.assetId),
       '정비내용': r.details || '-',
-      '소요시간': r.durationMinutes ? `${r.durationMinutes}분 (${(r.durationMinutes / 60).toFixed(1)}M/H)` : (r.spentManHours ? `${r.spentManHours.toFixed(1)} M/H` : '-'),
+      '소요시간':
+        r.durationMinutes !== undefined && r.durationMinutes !== null
+          ? `${r.durationMinutes}분 (${(r.durationMinutes / 60).toFixed(1)} 시간)`
+          : (r.spentManHours ? `${r.spentManHours.toFixed(1)} 시간` : '-'),
       '미완료사유': r.unresolvedReason || '-',
       '총비용(원)': r.totalCost || 0,
-      '담당자': getMechanicName(r.mechanicId),
-      '외주거래처': r.vendorId ? getVendorName(r.vendorId) : '-',
+      '담당자': getMechanicName(r.mechanicId, r.maintenanceType),
+      '외주/임차거래처': r.vendorId ? getVendorName(r.vendorId) : '-',
       '진행상태': r.status === 'COMPLETED' ? '정비완료' : r.status === 'UNRESOLVED' ? '소모품대기' : '진행중',
       '점검코드': r.inspectionItemCode || '-',
       '정비점수': r.degradationScore ? `${r.degradationScore}점` : '0점',
@@ -1331,12 +1513,13 @@ export const Repairs: React.FC = () => {
                     <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 구분 *</label>
                     <select
                       value={maintenanceType}
-                      onChange={e => setMaintenanceType(e.target.value as any)}
+                      onChange={e => handleMaintenanceTypeChange(e.target.value as any)}
                       style={{ padding: '6px 8px', fontSize: '12.5px' }}
                     >
                       <option value="INHOUSE_REPAIR">주기장 내 정비</option>
                       <option value="PREVENTIVE">예방점검</option>
                       <option value="EXTERNAL">외주공업사 위탁</option>
+                      <option value="VENDOR_REPAIR">임차처 수리</option>
                     </select>
                   </div>
 
@@ -1351,17 +1534,29 @@ export const Repairs: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>담당자지정 *</label>
-                    <select
-                      value={selectedMechanicId}
-                      onChange={e => setSelectedMechanicId(e.target.value)}
-                      style={{ padding: '6px 8px', fontSize: '12.5px' }}
-                    >
-                      <option value="">담당자지정</option>
-                      {eligibleAssignees.map(u => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                      ))}
-                    </select>
+                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap', color: maintenanceType === 'VENDOR_REPAIR' ? 'var(--text-muted)' : 'inherit' }}>
+                      {maintenanceType === 'VENDOR_REPAIR' ? '담당자지정 (불필요)' : '담당자지정 *'}
+                    </label>
+                    {maintenanceType === 'VENDOR_REPAIR' ? (
+                      <select
+                        value=""
+                        disabled
+                        style={{ padding: '6px 8px', fontSize: '12.5px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
+                      >
+                        <option value="">불필요 - 임차처 직접 수리</option>
+                      </select>
+                    ) : (
+                      <select
+                        value={selectedMechanicId}
+                        onChange={e => setSelectedMechanicId(e.target.value)}
+                        style={{ padding: '6px 8px', fontSize: '12.5px' }}
+                      >
+                        <option value="">담당자지정</option>
+                        {eligibleAssignees.map(u => (
+                          <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1392,36 +1587,135 @@ export const Repairs: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2-1. 유무상 청구 구분 및 청구금액 (헌장 3.4 상하 수직 스택) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>유/무상 구분</label>
-                    <select
-                      value={billableType}
-                      onChange={e => setBillableType(e.target.value as any)}
-                      style={{ padding: '6px 8px', fontSize: '12.5px' }}
-                    >
-                      <option value="FREE">무상 (회사부담 / 기본보증)</option>
-                      <option value="BILLABLE">유상 (고객사 청구)</option>
-                    </select>
-                  </div>
-                  {billableType === 'BILLABLE' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: '600', color: '#ea580c', whiteSpace: 'nowrap' }}>고객사 청구금액 (원) *</label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1000}
-                        value={billableAmount}
-                        onChange={e => setBillableAmount(Math.max(0, Number(e.target.value) || 0))}
-                        placeholder="청구 금액 입력"
-                        style={{ padding: '6px 8px', fontSize: '12.5px' }}
-                      />
+                {/* 2-1. 유무상 청구 구분 및 임차처 수리 / 외주 정비 전용 패널 */}
+                {maintenanceType === 'VENDOR_REPAIR' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', padding: '12px', backgroundColor: 'rgba(234, 88, 12, 0.06)', borderRadius: '6px', border: '1.5px solid rgba(234, 88, 12, 0.35)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="badge badge-warning" style={{ fontSize: '11px', fontWeight: 800, backgroundColor: '#ea580c', color: '#fff' }}>임차처 수리 · 고객 청구협상 대상</span>
+                        <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#9a3412' }}>
+                          임차처 청구 수리비 전체가 정비원가로 확정되며, 완료 시 외상미수금(고객 청구협상 대기)에 즉시 등록됩니다.
+                        </span>
+                      </div>
+                      {inferredRentedVendorName && (
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#7c2d12', backgroundColor: '#ffedd5', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fed7aa' }}>
+                          장비 임차처: {inferredRentedVendorName}
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <div />
-                  )}
-                </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>임차처 (수리 수행처)</label>
+                        <select
+                          value={selectedVendorId}
+                          onChange={e => setSelectedVendorId(e.target.value)}
+                          style={{ padding: '6px 8px', fontSize: '12.5px' }}
+                        >
+                          <option value="">{inferredRentedVendorName ? `${inferredRentedVendorName} (자산비고 자동연동)` : '임차처 선택...'}</option>
+                          {vendors.map(v => (
+                            <option key={v.id} value={v.id}>{v.name} ({v.type || '임차/외주처'})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>임차처 청구 수리비 (= 정비원가, 원) *</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={externalCost || ''}
+                          onChange={e => {
+                            const nextCost = Math.max(0, Number(e.target.value) || 0);
+                            const prevCost = externalCost;
+                            setExternalCost(nextCost);
+                            if (billableAmount === 0 || billableAmount === prevCost) {
+                              setBillableAmount(nextCost);
+                            }
+                          }}
+                          placeholder="임차처 청구 금액 입력"
+                          style={{ padding: '6px 8px', fontSize: '12.5px', fontWeight: 700, borderColor: '#f87171' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>청구협상 대상 고객사</label>
+                        <select
+                          value={targetCustomerId}
+                          onChange={e => {
+                            const nextCustId = e.target.value;
+                            setTargetCustomerId(nextCustId);
+                            const matchedContract = contracts.find(c => c.customerId === nextCustId);
+                            if (matchedContract) setTargetContractId(matchedContract.id);
+                          }}
+                          style={{ padding: '6px 8px', fontSize: '12.5px' }}
+                        >
+                          <option value="">
+                            {selectedAssetLookup?.customerName
+                              ? `${selectedAssetLookup.customerName} (최근 대여 이력)`
+                              : '고객사 선택 (미선택 시 대여이력 자동추적)'}
+                          </option>
+                          {customers.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '800', color: '#ea580c', whiteSpace: 'nowrap' }}>고객 청구협상 기준금액 (원)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={billableAmount || ''}
+                          onChange={e => setBillableAmount(Math.max(0, Number(e.target.value) || 0))}
+                          placeholder="미입력 시 정비원가와 동일 적용"
+                          style={{ padding: '6px 8px', fontSize: '12.5px', fontWeight: 700 }}
+                        />
+                      </div>
+                    </div>
+
+                    {(selectedAssetLookup?.siteName || selectedAssetLookup?.contractNo) && (
+                      <div style={{ fontSize: '11px', color: '#7c2d12', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <span>최근 대여 고객사: <strong>{selectedAssetLookup.customerName || '-'}</strong></span>
+                        <span>현장명: <strong>{selectedAssetLookup.siteName || '-'}</strong></span>
+                        <span>계약번호: <strong>{selectedAssetLookup.contractNo || '-'}</strong></span>
+                        <span>영업담당: <strong>{selectedAssetLookup.salespersonName || '-'}</strong></span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>유/무상 구분</label>
+                      <select
+                        value={billableType}
+                        onChange={e => setBillableType(e.target.value as any)}
+                        style={{ padding: '6px 8px', fontSize: '12.5px' }}
+                      >
+                        <option value="FREE">무상 (회사부담 / 기본보증)</option>
+                        <option value="BILLABLE">유상 (고객사 청구)</option>
+                      </select>
+                    </div>
+                    {billableType === 'BILLABLE' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: '600', color: '#ea580c', whiteSpace: 'nowrap' }}>고객사 청구금액 (원) *</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={billableAmount}
+                          onChange={e => setBillableAmount(Math.max(0, Number(e.target.value) || 0))}
+                          placeholder="청구 금액 입력"
+                          style={{ padding: '6px 8px', fontSize: '12.5px' }}
+                        />
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+                )}
 
                 {/* 외주 정비 선택 시 외주업체 및 비용 패널 */}
                 {maintenanceType === 'EXTERNAL' && (
@@ -1519,7 +1813,7 @@ export const Repairs: React.FC = () => {
                                 }}
                               >
                                 <Plus size={10} color="var(--primary)" />
-                                [{item.category}] {item.name} ({item.standardManHours || 0.5} M/H)
+                                [{item.category}] {item.name} ({item.standardManHours || 0.5} 시간)
                               </button>
                             );
                           })}
@@ -1539,18 +1833,18 @@ export const Repairs: React.FC = () => {
                   )}
                 </div>
 
-                {/* 3-1. 정비 소요시간 입력 (분 단위) */}
+                {/* 3-1. 정비 소요시간 입력 (분 단위 - 0분 포함) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>
                       정비 소요시간 *
                     </label>
                     <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>
-                      투입 공수: {(durationMinutes / 60).toFixed(1)} M/H ({durationMinutes}분)
+                      투입 공수: {(durationMinutes / 60).toFixed(1)} 시간 ({durationMinutes}분)
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {[15, 30, 45, 60, 90, 120, 180].map(mins => (
+                    {[0, 15, 30, 45, 60, 90, 120, 180].map(mins => (
                       <button
                         key={mins}
                         type="button"
@@ -1572,10 +1866,10 @@ export const Repairs: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
                       <input
                         type="number"
-                        min={1}
+                        min={0}
                         max={1440}
-                        value={durationMinutes || ''}
-                        onChange={e => setDurationMinutes(Math.max(1, Number(e.target.value) || 0))}
+                        value={durationMinutes}
+                        onChange={e => setDurationMinutes(Math.max(0, Number(e.target.value) || 0))}
                         style={{ width: '65px', padding: '4px 6px', fontSize: '12px', textAlign: 'right' }}
                       />
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>분 직접입력</span>
@@ -1597,111 +1891,168 @@ export const Repairs: React.FC = () => {
                 </div>
 
                 {/* 5. 소모품 투입 관리 그리드 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, whiteSpace: 'nowrap' }}>
-                      <Layers size={14} color="var(--primary)" /> 소모품 투입 관리
-                    </label>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
-                      소모품 투입 합계: {totalConsumablesCost.toLocaleString()}원
-                    </span>
+                {maintenanceType === 'VENDOR_REPAIR' ? (
+                  <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px dashed var(--border-color)', fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>임차처 수리 건은 당사 재고 소모품을 차감하지 않으며, 임차처에서 청구받은 수리 금액 전체가 곧 총 정비 원가로 반영됩니다.</span>
+                    <strong style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>임차처 청구 정비원가: {totalCost.toLocaleString()}원</strong>
                   </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, whiteSpace: 'nowrap' }}>
+                        <Layers size={14} color="var(--primary)" /> 소모품 투입 관리
+                      </label>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                        소모품 투입 합계: {totalConsumablesCost.toLocaleString()}원
+                      </span>
+                    </div>
 
-                  {/* 소모품 선택 입력줄 */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: '8px', alignItems: 'end' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <label style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목 선택</label>
-                      <select
-                        value={tempConsumableId}
-                        onChange={e => setTempConsumableId(e.target.value)}
-                        style={{ padding: '6px', fontSize: '12px' }}
+                    {/* 소모품 선택 입력줄 */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: '8px', alignItems: 'end' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목 선택</label>
+                        <select
+                          value={tempConsumableId}
+                          onChange={e => setTempConsumableId(e.target.value)}
+                          style={{ padding: '6px', fontSize: '12px' }}
+                        >
+                          <option value="">주기장 재고 소모품 선택...</option>
+                          {consumables.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.modelName} (재고: {c.stockQty || 0} {c.unit} | ₩{c.unitPrice.toLocaleString()})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>투입 수량</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={tempConsumableQty}
+                          onChange={e => setTempConsumableQty(Math.max(1, Number(e.target.value) || 1))}
+                          style={{ padding: '6px', fontSize: '12px' }}
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={handleAddConsumable}
+                        style={{ padding: '6px 12px', height: '33px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
-                        <option value="">주기장 재고 소모품 선택...</option>
-                        {consumables.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.modelName} (재고: {c.stockQty || 0} {c.unit} | ₩{c.unitPrice.toLocaleString()})
-                          </option>
-                        ))}
-                      </select>
+                        <Plus size={13} /> 투입
+                      </button>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <label style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>투입 수량</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={tempConsumableQty}
-                        onChange={e => setTempConsumableQty(Math.max(1, Number(e.target.value) || 1))}
-                        style={{ padding: '6px', fontSize: '12px' }}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={handleAddConsumable}
-                      style={{ padding: '6px 12px', height: '33px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      <Plus size={13} /> 투입
-                    </button>
+                    {/* 투입된 소모품 목록 테이블 */}
+                    {usedConsumables.length > 0 && (
+                      <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse', marginTop: '4px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                            <th style={{ textAlign: 'left', padding: '4px', whiteSpace: 'nowrap' }}>품목명</th>
+                            <th style={{ textAlign: 'center', padding: '4px', whiteSpace: 'nowrap' }}>수량</th>
+                            <th style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>단가</th>
+                            <th style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>금액</th>
+                            <th style={{ textAlign: 'center', padding: '4px', width: '40px', whiteSpace: 'nowrap' }}>삭제</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {usedConsumables.map(uc => {
+                            const item = consumableMap.get(uc.consumableId);
+                            const subtotal = (item?.unitPrice || 0) * uc.quantity;
+                            return (
+                              <tr key={uc.consumableId} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                                <td style={{ padding: '4px', fontWeight: '600', whiteSpace: 'nowrap' }}>{item?.modelName || uc.consumableId}</td>
+                                <td style={{ textAlign: 'center', padding: '4px', whiteSpace: 'nowrap' }}>{uc.quantity} {item?.unit}</td>
+                                <td style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>{(item?.unitPrice || 0).toLocaleString()}원</td>
+                                <td style={{ textAlign: 'right', padding: '4px', fontWeight: '600', whiteSpace: 'nowrap' }}>{subtotal.toLocaleString()}원</td>
+                                <td style={{ textAlign: 'center', padding: '4px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveConsumable(uc.consumableId)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px' }}
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
+                )}
 
-                  {/* 투입된 소모품 목록 테이블 */}
-                  {usedConsumables.length > 0 && (
-                    <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse', marginTop: '4px' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                          <th style={{ textAlign: 'left', padding: '4px', whiteSpace: 'nowrap' }}>품목명</th>
-                          <th style={{ textAlign: 'center', padding: '4px', whiteSpace: 'nowrap' }}>수량</th>
-                          <th style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>단가</th>
-                          <th style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>금액</th>
-                          <th style={{ textAlign: 'center', padding: '4px', width: '40px', whiteSpace: 'nowrap' }}>삭제</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {usedConsumables.map(uc => {
-                          const item = consumableMap.get(uc.consumableId);
-                          const subtotal = (item?.unitPrice || 0) * uc.quantity;
-                          return (
-                            <tr key={uc.consumableId} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                              <td style={{ padding: '4px', fontWeight: '600', whiteSpace: 'nowrap' }}>{item?.modelName || uc.consumableId}</td>
-                              <td style={{ textAlign: 'center', padding: '4px', whiteSpace: 'nowrap' }}>{uc.quantity} {item?.unit}</td>
-                              <td style={{ textAlign: 'right', padding: '4px', whiteSpace: 'nowrap' }}>{(item?.unitPrice || 0).toLocaleString()}원</td>
-                              <td style={{ textAlign: 'right', padding: '4px', fontWeight: '600', whiteSpace: 'nowrap' }}>{subtotal.toLocaleString()}원</td>
-                              <td style={{ textAlign: 'center', padding: '4px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveConsumable(uc.consumableId)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px' }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {/* 6. 증빙 사진 (정비 전 / 정비 후) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 전 사진</label>
+                {/* 6. 증빙 사진 (정비 전 최대 4장 / 정비 후 1장) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                        정비 전 사진 (최대 4장 · 현재 {beforeImages.length}/4장)
+                      </label>
+                      {beforeImages.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setBeforeImages([])}
+                          style={{ background: 'none', border: 'none', fontSize: '10.5px', color: 'var(--danger)', cursor: 'pointer', fontWeight: 600 }}
+                        >
+                          전체 비우기
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
+                      disabled={beforeImages.length >= 4}
                       onChange={e => handleImageUpload(e, 'BEFORE')}
                       style={{ fontSize: '11.5px' }}
                     />
-                    {beforeImage && (
-                      <img src={beforeImage} alt="정비 전" style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', marginTop: '4px', border: '1px solid var(--border-color)' }} />
+                    {beforeImages.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginTop: '4px' }}>
+                        {beforeImages.map((imgUrl, idx) => (
+                          <div key={idx} style={{ position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                            <img
+                              src={imgUrl}
+                              alt={`정비 전 ${idx + 1}`}
+                              style={{ width: '100%', height: '68px', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                              onClick={() => window.open(imgUrl, '_blank')}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBeforeImage(idx)}
+                              style={{
+                                position: 'absolute',
+                                top: '2px',
+                                right: '2px',
+                                width: '18px',
+                                height: '18px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(220, 38, 38, 0.85)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10px',
+                                padding: 0
+                              }}
+                              title="사진 삭제"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 후 사진</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>정비 후 사진</label>
                     <input
                       type="file"
                       accept="image/*"
@@ -1709,7 +2060,7 @@ export const Repairs: React.FC = () => {
                       style={{ fontSize: '11.5px' }}
                     />
                     {afterImage && (
-                      <img src={afterImage} alt="정비 후" style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', marginTop: '4px', border: '1px solid var(--border-color)' }} />
+                      <img src={afterImage} alt="정비 후" style={{ width: '100%', height: '68px', objectFit: 'cover', borderRadius: '4px', marginTop: '4px', border: '1px solid var(--border-color)' }} />
                     )}
                   </div>
                 </div>
@@ -1718,6 +2069,11 @@ export const Repairs: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
                   <div style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap' }}>
                     총 정비 원가: <strong style={{ color: 'var(--primary)', fontSize: '15px' }}>{totalCost.toLocaleString()}</strong>원
+                    {maintenanceType === 'VENDOR_REPAIR' && (
+                      <span style={{ marginLeft: '8px', fontSize: '11.5px', color: '#ea580c', fontWeight: 700 }}>
+                        (임차처 청구 수리비 전액 반영 · 고객 청구협상 초기금액: {(billableAmount > 0 ? billableAmount : totalCost).toLocaleString()}원)
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -1731,7 +2087,18 @@ export const Repairs: React.FC = () => {
                       <Clock size={14} /> {isSubmittingRepair ? '처리중...' : '부품 대기 등록'}
                     </button>
 
-                    {maintenanceType === 'EXTERNAL' ? (
+                    {maintenanceType === 'VENDOR_REPAIR' ? (
+                      <button
+                        data-mid="repair-pipeline-add"
+                        type="button"
+                        className="btn-primary"
+                        onClick={handleCompleteRepair}
+                        disabled={!canSave || isProcessingImage || isSubmittingRepair || !repairDetails.trim() || !(Number(externalCost) > 0)}
+                        style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#ea580c', borderColor: '#ea580c', whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : '임차처 수리 완료 · 외상미수금 등록'}
+                      </button>
+                    ) : maintenanceType === 'EXTERNAL' ? (
                       Boolean(repairsByAssetIdMap.get(selectedAsset.id)?.activeExternal) ? (
                         <button
                           data-mid="repair-pipeline-add"
@@ -1805,6 +2172,7 @@ export const Repairs: React.FC = () => {
                 <option value="INHOUSE_REPAIR">주기장 내 정비</option>
                 <option value="PREVENTIVE">예방점검</option>
                 <option value="EXTERNAL">외주공업사 위탁</option>
+                <option value="VENDOR_REPAIR">임차처 수리</option>
               </select>
             </div>
 
@@ -1894,7 +2262,7 @@ export const Repairs: React.FC = () => {
                   </tr>
                 ) : (
                   sortedLedgerRepairs.map((r, idx) => {
-                    const photos = [r.beforeImage, r.afterImage, ...(r.evidenceImages || []), r.faultImageUrl].filter(Boolean) as string[];
+                    const photos = Array.from(new Set([r.beforeImage, r.afterImage, ...(r.evidenceImages || []), r.faultImageUrl].filter(Boolean))) as string[];
 
                     return (
                       <tr
@@ -1906,10 +2274,12 @@ export const Repairs: React.FC = () => {
                         <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{r.repairDate || r.requestDate}</td>
                         <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
                           <span className={`badge ${
+                            r.maintenanceType === 'VENDOR_REPAIR' ? 'badge-danger' :
                             r.maintenanceType === 'EXTERNAL' ? 'badge-warning' :
                             r.maintenanceType === 'PREVENTIVE' ? 'badge-info' : 'badge-secondary'
                           }`} style={{ fontSize: '10.5px' }}>
-                            {r.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' :
+                            {r.maintenanceType === 'VENDOR_REPAIR' ? '임차처 수리' :
+                             r.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' :
                              r.maintenanceType === 'PREVENTIVE' ? '예방점검' : '주기장 내 정비'}
                           </span>
                         </td>
@@ -1926,9 +2296,9 @@ export const Repairs: React.FC = () => {
                           <span style={{ fontSize: '12px' }}>{r.details}</span>
                         </td>
                         <td style={{ padding: '8px', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '11.5px' }}>
-                          {r.durationMinutes
-                            ? `${r.durationMinutes}분 (${(r.durationMinutes / 60).toFixed(1)}M/H)`
-                            : (r.spentManHours ? `${r.spentManHours.toFixed(1)} M/H` : '-')}
+                          {r.durationMinutes !== undefined && r.durationMinutes !== null
+                            ? `${r.durationMinutes}분 (${(r.durationMinutes / 60).toFixed(1)} 시간)`
+                            : (r.spentManHours ? `${r.spentManHours.toFixed(1)} 시간` : '-')}
                         </td>
                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: '700', whiteSpace: 'nowrap' }}>
                           {(r.totalCost || 0).toLocaleString()}원
@@ -1939,7 +2309,7 @@ export const Repairs: React.FC = () => {
                         <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: r.degradationScore ? '#d97706' : 'var(--text-muted)', fontWeight: r.degradationScore ? 700 : 400, whiteSpace: 'nowrap' }}>
                           {r.degradationScore ? `${r.degradationScore}점` : '-'}
                         </td>
-                        <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{getMechanicName(r.mechanicId)}</td>
+                        <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{getMechanicName(r.mechanicId, r.maintenanceType)}</td>
                         <td style={{ padding: '8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {photos.length > 0 ? (
                             <button
@@ -2098,7 +2468,7 @@ export const Repairs: React.FC = () => {
                 <div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>정비구분 / 상태</div>
                   <span style={{ fontWeight: '700' }}>
-                    {selectedDetailRepair.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' : selectedDetailRepair.maintenanceType === 'PREVENTIVE' ? '예방점검' : '주기장 내 정비'} ({selectedDetailRepair.status})
+                    {selectedDetailRepair.maintenanceType === 'VENDOR_REPAIR' ? '임차처 수리' : selectedDetailRepair.maintenanceType === 'EXTERNAL' ? '외주공업사 위탁' : selectedDetailRepair.maintenanceType === 'PREVENTIVE' ? '예방점검' : '주기장 내 정비'} ({selectedDetailRepair.status === 'COMPLETED' ? '완료' : selectedDetailRepair.status === 'UNRESOLVED' ? '미완료' : '진행중'})
                   </span>
                 </div>
                 <div>
@@ -2107,7 +2477,7 @@ export const Repairs: React.FC = () => {
                 </div>
                 <div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>담당자</div>
-                  <span>{getMechanicName(selectedDetailRepair.mechanicId)}</span>
+                  <span>{getMechanicName(selectedDetailRepair.mechanicId, selectedDetailRepair.maintenanceType)}</span>
                 </div>
                 <div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>점검코드 / 정비점수</div>
@@ -2141,22 +2511,40 @@ export const Repairs: React.FC = () => {
                 </strong>
               </div>
 
-              {(selectedDetailRepair.beforeImage || selectedDetailRepair.afterImage) && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-                  {selectedDetailRepair.beforeImage && (
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>정비 전 사진</div>
-                      <img src={selectedDetailRepair.beforeImage} alt="정비 전" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '4px' }} />
-                    </div>
-                  )}
-                  {selectedDetailRepair.afterImage && (
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>정비 후 사진</div>
-                      <img src={selectedDetailRepair.afterImage} alt="정비 후" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '4px' }} />
-                    </div>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const detailBeforePhotos = Array.from(
+                  new Set([selectedDetailRepair.beforeImage, ...(selectedDetailRepair.evidenceImages || [])].filter(Boolean))
+                ) as string[];
+                if (detailBeforePhotos.length === 0 && !selectedDetailRepair.afterImage) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                    {detailBeforePhotos.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                          정비 전 사진 ({detailBeforePhotos.length}장)
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(4, detailBeforePhotos.length)}, 1fr)`, gap: '6px' }}>
+                          {detailBeforePhotos.slice(0, 4).map((url, i) => (
+                            <img
+                              key={i}
+                              src={url}
+                              alt={`정비 전 ${i + 1}`}
+                              style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                              onClick={() => window.open(url, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedDetailRepair.afterImage && (
+                      <div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>정비 후 사진</div>
+                        <img src={selectedDetailRepair.afterImage} alt="정비 후" style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '4px' }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setSelectedDetailRepair(null)} style={{ padding: '6px 14px', fontSize: '12px' }}>
@@ -2172,12 +2560,18 @@ export const Repairs: React.FC = () => {
       {/* 모달 3: 정비 증빙 사진 라이트박스 뷰어                                   */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {viewingPhotoRepair && (() => {
-        const photos = [
+        const seen = new Set<string>();
+        const rawPhotos = [
+          ...(viewingPhotoRepair.evidenceImages || []).map((img, i) => ({ label: `정비 전 / 파손 증빙 사진 ${i + 1}`, url: img })),
           { label: '정비 전 사진', url: viewingPhotoRepair.beforeImage },
           { label: '정비 후 사진', url: viewingPhotoRepair.afterImage },
-          ...(viewingPhotoRepair.evidenceImages || []).map((img, i) => ({ label: `입고/결함 증빙 ${i + 1}`, url: img })),
           { label: '결함 사진', url: viewingPhotoRepair.faultImageUrl }
-        ].filter(p => !!p.url);
+        ];
+        const photos = rawPhotos.filter(p => {
+          if (!p.url || seen.has(p.url)) return false;
+          seen.add(p.url);
+          return true;
+        });
 
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
@@ -2195,7 +2589,7 @@ export const Repairs: React.FC = () => {
               </div>
 
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                <strong>정비일자:</strong> {viewingPhotoRepair.repairDate || viewingPhotoRepair.requestDate} | <strong>모델:</strong> {viewingPhotoRepair.modelName || getAssetModel(viewingPhotoRepair.assetId)} | <strong>담당:</strong> {getMechanicName(viewingPhotoRepair.mechanicId)}
+                <strong>정비일자:</strong> {viewingPhotoRepair.repairDate || viewingPhotoRepair.requestDate} | <strong>모델:</strong> {viewingPhotoRepair.modelName || getAssetModel(viewingPhotoRepair.assetId)} | <strong>담당:</strong> {getMechanicName(viewingPhotoRepair.mechanicId, viewingPhotoRepair.maintenanceType)}
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: photos.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px', padding: '4px' }}>

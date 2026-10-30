@@ -106,8 +106,10 @@ async function drawSymptomCard(
 ): Promise<number> {
   const cardX = 64;
   const cardW = CANVAS_W - 128;
-  const hasPhotos = Array.isArray(item.photos) && item.photos.length > 0;
-  const cardH = hasPhotos ? 390 : 140;
+  const photos = Array.isArray(item.photos) ? item.photos.filter(Boolean).slice(0, 4) : [];
+  const hasPhotos = photos.length > 0;
+  const photoRows = photos.length > 2 ? 2 : hasPhotos ? 1 : 0;
+  const cardH = photoRows === 2 ? 656 : photoRows === 1 ? 390 : 140;
 
   drawRoundedRect(ctx, cardX, y, cardW, cardH, 12, '#F8FAFC', '#CBD5E1', 2);
 
@@ -172,15 +174,18 @@ async function drawSymptomCard(
     );
   }
 
-  // 사진 최대 2장 렌더링
+  // 사진 최대 4장 (2열 × 최대 2행) 렌더링
   if (hasPhotos) {
-    const photos = item.photos.slice(0, 2);
     const photoBoxW = (cardW - 64) / 2;
     const photoBoxH = 250;
-    const photoY = y + 114;
+    const basePhotoY = y + 114;
+    const slotCount = photoRows * 2;
 
-    for (let pIdx = 0; pIdx < 2; pIdx++) {
-      const photoX = cardX + 22 + pIdx * (photoBoxW + 20);
+    for (let pIdx = 0; pIdx < slotCount; pIdx++) {
+      const col = pIdx % 2;
+      const row = Math.floor(pIdx / 2);
+      const photoX = cardX + 22 + col * (photoBoxW + 20);
+      const photoY = basePhotoY + row * (photoBoxH + 16);
       drawRoundedRect(ctx, photoX, photoY, photoBoxW, photoBoxH, 10, '#FFFFFF', '#CBD5E1', 1.5);
 
       const src = photos[pIdx];
@@ -220,7 +225,7 @@ async function drawSymptomCard(
         ctx.font = `500 16px ${FONT_FAMILY}`;
         ctx.textAlign = 'center';
         ctx.fillText(
-          `추가 사진 미첨부 (${pIdx + 1}/2)`,
+          `추가 사진 미첨부 (${pIdx + 1}/${slotCount})`,
           photoX + photoBoxW / 2,
           photoY + photoBoxH / 2
         );

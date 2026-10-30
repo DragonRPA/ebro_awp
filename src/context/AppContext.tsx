@@ -10697,7 +10697,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         0,
         Math.round(Number(item.agreedCost !== undefined ? item.agreedCost : item.estimatedCost) || 0)
       ),
-      photos: Array.isArray(item.photos) ? item.photos.filter(Boolean).slice(0, 2) : [],
+      photos: Array.isArray(item.photos) ? item.photos.filter(Boolean).slice(0, 4) : [],
       memo: (item.memo || '').trim()
     }));
 
@@ -10948,7 +10948,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     ).map((item, idx) => ({
       ...item,
       id: item.id || `DEF-${idx + 1}`,
-      photos: Array.isArray(item.photos) ? item.photos.filter(Boolean).slice(0, 2) : [],
+      photos: Array.isArray(item.photos) ? item.photos.filter(Boolean).slice(0, 4) : [],
       estimatedCost: Math.max(0, Math.round(Number(item.estimatedCost) || 0)),
       agreedCost:
         item.agreedCost !== undefined
@@ -10963,6 +10963,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           ? `[수리비 합의완료] ${currentMeta?.assetNo || rcv.assetNo || ''} 입고 파손·불량 수리비 (${updatedDefectItems.length}건)`
           : rcv.displayName;
 
+    const refVendorCost = currentMeta?.vendorBilledCost ?? currentMeta?.initialEstimatedAmount ?? rcv.totalAmount;
+    const derivedStrategy: 'MARKUP' | 'AT_COST' | 'LOSS_DISCOUNT' =
+      newTotalAmount > refVendorCost
+        ? 'MARKUP'
+        : newTotalAmount < refVendorCost
+          ? 'LOSS_DISCOUNT'
+          : 'AT_COST';
+
     const updatedMeta: InboundDefectClaimMeta = {
       ...currentMeta,
       kind: 'INBOUND_DEFECT_CLAIM_V1',
@@ -10973,6 +10981,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       modelName: currentMeta?.modelName || '',
       ownerType: currentMeta?.ownerType,
       vendorName: currentMeta?.vendorName,
+      isVendorRepair: currentMeta?.isVendorRepair,
+      vendorBilledCost: currentMeta?.vendorBilledCost,
+      negotiationPricingStrategy: derivedStrategy,
       customerId: rcv.customerId || currentMeta?.customerId,
       customerName: currentMeta?.customerName || '미지정 고객',
       siteId: currentMeta?.siteId,
@@ -13704,54 +13715,141 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     await db.awaitPendingWrites(); refreshAllData(); };
 
   const registerRepair = async (repairData: Partial<Repair>, usedConsumables: { consumableId: string; quantity: number }[]) => {
+    const nowIso = new Date().toISOString();
+    const todayStr = nowIso.split('T')[0];
     const repairId = repairData.id || db.generateNextId('repairs', db.repairs);
-    const totalRepairCost = repairData.totalCost ?? 0;
+    const totalRepairCost = Math.max(0, Number(repairData.totalCost) || 0);
     const maintenanceType = repairData.maintenanceType || (repairData.repairType === 'EXTERNAL' ? 'EXTERNAL' : 'INHOUSE_REPAIR');
+    const isVendorRepair = maintenanceType === 'VENDOR_REPAIR';
     const repairStatus = repairData.status || 'COMPLETED';
 
     const targetAsset = db.assets.find(a => a.id === repairData.assetId);
+    let resolvedCustomerId = repairData.customerId || '';
     let resolvedCustomerName = repairData.customerName || '';
+    let resolvedSiteId = repairData.siteId || '';
     let resolvedSiteName = repairData.siteName || '';
+    let resolvedSiteAddress = repairData.siteAddress || '';
     let resolvedContractId = repairData.contractId;
 
-    // 대여중 장비인 경우 현재 계약의 고객사/현장 자동 매핑
+    // 1. 대여중 장비인 경우 현재 계약의 고객사/현장 자동 매핑
     if (targetAsset && targetAsset.status === 'RENTED') {
       const activeContractAsset = db.contractAssets.find(ca => ca.assetId === targetAsset.id && ca.status !== 'RETURNED');
       if (activeContractAsset) {
         const activeContract = db.contracts.find(c => c.id === activeContractAsset.contractId);
         if (activeContract) {
           resolvedContractId = resolvedContractId || activeContract.id;
+          resolvedCustomerId = resolvedCustomerId || activeContract.customerId;
+          resolvedSiteId = resolvedSiteId || activeContract.siteId || '';
           const cust = db.customers.find(cu => cu.id === activeContract.customerId);
           const st = db.sites.find(s => s.id === activeContract.siteId);
-          resolvedCustomerName = cust?.name || resolvedCustomerName;
-          resolvedSiteName = st?.name || resolvedSiteName;
+          resolvedCustomerName = resolvedCustomerName || cust?.name || '';
+          resolvedSiteName = resolvedSiteName || st?.name || '';
+          resolvedSiteAddress = resolvedSiteAddress || st?.address || '';
         }
       }
     }
+
+    // 2. 입고검수대기/정비중 장비인 경우 최근 입고·대여 이력에서 고객사/계약/현장/임차처 역추적
+    const autoLookup = lookupRecentInboundInfoByAsset(targetAsset?.assetNo || repairData.assetNo || '', {
+      assets: db.assets,
+      assetInOutLogs: db.assetInOutLogs,
+      contractAssets: db.contractAssets,
+      contracts: db.contracts,
+      deliveries: db.deliveries,
+      repairs: db.repairs,
+      customers: db.customers,
+      sites: db.sites,
+      users: db.users,
+      vendors: db.vendors
+    });
+
+    if (autoLookup) {
+      if (!resolvedContractId && autoLookup.contractId) resolvedContractId = autoLookup.contractId;
+      if (!resolvedCustomerId && autoLookup.customerId) resolvedCustomerId = autoLookup.customerId;
+      if (!resolvedCustomerName && autoLookup.customerName && autoLookup.customerName !== '미지정 고객') {
+        resolvedCustomerName = autoLookup.customerName;
+      }
+      if (!resolvedSiteId && autoLookup.siteId) resolvedSiteId = autoLookup.siteId;
+      if (!resolvedSiteName && autoLookup.siteName && autoLookup.siteName !== '미지정 현장') {
+        resolvedSiteName = autoLookup.siteName;
+      }
+      if (!resolvedSiteAddress && autoLookup.siteAddress) resolvedSiteAddress = autoLookup.siteAddress;
+    }
+
+    // 계약 ID나 고객 ID가 명시된 경우 고객명/현장명 보완
+    if (resolvedContractId) {
+      const cObj = db.contracts.find(c => c.id === resolvedContractId);
+      if (cObj) {
+        if (!resolvedCustomerId) resolvedCustomerId = cObj.customerId;
+        if (!resolvedSiteId && cObj.siteId) resolvedSiteId = cObj.siteId;
+      }
+    }
+    if (resolvedCustomerId && !resolvedCustomerName) {
+      const cuObj = db.customers.find(cu => cu.id === resolvedCustomerId);
+      if (cuObj) resolvedCustomerName = cuObj.name;
+    }
+    if (resolvedSiteId && !resolvedSiteName) {
+      const stObj = db.sites.find(s => s.id === resolvedSiteId);
+      if (stObj) {
+        resolvedSiteName = stObj.name;
+        if (!resolvedSiteAddress && stObj.address) resolvedSiteAddress = stObj.address;
+      }
+    }
+
+    const effectiveMechanicId = isVendorRepair
+      ? (repairData.mechanicId || '')
+      : (repairData.mechanicId || currentUser?.id || '');
+    const effectiveDurationMinutes = isVendorRepair
+      ? (repairData.durationMinutes !== undefined ? repairData.durationMinutes : 0)
+      : repairData.durationMinutes;
+    const effectiveSpentManHours =
+      repairData.spentManHours !== undefined
+        ? repairData.spentManHours
+        : effectiveDurationMinutes !== undefined
+          ? effectiveDurationMinutes / 60
+          : undefined;
+    const effectiveBillableType = isVendorRepair
+      ? 'BILLABLE'
+      : (repairData.billableType || (repairData.billableToCustomer ? 'BILLABLE' : 'FREE'));
+    const effectiveBillableAmount = isVendorRepair
+      ? (repairData.billableAmount && repairData.billableAmount > 0 ? repairData.billableAmount : totalRepairCost)
+      : (repairData.billableAmount || 0);
 
     if (repairData.id) {
       db.updateRow<Repair>('repairs', repairData.id, {
         ...repairData,
         contractId: resolvedContractId,
-        maintenanceType,
-        status: repairStatus,
+        customerId: resolvedCustomerId || undefined,
         customerName: resolvedCustomerName,
+        siteId: resolvedSiteId || undefined,
         siteName: resolvedSiteName,
-        updatedAt: new Date().toISOString()
+        siteAddress: resolvedSiteAddress || undefined,
+        mechanicId: effectiveMechanicId,
+        maintenanceType,
+        repairType: repairData.repairType || (maintenanceType === 'EXTERNAL' || isVendorRepair ? 'EXTERNAL' : 'INTERNAL'),
+        durationMinutes: effectiveDurationMinutes,
+        spentManHours: effectiveSpentManHours,
+        totalCost: totalRepairCost,
+        billableType: effectiveBillableType,
+        billableAmount: effectiveBillableAmount,
+        billableToCustomer: effectiveBillableType === 'BILLABLE',
+        status: repairStatus,
+        updatedAt: nowIso
       });
     } else {
       db.insertRow<Repair>('repairs', {
         id: repairId,
         contractId: resolvedContractId,
+        customerId: resolvedCustomerId || undefined,
         assetId: repairData.assetId || '',
         assetNo: targetAsset?.assetNo || repairData.assetNo || '현장확인',
         modelName: targetAsset?.modelName || repairData.modelName || '고소작업대',
-        mechanicId: repairData.mechanicId || currentUser?.id || '',
+        mechanicId: effectiveMechanicId,
         maintenanceType,
-        repairType: repairData.repairType || (maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL'),
-        requestDate: repairData.requestDate || new Date().toISOString().split('T')[0],
+        repairType: repairData.repairType || (maintenanceType === 'EXTERNAL' || isVendorRepair ? 'EXTERNAL' : 'INTERNAL'),
+        requestDate: repairData.requestDate || todayStr,
         scheduleDate: repairData.scheduleDate,
-        repairDate: repairData.repairDate || new Date().toISOString().split('T')[0],
+        repairDate: repairData.repairDate || todayStr,
         status: repairStatus,
         unresolvedReason: repairData.unresolvedReason,
         nextAction: repairData.nextAction,
@@ -13759,29 +13857,229 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         vendorId: repairData.vendorId,
         details: repairData.details || '',
         totalCost: totalRepairCost,
-        billableType: repairData.billableType || (repairData.billableToCustomer ? 'BILLABLE' : 'FREE'),
-        billableAmount: repairData.billableAmount || 0,
-        billableToCustomer: repairData.billableType === 'BILLABLE' || repairData.billableToCustomer || false,
+        billableType: effectiveBillableType,
+        billableAmount: effectiveBillableAmount,
+        billableToCustomer: effectiveBillableType === 'BILLABLE',
         inspectionItemId: repairData.inspectionItemId,
         inspectionItemCode: repairData.inspectionItemCode,
         degradationScore: repairData.degradationScore || 0,
-        durationMinutes: repairData.durationMinutes,
-        spentManHours: repairData.spentManHours ?? (repairData.durationMinutes ? repairData.durationMinutes / 60 : undefined),
+        durationMinutes: effectiveDurationMinutes,
+        spentManHours: effectiveSpentManHours,
         beforeImage: repairData.beforeImage || '',
         afterImage: repairData.afterImage || '',
         evidenceImages: repairData.evidenceImages || [],
-        workLocation: repairData.workLocation || 'YARD',
+        workLocation: repairData.workLocation || (isVendorRepair ? 'VENDOR_SHOP' : 'YARD'),
         stockSource: repairData.stockSource || 'YARD_STOCK',
         customerName: resolvedCustomerName,
+        siteId: resolvedSiteId || undefined,
         siteName: resolvedSiteName,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        siteAddress: resolvedSiteAddress || undefined,
+        memo: repairData.memo,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    // 🌟 자산 상태 전이(AVAILABLE / REPAIRING) 및 누적 수리원가(cumRepairCost), 입출고 이력(assetInOutLogs) 반영
+    if (targetAsset) {
+      const nextAssetStatus = repairData.targetAssetStatus || targetAsset.status;
+      const nextCumRepairCost = (targetAsset.cumRepairCost || 0) + totalRepairCost;
+      db.updateRow<Asset>('assets', targetAsset.id, {
+        status: nextAssetStatus,
+        maintenanceScore: nextAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
+        cumRepairCost: nextCumRepairCost,
+        updatedAt: nowIso
+      });
+      db.insertRow<AssetInOutLog>('assetInOutLogs', {
+        assetId: targetAsset.id,
+        assetNo: targetAsset.assetNo,
+        modelName: targetAsset.modelName,
+        type: 'REPAIR',
+        eventDate: repairData.repairDate || todayStr,
+        customerId: resolvedCustomerId || undefined,
+        customerName: resolvedCustomerName || undefined,
+        siteId: resolvedSiteId || undefined,
+        siteName: resolvedSiteName || undefined,
+        repairId,
+        maintenanceScore: nextAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
+        memo: isVendorRepair
+          ? `[임차처 수리 등록] 정비원가 ₩${totalRepairCost.toLocaleString()} / ${repairData.details || ''} ➔ 외상미수금 고객 청구협상 이관`
+          : `[주기장 정비 ${repairStatus}] 정비원가 ₩${totalRepairCost.toLocaleString()} / ${repairData.details || ''}`,
+        createdAt: nowIso
+      });
+    }
+
+    // 🌟 [임차처 수리 및 유상 수리 외상미수금 자동 등록 & 고객 청구 협상 단계 연동]
+    const shouldRegisterReceivable =
+      repairStatus === 'COMPLETED' &&
+      (isVendorRepair || (effectiveBillableType === 'BILLABLE' && (effectiveBillableAmount > 0 || totalRepairCost > 0)));
+
+    if (shouldRegisterReceivable) {
+      const assetNoStr = targetAsset?.assetNo || repairData.assetNo || '장비';
+      const modelNameStr = targetAsset?.modelName || repairData.modelName || '';
+      const resolvedVendorObj = repairData.vendorId
+        ? db.vendors.find(v => v.id === repairData.vendorId)
+        : targetAsset?.vendorId
+          ? db.vendors.find(v => v.id === targetAsset.vendorId)
+          : undefined;
+      const resolvedVendorName =
+        resolvedVendorObj?.name ||
+        targetAsset?.renter ||
+        targetAsset?.supplier ||
+        autoLookup?.vendorName ||
+        (isVendorRepair ? '임차처' : undefined);
+
+      // 정비 전 사진 (최대 4장) 추출
+      const rawBeforePhotos = Array.isArray(repairData.evidenceImages) && repairData.evidenceImages.length > 0
+        ? repairData.evidenceImages.filter(img => img && img !== repairData.afterImage)
+        : repairData.beforeImage
+          ? [repairData.beforeImage]
+          : [];
+      const beforePhotos = rawBeforePhotos.filter(Boolean).slice(0, 4);
+
+      const existingRcv = db.receivables.find(r => r.repairId === repairId);
+      const receivableId = existingRcv ? existingRcv.id : db.generateNextId('RCV', db.receivables);
+      const initialClaimAmount = effectiveBillableAmount > 0 ? effectiveBillableAmount : totalRepairCost;
+      const vendorCostRef = totalRepairCost > 0 ? totalRepairCost : initialClaimAmount;
+
+      const pricingStrategy: 'MARKUP' | 'AT_COST' | 'LOSS_DISCOUNT' =
+        initialClaimAmount > vendorCostRef
+          ? 'MARKUP'
+          : initialClaimAmount < vendorCostRef
+            ? 'LOSS_DISCOUNT'
+            : 'AT_COST';
+
+      const displayCustomerName = resolvedCustomerName || autoLookup?.customerName || '고객사 협의대상';
+      const displaySiteName = resolvedSiteName || autoLookup?.siteName || '현장 미지정';
+      const categoryLabel = isVendorRepair ? '임차처 수리' : (repairData.inspectionItemCode || '입고 파손 수리');
+      const symptomTitle = (repairData.details || '입고 장비 파손 수리').split('\n')[0].replace(/^[•\-\s]+/, '').trim() || '입고 장비 파손 수리';
+
+      const defectItems: InboundClaimDefectItem[] = [
+        {
+          id: 'DEF-1',
+          checkitemId: repairData.inspectionItemId || undefined,
+          category: categoryLabel,
+          symptomName: symptomTitle,
+          estimatedCost: vendorCostRef,
+          agreedCost: initialClaimAmount,
+          photos: beforePhotos,
+          memo: repairData.details || ''
+        }
+      ];
+
+      const displayName = isVendorRepair
+        ? `[임차장비 파손수리비] ${assetNoStr}${modelNameStr ? `(${modelNameStr})` : ''} 입고 파손 수리비`
+        : `[수리비 청구] ${assetNoStr}${modelNameStr ? `(${modelNameStr})` : ''} 입고 파손·불량 수리비`;
+
+      const internalDescription = isVendorRepair
+        ? `[임차처 수리 · 청구협상] #${assetNoStr} (${resolvedVendorName || '임차처'} 청구원가: ₩${vendorCostRef.toLocaleString()}) - ${symptomTitle}`
+        : `[입고파손 수리비] #${assetNoStr} (정비원가: ₩${vendorCostRef.toLocaleString()}) - ${symptomTitle}`;
+
+      const claimMeta: InboundDefectClaimMeta = {
+        kind: 'INBOUND_DEFECT_CLAIM_V1',
+        receivableId,
+        repairId,
+        assetId: targetAsset?.id || repairData.assetId,
+        assetNo: assetNoStr,
+        modelName: modelNameStr,
+        ownerType: isVendorRepair || targetAsset?.ownerType === 'RENTED' ? 'RENTED' : 'OWN',
+        vendorName: resolvedVendorName,
+        isVendorRepair,
+        vendorBilledCost: vendorCostRef,
+        negotiationPricingStrategy: pricingStrategy,
+        customerId: resolvedCustomerId || autoLookup?.customerId || undefined,
+        customerName: displayCustomerName,
+        siteId: resolvedSiteId || autoLookup?.siteId || undefined,
+        siteName: displaySiteName,
+        siteAddress: resolvedSiteAddress || autoLookup?.siteAddress || '',
+        contractId: resolvedContractId || autoLookup?.contractId || undefined,
+        contractNo: autoLookup?.contractNo || undefined,
+        outboundDate: autoLookup?.outboundDate || undefined,
+        inboundDate: repairData.repairDate || autoLookup?.inboundDate || todayStr,
+        billingDay: autoLookup?.billingDay,
+        salespersonId: autoLookup?.salespersonId || undefined,
+        salespersonName: autoLookup?.salespersonName || undefined,
+        customerContactName: autoLookup?.customerContactName || undefined,
+        customerPhone: autoLookup?.customerPhone || undefined,
+        customerEmail: autoLookup?.customerEmail || undefined,
+        registeredById: currentUser?.id,
+        registeredByName: currentUser?.name || '정비팀',
+        registeredAt: existingRcv?.createdAt || nowIso,
+        inspectorMemo: repairData.details || '',
+        displayName,
+        initialEstimatedAmount: vendorCostRef,
+        agreedAmount: initialClaimAmount,
+        negotiationStatus: 'PENDING_NEGOTIATION',
+        negotiationMemo: repairData.memo || '',
+        defectItems
+      };
+
+      // Repair 레코드에 defectsJson 동기화
+      db.updateRow<Repair>('repairs', repairId, {
+        defectsJson: JSON.stringify(claimMeta),
+        updatedAt: nowIso
+      } as any);
+
+      if (existingRcv) {
+        db.updateRow<Receivable>('receivables', receivableId, {
+          contractId: claimMeta.contractId,
+          customerId: claimMeta.customerId,
+          assetNo: assetNoStr,
+          vendorName: resolvedVendorName,
+          type: 'REPAIR',
+          totalAmount: Math.max(existingRcv.billedAmount || 0, initialClaimAmount),
+          internalDescription,
+          displayName,
+          occurredDate: repairData.repairDate || todayStr,
+          repairId,
+          claimMeta,
+          updatedAt: nowIso
+        });
+      } else {
+        db.insertRow<Receivable>('receivables', {
+          id: receivableId,
+          contractId: claimMeta.contractId,
+          customerId: claimMeta.customerId,
+          assetNo: assetNoStr,
+          vendorName: resolvedVendorName,
+          type: 'REPAIR',
+          totalAmount: initialClaimAmount,
+          billedAmount: 0,
+          internalDescription,
+          displayName,
+          occurredDate: repairData.repairDate || todayStr,
+          status: 'PENDING',
+          repairId,
+          claimMeta,
+          createdAt: nowIso,
+          updatedAt: nowIso
+        });
+      }
+
+      saveLocalClaimMetaCache(receivableId, claimMeta);
+
+      await issueHandoverTask({
+        category: 'CLAIM_DAMAGE_BILLING',
+        title: isVendorRepair
+          ? `[임차처 수리비 고객 청구협상] ${displayCustomerName} (${assetNoStr}) - 임차처원가 ₩${vendorCostRef.toLocaleString()}`
+          : `[입고파손 수리비 고객 청구협상] ${displayCustomerName} (${assetNoStr}) - ₩${initialClaimAmount.toLocaleString()}`,
+        content: isVendorRepair
+          ? `임차장비(${assetNoStr}, 임차처: ${resolvedVendorName || '-'}) 파손에 대해 임차처 청구 수리원가 ₩${vendorCostRef.toLocaleString()}원 및 상태 사진(${beforePhotos.length}장)이 외상미수금에 등록되었습니다. 고객에게 얼마를 청구할지(추가금 가산 / 원가 동일 / 손실 감수 감액) 협의하여 확정해 주십시오.`
+          : `입고 파손 수리비(₩${initialClaimAmount.toLocaleString()}) 및 사진(${beforePhotos.length}장)이 외상미수금에 등록되었습니다. 고객 협의 후 청구 금액을 확정해 주십시오.`,
+        priority: 'HIGH',
+        targetDept: 'SALES',
+        assignedUserId: claimMeta.salespersonId || undefined,
+        dueDate: todayStr,
+        actionUrl: '/receivables',
+        entityType: 'RECEIVABLE',
+        entityId: receivableId,
+        senderId: currentUser?.id,
+        senderName: currentUser?.name || '정비팀'
       });
     }
 
     // 소모품 재고 차감: 주기장 정비이거나 stockSource가 YARD_STOCK/CENTRAL_HQ인 경우 주기장 재고에서 우선 차감
     const isYardDepotRepair = repairData.workLocation === 'YARD' || repairData.stockSource === 'YARD_STOCK' || repairData.stockSource === 'CENTRAL_HQ' || maintenanceType === 'INHOUSE_REPAIR';
-    const effectiveMechanicId = repairData.mechanicId || currentUser?.id;
     const mechanic = db.users.find(u => u.id === effectiveMechanicId);
     const mechanicName = mechanic?.name || '정비사';
 

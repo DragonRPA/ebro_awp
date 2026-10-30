@@ -841,7 +841,7 @@ export const Receivables: React.FC = () => {
                             style={{ fontSize: '11px', padding: '2px 8px', color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.35)', fontWeight: 700 }}
                             onClick={() => handleOpenClaimModal(r)}
                           >
-                            수리비 협상·PDF
+                            수리비 협상 · 내역서
                           </button>
                         )}
                         {r.status !== 'CLEARED' ? (
@@ -913,9 +913,19 @@ export const Receivables: React.FC = () => {
                           #{r.assetNo || claimMeta?.assetNo}{claimMeta?.modelName ? ` (${claimMeta.modelName})` : ''}
                         </span>
                       )}
-                      {claimMeta?.ownerType === 'RENTED' && claimMeta?.vendorName && (
+                      {claimMeta?.isVendorRepair && (
+                        <span style={{ marginRight: '6px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(234, 88, 12, 0.18)', color: '#ea580c', border: '1px solid rgba(234, 88, 12, 0.4)', fontWeight: 800, fontSize: '10px' }}>
+                          임차처 수리
+                        </span>
+                      )}
+                      {(claimMeta?.ownerType === 'RENTED' || claimMeta?.isVendorRepair) && claimMeta?.vendorName && (
                         <span style={{ marginRight: '6px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', fontWeight: 700, fontSize: '10px' }}>
                           임차:{claimMeta.vendorName}
+                        </span>
+                      )}
+                      {(claimMeta?.vendorBilledCost || 0) > 0 && (
+                        <span style={{ marginRight: '6px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(220, 38, 38, 0.12)', color: '#dc2626', fontWeight: 700, fontSize: '10px' }}>
+                          임차처 수리원가: ₩{(claimMeta?.vendorBilledCost || 0).toLocaleString()}
                         </span>
                       )}
                       {claimPhotoCount > 0 && (
@@ -1620,8 +1630,8 @@ export const Receivables: React.FC = () => {
                       </div>
                       {item.memo && <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>출고팀 증상 메모: {item.memo}</div>}
                       {item.photos && item.photos.length > 0 && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '4px' }}>
-                          {item.photos.slice(0, 2).map((url, pIdx) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(4, item.photos.slice(0, 4).length)}, 1fr)`, gap: '10px', marginTop: '4px' }}>
+                          {item.photos.slice(0, 4).map((url, pIdx) => (
                             <div
                               key={pIdx}
                               onClick={() => setPreviewPhotoUrl(url)}
@@ -1641,111 +1651,244 @@ export const Receivables: React.FC = () => {
                 })}
               </div>
 
-              {/* 4. 최종 합의 금액 조정, 명세서 표기명 및 확정 */}
-              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr 1.6fr', gap: '10px', alignItems: 'end' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>최초 예상 수리비 합계</label>
-                    <div style={{ padding: '7px 10px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 700, fontSize: '13px' }}>
-                      ₩{(baseMeta.initialEstimatedAmount || 0).toLocaleString()}
+              {/* 4. 임차처 지불 수리원가 대비 고객 청구 협상 결정 및 확정 */}
+              {(() => {
+                const vendorCost = Math.max(0, Number(baseMeta.vendorBilledCost || baseMeta.initialEstimatedAmount || 0));
+                const diffFromCost = claimEditTotalAmount - vendorCost;
+                const applyTotalNegotiationAmount = (targetTotal: number, strategyNote?: string) => {
+                  const cleanTotal = Math.max(0, Math.round(targetTotal || 0));
+                  setClaimEditTotalAmount(cleanTotal);
+                  if (claimEditItems.length === 1) {
+                    setClaimEditItems(claimEditItems.map(it => ({ ...it, agreedCost: cleanTotal })));
+                  } else if (claimEditItems.length > 1) {
+                    const estSum = claimEditItems.reduce((s, it) => s + (it.estimatedCost || 0), 0);
+                    if (estSum > 0) {
+                      let running = 0;
+                      const updated = claimEditItems.map((it, i) => {
+                        if (i === claimEditItems.length - 1) {
+                          return { ...it, agreedCost: Math.max(0, cleanTotal - running) };
+                        }
+                        const share = Math.round(((it.estimatedCost || 0) / estSum) * cleanTotal);
+                        running += share;
+                        return { ...it, agreedCost: share };
+                      });
+                      setClaimEditItems(updated);
+                    }
+                  }
+                  if (strategyNote) {
+                    setClaimEditMemo(strategyNote);
+                  }
+                };
+
+                return (
+                  <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* 임차처 지불 수리원가 vs 고객 청구액 손익 비교 & 3대 협상 전략 버튼 바 */}
+                    <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(234, 88, 12, 0.06)', border: '1px solid rgba(234, 88, 12, 0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', fontSize: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: '#9a3412' }}>
+                            {baseMeta.isVendorRepair || isSublease ? `임차처(${baseMeta.vendorName || '임차처'}) 지불 수리원가:` : '수리 원가 기준액:'}{' '}
+                            <strong style={{ fontSize: '13.5px', color: '#dc2626' }}>₩{vendorCost.toLocaleString()}</strong>
+                          </span>
+                          <span>➔</span>
+                          <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                            고객 청구 협의 금액: <strong style={{ fontSize: '13.5px', color: 'var(--primary)' }}>₩{claimEditTotalAmount.toLocaleString()}</strong>
+                          </span>
+                        </div>
+
+                        <div>
+                          {diffFromCost > 0 ? (
+                            <span style={{ padding: '3px 9px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.14)', color: '#2563eb', border: '1px solid rgba(37, 99, 235, 0.35)', fontSize: '11.5px', fontWeight: 800 }}>
+                              추가금 가산 청구: +₩{diffFromCost.toLocaleString()} (원가 대비 +{vendorCost > 0 ? Math.round((diffFromCost / vendorCost) * 100) : 0}%)
+                            </span>
+                          ) : diffFromCost === 0 ? (
+                            <span style={{ padding: '3px 9px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.14)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.35)', fontSize: '11.5px', fontWeight: 800 }}>
+                              수리원가 100% 동일 청구 (정산 손익 ₩0)
+                            </span>
+                          ) : (
+                            <span style={{ padding: '3px 9px', borderRadius: '4px', backgroundColor: 'rgba(220, 38, 38, 0.14)', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.35)', fontSize: '11.5px', fontWeight: 800 }}>
+                              손실 감수 감액: -₩{Math.abs(diffFromCost).toLocaleString()} 당사 부담 (원가 대비 {vendorCost > 0 ? Math.round((diffFromCost / vendorCost) * 100) : 0}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', marginRight: '2px' }}>협상 단축 선택:</span>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 800, borderColor: '#059669', color: '#059669' }}
+                          onClick={() => applyTotalNegotiationAmount(vendorCost, '임차처 청구 수리원가 100% 그대로 고객 청구')}
+                        >
+                          원가만 청구 (100%)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#2563eb', color: '#2563eb' }}
+                          onClick={() => applyTotalNegotiationAmount(Math.round(vendorCost * 1.1), '임차처 수리원가 대비 관리비용 10% 추가금 가산 청구')}
+                        >
+                          추가금 +10%
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#2563eb', color: '#2563eb' }}
+                          onClick={() => applyTotalNegotiationAmount(Math.round(vendorCost * 1.2), '임차처 수리원가 대비 관리비용 20% 추가금 가산 청구')}
+                        >
+                          추가금 +20%
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#2563eb', color: '#2563eb' }}
+                          onClick={() => applyTotalNegotiationAmount(vendorCost + 50000, '임차처 수리원가 + 추가금 50,000원 가산 청구')}
+                        >
+                          추가금 +5만
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#dc2626', color: '#dc2626' }}
+                          onClick={() => applyTotalNegotiationAmount(Math.round(vendorCost * 0.9), '고객 협의에 따라 수리원가 대비 10% 감액 (당사 일부 손실 감수)')}
+                        >
+                          손실감수 -10% 감액
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#dc2626', color: '#dc2626' }}
+                          onClick={() => applyTotalNegotiationAmount(Math.round(vendorCost * 0.7), '고객 협의에 따라 수리원가 대비 30% 감액 (당사 손실 감수)')}
+                        >
+                          손실감수 -30% 감액
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: '#dc2626', color: '#dc2626' }}
+                          onClick={() => applyTotalNegotiationAmount(Math.round(vendorCost * 0.5), '고객 협의에 따라 수리원가 50% 상호 분담 (당사 50% 손실 감수)')}
+                        >
+                          50% 상호분담
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderColor: 'var(--text-muted)', color: 'var(--text-muted)' }}
+                          onClick={() => applyTotalNegotiationAmount(0, '고객 협의에 따라 전액 감액 면제 (당사 수리원가 전액 손실 부담)')}
+                        >
+                          전액 감액 (0원)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr 1.6fr', gap: '10px', alignItems: 'end' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                          {baseMeta.isVendorRepair ? '임차처 지불 수리원가' : '최초 수리원가 기준액'}
+                        </label>
+                        <div style={{ padding: '7px 10px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontWeight: 700, fontSize: '13px' }}>
+                          ₩{vendorCost.toLocaleString()}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--danger)' }}>최종 합의 수리비 총액 (원)</label>
+                        <input
+                          type="number"
+                          value={claimEditTotalAmount}
+                          onChange={e => setClaimEditTotalAmount(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                          style={{ padding: '7px 10px', fontSize: '13px', fontWeight: 800, color: 'var(--danger)' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>명세서 청구 항목 표기명</label>
+                        <input
+                          type="text"
+                          value={claimEditDisplayName}
+                          onChange={e => setClaimEditDisplayName(e.target.value)}
+                          placeholder="[입고파손수리비] 관리번호 증상명"
+                          style={{ padding: '7px 10px', fontSize: '12px' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>영업사원 협상 및 조정 사유 메모</label>
+                        <input
+                          type="text"
+                          value={claimEditMemo}
+                          onChange={e => setClaimEditMemo(e.target.value)}
+                          placeholder="추가금 가산 / 원가 청구 / 손실 감수 감액 사유 입력"
+                          style={{ padding: '7px 10px', fontSize: '12px' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '6px 14px', fontSize: '12px' }}
+                        onClick={() => setSelectedClaimRcv(null)}
+                      >
+                        닫기
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isClaimBusy}
+                        className="btn-secondary"
+                        style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700 }}
+                        onClick={async () => {
+                          setIsClaimBusy(true);
+                          try {
+                            await updateReceivableClaimNegotiation({
+                              receivableId: selectedClaimRcv.id,
+                              agreedAmount: claimEditTotalAmount,
+                              negotiationStatus: baseMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? 'SENT_TO_CUSTOMER' : 'PENDING_NEGOTIATION',
+                              defectItems: claimEditItems,
+                              negotiationMemo: claimEditMemo,
+                              displayName: claimEditDisplayName
+                            });
+                            showToast('수리비 조정 금액 및 메모가 임시 저장되었습니다.');
+                            setSelectedClaimRcv(null);
+                          } catch (err: any) {
+                            showErrorModal(err?.message || '저장 실패');
+                          } finally {
+                            setIsClaimBusy(false);
+                          }
+                        }}
+                      >
+                        조정 금액 저장 (협상중)
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isClaimBusy}
+                        className="btn-primary"
+                        style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 800, backgroundColor: '#059669', borderColor: '#059669' }}
+                        onClick={async () => {
+                          setIsClaimBusy(true);
+                          try {
+                            await updateReceivableClaimNegotiation({
+                              receivableId: selectedClaimRcv.id,
+                              agreedAmount: claimEditTotalAmount,
+                              negotiationStatus: 'AGREED',
+                              defectItems: claimEditItems,
+                              negotiationMemo: claimEditMemo,
+                              displayName: claimEditDisplayName
+                            });
+                            showToast(`최종 합의 수리비(₩${claimEditTotalAmount.toLocaleString()})가 확정되어 당월 청구 대상에 반영되었습니다.`);
+                            setSelectedClaimRcv(null);
+                          } catch (err: any) {
+                            showErrorModal(err?.message || '최종 합의 처리 실패');
+                          } finally {
+                            setIsClaimBusy(false);
+                          }
+                        }}
+                      >
+                        <CheckCircle size={13} /> 최종 합의 완료 (당월 청구 연동)
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--danger)' }}>최종 합의 수리비 총액 (원)</label>
-                    <input
-                      type="number"
-                      value={claimEditTotalAmount}
-                      onChange={e => setClaimEditTotalAmount(Math.max(0, Math.round(Number(e.target.value) || 0)))}
-                      style={{ padding: '7px 10px', fontSize: '13px', fontWeight: 800, color: 'var(--danger)' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>명세서 청구 항목 표기명</label>
-                    <input
-                      type="text"
-                      value={claimEditDisplayName}
-                      onChange={e => setClaimEditDisplayName(e.target.value)}
-                      placeholder="[입고파손수리비] 관리번호 증상명"
-                      style={{ padding: '7px 10px', fontSize: '12px' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>영업사원 협상 및 조정 사유 메모</label>
-                    <input
-                      type="text"
-                      value={claimEditMemo}
-                      onChange={e => setClaimEditMemo(e.target.value)}
-                      placeholder="고객 협의 조정 사유 입력"
-                      style={{ padding: '7px 10px', fontSize: '12px' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ padding: '6px 14px', fontSize: '12px' }}
-                    onClick={() => setSelectedClaimRcv(null)}
-                  >
-                    닫기
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isClaimBusy}
-                    className="btn-secondary"
-                    style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700 }}
-                    onClick={async () => {
-                      setIsClaimBusy(true);
-                      try {
-                        await updateReceivableClaimNegotiation({
-                          receivableId: selectedClaimRcv.id,
-                          agreedAmount: claimEditTotalAmount,
-                          negotiationStatus: baseMeta.negotiationStatus === 'SENT_TO_CUSTOMER' ? 'SENT_TO_CUSTOMER' : 'PENDING_NEGOTIATION',
-                          defectItems: claimEditItems,
-                          negotiationMemo: claimEditMemo,
-                          displayName: claimEditDisplayName
-                        });
-                        showToast('수리비 조정 금액 및 메모가 임시 저장되었습니다.');
-                        setSelectedClaimRcv(null);
-                      } catch (err: any) {
-                        showErrorModal(err?.message || '저장 실패');
-                      } finally {
-                        setIsClaimBusy(false);
-                      }
-                    }}
-                  >
-                    조정 금액 저장 (협상중)
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isClaimBusy}
-                    className="btn-primary"
-                    style={{ padding: '6px 16px', fontSize: '12px', fontWeight: 800, backgroundColor: '#059669', borderColor: '#059669' }}
-                    onClick={async () => {
-                      setIsClaimBusy(true);
-                      try {
-                        await updateReceivableClaimNegotiation({
-                          receivableId: selectedClaimRcv.id,
-                          agreedAmount: claimEditTotalAmount,
-                          negotiationStatus: 'AGREED',
-                          defectItems: claimEditItems,
-                          negotiationMemo: claimEditMemo,
-                          displayName: claimEditDisplayName
-                        });
-                        showToast(`최종 합의 수리비(₩${claimEditTotalAmount.toLocaleString()})가 확정되어 당월 청구 대상에 반영되었습니다.`);
-                        setSelectedClaimRcv(null);
-                      } catch (err: any) {
-                        showErrorModal(err?.message || '최종 합의 처리 실패');
-                      } finally {
-                        setIsClaimBusy(false);
-                      }
-                    }}
-                  >
-                    <CheckCircle size={13} /> 최종 합의 완료 (당월 청구 연동)
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* 촬영 사진 원본 확대 라이트박스 */}

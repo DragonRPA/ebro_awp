@@ -471,7 +471,7 @@ export function resolveReceivableClaimMeta(
           parsed.length > 0 ? Math.round((receivable.totalAmount || 0) / parsed.length) : 0;
         const defectItems: InboundClaimDefectItem[] = parsed.map((d: any, idx: number) => {
           const photos: string[] = Array.isArray(d.photos)
-            ? d.photos.slice(0, 2)
+            ? d.photos.slice(0, 4)
             : d.photoUrl
               ? [d.photoUrl]
               : [];
@@ -530,7 +530,15 @@ export function resolveReceivableClaimMeta(
 
   // 4. 일반 REPAIR 외상미수금 레코드에 대한 기본 메타 생성
   if (!baseMeta && receivable.type === 'REPAIR') {
-    const photos = (linkedRepair?.evidenceImages || []).slice(0, 2);
+    const rawPhotos =
+      linkedRepair?.evidenceImages && linkedRepair.evidenceImages.length > 0
+        ? linkedRepair.evidenceImages
+        : linkedRepair?.beforeImage
+          ? [linkedRepair.beforeImage]
+          : [];
+    const photos = rawPhotos.filter(Boolean).slice(0, 4);
+    const isVendorRepair = linkedRepair?.maintenanceType === 'VENDOR_REPAIR';
+    const vendorCost = isVendorRepair ? (linkedRepair?.totalCost || receivable.totalAmount) : undefined;
     baseMeta = {
       kind: 'INBOUND_DEFECT_CLAIM_V1',
       receivableId: receivable.id,
@@ -538,6 +546,8 @@ export function resolveReceivableClaimMeta(
       assetId: linkedRepair?.assetId,
       assetNo: receivable.assetNo || linkedRepair?.assetNo || '',
       modelName: linkedRepair?.modelName || '',
+      isVendorRepair,
+      vendorBilledCost: vendorCost,
       customerId: receivable.customerId || linkedRepair?.customerId,
       customerName: linkedRepair?.customerName || '미지정 고객',
       siteId: linkedRepair?.siteId,
@@ -546,8 +556,8 @@ export function resolveReceivableClaimMeta(
       inboundDate: (linkedRepair?.requestDate || receivable.occurredDate || '').slice(0, 10),
       registeredByName: linkedRepair?.reporterName || '출고팀',
       registeredAt: receivable.createdAt || new Date().toISOString(),
-      inspectorMemo: linkedRepair?.memo || '',
-      initialEstimatedAmount: linkedRepair?.billableAmount || receivable.totalAmount,
+      inspectorMemo: linkedRepair?.memo || linkedRepair?.details || '',
+      initialEstimatedAmount: vendorCost || linkedRepair?.totalCost || linkedRepair?.billableAmount || receivable.totalAmount,
       agreedAmount: receivable.totalAmount,
       negotiationStatus:
         receivable.status === 'CLEARED' || receivable.status === 'PARTIAL'
@@ -556,16 +566,17 @@ export function resolveReceivableClaimMeta(
       defectItems: [
         {
           id: 'DEF-1',
-          category: linkedRepair?.issueCategory || '수리/파손',
+          category: isVendorRepair ? '임차처 수리' : (linkedRepair?.issueCategory || '수리/파손'),
           symptomName:
+            linkedRepair?.details ||
             receivable.displayName ||
             receivable.internalDescription ||
             linkedRepair?.issueDescription ||
             '입고 파손 수리비',
-          estimatedCost: linkedRepair?.billableAmount || receivable.totalAmount,
+          estimatedCost: vendorCost || linkedRepair?.totalCost || linkedRepair?.billableAmount || receivable.totalAmount,
           agreedCost: receivable.totalAmount,
           photos,
-          memo: linkedRepair?.memo || '',
+          memo: linkedRepair?.details || linkedRepair?.memo || '',
         },
       ],
     };
@@ -596,16 +607,24 @@ export function resolveReceivableClaimMeta(
       ? sites.find((s) => s.name === baseMeta!.siteName)
       : undefined;
 
+  const isVendorRepairFlag = Boolean(
+    baseMeta.isVendorRepair || linkedRepair?.maintenanceType === 'VENDOR_REPAIR'
+  );
   const isRented = Boolean(
-    assetObj &&
+    isVendorRepairFlag ||
+    (assetObj &&
       (assetObj.ownerType === 'RENTED' ||
         (assetObj as any).ownership === 'SUBLEASE' ||
-        (assetObj as any).ownership === 'RENTED')
+        (assetObj as any).ownership === 'RENTED'))
   );
   const resolvedOwnerType: 'OWN' | 'RENTED' =
     baseMeta.ownerType || (isRented ? 'RENTED' : 'OWN');
 
-  let resolvedVendorName = baseMeta.vendorName || '';
+  let resolvedVendorName = baseMeta.vendorName || receivable.vendorName || '';
+  if (!resolvedVendorName && linkedRepair?.vendorId) {
+    const vnd = vendors.find((v) => v && v.id === linkedRepair.vendorId);
+    if (vnd?.name?.trim()) resolvedVendorName = vnd.name.trim();
+  }
   if (!resolvedVendorName && isRented && assetObj) {
     if (assetObj.vendorId) {
       const vnd = vendors.find((v) => v && v.id === assetObj.vendorId);
@@ -615,6 +634,12 @@ export function resolveReceivableClaimMeta(
     if (!resolvedVendorName && assetObj.supplier?.trim()) resolvedVendorName = assetObj.supplier.trim();
     if (!resolvedVendorName) resolvedVendorName = '외부임차';
   }
+  const resolvedVendorBilledCost =
+    baseMeta.vendorBilledCost !== undefined
+      ? baseMeta.vendorBilledCost
+      : isVendorRepairFlag
+        ? (linkedRepair?.totalCost ?? baseMeta.initialEstimatedAmount)
+        : undefined;
 
   let resolvedOutboundDate = baseMeta.outboundDate || '';
   if (!resolvedOutboundDate) {
@@ -681,6 +706,8 @@ export function resolveReceivableClaimMeta(
     modelName: baseMeta.modelName || assetObj?.modelName || linkedRepair?.modelName || '',
     ownerType: resolvedOwnerType,
     vendorName: resolvedVendorName || undefined,
+    isVendorRepair: isVendorRepairFlag || undefined,
+    vendorBilledCost: resolvedVendorBilledCost,
     customerId: resolvedCustId,
     customerName:
       (baseMeta.customerName && baseMeta.customerName !== '미지정 고객'

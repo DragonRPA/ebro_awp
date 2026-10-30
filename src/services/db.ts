@@ -1935,15 +1935,15 @@ export interface Billing {
 }
 
 
-/** 입고 불량 증상별 청구 항목 (증상당 사진 최대 2장 및 예상/합의 수리비용) */
+/** 입고 불량 증상별 청구 항목 (증상당 사진 최대 4장 및 예상/합의 수리비용) */
 export interface InboundClaimDefectItem {
   id: string;
   checkitemId?: string;        // 정비항목관리 마스터 ID
-  category: string;            // 정비 구분 (외관/파손, 전장/배터리 등)
+  category: string;            // 정비 구분 (외관/파손, 전장/배터리, 임차처수리 등)
   symptomName: string;         // 불량 증상명
-  estimatedCost: number;       // 증상당 예상 수리비용
+  estimatedCost: number;       // 증상당 예상 수리비용 (임차처 수리 시 임차처 청구 수리원가)
   agreedCost?: number;         // 협상 후 조정/합의 수리비용
-  photos: string[];            // 증상당 사진 (최대 2장)
+  photos: string[];            // 증상당 사진 (최대 4장)
   memo?: string;               // 증상 상세 비고
 }
 
@@ -1959,6 +1959,9 @@ export interface InboundDefectClaimMeta {
   modelName?: string;
   ownerType?: 'OWN' | 'RENTED';         // 자사장비 / 임차장비 구분
   vendorName?: string;                  // 임차처명 (임차자산인 경우)
+  isVendorRepair?: boolean;             // 임차처 직접 수리 여부 (정비구분: 임차처 수리)
+  vendorBilledCost?: number;            // 당사가 임차처에 지불한 수리원가 (= 총 정비원가)
+  negotiationPricingStrategy?: 'MARKUP' | 'AT_COST' | 'LOSS_DISCOUNT'; // 추가금 가산 | 원가 동일 | 손실 감수 감액
   customerId?: string;
   customerName: string;
   siteId?: string;
@@ -1979,7 +1982,7 @@ export interface InboundDefectClaimMeta {
   registeredAt: string;
   inspectorMemo?: string;               // 출고팀 검수자 현장 소견 메모 (영업 협상 메모와 분리 보존)
   displayName?: string;                 // 명세서 표기명 (영업사원 조정 가능)
-  initialEstimatedAmount: number;       // 최초 예상 수리비 합계
+  initialEstimatedAmount: number;       // 최초 예상 수리비 합계 (임차처 수리 시 임차처 청구 수리원가)
   agreedAmount: number;                 // 최종 합의(조정) 수리비 합계
   negotiationStatus: ClaimNegotiationStatus;
   sentAt?: string;                      // 고객 전달(이메일/카톡) 일시
@@ -1988,7 +1991,7 @@ export interface InboundDefectClaimMeta {
   agreedAt?: string;                    // 최종 합의 완료 일시
   agreedBy?: string;                    // 합의 처리 담당자명
   negotiationMemo?: string;             // 고객 협상 및 수리비 조정 사유 메모
-  defectItems: InboundClaimDefectItem[]; // 불량 증상 목록 (증상당 사진 최대 2장, 예상 수리비용)
+  defectItems: InboundClaimDefectItem[]; // 불량 증상 목록 (증상당 사진 최대 4장, 예상 수리비용)
 }
 
 /** 외상미수금 대장 — 운송료·수리비·청소비·타사구상금 분할 청산 관리 */
@@ -2300,7 +2303,7 @@ export interface Repair {
   stockSource?: 'VEHICLE_VAN' | 'YARD_STOCK' | 'DIRECT_PURCHASE' | 'CENTRAL_HQ';  // 기사차량 | 주기장재고 | 현장구매 (레거시 호환)
   source?: 'SALES_REQUEST' | 'DIRECT_INTAKE' | 'INBOUND_INSPECTION' | 'OUTBOUND_DEFECT' | 'BAND_IMPORT';
   repairType?: 'INTERNAL' | 'EXTERNAL';
-  maintenanceType?: 'EMERGENCY_AS' | 'PREVENTIVE' | 'INHOUSE_REPAIR' | 'EXTERNAL'; // 레거시 호환
+  maintenanceType?: 'EMERGENCY_AS' | 'PREVENTIVE' | 'INHOUSE_REPAIR' | 'EXTERNAL' | 'VENDOR_REPAIR'; // 레거시 호환 + 임차처 수리
   
   // 2. 대상 자산 및 계약 정보
   assetId?: string;
