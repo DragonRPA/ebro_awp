@@ -445,25 +445,31 @@ export function resolveReceivableClaimMeta(
     : undefined;
 
   let baseMeta: InboundDefectClaimMeta | null = null;
+  const cachedMeta = getLocalClaimMetaCache(receivable.id);
 
-  // 1. 런타임 객체에 이미 claimMeta가 있는 경우
-  if (receivable.claimMeta && receivable.claimMeta.kind === 'INBOUND_DEFECT_CLAIM_V1') {
-    baseMeta = {
-      ...receivable.claimMeta,
-      receivableId: receivable.id,
-      agreedAmount: receivable.totalAmount,
-    };
-  }
-
-  // 2. 연결된 Repair의 defectsJson 파싱
-  if (!baseMeta && linkedRepair?.defectsJson) {
+  // 1. 연결된 Repair의 defectsJson 파싱 (원격 DB SSOT 우선, 사진이 로컬 캐시에 더 많으면 병합)
+  if (linkedRepair?.defectsJson) {
     try {
       const parsed = JSON.parse(linkedRepair.defectsJson);
       if (parsed && parsed.kind === 'INBOUND_DEFECT_CLAIM_V1') {
+        const mergedDefectItems: InboundClaimDefectItem[] = Array.isArray(parsed.defectItems)
+          ? parsed.defectItems.map((item: InboundClaimDefectItem, idx: number) => {
+              const cachedItem = cachedMeta?.defectItems?.[idx];
+              const dbPhotos = Array.isArray(item.photos) ? item.photos.filter(Boolean) : [];
+              const localPhotos = Array.isArray(cachedItem?.photos) ? cachedItem.photos.filter(Boolean) : [];
+              return {
+                ...item,
+                photos: localPhotos.length > dbPhotos.length ? localPhotos.slice(0, 4) : dbPhotos.slice(0, 4),
+              };
+            })
+          : cachedMeta?.defectItems || [];
         baseMeta = {
           ...parsed,
+          defectItems: mergedDefectItems,
           receivableId: receivable.id,
           repairId: linkedRepair.id,
+          registeredById: linkedRepair.reporterName ? parsed.registeredById : (parsed.registeredById || cachedMeta?.registeredById),
+          registeredByName: linkedRepair.reporterName || parsed.registeredByName || cachedMeta?.registeredByName || '출고팀',
           agreedAmount: receivable.totalAmount,
         };
       } else if (Array.isArray(parsed) && parsed.length > 0) {
@@ -516,16 +522,24 @@ export function resolveReceivableClaimMeta(
     }
   }
 
+  // 2. 런타임 객체에 이미 claimMeta가 있는 경우
+  if (!baseMeta && receivable.claimMeta && receivable.claimMeta.kind === 'INBOUND_DEFECT_CLAIM_V1') {
+    baseMeta = {
+      ...receivable.claimMeta,
+      receivableId: receivable.id,
+      registeredByName: linkedRepair?.reporterName || receivable.claimMeta.registeredByName,
+      agreedAmount: receivable.totalAmount,
+    };
+  }
+
   // 3. 로컬 스토리지 캐시 조회
-  if (!baseMeta) {
-    const cached = getLocalClaimMetaCache(receivable.id);
-    if (cached) {
-      baseMeta = {
-        ...cached,
-        receivableId: receivable.id,
-        agreedAmount: receivable.totalAmount,
-      };
-    }
+  if (!baseMeta && cachedMeta) {
+    baseMeta = {
+      ...cachedMeta,
+      receivableId: receivable.id,
+      registeredByName: linkedRepair?.reporterName || cachedMeta.registeredByName,
+      agreedAmount: receivable.totalAmount,
+    };
   }
 
   // 4. 일반 REPAIR 외상미수금 레코드에 대한 기본 메타 생성

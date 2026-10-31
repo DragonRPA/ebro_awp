@@ -8088,6 +8088,10 @@ class LocalDB {
         }
 
         if (fkRule.targetProp) {
+          if (typeof val === 'string' && val.toUpperCase().startsWith('FALLBACK-')) {
+            sanitized[key] = null;
+            continue;
+          }
           const targetList = (this as any)[fkRule.targetProp];
           const hasLocalData = Array.isArray(targetList) && targetList.length > 0;
           const entityExists = hasLocalData && typeof val === 'string' && val.trim() !== '' &&
