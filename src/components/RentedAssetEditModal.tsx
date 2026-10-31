@@ -717,10 +717,14 @@ export const RentedAssetEditModal: React.FC<RentedAssetEditModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>월 임차료 (원)</label>
               <input
-                type="number"
-                placeholder="300000"
-                value={formData.monthlyRentFee || 0}
-                onChange={e => setFormData({ ...formData, monthlyRentFee: Number(e.target.value) })}
+                type="text"
+                inputMode="numeric"
+                placeholder="300,000"
+                value={formData.monthlyRentFee ? Number(formData.monthlyRentFee).toLocaleString('ko-KR') : ''}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '');
+                  setFormData({ ...formData, monthlyRentFee: raw ? Number(raw) : 0 });
+                }}
                 style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
               />
             </div>

@@ -5124,10 +5124,15 @@ export const RentAssets: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>구상 청구액 (원)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    value={claimAmount}
-                    onChange={e => setClaimAmount(Number(e.target.value))}
+                    value={claimAmount > 0 ? claimAmount.toLocaleString('ko-KR') : ''}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      setClaimAmount(raw ? Number(raw) : 0);
+                    }}
+                    placeholder="예: 150,000"
                     style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 700 }}
                   />
                 </div>
@@ -5891,18 +5896,18 @@ export const RentAssets: React.FC = () => {
                       임차처 청구 수리비 · 외상매입금 (원)
                     </label>
                     <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={symptomVendorCost || ''}
+                      type="text"
+                      inputMode="numeric"
+                      value={symptomVendorCost > 0 ? symptomVendorCost.toLocaleString('ko-KR') : ''}
                       onChange={e => {
-                        const val = Math.max(0, Number(e.target.value) || 0);
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        const val = raw ? Number(raw) : 0;
                         setSymptomVendorCost(val);
                         if (symptomCustomerClaimAmount === 0 || symptomCustomerClaimAmount === symptomVendorCost) {
                           setSymptomCustomerClaimAmount(val);
                         }
                       }}
-                      placeholder="예: 150000"
+                      placeholder="예: 150,000"
                       style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 800 }}
                     />
                   </div>
@@ -5912,12 +5917,14 @@ export const RentAssets: React.FC = () => {
                       고객 청구 금액 · 외상미수금 (원)
                     </label>
                     <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={symptomCustomerClaimAmount || ''}
-                      onChange={e => setSymptomCustomerClaimAmount(Math.max(0, Number(e.target.value) || 0))}
-                      placeholder="예: 150000"
+                      type="text"
+                      inputMode="numeric"
+                      value={symptomCustomerClaimAmount > 0 ? symptomCustomerClaimAmount.toLocaleString('ko-KR') : ''}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setSymptomCustomerClaimAmount(raw ? Number(raw) : 0);
+                      }}
+                      placeholder="예: 150,000"
                       style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 800 }}
                     />
                   </div>
