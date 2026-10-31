@@ -165,6 +165,8 @@ export const Dashboard: React.FC = () => {
       totalStock: summary.totalStock,
       pendingUnassignedCount: summary.scheduledTotal,
       availableContractQty: summary.contractableTotal,
+      contractablePositiveSum: summary.contractablePositiveSum,
+      contractableNegativeSum: summary.contractableNegativeSum,
     };
   }, [products, assets, contracts, contractAssets, deliveries, outboundInspections]);
 
@@ -578,7 +580,11 @@ export const Dashboard: React.FC = () => {
             }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>계약가능 재고</span>
               <strong style={{ fontSize: '15px', fontWeight: 900, color: 'var(--primary)' }}>
-                {inventorySummary.availableContractQty}대
+                {inventorySummary.contractablePositiveSum}
+              </strong>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}>/</span>
+              <strong style={{ fontSize: '15px', fontWeight: 900, color: inventorySummary.contractableNegativeSum < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                {inventorySummary.contractableNegativeSum}
               </strong>
             </div>
 

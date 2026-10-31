@@ -243,8 +243,12 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         <div className="grid grid-cols-3 gap-2">
           <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-600 flex flex-col justify-between">
             <div className="text-[10.5px] font-extrabold text-sky-300" style={{ whiteSpace: 'nowrap', color: '#7dd3fc' }}>계약가능 재고</div>
-            <div className={`text-lg font-black font-mono mt-0.5 ${availableInventorySummary.contractableTotal < 0 ? 'text-rose-400' : 'text-emerald-400'}`} style={{ whiteSpace: 'nowrap' }}>
-              {availableInventorySummary.contractableTotal}대
+            <div className="text-lg font-black font-mono mt-0.5 text-emerald-400" style={{ whiteSpace: 'nowrap' }}>
+              <span>{availableInventorySummary.contractablePositiveSum}</span>
+              <span className="mx-1 text-slate-400">/</span>
+              <span className={availableInventorySummary.contractableNegativeSum < 0 ? 'text-rose-400' : 'text-slate-400'}>
+                {availableInventorySummary.contractableNegativeSum}
+              </span>
             </div>
             <div className="text-[10px] text-slate-200 font-bold" style={{ whiteSpace: 'nowrap', color: '#cbd5e1' }}>
               재고 - 출고예정

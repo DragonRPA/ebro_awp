@@ -216,6 +216,11 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
     return filteredInventoryRows.reduce(
       (acc, r) => {
         acc.availableContractQty += r.availableContractQty;
+        if (r.availableContractQty > 0) {
+          acc.positiveContractQty += r.availableContractQty;
+        } else if (r.availableContractQty < 0) {
+          acc.negativeContractQty += r.availableContractQty;
+        }
         acc.stockOwned += r.stockOwned;
         acc.stockRented += r.stockRented;
         acc.scheduledUnassigned += r.scheduledUnassigned;
@@ -223,7 +228,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         acc.scheduledRented += r.scheduledRented;
         return acc;
       },
-      { availableContractQty: 0, stockOwned: 0, stockRented: 0, scheduledUnassigned: 0, scheduledOwned: 0, scheduledRented: 0 }
+      { availableContractQty: 0, positiveContractQty: 0, negativeContractQty: 0, stockOwned: 0, stockRented: 0, scheduledUnassigned: 0, scheduledOwned: 0, scheduledRented: 0 }
     );
   }, [filteredInventoryRows]);
 
@@ -525,10 +530,12 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
             <div className="p-2.5 rounded-xl bg-slate-900 border border-blue-500/40 flex flex-col justify-between">
               <span className="text-[10.5px] font-bold text-blue-200 whitespace-nowrap">계약가능 재고</span>
               <div className="flex items-baseline justify-between mt-1">
-                <strong className={`text-lg font-black whitespace-nowrap ${
-                  inventoryTotals.availableContractQty < 0 ? 'text-rose-400' : 'text-sky-300'
-                }`}>
-                  {inventoryTotals.availableContractQty}대
+                <strong className="text-lg font-black whitespace-nowrap text-sky-300">
+                  <span>{inventoryTotals.positiveContractQty}</span>
+                  <span className="mx-1 text-slate-400">/</span>
+                  <span className={inventoryTotals.negativeContractQty < 0 ? 'text-rose-400' : 'text-slate-400'}>
+                    {inventoryTotals.negativeContractQty}
+                  </span>
                 </strong>
                 <span className="text-[10px] text-slate-300 whitespace-nowrap">재고-예정</span>
               </div>
@@ -651,8 +658,12 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                     <td colSpan={3} style={{ padding: '8px 6px', textAlign: 'left', color: '#ffffff', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap' }}>
                       합계 ({filteredInventoryRows.length}개 모델)
                     </td>
-                    <td style={{ padding: '8px 5px', textAlign: 'right', color: inventoryTotals.availableContractQty < 0 ? '#fda4af' : '#7dd3fc', backgroundColor: '#172554', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '12px', fontWeight: 900 }}>
-                      {inventoryTotals.availableContractQty}
+                    <td style={{ padding: '8px 5px', textAlign: 'right', color: '#7dd3fc', backgroundColor: '#172554', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '12px', fontWeight: 900 }}>
+                      <span>{inventoryTotals.positiveContractQty}</span>
+                      <span style={{ margin: '0 2px', color: '#94a3b8' }}>/</span>
+                      <span style={{ color: inventoryTotals.negativeContractQty < 0 ? '#fda4af' : '#94a3b8' }}>
+                        {inventoryTotals.negativeContractQty}
+                      </span>
                     </td>
                     <td style={{ padding: '8px 5px', textAlign: 'right', color: '#34d399', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontWeight: 900 }}>
                       {inventoryTotals.stockOwned}

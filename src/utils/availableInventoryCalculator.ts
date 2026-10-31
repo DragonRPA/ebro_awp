@@ -52,6 +52,8 @@ export interface AvailableInventoryCalculationResult {
     scheduledTotal: number;
     unassignedScheduledCount: number;
     contractableTotal: number;
+    contractablePositiveSum: number;
+    contractableNegativeSum: number;
   };
 }
 
@@ -409,6 +411,8 @@ export function calculateAvailableInventorySSOT(params: {
   let scheduledUnassignedSum = 0;
   let scheduledOurs = 0;
   let scheduledSub = 0;
+  let contractablePositiveSum = 0;
+  let contractableNegativeSum = 0;
 
   modelMap.forEach((b) => {
     const scheduledUnassigned = b.unassignedPendingCount;
@@ -427,6 +431,11 @@ export function calculateAvailableInventorySSOT(params: {
     scheduledUnassignedSum += scheduledUnassigned;
     scheduledOurs += scheduledOwned;
     scheduledSub += scheduledRented;
+    if (availableContractQty > 0) {
+      contractablePositiveSum += availableContractQty;
+    } else if (availableContractQty < 0) {
+      contractableNegativeSum += availableContractQty;
+    }
 
     allInventoryRows.push({
       key: b.key,
@@ -464,6 +473,8 @@ export function calculateAvailableInventorySSOT(params: {
       scheduledTotal,
       unassignedScheduledCount: targetPendingSlots.length,
       contractableTotal,
+      contractablePositiveSum,
+      contractableNegativeSum,
     },
   };
 }

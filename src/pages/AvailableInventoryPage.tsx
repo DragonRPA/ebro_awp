@@ -744,6 +744,11 @@ export const AvailableInventoryPage: React.FC = () => {
     return filteredRows.reduce(
       (acc, r) => {
         acc.availableContractQty += r.availableContractQty;
+        if (r.availableContractQty > 0) {
+          acc.positiveContractQty += r.availableContractQty;
+        } else if (r.availableContractQty < 0) {
+          acc.negativeContractQty += r.availableContractQty;
+        }
         acc.stockOwned += r.stockOwned;
         acc.stockRented += r.stockRented;
         acc.scheduledUnassigned += r.scheduledUnassigned;
@@ -754,6 +759,8 @@ export const AvailableInventoryPage: React.FC = () => {
       },
       {
         availableContractQty: 0,
+        positiveContractQty: 0,
+        negativeContractQty: 0,
         stockOwned: 0,
         stockRented: 0,
         scheduledUnassigned: 0,
@@ -935,7 +942,7 @@ export const AvailableInventoryPage: React.FC = () => {
       '피트': '합계',
       '제조사': '',
       '모델명': '',
-      '계약가능 재고': totals.availableContractQty,
+      '계약가능 재고': `${totals.positiveContractQty} / ${totals.negativeContractQty}`,
       '재고(당사자산)': totals.stockOwned,
       '재고(임차자산)': totals.stockRented,
       '출고예정(미할당)': totals.scheduledUnassigned,
@@ -1393,13 +1400,17 @@ export const AvailableInventoryPage: React.FC = () => {
                       textAlign: 'center',
                       borderRight: '1px solid var(--table-border-color)',
                       backgroundColor: 'rgba(245, 158, 11, 0.24)',
-                      color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--text-main)',
+                      color: 'var(--text-main)',
                       fontSize: '12.5px',
                       cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
-                      {totals.availableContractQty}
+                      <span>{totals.positiveContractQty}</span>
+                      <span style={{ margin: '0 3px', color: 'var(--text-muted)' }}>/</span>
+                      <span style={{ color: totals.negativeContractQty < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        {totals.negativeContractQty}
+                      </span>
                     </span>
                   </td>
                   <td
@@ -1594,7 +1605,12 @@ export const AvailableInventoryPage: React.FC = () => {
           <span>−</span>
           <span>출고예정 총합: <strong style={{ color: '#d97706' }}>{totals.scheduledUnassigned + totals.scheduledOwned + totals.scheduledRented}대</strong> (미할당 {totals.scheduledUnassigned}대 + 당사 {totals.scheduledOwned}대 + 임차 {totals.scheduledRented}대)</span>
           <span>=</span>
-          <span>계약가능 재고: <strong style={{ color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{totals.availableContractQty}대</strong></span>
+          <span>
+            계약가능 재고:{' '}
+            <strong style={{ color: 'var(--primary)' }}>{totals.positiveContractQty}</strong>
+            <span style={{ margin: '0 3px', color: 'var(--text-muted)' }}>/</span>
+            <strong style={{ color: totals.negativeContractQty < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{totals.negativeContractQty}</strong>
+          </span>
         </div>
       </div>
 
@@ -1730,7 +1746,22 @@ export const AvailableInventoryPage: React.FC = () => {
                     <span style={{ margin: '0 6px' }}>−</span>
                     <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledUnassigned + row.scheduledOwned + row.scheduledRented}대</strong> (미할당 {row.scheduledUnassigned} + 당사 {row.scheduledOwned} + 임차 {row.scheduledRented})</span>
                     <span style={{ margin: '0 6px' }}>=</span>
-                    <span>계약가능 <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{row.availableContractQty}대</strong></span>
+                    <span>
+                      계약가능{' '}
+                      {row.key === '__TOTAL_SUMMARY__' ? (
+                        <>
+                          <strong style={{ color: 'var(--primary)' }}>{totals.positiveContractQty}</strong>
+                          <span style={{ margin: '0 3px', color: 'var(--text-muted)' }}>/</span>
+                          <strong style={{ color: totals.negativeContractQty < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                            {totals.negativeContractQty}
+                          </strong>
+                        </>
+                      ) : (
+                        <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>
+                          {row.availableContractQty}대
+                        </strong>
+                      )}
+                    </span>
                   </div>
                   {unassignedDeductionCount !== 0 && (
                     <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
