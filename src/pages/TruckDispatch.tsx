@@ -328,25 +328,6 @@ export const TruckDispatch: React.FC = () => {
     return 'PENDING';
   };
 
-  const deliveryCounts = useMemo(() => {
-    const counts = { today: 0, tomorrow: 0, pending: 0, dispatched: 0, delivered: 0, cancelled: 0, exchange: 0 };
-    const todayStr = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    for (const d of deliveries) {
-      const dt = d.loadingDate || d.scheduledDate;
-      if (dt === todayStr) counts.today++;
-      if (dt === tomorrowStr) counts.tomorrow++;
-      const st = getNormalizedDeliveryStatus(d);
-      if (st === 'PENDING') counts.pending++;
-      else if (st === 'DISPATCHED') counts.dispatched++;
-      else if (st === 'DELIVERED') counts.delivered++;
-      else if (st === 'CANCELLED') counts.cancelled++;
-      if (d.dispatchCategory === '교환' || d.type === 'EXCHANGE') counts.exchange++;
-    }
-    return counts;
-  }, [deliveries]);
-
   const getOutboundInspectionBadge = (contractId?: string, delivery?: Delivery) => {
     const status = getOutboundInspectionStatus(contractId, delivery);
     switch (status) {
@@ -3539,23 +3520,22 @@ export const TruckDispatch: React.FC = () => {
     });
   };
 
-  // 2. 배차건 정밀 필터링 (상태 4단계 + 요청/운송일 기간 피커 + 검색어)
-  const filteredDeliveries = useMemo(() => {
+  // 2-A. 기간(startDate ~ endDate) 및 검색어(searchQuery)가 반영된 기준 배차 목록
+  // 💡 진행 상태 탭 카운트, 상단 현황 요약 바, 하단 요약 바, 실제 카드 그리드가 100% 동일한 모수를 공유하도록 단일화
+  const periodAndSearchFilteredDeliveries = useMemo(() => {
     const q = searchQuery.trim();
     const qLower = q.toLowerCase();
     const matcher = q ? createHangulMatcher(q) : null;
 
-    const list = deliveries.filter(d => {
-      const dStatus = getNormalizedDeliveryStatus(d);
-      if (activeDispatchStatusTab !== 'ALL' && dStatus !== activeDispatchStatusTab) return false;
-
-      const dDate = d.loadingDate || d.requestDate || d.scheduledDate || d.createdAt?.substring(0, 10);
-      if (startDate && dDate && dDate < startDate) return false;
-      if (endDate && dDate && dDate > endDate) return false;
+    return deliveries.filter(d => {
+      const dDate = (d.loadingDate || d.requestDate || d.scheduledDate || d.createdAt?.substring(0, 10) || '').slice(0, 10);
+      if (startDate && (!dDate || dDate < startDate)) return false;
+      if (endDate && (!dDate || dDate > endDate)) return false;
 
       if (!matcher) return true;
       const contract = getContract(d.contractId);
       const customer = contract ? getCustomer(contract.customerId) : null;
+      const site = contract && contract.siteId ? siteMap.get(contract.siteId) : null;
 
       return Boolean(
         (d.id && d.id.toLowerCase().includes(qLower)) ||
@@ -3563,9 +3543,44 @@ export const TruckDispatch: React.FC = () => {
         (d.driverName && matcher(d.driverName)) ||
         (d.transportCompany && matcher(d.transportCompany)) ||
         (d.destinationAddress && matcher(d.destinationAddress)) ||
+        (site && matcher(site.name)) ||
         (contract && contract.contractNo.toLowerCase().includes(qLower)) ||
         (customer && matcher(customer.name))
       );
+    });
+  }, [deliveries, startDate, endDate, searchQuery, contractMap, customerMap, siteMap]);
+
+  // 2-B. 현재 설정된 조회 기간 및 검색어 기준 상태별 건수 집계 (실제 조회되는 건수와 100% 일치 보장)
+  const deliveryCounts = useMemo(() => {
+    const counts = { total: 0, today: 0, tomorrow: 0, pending: 0, dispatched: 0, delivered: 0, cancelled: 0, exchange: 0 };
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+    for (const d of periodAndSearchFilteredDeliveries) {
+      counts.total++;
+      const dt = (d.loadingDate || d.requestDate || d.scheduledDate || '').slice(0, 10);
+      const st = getNormalizedDeliveryStatus(d);
+      if (st !== 'CANCELLED') {
+        if (dt === todayStr) counts.today++;
+        if (dt === tomorrowStr) counts.tomorrow++;
+      }
+      if (st === 'PENDING') counts.pending++;
+      else if (st === 'DISPATCHED') counts.dispatched++;
+      else if (st === 'DELIVERED') counts.delivered++;
+      else if (st === 'CANCELLED') counts.cancelled++;
+      if (d.dispatchCategory === '교환' || d.type === 'EXCHANGE') counts.exchange++;
+    }
+    return counts;
+  }, [periodAndSearchFilteredDeliveries]);
+
+  // 2-C. 배차건 정밀 필터링 (기간/검색어 필터 결과에서 선택된 진행 상태 탭만 필터링)
+  const filteredDeliveries = useMemo(() => {
+    const list = periodAndSearchFilteredDeliveries.filter(d => {
+      if (activeDispatchStatusTab === 'ALL') return true;
+      return getNormalizedDeliveryStatus(d) === activeDispatchStatusTab;
     });
 
     // 묶음 배차(bundleGroupId) 그룹별 대표 시간 맵 생성 (묶인 배차건들이 목록에서 서로 떨어지지 않고 순서대로 붙어 있도록 정렬)
@@ -3594,7 +3609,7 @@ export const TruckDispatch: React.FC = () => {
       const dateB = b.loadingDate || b.requestDate || '';
       return dateB.localeCompare(dateA);
     });
-  }, [deliveries, activeDispatchStatusTab, startDate, endDate, searchQuery, contractMap, customerMap]);
+  }, [periodAndSearchFilteredDeliveries, activeDispatchStatusTab]);
 
   // 💡 배차 완료 상태에서 수정을 위해 임시 잠금 해제하는 모드 state
   const [isEditUnlocked, setIsEditUnlocked] = useState<boolean>(false);
@@ -5301,7 +5316,7 @@ export const TruckDispatch: React.FC = () => {
                   { key: 'DISPATCHED', label: '배차완료', count: deliveryCounts.dispatched },
                   { key: 'DELIVERED', label: '운송완료', count: deliveryCounts.delivered },
                   { key: 'CANCELLED', label: '취소', count: deliveryCounts.cancelled },
-                  { key: 'ALL', label: '전체', count: deliveries.length },
+                  { key: 'ALL', label: '전체', count: deliveryCounts.total },
                 ].map(tab => {
                   const active = activeDispatchStatusTab === tab.key;
                   return (
@@ -5540,8 +5555,8 @@ export const TruckDispatch: React.FC = () => {
             </div>
           </div>
 
-          {/* 📊 현황 요약 바 (장비 할당과 동일한 5열 KPI 요약 바) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+          {/* 📊 현황 요약 바 (조회 기간 및 검색어에 연동된 실시간 건수 표시) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>조회 배차 건수</span>
               <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{filteredDeliveries.length}건</strong>
@@ -5560,7 +5575,11 @@ export const TruckDispatch: React.FC = () => {
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>배차 완료 (기사배정)</span>
-              <strong style={{ fontSize: '15px', color: deliveryCounts.dispatched > 0 ? 'var(--success)' : 'var(--text-muted)' }}>{deliveryCounts.dispatched}건</strong>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.dispatched > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>{deliveryCounts.dispatched}건</strong>
+            </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>운송 완료</span>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.delivered > 0 ? 'var(--success)' : 'var(--text-muted)' }}>{deliveryCounts.delivered}건</strong>
             </div>
           </div>
 
@@ -7488,42 +7507,34 @@ export const TruckDispatch: React.FC = () => {
               )}
           </div>
           {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
-          {(() => {
-            const pendingDeliveries = deliveries.filter(d => d.status === 'PENDING').length;
-            const dispatchedDeliveries = deliveries.filter(d => d.status === 'DISPATCHED').length;
-            const deliveredDeliveries = deliveries.filter(d => d.status === 'DELIVERED').length;
-            const cancelledDeliveries = deliveries.filter(d => d.status === 'CANCELLED').length;
-            const exchangeCount = deliveries.filter(d => d.dispatchCategory === '교환' || d.type === 'EXCHANGE').length;
-
-            return (
-              <div style={{
-                padding: '8px 14px',
-                backgroundColor: 'var(--bg-app)',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px',
-                fontSize: '11.5px',
-                borderRadius: '6px',
-                marginTop: '4px',
-                flexShrink: 0
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <span>배차 대기: <strong style={{ color: 'var(--warning)' }}>총 {pendingDeliveries}건</strong></span>
-                  <span>|</span>
-                  <span>배차 완료: <strong style={{ color: 'var(--primary)' }}>총 {dispatchedDeliveries}건</strong></span>
-                  <span>|</span>
-                  <span>운송 완료: <strong style={{ color: 'var(--success)' }}>총 {deliveredDeliveries}건</strong></span>
-                  <span>|</span>
-                  <span>교환 왕복배차: <strong style={{ color: 'var(--primary)' }}>총 {exchangeCount}건</strong></span>
-                  <span>|</span>
-                  <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {cancelledDeliveries}건</strong></span>
-                </div>
-              </div>
-            );
-          })()}
+          <div style={{
+            padding: '8px 14px',
+            backgroundColor: 'var(--bg-app)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px',
+            fontSize: '11.5px',
+            borderRadius: '6px',
+            marginTop: '4px',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <span>조회 기간 전체: <strong style={{ color: 'var(--text-main)' }}>총 {deliveryCounts.total}건</strong></span>
+              <span>|</span>
+              <span>배차 대기: <strong style={{ color: 'var(--warning)' }}>총 {deliveryCounts.pending}건</strong></span>
+              <span>|</span>
+              <span>배차 완료: <strong style={{ color: 'var(--primary)' }}>총 {deliveryCounts.dispatched}건</strong></span>
+              <span>|</span>
+              <span>운송 완료: <strong style={{ color: 'var(--success)' }}>총 {deliveryCounts.delivered}건</strong></span>
+              <span>|</span>
+              <span>교환 왕복배차: <strong style={{ color: 'var(--primary)' }}>총 {deliveryCounts.exchange}건</strong></span>
+              <span>|</span>
+              <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {deliveryCounts.cancelled}건</strong></span>
+            </div>
+          </div>
         </div>
       )}
 
