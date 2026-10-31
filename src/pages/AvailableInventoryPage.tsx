@@ -952,7 +952,8 @@ export const AvailableInventoryPage: React.FC = () => {
       '재고(당사자산)': r.stockOwned,
       '재고(임차자산)': r.stockRented,
       '출고예정(미할당)': r.scheduledUnassigned,
-      '출고예정(할당)': r.scheduledAssigned
+      '출고예정(당사할당)': r.scheduledOwned,
+      '출고예정(임차할당)': r.scheduledRented
     }));
 
     excelRows.push({
@@ -963,7 +964,8 @@ export const AvailableInventoryPage: React.FC = () => {
       '재고(당사자산)': totals.stockOwned,
       '재고(임차자산)': totals.stockRented,
       '출고예정(미할당)': totals.scheduledUnassigned,
-      '출고예정(할당)': totals.scheduledAssigned
+      '출고예정(당사할당)': totals.scheduledOwned,
+      '출고예정(임차할당)': totals.scheduledRented
     });
 
     if (scheduledOutboundLines.length > 0) {
@@ -975,7 +977,8 @@ export const AvailableInventoryPage: React.FC = () => {
         '재고(당사자산)': '',
         '재고(임차자산)': '',
         '출고예정(미할당)': '',
-        '출고예정(할당)': ''
+        '출고예정(당사할당)': '',
+        '출고예정(임차할당)': ''
       });
       excelRows.push({
         '피트': '----------출고 예정------------',
@@ -985,7 +988,8 @@ export const AvailableInventoryPage: React.FC = () => {
         '재고(당사자산)': '',
         '재고(임차자산)': '',
         '출고예정(미할당)': '',
-        '출고예정(할당)': ''
+        '출고예정(당사할당)': '',
+        '출고예정(임차할당)': ''
       });
       scheduledOutboundLines.forEach(line => {
         excelRows.push({
@@ -996,7 +1000,8 @@ export const AvailableInventoryPage: React.FC = () => {
           '재고(당사자산)': line.totalQty,
           '재고(임차자산)': '',
           '출고예정(미할당)': '',
-          '출고예정(할당)': ''
+          '출고예정(당사할당)': '',
+          '출고예정(임차할당)': ''
         });
       });
     }
@@ -1158,7 +1163,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     재고
                   </th>
                   <th
-                    colSpan={2}
+                    colSpan={3}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1185,7 +1190,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       fontWeight: 800,
                       cursor: 'pointer',
                       userSelect: 'none',
-                      width: '110px'
+                      width: '100px'
                     }}
                   >
                     재고{renderSortIndicator('availableContractQty')}
@@ -1200,7 +1205,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       cursor: 'pointer',
                       userSelect: 'none',
-                      width: '110px'
+                      width: '100px'
                     }}
                   >
                     당사자산{renderSortIndicator('stockOwned')}
@@ -1215,7 +1220,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       cursor: 'pointer',
                       userSelect: 'none',
-                      width: '110px'
+                      width: '100px'
                     }}
                   >
                     임차자산{renderSortIndicator('stockRented')}
@@ -1230,13 +1235,28 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       cursor: 'pointer',
                       userSelect: 'none',
-                      width: '110px'
+                      width: '100px'
                     }}
                   >
                     미할당{renderSortIndicator('scheduledUnassigned')}
                   </th>
                   <th
-                    onClick={() => handleSort('scheduledAssigned')}
+                    onClick={() => handleSort('scheduledOwned')}
+                    style={{
+                      padding: '2px 6px',
+                      lineHeight: 1.15,
+                      textAlign: 'center',
+                      borderBottom: '2px solid var(--table-border-color)',
+                      borderRight: '1px solid var(--table-border-color)',
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      width: '100px'
+                    }}
+                  >
+                    당사자산{renderSortIndicator('scheduledOwned')}
+                  </th>
+                  <th
+                    onClick={() => handleSort('scheduledRented')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1244,10 +1264,10 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderBottom: '2px solid var(--table-border-color)',
                       cursor: 'pointer',
                       userSelect: 'none',
-                      width: '110px'
+                      width: '100px'
                     }}
                   >
-                    할당{renderSortIndicator('scheduledAssigned')}
+                    임차자산{renderSortIndicator('scheduledRented')}
                   </th>
                 </tr>
               </thead>
@@ -1255,7 +1275,7 @@ export const AvailableInventoryPage: React.FC = () => {
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={9} style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회 조건에 해당하는 모델 재고 내역이 없습니다.
                     </td>
                   </tr>
@@ -1346,19 +1366,36 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_ASSIGNED')}
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_OWNED')}
                         onMouseLeave={handleCellMouseLeave}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
-                          fontWeight: row.scheduledAssigned > 0 ? 700 : 400,
-                          cursor: row.scheduledAssigned > 0 ? 'help' : 'default',
-                          color: row.scheduledAssigned > 0 ? '#c2410c' : 'var(--text-muted)'
+                          borderRight: '1px solid var(--table-row-border)',
+                          fontWeight: row.scheduledOwned > 0 ? 700 : 400,
+                          cursor: row.scheduledOwned > 0 ? 'help' : 'default',
+                          color: row.scheduledOwned > 0 ? '#d97706' : 'var(--text-muted)'
                         }}
                       >
-                        <span style={row.scheduledAssigned > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' } : undefined}>
-                          {row.scheduledAssigned}
+                        <span style={row.scheduledOwned > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' } : undefined}>
+                          {row.scheduledOwned}
+                        </span>
+                      </td>
+                      <td
+                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_RENTED')}
+                        onMouseLeave={handleCellMouseLeave}
+                        style={{
+                          padding: '1.5px 6px',
+                          lineHeight: 1.15,
+                          textAlign: 'center',
+                          fontWeight: row.scheduledRented > 0 ? 700 : 400,
+                          cursor: row.scheduledRented > 0 ? 'help' : 'default',
+                          color: row.scheduledRented > 0 ? '#c2410c' : 'var(--text-muted)'
+                        }}
+                      >
+                        <span style={row.scheduledRented > 0 ? { textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' } : undefined}>
+                          {row.scheduledRented}
                         </span>
                       </td>
                     </tr>
@@ -1457,7 +1494,24 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_ASSIGNED')}
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_OWNED')}
+                    onMouseLeave={handleCellMouseLeave}
+                    style={{
+                      padding: '2px 6px',
+                      lineHeight: 1.15,
+                      textAlign: 'center',
+                      borderRight: '1px solid var(--table-border-color)',
+                      backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                      color: '#d97706',
+                      cursor: 'help'
+                    }}
+                  >
+                    <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
+                      {totals.scheduledOwned}
+                    </span>
+                  </td>
+                  <td
+                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_RENTED')}
                     onMouseLeave={handleCellMouseLeave}
                     style={{
                       padding: '2px 6px',
@@ -1469,7 +1523,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
-                      {totals.scheduledAssigned}
+                      {totals.scheduledRented}
                     </span>
                   </td>
                 </tr>
@@ -1583,7 +1637,7 @@ export const AvailableInventoryPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span>현재고 총합: <strong>{totals.stockOwned + totals.stockRented}대</strong> (당사 {totals.stockOwned}대 + 임차 {totals.stockRented}대)</span>
           <span>−</span>
-          <span>출고예정 총합: <strong style={{ color: '#d97706' }}>{totals.scheduledUnassigned + totals.scheduledAssigned}대</strong> (미할당 {totals.scheduledUnassigned}대 + 할당 {totals.scheduledAssigned}대)</span>
+          <span>출고예정 총합: <strong style={{ color: '#d97706' }}>{totals.scheduledUnassigned + totals.scheduledOwned + totals.scheduledRented}대</strong> (미할당 {totals.scheduledUnassigned}대 + 당사 {totals.scheduledOwned}대 + 임차 {totals.scheduledRented}대)</span>
           <span>=</span>
           <span>계약가능 재고: <strong style={{ color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{totals.availableContractQty}대</strong></span>
         </div>
@@ -1699,7 +1753,7 @@ export const AvailableInventoryPage: React.FC = () => {
                 <div>
                   <span>재고 <strong>{row.stockOwned + row.stockRented}대</strong> (당사 {row.stockOwned} + 임차 {row.stockRented})</span>
                   <span style={{ margin: '0 6px' }}>−</span>
-                  <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledUnassigned + row.scheduledAssigned}대</strong> (미할당 {row.scheduledUnassigned} + 할당 {row.scheduledAssigned})</span>
+                  <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledUnassigned + row.scheduledOwned + row.scheduledRented}대</strong> (미할당 {row.scheduledUnassigned} + 당사 {row.scheduledOwned} + 임차 {row.scheduledRented})</span>
                   <span style={{ margin: '0 6px' }}>=</span>
                   <span>계약가능 <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{row.availableContractQty}대</strong></span>
                 </div>

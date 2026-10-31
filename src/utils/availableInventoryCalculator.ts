@@ -406,33 +406,25 @@ export function calculateAvailableInventorySSOT(params: {
 
   let stockOurs = 0;
   let stockSub = 0;
+  let scheduledUnassignedSum = 0;
   let scheduledOurs = 0;
   let scheduledSub = 0;
 
   modelMap.forEach((b) => {
-    const remOwnedStock = Math.max(0, b.stockOwned - b.assignedPreInspOwned);
-    const remRentedStock = Math.max(0, b.stockRented - b.assignedPreInspRented);
-
-    let unalloc = b.unassignedPendingCount;
-    const allocToOwned = Math.min(unalloc, remOwnedStock);
-    unalloc -= allocToOwned;
-
-    const allocToRented = Math.min(unalloc, remRentedStock);
-    unalloc -= allocToRented;
-
     const scheduledUnassigned = b.unassignedPendingCount;
-    const scheduledAssigned = b.assignedPreInspOwned + b.assignedPreInspRented;
-    const scheduledOwned = b.assignedPreInspOwned + allocToOwned + unalloc;
-    const scheduledRented = b.assignedPreInspRented + allocToRented;
+    const scheduledOwned = b.assignedPreInspOwned;
+    const scheduledRented = b.assignedPreInspRented;
+    const scheduledAssigned = scheduledOwned + scheduledRented;
 
     const totalStock = b.stockOwned + b.stockRented;
-    const totalScheduled = scheduledUnassigned + scheduledAssigned;
+    const totalScheduled = scheduledUnassigned + scheduledOwned + scheduledRented;
     const availableContractQty = totalStock - totalScheduled;
 
     if (b.feet > 0) feetSet.add(b.feet);
 
     stockOurs += b.stockOwned;
     stockSub += b.stockRented;
+    scheduledUnassignedSum += scheduledUnassigned;
     scheduledOurs += scheduledOwned;
     scheduledSub += scheduledRented;
 
@@ -454,7 +446,7 @@ export function calculateAvailableInventorySSOT(params: {
   });
 
   const totalStock = stockOurs + stockSub;
-  const scheduledTotal = scheduledOurs + scheduledSub;
+  const scheduledTotal = scheduledUnassignedSum + scheduledOurs + scheduledSub;
   const contractableTotal = totalStock - scheduledTotal;
 
   return {
