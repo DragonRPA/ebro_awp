@@ -1602,7 +1602,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'product':              ['products', 'assets'],
     'asset':                ['assets', 'products', 'vendors', 'assetInOutLogs'],
     'acquisition_disposal': ['assets', 'products', 'vendors', 'assetInOutLogs'],
-    'rent_asset':           ['assets', 'products', 'vendors', 'assetInOutLogs', 'deliveries'],
+    'rent_asset':           ['assets', 'products', 'vendors', 'assetInOutLogs', 'deliveries', 'inspectionChecklistItems', 'repairs', 'receivables', 'contracts', 'contractAssets', 'customers', 'sites', 'purchaseSettlements', 'purchaseSettlementItems'],
     'consumable':           ['consumables', 'consumableLogs', 'consumablePurchases', 'vendors', 'mechanicConsumableStocks', 'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts'],
     'consumable_purchase':  ['consumables', 'consumablePurchases', 'vendors'],
     'consumable_inout':     ['consumables', 'consumableLogs', 'consumablePurchases', 'assets', 'mechanicConsumableStocks'],
@@ -13959,6 +13959,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         beforeImage: repairData.beforeImage || '',
         afterImage: repairData.afterImage || '',
         evidenceImages: repairData.evidenceImages || [],
+        defectsJson: repairData.defectsJson,
         workLocation: repairData.workLocation || (isVendorRepair ? 'VENDOR_SHOP' : 'YARD'),
         stockSource: repairData.stockSource || 'YARD_STOCK',
         customerName: resolvedCustomerName,
@@ -14050,7 +14051,35 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const categoryLabel = isVendorRepair ? '임차처 수리' : (repairData.inspectionItemCode || '입고 파손 수리');
       const symptomTitle = (repairData.details || '입고 장비 파손 수리').split('\n')[0].replace(/^[•\-\s]+/, '').trim() || '입고 장비 파손 수리';
 
-      const defectItems: InboundClaimDefectItem[] = [
+      let passedDefectItems: InboundClaimDefectItem[] | null = null;
+      if (repairData.defectsJson) {
+        try {
+          const parsed = typeof repairData.defectsJson === 'string'
+            ? JSON.parse(repairData.defectsJson)
+            : repairData.defectsJson;
+          const rawArr = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.defectItems)
+              ? parsed.defectItems
+              : null;
+          if (rawArr && rawArr.length > 0) {
+            passedDefectItems = rawArr.map((it: any, idx: number) => ({
+              id: it.id || `DEF-${idx + 1}`,
+              checkitemId: it.checkitemId || undefined,
+              category: it.category || categoryLabel,
+              symptomName: it.symptomName || symptomTitle,
+              estimatedCost: typeof it.estimatedCost === 'number' ? it.estimatedCost : (idx === 0 ? vendorCostRef : 0),
+              agreedCost: typeof it.agreedCost === 'number' ? it.agreedCost : (idx === 0 ? initialClaimAmount : 0),
+              photos: Array.isArray(it.photos) ? it.photos.filter(Boolean).slice(0, 4) : [],
+              memo: it.memo || ''
+            }));
+          }
+        } catch {
+          passedDefectItems = null;
+        }
+      }
+
+      const defectItems: InboundClaimDefectItem[] = passedDefectItems || [
         {
           id: 'DEF-1',
           checkitemId: repairData.inspectionItemId || undefined,

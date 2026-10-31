@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import {
   Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar, Wrench, Camera, Trash2
 } from 'lucide-react';
-import { Asset, Repair, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation, AntiEntrapmentOwnership, ANTI_ENTRAPMENT_OWNERSHIP_MAP } from '../services/db';
+import { Asset, Repair, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation, AntiEntrapmentOwnership, ANTI_ENTRAPMENT_OWNERSHIP_MAP, InboundClaimDefectItem, InboundDefectClaimMeta } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import * as XLSX from 'xlsx';
 
@@ -39,9 +39,13 @@ export const RentAssets: React.FC = () => {
     purchaseSettlements, purchaseSettlementItems, deliveries, receivables, assetInOutLogs,
     repairs, users, inspectionChecklistItems,
     subleaseNegotiations, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable,
-    registerRepair, savePurchaseStatementFile,
+    registerRepair, savePurchaseStatementFile, saveInspectionChecklistItem, loadTablesForMenu,
     hasPermission, refreshAllData, setActiveTab: setGlobalActiveTab
   } = useApp();
+
+  useEffect(() => {
+    loadTablesForMenu?.('rent_asset');
+  }, [loadTablesForMenu]);
   
   const canSave = hasPermission('rent_asset', 'save');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1700,11 +1704,12 @@ export const RentAssets: React.FC = () => {
   const [symptomTargetAsset, setSymptomTargetAsset] = useState<Asset | null>(null);
   const [symptomRepairId, setSymptomRepairId] = useState<string>('');
   const [symptomCategoryFilter, setSymptomCategoryFilter] = useState<string>('전체');
-  const [symptomChecklistItemId, setSymptomChecklistItemId] = useState<string>('');
-  const [symptomChecklistCode, setSymptomChecklistCode] = useState<string>('');
-  const [symptomDetails, setSymptomDetails] = useState<string>('');
-  const [symptomPhotos, setSymptomPhotos] = useState<string[]>([]);
-  const [isProcessingSymptomPhoto, setIsProcessingSymptomPhoto] = useState<boolean>(false);
+  const [symptomSearchTerm, setSymptomSearchTerm] = useState<string>('');
+  const [symptomItems, setSymptomItems] = useState<InboundClaimDefectItem[]>([]);
+  const [newMasterCategory, setNewMasterCategory] = useState<string>('외관/파손');
+  const [newMasterSymptomName, setNewMasterSymptomName] = useState<string>('');
+  const [isSavingNewMasterSymptom, setIsSavingNewMasterSymptom] = useState<boolean>(false);
+  const [processingPhotoItemId, setProcessingPhotoItemId] = useState<string | null>(null);
   const [symptomVendorCost, setSymptomVendorCost] = useState<number>(0);
   const [symptomCustomerClaimAmount, setSymptomCustomerClaimAmount] = useState<number>(0);
   const [symptomCustomerId, setSymptomCustomerId] = useState<string>('');
@@ -1730,7 +1735,10 @@ export const RentAssets: React.FC = () => {
   }, [repairs]);
 
   // 증상등록 모달 오픈 핸들러 (최근 사용 고객/현장/계약 자동 역추적 + 기존 증상 있으면 불러오기)
-  const handleOpenSymptomModal = (asset: Asset) => {
+  const handleOpenSymptomModal = async (asset: Asset) => {
+    if ((!inspectionChecklistItems || inspectionChecklistItems.length === 0) && db.isSupabaseConnected()) {
+      db.pullTableFromSupabase('inspectionChecklistItems').then(() => refreshAllData()).catch(() => {});
+    }
     setSymptomTargetAsset(asset);
     const lookup = lookupRecentInboundInfoByAsset(asset.assetNo, {
       assets,
@@ -1753,15 +1761,57 @@ export const RentAssets: React.FC = () => {
 
     if (latestVendorRepair) {
       setSymptomRepairId(latestVendorRepair.id);
-      setSymptomChecklistItemId(latestVendorRepair.inspectionItemId || '');
-      setSymptomChecklistCode(latestVendorRepair.inspectionItemCode || '');
-      setSymptomDetails(latestVendorRepair.details || '');
-      const photos = Array.isArray(latestVendorRepair.evidenceImages) && latestVendorRepair.evidenceImages.length > 0
+      const fallbackPhotos = Array.isArray(latestVendorRepair.evidenceImages) && latestVendorRepair.evidenceImages.length > 0
         ? latestVendorRepair.evidenceImages
         : latestVendorRepair.beforeImage
           ? [latestVendorRepair.beforeImage]
           : [];
-      setSymptomPhotos(photos.slice(0, 4));
+
+      let restoredItems: InboundClaimDefectItem[] = [];
+      if (latestVendorRepair.defectsJson) {
+        try {
+          const parsed = typeof latestVendorRepair.defectsJson === 'string'
+            ? JSON.parse(latestVendorRepair.defectsJson)
+            : latestVendorRepair.defectsJson;
+          const rawList = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.defectItems)
+              ? parsed.defectItems
+              : [];
+          if (rawList.length > 0) {
+            restoredItems = rawList.map((it: any, idx: number) => ({
+              id: it.id || `DEF-${idx + 1}`,
+              checkitemId: it.checkitemId || undefined,
+              category: it.category || '외관/파손',
+              symptomName: it.symptomName || '장비 파손 수리',
+              estimatedCost: Number(it.estimatedCost) || 0,
+              agreedCost: Number(it.agreedCost) || 0,
+              photos: Array.isArray(it.photos) ? it.photos.filter(Boolean).slice(0, 4) : [],
+              memo: it.memo || ''
+            }));
+          }
+        } catch {
+          restoredItems = [];
+        }
+      }
+      if (restoredItems.length === 0 && (latestVendorRepair.details || latestVendorRepair.inspectionItemCode)) {
+        const matchedMaster = (inspectionChecklistItems || []).find(
+          it => it.id === latestVendorRepair.inspectionItemId || it.code === latestVendorRepair.inspectionItemCode
+        );
+        restoredItems = [
+          {
+            id: `DEF-${Date.now()}`,
+            checkitemId: latestVendorRepair.inspectionItemId || matchedMaster?.id,
+            category: matchedMaster?.category || '외관/파손',
+            symptomName: matchedMaster?.name || latestVendorRepair.inspectionItemCode || (latestVendorRepair.details || '').split('\n')[0] || '장비 파손 수리',
+            estimatedCost: latestVendorRepair.totalCost || 0,
+            agreedCost: latestVendorRepair.billableAmount || latestVendorRepair.totalCost || 0,
+            photos: fallbackPhotos.slice(0, 4),
+            memo: latestVendorRepair.details || ''
+          }
+        ];
+      }
+      setSymptomItems(restoredItems);
       setSymptomVendorCost(latestVendorRepair.totalCost || 0);
       setSymptomCustomerClaimAmount(latestVendorRepair.billableAmount || latestVendorRepair.totalCost || 0);
       setSymptomCustomerId(latestVendorRepair.customerId || lookup?.customerId || asset.currentCustomerId || '');
@@ -1771,10 +1821,7 @@ export const RentAssets: React.FC = () => {
       setSymptomMemo(latestVendorRepair.memo || '');
     } else {
       setSymptomRepairId('');
-      setSymptomChecklistItemId('');
-      setSymptomChecklistCode('');
-      setSymptomDetails('');
-      setSymptomPhotos([]);
+      setSymptomItems([]);
       setSymptomVendorCost(0);
       setSymptomCustomerClaimAmount(0);
       const resolvedCustId = lookup?.customerId || asset.currentCustomerId || '';
@@ -1791,21 +1838,104 @@ export const RentAssets: React.FC = () => {
       setSymptomMemo('');
     }
     setSymptomCategoryFilter('전체');
+    setSymptomSearchTerm('');
+    setNewMasterSymptomName('');
     setSymptomRegisterPayableNow(true);
     setSymptomRegisterReceivableNow(true);
     setShowSymptomModal(true);
   };
 
-  // 증상 사진 업로드 핸들러 (최대 4장)
-  const handleSymptomPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 정비항목관리 항목 토글 (선택 / 해제)
+  const handleToggleMasterSymptomItem = (master: { id?: string; category: string; name: string; code?: string }) => {
+    setSymptomItems(prev => {
+      const existing = prev.find(
+        it => (master.id && it.checkitemId === master.id) || it.symptomName === master.name
+      );
+      if (existing) {
+        return prev.filter(it => it.id !== existing.id);
+      }
+      const nextItem: InboundClaimDefectItem = {
+        id: `DEF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        checkitemId: master.id,
+        category: master.category || '외관/파손',
+        symptomName: master.name,
+        estimatedCost: 0,
+        agreedCost: 0,
+        photos: [],
+        memo: ''
+      };
+      return [...prev, nextItem];
+    });
+  };
+
+  // 정비항목관리에 없는 신규 증상을 마스터에 즉시 등록 + 현재 증상 목록에 추가
+  const handleAddNewMasterSymptom = async () => {
+    const trimmed = newMasterSymptomName.trim();
+    if (!trimmed || isSavingNewMasterSymptom) {
+      if (!trimmed) showToast('추가할 정비항목(증상) 명칭을 입력해 주세요.', 'error');
+      return;
+    }
+    const cat = (newMasterCategory || '외관/파손').trim();
+    setIsSavingNewMasterSymptom(true);
+    try {
+      const existingMaster = (inspectionChecklistItems || []).find(it => it.name === trimmed);
+      let targetMasterId = existingMaster?.id;
+      if (!existingMaster) {
+        const createdId = `CHK-${Date.now()}`;
+        await saveInspectionChecklistItem({
+          id: createdId,
+          category: cat,
+          code: `SYM-${Date.now().toString().slice(-5)}`,
+          name: trimmed,
+          score: 5,
+          isDefectSymptom: true,
+          standardManHours: 0.5,
+          recommendedConsumableIds: [],
+          relatedManualIds: [],
+          actionGuide: '',
+          description: '임차장비 증상 등록 시 추가'
+        });
+        targetMasterId = createdId;
+      }
+      setSymptomItems(prev => {
+        if (prev.some(it => it.symptomName === trimmed)) return prev;
+        return [
+          ...prev,
+          {
+            id: `DEF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            checkitemId: targetMasterId,
+            category: cat,
+            symptomName: trimmed,
+            estimatedCost: 0,
+            agreedCost: 0,
+            photos: [],
+            memo: ''
+          }
+        ];
+      });
+      setNewMasterSymptomName('');
+      showToast(`[${cat}] ${trimmed} 항목이 정비항목관리 및 증상 목록에 추가되었습니다.`);
+    } catch (err: any) {
+      showToast(`정비항목 추가 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSavingNewMasterSymptom(false);
+    }
+  };
+
+  // 개별 증상(1증상 당) 사진 업로드 핸들러 (최대 0~4장)
+  const handleSymptomItemPhotoUpload = async (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
+    const targetItem = symptomItems.find(it => it.id === itemId);
+    if (!targetItem) return;
+
     try {
-      setIsProcessingSymptomPhoto(true);
-      const remaining = Math.max(0, 4 - symptomPhotos.length);
+      setProcessingPhotoItemId(itemId);
+      const currentPhotos = targetItem.photos || [];
+      const remaining = Math.max(0, 4 - currentPhotos.length);
       if (remaining <= 0) {
-        showToast('증빙 사진은 최대 4장까지 첨부 가능합니다.', 'error');
-        setIsProcessingSymptomPhoto(false);
+        showToast('1개 증상당 사진은 최대 4장까지 등록 가능합니다.', 'error');
+        setProcessingPhotoItemId(null);
         e.target.value = '';
         return;
       }
@@ -1815,11 +1945,17 @@ export const RentAssets: React.FC = () => {
         const compressed = await compressFileIfNeeded(f);
         if (compressed.base64) added.push(compressed.base64);
       }
-      setSymptomPhotos(prev => [...prev, ...added].slice(0, 4));
+      setSymptomItems(prev =>
+        prev.map(it =>
+          it.id === itemId
+            ? { ...it, photos: [...(it.photos || []), ...added].slice(0, 4) }
+            : it
+        )
+      );
     } catch (err: any) {
       showToast(`사진 업로드 오류: ${err?.message || err}`, 'error');
     } finally {
-      setIsProcessingSymptomPhoto(false);
+      setProcessingPhotoItemId(null);
       e.target.value = '';
     }
   };
@@ -1828,8 +1964,8 @@ export const RentAssets: React.FC = () => {
   const handleSubmitSymptom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!symptomTargetAsset || isSubmittingSymptom) return;
-    if (!symptomDetails.trim()) {
-      showToast('장비 증상 및 파손·수리 상세 내역을 입력해 주세요.', 'error');
+    if (symptomItems.length === 0) {
+      showToast('정비항목관리에서 장비 증상을 최소 1개 이상 선택해 주세요.', 'error');
       return;
     }
 
@@ -1858,6 +1994,25 @@ export const RentAssets: React.FC = () => {
       const isAlreadyReturned =
         symptomTargetAsset.status === 'RENTED_RETURNED' || Boolean(symptomTargetAsset.actualRentReturnDate);
 
+      // 증상별 비용 배분 및 사진/상세 요약 생성
+      const normalizedItems: InboundClaimDefectItem[] = symptomItems.map((it, idx) => ({
+        id: it.id || `DEF-${idx + 1}`,
+        checkitemId: it.checkitemId,
+        category: it.category || '외관/파손',
+        symptomName: it.symptomName,
+        estimatedCost: idx === 0 ? vendorCost : 0,
+        agreedCost: idx === 0 ? effectiveClaimAmt : 0,
+        photos: (it.photos || []).slice(0, 4),
+        memo: (it.memo || '').trim()
+      }));
+
+      const allPhotos = normalizedItems.flatMap(it => it.photos || []);
+      const combinedDetails = normalizedItems
+        .map(it => `[${it.category}] ${it.symptomName}${it.memo ? ` - ${it.memo}` : ''}`)
+        .join('\n');
+      const primaryItem = normalizedItems[0];
+      const primaryMaster = (inspectionChecklistItems || []).find(m => m.id === primaryItem?.checkitemId);
+
       // 1. Repair 레코드 등록/갱신 (VENDOR_REPAIR, 반납완료 자산은 RENTED_RETURNED 상태 유지)
       const repairIdToUse = symptomRepairId || db.generateNextId('repairs', db.repairs);
       const hasConfirmedCost = vendorCost > 0 || effectiveClaimAmt > 0;
@@ -1883,16 +2038,20 @@ export const RentAssets: React.FC = () => {
         repairDate: eventDate,
         status: repairStatus,
         targetAssetStatus: isAlreadyReturned ? 'RENTED_RETURNED' : symptomTargetAsset.status,
-        details: symptomDetails.trim(),
+        details: combinedDetails,
         totalCost: vendorCost,
         billableType: (symptomRegisterReceivableNow && effectiveClaimAmt > 0) ? 'BILLABLE' : 'FREE',
         billableAmount: symptomRegisterReceivableNow ? effectiveClaimAmt : 0,
         billableToCustomer: Boolean(symptomRegisterReceivableNow && effectiveClaimAmt > 0),
-        inspectionItemId: symptomChecklistItemId || undefined,
-        inspectionItemCode: symptomChecklistCode || undefined,
-        beforeImage: symptomPhotos[0] || '',
-        evidenceImages: symptomPhotos,
-        memo: symptomMemo.trim() || `[임차반납 장비 사후 증상 등록] 임차처(${renterName}) 수리원가 ₩${vendorCost.toLocaleString()} / 고객청구 ₩${effectiveClaimAmt.toLocaleString()}`
+        inspectionItemId: primaryItem?.checkitemId || undefined,
+        inspectionItemCode: primaryMaster?.code || primaryItem?.symptomName || undefined,
+        beforeImage: allPhotos[0] || '',
+        evidenceImages: allPhotos,
+        defectsJson: JSON.stringify({
+          kind: 'INBOUND_DEFECT_CLAIM_V1',
+          defectItems: normalizedItems
+        }),
+        memo: symptomMemo.trim() || `[임차반납 장비 사후 증상 등록] 증상 ${normalizedItems.length}건 / 임차처(${renterName}) 수리원가 ₩${vendorCost.toLocaleString()} / 고객청구 ₩${effectiveClaimAmt.toLocaleString()}`
       }, []);
 
       // 2. 당월 임차처 매입정산(외상매입금) 자동 반영 + 임차자산 정산 탭 대사 행 자동 추가
@@ -1907,7 +2066,8 @@ export const RentAssets: React.FC = () => {
           ((matchedVendor?.id && p.vendorId === matchedVendor.id) || cleanV(p.vendorName) === targetCleanV)
         );
 
-        const itemDesc = `[임차반납 수리비] ${symptomTargetAsset.assetNo} (${symptomTargetAsset.modelName}) - ${symptomDetails.trim().slice(0, 40)}`;
+        const shortSymptomSummary = normalizedItems.map(it => it.symptomName).join(', ').slice(0, 45);
+        const itemDesc = `[임차반납 수리비] ${symptomTargetAsset.assetNo} (${symptomTargetAsset.modelName}) - ${shortSymptomSummary}`;
 
         if (existingLeaseSettlement) {
           const existingRepairItem = db.purchaseSettlementItems.find(
@@ -1919,7 +2079,7 @@ export const RentAssets: React.FC = () => {
               itemDescription: itemDesc,
               unitPrice: vendorCost,
               amount: vendorCost,
-              evidenceFileUrl: symptomPhotos[0] || existingRepairItem.evidenceFileUrl
+              evidenceFileUrl: allPhotos[0] || existingRepairItem.evidenceFileUrl
             });
             if (diffAmt !== 0) {
               db.updateRow<PurchaseSettlement>('purchaseSettlements', existingLeaseSettlement.id, {
@@ -1936,7 +2096,7 @@ export const RentAssets: React.FC = () => {
               quantity: 1,
               unitPrice: vendorCost,
               amount: vendorCost,
-              evidenceFileUrl: symptomPhotos[0] || undefined,
+              evidenceFileUrl: allPhotos[0] || undefined,
               createdAt: nowIso
             });
             db.updateRow<PurchaseSettlement>('purchaseSettlements', existingLeaseSettlement.id, {
@@ -1961,7 +2121,7 @@ export const RentAssets: React.FC = () => {
             paidAmount: 0,
             status: 'PENDING',
             itemCount: 1,
-            memo: `[임차반납 파손수리비 외상매입금] ${symptomTargetAsset.assetNo} (${symptomDetails.trim().slice(0, 30)})`,
+            memo: `[임차반납 파손수리비 외상매입금] ${symptomTargetAsset.assetNo} (${shortSymptomSummary})`,
             createdAt: nowIso,
             updatedAt: nowIso
           });
@@ -1974,7 +2134,7 @@ export const RentAssets: React.FC = () => {
             quantity: 1,
             unitPrice: vendorCost,
             amount: vendorCost,
-            evidenceFileUrl: symptomPhotos[0] || undefined,
+            evidenceFileUrl: allPhotos[0] || undefined,
             createdAt: nowIso
           });
           db.updateRow<Repair>('repairs', repairIdToUse, {
@@ -1996,7 +2156,7 @@ export const RentAssets: React.FC = () => {
           billedAmount: vendorCost,
           taxAmount: Math.round(vendorCost * 0.1),
           itemType: 'REPAIR',
-          memo: `[임차반납 파손수리비] ${symptomDetails.trim()}`
+          memo: `[임차반납 파손수리비] ${shortSymptomSummary}`
         };
         setStatementRows(prev => {
           const exists = prev.some(r => r.id === stmtRowId);
@@ -2008,7 +2168,7 @@ export const RentAssets: React.FC = () => {
         refreshAllData();
       }
 
-      const summaryParts: string[] = [`[${symptomTargetAsset.assetNo}] 증상 기록 완료`];
+      const summaryParts: string[] = [`[${symptomTargetAsset.assetNo}] 증상 ${normalizedItems.length}건(사진 ${allPhotos.length}장) 기록 완료`];
       if (symptomRegisterPayableNow && vendorCost > 0) {
         summaryParts.push(`외상매입금(${renterName} 매입정산) ₩${vendorCost.toLocaleString()}원 반영`);
       }
@@ -5349,17 +5509,37 @@ export const RentAssets: React.FC = () => {
       {showSymptomModal && symptomTargetAsset && (() => {
         const renterName = getAssetRenterName(symptomTargetAsset);
         const isReturned = Boolean(symptomTargetAsset.actualRentReturnDate) || symptomTargetAsset.status === 'RENTED_RETURNED';
-        const checklistCategories = ['전체', ...Array.from(new Set((inspectionChecklistItems || []).map(i => i.category).filter(Boolean)))];
-        const filteredChecklist = (inspectionChecklistItems || []).filter(
-          i => symptomCategoryFilter === '전체' || i.category === symptomCategoryFilter
-        );
+        const fallbackMasterItems = [
+          { id: 'FALLBACK-1', category: '외관/바디', code: 'EXT-001', name: '난간대 휨·파손' },
+          { id: 'FALLBACK-2', category: '외관/바디', code: 'EXT-002', name: '조이스틱 컨트롤박스 파손' },
+          { id: 'FALLBACK-3', category: '외관/바디', code: 'EXT-003', name: '외부 도색·시멘트 오염' },
+          { id: 'FALLBACK-4', category: '전장/배터리', code: 'ELE-001', name: '충전기·전원케이블 단선' },
+          { id: 'FALLBACK-5', category: '전장/배터리', code: 'ELE-002', name: '배터리 방전·파손' },
+          { id: 'FALLBACK-6', category: '유압/실린더', code: 'HYD-001', name: '유압호스 파손·누유' },
+          { id: 'FALLBACK-7', category: '주행/하부', code: 'DRV-001', name: '타이어 찢어짐·손상' },
+          { id: 'FALLBACK-8', category: '안전장치', code: 'SAF-001', name: '경광등·비상스위치 파손' }
+        ];
+        const sourceChecklist = (inspectionChecklistItems && inspectionChecklistItems.length > 0)
+          ? inspectionChecklistItems
+          : fallbackMasterItems;
+        const checklistCategories = ['전체', ...Array.from(new Set(sourceChecklist.map(i => i.category).filter(Boolean)))];
+        const filteredChecklist = sourceChecklist.filter(i => {
+          const matchCat = symptomCategoryFilter === '전체' || i.category === symptomCategoryFilter;
+          if (!matchCat) return false;
+          if (!symptomSearchTerm.trim()) return true;
+          return (
+            matchHangul(i.name || '', symptomSearchTerm) ||
+            matchHangul(i.category || '', symptomSearchTerm) ||
+            matchHangul(i.code || '', symptomSearchTerm)
+          );
+        });
         const filteredContractsForSymptom = contracts.filter(
           c => !symptomCustomerId || c.customerId === symptomCustomerId
         );
 
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1150 }}>
-            <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '22px 24px', borderRadius: '12px', width: '680px', maxWidth: '95%', maxHeight: '92vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 20px 30px rgba(0,0,0,0.35)' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '22px 24px', borderRadius: '12px', width: '740px', maxWidth: '95%', maxHeight: '92vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 20px 30px rgba(0,0,0,0.35)' }}>
               {/* 모달 헤더 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -5402,151 +5582,304 @@ export const RentAssets: React.FC = () => {
               </div>
 
               <form onSubmit={handleSubmitSymptom} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* 1. 점검 체크리스트 빠른 선택 (선택 시 증상 내역에 자동 추가) */}
-                {inspectionChecklistItems && inspectionChecklistItems.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                      <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                        파손·결함 부위 빠른 선택
+                {/* 1. 정비항목관리 마스터 기반 증상 선택 영역 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        정비항목관리 증상 선택 (복수 선택 가능)
                       </label>
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {checklistCategories.map(cat => (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setSymptomCategoryFilter(cat)}
-                            style={{
-                              padding: '2px 7px',
-                              fontSize: '10.5px',
-                              borderRadius: '12px',
-                              border: symptomCategoryFilter === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: symptomCategoryFilter === cat ? 'var(--primary)' : 'var(--bg-card)',
-                              color: symptomCategoryFilter === cat ? '#fff' : 'var(--text-secondary)',
-                              cursor: 'pointer',
-                              fontWeight: symptomCategoryFilter === cat ? 700 : 500,
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
+                      <span className="badge badge-secondary" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
+                        마스터 {sourceChecklist.length}개 항목
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', maxHeight: '92px', overflowY: 'auto', paddingTop: '2px' }}>
-                      {filteredChecklist.map(item => {
-                        const isSelected = symptomChecklistItemId === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setSymptomChecklistItemId(item.id);
-                              setSymptomChecklistCode(item.code || item.name);
-                              const snippet = `[${item.category}] ${item.name}`;
-                              setSymptomDetails(prev => {
-                                if (!prev.trim()) return `${snippet} 파손 수리`;
-                                if (prev.includes(item.name)) return prev;
-                                return `${prev}, ${snippet}`;
-                              });
-                            }}
-                            style={{
-                              padding: '3px 8px',
-                              fontSize: '11px',
-                              borderRadius: '5px',
-                              border: isSelected ? '1px solid var(--danger)' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-card)',
-                              color: isSelected ? 'var(--danger)' : 'var(--text-main)',
-                              fontWeight: isSelected ? 700 : 500,
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {item.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <input
+                      type="text"
+                      value={symptomSearchTerm}
+                      onChange={e => setSymptomSearchTerm(e.target.value)}
+                      placeholder="정비항목 검색 (예: 조이스틱, 유압, 도색, 타이어)"
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-main)',
+                        fontSize: '11.5px',
+                        width: '250px'
+                      }}
+                    />
                   </div>
-                )}
 
-                {/* 2. 장비 증상 및 수리 내역 입력 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                    장비 증상 및 파손·수리 상세 내역 (필수)
-                  </label>
-                  <textarea
-                    required
-                    rows={3}
-                    value={symptomDetails}
-                    onChange={e => setSymptomDetails(e.target.value)}
-                    placeholder="예: 조이스틱 컨트롤박스 파손 교체, 하부 유압호스 누유 수리, 외관 페인트 오염 세척 등"
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-main)',
-                      fontSize: '12.5px',
-                      resize: 'vertical'
-                    }}
-                  />
+                  {/* 카테고리 필터 탭 */}
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {checklistCategories.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSymptomCategoryFilter(cat)}
+                        style={{
+                          padding: '3px 9px',
+                          fontSize: '11px',
+                          borderRadius: '12px',
+                          border: symptomCategoryFilter === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                          backgroundColor: symptomCategoryFilter === cat ? 'var(--primary)' : 'var(--bg-card)',
+                          color: symptomCategoryFilter === cat ? '#fff' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          fontWeight: symptomCategoryFilter === cat ? 700 : 500,
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 정비항목 칩 목록 */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', maxHeight: '130px', overflowY: 'auto', padding: '4px 2px' }}>
+                    {filteredChecklist.map(item => {
+                      const isSelected = symptomItems.some(
+                        si => (item.id && si.checkitemId === item.id) || si.symptomName === item.name
+                      );
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleToggleMasterSymptomItem(item)}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '11.5px',
+                            borderRadius: '6px',
+                            border: isSelected ? '1.5px solid var(--danger)' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.14)' : 'var(--bg-card)',
+                            color: isSelected ? 'var(--danger)' : 'var(--text-main)',
+                            fontWeight: isSelected ? 800 : 500,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {isSelected && <Check size={12} />}
+                          <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>[{item.category}]</span>
+                          <span>{item.name}</span>
+                        </button>
+                      );
+                    })}
+                    {filteredChecklist.length === 0 && (
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', padding: '6px 0' }}>
+                        검색 조건에 해당하는 정비항목이 없습니다. 아래에서 신규 정비항목으로 즉시 추가할 수 있습니다.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 정비항목관리에 없는 신규 항목 즉시 등록 바 */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
+                    <select
+                      value={newMasterCategory}
+                      onChange={e => setNewMasterCategory(e.target.value)}
+                      style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11.5px', width: '130px' }}
+                    >
+                      {Array.from(new Set(['외관/파손', '외관/바디', '전장/배터리', '유압/실린더', '주행/하부', '안전장치', '기타', ...checklistCategories.filter(c => c !== '전체')])).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={newMasterSymptomName}
+                      onChange={e => setNewMasterSymptomName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewMasterSymptom();
+                        }
+                      }}
+                      placeholder="목록에 없는 정비항목(증상) 직접 입력 후 추가"
+                      style={{ flex: 1, padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11.5px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddNewMasterSymptom}
+                      disabled={isSavingNewMasterSymptom}
+                      style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      + 정비항목 추가·선택
+                    </button>
+                  </div>
                 </div>
 
-                {/* 3. 파손 증빙 사진 첨부 (최대 4장) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {/* 2. 선택된 증상 목록 및 1증상당 최대 0~4장 사진 첨부 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                      파손·수리 증빙 사진 ({symptomPhotos.length}/4장)
+                    <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                      선택된 증상 내역 및 증상별 사진 등록 (1증상당 최대 0~4장)
                     </label>
-                    <label style={{
-                      padding: '4px 10px',
-                      borderRadius: '5px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--primary)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      <Camera size={13} />
-                      {isProcessingSymptomPhoto ? '처리중...' : '사진 추가'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleSymptomPhotoUpload}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: symptomItems.length > 0 ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      선택 증상 {symptomItems.length}건 · 총 사진 {symptomItems.reduce((s, it) => s + (it.photos?.length || 0), 0)}장
+                    </span>
                   </div>
-                  {symptomPhotos.length > 0 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                      {symptomPhotos.map((img, idx) => (
-                        <div key={idx} style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)', height: '76px', backgroundColor: '#000' }}>
-                          <img src={img} alt={`증빙-${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <button
-                            type="button"
-                            onClick={() => setSymptomPhotos(prev => prev.filter((_, i) => i !== idx))}
+
+                  {symptomItems.length === 0 ? (
+                    <div style={{ padding: '18px 14px', borderRadius: '8px', border: '1px dashed var(--border-color)', backgroundColor: 'var(--bg-app)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                      위 <strong>정비항목관리 증상 선택</strong>에서 파손·수리 증상을 1개 이상 클릭해 주세요. (각 증상마다 사진 0~4장 첨부 가능)
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', paddingRight: '2px' }}>
+                      {symptomItems.map((item, sIdx) => {
+                        const itemPhotos = item.photos || [];
+                        const isUploadingThis = processingPhotoItemId === item.id;
+                        return (
+                          <div
+                            key={item.id}
                             style={{
-                              position: 'absolute',
-                              top: '4px',
-                              right: '4px',
-                              backgroundColor: 'rgba(220, 38, 38, 0.85)',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '2px 4px',
-                              cursor: 'pointer'
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-app)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
                             }}
                           >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      ))}
+                            {/* 증상 헤더 + 사진 추가 버튼 + 삭제 버튼 */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="badge badge-danger" style={{ fontSize: '10.5px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                  증상 #{sIdx + 1}
+                                </span>
+                                <span className="badge badge-secondary" style={{ fontSize: '10.5px', whiteSpace: 'nowrap' }}>
+                                  {item.category}
+                                </span>
+                                <strong style={{ fontSize: '12.5px', color: 'var(--text-main)' }}>
+                                  {item.symptomName}
+                                </strong>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <label
+                                  style={{
+                                    padding: '3px 9px',
+                                    borderRadius: '5px',
+                                    border: '1px solid var(--border-color)',
+                                    backgroundColor: itemPhotos.length >= 4 ? 'var(--bg-app)' : 'var(--bg-card)',
+                                    color: itemPhotos.length >= 4 ? 'var(--text-muted)' : 'var(--primary)',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: itemPhotos.length >= 4 ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <Camera size={12} />
+                                  {isUploadingThis ? '처리중...' : `사진 추가 (${itemPhotos.length}/4장)`}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    disabled={itemPhotos.length >= 4 || isUploadingThis}
+                                    onChange={e => handleSymptomItemPhotoUpload(item.id, e)}
+                                    style={{ display: 'none' }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setSymptomItems(prev => prev.filter(it => it.id !== item.id))}
+                                  style={{
+                                    padding: '3px 7px',
+                                    borderRadius: '5px',
+                                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                    color: 'var(--danger)',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <Trash2 size={11} />
+                                  제거
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 증상별 상세 설명 입력 */}
+                            <input
+                              type="text"
+                              value={item.memo || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setSymptomItems(prev =>
+                                  prev.map(it => (it.id === item.id ? { ...it, memo: val } : it))
+                                );
+                              }}
+                              placeholder={`[${item.symptomName}] 부위 상세 상태 또는 수리 내역 입력 (선택)`}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: 'var(--bg-card)',
+                                color: 'var(--text-main)',
+                                fontSize: '12px'
+                              }}
+                            />
+
+                            {/* 증상별 첨부 사진 썸네일 (최대 4장) */}
+                            {itemPhotos.length > 0 && (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                                {itemPhotos.map((img, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    style={{
+                                      position: 'relative',
+                                      borderRadius: '6px',
+                                      overflow: 'hidden',
+                                      border: '1px solid var(--border-color)',
+                                      height: '72px',
+                                      backgroundColor: '#000'
+                                    }}
+                                  >
+                                    <img
+                                      src={img}
+                                      alt={`${item.symptomName}-사진-${pIdx + 1}`}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSymptomItems(prev =>
+                                          prev.map(it =>
+                                            it.id === item.id
+                                              ? { ...it, photos: (it.photos || []).filter((_, idx) => idx !== pIdx) }
+                                              : it
+                                          )
+                                        )
+                                      }
+                                      style={{
+                                        position: 'absolute',
+                                        top: '3px',
+                                        right: '3px',
+                                        backgroundColor: 'rgba(220, 38, 38, 0.88)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '2px 4px',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
