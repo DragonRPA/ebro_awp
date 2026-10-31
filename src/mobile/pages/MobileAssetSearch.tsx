@@ -218,11 +218,11 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
         acc.availableContractQty += r.availableContractQty;
         acc.stockOwned += r.stockOwned;
         acc.stockRented += r.stockRented;
-        acc.scheduledOwned += r.scheduledOwned;
-        acc.scheduledRented += r.scheduledRented;
+        acc.scheduledUnassigned += r.scheduledUnassigned;
+        acc.scheduledAssigned += r.scheduledAssigned;
         return acc;
       },
-      { availableContractQty: 0, stockOwned: 0, stockRented: 0, scheduledOwned: 0, scheduledRented: 0 }
+      { availableContractQty: 0, stockOwned: 0, stockRented: 0, scheduledUnassigned: 0, scheduledAssigned: 0 }
     );
   }, [filteredInventoryRows]);
 
@@ -546,13 +546,13 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
             </div>
 
             <div className="p-2.5 rounded-xl bg-slate-900 border border-amber-500/40 flex flex-col justify-between">
-              <span className="text-[10.5px] font-bold text-amber-200 whitespace-nowrap">출고예정 (당사/임차)</span>
+              <span className="text-[10.5px] font-bold text-amber-200 whitespace-nowrap">출고예정 (미할당/할당)</span>
               <div className="flex items-baseline justify-between mt-1">
                 <strong className="text-lg font-black text-amber-300 whitespace-nowrap">
-                  {inventoryTotals.scheduledOwned + inventoryTotals.scheduledRented}대
+                  {inventoryTotals.scheduledUnassigned + inventoryTotals.scheduledAssigned}대
                 </strong>
                 <span className="text-[10px] text-slate-200 font-bold whitespace-nowrap">
-                  {inventoryTotals.scheduledOwned}/{inventoryTotals.scheduledRented}
+                  {inventoryTotals.scheduledUnassigned}/{inventoryTotals.scheduledAssigned}
                 </span>
               </div>
             </div>
@@ -580,8 +580,8 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                   <tr style={{ backgroundColor: '#1e293b', color: '#f8fafc', borderBottom: '2px solid #475569' }}>
                     <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#a7f3d0', backgroundColor: '#064e3b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>당사</th>
                     <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#a7f3d0', backgroundColor: '#064e3b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>임차</th>
-                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>당사</th>
-                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', whiteSpace: 'nowrap', fontSize: '10px' }}>임차</th>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontSize: '10px' }}>미할당</th>
+                    <th style={{ padding: '4px 4px', textAlign: 'center', fontWeight: 800, color: '#fde68a', backgroundColor: '#78350f', whiteSpace: 'nowrap', fontSize: '10px' }}>할당</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -630,11 +630,11 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                           <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.stockRented > 0 ? '#6ee7b7' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
                             {row.stockRented > 0 ? row.stockRented : ''}
                           </td>
-                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledOwned > 0 ? '#fbbf24' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
-                            {row.scheduledOwned > 0 ? row.scheduledOwned : ''}
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledUnassigned > 0 ? '#fbbf24' : '#64748b', backgroundColor: rowBg, borderRight: '1px solid #26354d', whiteSpace: 'nowrap' }}>
+                            {row.scheduledUnassigned > 0 ? row.scheduledUnassigned : ''}
                           </td>
-                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledRented > 0 ? '#fcd34d' : '#64748b', backgroundColor: rowBg, whiteSpace: 'nowrap' }}>
-                            {row.scheduledRented > 0 ? row.scheduledRented : ''}
+                          <td style={{ padding: '6px 5px', textAlign: 'right', fontWeight: 800, color: row.scheduledAssigned > 0 ? '#fcd34d' : '#64748b', backgroundColor: rowBg, whiteSpace: 'nowrap' }}>
+                            {row.scheduledAssigned > 0 ? row.scheduledAssigned : ''}
                           </td>
                         </tr>
                       );
@@ -656,10 +656,10 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
                       {inventoryTotals.stockRented}
                     </td>
                     <td style={{ padding: '8px 5px', textAlign: 'right', color: '#fbbf24', backgroundColor: '#1e293b', borderRight: '1px solid #334155', whiteSpace: 'nowrap', fontWeight: 900 }}>
-                      {inventoryTotals.scheduledOwned}
+                      {inventoryTotals.scheduledUnassigned}
                     </td>
                     <td style={{ padding: '8px 5px', textAlign: 'right', color: '#fcd34d', backgroundColor: '#1e293b', whiteSpace: 'nowrap', fontWeight: 900 }}>
-                      {inventoryTotals.scheduledRented}
+                      {inventoryTotals.scheduledAssigned}
                     </td>
                   </tr>
                 </tfoot>

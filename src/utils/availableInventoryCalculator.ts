@@ -21,6 +21,8 @@ export interface InventoryModelRow {
   availableContractQty: number;
   stockOwned: number;
   stockRented: number;
+  scheduledUnassigned: number;
+  scheduledAssigned: number;
   scheduledOwned: number;
   scheduledRented: number;
 }
@@ -418,11 +420,13 @@ export function calculateAvailableInventorySSOT(params: {
     const allocToRented = Math.min(unalloc, remRentedStock);
     unalloc -= allocToRented;
 
+    const scheduledUnassigned = b.unassignedPendingCount;
+    const scheduledAssigned = b.assignedPreInspOwned + b.assignedPreInspRented;
     const scheduledOwned = b.assignedPreInspOwned + allocToOwned + unalloc;
     const scheduledRented = b.assignedPreInspRented + allocToRented;
 
     const totalStock = b.stockOwned + b.stockRented;
-    const totalScheduled = scheduledOwned + scheduledRented;
+    const totalScheduled = scheduledUnassigned + scheduledAssigned;
     const availableContractQty = totalStock - totalScheduled;
 
     if (b.feet > 0) feetSet.add(b.feet);
@@ -442,6 +446,8 @@ export function calculateAvailableInventorySSOT(params: {
       availableContractQty,
       stockOwned: b.stockOwned,
       stockRented: b.stockRented,
+      scheduledUnassigned,
+      scheduledAssigned,
       scheduledOwned,
       scheduledRented,
     });
