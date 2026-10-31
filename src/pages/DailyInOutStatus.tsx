@@ -111,8 +111,8 @@ export const DailyInOutStatus: React.FC = () => {
   };
   const todayStr = getTodayStr();
 
-  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) | TABLE (표 형태) | DETAIL_CALENDAR (상세보기: 엑셀형 월간 상세 캘린더)
-  const [viewMode, setViewMode] = useState<'SPLIT' | 'TABLE' | 'DETAIL_CALENDAR'>('SPLIT');
+  // 1. 뷰 모드: SPLIT (좌우 분할: 좌측 캘린더 + 우측 리스트) | TABLE (표 형태) | DETAIL_CALENDAR (상세보기: 엑셀형 월간 상세 캘린더 - 기본값)
+  const [viewMode, setViewMode] = useState<'SPLIT' | 'TABLE' | 'DETAIL_CALENDAR'>('DETAIL_CALENDAR');
 
   // 2. 기준 연월 상태
   const [calYear, setCalYear] = useState<number>(now.getFullYear());
@@ -122,7 +122,7 @@ export const DailyInOutStatus: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | AssetOwnershipCategory>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
   const [modelFilter, setModelFilter] = useState<string>('ALL');
-  const [includeScheduled, setIncludeScheduled] = useState<boolean>(false);
+  const [includeScheduled, setIncludeScheduled] = useState<boolean>(true);
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
   // 4. 선택된 일자 (상세 패널용)
