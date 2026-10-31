@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Search, Plus, Wrench, MapPin, User, Phone, Package, AlertTriangle, Clock, Image as ImageIcon, ChevronRight, BookOpen, Navigation, LogIn, LogOut, Home } from 'lucide-react';
 import { safePhoneCall, resolveSiteDetailedAddress } from '../../utils/nativeLauncher';
 import { getUserDepartmentName } from '../../utils/userDepartmentHelper';
-import { Asset, Repair, InboundDefectDetail, AsRouteEventType, AsPartsSourcingType } from '../../services/db';
+import { Asset, Repair, InboundDefectDetail, AsRouteEventType, AsPartsSourcingType, isVirtualAsset } from '../../services/db';
 import { MobileYardRepairModal } from '../components/MobileYardRepairModal';
 import {
   getAllUnifiedAsRouteLogs,
@@ -237,22 +237,25 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
     }
   }, [navigationPayload, fieldAsTickets, repairs, assets]);
 
-  // 1. 주기장 정비 대상 자산 집계
+  // 1. 주기장 정비 대상 자산 집계 (가상자산 및 기 반납 임차자산 제외)
   const yardAssets = useMemo(() => {
     return (assets || []).filter(a => {
-      if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') return false;
+      if (isVirtualAsset(a)) return false;
+      if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'LOST' || a.status === 'ASSIGNED') return false;
       const hasOutboundDefect = (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
       const hasInboundDefect = (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
       const isRepairing = a.status === 'REPAIRING';
-      const isReturned = a.status === 'RENTED_RETURNED';
       const isUnresolved = (repairs || []).some(r => r.assetId === a.id && r.status === 'UNRESOLVED');
-      return hasOutboundDefect || hasInboundDefect || isRepairing || isReturned || isUnresolved;
+      const isReturnedSublease = a.status === 'RENTED_RETURNED' || (a.ownerType === 'RENTED' && Boolean(a.actualRentReturnDate));
+      if (isReturnedSublease && !hasOutboundDefect && !hasInboundDefect && !isUnresolved) return false;
+      return hasOutboundDefect || hasInboundDefect || isRepairing || isUnresolved;
     });
   }, [assets, repairs]);
 
-  // 입출고 결함 자산 건수
+  // 입출고 결함 자산 건수 (가상자산 제외)
   const inboundDefectCount = useMemo(() => {
     return (assets || []).filter(a => 
+      !isVirtualAsset(a) &&
       (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && (r.source === 'INBOUND_INSPECTION' || r.source === 'OUTBOUND_DEFECT'))
     ).length;
   }, [assets, repairs]);

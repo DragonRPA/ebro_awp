@@ -14,7 +14,7 @@ import { findActiveTasksForUser, buildTaskNavigationPayload, resolveMobileTabFor
 import { findUnsentContractOutboundRows } from '../../modules/dispatchRequest/dispatchOrderHistoryReconstructor';
 import { ContractDocumentBundleModal } from '../../components/ContractDocumentBundleModal';
 import { calculateAvailableInventorySSOT } from '../../utils/availableInventoryCalculator';
-import { db, Todo } from '../../services/db';
+import { db, Todo, isVirtualAsset } from '../../services/db';
 import { MobileApprovalInboxSection } from '../components/MobileApprovalInboxSection';
 
 interface MobileHomeProps {
@@ -225,16 +225,20 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
   const yardRepairAssets = useMemo(() => {
     return (assets || []).filter(a => {
-      if (a.status === 'RENTED' || a.status === 'DISPOSED' || (a.status as string) === 'SOLD' || a.status === 'ASSIGNED') return false;
+      if (isVirtualAsset(a)) return false;
+      if (a.status === 'RENTED' || a.status === 'DISPOSED' || (a.status as string) === 'SOLD' || a.status === 'LOST' || a.status === 'ASSIGNED') return false;
       const hasOutboundDefect = (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
       const hasInboundDefect = (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
       const isUnresolved = (repairs || []).some(r => r.assetId === a.id && r.status === 'UNRESOLVED');
-      return hasOutboundDefect || hasInboundDefect || isUnresolved || a.status === 'REPAIRING' || a.status === 'RENTED_RETURNED';
+      const isReturnedSublease = a.status === 'RENTED_RETURNED' || (a.ownerType === 'RENTED' && Boolean(a.actualRentReturnDate));
+      if (isReturnedSublease && !hasOutboundDefect && !hasInboundDefect && !isUnresolved) return false;
+      return hasOutboundDefect || hasInboundDefect || isUnresolved || a.status === 'REPAIRING';
     });
   }, [assets, repairs]);
 
   const inboundDefectCount = useMemo(() => {
     return (assets || []).filter(a => 
+      !isVirtualAsset(a) &&
       (repairs || []).some(r => r.assetId === a.id && r.status === 'PENDING' && (r.source === 'INBOUND_INSPECTION' || r.source === 'OUTBOUND_DEFECT'))
     ).length;
   }, [assets, repairs]);

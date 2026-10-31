@@ -5,7 +5,7 @@ import {
   Camera, Plus, Trash2, ShieldCheck, ChevronRight, X, Truck, 
   Layers, Package, Check, RefreshCw, FileText
 } from 'lucide-react';
-import { Repair, Asset, InboundDefectDetail, db } from '../services/db';
+import { Repair, Asset, InboundDefectDetail, db, isVirtualAsset } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { compressFileIfNeeded } from '../utils/imageCompressor';
 import { normalizeMenuId } from '../config/menu_config';
@@ -40,8 +40,8 @@ export const Repairs: React.FC = () => {
   // =========================================================================
   // [1] 스튜디오 모드 상태 (마스터-디테일 워크벤치)
   // =========================================================================
-  // 좌측 큐 필터: 'ALL' | 'INBOUND_DEFECT' | 'RENTED_RETURNED' | 'REPAIRING' | 'EXTERNAL' | 'AVAILABLE'
-  const [yardQueueFilter, setYardQueueFilter] = useState<'ALL' | 'OUTBOUND_DEFECT' | 'INBOUND_DEFECT' | 'RENTED_RETURNED' | 'REPAIRING' | 'EXTERNAL' | 'AVAILABLE'>('ALL');
+  // 좌측 큐 필터: 'ALL' | 'OUTBOUND_DEFECT' | 'INBOUND_DEFECT' | 'REPAIRING' | 'EXTERNAL' | 'AVAILABLE'
+  const [yardQueueFilter, setYardQueueFilter] = useState<'ALL' | 'OUTBOUND_DEFECT' | 'INBOUND_DEFECT' | 'REPAIRING' | 'EXTERNAL' | 'AVAILABLE'>('ALL');
   const [yardSearchTerm, setYardSearchTerm] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState<string>('');
 
@@ -242,13 +242,43 @@ export const Repairs: React.FC = () => {
     mType === 'VENDOR_REPAIR' ? '임차처 수리 (담당불필요)' : ((id ? userMap.get(id)?.name : '') || '미지정');
   const getVendorName = (id?: string) => (id ? vendorMap.get(id)?.name : '') || '-';
 
-  // 주기장 대상 자산 목록 (RENTED_RETURNED, REPAIRING, AVAILABLE 및 진행중인 외주정비 자산)
+  // 주기장 정비 큐/수량 집계에서 제외할 자산 판별:
+  // 1) 가상자산(VIRTUAL-*, V-*, 가상- 등)
+  // 2) 임차처에 이미 반납 완료된 외부 임차자산(RENTED_RETURNED 또는 actualRentReturnDate 존재) — 단, 진행/대기 중인 정비 건이 있는 경우 예외 허용
+  // 3) 대여중, 매각, 폐기, 분실, 출고 파이프라인(장비할당·출고검수대기·운송대기) 자산
+  const isExcludedFromYardQueue = (a: Asset) => {
+    if (isVirtualAsset(a)) return true;
+    const assetRepairs = repairsByAssetIdMap.get(a.id);
+    const hasActiveOrPendingRepair = Boolean(
+      assetRepairs?.pendingOutbound ||
+      assetRepairs?.pendingInbound ||
+      assetRepairs?.activeExternal ||
+      assetRepairs?.unresolvedRepair ||
+      assetRepairs?.generalPending
+    );
+    const isReturnedSublease =
+      a.status === 'RENTED_RETURNED' || (a.ownerType === 'RENTED' && Boolean(a.actualRentReturnDate));
+    if (isReturnedSublease && !hasActiveOrPendingRepair) return true;
+    if (
+      a.status === 'RENTED' ||
+      a.status === 'SOLD' ||
+      a.status === 'DISPOSED' ||
+      a.status === 'LOST' ||
+      a.status === 'ASSIGNED' ||
+      a.status === 'OUTBOUND_INSPECTION' ||
+      a.status === 'AWAITING_TRANSPORT'
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  // 주기장 대상 자산 목록 (REPAIRING, AVAILABLE 및 진행중인 결함/외주정비 자산)
   const yardAssets = useMemo(() => {
     const matcher = yardSearchTerm.trim() ? createHangulMatcher(yardSearchTerm) : null;
 
     const list = assets.filter(a => {
-      // 대여중이나 매각은 주기장 정비 큐에서 제외
-      if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') return false;
+      if (isExcludedFromYardQueue(a)) return false;
 
       const assetRepairs = repairsByAssetIdMap.get(a.id);
       const hasOutboundDefect = Boolean(assetRepairs?.pendingOutbound);
@@ -257,7 +287,6 @@ export const Repairs: React.FC = () => {
 
       if (yardQueueFilter === 'OUTBOUND_DEFECT' && !hasOutboundDefect) return false;
       if (yardQueueFilter === 'INBOUND_DEFECT' && !hasInboundDefect) return false;
-      if (yardQueueFilter === 'RENTED_RETURNED' && a.status !== 'RENTED_RETURNED') return false;
       if (yardQueueFilter === 'REPAIRING' && a.status !== 'REPAIRING') return false;
       if (yardQueueFilter === 'EXTERNAL' && !hasActiveExternalRepair) return false;
       if (yardQueueFilter === 'AVAILABLE' && a.status !== 'AVAILABLE') return false;
@@ -268,16 +297,15 @@ export const Repairs: React.FC = () => {
       return true;
     });
 
-    // 당면 정비 우선순위 정렬: 출고불량 > 입고결함 > 수리중 > 입고검수대기 > 외주위탁 > 정상임대가능
+    // 당면 정비 우선순위 정렬: 출고불량 > 입고결함 > 수리중 > 외주위탁 > 정상임대가능
     return list.sort((a, b) => {
       const getPriority = (item: Asset) => {
         const assetRepairs = repairsByAssetIdMap.get(item.id);
         if (assetRepairs?.pendingOutbound) return 1;
         if (assetRepairs?.pendingInbound) return 2;
         if (item.status === 'REPAIRING') return 3;
-        if (item.status === 'RENTED_RETURNED') return 4;
-        if (assetRepairs?.activeExternal) return 5;
-        return 6; // AVAILABLE
+        if (assetRepairs?.activeExternal) return 4;
+        return 5; // AVAILABLE
       };
       const pA = getPriority(a);
       const pB = getPriority(b);
@@ -286,36 +314,36 @@ export const Repairs: React.FC = () => {
     });
   }, [assets, repairsByAssetIdMap, yardQueueFilter, yardSearchTerm]);
 
-  // 주기장 큐 카운트 통계 (단일 패스)
+  // 주기장 큐 카운트 통계 (단일 패스 — 가상자산 및 기 반납 임차자산 제외)
   const queueCounts = useMemo(() => {
     let all = 0;
     let outboundDefects = 0;
     let inboundDefects = 0;
-    let returned = 0;
     let repairing = 0;
     let available = 0;
 
     for (let i = 0; i < assets.length; i++) {
       const a = assets[i];
-      if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') continue;
+      if (isExcludedFromYardQueue(a)) continue;
       all++;
       const assetRepairs = repairsByAssetIdMap.get(a.id);
       if (assetRepairs?.pendingOutbound) outboundDefects++;
       if (assetRepairs?.pendingInbound) inboundDefects++;
-      if (a.status === 'RENTED_RETURNED') returned++;
       if (a.status === 'REPAIRING') repairing++;
       if (a.status === 'AVAILABLE') available++;
     }
 
-    return { all, outboundDefects, inboundDefects, returned, repairing, external: externalInProgressCount, available };
+    return { all, outboundDefects, inboundDefects, repairing, external: externalInProgressCount, available };
   }, [assets, repairsByAssetIdMap, externalInProgressCount]);
 
-  // 최하단 회계 대차대조식 검증 바 통계 (단일 패스)
+  // 최하단 회계 대차대조식 검증 바 통계 (단일 패스 — 가상자산 및 기 반납 임차자산 제외)
   const auditFooterStats = useMemo(() => {
     let repairingAssets = 0;
     let availableAssets = 0;
     for (let i = 0; i < assets.length; i++) {
-      const st = assets[i].status;
+      const a = assets[i];
+      if (isExcludedFromYardQueue(a)) continue;
+      const st = a.status;
       if (st === 'REPAIRING') repairingAssets++;
       else if (st === 'AVAILABLE') availableAssets++;
     }
@@ -332,7 +360,7 @@ export const Repairs: React.FC = () => {
     }
 
     return { repairingAssets, availableAssets, monthlyCompletedRepairs, totalConsumableCost };
-  }, [assets, repairs, thisMonthStart]);
+  }, [assets, repairsByAssetIdMap, repairs, thisMonthStart]);
 
   // 현재 선택된 자산 객체
   const selectedAsset = useMemo(() => {
@@ -1166,7 +1194,6 @@ export const Repairs: React.FC = () => {
                 { key: 'ALL', label: '전체', count: queueCounts.all },
                 { key: 'OUTBOUND_DEFECT', label: '출고불량', count: queueCounts.outboundDefects, color: 'var(--danger)' },
                 { key: 'INBOUND_DEFECT', label: '입고결함', count: queueCounts.inboundDefects, color: 'var(--danger)' },
-                { key: 'RENTED_RETURNED', label: '반납검수', count: queueCounts.returned, color: '#f59e0b' },
                 { key: 'REPAIRING', label: '정비중', count: queueCounts.repairing, color: '#f97316' },
                 { key: 'EXTERNAL', label: '외주위탁', count: queueCounts.external, color: 'var(--primary)' },
                 { key: 'AVAILABLE', label: '점검대상', count: queueCounts.available, color: '#10b981' },
@@ -1266,10 +1293,10 @@ export const Repairs: React.FC = () => {
                           ) : (
                             <span className={`badge ${
                               isRepairing ? 'badge-danger' :
-                              isReturned ? 'badge-warning' :
+                              isReturned ? 'badge-secondary' :
                               isAvailable ? 'badge-success' : 'badge-secondary'
                             }`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                              {isRepairing ? '정비중' : isReturned ? '입고검수대기' : isAvailable ? '임대가능' : asset.status}
+                              {isRepairing ? '정비중' : isReturned ? '임차반납' : isAvailable ? '임대가능' : asset.status}
                             </span>
                           )}
                           {(asset.maintenanceScore || 0) > 0 && (
@@ -1346,9 +1373,9 @@ export const Repairs: React.FC = () => {
                       <span style={{ fontSize: '15px', fontWeight: '700' }}>{selectedAsset.modelName}</span>
                       <span className={`badge ${
                         selectedAsset.status === 'REPAIRING' ? 'badge-danger' :
-                        selectedAsset.status === 'RENTED_RETURNED' ? 'badge-warning' : 'badge-success'
+                        selectedAsset.status === 'RENTED_RETURNED' ? 'badge-secondary' : 'badge-success'
                       }`} style={{ fontSize: '11px' }}>
-                        현재: {selectedAsset.status === 'REPAIRING' ? '정비중' : selectedAsset.status === 'RENTED_RETURNED' ? '입고검수대기' : '임대가능'}
+                        현재: {selectedAsset.status === 'REPAIRING' ? '정비중' : selectedAsset.status === 'RENTED_RETURNED' ? '임차반납' : '임대가능'}
                       </span>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', gap: '12px' }}>
