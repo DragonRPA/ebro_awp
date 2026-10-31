@@ -1,12 +1,12 @@
 // src/pages/AvailableInventoryPage.tsx
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { isVirtualAsset } from '../services/db';
 import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from '../utils/modelUtils';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { exportToExcel } from '../services/excel';
 import { getAssetStatusLabel, isInventoryStockStatus } from '../config/asset_status_config';
-import { Download, RefreshCw, Copy, Check, Truck, Search } from 'lucide-react';
+import { Download, RefreshCw, Copy, Check, Truck, X } from 'lucide-react';
 
 export interface StockHoverItem {
   id: string;
@@ -126,54 +126,29 @@ export const AvailableInventoryPage: React.FC = () => {
     | 'SCHEDULED_OWNED'
     | 'SCHEDULED_RENTED';
 
-  const [hoverInfo, setHoverInfo] = useState<{
+  const [detailModalInfo, setDetailModalInfo] = useState<{
     row: InventoryModelRow;
     colType: HoverColumnType;
-    rect: { top: number; bottom: number; left: number; right: number; width: number };
   } | null>(null);
-  const hoverCloseTimerRef = useRef<number | null>(null);
 
-  const handleCellMouseEnter = (
-    e: React.MouseEvent<HTMLElement>,
-    row: InventoryModelRow,
-    colType: HoverColumnType
-  ) => {
-    if (hoverCloseTimerRef.current) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-    const r = e.currentTarget.getBoundingClientRect();
-    setHoverInfo({
-      row,
-      colType,
-      rect: { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width }
-    });
+  const handleOpenDetailModal = (row: InventoryModelRow, colType: HoverColumnType) => {
+    setDetailModalInfo({ row, colType });
   };
 
-  const handleCellMouseLeave = () => {
-    if (hoverCloseTimerRef.current) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-    }
-    hoverCloseTimerRef.current = window.setTimeout(() => {
-      setHoverInfo(null);
-    }, 130);
+  const handleCloseDetailModal = () => {
+    setDetailModalInfo(null);
   };
 
-  const handlePopoverMouseEnter = () => {
-    if (hoverCloseTimerRef.current) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-      hoverCloseTimerRef.current = null;
-    }
-  };
-
-  const handlePopoverMouseLeave = () => {
-    if (hoverCloseTimerRef.current) {
-      window.clearTimeout(hoverCloseTimerRef.current);
-    }
-    hoverCloseTimerRef.current = window.setTimeout(() => {
-      setHoverInfo(null);
-    }, 100);
-  };
+  useEffect(() => {
+    if (!detailModalInfo) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDetailModalInfo(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [detailModalInfo]);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -1049,14 +1024,6 @@ export const AvailableInventoryPage: React.FC = () => {
           <button
             type="button"
             className="btn-secondary"
-            onClick={handleCopyScheduleText}
-            style={{ height: '26px', padding: '0 8px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, borderColor: 'var(--primary)', color: 'var(--primary)' }}
-          >
-            {copied ? <Check size={11} /> : <Copy size={11} />} 출고예정 텍스트 복사
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
             onClick={handleExportExcel}
             style={{ height: '26px', padding: '0 8px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0, borderColor: 'var(--success)', color: 'var(--success)' }}
           >
@@ -1296,8 +1263,7 @@ export const AvailableInventoryPage: React.FC = () => {
                         {row.modelName}
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'AVAILABLE_CONTRACT')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'AVAILABLE_CONTRACT')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
@@ -1306,7 +1272,7 @@ export const AvailableInventoryPage: React.FC = () => {
                           backgroundColor: 'rgba(245, 158, 11, 0.10)',
                           fontWeight: 800,
                           fontSize: '12px',
-                          cursor: 'help',
+                          cursor: 'pointer',
                           color: row.availableContractQty < 0 ? 'var(--danger)' : row.availableContractQty > 0 ? 'var(--text-main)' : 'var(--text-muted)'
                         }}
                       >
@@ -1315,15 +1281,14 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'STOCK_OWNED')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'STOCK_OWNED')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
                           borderRight: '1px solid var(--table-row-border)',
                           fontWeight: row.stockOwned > 0 ? 700 : 400,
-                          cursor: row.stockOwned > 0 ? 'help' : 'default',
+                          cursor: 'pointer',
                           color: row.stockOwned > 0 ? 'var(--text-main)' : 'var(--text-muted)'
                         }}
                       >
@@ -1332,15 +1297,14 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'STOCK_RENTED')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'STOCK_RENTED')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
                           borderRight: '1px solid var(--table-row-border)',
                           fontWeight: row.stockRented > 0 ? 700 : 400,
-                          cursor: row.stockRented > 0 ? 'help' : 'default',
+                          cursor: 'pointer',
                           color: row.stockRented > 0 ? '#b45309' : 'var(--text-muted)'
                         }}
                       >
@@ -1349,15 +1313,14 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_UNASSIGNED')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'SCHEDULED_UNASSIGNED')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
                           borderRight: '1px solid var(--table-row-border)',
                           fontWeight: row.scheduledUnassigned > 0 ? 700 : 400,
-                          cursor: row.scheduledUnassigned > 0 ? 'help' : 'default',
+                          cursor: 'pointer',
                           color: row.scheduledUnassigned > 0 ? '#d97706' : 'var(--text-muted)'
                         }}
                       >
@@ -1366,15 +1329,14 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_OWNED')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'SCHEDULED_OWNED')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
                           borderRight: '1px solid var(--table-row-border)',
                           fontWeight: row.scheduledOwned > 0 ? 700 : 400,
-                          cursor: row.scheduledOwned > 0 ? 'help' : 'default',
+                          cursor: 'pointer',
                           color: row.scheduledOwned > 0 ? '#d97706' : 'var(--text-muted)'
                         }}
                       >
@@ -1383,14 +1345,13 @@ export const AvailableInventoryPage: React.FC = () => {
                         </span>
                       </td>
                       <td
-                        onMouseEnter={e => handleCellMouseEnter(e, row, 'SCHEDULED_RENTED')}
-                        onMouseLeave={handleCellMouseLeave}
+                        onClick={() => handleOpenDetailModal(row, 'SCHEDULED_RENTED')}
                         style={{
                           padding: '1.5px 6px',
                           lineHeight: 1.15,
                           textAlign: 'center',
                           fontWeight: row.scheduledRented > 0 ? 700 : 400,
-                          cursor: row.scheduledRented > 0 ? 'help' : 'default',
+                          cursor: 'pointer',
                           color: row.scheduledRented > 0 ? '#c2410c' : 'var(--text-muted)'
                         }}
                       >
@@ -1425,8 +1386,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     합계
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'AVAILABLE_CONTRACT')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'AVAILABLE_CONTRACT')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1435,7 +1395,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       backgroundColor: 'rgba(245, 158, 11, 0.24)',
                       color: totals.availableContractQty < 0 ? 'var(--danger)' : 'var(--text-main)',
                       fontSize: '12.5px',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1443,8 +1403,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_OWNED')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'STOCK_OWNED')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1452,7 +1411,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       backgroundColor: 'rgba(245, 158, 11, 0.18)',
                       color: 'var(--text-main)',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1460,8 +1419,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'STOCK_RENTED')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'STOCK_RENTED')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1469,7 +1427,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       backgroundColor: 'rgba(245, 158, 11, 0.18)',
                       color: '#b45309',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1477,8 +1435,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_UNASSIGNED')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'SCHEDULED_UNASSIGNED')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1486,7 +1443,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       backgroundColor: 'rgba(245, 158, 11, 0.18)',
                       color: '#d97706',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1494,8 +1451,7 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_OWNED')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'SCHEDULED_OWNED')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
@@ -1503,7 +1459,7 @@ export const AvailableInventoryPage: React.FC = () => {
                       borderRight: '1px solid var(--table-border-color)',
                       backgroundColor: 'rgba(245, 158, 11, 0.18)',
                       color: '#d97706',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1511,15 +1467,14 @@ export const AvailableInventoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td
-                    onMouseEnter={e => handleCellMouseEnter(e, totalSummaryRow, 'SCHEDULED_RENTED')}
-                    onMouseLeave={handleCellMouseLeave}
+                    onClick={() => handleOpenDetailModal(totalSummaryRow, 'SCHEDULED_RENTED')}
                     style={{
                       padding: '2px 6px',
                       lineHeight: 1.15,
                       textAlign: 'center',
                       backgroundColor: 'rgba(245, 158, 11, 0.18)',
                       color: '#c2410c',
-                      cursor: 'help'
+                      cursor: 'pointer'
                     }}
                   >
                     <span style={{ textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}>
@@ -1643,9 +1598,9 @@ export const AvailableInventoryPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 마우스오버 상세 내역 팝오버 (가용재고 관리번호 목록 / 출고예정 요청내역) */}
-      {hoverInfo && (() => {
-        const { row, colType, rect } = hoverInfo;
+      {/* 수량 클릭 상세 내역 모달 (가용재고 관리번호 목록 / 출고예정 요청내역) */}
+      {detailModalInfo && (() => {
+        const { row, colType } = detailModalInfo;
         const isInventoryCol =
           colType === 'AVAILABLE_CONTRACT' ||
           colType === 'STOCK_OWNED' ||
@@ -1667,14 +1622,6 @@ export const AvailableInventoryPage: React.FC = () => {
                 ? row.scheduledOwnedItems
                 : row.scheduledRentedItems;
 
-        const popoverWidth = 580;
-        const maxPopHeight = 360;
-        const winW = typeof window !== 'undefined' ? window.innerWidth : 1400;
-        const winH = typeof window !== 'undefined' ? window.innerHeight : 900;
-
-        const leftPos = Math.max(12, Math.min(rect.left + rect.width / 2 - popoverWidth / 2, winW - popoverWidth - 16));
-        const showAbove = rect.bottom + maxPopHeight + 20 > winH && rect.top > maxPopHeight + 20;
-
         const titleText =
           colType === 'AVAILABLE_CONTRACT'
             ? `${row.modelName} · 계약가능 재고 산출 및 관리번호 목록`
@@ -1694,218 +1641,267 @@ export const AvailableInventoryPage: React.FC = () => {
 
         return (
           <div
-            onMouseEnter={handlePopoverMouseEnter}
-            onMouseLeave={handlePopoverMouseLeave}
+            onClick={handleCloseDetailModal}
             style={{
               position: 'fixed',
-              left: `${leftPos}px`,
-              ...(showAbove
-                ? { bottom: `${winH - rect.top + 6}px` }
-                : { top: `${rect.bottom + 6}px` }),
-              width: `${popoverWidth}px`,
-              maxHeight: `${maxPopHeight}px`,
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--primary)',
-              borderRadius: '8px',
-              boxShadow: '0 10px 28px rgba(0, 0, 0, 0.24)',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.55)',
               zIndex: 9998,
               display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              fontSize: '12px'
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px'
             }}
           >
-            {/* 팝오버 헤더 */}
-            <div style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--bg-app)',
-              borderBottom: '1px solid var(--table-border-color)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap',
-              flexShrink: 0
-            }}>
-              <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '12.5px' }}>
-                {titleText}
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                {isInventoryCol
-                  ? `임대가능 ${row.availableOnlyItems.filter(i => colType === 'STOCK_OWNED' ? i.ownerType === 'OWNED' : colType === 'STOCK_RENTED' ? i.ownerType === 'RENTED' : true).length}대 / 전체재고 ${stockItems.length}대`
-                  : `할당완료 ${scheduledItems.filter(i => Boolean(i.assetNo)).length}대 / 미할당 ${scheduledItems.filter(i => !i.assetNo).length}대`}
-              </span>
-            </div>
-
-            {/* 계약가능 재고 컬럼일 때 산출 공식 요약 바 */}
-            {colType === 'AVAILABLE_CONTRACT' && (
-              <div style={{
-                padding: '6px 12px',
-                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                borderBottom: '1px solid var(--table-border-color)',
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '720px',
+                maxHeight: '80vh',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--table-border-color)',
+                borderRadius: '8px',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.32)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '3px',
-                fontSize: '11.5px',
+                overflow: 'hidden',
+                fontSize: '12px'
+              }}
+            >
+              {/* 모달 헤더 */}
+              <div style={{
+                padding: '10px 14px',
+                backgroundColor: 'var(--bg-app)',
+                borderBottom: '1px solid var(--table-border-color)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '10px',
                 whiteSpace: 'nowrap',
                 flexShrink: 0
               }}>
-                <div>
-                  <span>재고 <strong>{row.stockOwned + row.stockRented}대</strong> (당사 {row.stockOwned} + 임차 {row.stockRented})</span>
-                  <span style={{ margin: '0 6px' }}>−</span>
-                  <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledUnassigned + row.scheduledOwned + row.scheduledRented}대</strong> (미할당 {row.scheduledUnassigned} + 당사 {row.scheduledOwned} + 임차 {row.scheduledRented})</span>
-                  <span style={{ margin: '0 6px' }}>=</span>
-                  <span>계약가능 <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{row.availableContractQty}대</strong></span>
+                <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '13.5px' }}>
+                  {titleText}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {isInventoryCol
+                      ? `임대가능 ${row.availableOnlyItems.filter(i => colType === 'STOCK_OWNED' ? i.ownerType === 'OWNED' : colType === 'STOCK_RENTED' ? i.ownerType === 'RENTED' : true).length}대 / 전체재고 ${stockItems.length}대`
+                      : `할당완료 ${scheduledItems.filter(i => Boolean(i.assetNo)).length}대 / 미할당 ${scheduledItems.filter(i => !i.assetNo).length}대`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCloseDetailModal}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--table-border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                    title="닫기"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
-                {unassignedDeductionCount !== 0 && (
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                    ※ 순수 임대가능 자산 <strong>{row.availableOnlyItems.length}대</strong>에서 미할당 출고요청 <strong>{unassignedDeductionCount}대</strong>가 차감되어 계약가능 재고 <strong>{row.availableContractQty}대</strong>로 산출됨
-                  </div>
-                )}
               </div>
-            )}
 
-            {/* 팝오버 본문 테이블 */}
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
-              {isInventoryCol ? (
-                stockItems.length === 0 ? (
-                  <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    보유 중인 재고 자산이 없습니다.
+              {/* 계약가능 재고 컬럼일 때 산출 공식 요약 바 */}
+              {colType === 'AVAILABLE_CONTRACT' && (
+                <div style={{
+                  padding: '8px 14px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                  borderBottom: '1px solid var(--table-border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '3px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}>
+                  <div>
+                    <span>재고 <strong>{row.stockOwned + row.stockRented}대</strong> (당사 {row.stockOwned} + 임차 {row.stockRented})</span>
+                    <span style={{ margin: '0 6px' }}>−</span>
+                    <span>출고예정 <strong style={{ color: '#d97706' }}>{row.scheduledUnassigned + row.scheduledOwned + row.scheduledRented}대</strong> (미할당 {row.scheduledUnassigned} + 당사 {row.scheduledOwned} + 임차 {row.scheduledRented})</span>
+                    <span style={{ margin: '0 6px' }}>=</span>
+                    <span>계약가능 <strong style={{ color: row.availableContractQty < 0 ? 'var(--danger)' : 'var(--primary)' }}>{row.availableContractQty}대</strong></span>
                   </div>
+                  {unassignedDeductionCount !== 0 && (
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                      ※ 순수 임대가능 자산 <strong>{row.availableOnlyItems.length}대</strong>에서 미할당 출고요청 <strong>{unassignedDeductionCount}대</strong>가 차감되어 계약가능 재고 <strong>{row.availableContractQty}대</strong>로 산출됨
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 모달 본문 테이블 */}
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
+                {isInventoryCol ? (
+                  stockItems.length === 0 ? (
+                    <div style={{ padding: '28px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      보유 중인 재고 자산이 없습니다.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
+                        <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '40px' }}>순번</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>관리번호</th>
+                          {row.key === '__TOTAL_SUMMARY__' && (
+                            <th style={{ padding: '6px 10px', textAlign: 'left' }}>모델명</th>
+                          )}
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>소유구분</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>상태</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>연식</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>주기장</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>배정현황 / 임차처</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockItems.map((item, idx) => {
+                          const isPureAvail = item.status === 'AVAILABLE';
+                          return (
+                            <tr
+                              key={item.id}
+                              style={{
+                                borderBottom: '1px solid var(--table-row-border)',
+                                backgroundColor: isPureAvail ? 'transparent' : 'rgba(245, 158, 11, 0.06)'
+                              }}
+                            >
+                              <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                              <td style={{ padding: '6px 10px', fontWeight: 800, color: 'var(--primary)' }}>{item.assetNo}</td>
+                              {row.key === '__TOTAL_SUMMARY__' && (
+                                <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--text-main)' }}>{item.modelName}</td>
+                              )}
+                              <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, color: item.ownerType === 'RENTED' ? '#b45309' : 'var(--text-main)' }}>
+                                {item.ownerLabel}
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  backgroundColor: isPureAvail ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.18)',
+                                  color: isPureAvail ? 'var(--success)' : '#d97706'
+                                }}>
+                                  {item.statusLabel}
+                                </span>
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.manufactureYear}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.yard}</td>
+                              <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>
+                                {!isPureAvail && item.customerName
+                                  ? `${item.customerName}${item.siteName ? ` · ${item.siteName}` : ''} (출고예정 차감)`
+                                  : item.renterName
+                                    ? `임차처: ${item.renterName}`
+                                    : '즉시 계약·할당 가능'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
-                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
-                      <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                        <th style={{ padding: '5px 8px', textAlign: 'center', width: '36px' }}>순번</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>관리번호</th>
-                        {row.key === '__TOTAL_SUMMARY__' && (
-                          <th style={{ padding: '5px 8px', textAlign: 'left' }}>모델명</th>
-                        )}
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>소유구분</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>상태</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>연식</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>주기장</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>배정현황 / 임차처</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stockItems.map((item, idx) => {
-                        const isPureAvail = item.status === 'AVAILABLE';
-                        return (
-                          <tr
-                            key={item.id}
-                            style={{
-                              borderBottom: '1px solid var(--table-row-border)',
-                              backgroundColor: isPureAvail ? 'transparent' : 'rgba(245, 158, 11, 0.06)'
-                            }}
-                          >
-                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                            <td style={{ padding: '5px 8px', fontWeight: 800, color: 'var(--primary)' }}>{item.assetNo}</td>
+                  scheduledItems.length === 0 ? (
+                    <div style={{ padding: '28px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      출고예정 요청 내역이 없습니다.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                      <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
+                        <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'center', width: '40px' }}>순번</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>출고예정일</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>고객사</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>현장명</th>
+                          {row.key === '__TOTAL_SUMMARY__' && (
+                            <th style={{ padding: '6px 10px', textAlign: 'left' }}>모델명</th>
+                          )}
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>할당 관리번호 / 상태</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>계약번호</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scheduledItems.map((item, idx) => (
+                          <tr key={`${item.slotId}_${idx}`} style={{ borderBottom: '1px solid var(--table-row-border)' }}>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {item.scheduledDate}
+                            </td>
+                            <td style={{ padding: '6px 10px', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {item.customerName}
+                            </td>
+                            <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>
+                              {item.siteName}
+                            </td>
                             {row.key === '__TOTAL_SUMMARY__' && (
-                              <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--text-main)' }}>{item.modelName}</td>
+                              <td style={{ padding: '6px 10px', fontWeight: 600, color: 'var(--primary)' }}>
+                                {item.expectedModel}
+                              </td>
                             )}
-                            <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 600, color: item.ownerType === 'RENTED' ? '#b45309' : 'var(--text-main)' }}>
-                              {item.ownerLabel}
+                            <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                              {item.assetNo ? (
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  backgroundColor: 'rgba(59, 130, 246, 0.14)',
+                                  color: 'var(--primary)'
+                                }}>
+                                  {item.assetNo} · {item.ownerType === 'RENTED' ? '임차자산' : '당사자산'} · {item.statusLabel}
+                                </span>
+                              ) : (
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  backgroundColor: 'rgba(234, 88, 12, 0.14)',
+                                  color: '#d97706'
+                                }}>
+                                  미할당 · 장비 미배정
+                                </span>
+                              )}
                             </td>
-                            <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10.5px',
-                                fontWeight: 700,
-                                backgroundColor: isPureAvail ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.18)',
-                                color: isPureAvail ? 'var(--success)' : '#d97706'
-                              }}>
-                                {item.statusLabel}
-                              </span>
-                            </td>
-                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.manufactureYear}</td>
-                            <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>{item.yard}</td>
-                            <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
-                              {!isPureAvail && item.customerName
-                                ? `${item.customerName}${item.siteName ? ` · ${item.siteName}` : ''} (출고예정 차감)`
-                                : item.renterName
-                                  ? `임차처: ${item.renterName}`
-                                  : '즉시 계약·할당 가능'}
+                            <td style={{ padding: '6px 10px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                              {item.contractNo}
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )
-              ) : (
-                scheduledItems.length === 0 ? (
-                  <div style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    출고예정 요청 내역이 없습니다.
-                  </div>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
-                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-app)', zIndex: 2 }}>
-                      <tr style={{ borderBottom: '1px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                        <th style={{ padding: '5px 8px', textAlign: 'center', width: '36px' }}>순번</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>출고예정일</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>고객사</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>현장명</th>
-                        {row.key === '__TOTAL_SUMMARY__' && (
-                          <th style={{ padding: '5px 8px', textAlign: 'left' }}>모델명</th>
-                        )}
-                        <th style={{ padding: '5px 8px', textAlign: 'center' }}>할당 관리번호 / 상태</th>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>계약번호</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scheduledItems.map((item, idx) => (
-                        <tr key={`${item.slotId}_${idx}`} style={{ borderBottom: '1px solid var(--table-row-border)' }}>
-                          <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                          <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-main)' }}>
-                            {item.scheduledDate}
-                          </td>
-                          <td style={{ padding: '5px 8px', fontWeight: 700, color: 'var(--text-main)' }}>
-                            {item.customerName}
-                          </td>
-                          <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
-                            {item.siteName}
-                          </td>
-                          {row.key === '__TOTAL_SUMMARY__' && (
-                            <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--primary)' }}>
-                              {item.expectedModel}
-                            </td>
-                          )}
-                          <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                            {item.assetNo ? (
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10.5px',
-                                fontWeight: 800,
-                                backgroundColor: 'rgba(59, 130, 246, 0.14)',
-                                color: 'var(--primary)'
-                              }}>
-                                {item.assetNo} · {item.ownerType === 'RENTED' ? '임차자산' : '당사자산'} · {item.statusLabel}
-                              </span>
-                            ) : (
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10.5px',
-                                fontWeight: 700,
-                                backgroundColor: 'rgba(234, 88, 12, 0.14)',
-                                color: '#d97706'
-                              }}>
-                                미할당 · 장비 미배정
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '5px 8px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                            {item.contractNo}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )
-              )}
+                        ))}
+                      </tbody>
+                    </table>
+                  )
+                )}
+              </div>
+
+              {/* 모달 푸터 */}
+              <div style={{
+                padding: '8px 14px',
+                backgroundColor: 'var(--bg-app)',
+                borderTop: '1px solid var(--table-border-color)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                flexShrink: 0
+              }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleCloseDetailModal}
+                  style={{ height: '28px', padding: '0 14px', fontSize: '12px', fontWeight: 700 }}
+                >
+                  닫기
+                </button>
+              </div>
             </div>
           </div>
         );
