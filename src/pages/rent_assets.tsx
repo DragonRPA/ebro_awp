@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
-  Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar
+  Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar, Wrench, Camera, Trash2
 } from 'lucide-react';
-import { Asset, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation, AntiEntrapmentOwnership, ANTI_ENTRAPMENT_OWNERSHIP_MAP } from '../services/db';
+import { Asset, Repair, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation, AntiEntrapmentOwnership, ANTI_ENTRAPMENT_OWNERSHIP_MAP } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import * as XLSX from 'xlsx';
 
@@ -15,6 +15,8 @@ import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
 import { PurchaseStatementModal, uploadStatementFileSafe } from '../components/PurchaseStatementModal';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { lookupRecentInboundInfoByAsset } from '../utils/inboundDefectClaimHelper';
+import { compressFileIfNeeded } from '../utils/imageCompressor';
 
 // 5대 대사 결과 항목 인터페이스
 export type ReconcileStatusKey = 'MATCHED' | 'PRICE_MISMATCH' | 'PERIOD_MISMATCH' | 'UNREGISTERED' | 'MISSING_BILLING';
@@ -33,10 +35,11 @@ export interface ReconcileResultItem {
 
 export const RentAssets: React.FC = () => {
   const { 
-    assets, products, customers, vendors, contracts, sites, billings, billingDetails,
+    assets, products, customers, vendors, contracts, contractAssets, sites, billings, billingDetails,
     purchaseSettlements, purchaseSettlementItems, deliveries, receivables, assetInOutLogs,
+    repairs, users, inspectionChecklistItems,
     subleaseNegotiations, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable,
-    savePurchaseStatementFile,
+    registerRepair, savePurchaseStatementFile,
     hasPermission, refreshAllData, setActiveTab: setGlobalActiveTab
   } = useApp();
   
@@ -1151,14 +1154,10 @@ export const RentAssets: React.FC = () => {
   // ==========================================
   // [탭 1] 임차자산 대장 현황 관련 상태
   // ==========================================
-  const getCurrentMonthStartDate = () => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
-  };
   const [searchQuery, setSearchQuery] = useState('');
   const [modelQuery, setModelQuery] = useState('');
   const [renterQuery, setRenterQuery] = useState('');
-  const [startDateQuery, setStartDateQuery] = useState(getCurrentMonthStartDate);
+  const [startDateQuery, setStartDateQuery] = useState('');
   const [endDateQuery, setEndDateQuery] = useState('');
   const [feeQuery, setFeeQuery] = useState('ALL');
   const [returnQuery, setReturnQuery] = useState('ALL');
@@ -1694,6 +1693,335 @@ export const RentAssets: React.FC = () => {
       isReactivating: true
     } as any);
     setShowModal(true);
+  };
+
+  // 🔧 [임차반납 장비 증상 및 매입·청구 등록 모달] 상태
+  const [showSymptomModal, setShowSymptomModal] = useState<boolean>(false);
+  const [symptomTargetAsset, setSymptomTargetAsset] = useState<Asset | null>(null);
+  const [symptomRepairId, setSymptomRepairId] = useState<string>('');
+  const [symptomCategoryFilter, setSymptomCategoryFilter] = useState<string>('전체');
+  const [symptomChecklistItemId, setSymptomChecklistItemId] = useState<string>('');
+  const [symptomChecklistCode, setSymptomChecklistCode] = useState<string>('');
+  const [symptomDetails, setSymptomDetails] = useState<string>('');
+  const [symptomPhotos, setSymptomPhotos] = useState<string[]>([]);
+  const [isProcessingSymptomPhoto, setIsProcessingSymptomPhoto] = useState<boolean>(false);
+  const [symptomVendorCost, setSymptomVendorCost] = useState<number>(0);
+  const [symptomCustomerClaimAmount, setSymptomCustomerClaimAmount] = useState<number>(0);
+  const [symptomCustomerId, setSymptomCustomerId] = useState<string>('');
+  const [symptomContractId, setSymptomContractId] = useState<string>('');
+  const [symptomSiteId, setSymptomSiteId] = useState<string>('');
+  const [symptomOccurredDate, setSymptomOccurredDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [symptomRegisterPayableNow, setSymptomRegisterPayableNow] = useState<boolean>(true);
+  const [symptomRegisterReceivableNow, setSymptomRegisterReceivableNow] = useState<boolean>(true);
+  const [symptomMemo, setSymptomMemo] = useState<string>('');
+  const [isSubmittingSymptom, setIsSubmittingSymptom] = useState<boolean>(false);
+
+  // 자산별 등록된 임차처 수리/증상 요약 맵 (대장 행 배지 및 Dossier 표시용)
+  const repairsByAssetIdMap = useMemo(() => {
+    const map = new Map<string, Repair[]>();
+    for (let i = 0; i < (repairs || []).length; i++) {
+      const r = repairs[i];
+      if (!r.assetId) continue;
+      const list = map.get(r.assetId);
+      if (list) list.push(r);
+      else map.set(r.assetId, [r]);
+    }
+    return map;
+  }, [repairs]);
+
+  // 증상등록 모달 오픈 핸들러 (최근 사용 고객/현장/계약 자동 역추적 + 기존 증상 있으면 불러오기)
+  const handleOpenSymptomModal = (asset: Asset) => {
+    setSymptomTargetAsset(asset);
+    const lookup = lookupRecentInboundInfoByAsset(asset.assetNo, {
+      assets,
+      assetInOutLogs,
+      contractAssets: contractAssets || [],
+      contracts,
+      deliveries,
+      repairs: repairs || [],
+      customers,
+      sites,
+      users,
+      vendors
+    });
+
+    // 해당 자산의 가장 최근 정비/증상 이력 확인
+    const assetRepairs = (repairsByAssetIdMap.get(asset.id) || [])
+      .slice()
+      .sort((a, b) => (b.repairDate || b.requestDate || '').localeCompare(a.repairDate || a.requestDate || ''));
+    const latestVendorRepair = assetRepairs.find(r => r.maintenanceType === 'VENDOR_REPAIR') || assetRepairs[0];
+
+    if (latestVendorRepair) {
+      setSymptomRepairId(latestVendorRepair.id);
+      setSymptomChecklistItemId(latestVendorRepair.inspectionItemId || '');
+      setSymptomChecklistCode(latestVendorRepair.inspectionItemCode || '');
+      setSymptomDetails(latestVendorRepair.details || '');
+      const photos = Array.isArray(latestVendorRepair.evidenceImages) && latestVendorRepair.evidenceImages.length > 0
+        ? latestVendorRepair.evidenceImages
+        : latestVendorRepair.beforeImage
+          ? [latestVendorRepair.beforeImage]
+          : [];
+      setSymptomPhotos(photos.slice(0, 4));
+      setSymptomVendorCost(latestVendorRepair.totalCost || 0);
+      setSymptomCustomerClaimAmount(latestVendorRepair.billableAmount || latestVendorRepair.totalCost || 0);
+      setSymptomCustomerId(latestVendorRepair.customerId || lookup?.customerId || asset.currentCustomerId || '');
+      setSymptomContractId(latestVendorRepair.contractId || lookup?.contractId || '');
+      setSymptomSiteId(latestVendorRepair.siteId || lookup?.siteId || asset.currentSiteId || '');
+      setSymptomOccurredDate(latestVendorRepair.repairDate || asset.actualRentReturnDate || new Date().toISOString().split('T')[0]);
+      setSymptomMemo(latestVendorRepair.memo || '');
+    } else {
+      setSymptomRepairId('');
+      setSymptomChecklistItemId('');
+      setSymptomChecklistCode('');
+      setSymptomDetails('');
+      setSymptomPhotos([]);
+      setSymptomVendorCost(0);
+      setSymptomCustomerClaimAmount(0);
+      const resolvedCustId = lookup?.customerId || asset.currentCustomerId || '';
+      let resolvedContractId = lookup?.contractId || '';
+      if (!resolvedContractId && resolvedCustId) {
+        const custContract = contracts.find(c => c.customerId === resolvedCustId && (c.assets || []).some(ca => ca.assetId === asset.id))
+          || contracts.find(c => c.customerId === resolvedCustId);
+        if (custContract) resolvedContractId = custContract.id;
+      }
+      setSymptomCustomerId(resolvedCustId);
+      setSymptomContractId(resolvedContractId);
+      setSymptomSiteId(lookup?.siteId || asset.currentSiteId || '');
+      setSymptomOccurredDate(asset.actualRentReturnDate || lookup?.inboundDate || new Date().toISOString().split('T')[0]);
+      setSymptomMemo('');
+    }
+    setSymptomCategoryFilter('전체');
+    setSymptomRegisterPayableNow(true);
+    setSymptomRegisterReceivableNow(true);
+    setShowSymptomModal(true);
+  };
+
+  // 증상 사진 업로드 핸들러 (최대 4장)
+  const handleSymptomPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    try {
+      setIsProcessingSymptomPhoto(true);
+      const remaining = Math.max(0, 4 - symptomPhotos.length);
+      if (remaining <= 0) {
+        showToast('증빙 사진은 최대 4장까지 첨부 가능합니다.', 'error');
+        setIsProcessingSymptomPhoto(false);
+        e.target.value = '';
+        return;
+      }
+      const files = Array.from(fileList).slice(0, remaining);
+      const added: string[] = [];
+      for (const f of files) {
+        const compressed = await compressFileIfNeeded(f);
+        if (compressed.base64) added.push(compressed.base64);
+      }
+      setSymptomPhotos(prev => [...prev, ...added].slice(0, 4));
+    } catch (err: any) {
+      showToast(`사진 업로드 오류: ${err?.message || err}`, 'error');
+    } finally {
+      setIsProcessingSymptomPhoto(false);
+      e.target.value = '';
+    }
+  };
+
+  // 증상 및 외상매입금/고객청구 데이터 저장 핸들러
+  const handleSubmitSymptom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!symptomTargetAsset || isSubmittingSymptom) return;
+    if (!symptomDetails.trim()) {
+      showToast('장비 증상 및 파손·수리 상세 내역을 입력해 주세요.', 'error');
+      return;
+    }
+
+    const vendorCost = Math.max(0, Number(symptomVendorCost) || 0);
+    const customerClaimAmt = Math.max(0, Number(symptomCustomerClaimAmount) || 0);
+    const effectiveClaimAmt = customerClaimAmt > 0 ? customerClaimAmt : vendorCost;
+
+    if (symptomRegisterReceivableNow && effectiveClaimAmt > 0 && !symptomCustomerId) {
+      showToast('고객 청구 데이터를 생성하려면 귀책 고객사를 선택해 주세요.', 'error');
+      return;
+    }
+
+    setIsSubmittingSymptom(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const eventDate = symptomOccurredDate || nowIso.split('T')[0];
+      const targetYm = eventDate.slice(0, 7);
+      const renterName = getAssetRenterName(symptomTargetAsset);
+      const matchedVendor = (symptomTargetAsset.vendorId ? vendorMap.get(symptomTargetAsset.vendorId) : undefined)
+        || vendors.find(v => v.name === renterName);
+      const custObj = symptomCustomerId ? customerMap.get(symptomCustomerId) : undefined;
+      const contractObj = symptomContractId ? contracts.find(c => c.id === symptomContractId) : undefined;
+      const resolvedSiteId = symptomSiteId || contractObj?.siteId || symptomTargetAsset.currentSiteId || '';
+      const siteObj = resolvedSiteId ? siteMap.get(resolvedSiteId) : undefined;
+
+      const isAlreadyReturned =
+        symptomTargetAsset.status === 'RENTED_RETURNED' || Boolean(symptomTargetAsset.actualRentReturnDate);
+
+      // 1. Repair 레코드 등록/갱신 (VENDOR_REPAIR, 반납완료 자산은 RENTED_RETURNED 상태 유지)
+      const repairIdToUse = symptomRepairId || db.generateNextId('repairs', db.repairs);
+      const hasConfirmedCost = vendorCost > 0 || effectiveClaimAmt > 0;
+      const repairStatus: Repair['status'] = hasConfirmedCost ? 'COMPLETED' : 'PENDING';
+
+      await registerRepair({
+        id: symptomRepairId || repairIdToUse,
+        assetId: symptomTargetAsset.id,
+        assetNo: symptomTargetAsset.assetNo,
+        modelName: symptomTargetAsset.modelName,
+        customerId: symptomCustomerId || undefined,
+        customerName: custObj?.name || undefined,
+        contractId: symptomContractId || undefined,
+        siteId: resolvedSiteId || undefined,
+        siteName: siteObj?.name || undefined,
+        siteAddress: siteObj?.address || undefined,
+        vendorId: matchedVendor?.id || symptomTargetAsset.vendorId || undefined,
+        maintenanceType: 'VENDOR_REPAIR',
+        repairType: 'EXTERNAL',
+        workLocation: 'VENDOR_SHOP',
+        stockSource: 'YARD_STOCK',
+        requestDate: eventDate,
+        repairDate: eventDate,
+        status: repairStatus,
+        targetAssetStatus: isAlreadyReturned ? 'RENTED_RETURNED' : symptomTargetAsset.status,
+        details: symptomDetails.trim(),
+        totalCost: vendorCost,
+        billableType: (symptomRegisterReceivableNow && effectiveClaimAmt > 0) ? 'BILLABLE' : 'FREE',
+        billableAmount: symptomRegisterReceivableNow ? effectiveClaimAmt : 0,
+        billableToCustomer: Boolean(symptomRegisterReceivableNow && effectiveClaimAmt > 0),
+        inspectionItemId: symptomChecklistItemId || undefined,
+        inspectionItemCode: symptomChecklistCode || undefined,
+        beforeImage: symptomPhotos[0] || '',
+        evidenceImages: symptomPhotos,
+        memo: symptomMemo.trim() || `[임차반납 장비 사후 증상 등록] 임차처(${renterName}) 수리원가 ₩${vendorCost.toLocaleString()} / 고객청구 ₩${effectiveClaimAmt.toLocaleString()}`
+      }, []);
+
+      // 2. 당월 임차처 매입정산(외상매입금) 자동 반영 + 임차자산 정산 탭 대사 행 자동 추가
+      if (symptomRegisterPayableNow && vendorCost > 0) {
+        const cleanV = (s?: string) => (s || '').replace(/[\s\-_주식회사\(\)㈜]/g, '').toLowerCase();
+        const targetCleanV = cleanV(renterName);
+
+        // 2-A. PurchaseSettlement (임차처 매입정산 장부) 반영
+        const existingLeaseSettlement = db.purchaseSettlements.find(p =>
+          p.settlementYm === targetYm &&
+          (p.settlementType === 'EQUIPMENT_LEASE' || p.settlementType === 'EXTERNAL_REPAIR') &&
+          ((matchedVendor?.id && p.vendorId === matchedVendor.id) || cleanV(p.vendorName) === targetCleanV)
+        );
+
+        const itemDesc = `[임차반납 수리비] ${symptomTargetAsset.assetNo} (${symptomTargetAsset.modelName}) - ${symptomDetails.trim().slice(0, 40)}`;
+
+        if (existingLeaseSettlement) {
+          const existingRepairItem = db.purchaseSettlementItems.find(
+            i => i.settlementId === existingLeaseSettlement.id && i.sourceId === repairIdToUse
+          );
+          if (existingRepairItem) {
+            const diffAmt = vendorCost - (existingRepairItem.amount || 0);
+            db.updateRow<PurchaseSettlementItem>('purchaseSettlementItems', existingRepairItem.id, {
+              itemDescription: itemDesc,
+              unitPrice: vendorCost,
+              amount: vendorCost,
+              evidenceFileUrl: symptomPhotos[0] || existingRepairItem.evidenceFileUrl
+            });
+            if (diffAmt !== 0) {
+              db.updateRow<PurchaseSettlement>('purchaseSettlements', existingLeaseSettlement.id, {
+                totalAmount: Math.max(0, (existingLeaseSettlement.totalAmount || 0) + diffAmt),
+                updatedAt: nowIso
+              });
+            }
+          } else {
+            db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
+              settlementId: existingLeaseSettlement.id,
+              sourceType: 'REPAIR' as any,
+              sourceId: repairIdToUse,
+              itemDescription: itemDesc,
+              quantity: 1,
+              unitPrice: vendorCost,
+              amount: vendorCost,
+              evidenceFileUrl: symptomPhotos[0] || undefined,
+              createdAt: nowIso
+            });
+            db.updateRow<PurchaseSettlement>('purchaseSettlements', existingLeaseSettlement.id, {
+              totalAmount: (existingLeaseSettlement.totalAmount || 0) + vendorCost,
+              itemCount: (existingLeaseSettlement.itemCount || 0) + 1,
+              updatedAt: nowIso
+            });
+          }
+          db.updateRow<Repair>('repairs', repairIdToUse, {
+            purchaseBillId: existingLeaseSettlement.id,
+            updatedAt: nowIso
+          });
+        } else {
+          const newSettlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
+          db.insertRow<PurchaseSettlement>('purchaseSettlements', {
+            id: newSettlementId,
+            settlementYm: targetYm,
+            vendorId: matchedVendor?.id,
+            vendorName: renterName || '임차처',
+            settlementType: 'EXTERNAL_REPAIR',
+            totalAmount: vendorCost,
+            paidAmount: 0,
+            status: 'PENDING',
+            itemCount: 1,
+            memo: `[임차반납 파손수리비 외상매입금] ${symptomTargetAsset.assetNo} (${symptomDetails.trim().slice(0, 30)})`,
+            createdAt: nowIso,
+            updatedAt: nowIso
+          });
+          await db.awaitPendingWrites();
+          db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
+            settlementId: newSettlementId,
+            sourceType: 'REPAIR' as any,
+            sourceId: repairIdToUse,
+            itemDescription: itemDesc,
+            quantity: 1,
+            unitPrice: vendorCost,
+            amount: vendorCost,
+            evidenceFileUrl: symptomPhotos[0] || undefined,
+            createdAt: nowIso
+          });
+          db.updateRow<Repair>('repairs', repairIdToUse, {
+            purchaseBillId: newSettlementId,
+            updatedAt: nowIso
+          });
+        }
+
+        // 2-B. 현재 열려있는 [임차자산 정산] 탭의 대사 명세 행(statementRows)에도 수리비 항목 자동 반영
+        const stmtRowId = `stmt-repair-${repairIdToUse}`;
+        const repairStmtRow: VendorStatementRow = {
+          id: stmtRowId,
+          assetNo: symptomTargetAsset.assetNo,
+          serialNo: symptomTargetAsset.serialNo || '',
+          modelName: symptomTargetAsset.modelName || '',
+          rentStart: eventDate,
+          rentEnd: eventDate,
+          unitPrice: vendorCost,
+          billedAmount: vendorCost,
+          taxAmount: Math.round(vendorCost * 0.1),
+          itemType: 'REPAIR',
+          memo: `[임차반납 파손수리비] ${symptomDetails.trim()}`
+        };
+        setStatementRows(prev => {
+          const exists = prev.some(r => r.id === stmtRowId);
+          return exists ? prev.map(r => (r.id === stmtRowId ? repairStmtRow : r)) : [...prev, repairStmtRow];
+        });
+        setSelectedReconcileIds(prev => (prev.includes(stmtRowId) ? prev : [...prev, stmtRowId]));
+
+        await db.awaitPendingWrites();
+        refreshAllData();
+      }
+
+      const summaryParts: string[] = [`[${symptomTargetAsset.assetNo}] 증상 기록 완료`];
+      if (symptomRegisterPayableNow && vendorCost > 0) {
+        summaryParts.push(`외상매입금(${renterName} 매입정산) ₩${vendorCost.toLocaleString()}원 반영`);
+      }
+      if (symptomRegisterReceivableNow && effectiveClaimAmt > 0) {
+        summaryParts.push(`고객 청구(외상미수금 대장) ₩${effectiveClaimAmt.toLocaleString()}원 생성`);
+      }
+      showToast(summaryParts.join(' · '));
+      setShowSymptomModal(false);
+    } catch (err: any) {
+      showToast(`증상 및 정산 데이터 등록 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingSymptom(false);
+    }
   };
 
   // 🚨 고객사 구상 미수금 등록 모달 오픈
@@ -3777,7 +4105,7 @@ export const RentAssets: React.FC = () => {
                   <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
-                      <th style={{ padding: '7px 8px', width: '90px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
+                      <th style={{ padding: '7px 8px', width: '130px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
                       <SortableTh sortKey="assetNo" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>관리번호</SortableTh>
                       <SortableTh sortKey="modelName" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>모델명</SortableTh>
                       <SortableTh sortKey="renterName" currentSort={rentedAssetSortConfig} onSort={requestRentedAssetSort} style={{ padding: '7px 8px' }}>임차처</SortableTh>
@@ -3887,6 +4215,25 @@ export const RentAssets: React.FC = () => {
                                     재임차
                                   </button>
                                 )}
+                                {canSave && (
+                                  <button
+                                    onClick={() => handleOpenSymptomModal(a)}
+                                    title="임차반납 장비 파손·수리 증상 및 외상매입금/고객청구 등록"
+                                    style={{
+                                      padding: '2px 5px',
+                                      fontSize: '10.5px',
+                                      backgroundColor: (repairsByAssetIdMap.get(a.id) || []).length > 0 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(239, 68, 68, 0.12)',
+                                      color: (repairsByAssetIdMap.get(a.id) || []).length > 0 ? '#b45309' : '#dc2626',
+                                      border: (repairsByAssetIdMap.get(a.id) || []).length > 0 ? '1px solid #f59e0b' : '1px solid rgba(239, 68, 68, 0.4)',
+                                      borderRadius: '3px',
+                                      cursor: 'pointer',
+                                      fontWeight: 700,
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    {(repairsByAssetIdMap.get(a.id) || []).length > 0 ? '증상수정' : '증상등록'}
+                                  </button>
+                                )}
                               </div>
                             </td>
 
@@ -3895,6 +4242,30 @@ export const RentAssets: React.FC = () => {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span>{a.assetNo}</span>
                                 <span className="badge badge-info" style={{ fontSize: '9.5px', padding: '1px 4px' }}>임차</span>
+                                {(() => {
+                                  const assetRepairs = repairsByAssetIdMap.get(a.id) || [];
+                                  if (assetRepairs.length === 0) return null;
+                                  const latestRep = assetRepairs[assetRepairs.length - 1];
+                                  return (
+                                    <span
+                                      onClick={(e) => { e.stopPropagation(); handleOpenSymptomModal(a); }}
+                                      style={{
+                                        fontSize: '9.5px',
+                                        padding: '1px 5px',
+                                        borderRadius: '4px',
+                                        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                        color: '#b45309',
+                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      title={latestRep.details || '등록된 파손/수리 증상'}
+                                    >
+                                      🔧 수리비 ₩{(latestRep.totalCost || latestRep.billableAmount || 0).toLocaleString()}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               {a.vendorAssetNo && (
                                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -4938,15 +5309,394 @@ export const RentAssets: React.FC = () => {
             </div>
 
             {/* 푸터 */}
-            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              {canSave ? (
+                <button
+                  type="button"
+                  onClick={() => handleOpenSymptomModal(a)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: '1px solid rgba(239, 68, 68, 0.45)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    color: '#dc2626',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Wrench size={13} /> 반납장비 증상 및 매입·청구 등록
+                </button>
+              ) : <div />}
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setSelectedAssetForDossier(null)}
-                style={{ padding: '5px 14px', fontSize: '12px' }}
+                style={{ padding: '5px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
               >
                 닫기
               </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 🔧 임차반납 장비 증상 및 외상매입금 · 고객청구 통합 등록 모달 */}
+      {showSymptomModal && symptomTargetAsset && (() => {
+        const renterName = getAssetRenterName(symptomTargetAsset);
+        const isReturned = Boolean(symptomTargetAsset.actualRentReturnDate) || symptomTargetAsset.status === 'RENTED_RETURNED';
+        const checklistCategories = ['전체', ...Array.from(new Set((inspectionChecklistItems || []).map(i => i.category).filter(Boolean)))];
+        const filteredChecklist = (inspectionChecklistItems || []).filter(
+          i => symptomCategoryFilter === '전체' || i.category === symptomCategoryFilter
+        );
+        const filteredContractsForSymptom = contracts.filter(
+          c => !symptomCustomerId || c.customerId === symptomCustomerId
+        );
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1150 }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '22px 24px', borderRadius: '12px', width: '680px', maxWidth: '95%', maxHeight: '92vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 20px 30px rgba(0,0,0,0.35)' }}>
+              {/* 모달 헤더 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wrench size={18} color="var(--danger)" />
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                    임차장비 증상 및 매입·청구 등록
+                  </h3>
+                  <span className={`badge ${isReturned ? 'badge-secondary' : 'badge-primary'}`} style={{ fontSize: '10.5px' }}>
+                    {isReturned ? `반납완료 (${symptomTargetAsset.actualRentReturnDate || '반납'})` : '임차가동중'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSymptomModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <XCircle size={19} />
+                </button>
+              </div>
+
+              {/* 대상 장비 요약 카드 */}
+              <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '14px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', fontSize: '12px' }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', display: 'block' }}>자사 관리번호</span>
+                  <strong style={{ color: 'var(--primary)', fontSize: '13px' }}>{symptomTargetAsset.assetNo}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', display: 'block' }}>모델명 / 제조번호</span>
+                  <strong>{symptomTargetAsset.modelName}</strong>
+                  {symptomTargetAsset.serialNo && <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}> ({symptomTargetAsset.serialNo})</span>}
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', display: 'block' }}>소유 임차처</span>
+                  <strong>{renterName}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', display: 'block' }}>임차 기간</span>
+                  <span style={{ fontSize: '11.5px' }}>{symptomTargetAsset.rentStart || '-'} ~ {symptomTargetAsset.actualRentReturnDate || symptomTargetAsset.rentEnd || '-'}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitSymptom} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* 1. 점검 체크리스트 빠른 선택 (선택 시 증상 내역에 자동 추가) */}
+                {inspectionChecklistItems && inspectionChecklistItems.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        파손·결함 부위 빠른 선택
+                      </label>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {checklistCategories.map(cat => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setSymptomCategoryFilter(cat)}
+                            style={{
+                              padding: '2px 7px',
+                              fontSize: '10.5px',
+                              borderRadius: '12px',
+                              border: symptomCategoryFilter === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                              backgroundColor: symptomCategoryFilter === cat ? 'var(--primary)' : 'var(--bg-card)',
+                              color: symptomCategoryFilter === cat ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              fontWeight: symptomCategoryFilter === cat ? 700 : 500,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', maxHeight: '92px', overflowY: 'auto', paddingTop: '2px' }}>
+                      {filteredChecklist.map(item => {
+                        const isSelected = symptomChecklistItemId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setSymptomChecklistItemId(item.id);
+                              setSymptomChecklistCode(item.code || item.name);
+                              const snippet = `[${item.category}] ${item.name}`;
+                              setSymptomDetails(prev => {
+                                if (!prev.trim()) return `${snippet} 파손 수리`;
+                                if (prev.includes(item.name)) return prev;
+                                return `${prev}, ${snippet}`;
+                              });
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              borderRadius: '5px',
+                              border: isSelected ? '1px solid var(--danger)' : '1px solid var(--border-color)',
+                              backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-card)',
+                              color: isSelected ? 'var(--danger)' : 'var(--text-main)',
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {item.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. 장비 증상 및 수리 내역 입력 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                    장비 증상 및 파손·수리 상세 내역 (필수)
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={symptomDetails}
+                    onChange={e => setSymptomDetails(e.target.value)}
+                    placeholder="예: 조이스틱 컨트롤박스 파손 교체, 하부 유압호스 누유 수리, 외관 페인트 오염 세척 등"
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-main)',
+                      fontSize: '12.5px',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {/* 3. 파손 증빙 사진 첨부 (최대 4장) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                      파손·수리 증빙 사진 ({symptomPhotos.length}/4장)
+                    </label>
+                    <label style={{
+                      padding: '4px 10px',
+                      borderRadius: '5px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--primary)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      <Camera size={13} />
+                      {isProcessingSymptomPhoto ? '처리중...' : '사진 추가'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleSymptomPhotoUpload}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+                  {symptomPhotos.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                      {symptomPhotos.map((img, idx) => (
+                        <div key={idx} style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)', height: '76px', backgroundColor: '#000' }}>
+                          <img src={img} alt={`증빙-${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button
+                            type="button"
+                            onClick={() => setSymptomPhotos(prev => prev.filter((_, i) => i !== idx))}
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: 'rgba(220, 38, 38, 0.85)',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '2px 4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. 임차처 매입 수리비(외상매입금) 및 고객 청구 금액 설정 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--danger)', whiteSpace: 'nowrap' }}>
+                      임차처 청구 수리비 · 외상매입금 (원)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={symptomVendorCost || ''}
+                      onChange={e => {
+                        const val = Math.max(0, Number(e.target.value) || 0);
+                        setSymptomVendorCost(val);
+                        if (symptomCustomerClaimAmount === 0 || symptomCustomerClaimAmount === symptomVendorCost) {
+                          setSymptomCustomerClaimAmount(val);
+                        }
+                      }}
+                      placeholder="예: 150000"
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 800 }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                      고객 청구 금액 · 외상미수금 (원)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={symptomCustomerClaimAmount || ''}
+                      onChange={e => setSymptomCustomerClaimAmount(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="예: 150000"
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 800 }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      수리·정산 발생일자
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={symptomOccurredDate}
+                      onChange={e => setSymptomOccurredDate(e.target.value)}
+                      style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '12px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 5. 귀책 고객사 및 연결 계약 지정 (최근 대여 이력 자동 매핑) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      귀책 고객사 (고객 청구 대상)
+                    </label>
+                    <select
+                      value={symptomCustomerId}
+                      onChange={e => {
+                        const cId = e.target.value;
+                        setSymptomCustomerId(cId);
+                        const custContracts = contracts.filter(c => c.customerId === cId);
+                        if (custContracts.length > 0) {
+                          setSymptomContractId(custContracts[0].id);
+                          setSymptomSiteId(custContracts[0].siteId || '');
+                        } else {
+                          setSymptomContractId('');
+                        }
+                      }}
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+                    >
+                      <option value="">-- 고객사 선택 --</option>
+                      {customers.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      연결 계약 / 현장
+                    </label>
+                    <select
+                      value={symptomContractId}
+                      onChange={e => {
+                        const conId = e.target.value;
+                        setSymptomContractId(conId);
+                        const conObj = contracts.find(c => c.id === conId);
+                        if (conObj?.siteId) setSymptomSiteId(conObj.siteId);
+                      }}
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+                    >
+                      <option value="">-- 계약 선택 (미지정 시 고객사 일반 청구) --</option>
+                      {filteredContractsForSymptom.map(c => {
+                        const s = sites.find(site => site.id === c.siteId);
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {c.contractNo} ({s?.name || '현장미지정'})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 6. 매입정산 및 고객청구 연동 체크박스 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px 12px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.25)', fontSize: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-main)' }}>
+                    <input
+                      type="checkbox"
+                      checked={symptomRegisterPayableNow}
+                      onChange={e => setSymptomRegisterPayableNow(e.target.checked)}
+                    />
+                    <span>당월 임차처({renterName}) 외상매입금 및 매입정산 내역에 수리비 자동 반영 ({symptomOccurredDate.slice(0, 7)} 귀속)</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 700, color: 'var(--text-main)' }}>
+                    <input
+                      type="checkbox"
+                      checked={symptomRegisterReceivableNow}
+                      onChange={e => setSymptomRegisterReceivableNow(e.target.checked)}
+                    />
+                    <span>외상미수금 대장에 고객 파손수리비 청구 데이터 자동 생성 (청구 수납 관리 연동)</span>
+                  </label>
+                </div>
+
+                {/* 하단 액션 버튼 */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSymptomModal(false)}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    닫기
+                  </button>
+                  <button
+                    data-hs-trigger="Register"
+                    type="submit"
+                    disabled={isSubmittingSymptom}
+                    style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--danger)', color: '#ffffff', fontSize: '12.5px', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {isSubmittingSymptom ? '저장 처리 중...' : '증상 및 매입·청구 등록 확정'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         );

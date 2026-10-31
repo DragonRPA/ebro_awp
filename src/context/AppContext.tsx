@@ -13973,11 +13973,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     // 🌟 자산 상태 전이(AVAILABLE / REPAIRING) 및 누적 수리원가(cumRepairCost), 입출고 이력(assetInOutLogs) 반영
     if (targetAsset) {
-      const nextAssetStatus = repairData.targetAssetStatus || targetAsset.status;
+      const isAlreadyReturnedRented =
+        targetAsset.ownerType === 'RENTED' &&
+        (targetAsset.status === 'RENTED_RETURNED' || Boolean(targetAsset.actualRentReturnDate));
+      const nextAssetStatus = isAlreadyReturnedRented
+        ? 'RENTED_RETURNED'
+        : (repairData.targetAssetStatus || targetAsset.status);
       const nextCumRepairCost = (targetAsset.cumRepairCost || 0) + totalRepairCost;
       db.updateRow<Asset>('assets', targetAsset.id, {
         status: nextAssetStatus,
-        maintenanceScore: nextAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
+        maintenanceScore: (nextAssetStatus === 'AVAILABLE' || isAlreadyReturnedRented) ? 0 : targetAsset.maintenanceScore,
         cumRepairCost: nextCumRepairCost,
         updatedAt: nowIso
       });
@@ -13992,7 +13997,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         siteId: resolvedSiteId || undefined,
         siteName: resolvedSiteName || undefined,
         repairId,
-        maintenanceScore: nextAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
+        maintenanceScore: (nextAssetStatus === 'AVAILABLE' || isAlreadyReturnedRented) ? 0 : targetAsset.maintenanceScore,
         memo: isVendorRepair
           ? `[임차처 수리 등록] 정비원가 ₩${totalRepairCost.toLocaleString()} / ${repairData.details || ''} ➔ 외상미수금 고객 청구협상 이관`
           : `[주기장 정비 ${repairStatus}] 정비원가 ₩${totalRepairCost.toLocaleString()} / ${repairData.details || ''}`,
@@ -14296,13 +14301,17 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    // 🌟 자산 상태 전이 명시적 지원
+    // 🌟 자산 상태 전이 명시적 지원 (이미 반납 완료된 임차자산은 RENTED_RETURNED 상태 유지)
     if (existing.assetId && targetAssetStatus) {
       const targetAsset = db.assets.find(a => a.id === existing.assetId);
       if (targetAsset) {
+        const isAlreadyReturnedRented =
+          targetAsset.ownerType === 'RENTED' &&
+          (targetAsset.status === 'RENTED_RETURNED' || Boolean(targetAsset.actualRentReturnDate));
+        const finalAssetStatus = isAlreadyReturnedRented ? 'RENTED_RETURNED' : targetAssetStatus;
         db.updateRow<Asset>('assets', targetAsset.id, {
-          status: targetAssetStatus,
-          maintenanceScore: targetAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
+          status: finalAssetStatus,
+          maintenanceScore: (finalAssetStatus === 'AVAILABLE' || isAlreadyReturnedRented) ? 0 : targetAsset.maintenanceScore,
           updatedAt: new Date().toISOString()
         });
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
@@ -14312,8 +14321,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           type: 'REPAIR',
           eventDate: today,
           repairId: repairId,
-          maintenanceScore: targetAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
-          memo: `[주기장 정비 상태 갱신] ${status} ➔ 자산상태 [${targetAssetStatus}] 전이`,
+          maintenanceScore: (finalAssetStatus === 'AVAILABLE' || isAlreadyReturnedRented) ? 0 : targetAsset.maintenanceScore,
+          memo: `[주기장 정비 상태 갱신] ${status} ➔ 자산상태 [${finalAssetStatus}] 전이`,
           createdAt: new Date().toISOString()
         });
       }
@@ -14765,25 +14774,76 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     );
     leaseCount = leaseSettlementsOfMonth.length;
 
-    // ④ [신규 추가] 외주 정비비 집계 — 정비수리에서 repairType === 'EXTERNAL'이고 status === 'COMPLETED'인 외주 정비 건 수집
+    // ④ [신규 추가] 외주 정비비 및 임차처 파손 수리비 집계 — 정비수리에서 (repairType === 'EXTERNAL' 또는 maintenanceType === 'VENDOR_REPAIR')이고 status === 'COMPLETED'인 건 수집
     let repairCount = 0;
     const completedExternalRepairs = db.repairs.filter(r => {
-      if (r.repairType !== 'EXTERNAL' || r.status !== 'COMPLETED' || !r.vendorId) return false;
-      const rDate = r.completedDate || r.requestDate || r.repairDate;
-      return rDate && rDate.startsWith(ym);
+      const isTargetRepair = r.repairType === 'EXTERNAL' || r.maintenanceType === 'VENDOR_REPAIR';
+      if (!isTargetRepair || r.status !== 'COMPLETED' || !(r.totalCost && r.totalCost > 0)) return false;
+      const rDate = r.completedDate || r.repairDate || r.requestDate;
+      if (!rDate || !rDate.startsWith(ym)) return false;
+      const asset = db.assets.find(a => a.id === r.assetId);
+      const resolvedVId = r.vendorId || asset?.vendorId;
+      return Boolean(resolvedVId || asset?.renter);
     });
 
     const repairsByVendor: Record<string, Repair[]> = {};
     completedExternalRepairs.forEach(r => {
-      if (!repairsByVendor[r.vendorId!]) repairsByVendor[r.vendorId!] = [];
-      repairsByVendor[r.vendorId!].push(r);
+      const asset = db.assets.find(a => a.id === r.assetId);
+      const resolvedVendor =
+        (r.vendorId ? db.vendors.find(v => v.id === r.vendorId) : undefined) ||
+        (asset?.vendorId ? db.vendors.find(v => v.id === asset.vendorId) : undefined) ||
+        (asset?.renter ? db.vendors.find(v => v.name === asset.renter) : undefined);
+      const key = resolvedVendor?.id || r.vendorId || asset?.vendorId || `NAME:${asset?.renter || '외주정비처'}`;
+      if (!repairsByVendor[key]) repairsByVendor[key] = [];
+      repairsByVendor[key].push(r);
     });
 
-    for (const [vendorId, rList] of Object.entries(repairsByVendor)) {
-      const vendor = db.vendors.find(v => v.id === vendorId);
-      const vendorName = vendor?.name || '외주 정비업체';
-      const existing = db.purchaseSettlements.find(p => p.vendorId === vendorId && p.settlementYm === ym && p.settlementType === 'EXTERNAL_REPAIR');
-      if (existing) continue;
+    for (const [vendorKey, rList] of Object.entries(repairsByVendor)) {
+      const isNameKey = vendorKey.startsWith('NAME:');
+      const vendorId = isNameKey ? undefined : vendorKey;
+      const vendor = vendorId ? db.vendors.find(v => v.id === vendorId) : undefined;
+      const fallbackAsset = db.assets.find(a => a.id === rList[0]?.assetId);
+      const vendorName = vendor?.name || (isNameKey ? vendorKey.slice(5) : (fallbackAsset?.renter || '외주 정비업체'));
+      const existing = db.purchaseSettlements.find(p =>
+        p.settlementYm === ym &&
+        p.settlementType === 'EXTERNAL_REPAIR' &&
+        (vendorId ? p.vendorId === vendorId : p.vendorName === vendorName)
+      );
+      if (existing) {
+        // 기존 정산서에 아직 포함되지 않은 신규 수리 건이 있으면 추가 반영
+        const existingItemSourceIds = new Set(
+          db.purchaseSettlementItems.filter(i => i.settlementId === existing.id).map(i => i.sourceId)
+        );
+        const newRepairs = rList.filter(r => !existingItemSourceIds.has(r.id));
+        if (newRepairs.length > 0) {
+          const addedAmt = newRepairs.reduce((sum, r) => sum + (r.totalCost || 0), 0);
+          db.updateRow<PurchaseSettlement>('purchaseSettlements', existing.id, {
+            totalAmount: (existing.totalAmount || 0) + addedAmt,
+            itemCount: (existing.itemCount || 0) + newRepairs.length,
+            updatedAt: nowIso
+          });
+          newRepairs.forEach(r => {
+            const asset = db.assets.find(a => a.id === r.assetId);
+            db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
+              settlementId: existing.id,
+              sourceType: 'REPAIR' as any,
+              sourceId: r.id,
+              itemDescription: `[${r.maintenanceType === 'VENDOR_REPAIR' ? '임차처 파손수리' : '외주 정비'}] ${asset?.assetNo || r.assetNo || '자산'} ${r.details.slice(0, 35)}`,
+              quantity: 1,
+              unitPrice: r.totalCost || 0,
+              amount: r.totalCost || 0,
+              evidenceFileUrl: r.estimateFileUrl || r.faultImageUrl || r.beforeImage,
+              createdAt: nowIso
+            });
+            db.updateRow<Repair>('repairs', r.id, {
+              purchaseBillId: existing.id,
+              updatedAt: nowIso
+            });
+          });
+          repairCount++;
+        }
+        continue;
+      }
 
       const totalAmount = rList.reduce((sum, r) => sum + (r.totalCost || 0), 0);
       const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
@@ -14810,11 +14870,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           settlementId,
           sourceType: 'REPAIR' as any,
           sourceId: r.id,
-          itemDescription: `외주 정비 ${asset?.assetNo || '자산'} ${r.details.slice(0, 30)}`,
+          itemDescription: `[${r.maintenanceType === 'VENDOR_REPAIR' ? '임차처 파손수리' : '외주 정비'}] ${asset?.assetNo || r.assetNo || '자산'} ${r.details.slice(0, 35)}`,
           quantity: 1,
           unitPrice: r.totalCost || 0,
           amount: r.totalCost || 0,
-          evidenceFileUrl: r.estimateFileUrl || r.faultImageUrl,
+          evidenceFileUrl: r.estimateFileUrl || r.faultImageUrl || r.beforeImage,
           createdAt: nowIso
         });
 
