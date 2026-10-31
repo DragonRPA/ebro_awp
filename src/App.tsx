@@ -1910,7 +1910,7 @@ const App: React.FC = () => {
                 transition: 'all 0.15s ease',
                 boxShadow: canGoBack ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
               }}
-              title={canGoBack ? `이전: ${prevMenuTitle} (Alt+←)` : '이전 화면 없음 (Alt+←)'}
+              title={canGoBack ? `이전: ${prevMenuTitle} (마우스 뒤로가기 / Alt+←)` : '이전 화면 없음 (마우스 뒤로가기 / Alt+←)'}
             >
               <ChevronLeft size={16} />
             </button>
@@ -1933,7 +1933,7 @@ const App: React.FC = () => {
                 transition: 'all 0.15s ease',
                 boxShadow: canGoForward ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
               }}
-              title={canGoForward ? `다음: ${nextMenuTitle} (Alt+→)` : '다음 화면 없음 (Alt+→)'}
+              title={canGoForward ? `다음: ${nextMenuTitle} (마우스 앞으로가기 / Alt+→)` : '다음 화면 없음 (마우스 앞으로가기 / Alt+→)'}
             >
               <ChevronRight size={16} />
             </button>

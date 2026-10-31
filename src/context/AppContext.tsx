@@ -871,88 +871,140 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [salesJournals, setSalesJournals] = useState<SalesJournal[]>(() => db.salesJournals || []);
 
 
-  // Navigation / Routing states with In-App History (최대 30단계 뒤로/앞으로가기)
+  // Navigation / Routing states with In-App History (최대 50단계 뒤로/앞으로가기 + 5버튼 마우스 사이드 버튼 지원)
   const initialNavTab = (typeof window !== 'undefined' && getDomainMode() === 'ADMIN') ? 'tenant_management' : 'dashboard';
   const [activeTab, setActiveTabState] = useState<string>(initialNavTab);
   const [navigationPayload, setNavigationPayload] = useState<any>(null);
 
-  const MAX_HISTORY = 30;
+  const MAX_HISTORY = 50;
   const [historyStack, setHistoryStack] = useState<Array<{ tab: string; payload?: any }>>([
     { tab: initialNavTab, payload: null }
   ]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const historyStackRef = useRef<Array<{ tab: string; payload?: any }>>([
+    { tab: initialNavTab, payload: null }
+  ]);
+  const historyIndexRef = useRef<number>(0);
+  const activeTabRef = useRef<string>(initialNavTab);
   const isNavigatingHistoryRef = useRef(false);
+  const lastNavActionAtRef = useRef<number>(0);
+
+  // 초기 진입 시 브라우저 히스토리 기본 상태 기록
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.replaceState(
+        { tab: initialNavTab, payload: null, historyIndex: 0, ebroNav: true },
+        '',
+        ''
+      );
+    }
+  }, [initialNavTab]);
 
   const setActiveTab = useCallback((tab: string, payload?: any) => {
-    setActiveTabState(prevTab => {
-      if (prevTab === tab && payload === undefined) return prevTab;
+    if (activeTabRef.current === tab && payload === undefined) {
+      return;
+    }
+    activeTabRef.current = tab;
+    setActiveTabState(tab);
 
-      if (!isNavigatingHistoryRef.current) {
-        setHistoryStack(prevStack => {
-          const newStack = prevStack.slice(0, historyIndex + 1);
-          newStack.push({ tab, payload: payload ?? null });
-          if (newStack.length > MAX_HISTORY) {
-            newStack.shift();
-          }
-          return newStack;
-        });
-        setHistoryIndex(prevIdx => Math.min(prevIdx + 1, MAX_HISTORY - 1));
-
-        if (typeof window !== 'undefined' && window.history) {
-          window.history.pushState({ tab, payload, ebroNav: true }, '', '');
-        }
+    if (!isNavigatingHistoryRef.current) {
+      const currentIdx = historyIndexRef.current;
+      const baseStack = historyStackRef.current.slice(0, currentIdx + 1);
+      baseStack.push({ tab, payload: payload ?? null });
+      if (baseStack.length > MAX_HISTORY) {
+        baseStack.shift();
       }
-      return tab;
-    });
+      const nextIdx = baseStack.length - 1;
+      historyStackRef.current = baseStack;
+      historyIndexRef.current = nextIdx;
+      setHistoryStack(baseStack);
+      setHistoryIndex(nextIdx);
+
+      if (typeof window !== 'undefined' && window.history) {
+        window.history.pushState(
+          { tab, payload: payload ?? null, historyIndex: nextIdx, ebroNav: true },
+          '',
+          ''
+        );
+      }
+    }
 
     if (payload !== undefined) {
       setNavigationPayload(payload);
     }
-  }, [historyIndex]);
+  }, []);
 
   const goBack = useCallback(() => {
-    if (historyIndex > 0) {
-      const prevIdx = historyIndex - 1;
-      const target = historyStack[prevIdx];
+    const now = Date.now();
+    if (now - lastNavActionAtRef.current < 120) return;
+    const currentIdx = historyIndexRef.current;
+    if (currentIdx > 0) {
+      lastNavActionAtRef.current = now;
+      const prevIdx = currentIdx - 1;
+      const target = historyStackRef.current[prevIdx];
       if (target) {
         isNavigatingHistoryRef.current = true;
+        historyIndexRef.current = prevIdx;
+        activeTabRef.current = target.tab;
         setHistoryIndex(prevIdx);
         setActiveTabState(target.tab);
         setNavigationPayload(target.payload ?? null);
         if (typeof window !== 'undefined' && window.history) {
-          window.history.pushState({ tab: target.tab, payload: target.payload, ebroNav: true }, '', '');
+          window.history.replaceState(
+            { tab: target.tab, payload: target.payload ?? null, historyIndex: prevIdx, ebroNav: true },
+            '',
+            ''
+          );
         }
         setTimeout(() => {
           isNavigatingHistoryRef.current = false;
         }, 50);
       }
     }
-  }, [historyIndex, historyStack]);
+  }, []);
 
   const goForward = useCallback(() => {
-    if (historyIndex < historyStack.length - 1) {
-      const nextIdx = historyIndex + 1;
-      const target = historyStack[nextIdx];
+    const now = Date.now();
+    if (now - lastNavActionAtRef.current < 120) return;
+    const currentIdx = historyIndexRef.current;
+    if (currentIdx < historyStackRef.current.length - 1) {
+      lastNavActionAtRef.current = now;
+      const nextIdx = currentIdx + 1;
+      const target = historyStackRef.current[nextIdx];
       if (target) {
         isNavigatingHistoryRef.current = true;
+        historyIndexRef.current = nextIdx;
+        activeTabRef.current = target.tab;
         setHistoryIndex(nextIdx);
         setActiveTabState(target.tab);
         setNavigationPayload(target.payload ?? null);
         if (typeof window !== 'undefined' && window.history) {
-          window.history.pushState({ tab: target.tab, payload: target.payload, ebroNav: true }, '', '');
+          window.history.replaceState(
+            { tab: target.tab, payload: target.payload ?? null, historyIndex: nextIdx, ebroNav: true },
+            '',
+            ''
+          );
         }
         setTimeout(() => {
           isNavigatingHistoryRef.current = false;
         }, 50);
       }
     }
-  }, [historyIndex, historyStack]);
+  }, []);
 
-  // 브라우저 popstate 이벤트 리스너 (브라우저 뒤로가기 / 마우스 뒤로가기 버튼)
+  // 브라우저 popstate 이벤트 리스너 (브라우저 툴바 뒤로/앞으로가기 연동)
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      const now = Date.now();
+      if (now - lastNavActionAtRef.current < 120) return;
       if (e.state && e.state.ebroNav && e.state.tab) {
+        lastNavActionAtRef.current = now;
         isNavigatingHistoryRef.current = true;
+        if (typeof e.state.historyIndex === 'number' && historyStackRef.current[e.state.historyIndex]) {
+          historyIndexRef.current = e.state.historyIndex;
+          setHistoryIndex(e.state.historyIndex);
+        }
+        activeTabRef.current = e.state.tab;
         setActiveTabState(e.state.tab);
         if (e.state.payload !== undefined) {
           setNavigationPayload(e.state.payload);
@@ -966,19 +1018,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Alt + ArrowLeft / Alt + ArrowRight 전역 단축키 리스너
+  // 🖱️ 마우스 추가 버튼 (뒤로가기: button===3 / 앞으로가기: button===4) 및 키보드 (BrowserBack/BrowserForward, Alt+방향키) 리스너
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === 'ArrowLeft') {
+    const handleMouseSideButtonBlock = (e: MouseEvent) => {
+      if (e.button === 3 || e.button === 4) {
         e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleMouseSideButtonUp = (e: MouseEvent) => {
+      if (e.button === 3) {
+        e.preventDefault();
+        e.stopPropagation();
         goBack();
-      } else if (e.altKey && e.key === 'ArrowRight') {
+      } else if (e.button === 4) {
         e.preventDefault();
+        e.stopPropagation();
         goForward();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === 'BrowserBack' ||
+        e.code === 'BrowserBack' ||
+        (e.altKey && e.key === 'ArrowLeft')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        goBack();
+      } else if (
+        e.key === 'BrowserForward' ||
+        e.code === 'BrowserForward' ||
+        (e.altKey && e.key === 'ArrowRight')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        goForward();
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseSideButtonBlock, { capture: true });
+    window.addEventListener('mouseup', handleMouseSideButtonUp, { capture: true });
+    window.addEventListener('auxclick', handleMouseSideButtonBlock, { capture: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseSideButtonBlock, { capture: true });
+      window.removeEventListener('mouseup', handleMouseSideButtonUp, { capture: true });
+      window.removeEventListener('auxclick', handleMouseSideButtonBlock, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    };
   }, [goBack, goForward]);
 
   const canGoBack = historyIndex > 0;
