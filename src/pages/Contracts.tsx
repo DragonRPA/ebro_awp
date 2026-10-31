@@ -4227,7 +4227,7 @@ export const Contracts: React.FC = () => {
                               ) : (asset?.status === 'AWAITING_TRANSPORT' || ca.status === 'AWAITING_TRANSPORT') ? (
                                 <span style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운송대기</span>
                               ) : (asset?.status === 'ASSIGNED' || (ca.status === 'ASSIGNED' && ca.assetId)) ? (
-                                <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>출고대기</span>
+                                <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>장비할당</span>
                               ) : !ca.assetId ? (
                                 <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>장비미할당</span>
                               ) : (
@@ -5000,7 +5000,7 @@ export const Contracts: React.FC = () => {
                                ca.status === 'RETURNED' ? '반납완료' : 
                                ca.status === 'DISPATCHED' ? '출고중' : 
                                ca.status === 'DELIVERED' ? '현장도착' : 
-                               ca.status === 'ASSIGNED' ? '배정됨' : '출고대기'}
+                               ca.status === 'ASSIGNED' ? '장비할당' : '장비할당'}
                             </span>
                           </td>
                           <td style={{ padding: '8px' }}>{ca.monthlyRentalFee?.toLocaleString() || 0}원</td>

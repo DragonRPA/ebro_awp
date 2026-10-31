@@ -47,7 +47,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
     const ownedAssets = assets.filter(a => !isVirtualAsset(a) && a.ownerType !== 'RENTED' && a.status !== 'DISPOSED' && (a.status as string) !== 'SOLD' && (a.status as string) !== 'SCRAPPED');
     const totalCount = ownedAssets.length;
     const rentedCount = ownedAssets.filter(a => a.status === 'RENTED').length;
-    const availableCount = ownedAssets.filter(a => a.status === 'AVAILABLE').length;
+    const availableCount = ownedAssets.filter(a => a.status === 'AVAILABLE' || a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT').length;
     const repairingCount = ownedAssets.filter(a => a.status === 'REPAIRING').length;
     const utilRate = totalCount > 0 ? ((rentedCount / totalCount) * 100).toFixed(1) : '0.0';
 

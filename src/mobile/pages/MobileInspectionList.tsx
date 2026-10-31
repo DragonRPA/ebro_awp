@@ -671,7 +671,7 @@ export const MobileInspectionList: React.FC<MobileInspectionListProps> = ({
       });
       await db.awaitPendingWrites();
       await refreshAllData();
-      showToast(`출고검수 접수 취소 완료 (자산상태 출고대기 롤백)`, 'success');
+      showToast(`출고검수 접수 취소 완료 (자산상태 장비할당 롤백)`, 'success');
     } catch (err: any) {
       showErrorModal(err?.message || '접수 취소 중 오류가 발생했습니다.');
     } finally {

@@ -197,7 +197,7 @@ export const Products: React.FC = () => {
       if (a.ownerType === 'OWNED' || !a.ownerType) st.owned++;
       if (a.ownerType === 'RENTED') st.leased++;
       if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) st.available++;
-      if (a.status === 'RENTED' || (!a.actualRentReturnDate && a.currentCustomerId)) st.rented++;
+      if (a.status === 'RENTED' && !a.actualRentReturnDate) st.rented++;
       if (a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') st.assigned++;
       if (a.status === 'REPAIRING') st.repairing++;
     }
@@ -1069,7 +1069,7 @@ export const Products: React.FC = () => {
 
                 <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
                   <span>소유구분: 당사자산 {stats.owned}대 / 외부임차 {stats.leased}대</span>
-                  <span>출고대기: {stats.assigned}대</span>
+                  <span>장비할당: {stats.assigned}대 (재고합계: {stats.available + stats.assigned}대)</span>
                 </div>
               </div>
 

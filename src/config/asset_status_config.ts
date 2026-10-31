@@ -27,21 +27,21 @@ export const ASSET_STATUS_SSOT: Record<AssetStatusKey, AssetStatusDetail> = {
   },
   ASSIGNED: {
     code: 'ASSIGNED',
-    label: '출고대기',
+    label: '장비할당',
     badgeClass: 'badge-warning',
-    description: '계약에 장비가 할당 완료되어 출고검수 접수 대기 중인 장비 (이중 할당 차단)'
+    description: '출고 요청에 장비가 할당 완료되어 출고검수 접수 대기 중인 장비 (아직 대여중이 아니므로 재고로 판단)'
   },
   OUTBOUND_INSPECTION: {
     code: 'OUTBOUND_INSPECTION',
     label: '출고검수',
     badgeClass: 'badge-warning',
-    description: '출고검수가 접수되어 주기장에서 점검 진행 중인 장비'
+    description: '출고검수가 접수되어 주기장에서 점검 진행 중인 장비 (아직 대여중이 아니므로 재고로 판단)'
   },
   AWAITING_TRANSPORT: {
     code: 'AWAITING_TRANSPORT',
     label: '운송대기',
     badgeClass: 'badge-primary',
-    description: '출고검수가 완료되어 상차 및 현장 운송을 대기 중인 장비'
+    description: '출고검수가 완료되어 상차 및 현장 운송을 대기 중인 장비 (아직 대여중이 아니므로 재고로 판단)'
   },
   RENTED: {
     code: 'RENTED',
@@ -69,9 +69,19 @@ export const ASSET_STATUS_SSOT: Record<AssetStatusKey, AssetStatusDetail> = {
   }
 };
 
-// 출고 파이프라인 진행 중(출고대기/출고검수/운송대기) 여부 판별 헬퍼
+// 출고 파이프라인 진행 중(장비할당/출고검수/운송대기) 여부 판별 헬퍼
 export const isPreOutboundAssignedStatus = (status?: string | null): boolean => {
   return (
+    status === 'ASSIGNED' ||
+    status === 'OUTBOUND_INSPECTION' ||
+    status === 'AWAITING_TRANSPORT'
+  );
+};
+
+// 아직 대여중(RENTED)으로 전환되지 않은 주기장 재고 상태 여부 판별 헬퍼 (임대가능 + 장비할당 + 출고검수 + 운송대기)
+export const isInventoryStockStatus = (status?: string | null): boolean => {
+  return (
+    status === 'AVAILABLE' ||
     status === 'ASSIGNED' ||
     status === 'OUTBOUND_INSPECTION' ||
     status === 'AWAITING_TRANSPORT'

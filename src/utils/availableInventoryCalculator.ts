@@ -9,6 +9,7 @@ import {
   isVirtualAsset,
 } from '../services/db';
 import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from './modelUtils';
+import { isInventoryStockStatus } from '../config/asset_status_config';
 
 export interface InventoryModelRow {
   key: string;
@@ -370,7 +371,8 @@ export function calculateAvailableInventorySSOT(params: {
 
     const isAvailable = a.status === 'AVAILABLE';
     const isAssignedPreInsp =
-      pendingScopeFilter === 'PRE_INSPECTION_ALL' && pendingAssignedAssetIdSet.has(a.id);
+      pendingScopeFilter === 'PRE_INSPECTION_ALL' &&
+      (isInventoryStockStatus(a.status) || pendingAssignedAssetIdSet.has(a.id));
     if (!isAvailable && !isAssignedPreInsp) return;
 
     const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);

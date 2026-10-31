@@ -680,7 +680,7 @@ export const OutboundInspections: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`고객사 [${group.customerName}] 출고 검수 접수가 취소되어 출고대기 상태로 롤백되었습니다.`);
+      showToast(`고객사 [${group.customerName}] 출고 검수 접수가 취소되어 장비할당 상태로 롤백되었습니다.`);
       handleSelectGroup({ ...group, status: 'PENDING' });
     } catch (err: any) {
       showErrorModal(`접수 취소 실패: ${err?.message || err}`);

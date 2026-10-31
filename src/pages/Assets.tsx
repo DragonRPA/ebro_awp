@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Search, Download, Eye, Layers, Edit2, Save, X, Wrench, RefreshCw, PlusCircle, ShoppingBag, CheckCircle2, AlertCircle } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { Asset, calculateAssetDepreciation, AssetInOutLog, Repair, isVirtualAsset } from '../services/db';
-import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass } from '../config/asset_status_config';
+import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass, isInventoryStockStatus } from '../config/asset_status_config';
 import { canViewFinancials } from '../utils/privacyMasking';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
@@ -395,13 +395,17 @@ export const Assets: React.FC = () => {
       }
     }
 
-    const ownedPhysicalOperating = ownedPhysicalRented + ownedPhysicalAssigned;
-    const rentedPhysicalOperating = rentedPhysicalRented + rentedPhysicalAssigned;
+    // 아직 대여중(RENTED)이 아니므로 장비할당(ASSIGNED/OUTBOUND_INSPECTION/AWAITING_TRANSPORT)도 재고(Stock)로 판단
+    const ownedPhysicalStock = ownedPhysicalAvailable + ownedPhysicalAssigned;
+    const rentedPhysicalStock = rentedPhysicalAvailable + rentedPhysicalAssigned;
+    const ownedPhysicalOperating = ownedPhysicalRented;
+    const rentedPhysicalOperating = rentedPhysicalRented;
     const physicalActiveCount = ownedPhysicalActive + rentedPhysicalActive;
     const physicalRentedOpCount = ownedPhysicalRented + rentedPhysicalRented;
     const physicalAssignedCount = ownedPhysicalAssigned + rentedPhysicalAssigned;
     const physicalOperatingCount = ownedPhysicalOperating + rentedPhysicalOperating;
     const physicalAvailableCount = ownedPhysicalAvailable + rentedPhysicalAvailable;
+    const physicalStockCount = ownedPhysicalStock + rentedPhysicalStock;
     const physicalRepairingCount = ownedPhysicalRepairing + rentedPhysicalRepairing;
 
     const opRate = physicalActiveCount > 0 ? Math.round((physicalOperatingCount / physicalActiveCount) * 100) : 0;
@@ -423,6 +427,7 @@ export const Assets: React.FC = () => {
       ownedPhysicalActive,
       ownedPhysicalRented,
       ownedPhysicalAssigned,
+      ownedPhysicalStock,
       ownedPhysicalOperating,
       ownedPhysicalAvailable,
       ownedPhysicalRepairing,
@@ -431,6 +436,7 @@ export const Assets: React.FC = () => {
       rentedPhysicalActive,
       rentedPhysicalRented,
       rentedPhysicalAssigned,
+      rentedPhysicalStock,
       rentedPhysicalOperating,
       rentedPhysicalAvailable,
       rentedPhysicalRepairing,
@@ -442,6 +448,7 @@ export const Assets: React.FC = () => {
       physicalAssignedCount,
       physicalOperatingCount,
       physicalAvailableCount,
+      physicalStockCount,
       physicalRepairingCount,
       opRate,
       ownedPhysicalOpRate,
@@ -467,6 +474,7 @@ export const Assets: React.FC = () => {
 
       const matchesStatus = statusFilter === 'ALL' ? true :
                             statusFilter === 'RENTED_RETURNED' ? isReturned :
+                            statusFilter === 'STOCK_ALL' ? (isInventoryStockStatus(a.status) && !isReturned) :
                             statusFilter === 'AVAILABLE' ? (a.status === 'AVAILABLE' && !isReturned) :
                             a.status === statusFilter;
       if (!matchesStatus) return false;
@@ -571,13 +579,17 @@ export const Assets: React.FC = () => {
       }
     }
 
-    const ownedPhysicalOperating = ownedPhysicalRented + ownedPhysicalAssigned;
-    const rentedPhysicalOperating = rentedPhysicalRented + rentedPhysicalAssigned;
+    // 아직 대여중(RENTED)이 아니므로 장비할당(ASSIGNED/OUTBOUND_INSPECTION/AWAITING_TRANSPORT)도 재고(Stock)로 판단
+    const ownedPhysicalStock = ownedPhysicalAvailable + ownedPhysicalAssigned;
+    const rentedPhysicalStock = rentedPhysicalAvailable + rentedPhysicalAssigned;
+    const ownedPhysicalOperating = ownedPhysicalRented;
+    const rentedPhysicalOperating = rentedPhysicalRented;
     const physicalActiveCount = ownedPhysicalActive + rentedPhysicalActive;
     const physicalRentedOpCount = ownedPhysicalRented + rentedPhysicalRented;
     const physicalAssignedCount = ownedPhysicalAssigned + rentedPhysicalAssigned;
     const physicalOperatingCount = ownedPhysicalOperating + rentedPhysicalOperating;
     const physicalAvailableCount = ownedPhysicalAvailable + rentedPhysicalAvailable;
+    const physicalStockCount = ownedPhysicalStock + rentedPhysicalStock;
     const physicalRepairingCount = ownedPhysicalRepairing + rentedPhysicalRepairing;
 
     const physicalOpRate = physicalActiveCount > 0
@@ -598,6 +610,7 @@ export const Assets: React.FC = () => {
       ownedPhysicalActive,
       ownedPhysicalRented,
       ownedPhysicalAssigned,
+      ownedPhysicalStock,
       ownedPhysicalOperating,
       ownedPhysicalAvailable,
       ownedPhysicalRepairing,
@@ -606,6 +619,7 @@ export const Assets: React.FC = () => {
       rentedPhysicalActive,
       rentedPhysicalRented,
       rentedPhysicalAssigned,
+      rentedPhysicalStock,
       rentedPhysicalOperating,
       rentedPhysicalAvailable,
       rentedPhysicalRepairing,
@@ -615,6 +629,7 @@ export const Assets: React.FC = () => {
       physicalRentedOpCount,
       physicalAssignedCount,
       physicalAvailableCount,
+      physicalStockCount,
       physicalRepairingCount,
       physicalOpRate,
       ownedPhysicalOpRate,
@@ -884,11 +899,11 @@ export const Assets: React.FC = () => {
       {/* ② 자산 운용 KPI 요약 바 */}
       <div data-mid="asset-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임대 가능 (주기장)</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>주기장 재고 (임대가능+장비할당)</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
-            <strong style={{ fontSize: '14px', color: 'var(--success)' }}>{kpiStats.physicalAvailableCount}대</strong>
+            <strong style={{ fontSize: '14px', color: 'var(--success)' }}>{kpiStats.physicalStockCount}대</strong>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              (당사 {kpiStats.ownedPhysicalAvailable}·임차 {kpiStats.rentedPhysicalAvailable} | 가상 {kpiStats.virtualAvailableCount})
+              (당사 {kpiStats.ownedPhysicalStock}·임차 {kpiStats.rentedPhysicalStock} | 임대가능 {kpiStats.physicalAvailableCount}·장비할당 {kpiStats.physicalAssignedCount})
             </span>
           </div>
         </div>
@@ -902,7 +917,7 @@ export const Assets: React.FC = () => {
           </div>
         </div>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>출고/검수 대기</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>장비할당 (출고준비)</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
             <strong style={{ fontSize: '14px', color: '#0070C0' }}>{kpiStats.physicalAssignedCount}대</strong>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -966,7 +981,7 @@ export const Assets: React.FC = () => {
                 [당사 {filteredStats.ownedPhysicalOpRate}% · 임차 {filteredStats.rentedPhysicalOpRate}%]
               </span>
               <span style={{ color: 'var(--text-muted)', fontSize: '10.5px', marginLeft: '4px' }}>
-                (가동 {filteredStats.physicalOperatingCount}대[당사 {filteredStats.ownedPhysicalOperating}·임차 {filteredStats.rentedPhysicalOperating}] / 실물운용 {filteredStats.physicalActiveCount}대[당사 {filteredStats.ownedPhysicalActive}·임차 {filteredStats.rentedPhysicalActive}], 임대가능 {filteredStats.physicalAvailableCount}대[당사 {filteredStats.ownedPhysicalAvailable}·임차 {filteredStats.rentedPhysicalAvailable}]{filteredStats.physicalRepairingCount > 0 ? `, 수리중 ${filteredStats.physicalRepairingCount}대` : ''})
+                (대여중 {filteredStats.physicalOperatingCount}대[당사 {filteredStats.ownedPhysicalOperating}·임차 {filteredStats.rentedPhysicalOperating}] / 실물운용 {filteredStats.physicalActiveCount}대[당사 {filteredStats.ownedPhysicalActive}·임차 {filteredStats.rentedPhysicalActive}], 재고 {filteredStats.physicalStockCount}대[당사 {filteredStats.ownedPhysicalStock}·임차 {filteredStats.rentedPhysicalStock} | 임대가능 {filteredStats.physicalAvailableCount}·장비할당 {filteredStats.physicalAssignedCount}]{filteredStats.physicalRepairingCount > 0 ? `, 수리중 ${filteredStats.physicalRepairingCount}대` : ''})
               </span>
             </span>
           </div>
@@ -1057,6 +1072,7 @@ export const Assets: React.FC = () => {
                 style={{ padding: '2px 5px', height: '25px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '11.5px', minWidth: '92px' }}
               >
                 <option value="ALL">전체 상태</option>
+                <option value="STOCK_ALL">재고 전체 (임대가능+장비할당)</option>
                 {Object.values(ASSET_STATUS_SSOT).filter(st => st.code !== 'RENTED_RETURNED').map(st => (
                   <option key={st.code} value={st.code}>{st.label}</option>
                 ))}

@@ -347,7 +347,7 @@ export function aggregateExecutiveMonthlyReport(targetYm: string, context: any):
   const totalFleetCount = validAssets.length;
   const activeAssets = validAssets.filter((a: any) => a.status === 'RENTED');
   const activeAssetCount = activeAssets.length;
-  const availableAssets = validAssets.filter((a: any) => a.status === 'AVAILABLE');
+  const availableAssets = validAssets.filter((a: any) => a.status === 'AVAILABLE' || a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT');
   const repairingAssets = validAssets.filter((a: any) => a.status === 'REPAIRING' || a.status === 'MAINTENANCE');
 
   const ownedAssets = validAssets.filter((a: any) => a.ownerType !== 'RENTED');
@@ -375,7 +375,7 @@ export function aggregateExecutiveMonthlyReport(targetYm: string, context: any):
 
     specMap[cat].total += 1;
     if (a.status === 'RENTED') specMap[cat].rented += 1;
-    else if (a.status === 'AVAILABLE') specMap[cat].available += 1;
+    else if (a.status === 'AVAILABLE' || a.status === 'ASSIGNED' || a.status === 'OUTBOUND_INSPECTION' || a.status === 'AWAITING_TRANSPORT') specMap[cat].available += 1;
     else if (a.status === 'REPAIRING' || a.status === 'MAINTENANCE') specMap[cat].repairing += 1;
   });
 

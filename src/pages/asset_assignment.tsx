@@ -778,7 +778,7 @@ export const AssetAssignment: React.FC = () => {
     try {
       await batchAssignAssetsToContract(pairs);
 
-      showToast(`총 ${pairs.length}대 장비 동시 할당 완료 (출고대기 전환 및 검수의뢰 발행)`);
+      showToast(`총 ${pairs.length}대 장비 동시 할당 완료 (장비할당 전환 및 검수의뢰 발행)`);
 
       // 할당 완료된 슬롯 제외한 잔여 미할당 슬롯으로 포커스 갱신 & 선택 장비 초기화
       const remainingUnassigned = currentSlots.filter(ca => !ca.assetId && !usedSlotIds.has(ca.id));
@@ -874,7 +874,7 @@ export const AssetAssignment: React.FC = () => {
           '할당상태': ca.assetId ? '할당완료' : '미할당',
           '할당장비번호': assignedAsset?.assetNo || '-',
           '할당장비모델': assignedAsset?.modelName || '-',
-          '장비상태': assignedAsset?.status === 'AVAILABLE' ? '임대가능' : assignedAsset?.status === 'RENTED' ? '대여중' : assignedAsset?.status === 'ASSIGNED' ? '배정완료' : assignedAsset?.status === 'REPAIRING' ? '정비중' : (assignedAsset?.status || '-'),
+          '장비상태': assignedAsset?.status === 'AVAILABLE' ? '임대가능' : assignedAsset?.status === 'RENTED' ? '대여중' : assignedAsset?.status === 'ASSIGNED' ? '장비할당' : assignedAsset?.status === 'OUTBOUND_INSPECTION' ? '출고검수' : assignedAsset?.status === 'AWAITING_TRANSPORT' ? '운송대기' : assignedAsset?.status === 'REPAIRING' ? '정비중' : (assignedAsset?.status || '-'),
         };
         if (showUnitPrice) {
           row['월 렌탈료(원)'] = ca.monthlyRentalFee || 0;

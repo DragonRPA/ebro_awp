@@ -5,7 +5,7 @@ import { isVirtualAsset } from '../services/db';
 import { getCanonicalModelKey, CANONICAL_MODEL_META, isModelMatch } from '../utils/modelUtils';
 import { createHangulMatcher } from '../utils/hangulSearch';
 import { exportToExcel } from '../services/excel';
-import { getAssetStatusLabel } from '../config/asset_status_config';
+import { getAssetStatusLabel, isInventoryStockStatus } from '../config/asset_status_config';
 import { Search, Download, RefreshCw, Copy, Check, Truck } from 'lucide-react';
 
 export interface StockHoverItem {
@@ -538,9 +538,11 @@ export const AvailableInventoryPage: React.FC = () => {
       if (a.actualRentReturnDate) return;
       if (yardFilter !== 'ALL' && (a.yard || '용인') !== yardFilter) return;
 
+      // 아직 대여중(RENTED)이 아닌 임대가능(AVAILABLE) 및 장비할당(ASSIGNED/OUTBOUND_INSPECTION/AWAITING_TRANSPORT) 자산은 모두 재고로 판단
       const isAvailable = a.status === 'AVAILABLE';
       const isAssignedPreInsp =
-        pendingScopeFilter === 'PRE_INSPECTION_ALL' && pendingAssignedAssetIdSet.has(a.id);
+        pendingScopeFilter === 'PRE_INSPECTION_ALL' &&
+        (isInventoryStockStatus(a.status) || pendingAssignedAssetIdSet.has(a.id));
       if (!isAvailable && !isAssignedPreInsp) return;
 
       const bucket = resolveOrAddModelBucket(a.modelName, a.manufacturer);
@@ -1178,7 +1180,7 @@ export const AvailableInventoryPage: React.FC = () => {
             onChange={e => setPendingScopeFilter(e.target.value as any)}
             style={{ height: '28px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
           >
-            <option value="PRE_INSPECTION_ALL">대여 전환 전 전체 (미할당+출고대기)</option>
+            <option value="PRE_INSPECTION_ALL">대여 전환 전 전체 (미할당+장비할당)</option>
             <option value="UNASSIGNED_ONLY">미완결 출고요청 (장비 미할당)</option>
           </select>
         </div>

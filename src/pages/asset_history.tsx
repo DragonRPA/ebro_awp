@@ -633,7 +633,7 @@ export const AssetHistory: React.FC = () => {
               }`}>
                 현재상태: {
                   selectedAsset.status === 'AVAILABLE' ? '임대가능' :
-                  selectedAsset.status === 'ASSIGNED' ? '출고대기' :
+                  selectedAsset.status === 'ASSIGNED' ? '장비할당' :
                   selectedAsset.status === 'OUTBOUND_INSPECTION' ? '출고검수' :
                   selectedAsset.status === 'AWAITING_TRANSPORT' ? '운송대기' :
                   selectedAsset.status === 'RENTED' ? '대여중' :

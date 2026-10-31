@@ -1289,13 +1289,14 @@ export const RentAssets: React.FC = () => {
     return rentedAssets.filter(a => {
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
       const isFieldActive = !isReturned && a.status === 'RENTED';
+      const isStockInventory = !isReturned && ['AVAILABLE', 'ASSIGNED', 'OUTBOUND_INSPECTION', 'AWAITING_TRANSPORT'].includes(a.status);
       const isAvailable = !isReturned && a.status === 'AVAILABLE';
 
-      // 1. 반납 상태 필터 (임차처 반납일 컬럼)
+      // 1. 반납 상태 필터 (임차처 반납일 컬럼) — 장비할당/출고검수/운송대기 역시 아직 대여중이 아니므로 재고(보관중)로 판단
       const matchesReturn = returnQuery === 'ALL' ? true :
                             returnQuery === 'RETURNED' ? isReturned :
                             returnQuery === 'ACTIVE_FIELD' ? isFieldActive :
-                            returnQuery === 'AVAILABLE' ? isAvailable :
+                            returnQuery === 'AVAILABLE' ? isStockInventory :
                             !isReturned;
       if (!matchesReturn) return false;
 
@@ -1303,6 +1304,7 @@ export const RentAssets: React.FC = () => {
       if (operationStatusQuery !== 'ALL') {
         if (operationStatusQuery === 'RETURNED' && !isReturned) return false;
         if (operationStatusQuery === 'RENTED' && !isFieldActive) return false;
+        if (operationStatusQuery === 'STOCK_ALL' && !isStockInventory) return false;
         if (operationStatusQuery === 'AVAILABLE' && !isAvailable) return false;
         if (operationStatusQuery === 'AWAITING_TRANSPORT' && (isReturned || a.status !== 'AWAITING_TRANSPORT')) return false;
         if (operationStatusQuery === 'OUTBOUND_INSPECTION' && (isReturned || a.status !== 'OUTBOUND_INSPECTION')) return false;
@@ -1415,7 +1417,7 @@ export const RentAssets: React.FC = () => {
         if (a.status === 'RENTED') return '대여중';
         if (a.status === 'AWAITING_TRANSPORT') return '운송대기';
         if (a.status === 'OUTBOUND_INSPECTION') return '출고검수';
-        if (a.status === 'ASSIGNED') return '출고대기';
+        if (a.status === 'ASSIGNED') return '장비할당';
         if (a.status === 'REPAIRING') return '정비중';
         return '임대가능 (보관중)';
       case 'customerSite':
@@ -1777,7 +1779,7 @@ export const RentAssets: React.FC = () => {
               : a.status === 'OUTBOUND_INSPECTION'
                 ? '출고검수'
                 : a.status === 'ASSIGNED'
-                  ? '출고대기'
+                  ? '장비할당'
                   : a.status === 'REPAIRING'
                     ? '정비중'
                     : '임대가능 (보관중)',
@@ -3654,10 +3656,11 @@ export const RentAssets: React.FC = () => {
                   style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '120px' }}
                 >
                   <option value="ALL">전체 운용 상태</option>
+                  <option value="STOCK_ALL">재고 전체 (임대가능+장비할당)</option>
                   <option value="RENTED">대여중</option>
                   <option value="AWAITING_TRANSPORT">운송대기</option>
                   <option value="OUTBOUND_INSPECTION">출고검수</option>
-                  <option value="ASSIGNED">출고대기</option>
+                  <option value="ASSIGNED">장비할당</option>
                   <option value="OUTBOUND_PREP">출고준비 전체</option>
                   <option value="AVAILABLE">임대가능 (보관중)</option>
                   <option value="REPAIRING">정비중</option>
@@ -3966,7 +3969,7 @@ export const RentAssets: React.FC = () => {
                                 ) : a.status === 'OUTBOUND_INSPECTION' ? (
                                   <span className="badge badge-warning" style={{ fontSize: '10px' }}>출고검수</span>
                                 ) : a.status === 'ASSIGNED' ? (
-                                  <span className="badge badge-warning" style={{ fontSize: '10px' }}>출고대기</span>
+                                  <span className="badge badge-warning" style={{ fontSize: '10px' }}>장비할당</span>
                                 ) : a.status === 'REPAIRING' ? (
                                   <span className="badge badge-danger" style={{ fontSize: '10px' }}>정비중</span>
                                 ) : (
