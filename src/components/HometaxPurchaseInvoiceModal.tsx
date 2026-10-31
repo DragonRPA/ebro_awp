@@ -9,6 +9,7 @@ import { useApp } from '../context/AppContext';
 import { PurchaseSettlement, db } from '../services/db';
 import { parseHometaxInvoiceFile, HometaxPurchaseInvoiceItem, HometaxParseResult } from '../services/hometaxTaxInvoiceParser';
 import { fetchWithAgentFallback } from '../services/agentService';
+import { normalizeVendorPhoneticKey, isSameOrSimilarVendorName } from '../services/vendorStatementParser';
 
 interface HometaxPurchaseInvoiceModalProps {
   isOpen: boolean;
@@ -53,40 +54,43 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
     const rows: ReconciliationMatchRow[] = [];
 
     // 정산 건들의 매입처 사업자번호 매핑 사전 구축
-    const vendorBizMap = new Map<string, string>(); // vendorId or vendorName -> cleanBizNo
+    const vendorBizMap = new Map<string, string>(); // vendorId or normalizedVendorKey -> cleanBizNo
     transportCompanies.forEach(tc => {
       const cleanNo = ((tc as any).bizRegNo || tc.businessNo || '').replace(/[^0-9]/g, '');
       if (cleanNo.length === 10) {
         vendorBizMap.set(tc.id, cleanNo);
-        vendorBizMap.set(tc.name.replace(/\(주\)|\s/g, ''), cleanNo);
+        const normKey = normalizeVendorPhoneticKey(tc.name);
+        if (normKey) vendorBizMap.set(normKey, cleanNo);
       }
     });
     vendors.forEach(v => {
       const cleanNo = (v.bizRegNo || '').replace(/[^0-9]/g, '');
       if (cleanNo.length === 10) {
         vendorBizMap.set(v.id, cleanNo);
-        vendorBizMap.set(v.name.replace(/\(주\)|\s/g, ''), cleanNo);
+        const normKey = normalizeVendorPhoneticKey(v.name);
+        if (normKey) vendorBizMap.set(normKey, cleanNo);
       }
     });
 
     for (const inv of invoices) {
       const invBizNo = inv.supplierBizNo.replace(/[^0-9]/g, '');
-      const cleanInvName = inv.supplierName.replace(/주식회사|\(주\)|\s/g, '').trim();
+      const cleanInvName = normalizeVendorPhoneticKey(inv.supplierName);
 
-      // 1순위: 매입처 사업자번호 10자리 일치 탐색
+      // 1순위: 매입처 사업자번호 10자리 일치 탐색 (헌장 1.6)
       let matched: PurchaseSettlement | null = null;
       if (invBizNo.length === 10) {
         matched = targetSettlements.find(s => {
-          const sBiz = (s.vendorId && vendorBizMap.get(s.vendorId)) || vendorBizMap.get(s.vendorName.replace(/\(주\)|\s/g, ''));
+          const sBiz =
+            (s.vendorId && vendorBizMap.get(s.vendorId)) ||
+            vendorBizMap.get(normalizeVendorPhoneticKey(s.vendorName));
           return sBiz === invBizNo;
         }) || null;
       }
 
-      // 2순위: 상호명 정규화 텍스트 매칭
+      // 2순위: 상호명 정규화 텍스트 매칭 ("주식회사", "(주)", "㈜", 발음변형 앤↔엔 등 허용)
       if (!matched && cleanInvName.length >= 2) {
         matched = targetSettlements.find(s => {
-          const cleanSettlementName = s.vendorName.replace(/주식회사|\(주\)|\s/g, '').trim();
-          return cleanSettlementName.includes(cleanInvName) || cleanInvName.includes(cleanSettlementName);
+          return isSameOrSimilarVendorName(s.vendorName, inv.supplierName);
         }) || null;
       }
 

@@ -13966,6 +13966,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         siteId: resolvedSiteId || undefined,
         siteName: resolvedSiteName,
         siteAddress: resolvedSiteAddress || undefined,
+        reporterName: (repairData as any).reporterName || currentUser?.name || undefined,
         memo: repairData.memo,
         createdAt: nowIso,
         updatedAt: nowIso
@@ -15110,9 +15111,19 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         compGroups.get(comp)!.push(d);
       });
 
+      const normComp = (s?: string) =>
+        (s || '')
+          .replace(/주식회사|\(주\)|㈜|유한회사|\(유\)/gi, '')
+          .replace(/[\s\-_.,()]/g, '')
+          .replace(/앤/g, '엔')
+          .toLowerCase();
+
       let totalConverted = 0;
       for (const [compName, dList] of compGroups.entries()) {
-        const compObj = db.transportCompanies.find(c => c.name === compName);
+        const cleanComp = normComp(compName);
+        const compObj = db.transportCompanies.find(
+          c => c.name === compName || (cleanComp && normComp(c.name) === cleanComp) || (cleanComp.length >= 2 && (normComp(c.name).includes(cleanComp) || cleanComp.includes(normComp(c.name))))
+        );
         const settlementId = `PST-TR-${settlementYm.replace('-', '')}-${(compObj?.id || compName).slice(-6)}`;
         
         let existingSettlement = db.purchaseSettlements.find(s => s.id === settlementId);

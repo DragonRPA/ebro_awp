@@ -18,6 +18,7 @@ import { extractCategorizedSiteOptions } from '../types/siteOption';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { PurchaseStatementModal, uploadStatementFileSafe } from '../components/PurchaseStatementModal';
+import { isSameOrSimilarVendorName } from '../services/vendorStatementParser';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import {
   buildDispatchSmsText,
@@ -1974,10 +1975,12 @@ export const TruckDispatch: React.FC = () => {
       if (reconStartDate && dDate && dDate < reconStartDate) return false;
       if (reconEndDate && dDate && dDate > reconEndDate) return false;
 
-      // 4. 운송 거래처 필터
+      // 4. 운송 거래처 필터 ("주식회사", "(주)", 약칭/발음변형 허용)
       if (compFilterLower) {
         const rawComp = d.assignedVehicles?.[0]?.transportCompany || d.transportCompany || '';
-        const match = rawComp.toLowerCase().includes(compFilterLower);
+        const match =
+          rawComp.toLowerCase().includes(compFilterLower) ||
+          isSameOrSimilarVendorName(rawComp, selectedReconCompany);
         if (!match) return false;
       }
 
@@ -2736,8 +2739,13 @@ export const TruckDispatch: React.FC = () => {
     const bundleCode = `PAY-BUNDLE-${targetYm.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
     const totalBundleCost = reconciledPairs.reduce((acc, p) => acc + p.systemCost, 0);
 
-    const targetCompany = transportCompanies.find(tc => tc.id === selectedReconCompany || tc.name === selectedReconCompany);
+    const targetCompany = transportCompanies.find(
+      tc => tc.id === selectedReconCompany || tc.name === selectedReconCompany || isSameOrSimilarVendorName(tc.name, selectedReconCompany)
+    );
     const rawVendorName = targetCompany?.name || (selectedReconCompany !== 'ALL' ? selectedReconCompany : (reconciledPairs[0]?.systemDelivery?.transportCompany || '기타 운송사'));
+    const matchedVendorEntity =
+      (targetCompany ? vendors.find(v => v.id === targetCompany.id || isSameOrSimilarVendorName(v.name, targetCompany.name)) : undefined) ||
+      vendors.find(v => v.name === rawVendorName || isSameOrSimilarVendorName(v.name, rawVendorName));
     const nowIso = new Date().toISOString();
 
     try {
@@ -2748,6 +2756,7 @@ export const TruckDispatch: React.FC = () => {
         id: settlementId,
         settlementYm: targetYm,
         settlementType: 'TRANSPORT',
+        vendorId: matchedVendorEntity?.id || targetCompany?.id,
         vendorName: rawVendorName,
         totalAmount: totalBundleCost,
         paidAmount: 0,
@@ -10443,10 +10452,18 @@ export const TruckDispatch: React.FC = () => {
       {/* 🚚 운송료 매입거래명세서 보관 및 열람 모달 */}
       {showTransportStatementModal && (() => {
         const targetYm = reconStartDate ? reconStartDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
-        const targetTc = transportCompanies.find(tc => tc.id === selectedReconCompany || tc.name === selectedReconCompany);
+        const targetTc = transportCompanies.find(
+          tc => tc.id === selectedReconCompany || tc.name === selectedReconCompany || isSameOrSimilarVendorName(tc.name, selectedReconCompany)
+        );
         const effectiveVendorName = targetTc?.name || (selectedReconCompany !== 'ALL' ? selectedReconCompany : '전체 운송사');
         const matchedSettlement = (db.purchaseSettlements || []).find(
-          s => s.settlementType === 'TRANSPORT' && s.settlementYm === targetYm && (selectedReconCompany === 'ALL' || s.vendorName === effectiveVendorName || s.vendorId === targetTc?.id)
+          s =>
+            s.settlementType === 'TRANSPORT' &&
+            s.settlementYm === targetYm &&
+            (selectedReconCompany === 'ALL' ||
+              s.vendorName === effectiveVendorName ||
+              isSameOrSimilarVendorName(s.vendorName, effectiveVendorName) ||
+              (targetTc?.id && s.vendorId === targetTc.id))
         );
         const settlementItems = matchedSettlement
           ? (db.purchaseSettlementItems || []).filter(i => i.settlementId === matchedSettlement.id)

@@ -22,13 +22,214 @@ export interface VendorStatementRow {
   rawItemName?: string;   // 원본 셀 품목 텍스트
 }
 
+export interface VendorStatementColMap {
+  colAssetNo: number;
+  colSerialNo: number;
+  colModelName: number;
+  colPeriod: number;
+  colRentStart: number;
+  colRentEnd: number;
+  colSupplyAmount: number;
+  colTaxAmount: number;
+  colMonthlyRent: number;
+  colSeq: number;
+  colContractNo: number;
+  colMemo: number;
+}
+
+export interface VendorStatementFormatProfile {
+  vendorId?: string;
+  vendorName: string;
+  bizRegNo?: string;
+  headerRowIndex: number;
+  headerSignature: string;
+  colMap: VendorStatementColMap;
+  updatedAt: string;
+}
+
 export interface ParseVendorStatementResult {
   rows: VendorStatementRow[];
   detectedVendor?: string;
+  detectedBizNo?: string;
   headerRowIndex: number;
+  headerSignature?: string;
+  colMap?: VendorStatementColMap;
   totalParsedAmount: number;
   totalParsedTax: number;
   totalParsedCount: number;
+}
+
+const VENDOR_STMT_FORMAT_STORAGE_KEY = 'ebro_vendor_stmt_format_v1';
+const OUR_COMPANY_BIZ_NOS = new Set(['1348634915']); // (주)기연리프트 등 공급받는자(당사) 사업자번호 제외
+
+export function cleanBizRegNo(bizNo?: string): string {
+  const digits = (bizNo || '').replace(/[^0-9]/g, '');
+  return digits.length === 10 ? digits : '';
+}
+
+/**
+ * 법인격 표기("주식회사", "(주)", "㈜", "(유)", "유한회사" 등) 및 공백/특수기호 완전 제거 정규화
+ */
+export function normalizeVendorName(raw?: string): string {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/주식회사|\(주\)|㈜|유한회사|\(유\)|합자회사|\(합\)|사단법인|\(사\)/gi, '')
+    .replace(/[\s\-_.,()\[\]'"·]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * 법인격 제거 + 현장 오타/발음 변형(앤↔엔, 아주↔AJ, 엘제이↔LJ, 중부↔하이로드 등) 통합 정규화 키
+ */
+export function normalizeVendorPhoneticKey(raw?: string): string {
+  const base = normalizeVendorName(raw);
+  if (!base) return '';
+  return base
+    .replace(/앤/g, '엔')
+    .replace(/에이제이|아주/g, 'aj')
+    .replace(/엘제이/g, 'lj')
+    .replace(/엠제이|자인/g, 'mj')
+    .replace(/중부/g, '하이로드');
+}
+
+/**
+ * 핵심 상호 어근 추출 (뒤에 붙는 일반 업종 접미사 '렌탈', '리프트', '네트웍스', '운송', '화물', '물류', '설비' 등 제거)
+ */
+export function extractVendorCoreToken(raw?: string): string {
+  const phonetic = normalizeVendorPhoneticKey(raw);
+  if (!phonetic) return '';
+  const stripped = phonetic
+    .replace(/(코리아설비렌탈|설비렌탈|네트웍스|네트워크|렌탈|리프트|운송|화물|물류|중기|건기|건설기계|장비|산기|기계)+$/g, '')
+    .trim();
+  return stripped.length >= 2 ? stripped : phonetic;
+}
+
+/**
+ * 두 거래처명이 법인격("(주)", "주식회사") 불일치나 철자 오기재(앤/엔 등), 약칭 표기에도 불구하고 동일 거래처인지 판별
+ */
+export function isSameOrSimilarVendorName(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  const na = normalizeVendorName(a);
+  const nb = normalizeVendorName(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+
+  const pa = normalizeVendorPhoneticKey(a);
+  const pb = normalizeVendorPhoneticKey(b);
+  if (pa === pb) return true;
+  if (pa.length >= 2 && pb.length >= 2 && (pa.includes(pb) || pb.includes(pa))) return true;
+
+  const ca = extractVendorCoreToken(a);
+  const cb = extractVendorCoreToken(b);
+  if (ca && cb && ca.length >= 2 && cb.length >= 2 && (ca === cb || ca.includes(cb) || cb.includes(ca))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 명세서 텍스트에서 공급자 사업자등록번호(10자리) 자동 추출 (당사 사업자번호는 자동 배제)
+ */
+export function extractSupplierBizNoFromText(text: string, extraExcludeBizNos: string[] = []): string | undefined {
+  if (!text) return undefined;
+  const excludeSet = new Set<string>([...OUR_COMPANY_BIZ_NOS, ...extraExcludeBizNos.map(cleanBizRegNo).filter(Boolean)]);
+  const regex = /(\d{3})\s*[-–—]\s*(\d{2})\s*[-–—]\s*(\d{5})/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const digits = `${match[1]}${match[2]}${match[3]}`;
+    if (digits.length === 10 && !excludeSet.has(digits)) {
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 명세서 상단 텍스트에서 '상호 : OOO' / '공급자 : OOO' 형태의 거래처명 추출 (기연리프트 등 당사 상호 제외)
+ */
+export function extractSupplierNameFromHeaderText(text: string): string | undefined {
+  if (!text) return undefined;
+  const patterns = [
+    /(?:공급자|임대인)[^\n]{0,40}?(?:상\s*호|법인명|업체명)\s*[:：]?\s*([가-힣A-Za-z0-9()㈜\s]{2,20})/,
+    /(?:상\s*호|법인명|공급자명)\s*[:：]\s*([가-힣A-Za-z0-9()㈜\s]{2,20})/
+  ];
+  for (const pat of patterns) {
+    const m = text.match(pat);
+    if (m && m[1]) {
+      const candidate = m[1]
+        .split(/(?:대표|성명|사업자|등록번호|주소|업태|종목|귀하|TEL|전화)/i)[0]
+        .trim();
+      const norm = normalizeVendorName(candidate);
+      if (norm && norm.length >= 2 && !norm.includes('기연리프트') && !norm.includes('이브로')) {
+        return candidate;
+      }
+    }
+  }
+  return undefined;
+}
+
+export function loadVendorStatementFormatProfiles(): VendorStatementFormatProfile[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(VENDOR_STMT_FORMAT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveVendorStatementFormatProfile(profile: VendorStatementFormatProfile): void {
+  if (typeof window === 'undefined' || !profile.vendorName) return;
+  try {
+    const list = loadVendorStatementFormatProfiles();
+    const cleanBiz = cleanBizRegNo(profile.bizRegNo);
+    const normKey = normalizeVendorPhoneticKey(profile.vendorName);
+    const filtered = list.filter(p => {
+      if (profile.vendorId && p.vendorId === profile.vendorId) return false;
+      if (cleanBiz && cleanBizRegNo(p.bizRegNo) === cleanBiz) return false;
+      if (normKey && normalizeVendorPhoneticKey(p.vendorName) === normKey) return false;
+      return true;
+    });
+    filtered.unshift({
+      ...profile,
+      bizRegNo: cleanBiz || profile.bizRegNo,
+      updatedAt: new Date().toISOString()
+    });
+    window.localStorage.setItem(VENDOR_STMT_FORMAT_STORAGE_KEY, JSON.stringify(filtered.slice(0, 100)));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+export function findSavedVendorStatementProfile(params: {
+  bizRegNo?: string;
+  vendorId?: string;
+  vendorName?: string;
+  headerSignature?: string;
+}): VendorStatementFormatProfile | undefined {
+  const list = loadVendorStatementFormatProfiles();
+  if (list.length === 0) return undefined;
+  const cleanBiz = cleanBizRegNo(params.bizRegNo);
+  if (cleanBiz) {
+    const byBiz = list.find(p => cleanBizRegNo(p.bizRegNo) === cleanBiz);
+    if (byBiz) return byBiz;
+  }
+  if (params.vendorId) {
+    const byId = list.find(p => p.vendorId === params.vendorId);
+    if (byId) return byId;
+  }
+  if (params.vendorName) {
+    const byName = list.find(p => isSameOrSimilarVendorName(p.vendorName, params.vendorName));
+    if (byName) return byName;
+  }
+  if (params.headerSignature && params.headerSignature.length >= 6) {
+    const bySig = list.find(p => p.headerSignature === params.headerSignature);
+    if (bySig) return bySig;
+  }
+  return undefined;
 }
 
 /**
@@ -140,6 +341,7 @@ function parseString(val: any): string {
 /**
  * 임차처 거래명세서 엑셀 범용 파서 엔진
  * - 롯데렌탈(주), (주)하이로드, 하은(주), AJ네트웍스, 주식회사 프린스렌탈, 주식회사 현대네트웍스, 주식회사 현대렌탈, ㈜엘제이리프트 등 전 서식 지원
+ * - 공급자 사업자등록번호(10자리) 자동 추출 및 거래처별 저장된 양식 프로필(VendorStatementFormatProfile) 폴백 지원
  * - 동적 헤더 행 자동 탐색 (한글 띄어쓰기 셀 정규화, 품명/장비명, 기간, 단가, 공급가액 등)
  * - 장비명 내 괄호 속 관리번호((HS1406), (BS1020), (D1531)) 자동 분리 추출
  * - 중간 청소비/수리비/세척비/도색비/운송비 등 기타 비용 항목 누락 없는 수용
@@ -156,10 +358,13 @@ export function parseVendorStatementExcel(
     return { rows: [], headerRowIndex: -1, totalParsedAmount: 0, totalParsedTax: 0, totalParsedCount: 0 };
   }
 
-  // 2. 공급자(임차처) 자동 감지 (파일명 및 상단 공급자 정보 우선 매핑)
+  // 2. 공급자(임차처) 사업자등록번호 및 상호 자동 감지 (파일명, 상단 20행, 하단 푸터 우선 매핑)
   let detectedVendor: string | undefined = undefined;
-  const headerBlockText = matrix.slice(0, 15).map(r => r.join(' ')).join(' ');
-  const combinedVendorSearch = fileName + ' ' + headerBlockText;
+  const headerBlockText = matrix.slice(0, 20).map(r => (Array.isArray(r) ? r.join(' ') : '')).join(' ');
+  const footerBlockText = matrix.length > 20 ? matrix.slice(-15).map(r => (Array.isArray(r) ? r.join(' ') : '')).join(' ') : '';
+  const combinedVendorSearch = `${fileName} ${headerBlockText} ${footerBlockText}`;
+
+  const detectedBizNo = extractSupplierBizNoFromText(`${headerBlockText} ${footerBlockText}`);
 
   if (combinedVendorSearch.includes('엘제이리프트') || fileName.includes('엘제이')) {
     detectedVendor = '㈜엘제이리프트';
@@ -175,8 +380,10 @@ export function parseVendorStatementExcel(
     detectedVendor = '하은(주)';
   } else if (combinedVendorSearch.includes('중부') || combinedVendorSearch.includes('하이로드') || fileName.includes('중부')) {
     detectedVendor = '(주)하이로드';
-  } else if (combinedVendorSearch.includes('AJ네트웍스') || combinedVendorSearch.includes('아주렌탈') || combinedVendorSearch.includes('에이엔네트웍스')) {
+  } else if (combinedVendorSearch.includes('AJ네트웍스') || combinedVendorSearch.includes('아주렌탈') || combinedVendorSearch.includes('에이엔네트웍스') || combinedVendorSearch.includes('에이제이네트웍스')) {
     detectedVendor = '(주)AJ네트웍스';
+  } else if (combinedVendorSearch.includes('유앤네트웍스') || combinedVendorSearch.includes('유엔네트웍스') || fileName.includes('유앤') || fileName.includes('유엔')) {
+    detectedVendor = '(주)유앤네트웍스';
   } else if (combinedVendorSearch.includes('라이즈') || fileName.includes('라이즈')) {
     detectedVendor = '주식회사 라이즈리프트';
   } else if (combinedVendorSearch.includes('포스렌탈') || fileName.includes('포스')) {
@@ -185,6 +392,10 @@ export function parseVendorStatementExcel(
     detectedVendor = '한솔렌탈 주식회사';
   } else if (combinedVendorSearch.includes('화테') || fileName.includes('화테')) {
     detectedVendor = '(주)화테코리아설비렌탈';
+  } else if (combinedVendorSearch.includes('한국렌탈') || fileName.includes('한국렌탈')) {
+    detectedVendor = '한국렌탈';
+  } else {
+    detectedVendor = extractSupplierNameFromHeaderText(headerBlockText);
   }
 
   // 3. 헤더 행(Header Row Index) 동적 찾기
@@ -192,9 +403,9 @@ export function parseVendorStatementExcel(
   let maxHeaderScore = 0;
 
   const headerKeywords = [
-    '관리번호', '자산번호', '장비번호', '장비NO', '시리얼', '제조번호',
-    '모델명', '장비명', '품명', '모델', '기간', '사용기간', '사용시작', '사용종료', '투입일자', '철수일자',
-    '월렌탈료', '월임대료', '공급가액', '청구금액', '세액', 'V.A.T', 'VAT', '부가세', '순번', '계약번호', '일수', '단가', '운반비', '금액'
+    '관리번호', '자산번호', '장비번호', '장비NO', '호기', '기번', '시리얼', '제조번호',
+    '모델명', '장비명', '품명', '품목', '모델', '규격', '기간', '사용기간', '임차기간', '사용시작', '사용종료', '투입일자', '철수일자',
+    '월렌탈료', '월임대료', '임대료', '공급가액', '청구금액', '실청구액', '세액', 'V.A.T', 'VAT', '부가세', '순번', '계약번호', '일수', '단가', '운반비', '금액'
   ];
 
   for (let r = 0; r < Math.min(30, matrix.length); r++) {
@@ -229,12 +440,17 @@ export function parseVendorStatementExcel(
     }
   }
 
-  // 헤더 행을 못 찾은 경우 기본값 0 지정
+  // 헤더 행을 못 찾은 경우 저장된 거래처 양식 프로필 또는 기본값 0 지정
   if (headerRowIndex === -1) {
-    headerRowIndex = 0;
+    const preSaved = findSavedVendorStatementProfile({ bizRegNo: detectedBizNo, vendorName: detectedVendor });
+    headerRowIndex = preSaved && preSaved.headerRowIndex >= 0 && preSaved.headerRowIndex < matrix.length ? preSaved.headerRowIndex : 0;
   }
 
   const headerRow = matrix[headerRowIndex] || [];
+  const headerSignature = headerRow
+    .map(c => parseString(c).replace(/\s+/g, '').toUpperCase())
+    .filter(Boolean)
+    .join('|');
   
   // 4. 컬럼 인덱스 매핑 (거래명세서별 상이한 용어를 우리 시스템 표준 단어로 통일)
   let colAssetNo = -1;
@@ -254,22 +470,22 @@ export function parseVendorStatementExcel(
     const txt = parseString(cell).replace(/\s+/g, '').toUpperCase();
     if (!txt) return;
 
-    if (txt.includes('장비번호') || txt.includes('관리번호') || txt.includes('자산번호') || txt.includes('장비NO')) {
+    if (txt.includes('장비번호') || txt.includes('관리번호') || txt.includes('자산번호') || txt.includes('장비NO') || txt === '호기' || txt === '기번' || txt.includes('장비코드')) {
       colAssetNo = idx;
-    } else if (txt.includes('시리얼') || txt.includes('제조번호')) {
+    } else if (txt.includes('시리얼') || txt.includes('제조번호') || txt === 'S/N' || txt === 'SN') {
       colSerialNo = idx;
-    } else if (txt.includes('장비명') || txt.includes('모델명') || txt.includes('품명') || txt === '모델' || txt.includes('규격')) {
+    } else if (txt.includes('장비명') || txt.includes('모델명') || txt.includes('품명') || txt.includes('품목') || txt === '모델' || txt.includes('규격')) {
       colModelName = idx;
-    } else if (txt.includes('사용기간') || txt === '기간' || txt.includes('임차기간')) {
+    } else if (txt.includes('사용기간') || txt === '기간' || txt.includes('임차기간') || txt.includes('대여기간') || txt.includes('청구기간')) {
       colPeriod = idx;
-    } else if (txt.includes('사용시작') || txt.includes('임차시작') || txt.includes('시작일') || txt.includes('투입일')) {
+    } else if (txt.includes('사용시작') || txt.includes('임차시작') || txt.includes('시작일') || txt.includes('투입일') || txt.includes('출고일')) {
       colRentStart = idx;
-    } else if (txt.includes('사용종료') || txt.includes('임차종료') || txt.includes('종료일') || txt.includes('철수일')) {
+    } else if (txt.includes('사용종료') || txt.includes('임차종료') || txt.includes('종료일') || txt.includes('철수일') || txt.includes('반납일') || txt.includes('입고일')) {
       colRentEnd = idx;
-    } else if (txt.includes('단가') || txt.includes('월렌탈료') || txt.includes('월임대료') || txt.includes('일사용료') || txt.includes('일단가') || txt === '단가') {
+    } else if (txt.includes('단가') || txt.includes('월렌탈료') || txt.includes('월임대료') || txt.includes('일사용료') || txt.includes('일단가') || txt === '단가' || txt === '임대료') {
       // 1순위: 단가 / 월렌탈료 (절대 공급가액으로 오인되지 않도록 선행 격리)
       colMonthlyRent = idx;
-    } else if (txt.includes('공급가액') || txt.includes('청구금액') || txt.includes('실청구액') || txt === '공급가' || txt === '금액' || txt === '합계') {
+    } else if (txt.includes('공급가액') || txt.includes('청구금액') || txt.includes('실청구액') || txt.includes('청구액') || txt === '공급가' || txt === '금액' || txt === '합계') {
       // 2순위: 실제 공급가액 (청구금액)
       colSupplyAmount = idx;
     } else if (txt.includes('V.A.T') || txt.includes('VAT') || txt.includes('세액') || txt.includes('부가세')) {
@@ -282,6 +498,29 @@ export function parseVendorStatementExcel(
       colMemo = idx;
     }
   });
+
+  // 저장된 매입처별 양식 프로필이 있는 경우, 누락된 컬럼 매핑 및 거래처명 자동 복원
+  const savedProfile = findSavedVendorStatementProfile({
+    bizRegNo: detectedBizNo,
+    vendorName: detectedVendor,
+    headerSignature
+  });
+  if (savedProfile) {
+    if (!detectedVendor && savedProfile.vendorName) {
+      detectedVendor = savedProfile.vendorName;
+    }
+    const cm = savedProfile.colMap;
+    if (colAssetNo === -1 && cm.colAssetNo >= 0) colAssetNo = cm.colAssetNo;
+    if (colSerialNo === -1 && cm.colSerialNo >= 0) colSerialNo = cm.colSerialNo;
+    if (colModelName === -1 && cm.colModelName >= 0) colModelName = cm.colModelName;
+    if (colPeriod === -1 && cm.colPeriod >= 0) colPeriod = cm.colPeriod;
+    if (colRentStart === -1 && cm.colRentStart >= 0) colRentStart = cm.colRentStart;
+    if (colRentEnd === -1 && cm.colRentEnd >= 0) colRentEnd = cm.colRentEnd;
+    if (colSupplyAmount === -1 && cm.colSupplyAmount >= 0) colSupplyAmount = cm.colSupplyAmount;
+    if (colTaxAmount === -1 && cm.colTaxAmount >= 0) colTaxAmount = cm.colTaxAmount;
+    if (colMonthlyRent === -1 && cm.colMonthlyRent >= 0) colMonthlyRent = cm.colMonthlyRent;
+    if (colMemo === -1 && cm.colMemo >= 0) colMemo = cm.colMemo;
+  }
 
   // 파싱 데이터 행 수집
   const rows: VendorStatementRow[] = [];
@@ -495,10 +734,39 @@ export function parseVendorStatementExcel(
     totalParsedTax += calculatedTax;
   }
 
+  const resolvedColMap: VendorStatementColMap = {
+    colAssetNo,
+    colSerialNo,
+    colModelName,
+    colPeriod,
+    colRentStart,
+    colRentEnd,
+    colSupplyAmount,
+    colTaxAmount,
+    colMonthlyRent,
+    colSeq,
+    colContractNo,
+    colMemo
+  };
+
+  if (rows.length > 0 && detectedVendor) {
+    saveVendorStatementFormatProfile({
+      vendorName: detectedVendor,
+      bizRegNo: detectedBizNo,
+      headerRowIndex,
+      headerSignature,
+      colMap: resolvedColMap,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
   return {
     rows,
     detectedVendor,
+    detectedBizNo,
     headerRowIndex,
+    headerSignature,
+    colMap: resolvedColMap,
     totalParsedAmount,
     totalParsedTax,
     totalParsedCount: rows.length

@@ -10,6 +10,7 @@ import { exportToExcel } from '../services/excel';
 import { Consumable, ConsumablePurchaseRequest, db } from '../services/db';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { PurchaseStatementModal } from '../components/PurchaseStatementModal';
+import { isSameOrSimilarVendorName } from '../services/vendorStatementParser';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { createHangulMatcher } from '../utils/hangulSearch';
@@ -988,7 +989,9 @@ export const ConsumablePurchasesPage: React.FC = () => {
         if (!targetReq) return null;
         const effectiveQty = (targetReq.receivedQty && targetReq.receivedQty > 0) ? targetReq.receivedQty : targetReq.requestedQty;
         const totalAmt = effectiveQty * (targetReq.unitPrice || 0);
-        const matchedVendor = vendors.find(v => v.id === targetReq.vendorId || v.name === targetReq.sellerName);
+        const matchedVendor = vendors.find(
+          v => v.id === targetReq.vendorId || v.name === targetReq.sellerName || isSameOrSimilarVendorName(v.name, targetReq.sellerName)
+        );
         return (
           <PurchaseStatementModal
             isOpen={Boolean(statementTargetPurchaseId)}

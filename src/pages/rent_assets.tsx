@@ -8,7 +8,13 @@ import { Asset, Repair, db, PurchaseSettlement, PurchaseSettlementItem, Delivery
 import { exportToExcel } from '../services/excel';
 import * as XLSX from 'xlsx';
 
-import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendorStatementParser';
+import {
+  VendorStatementRow,
+  parseVendorStatementExcel,
+  cleanBizRegNo,
+  isSameOrSimilarVendorName,
+  saveVendorStatementFormatProfile
+} from '../services/vendorStatementParser';
 import { parsePdfStatement } from '../services/pdfStatementParser';
 import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
@@ -278,7 +284,33 @@ export const RentAssets: React.FC = () => {
 
     // 문자열 공백/하이픈/소문자 통일 정화 헬퍼
     const cleanStr = (s?: string) => (s || '').replace(/[\s\-_]/g, '').toLowerCase();
-    const cleanSelectedVendor = cleanStr(selectedVendor);
+
+    // 💡 명세서 내 자산번호(assetNo)로 이미 1:1 매칭된 자산들로부터 실제 매입처(vendorId / renter)를 역추론
+    //    (명세서 상단 회사명이 잘못 입력되어 있거나 (주)/주식회사 표기가 달라도 자산 소속 임차처를 정확히 인식)
+    const inferredVendorIds = new Set<string>();
+    const inferredRenterNames = new Set<string>();
+    for (let i = 0; i < statementRows.length; i++) {
+      const r = statementRows[i];
+      if (r.itemType === 'REPAIR' || r.itemType === 'OTHER_FEE') continue;
+      const m = r.assetNo ? rentedAssetByCleanNoMap.get(cleanStr(r.assetNo)) : undefined;
+      if (m) {
+        if (m.vendorId) inferredVendorIds.add(m.vendorId);
+        const rName = getAssetRenterName(m);
+        if (rName && rName !== '미지정') inferredRenterNames.add(rName);
+      }
+    }
+
+    const doesAssetBelongToTargetVendor = (a: Asset): boolean => {
+      const aVendor = getAssetRenterName(a);
+      if (selectedVendor) {
+        if (aVendor === selectedVendor || isSameOrSimilarVendorName(aVendor, selectedVendor)) return true;
+      }
+      if (a.vendorId && inferredVendorIds.has(a.vendorId)) return true;
+      for (const infName of inferredRenterNames) {
+        if (isSameOrSimilarVendorName(aVendor, infName)) return true;
+      }
+      return !selectedVendor && inferredVendorIds.size === 0 && inferredRenterNames.size === 0;
+    };
 
     // 두 날짜 간 일수 계산 헬퍼 (양편넣기: 시작일/종료일 모두 포함)
     const calcDaysBetween = (d1Str?: string, d2Str?: string): number => {
@@ -317,18 +349,11 @@ export const RentAssets: React.FC = () => {
       const rowCleanNo = cleanStr(row.assetNo);
       let matched = rowCleanNo ? rentedAssetByCleanNoMap.get(rowCleanNo) : undefined;
 
-      // 2단계: 관리번호 불일치 시 [모델명 + 임차처] 조합 2차 보조 추적
+      // 2단계: 관리번호 불일치 시 [모델명 + 임차처(역추론 포함)] 조합 2차 보조 추적
       if (!matched && row.modelName) {
         const rowCleanModel = cleanStr(row.modelName);
         matched = rentedAssets.find(a => {
-          const cleanAV = cleanStr(getAssetRenterName(a));
-          const vMatch = !selectedVendor ||
-            cleanAV === cleanSelectedVendor ||
-            (cleanSelectedVendor.includes('aj') && cleanAV.includes('아주')) ||
-            (cleanSelectedVendor.includes('아주') && cleanAV.includes('aj')) ||
-            (cleanSelectedVendor.includes('하이로드') && cleanAV.includes('중부')) ||
-            (cleanSelectedVendor.includes('중부') && cleanAV.includes('하이로드'));
-          return cleanStr(a.modelName) === rowCleanModel && vMatch && !matchedAssetIds.has(a.id);
+          return cleanStr(a.modelName) === rowCleanModel && doesAssetBelongToTargetVendor(a) && !matchedAssetIds.has(a.id);
         });
       }
 
@@ -512,7 +537,7 @@ export const RentAssets: React.FC = () => {
       }
     });
 
-    // B. 선택된 임차처의 자사 임차 자산 중 당월 1일 이상 존재했으나 청구되지 않은 장비 추출 (전체 임차처 상태에서는 거래명세서 업로드 시에만 표시)
+    // B. 선택된 임차처(또는 명세서 자산번호로 역추론된 임차처)의 자사 임차 자산 중 당월 1일 이상 존재했으나 청구되지 않은 장비 추출
     if (selectedVendor || statementRows.length > 0) {
       const [yearStr, monthStr] = (selectedYm || new Date().toISOString().slice(0, 7)).split('-');
       const yearNum = parseInt(yearStr, 10);
@@ -521,18 +546,8 @@ export const RentAssets: React.FC = () => {
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const monthEnd = `${selectedYm || yearStr + '-' + monthStr}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const cleanVendor = (s?: string) => (s || '').replace(/[\s\-_주식회사\(\)㈜]/g, '').toLowerCase();
-      const cleanSelectedV = cleanVendor(selectedVendor);
       const targetRented = rentedAssets.filter(a => {
-        const aVendor = getAssetRenterName(a);
-        const cleanAV = cleanVendor(aVendor);
-        const matchesVendor = !selectedVendor ||
-          aVendor === selectedVendor ||
-          cleanAV === cleanSelectedV ||
-          (cleanSelectedV.includes('aj') && cleanAV.includes('아주')) ||
-          (cleanSelectedV.includes('아주') && cleanAV.includes('aj')) ||
-          (cleanSelectedV.includes('하이로드') && cleanAV.includes('중부')) ||
-          (cleanSelectedV.includes('중부') && cleanAV.includes('하이로드'));
+        const matchesVendor = doesAssetBelongToTargetVendor(a);
         const assetStart = a.rentStart || '1900-01-01';
         const assetEnd = a.actualRentReturnDate || a.rentEnd || '9999-12-31';
         const isOverlapped = (assetStart <= monthEnd) && (assetEnd >= monthStart);
@@ -773,27 +788,92 @@ export const RentAssets: React.FC = () => {
       try {
         const data = event.target?.result as ArrayBuffer;
 
-        // 거래처명 정규화 매칭 헬퍼 (주식회사/(주)/공백 무시 + 아주/AJ 및 중부/하이로드 상호 호환)
-        const matchVendor = (detected?: string): string => {
-          if (!detected) return '';
-          const clean = (s: string) => s.replace(/주식회사|\(주\)|㈜|\(유\)|유한회사|\s+/g, '').toLowerCase();
-          const target = clean(detected);
-          const found = renterVendors.find(v => {
-            const cv = clean(v);
-            return cv === target || target.includes(cv) || cv.includes(target) ||
-              (target.includes('아주') && cv.includes('aj')) || (target.includes('aj') && cv.includes('아주')) ||
-              (target.includes('하이로드') && cv.includes('중부')) || (target.includes('중부') && cv.includes('하이로드'));
-          });
-          return found || detected;
+        // 💡 4단계 결정론적 거래처 식별 엔진
+        //    1순위: 사업자등록번호(10자리) 일치 매입처 (헌장 1.6)
+        //    2순위: 파싱된 행의 자산번호(assetNo)와 1:1 매칭된 자사 임차자산의 소속 임차처 역추적 (회사명이 오기재/누락된 경우 방어)
+        //    3순위: 법인격("주식회사", "(주)", "㈜") 제거 및 발음/오타(앤↔엔, 아주↔AJ, 중부↔하이로드, 엘제이↔LJ) 정규화 매칭
+        //    4순위: 사용자가 이미 선택한 임차처 보존
+        const resolveStatementVendor = (
+          detectedName?: string,
+          detectedBizNo?: string,
+          parsedRows: VendorStatementRow[] = []
+        ): { vendorName: string; matchedVendorObj?: (typeof vendors)[number] } => {
+          // 1순위: 사업자등록번호 10자리 일치
+          const cleanBiz = cleanBizRegNo(detectedBizNo);
+          if (cleanBiz) {
+            const byBiz = vendors.find(v => cleanBizRegNo(v.bizRegNo) === cleanBiz);
+            if (byBiz) {
+              const inRenterList = renterVendors.find(rv => rv === byBiz.name || isSameOrSimilarVendorName(rv, byBiz.name));
+              return { vendorName: inRenterList || byBiz.name, matchedVendorObj: byBiz };
+            }
+          }
+
+          // 2순위: 파싱된 장비 관리번호(assetNo)로 자사 DB 임차자산(rentedAssets)과 매칭하여 최다 빈도 임차처 역추적
+          const renterCountMap = new Map<string, number>();
+          const vendorIdCountMap = new Map<string, number>();
+          for (const r of parsedRows) {
+            if (!r.assetNo || r.itemType === 'REPAIR' || r.itemType === 'OTHER_FEE') continue;
+            const key = r.assetNo.replace(/[\s\-_]/g, '').toLowerCase();
+            const matchedAsset = key ? rentedAssetByCleanNoMap.get(key) : undefined;
+            if (matchedAsset) {
+              const rName = getAssetRenterName(matchedAsset);
+              if (rName && rName !== '미지정') {
+                renterCountMap.set(rName, (renterCountMap.get(rName) || 0) + 1);
+              }
+              if (matchedAsset.vendorId) {
+                vendorIdCountMap.set(matchedAsset.vendorId, (vendorIdCountMap.get(matchedAsset.vendorId) || 0) + 1);
+              }
+            }
+          }
+
+          if (renterCountMap.size > 0) {
+            let bestRenter = '';
+            let bestCnt = 0;
+            renterCountMap.forEach((cnt, rName) => {
+              if (cnt > bestCnt) {
+                bestCnt = cnt;
+                bestRenter = rName;
+              }
+            });
+            let bestVendorId = '';
+            let bestVidCnt = 0;
+            vendorIdCountMap.forEach((cnt, vId) => {
+              if (cnt > bestVidCnt) {
+                bestVidCnt = cnt;
+                bestVendorId = vId;
+              }
+            });
+            const vObj =
+              (bestVendorId ? vendorMap.get(bestVendorId) : undefined) ||
+              vendors.find(v => v.name === bestRenter || isSameOrSimilarVendorName(v.name, bestRenter));
+            const inRenterList = renterVendors.find(rv => rv === bestRenter || isSameOrSimilarVendorName(rv, bestRenter));
+            return { vendorName: inRenterList || vObj?.name || bestRenter, matchedVendorObj: vObj };
+          }
+
+          // 3순위: 감지된 상호명 기반 법인격/발음변형 정규화 매칭
+          if (detectedName) {
+            const matchedRenter = renterVendors.find(v => isSameOrSimilarVendorName(v, detectedName));
+            const matchedVendor = vendors.find(v => isSameOrSimilarVendorName(v.name, matchedRenter || detectedName));
+            if (matchedRenter || matchedVendor) {
+              return { vendorName: matchedRenter || matchedVendor!.name, matchedVendorObj: matchedVendor };
+            }
+          }
+
+          // 4순위: 사전 선택된 임차처 유지 또는 감지된 원문 반환
+          if (selectedVendor) {
+            const preObj = vendors.find(v => v.name === selectedVendor || isSameOrSimilarVendorName(v.name, selectedVendor));
+            return { vendorName: selectedVendor, matchedVendorObj: preObj };
+          }
+          return { vendorName: detectedName || '' };
         };
 
         if (isPdf) {
           // PDF 파일 텍스트 정밀 파싱 서비스 연동 (현대렌탈, 라이즈, 포스, 한국, 아주, 한솔, 화테 등 전 서식 지원)
           const parseResult = await parsePdfStatement(data, selectedYm, file.name);
+          const resolved = resolveStatementVendor(parseResult.detectedVendor, parseResult.detectedBizNo, parseResult.rows);
 
-          if (parseResult.detectedVendor) {
-            const matched = matchVendor(parseResult.detectedVendor);
-            setSelectedVendor(matched);
+          if (resolved.vendorName) {
+            setSelectedVendor(resolved.vendorName);
           }
 
           setLoadedFileName(file.name);
@@ -801,7 +881,7 @@ export const RentAssets: React.FC = () => {
           setStatementRows(parseResult.rows);
           setSelectedReconcileIds(parseResult.rows.map(r => r.id));
 
-          const vendorNotice = parseResult.detectedVendor ? `[${parseResult.detectedVendor}]` : 'PDF 거래명세서';
+          const vendorNotice = resolved.vendorName ? `[${resolved.vendorName}]` : (parseResult.detectedVendor ? `[${parseResult.detectedVendor}]` : 'PDF 거래명세서');
           const scanNotice = parseResult.isImageScan ? ' (스캔 이미지 자동 인식)' : '';
           showToast(`${vendorNotice} PDF 파싱 완료${scanNotice} (${parseResult.totalParsedCount}건, ₩${parseResult.totalParsedAmount.toLocaleString()}원)`);
         } else {
@@ -817,10 +897,22 @@ export const RentAssets: React.FC = () => {
           const worksheet = workbook.Sheets[matchedSheetName];
           
           const parseResult = parseVendorStatementExcel(worksheet, selectedYm, file.name);
+          const resolved = resolveStatementVendor(parseResult.detectedVendor, parseResult.detectedBizNo, parseResult.rows);
 
-          if (parseResult.detectedVendor) {
-            const matched = matchVendor(parseResult.detectedVendor);
-            setSelectedVendor(matched);
+          if (resolved.vendorName) {
+            setSelectedVendor(resolved.vendorName);
+            // 식별된 매입처 기준으로 거래명세서 양식 프로필(헤더 행, 컬럼 매핑, 사업자번호) 영구 갱신 저장
+            if (parseResult.colMap && parseResult.headerSignature) {
+              saveVendorStatementFormatProfile({
+                vendorId: resolved.matchedVendorObj?.id,
+                vendorName: resolved.vendorName,
+                bizRegNo: resolved.matchedVendorObj?.bizRegNo || parseResult.detectedBizNo,
+                headerRowIndex: parseResult.headerRowIndex,
+                headerSignature: parseResult.headerSignature,
+                colMap: parseResult.colMap,
+                updatedAt: new Date().toISOString()
+              });
+            }
           }
 
           setLoadedFileName(file.name);
@@ -828,7 +920,7 @@ export const RentAssets: React.FC = () => {
           setStatementRows(parseResult.rows);
           setSelectedReconcileIds(parseResult.rows.map(r => r.id));
 
-          const vendorNotice = parseResult.detectedVendor ? `[${parseResult.detectedVendor}]` : '거래명세서';
+          const vendorNotice = resolved.vendorName ? `[${resolved.vendorName}]` : (parseResult.detectedVendor ? `[${parseResult.detectedVendor}]` : '거래명세서');
           const headerNotice = parseResult.headerRowIndex >= 0 ? ` (헤더 ${parseResult.headerRowIndex + 1}행 인식)` : '';
           showToast(`${vendorNotice} 엑셀 업로드 완료${headerNotice} (${parseResult.totalParsedCount}건, ₩${parseResult.totalParsedAmount.toLocaleString()}원)`);
         }
@@ -1078,11 +1170,21 @@ export const RentAssets: React.FC = () => {
       return;
     }
 
-    const vendorName = selectedVendor || (targetRows[0]?.assetNo ? (rentedAssets.find(a => a.assetNo === targetRows[0].assetNo)?.renter || '기타 임차처') : '기타 임차처');
-    const matchedVendorMaster = vendors.find(v => v.name === vendorName);
+    const findMatchedAssetForRow = (r?: VendorStatementRow) => {
+      if (!r?.assetNo) return undefined;
+      const key = r.assetNo.replace(/[\s\-_]/g, '').toLowerCase();
+      return rentedAssetByCleanNoMap.get(key) || rentedAssets.find(a => a.assetNo === r.assetNo);
+    };
+    const firstMatchedAsset = targetRows.map(findMatchedAssetForRow).find(Boolean);
+    const vendorName = selectedVendor || (firstMatchedAsset ? getAssetRenterName(firstMatchedAsset) : '기타 임차처');
+    const matchedVendorMaster =
+      (firstMatchedAsset?.vendorId ? vendorMap.get(firstMatchedAsset.vendorId) : undefined) ||
+      vendors.find(v => v.name === vendorName || isSameOrSimilarVendorName(v.name, vendorName));
 
     // 계좌번호 자동 세팅
-    const defaultBank = matchedVendorMaster?.bankAccount || '기업은행 258-060890-01-011';
+    const defaultBank = matchedVendorMaster?.bankAccount
+      ? (matchedVendorMaster.bankName ? `${matchedVendorMaster.bankName} ${matchedVendorMaster.bankAccount}` : matchedVendorMaster.bankAccount)
+      : '기업은행 258-060890-01-011';
     setPaymentBankAccount(defaultBank);
 
     // 당월 말일 계산
@@ -1090,7 +1192,8 @@ export const RentAssets: React.FC = () => {
     const lastDay = new Date(parseInt(y, 10), parseInt(m, 10), 0).getDate();
     setPaymentDueDate(`${selectedYm}-${String(lastDay).padStart(2, '0')}`);
 
-    setPaymentMemo(`[임차료 대사 완결] ${selectedYm} ${vendorName} 매입 정산 ${targetRows.length}건 지급 요청`);
+    const displayVendorName = matchedVendorMaster?.name || vendorName;
+    setPaymentMemo(`[임차료 대사 완결] ${selectedYm} ${displayVendorName} 매입 정산 ${targetRows.length}건 지급 요청`);
     setCreatedSettlementId(null);
     setShowPaymentRequestModal(true);
   };
@@ -1101,7 +1204,17 @@ export const RentAssets: React.FC = () => {
     if (targetRows.length === 0) return;
 
     const partialTotalBilled = targetRows.reduce((sum, r) => sum + r.billedAmount, 0);
-    const vendorName = selectedVendor || (targetRows[0]?.assetNo ? (rentedAssets.find(a => a.assetNo === targetRows[0].assetNo)?.renter || '기타 임차처') : '기타 임차처');
+    const findMatchedAssetForRow = (r?: VendorStatementRow) => {
+      if (!r?.assetNo) return undefined;
+      const key = r.assetNo.replace(/[\s\-_]/g, '').toLowerCase();
+      return rentedAssetByCleanNoMap.get(key) || rentedAssets.find(a => a.assetNo === r.assetNo);
+    };
+    const firstMatchedAsset = targetRows.map(findMatchedAssetForRow).find(Boolean);
+    const rawVendorName = selectedVendor || (firstMatchedAsset ? getAssetRenterName(firstMatchedAsset) : '기타 임차처');
+    const matchedVendorMaster =
+      (firstMatchedAsset?.vendorId ? vendorMap.get(firstMatchedAsset.vendorId) : undefined) ||
+      vendors.find(v => v.name === rawVendorName || isSameOrSimilarVendorName(v.name, rawVendorName));
+    const vendorName = matchedVendorMaster?.name || rawVendorName;
     const nowStr = new Date().toISOString();
 
     setIsSettling(true);
@@ -1110,6 +1223,7 @@ export const RentAssets: React.FC = () => {
       const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
         settlementYm: selectedYm,
         settlementType: 'EQUIPMENT_LEASE',
+        vendorId: matchedVendorMaster?.id || firstMatchedAsset?.vendorId,
         vendorName: vendorName,
         totalAmount: partialTotalBilled,
         paidAmount: 0,
@@ -1125,7 +1239,7 @@ export const RentAssets: React.FC = () => {
       // 2. 1:1 매칭 상세 항목 생성
       const effectiveLeaseFileUrl = loadedFileUrl || loadedFileName || undefined;
       targetRows.forEach(row => {
-        const matched = rentedAssets.find(a => a.assetNo === row.assetNo);
+        const matched = findMatchedAssetForRow(row);
         db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
           settlementId: settlement.id,
           sourceType: 'EQUIPMENT_LEASE',
@@ -6045,9 +6159,15 @@ export const RentAssets: React.FC = () => {
       {/* 📄 임차자산 매입거래명세서 보관 및 열람 모달 */}
       {showLeaseStatementModal && (() => {
         const targetYm = selectedYm || new Date().toISOString().slice(0, 7);
-        const matchedVendorObj = vendors.find(v => v.name === selectedVendor);
+        const matchedVendorObj = vendors.find(v => v.name === selectedVendor || isSameOrSimilarVendorName(v.name, selectedVendor));
         const matchedSettlement = (purchaseSettlements || []).find(
-          s => s.settlementType === 'EQUIPMENT_LEASE' && s.settlementYm === targetYm && (!selectedVendor || s.vendorName === selectedVendor || s.vendorId === matchedVendorObj?.id)
+          s =>
+            s.settlementType === 'EQUIPMENT_LEASE' &&
+            s.settlementYm === targetYm &&
+            (!selectedVendor ||
+              s.vendorName === selectedVendor ||
+              isSameOrSimilarVendorName(s.vendorName, selectedVendor) ||
+              (matchedVendorObj?.id && s.vendorId === matchedVendorObj.id))
         );
         const settlementItems = matchedSettlement
           ? (purchaseSettlementItems || []).filter(i => i.settlementId === matchedSettlement.id)
