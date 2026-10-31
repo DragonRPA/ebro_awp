@@ -3604,6 +3604,12 @@ export const TruckDispatch: React.FC = () => {
     setSelectedDelivery(d);
     setIsEditUnlocked(false); // 💡 새로 선택 시 기본 잠금 적용!
     setShowBundleAddPicker(false);
+    setTimeout(() => {
+      const studioEl = document.getElementById('dispatch-assign-studio-section');
+      if (studioEl) {
+        studioEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 80);
 
     let defaultCat: '출고' | '입고' | '반납' | '정비' | '이동' | '교환' | '경유/합짐' =
       (d.bundleGroupId || d.dispatchCategory === '경유/합짐')
@@ -5127,7 +5133,41 @@ export const TruckDispatch: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="truckdispatch" style={{ padding: '0', maxWidth: '1400px', width: '100%', margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden', color: 'var(--text-primary)', position: 'relative' }}>
+    <div data-hs-observe="truckdispatch" style={{
+      padding: '0',
+      width: '100%',
+      height: activeTab === 'RECONCILIATION' ? '100%' : 'auto',
+      minHeight: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+      overflow: activeTab === 'RECONCILIATION' ? 'hidden' : 'visible',
+      color: 'var(--text-primary)',
+      position: 'relative',
+      fontSize: '13px'
+    }}>
+      <style>{`
+        .dispatch-card-grid-6 {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 12px;
+        }
+        @media (max-width: 1550px) {
+          .dispatch-card-grid-6 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 1100px) {
+          .dispatch-card-grid-6 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 680px) {
+          .dispatch-card-grid-6 {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -5238,222 +5278,322 @@ export const TruckDispatch: React.FC = () => {
 
       {/* 탭 1: 배차 관리 */}
       {activeTab === 'DISPATCH' && (
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' }}>
-          {/* 📊 오늘/내일/이번주 상차 배차 통계 바 */}
-          {(() => {
-            return (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
-                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>오늘 상차 예정</span>
-                  <strong style={{ fontSize: '15px', color: deliveryCounts.today > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>{deliveryCounts.today}건</strong>
-                </div>
-                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>내일 상차 예정</span>
-                  <strong style={{ fontSize: '15px', color: deliveryCounts.tomorrow > 0 ? '#0070C0' : 'var(--text-muted)' }}>{deliveryCounts.tomorrow}건</strong>
-                </div>
-                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>배차 대기 (미배정)</span>
-                  <strong style={{ fontSize: '15px', color: deliveryCounts.pending > 0 ? '#d97706' : 'var(--text-muted)' }}>{deliveryCounts.pending}건</strong>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* 4단계 배차 진행 상태 카운트 탭 */}
-          <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
-            {[
-              { key: 'ALL', label: '전체 보기', count: deliveries.length },
-              { key: 'PENDING', label: '배차 전 (대기)', count: deliveryCounts.pending },
-              { key: 'DISPATCHED', label: '🔵 배차 완료 (기사배정)', count: deliveryCounts.dispatched },
-              { key: 'DELIVERED', label: '운송 완료', count: deliveryCounts.delivered },
-              { key: 'CANCELLED', label: '배차 취소', count: deliveryCounts.cancelled },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveDispatchStatusTab(tab.key)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid',
-                  borderColor: activeDispatchStatusTab === tab.key ? 'var(--primary)' : 'var(--border-color)',
-                  backgroundColor: activeDispatchStatusTab === tab.key ? 'rgba(59,130,246,0.1)' : 'var(--bg-card)',
-                  color: activeDispatchStatusTab === tab.key ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontWeight: activeDispatchStatusTab === tab.key ? 700 : 500,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {tab.label}
-                <span style={{
-                  backgroundColor: activeDispatchStatusTab === tab.key ? 'var(--primary)' : 'var(--bg-body)',
-                  color: activeDispatchStatusTab === tab.key ? '#fff' : 'var(--text-muted)',
-                  borderRadius: '12px',
-                  padding: '1px 7px',
-                  fontSize: '11px',
-                  fontWeight: 700
-                }}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* 2열 메인 레이아웃 (좌: 배차 목록 + 📅 기간조회 | 우: 기사 배정 폼) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '16px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            
-            {/* [좌측] 배차 목록 카드 + 📅 요청/운송일 기간 선택 폼 */}
-            <div data-mid="dispatch-dossier-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
-              
-              {/* 📅 배차 요청/운송일 기간 선택 폼 */}
-              <div data-mid="dispatch-date-filter" style={{ marginBottom: '12px', padding: '10px 12px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Calendar size={13} /> 배차 운송일/신청일 기간 조회
-                  </span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {[
-                      { label: '오늘', type: 'TODAY' },
-                      { label: '1주일', type: 'WEEK' },
-                      { label: '1개월', type: 'MONTH' },
-                      { label: '전체', type: 'ALL' }
-                    ].map(b => {
-                      const today = new Date();
-                      const yyyy = today.getFullYear();
-                      const mm = String(today.getMonth() + 1).padStart(2, '0');
-                      const dd = String(today.getDate()).padStart(2, '0');
-                      const todayStr = `${yyyy}-${mm}-${dd}`;
-
-                      const weekEnd = new Date(today);
-                      weekEnd.setDate(today.getDate() + 7);
-                      const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
-
-                      const monthEnd = new Date(today);
-                      monthEnd.setMonth(today.getMonth() + 1);
-                      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
-
-                      const isSelected =
-                        (b.type === 'TODAY' && startDate === todayStr && endDate === todayStr) ||
-                        (b.type === 'WEEK' && startDate === todayStr && endDate === weekEndStr) ||
-                        (b.type === 'MONTH' && startDate === todayStr && endDate === monthEndStr) ||
-                        (b.type === 'ALL' && !startDate && !endDate);
-
-                      return (
-                        <button
-                          key={b.type}
-                          onClick={() => handleSetDateRange(b.type as any)}
-                          style={{
-                            padding: '2px 7px',
-                            borderRadius: '4px',
-                            border: '1px solid',
-                            borderColor: isSelected ? 'var(--primary)' : 'var(--border-color)',
-                            backgroundColor: isSelected ? 'rgba(59,130,246,0.12)' : 'var(--bg-card)',
-                            fontSize: '10.5px',
-                            fontWeight: isSelected ? 800 : 600,
-                            color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          {b.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '5px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      outline: 'none'
-                    }}
-                  />
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>~</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '5px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-card)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                      outline: 'none'
-                    }}
-                  />
-                  {(startDate || endDate) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* 🔍 조회 필터 패널 (장비 할당과 동일한 상하 스택 가로 필터 바, 헌장 3.2/3.4 준수) */}
+          <div style={{
+            padding: '12px 14px',
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            gap: '14px'
+          }}>
+            {/* 1. 진행 상태 구분 */}
+            <div data-mid="dispatch-status-tabs" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                진행 상태
+              </label>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'PENDING', label: '배차대기', count: deliveryCounts.pending },
+                  { key: 'DISPATCHED', label: '배차완료', count: deliveryCounts.dispatched },
+                  { key: 'DELIVERED', label: '운송완료', count: deliveryCounts.delivered },
+                  { key: 'CANCELLED', label: '취소', count: deliveryCounts.cancelled },
+                  { key: 'ALL', label: '전체', count: deliveries.length },
+                ].map(tab => {
+                  const active = activeDispatchStatusTab === tab.key;
+                  return (
                     <button
-                      onClick={() => handleSetDateRange('ALL')}
-                      title="기간 초기화"
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveDispatchStatusTab(tab.key)}
                       style={{
-                        padding: '5px',
+                        height: '32px',
+                        padding: '0 10px',
                         borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-muted)',
+                        border: `1px solid ${active ? 'var(--primary)' : 'var(--border-color)'}`,
+                        backgroundColor: active ? 'var(--primary)' : 'var(--bg-app)',
+                        color: active ? '#ffffff' : 'var(--text-main)',
+                        fontSize: '12px',
+                        fontWeight: 700,
                         cursor: 'pointer',
-                        display: 'flex'
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                       }}
                     >
-                      <RotateCcw size={13} />
+                      <span>{tab.label}</span>
+                      <span style={{
+                        backgroundColor: active ? 'rgba(255,255,255,0.22)' : 'var(--bg-card)',
+                        color: active ? '#ffffff' : 'var(--text-muted)',
+                        borderRadius: '10px',
+                        padding: '0 6px',
+                        fontSize: '11px',
+                        fontWeight: 800
+                      }}>
+                        {tab.count}
+                      </span>
                     </button>
-                  )}
-                </div>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* 검색창 */}
-              <div style={{ marginBottom: '10px', position: 'relative' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            {/* 2. 조회 기간 프리셋 (오늘 / 1주일 / 1개월 / 전체) */}
+            <div data-mid="dispatch-date-filter" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Calendar size={12} /> 조회 기간 (운송일/신청일)
+              </label>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { label: '오늘', type: 'TODAY' },
+                  { label: '1주일', type: 'WEEK' },
+                  { label: '1개월', type: 'MONTH' },
+                  { label: '전체', type: 'ALL' }
+                ].map(b => {
+                  const today = new Date();
+                  const yyyy = today.getFullYear();
+                  const mm = String(today.getMonth() + 1).padStart(2, '0');
+                  const dd = String(today.getDate()).padStart(2, '0');
+                  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+                  const weekEnd = new Date(today);
+                  weekEnd.setDate(today.getDate() + 7);
+                  const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+
+                  const monthEnd = new Date(today);
+                  monthEnd.setMonth(today.getMonth() + 1);
+                  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+
+                  const isSelected =
+                    (b.type === 'TODAY' && startDate === todayStr && endDate === todayStr) ||
+                    (b.type === 'WEEK' && startDate === todayStr && endDate === weekEndStr) ||
+                    (b.type === 'MONTH' && startDate === todayStr && endDate === monthEndStr) ||
+                    (b.type === 'ALL' && !startDate && !endDate);
+
+                  return (
+                    <button
+                      key={b.type}
+                      type="button"
+                      onClick={() => handleSetDateRange(b.type as any)}
+                      style={{
+                        height: '32px',
+                        padding: '0 10px',
+                        borderRadius: '6px',
+                        border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                        backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-app)',
+                        color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? 800 : 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
+                      {b.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. 시작일 ~ 종료일 날짜 지정 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                기간 설정
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    outline: 'none'
+                  }}
+                />
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>~</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 4. 고객사 / 현장 / 계약 / 기사명 검색 필터 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                고객사 / 현장 / 기사명 검색
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', pointerEvents: 'none' }} />
                 <input
                   type="text"
-                  placeholder="고객사 / 현장 / 계약 / 기사명 검색..."
+                  placeholder="고객사, 현장, 계약, 기사명 입력"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '8px 12px 8px 36px',
-                    borderRadius: '8px',
+                    height: '32px',
+                    padding: '0 28px 0 30px',
+                    borderRadius: '6px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-body)',
-                    color: 'var(--text-primary)',
-                    fontSize: '12.5px',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    fontSize: '12px',
+                    fontWeight: 600,
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px'
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
+            </div>
+
+            {/* 5. 필터 초기화 & 조회 건수 배지 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveDispatchStatusTab('PENDING');
+                  handleSetDateRange('ALL');
+                  setSearchQuery('');
+                }}
+                style={{
+                  height: '32px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+              >
+                <RotateCcw size={12} /> 초기화
+              </button>
+              <div style={{
+                height: '32px',
+                padding: '0 12px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--primary-light)',
+                border: '1px solid var(--primary)',
+                color: 'var(--primary)',
+                fontSize: '12px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}>
+                <span>조회 건수</span>
+                <strong>{filteredDeliveries.length}건</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* 📊 현황 요약 바 (장비 할당과 동일한 5열 KPI 요약 바) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>조회 배차 건수</span>
+              <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{filteredDeliveries.length}건</strong>
+            </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>오늘 상차 예정</span>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.today > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>{deliveryCounts.today}건</strong>
+            </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>내일 상차 예정</span>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.tomorrow > 0 ? '#0070C0' : 'var(--text-muted)' }}>{deliveryCounts.tomorrow}건</strong>
+            </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>배차 대기 (미배정)</span>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.pending > 0 ? '#d97706' : 'var(--text-muted)' }}>{deliveryCounts.pending}건</strong>
+            </div>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>배차 완료 (기사배정)</span>
+              <strong style={{ fontSize: '15px', color: deliveryCounts.dispatched > 0 ? 'var(--success)' : 'var(--text-muted)' }}>{deliveryCounts.dispatched}건</strong>
+            </div>
+          </div>
+
+          {/* 1단계: 배차 요청 건 카드 바둑판 뷰 (가로 6개 배치) */}
+          <div data-mid="dispatch-dossier-card" style={{ backgroundColor: 'var(--bg-card)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            {/* 상단 헤더 + 경유/합짐 묶음 다중 선택 컨트롤 바 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                <Truck size={14} color="var(--primary)" />
+                {activeDispatchStatusTab === 'PENDING'
+                  ? '배차 대기 요청 건'
+                  : activeDispatchStatusTab === 'DISPATCHED'
+                    ? '배차 완료 건'
+                    : activeDispatchStatusTab === 'DELIVERED'
+                      ? '운송 완료 건'
+                      : activeDispatchStatusTab === 'CANCELLED'
+                        ? '배차 취소 건'
+                        : '전체 배차 요청 건'} ({filteredDeliveries.length}건)
+              </h3>
 
               {/* 🔗 경유/합짐 묶음 다중 선택 컨트롤 바 */}
               {canSave && (
                 <div style={{
-                  marginBottom: '10px',
-                  padding: '8px 10px',
-                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
                   backgroundColor: selectedBundleCandidateIds.length >= 2 ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.05)',
                   border: selectedBundleCandidateIds.length >= 2 ? '1px solid #4f46e5' : '1px dashed rgba(79,70,229,0.35)',
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
                   gap: '8px',
                   flexWrap: 'wrap'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 800, color: '#4338ca' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', fontWeight: 800, color: '#4338ca', whiteSpace: 'nowrap' }}>
                     <Link2 size={13} />
                     <span>
                       {selectedBundleCandidateIds.length === 0
@@ -5468,12 +5608,12 @@ export const TruckDispatch: React.FC = () => {
                         disabled={selectedBundleCandidateIds.length < 2}
                         onClick={() => handleCreateBundleFromIds(selectedBundleCandidateIds)}
                         style={{
-                          padding: '4px 10px',
-                          borderRadius: '6px',
+                          padding: '3px 9px',
+                          borderRadius: '5px',
                           border: 'none',
                           backgroundColor: selectedBundleCandidateIds.length >= 2 ? '#4f46e5' : '#94a3b8',
                           color: '#ffffff',
-                          fontSize: '11.5px',
+                          fontSize: '11px',
                           fontWeight: 800,
                           cursor: selectedBundleCandidateIds.length >= 2 ? 'pointer' : 'not-allowed',
                           display: 'inline-flex',
@@ -5482,14 +5622,14 @@ export const TruckDispatch: React.FC = () => {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        <Link2 size={12} /> 경유/합짐 묶기 ({selectedBundleCandidateIds.length}건)
+                        <Link2 size={11} /> 경유/합짐 묶기 ({selectedBundleCandidateIds.length}건)
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedBundleCandidateIds([])}
                         style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
+                          padding: '3px 7px',
+                          borderRadius: '5px',
                           border: '1px solid var(--border-color)',
                           backgroundColor: 'var(--bg-card)',
                           color: 'var(--text-secondary)',
@@ -5505,52 +5645,65 @@ export const TruckDispatch: React.FC = () => {
                   )}
                 </div>
               )}
+            </div>
 
-              {/* 배차 목록 렌더링 */}
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
-                {filteredDeliveries.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    조건에 일치하는 배차 요청건이 없습니다.
-                  </div>
-                ) : (
-                  filteredDeliveries.map(d => {
-                    const contract = getContract(d.contractId);
-                    const customer = contract ? getCustomer(contract.customerId) : null;
-                    const isSelected = selectedDelivery?.id === d.id;
-                    const isSameBundleWithSelected = Boolean(selectedDelivery?.bundleGroupId && d.bundleGroupId === selectedDelivery.bundleGroupId);
-                    const isCheckedForBundle = selectedBundleCandidateIds.includes(d.id);
-                    const cargoItems = parseCargoItems(d);
-                    const normStatus = getNormalizedDeliveryStatus(d);
+            {/* 가로 6개 바둑판형 배차 카드 그리드 */}
+            {filteredDeliveries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 10px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
+                조회 조건에 해당하는 배차 요청 건이 없습니다.
+              </div>
+            ) : (
+              <div className="dispatch-card-grid-6">
+                {filteredDeliveries.map(d => {
+                  const contract = getContract(d.contractId);
+                  const customer = contract ? getCustomer(contract.customerId) : null;
+                  const site = contract && contract.siteId ? sites.find(s => s.id === contract.siteId) : null;
+                  const isSelected = selectedDelivery?.id === d.id;
+                  const isSameBundleWithSelected = Boolean(selectedDelivery?.bundleGroupId && d.bundleGroupId === selectedDelivery.bundleGroupId);
+                  const isCheckedForBundle = selectedBundleCandidateIds.includes(d.id);
+                  const cargoItems = parseCargoItems(d);
+                  const normStatus = getNormalizedDeliveryStatus(d);
+                  const customerDisplayName = customer?.name || (d.billableCustomerId ? getCustomer(d.billableCustomerId)?.name : '') || d.destinationAddress || '고객사 미지정';
+                  const siteDisplayName = site?.name || d.destinationAddress || '목적지 미지정';
 
-                    return (
-                      <div 
-                        data-uia={`card-delivery-item-${d.id}`}
-                        key={d.id}
-                        data-mid='delivery-queue-item' onClick={() => handleSelectDelivery(d)}
-                        style={{
-                          padding: '14px',
-                          borderRadius: '10px',
-                          border: isSelected
-                            ? '2px solid var(--primary)'
-                            : isSameBundleWithSelected
-                              ? '2px dashed #4f46e5'
-                              : isCheckedForBundle
-                                ? '2px solid #4f46e5'
-                                : d.bundleGroupId
-                                  ? '1px solid rgba(79,70,229,0.45)'
-                                  : '1px solid var(--border-color)',
-                          backgroundColor: isSelected
-                            ? 'rgba(59,130,246,0.05)'
-                            : isSameBundleWithSelected
-                              ? 'rgba(79,70,229,0.06)'
-                              : 'var(--bg-body)',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? '0 4px 12px rgba(59,130,246,0.12)' : 'none'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  return (
+                    <div
+                      data-uia={`card-delivery-item-${d.id}`}
+                      key={d.id}
+                      data-mid="delivery-queue-item"
+                      onClick={() => handleSelectDelivery(d)}
+                      className="hover-lift"
+                      style={{
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: isSelected
+                          ? '2px solid var(--primary)'
+                          : isSameBundleWithSelected
+                            ? '2px dashed #4f46e5'
+                            : isCheckedForBundle
+                              ? '2px solid #4f46e5'
+                              : d.bundleGroupId
+                                ? '2px solid rgba(79,70,229,0.45)'
+                                : '2px solid var(--border-color)',
+                        backgroundColor: isSelected
+                          ? 'var(--primary-light)'
+                          : isSameBundleWithSelected
+                            ? 'rgba(79,70,229,0.06)'
+                            : 'var(--bg-app)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}
+                    >
+                      <div>
+                        {/* 상단: 체크박스 + 구분 배지 + 진행상태/검수 배지 */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '4px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                             {canSave && (
                               <input
                                 type="checkbox"
@@ -5563,274 +5716,282 @@ export const TruckDispatch: React.FC = () => {
                                   );
                                 }}
                                 title="경유/합짐 묶음 배차 대상 선택"
-                                style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#4f46e5', margin: 0, flexShrink: 0 }}
+                                style={{ width: '13px', height: '13px', cursor: 'pointer', accentColor: '#4f46e5', margin: 0, flexShrink: 0 }}
                               />
                             )}
                             {getDeliveryCategoryBadge(d)}
-                            <span style={{
-                              fontSize: '12px',
-                              fontWeight: 800,
-                              color: 'var(--text-primary)',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {d.requestDate || d.loadingDate}
-                            </span>
                           </div>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {getOutboundInspectionBadge(d.contractId, d)}
                             {getPrintQueueBadge(d)}
                             {getDeliveryStatusBadge(normStatus, d)}
                           </div>
                         </div>
 
-                        <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {customer?.name || (d.billableCustomerId ? getCustomer(d.billableCustomerId)?.name : '') || d.destinationAddress || '고객사 미지정'}
-                          </span>
-                          {customer?.transactionStatus === 'RESTRICT_NEW' && (
-                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
-                              추가계약금지
+                        {/* 고객사명 & 현장명 (장비 할당 카드와 동일한 위계) */}
+                        <div style={{ marginBottom: '6px' }}>
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+                            <span title={customerDisplayName} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {customerDisplayName}
                             </span>
-                          )}
-                          {(customer?.transactionStatus === 'BLOCKED_ALL' || customer?.transactionStatus === 'BLOCKED') && (
-                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
-                              출고차단
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '6px' }}>
+                            {customer?.transactionStatus === 'RESTRICT_NEW' && (
+                              <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
+                                추가계약금지
+                              </span>
+                            )}
+                            {(customer?.transactionStatus === 'BLOCKED_ALL' || customer?.transactionStatus === 'BLOCKED') && (
+                              <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
+                                출고차단
+                              </span>
+                            )}
+                          </div>
                           <div
-                            title={d.destinationAddress || '목적지 미지정'}
+                            title={d.destinationAddress || siteDisplayName}
                             style={{
-                              fontSize: '12.5px',
+                              fontSize: '11px',
                               color: 'var(--text-secondary)',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
+                              fontWeight: 600,
+                              marginTop: '2px',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
-                              wordBreak: 'keep-all',
-                              lineHeight: 1.35,
-                              flex: 1,
-                              minWidth: 0
+                              whiteSpace: 'nowrap'
                             }}
                           >
-                            📍 {d.destinationAddress || '목적지 미지정'}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenDestWeatherForDelivery(d);
-                              }}
-                              style={{
-                                padding: '2px 6px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                borderRadius: '4px',
-                                border: '1px solid rgba(59, 130, 246, 0.4)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                color: 'var(--primary)',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                flexShrink: 0
-                              }}
-                              title="해당 하차지 날씨 및 주간 예보 보기"
-                            >
-                              <Sun size={11} color="#F59E0B" /> 날씨
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const isInbound = d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납';
-                                handleRemoteQueuePrintDispatchRequest(d, isInbound ? 'INBOUND' : 'OUTBOUND');
-                              }}
-                              style={{
-                                padding: '3px 8px',
-                                fontSize: '11px',
-                                fontWeight: 800,
-                                borderRadius: '5px',
-                                border: '1px solid rgba(79, 70, 229, 0.4)',
-                                backgroundColor: 'rgba(79, 70, 229, 0.12)',
-                                color: '#4338ca',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                flexShrink: 0
-                              }}
-                              title={(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서 인쇄 큐 전송' : '출고요청서 인쇄 큐 전송'}
-                            >
-                              <Printer size={11} /> {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서' : '출고요청서'}
-                            </button>
+                            {siteDisplayName}
                           </div>
                         </div>
 
-                        {/* 화물/자산 정보 표시 */}
-                        {(d.type === 'INBOUND' || d.type === 'RETURN' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
-                          const returnAssetsList = getReturnAssets(d);
-                          const specialNoteText = sanitizeDispatcherSpecialNote(d.closingMemo);
-                          const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
-                          const isSubleaseReturn = d.type === 'RETURN' || d.dispatchCategory === '반납';
-                          const cardSubleaseVendorInfo = isSubleaseReturn ? getDeliverySubleaseVendorInfo(d, returnAssetsList) : null;
-                          return (
-                            // 회수/반납 배차: 계약/회수/반납 자산 목록 표시
-                            <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
-                                <span>
-                                  🔄 {isSubleaseReturn ? '반납 임차자산:' : '회수 대상:'}&nbsp;
-                                  {returnAssetsList.length > 0
-                                    ? `${returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')}${isSubleaseReturn && (d.unloadingDate || d.loadingDate) ? ` · 반납일: ${d.unloadingDate || d.loadingDate}` : ''}`
-                                    : isSubleaseReturn
-                                      ? `미결정 (배차 상세에서 임차자산 선택)${specialNoteText ? ` · ${specialNoteText}` : ''}`
-                                      : isManualDispatch
-                                        ? (specialNoteText || '특기사항 없음')
-                                        : (specialNoteText || (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인'))}
-                                </span>
+                        {/* 요구 모델/회수 자산 & 상차/요청일 */}
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          {(d.type === 'INBOUND' || d.type === 'RETURN' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
+                            const returnAssetsList = getReturnAssets(d);
+                            const specialNoteText = sanitizeDispatcherSpecialNote(d.closingMemo);
+                            const isManualDispatch = !d.contractId && returnAssetsList.length === 0;
+                            const isSubleaseReturn = d.type === 'RETURN' || d.dispatchCategory === '반납';
+                            const cardSubleaseVendorInfo = isSubleaseReturn ? getDeliverySubleaseVendorInfo(d, returnAssetsList) : null;
+                            const summaryText = returnAssetsList.length > 0
+                              ? returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
+                              : isSubleaseReturn
+                                ? `미결정${specialNoteText ? ` · ${specialNoteText}` : ''}`
+                                : isManualDispatch
+                                  ? (specialNoteText || '특기사항 없음')
+                                  : (specialNoteText || (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} × ${c.count}대`).join(', ') : '자산 정보 미확인'));
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                  <span style={{ flexShrink: 0 }}>🔄 {isSubleaseReturn ? '반납:' : '회수:'}</span>
+                                  <strong title={summaryText} style={{ color: '#dc2626', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'keep-all' }}>
+                                    {summaryText}
+                                  </strong>
+                                </div>
                                 {returnAssetsList.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
-                                  <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
-                                    🚨 원사협착봉 (탈거금지)
-                                  </span>
+                                  <div>
+                                    <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
+                                      🚨 원사협착봉 (탈거금지)
+                                    </span>
+                                  </div>
+                                )}
+                                {isSubleaseReturn && cardSubleaseVendorInfo && (
+                                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    임차처: {cardSubleaseVendorInfo.name} {cardSubleaseVendorInfo.contactPhone ? `(${cardSubleaseVendorInfo.contactPhone})` : ''}
+                                  </div>
                                 )}
                               </div>
-                              {isSubleaseReturn && cardSubleaseVendorInfo && (
-                                <div style={{ fontSize: '11px', color: 'var(--text-primary)', paddingTop: '3px', borderTop: '1px dashed rgba(239,68,68,0.2)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                  <span><strong>임차처:</strong> {cardSubleaseVendorInfo.name}</span>
-                                  <span><strong>주소:</strong> {cardSubleaseVendorInfo.address || '미등록'}</span>
-                                  <span><strong>담당자:</strong> {cardSubleaseVendorInfo.contactName || '미등록'}</span>
-                                  <span><strong>담당자 연락처:</strong> {cardSubleaseVendorInfo.contactPhone || '미등록'}</span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })() : (
-                          // 출고/이동/정비 배차: 계약 화물 cargoItems 또는 수동 배차 특기사항 표시
-                          <div style={{ padding: '6px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                            📦 화물: {!d.contractId
+                            );
+                          })() : (() => {
+                            const cargoText = !d.contractId
                               ? (sanitizeDispatcherSpecialNote(d.closingMemo) || stripOptionsFromDispatchRawText(d.memo) || '특기사항 없음')
-                              : cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ')}
-                          </div>
-                        )}
+                              : (cargoItems.map(c => `${c.modelName} × ${c.count}대`).join(', ') || '모델 미지정');
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                <span style={{ flexShrink: 0 }}>📦 화물:</span>
+                                <strong title={cargoText} style={{ color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'keep-all' }}>
+                                  {cargoText}
+                                </strong>
+                              </div>
+                            );
+                          })()}
 
-                        {d.driverName && (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
-                            {normStatus === 'DELIVERED' && canSave && (() => {
-                              const readiness = checkDeliveryOutboundReadiness(d);
-                              const hasProcError = readiness.isOutboundLike && !readiness.ready;
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRevertDeliveredToDispatched(d.id);
-                                  }}
-                                  style={{
-                                    padding: '3px 8px',
-                                    fontSize: '11px',
-                                    fontWeight: 800,
-                                    backgroundColor: hasProcError ? '#dc2626' : 'rgba(239,68,68,0.12)',
-                                    color: hasProcError ? '#ffffff' : 'var(--danger)',
-                                    border: hasProcError ? 'none' : '1px solid rgba(239,68,68,0.35)',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                  title={hasProcError ? `절차 오류: ${readiness.reason} — 클릭하여 운송완료 취소(배차완료로 원복)` : '운송완료 취소 (배차완료 상태로 원복)'}
-                                >
-                                  <RotateCcw size={11} />
-                                  {hasProcError ? '🚨 절차오류 · 운송완료 취소' : '운송완료 취소'}
-                                </button>
-                              );
-                            })()}
-                            {normStatus === 'DISPATCHED' && canSave && (() => {
-                              const readiness = checkDeliveryOutboundReadiness(d);
-                              const isBlocked = readiness.isOutboundLike && !readiness.ready;
-                              const isLoaded = Boolean(d.loadingCompletedAt);
-                              return (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                  {isLoaded ? (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRevertLoadingStatus(d.id);
-                                      }}
-                                      style={{
-                                        padding: '3px 7px',
-                                        fontSize: '10.5px',
-                                        fontWeight: 800,
-                                        backgroundColor: 'rgba(217,119,6,0.12)',
-                                        color: '#d97706',
-                                        border: '1px solid rgba(217,119,6,0.35)',
-                                        borderRadius: '5px',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px',
-                                        whiteSpace: 'nowrap'
-                                      }}
-                                      title="상차완료 취소 (배차완료 상태로 원복)"
-                                    >
-                                      <RotateCcw size={10} /> 상차취소
-                                    </button>
-                                  ) : (
-                                    <button data-hs-trigger="Process"
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCompleteLoadingStatus(d.id);
-                                      }}
-                                      style={{
-                                        padding: '3px 8px',
-                                        fontSize: '11px',
-                                        fontWeight: 800,
-                                        backgroundColor: isBlocked ? '#64748b' : '#d97706',
-                                        color: '#fff',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        cursor: isBlocked ? 'not-allowed' : 'pointer',
-                                        opacity: isBlocked ? 0.65 : 1,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                        whiteSpace: 'nowrap'
-                                      }}
-                                      title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : '상차완료 처리 (하차 예정일에 자동 운송완료 및 계약·청구 개시 확정)'}
-                                    >
-                                      <CheckCircle size={11} />
-                                      {isBlocked ? '검수대기 (처리불가)' : '상차완료'}
-                                    </button>
-                                  )}
-                                </div>
-                              );
-                            })()}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                              <Truck size={11} /> 예정일: <strong>{d.loadingDate || d.requestDate || '-'}</strong>
+                            </span>
+                            {d.driverName && (
+                              <span title={`기사: ${d.driverName} (${d.vehicleNo || '차량번호미상'})`} style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {d.driverName}
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
 
-            {/* [우측] 배차 기사 배정 및 상세 폼 */}
-            <div data-mid="dispatch-assign-studio" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', height: '100%', minHeight: 0, overflowY: 'auto' }}>
-              {!selectedDelivery ? (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                  <Truck size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
-                  <p style={{ fontSize: '14px', fontWeight: 600 }}>좌측에서 기사를 배정할 배차건을 선택해 주세요.</p>
-                </div>
-              ) : (
-                <div>
+                      {/* 하단: 날씨 / 요청서 인쇄 / 상차완료·취소 액션 바 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px', paddingTop: '6px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDestWeatherForDelivery(d);
+                            }}
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10.5px',
+                              fontWeight: 700,
+                              borderRadius: '4px',
+                              border: '1px solid rgba(59, 130, 246, 0.4)',
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              color: 'var(--primary)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}
+                            title="해당 하차지 날씨 및 주간 예보 보기"
+                          >
+                            <Sun size={10} color="#F59E0B" /> 날씨
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isInbound = d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납';
+                              handleRemoteQueuePrintDispatchRequest(d, isInbound ? 'INBOUND' : 'OUTBOUND');
+                            }}
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              borderRadius: '4px',
+                              border: '1px solid rgba(79, 70, 229, 0.4)',
+                              backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                              color: '#4338ca',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}
+                            title={(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서 인쇄 큐 전송' : '출고요청서 인쇄 큐 전송'}
+                          >
+                            <Printer size={10} /> {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서' : '출고요청서'}
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {d.driverName && normStatus === 'DELIVERED' && canSave && (() => {
+                            const readiness = checkDeliveryOutboundReadiness(d);
+                            const hasProcError = readiness.isOutboundLike && !readiness.ready;
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRevertDeliveredToDispatched(d.id);
+                                }}
+                                style={{
+                                  padding: '2px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  backgroundColor: hasProcError ? '#dc2626' : 'rgba(239,68,68,0.12)',
+                                  color: hasProcError ? '#ffffff' : 'var(--danger)',
+                                  border: hasProcError ? 'none' : '1px solid rgba(239,68,68,0.35)',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title={hasProcError ? `절차 오류: ${readiness.reason} — 클릭하여 운송완료 취소(배차완료로 원복)` : '운송완료 취소 (배차완료 상태로 원복)'}
+                              >
+                                <RotateCcw size={10} />
+                                {hasProcError ? '절차오류·취소' : '완료취소'}
+                              </button>
+                            );
+                          })()}
+                          {d.driverName && normStatus === 'DISPATCHED' && canSave && (() => {
+                            const readiness = checkDeliveryOutboundReadiness(d);
+                            const isBlocked = readiness.isOutboundLike && !readiness.ready;
+                            const isLoaded = Boolean(d.loadingCompletedAt);
+                            return isLoaded ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRevertLoadingStatus(d.id);
+                                }}
+                                style={{
+                                  padding: '2px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  backgroundColor: 'rgba(217,119,6,0.12)',
+                                  color: '#d97706',
+                                  border: '1px solid rgba(217,119,6,0.35)',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="상차완료 취소 (배차완료 상태로 원복)"
+                              >
+                                <RotateCcw size={10} /> 상차취소
+                              </button>
+                            ) : (
+                              <button
+                                data-hs-trigger="Process"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCompleteLoadingStatus(d.id);
+                                }}
+                                style={{
+                                  padding: '2px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  backgroundColor: isBlocked ? '#64748b' : '#d97706',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                  opacity: isBlocked ? 0.65 : 1,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title={isBlocked ? `선행 절차 미완료 (${readiness.reason})` : '상차완료 처리 (하차 예정일에 자동 운송완료 및 계약·청구 개시 확정)'}
+                              >
+                                <CheckCircle size={10} />
+                                {isBlocked ? '검수대기' : '상차완료'}
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2단계: 선택된 배차 건의 운송 기사 배정 및 상하차 세부 설정 스튜디오 */}
+          <div id="dispatch-assign-studio-section" data-mid="dispatch-assign-studio" style={{
+            display: selectedDelivery ? 'block' : 'none',
+            backgroundColor: 'var(--bg-card)',
+            border: '2px solid var(--primary)',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 4px 16px rgba(59,130,246,0.08)'
+          }}>
+            {!selectedDelivery ? null : (
+              <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                     <div>
                       <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>
@@ -7325,7 +7486,6 @@ export const TruckDispatch: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
           </div>
           {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
           {(() => {
@@ -7347,7 +7507,7 @@ export const TruckDispatch: React.FC = () => {
                 gap: '8px',
                 fontSize: '11.5px',
                 borderRadius: '6px',
-                marginTop: '8px',
+                marginTop: '4px',
                 flexShrink: 0
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -7357,7 +7517,7 @@ export const TruckDispatch: React.FC = () => {
                   <span>|</span>
                   <span>운송 완료: <strong style={{ color: 'var(--success)' }}>총 {deliveredDeliveries}건</strong></span>
                   <span>|</span>
-                  <span>대차 왕복배차: <strong style={{ color: 'var(--primary)' }}>총 {exchangeCount}건</strong></span>
+                  <span>교환 왕복배차: <strong style={{ color: 'var(--primary)' }}>총 {exchangeCount}건</strong></span>
                   <span>|</span>
                   <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {cancelledDeliveries}건</strong></span>
                 </div>
